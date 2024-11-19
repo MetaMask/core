@@ -62,30 +62,22 @@ import {
 } from './services';
 
 // TODO - replace shimmed interface with actual interfaces once merged
-// Waiting on #4698
-type NetworkControllerNetworkAddedEvent = {
-  type: 'NetworkController:networkAdded';
-  payload: [networkConfiguration: NetworkConfiguration];
-};
-type NetworkControllerNetworkUpdatedEvent = {
-  type: 'NetworkController:networkUpdated';
-  payload: [networkConfiguration: NetworkConfiguration];
-};
-type NetworkControllerNetworkRemovedEvent = {
+// Waiting on #4698, #4939
+export type NetworkControllerNetworkRemovedEvent = {
   type: 'NetworkController:networkRemoved';
   payload: [networkConfiguration: NetworkConfiguration];
 };
-type NetworkControllerAddNetworkAction = {
+export type NetworkControllerAddNetworkAction = {
   type: 'NetworkController:addNetwork';
   handler: NetworkController['addNetwork'];
 };
-type NetworkControllerUpdateNetworkAction = {
-  type: 'NetworkController:updateNetwork';
-  handler: NetworkController['updateNetwork'];
-};
-type NetworkControllerRemoveNetworkAction = {
+export type NetworkControllerRemoveNetworkAction = {
   type: 'NetworkController:removeNetwork';
   handler: NetworkController['removeNetwork'];
+};
+export type NetworkControllerDangerouslySetNetworkConfigurationAction = {
+  type: 'NetworkController:dangerouslySetNetworkConfiguration';
+  handler: (networkConfiguration: NetworkConfiguration) => Promise<void>;
 };
 
 // TODO: fix external dependencies
@@ -260,8 +252,8 @@ export type AllowedActions =
   // Network Syncing
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction
-  | NetworkControllerUpdateNetworkAction
-  | NetworkControllerRemoveNetworkAction;
+  | NetworkControllerRemoveNetworkAction
+  | NetworkControllerDangerouslySetNetworkConfigurationAction;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -291,8 +283,6 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRenamedEvent
   // Network Syncing Events
-  | NetworkControllerNetworkAddedEvent
-  | NetworkControllerNetworkUpdatedEvent
   | NetworkControllerNetworkRemovedEvent;
 
 // Messenger
@@ -532,7 +522,7 @@ export default class UserStorageController extends BaseController<
     if (this.#env.isNetworkSyncingEnabled) {
       startNetworkSyncing({
         messenger,
-        getStorageConfig: this.#getStorageOptions,
+        getStorageConfig: () => this.#getStorageOptions(),
       });
     }
   }
@@ -1175,7 +1165,7 @@ export default class UserStorageController extends BaseController<
 
     await performMainNetworkSync({
       messenger: this.messagingSystem,
-      getStorageConfig: this.#getStorageOptions,
+      getStorageConfig: () => this.#getStorageOptions(),
       onNetworkAdded: (cId) =>
         this.#config?.networkSyncing?.onNetworkAdded?.(profileId, cId),
       onNetworkUpdated: (cId) =>

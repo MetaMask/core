@@ -21,7 +21,7 @@ export const deleteNetwork = async (
       v: '1',
       ...network,
       d: true,
-      lastUpdatedAt: network.lastUpdatedAt ?? Date.now(), // Ensures that a deleted entry has a date field
+      lastUpdatedAt: Date.now(), // Ensures that a deleted entry has a date field
     },
     opts,
   );
