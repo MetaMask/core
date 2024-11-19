@@ -168,7 +168,7 @@ export class IncomingTransactionHelper {
 
       const fromBlock = this.#getFromBlock(latestBlockNumber);
       const account = this.#getCurrentAccount();
-      const currentChainId = this.#getChainId();
+      const chainId = this.#getChainId();
 
       let remoteTransactions = [];
 
@@ -176,7 +176,7 @@ export class IncomingTransactionHelper {
         remoteTransactions =
           await this.#remoteTransactionSource.fetchTransactions({
             address: account.address,
-            currentChainId,
+            chainId,
             fromBlock,
             limit: this.#transactionLimit,
           });
@@ -186,6 +186,7 @@ export class IncomingTransactionHelper {
         this.#log('Error while fetching remote transactions', error);
         return;
       }
+
       if (!this.#updateTransactions) {
         const address = account.address.toLowerCase();
         remoteTransactions = remoteTransactions.filter(
@@ -324,18 +325,18 @@ export class IncomingTransactionHelper {
   }
 
   #getBlockNumberKey(additionalKeys: string[]): string {
-    const currentChainId = this.#getChainId();
+    const chainId = this.#getChainId();
     const currentAccount = this.#getCurrentAccount()?.address.toLowerCase();
 
-    return [currentChainId, currentAccount, ...additionalKeys].join('#');
+    return [chainId, currentAccount, ...additionalKeys].join('#');
   }
 
   #canStart(): boolean {
     const isEnabled = this.#isEnabled();
-    const currentChainId = this.#getChainId();
+    const chainId = this.#getChainId();
 
     const isSupportedNetwork =
-      this.#remoteTransactionSource.isSupportedNetwork(currentChainId);
+      this.#remoteTransactionSource.isSupportedNetwork(chainId);
 
     return isEnabled && isSupportedNetwork;
   }

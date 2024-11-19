@@ -862,9 +862,9 @@ export interface RemoteTransactionSourceRequest {
   address: string;
 
   /**
-   * The chainId of the current network.
+   * The ID of the chain to query transactions for.
    */
-  currentChainId: Hex;
+  chainId: Hex;
 
   /**
    * Block number to start fetching transactions from.

@@ -4029,8 +4029,8 @@ describe('TransactionController', () => {
       });
 
       expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
+        { ...TRANSACTION_META_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
       ]);
     });
 
@@ -4045,6 +4045,7 @@ describe('TransactionController', () => {
 
       const updatedTransaction = {
         ...TRANSACTION_META_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         status: 'failed',
       };
 
@@ -4057,7 +4058,7 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toStrictEqual([
         updatedTransaction,
-        TRANSACTION_META_2_MOCK,
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
       ]);
     });
 
@@ -4074,7 +4075,7 @@ describe('TransactionController', () => {
       });
 
       expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_2_MOCK,
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
       ]);
     });
   });

@@ -2853,17 +2853,23 @@ export class TransactionController extends BaseController<
     updated: TransactionMeta[];
   }) {
     this.update((state) => {
-      const { transactions: currentTransactions } = state;
-      const updatedTransactions = [
-        ...added,
-        ...currentTransactions.map((originalTransaction) => {
-          const updatedTransaction = updated.find(
-            ({ hash }) => hash === originalTransaction.hash,
-          );
+      const { transactions } = state;
 
-          return updatedTransaction ?? originalTransaction;
-        }),
-      ];
+      const existingTransactions = transactions.map(
+        (tx) => updated.find(({ hash }) => hash === tx.hash) ?? tx,
+      );
+
+      const updatedTransactions = [...added, ...existingTransactions].map(
+        (tx) => {
+          const { chainId } = tx;
+          const networkClientId = this.#getNetworkClientId({ chainId });
+
+          return {
+            ...tx,
+            networkClientId,
+          };
+        },
+      );
 
       state.transactions = this.trimTransactionsForState(updatedTransactions);
     });
@@ -3362,6 +3368,7 @@ export class TransactionController extends BaseController<
       'transactions',
       this.onIncomingTransactions.bind(this),
     );
+
     incomingTransactionHelper.hub.on(
       'updatedLastFetchedBlockNumbers',
       this.onUpdatedLastFetchedBlockNumbers.bind(this),
