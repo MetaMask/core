@@ -16,8 +16,11 @@ import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
 
-export const INVALID_CONTROLLER_ERROR =
-  'Invalid controller: controller must have a `messagingSystem` or be a class inheriting from `BaseControllerV1`.';
+/**
+ * A universal supertype for modules with a 'string'-type `name` property.
+ * This type is intended to encompass controller and non-controller input that can be passed into the {@link ComposableController} `controllers` constructor option.
+ */
+export type NamedModule = { name: string } & Record<string, unknown>;
 
 /**
  * A universal supertype for the composable controller state object.
@@ -30,7 +33,7 @@ type LegacyComposableControllerStateConstraint = {
   // `any` is used here to disable the generic constraint on the `ControllerState` type argument in the `BaseController` type,
   // enabling composable controller state types with BaseControllerV1 state objects to be.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [name: string]: Record<string, any>;
+  [controllerName: string]: Record<string, any>;
 };
 
 /**
@@ -39,7 +42,7 @@ type LegacyComposableControllerStateConstraint = {
  */
 // TODO: Replace with `{ [name: string]: StateConstraint }` once BaseControllerV2 migrations are completed for all controllers.
 export type ComposableControllerStateConstraint = {
-  [name: string]: LegacyControllerStateConstraint;
+  [controllerName: string]: LegacyControllerStateConstraint;
 };
 
 /**
@@ -125,8 +128,8 @@ export type ComposableControllerMessenger<
 /**
  * Controller that composes multiple child controllers and maintains up-to-date composed state.
  *
- * @template ComposableControllerState - A type object containing the names and state types of the child controllers.
- * @template ChildControllers - A union type of the child controllers being used to instantiate the {@link ComposableController}.
+ * @template ComposableControllerState - A type object containing the names and state types of the child controllers. Any non-controllers with empty state should be omitted from this type argument.
+ * @template ChildControllers - A union type of the child controllers being used to instantiate the {@link ComposableController}. Any non-controllers with empty state should be excluded from this type argument.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
@@ -140,7 +143,7 @@ export class ComposableController<
    * Creates a ComposableController instance.
    *
    * @param options - Initial options used to configure this controller
-   * @param options.controllers - List of child controller instances to compose.
+   * @param options.controllers - List of child controller instances to compose. Any non-controllers that are included here will be excluded from the composed state object.
    * @param options.messenger - A restricted controller messenger.
    */
 
@@ -148,7 +151,7 @@ export class ComposableController<
     controllers,
     messenger,
   }: {
-    controllers: ChildControllers[];
+    controllers: (ChildControllers | NamedModule)[];
     messenger: ComposableControllerMessenger<ComposableControllerState>;
   }) {
     if (messenger === undefined) {
@@ -158,18 +161,27 @@ export class ComposableController<
     super({
       name: controllerName,
       metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
-        (metadata, controller) => ({
-          ...metadata,
-          [controller.name]: isBaseController(controller)
-            ? controller.metadata
-            : { persist: true, anonymous: true },
-        }),
+        (metadata, controller) =>
+          Object.assign(
+            metadata,
+            // Overriding for better readability
+            // eslint-disable-next-line no-nested-ternary
+            isBaseController(controller)
+              ? { [controller.name]: controller.metadata }
+              : isBaseControllerV1(controller)
+              ? { [controller.name]: { persist: true, anonymous: true } }
+              : {},
+          ),
         {} as never,
       ),
       state: controllers.reduce<ComposableControllerState>(
-        (state, controller) => {
-          return { ...state, [controller.name]: controller.state };
-        },
+        (state, controller) =>
+          Object.assign(
+            state,
+            isBaseController(controller) || isBaseControllerV1(controller)
+              ? { [controller.name]: controller.state }
+              : {},
+          ),
         {} as never,
       ),
       messenger,
@@ -185,17 +197,13 @@ export class ComposableController<
    *
    * @param controller - Controller instance to update
    */
-  #updateChildController(controller: ControllerInstance): void {
-    const { name } = controller;
+  #updateChildController(controller: ChildControllers | NamedModule): void {
     if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
-      // False negative. `name` is a string type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
+      return;
     }
+    const { name } = controller;
     try {
       this.messagingSystem.subscribe(
-        // False negative. `name` is a string type.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `${name}:stateChange`,
         (childState: LegacyControllerStateConstraint) => {
           this.update((state) => {
@@ -203,13 +211,11 @@ export class ComposableController<
           });
         },
       );
-    } catch (error: unknown) {
-      // False negative. `name` is a string type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      console.error(`${name} - ${String(error)}`);
-    }
+      // Invalid/non-existent event names from V1 controllers and non-controllers are expected, and should be handled without blocking ComposableController instantiation in downstream clients.
+      // eslint-disable-next-line no-empty
+    } catch (error: unknown) {}
     if (isBaseControllerV1(controller)) {
-      controller.subscribe((childState: StateConstraintV1) => {
+      controller.subscribe((childState) => {
         this.update((state) => {
           Object.assign(state, { [name]: childState });
         });

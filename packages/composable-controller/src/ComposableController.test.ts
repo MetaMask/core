@@ -15,10 +15,7 @@ import type {
   ChildControllerStateChangeEvents,
   ComposableControllerEvents,
 } from './ComposableController';
-import {
-  ComposableController,
-  INVALID_CONTROLLER_ERROR,
-} from './ComposableController';
+import { ComposableController } from './ComposableController';
 
 // Mock BaseController classes
 
@@ -531,7 +528,7 @@ describe('ComposableController', () => {
       ).toThrow('Messaging system is required');
     });
 
-    it('should throw if composing a controller that does not extend from BaseController', () => {
+    it('should not throw if composing a controller that does not extend from BaseController', () => {
       type ComposableControllerState = {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -564,7 +561,7 @@ describe('ComposableController', () => {
             controllers: [notController, fooController],
             messenger: composableControllerMessenger,
           }),
-      ).toThrow(INVALID_CONTROLLER_ERROR);
+      ).not.toThrow();
     });
   });
 });
