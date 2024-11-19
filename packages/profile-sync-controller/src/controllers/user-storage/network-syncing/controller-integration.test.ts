@@ -187,7 +187,11 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
       localNetworksToRemove: [],
     });
 
-    await performMainNetworkSync({ messenger, getStorageConfig });
+    await performMainNetworkSync({
+      messenger,
+      getStorageConfig,
+    });
+
     expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
     expect(
@@ -206,9 +210,16 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
       localNetworksToRemove: [],
     });
 
-    await performMainNetworkSync({ messenger, getStorageConfig });
+    const mockAddCallback = jest.fn();
+    await performMainNetworkSync({
+      messenger,
+      getStorageConfig,
+      onNetworkAdded: mockAddCallback,
+    });
+
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).toHaveBeenCalled();
+    expect(mockAddCallback).toHaveBeenCalledTimes(1);
     expect(
       mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
     ).not.toHaveBeenCalled();
@@ -225,12 +236,19 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
       localNetworksToRemove: [],
     });
 
-    await performMainNetworkSync({ messenger, getStorageConfig });
+    const mockUpdateCallback = jest.fn();
+    await performMainNetworkSync({
+      messenger,
+      getStorageConfig,
+      onNetworkUpdated: mockUpdateCallback,
+    });
+
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
     expect(
       mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
     ).toHaveBeenCalled();
+    expect(mockUpdateCallback).toHaveBeenCalledTimes(1);
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -244,13 +262,19 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
       localNetworksToRemove: [createMockNetworkConfiguration()],
     });
 
-    await performMainNetworkSync({ messenger, getStorageConfig });
+    const mockRemoveCallback = jest.fn();
+    await performMainNetworkSync({
+      messenger,
+      getStorageConfig,
+      onNetworkRemoved: mockRemoveCallback,
+    });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
     expect(
       mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
     ).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).toHaveBeenCalled();
+    expect(mockRemoveCallback).toHaveBeenCalledTimes(1);
   });
 
   it('should handle multiple networks to update', async () => {
