@@ -20,7 +20,7 @@ export const controllerName = 'ComposableController';
  * A universal supertype for modules with a 'string'-type `name` property.
  * This type is intended to encompass controller and non-controller input that can be passed into the {@link ComposableController} `controllers` constructor option.
  */
-export type NamedModule = { name: string } & Record<string, unknown>;
+export type NamedModule = { name: string };
 
 /**
  * A universal supertype for the composable controller state object.
@@ -129,11 +129,11 @@ export type ComposableControllerMessenger<
  * Controller that composes multiple child controllers and maintains up-to-date composed state.
  *
  * @template ComposableControllerState - A type object containing the names and state types of the child controllers. Any non-controllers with empty state should be omitted from this type argument.
- * @template ChildControllers - A union type of the child controllers being used to instantiate the {@link ComposableController}. Any non-controllers with empty state should be excluded from this type argument.
+ * @template ChildControllers - A union type of the child controllers being used to instantiate the {@link ComposableController}. Non-controllers that are passed into the `controllers` constructor option at runtime should be included in this type argument.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
-  ChildControllers extends ControllerInstance,
+  ChildControllers extends NamedModule,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
@@ -143,7 +143,7 @@ export class ComposableController<
    * Creates a ComposableController instance.
    *
    * @param options - Initial options used to configure this controller
-   * @param options.controllers - List of child controller instances to compose. Any non-controllers that are included here will be excluded from the composed state object.
+   * @param options.controllers - List of child controller instances to compose. Any non-controllers that are included here will be excluded from the composed state object and from `stateChange` event subscription.
    * @param options.messenger - A restricted controller messenger.
    */
 
@@ -151,7 +151,7 @@ export class ComposableController<
     controllers,
     messenger,
   }: {
-    controllers: (ChildControllers | NamedModule)[];
+    controllers: ChildControllers[];
     messenger: ComposableControllerMessenger<ComposableControllerState>;
   }) {
     if (messenger === undefined) {
@@ -197,7 +197,7 @@ export class ComposableController<
    *
    * @param controller - Controller instance to update
    */
-  #updateChildController(controller: ChildControllers | NamedModule): void {
+  #updateChildController(controller: ChildControllers): void {
     if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
       return;
     }
