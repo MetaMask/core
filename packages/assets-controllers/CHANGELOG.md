@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: fix add tokens and take chainId from networkID if provided ([#4940](https://github.com/MetaMask/core/pull/4940))
-- fix token detection fallback ([#4928](https://github.com/MetaMask/core/pull/4928))
-
 ## [44.0.0]
 
 ### Changed
