@@ -136,7 +136,7 @@ export type StateMetadataConstraint = Record<
 >;
 
 /**
- * The widest subtype of all controller instances that inherit from `BaseController` (formerly `BaseControllerV2`).
+ * The narrowest supertype of all controller instances that inherit from `BaseController` (formerly `BaseControllerV2`).
  * Any `BaseController` subclass instance can be assigned to this type.
  */
 export type BaseControllerInstance = Omit<
@@ -153,7 +153,7 @@ export type BaseControllerInstance = Omit<
 };
 
 /**
- * A widest subtype of all controller instances that inherit from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
+ * A narrowest supertype of all controller instances that inherit from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
  * Any `BaseController` or `BaseControllerV1` subclass instance can be assigned to this type.
  */
 // TODO: Remove once BaseControllerV2 migrations are completed for all controllers.
