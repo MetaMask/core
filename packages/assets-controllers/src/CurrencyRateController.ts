@@ -128,23 +128,45 @@ export class CurrencyRateController extends StaticIntervalPollingController<
   }
 
   /**
+   * Executes a function `callback` within a mutex lock to ensure that only one instance of `callback` runs at a time across all invocations of `#withLock`.
+   * This method is useful for synchronizing access to a resource or section of code that should not be executed concurrently.
+   *
+   * @template R - The return type of the function `callback`.
+   * @param callback - A callback to execute once the lock is acquired. This callback can be synchronous or asynchronous.
+   * @returns A promise that resolves to the result of the function `callback`. The promise is fulfilled once `callback` has completed execution.
+   * @example
+   * async function criticalLogic() {
+   *   // Critical logic code goes here.
+   * }
+   *
+   * // Execute criticalLogic within a lock.
+   * const result = await this.#withLock(criticalLogic);
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  private async withLock<ReturnType>(callback: () => ReturnType) {
+    const releaseLock = await this.mutex.acquire();
+    try {
+      return callback();
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
    * Sets a currency to track.
    *
    * @param currentCurrency - ISO 4217 currency code.
    */
   async setCurrentCurrency(currentCurrency: string) {
-    const releaseLock = await this.mutex.acquire();
     const nativeCurrencies = Object.keys(this.state.currencyRates);
-    try {
+    await this.withLock(async () => {
       this.update(() => {
         return {
           ...defaultState,
           currentCurrency,
         };
       });
-    } finally {
-      releaseLock();
-    }
+    });
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     nativeCurrencies.forEach(this.updateExchangeRate.bind(this));
@@ -156,72 +178,91 @@ export class CurrencyRateController extends StaticIntervalPollingController<
    * @param nativeCurrency - The ticker symbol for the chain.
    */
   async updateExchangeRate(nativeCurrency: string): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
-    const { currentCurrency, currencyRates } = this.state;
+    await this.withLock(async () => {
+      const { currentCurrency } = this.state;
 
-    let conversionDate: number | null = null;
-    let conversionRate: number | null = null;
-    let usdConversionRate: number | null = null;
+      if (!this.shouldFetchExchangeRate(currentCurrency, nativeCurrency)) {
+        return;
+      }
 
-    // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
-    const nativeCurrencyForExchangeRate = Object.values(
-      TESTNET_TICKER_SYMBOLS,
-    ).includes(nativeCurrency)
+      const nativeCurrencyForExchangeRate =
+        this.getNativeCurrencyForExchangeRate(nativeCurrency);
+
+      try {
+        const { conversionRate, usdConversionRate } =
+          await this.fetchExchangeRates(
+            currentCurrency,
+            nativeCurrencyForExchangeRate,
+          );
+
+        this.updateCurrencyRates(
+          nativeCurrency,
+          conversionRate,
+          usdConversionRate,
+        );
+      } catch (error) {
+        if (!this.isMarketDoesNotExistError(error)) {
+          throw error;
+        }
+      }
+    });
+  }
+
+  private shouldFetchExchangeRate(
+    currentCurrency: string,
+    nativeCurrency: string,
+  ): boolean {
+    return currentCurrency !== '' && nativeCurrency !== '';
+  }
+
+  private getNativeCurrencyForExchangeRate(nativeCurrency: string): string {
+    return Object.values(TESTNET_TICKER_SYMBOLS).includes(nativeCurrency)
       ? FALL_BACK_VS_CURRENCY // ETH
       : nativeCurrency;
+  }
 
-    let shouldUpdateState = true;
-    try {
-      if (
-        currentCurrency &&
-        nativeCurrency &&
-        // if either currency is an empty string we can skip the comparison
-        // because it will result in an error from the api and ultimately
-        // a null conversionRate either way.
-        currentCurrency !== '' &&
-        nativeCurrency !== ''
-      ) {
-        const fetchExchangeRateResponse = await this.fetchExchangeRate(
-          currentCurrency,
-          nativeCurrencyForExchangeRate,
-          this.includeUsdRate,
-        );
-        conversionRate = fetchExchangeRateResponse.conversionRate;
-        usdConversionRate = fetchExchangeRateResponse.usdConversionRate;
-        conversionDate = Date.now() / 1000;
-      }
-    } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          error.message.includes('market does not exist for this coin pair')
-        )
-      ) {
-        // Don't update state on transient / unexpected errors
-        shouldUpdateState = false;
-        throw error;
-      }
-    } finally {
-      try {
-        if (shouldUpdateState) {
-          this.update(() => {
-            return {
-              currencyRates: {
-                ...currencyRates,
-                [nativeCurrency]: {
-                  conversionDate,
-                  conversionRate,
-                  usdConversionRate,
-                },
-              },
-              currentCurrency,
-            };
-          });
-        }
-      } finally {
-        releaseLock();
-      }
-    }
+  private async fetchExchangeRates(
+    currentCurrency: string,
+    nativeCurrency: string,
+  ) {
+    const fetchExchangeRateResponse = await this.fetchExchangeRate(
+      currentCurrency,
+      nativeCurrency,
+      this.includeUsdRate,
+    );
+
+    return {
+      conversionRate: fetchExchangeRateResponse.conversionRate,
+      usdConversionRate: fetchExchangeRateResponse.usdConversionRate,
+    };
+  }
+
+  private updateCurrencyRates(
+    nativeCurrency: string,
+    conversionRate: number | null,
+    usdConversionRate: number | null,
+  ): void {
+    const conversionDate = Date.now() / 1000;
+    const { currencyRates } = this.state;
+
+    this.update(() => ({
+      currencyRates: {
+        ...currencyRates,
+        [nativeCurrency]: {
+          conversionDate,
+          conversionRate,
+          usdConversionRate,
+        },
+      },
+      currentCurrency: this.state.currentCurrency,
+    }));
+  }
+
+  private isMarketDoesNotExistError(error: unknown): boolean {
+    return (
+      error instanceof Error &&
+      error.message.includes('market does not exist for this coin pair')
+    );
   }
 
   /**
