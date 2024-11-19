@@ -1354,6 +1354,8 @@ export class NetworkController extends BaseController<
   async setProviderType(type: InfuraNetworkType) {
     if ((type as unknown) === NetworkType.rpc) {
       throw new Error(
+        // This ESLint rule mistakenly produces an error.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
       );
     }
