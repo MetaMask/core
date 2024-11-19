@@ -21,10 +21,13 @@ import {
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
 } from './__fixtures__/mockStorage';
+import { waitFor } from './__fixtures__/test-utils';
 import * as AccountsUserStorageModule from './accounts/user-storage';
+import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
+  UserStorageBaseOptions,
 } from './services';
 import UserStorageController from './UserStorageController';
 
@@ -43,6 +46,29 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
     });
 
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
+  });
+
+  it('should call startNetworkSyncing', async () => {
+    const mockStartNetworkSyncing = jest.spyOn(
+      NetworkSyncIntegrationModule,
+      'startNetworkSyncing',
+    );
+    let storageConfig: UserStorageBaseOptions | null = null;
+    mockStartNetworkSyncing.mockImplementation(({ getStorageConfig }) => {
+      // eslint-disable-next-line no-void
+      void getStorageConfig().then((s) => (storageConfig = s));
+    });
+
+    const { messengerMocks } = arrangeMocks();
+    new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      env: {
+        isNetworkSyncingEnabled: true,
+      },
+    });
+
+    await waitFor(() => expect(storageConfig).toBeDefined());
   });
 });
 
@@ -1913,6 +1939,85 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
         MOCK_INTERNAL_ACCOUNTS.ONE[0],
       );
     });
+  });
+});
+
+describe('user-storage/user-storage-controller - syncNetworks() tests', () => {
+  const arrangeMocks = () => {
+    const messengerMocks = mockUserStorageMessenger();
+    const mockPerformMainNetworkSync = jest.spyOn(
+      NetworkSyncIntegrationModule,
+      'performMainNetworkSync',
+    );
+    return {
+      messenger: messengerMocks.messenger,
+      mockPerformMainNetworkSync,
+      mockGetSessionProfile: messengerMocks.mockAuthGetSessionProfile,
+    };
+  };
+
+  const nonImportantControllerProps = () => ({
+    getMetaMetricsState: () => true,
+  });
+
+  it('should not be invoked if the feature is not enabled', async () => {
+    const { messenger, mockGetSessionProfile, mockPerformMainNetworkSync } =
+      arrangeMocks();
+    const controller = new UserStorageController({
+      ...nonImportantControllerProps(),
+      messenger,
+      env: {
+        isNetworkSyncingEnabled: false,
+      },
+    });
+
+    await controller.syncNetworks();
+
+    expect(mockGetSessionProfile).not.toHaveBeenCalled();
+    expect(mockPerformMainNetworkSync).not.toHaveBeenCalled();
+  });
+
+  // NOTE the actual testing of the implementation is done in `controller-integration.ts` file.
+  // See relevant unit tests to see how this feature works and is tested
+  it('should invoke syncing if feature is enabled', async () => {
+    const { messenger, mockGetSessionProfile, mockPerformMainNetworkSync } =
+      arrangeMocks();
+    const controller = new UserStorageController({
+      ...nonImportantControllerProps(),
+      messenger,
+      env: {
+        isNetworkSyncingEnabled: true,
+      },
+      config: {
+        networkSyncing: {
+          onNetworkAdded: jest.fn(),
+          onNetworkRemoved: jest.fn(),
+          onNetworkUpdated: jest.fn(),
+        },
+      },
+    });
+
+    // For test-coverage, we will simulate calling the analytic callback events
+    // This has been correctly tested in `controller-integration.test.ts`
+    mockPerformMainNetworkSync.mockImplementation(
+      async ({
+        onNetworkAdded,
+        onNetworkRemoved,
+        onNetworkUpdated,
+        getStorageConfig,
+      }) => {
+        const config = await getStorageConfig();
+        expect(config).toBeDefined();
+        onNetworkAdded?.('0x1');
+        onNetworkRemoved?.('0x1');
+        onNetworkUpdated?.('0x1');
+      },
+    );
+
+    await controller.syncNetworks();
+
+    expect(mockGetSessionProfile).toHaveBeenCalled();
+    expect(mockPerformMainNetworkSync).toHaveBeenCalled();
   });
 });
 
