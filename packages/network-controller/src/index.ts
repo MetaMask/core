@@ -26,6 +26,7 @@ export type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerSetProviderTypeAction,
   NetworkControllerSetActiveNetworkAction,
+  NetworkControllerDangerouslySetNetworkConfigurationAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerActions,
   NetworkControllerMessenger,
