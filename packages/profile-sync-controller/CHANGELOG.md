@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: account sync infinite account creation bug ([#4933](https://github.com/MetaMask/core/pull/4933))
+- feat: add batch delete endpoint support for UserStorageController & profile sync SDK ([#4938](https://github.com/MetaMask/core/pull/4938))
+- feat(NOTIFY-1146): use better type system for user storage ([#4907](https://github.com/MetaMask/core/pull/4907))
+
 ## [1.0.0]
 
 ### Changed
