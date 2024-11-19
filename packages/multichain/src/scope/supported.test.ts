@@ -106,6 +106,16 @@ describe('Scope Support', () => {
         false,
       );
     });
+
+    it('returns false for the ethereum namespace when the reference is malformed', () => {
+      const isChainIdSupportedMock = jest.fn().mockReturnValue(true);
+      expect(isSupportedScopeString('eip155:01', isChainIdSupportedMock)).toBe(
+        false,
+      );
+      expect(isSupportedScopeString('eip155:1e1', isChainIdSupportedMock)).toBe(
+        false,
+      );
+    });
   });
 
   describe('isSupportedAccount', () => {
