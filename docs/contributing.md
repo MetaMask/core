@@ -1,15 +1,40 @@
-# Contributing to the monorepo
+# Contributor Guide
 
-## Getting started
+## Table of contents
 
-- Install the current LTS version of [Node.js](https://nodejs.org)
-  - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm install` will install the latest version and running `nvm use` will automatically choose the right node version for you.
-- Install [Yarn](https://yarnpkg.com) via [Corepack](https://github.com/nodejs/corepack?tab=readme-ov-file#how-to-install)
-  - If you have Yarn installed globally via Homebrew or NPM, you'll need to uninstall it before enabling it via Corepack.
-- Run `yarn install` to install dependencies and run any required post-install scripts.
-- Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) to your local development environment which will ensure that all files pass linting before you push a branch.
+- [Setting up your development environment](#setting-up-your-development-environment)
+- [Understanding codeowners](#understanding-codeowners)
+- [Writing and running tests](#writing-and-running-tests)
+- [Linting](#linting)
+- [Building](#building)
+- [Creating pull requests](#creating-pull-requests)
+- [Testing changes to packages in another project](#testing-changes-to-packages-in-another-project)
+- [Releasing changes](#releasing-changes)
+- [Performing operations across the monorepo](#performing-operations-across-the-monorepo)
+- [Adding new packages to the monorepo](#adding-new-packages-to-the-monorepo)
 
-## Testing
+## Setting up your development environment
+
+1. Install the current LTS version of [Node](https://nodejs.org).
+   - If you are using [NVM](https://github.com/creationix/nvm#installation) (recommended), running `nvm install` will install the latest version, and running `nvm use` will automatically choose the right Node version for you.
+2. Run `corepack enable` to install [Yarn](https://yarnpkg.com) via [Corepack](https://github.com/nodejs/corepack?tab=readme-ov-file#how-to-install).
+   - If you have Yarn installed globally via Homebrew or NPM, you'll need to uninstall it before running this command.
+3. Run `yarn install` to install dependencies and run any required post-install scripts.
+4. Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) to your local development environment which will ensure that all files pass linting before you push a branch.
+
+## Understanding codeowners
+
+Although maintenance of this repository is superintended by the Wallet Framework team, the responsibility of maintenance is expected to be shared among multiple teams at MetaMask. In fact, some teams have codeownership over specific packages. The exact allocation is governed by the [`CODEOWNERS`](../.github/CODEOWNERS) file.
+
+**If your team is listed as a codeowner for a package, you may change, approve pull requests, and create releases without consulting the Wallet Framework team.** Alternatively, if you feel that your team should be granted codeownership over a specific package, you can submit a pull request to change `CODEOWNERS`.
+
+## Writing and running tests
+
+[Jest](https://jestjs.io/) is used to ensure that code is working as expected. Ideally, all packages should have 100% test coverage.
+
+Please follow the [MetaMask unit testing guidelines](https://github.com/MetaMask/contributor-docs/blob/main/docs/testing/unit-testing.md) when writing tests.
+
+If you need to customize the behavior of Jest for a package, see `jest.config.js` within that package.
 
 - Run `yarn workspace <workspaceName> run test` to run all tests for a package.
 - Run `yarn workspace <workspaceName> run jest --no-coverage <file>` to run a test file within the context of a package.
@@ -21,21 +46,21 @@
 
 ## Linting
 
-Run `yarn lint` to lint all files and show possible violations.
+[ESLint](https://eslint.org/docs/v8.x/) v8 (via [MetaMask's shared ESLint configurations](https://github.com/MetaMask/eslint-config)) is used to check for code quality issues, and [Prettier](https://prettier.io/docs/en/) is used to format files.
 
-Run `yarn lint:fix` to fix any automatically fixable violations.
+If you need to customize the behavior of ESLint, see `.eslintrc.js` in the root.
 
-## Performing operations across the monorepo
+- Run `yarn lint` to lint all files and show possible violations across the monorepo.
+- Run `yarn lint:fix` to fix any automatically fixable violations.
 
-This repository relies on Yarn's [workspaces feature](https://yarnpkg.com/features/workspaces) to provide a way to work with packages individually and collectively. Refer to the documentation for the following Yarn commands for usage instructions:
+## Building
 
-- [`yarn workspace`](https://yarnpkg.com/cli/workspace)
-- [`yarn workspaces foreach`](https://yarnpkg.com/cli/workspaces/foreach)
+[`ts-bridge`](https://github.com/ts-bridge/ts-bridge) is used to publish packages in both CommonJS- and ESM-compatible formats.
 
-> **Note**
->
-> - `workspaceName` in the Yarn documentation is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
-> - `commandName` in the Yarn documentation is any sub-command that the `yarn` executable would usually take. Pay special attention to the difference between `run` vs `exec`. If you want to run a package script, you would use `run`, e.g., `yarn workspace @metamask/address-book-controller run changelog:validate`; but if you want to run _any_ shell command, you'd use `exec`, e.g. `yarn workspace @metamask/address-book-controller exec cat package.json | jq '.version'`.
+Built files show up in the `dist/` directory in each package. These are the files which will ultimately be published to NPM.
+
+- Run `yarn build` to build all packages in the monorepo.
+- Run `yarn workspace <workspaceName> run build` to build a single package.
 
 ## Creating pull requests
 
@@ -148,8 +173,89 @@ To use a preview build for a package within a project, you need to override the 
 
 4. Run `yarn install`.
 
-## Adding new packages
+## Releasing changes
 
+Have changes that you need to release? There are a few things to understand:
+
+- The responsibility of maintenance is not the only thing shared among multiple teams at MetaMask; releases are as well. That means **if you work on a team that has codeownership over a package, you are free to create a new release without needing the Wallet Framework team to do so.**
+- Unlike clients, releases are not issued on a schedule; **anyone may create a release at any time**. Because of this, you may wish to review the Pull Requests tab on GitHub and ensure that no one else has a release candidate already in progress. If not, then you are free to start the process.
+- The release process is a work in progress. Further improvements to simplify the process are planned, but in the meantime, if you encounter any issues, please reach out to the Wallet Framework team.
+
+Now for the process itself:
+
+1. **Start by creating the release branch.**
+
+   On the `main` branch, run `yarn create-release-branch`. This command creates a branch named `release/<new release version>` which will represent the new release.
+
+2. **Specify packages to release along with their versions.**
+
+   Unless you've made a lot of breaking changes, you probably don't want to publish a new version of every single package in this repo. Fortunately, you can choose a subset of packages to include in the next release. You do this by modifying a YAML file called a "release spec", which the tool has generated and opened it in your editor. Follow the instructions at the top of the file for more information.
+
+   In addition to selecting a list of packages, you'll also want to tell the tool which new versions they ought to receive. Since you'll want to follow SemVer, how you bump a package depends on the nature of the changes. You can understand these changes better by opening the changelog for each package in your editor.
+
+   Once you save and close the release spec, the tool will proceed.
+
+3. **Include more packages as necessary.**
+
+   Some packages in the monorepo have dependencies on other packages elsewhere in the monorepo. To ensure that clients are able to upgrade without receiving compile time or runtime errors, you may need to include some of these dependencies in your release. If the tool thinks that there are some packages you've left out, it will pause and let you know what they are.
+
+   To address the errors, you'll need to copy the path to the YAML file, reopen it in your editor, and include the packages it mentions. You also have the option to skip any packages you think aren't an issue, but make sure you've checked. (If you have any questions about this step, let the Wallet Framework team know.)
+
+   Once you've made the requisite changes to the YAML file, save it and re-run `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
+
+4. **Review and update changelogs for relevant packages.**
+
+   Once the tool proceeds without issue, you will be on the new release branch. In addition, each package you intend to release has been updated in two ways:
+
+   - The version in `package.json` has been bumped.
+   - A new section has been added at the top of `CHANGELOG` for the new version.
+
+   At this point, you need to review the changelog entries and ensure that they are helpful for consumers:
+
+   - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines. Ensure that no changes are listed under "Uncategorized".
+   - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+   - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
+   - Consolidate related changes into single entries where appropriate.
+
+   Make sure to run `yarn changelog:validate` once you're done to ensure all changelogs are correctly formatted.
+
+5. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
+
+   Release PRs can be approved by codeowners of affected packages, so as long as the above guidelines have been followed, there is no need to reach out to the Wallet Framework team for approval.
+
+6. **Incorporate new changes made to `main` into changelogs.**
+
+   If at any point you see the "Update branch" button on your release PR, stop and look over the most recent commits made to `main`. If there are new changes to package you are trying to release, make sure that the changes are reflected in the changelog for that package.
+
+7. **"Squash & Merge" the release and wait for approval.**
+
+   You're almost there!
+
+   Merging triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub. Before packages are published to NPM, this action will automatically notify the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team in Slack to review and approve the release.
+
+8. **Verify that the new versions have been published.**
+
+   Once the `npm-publishers` team has approved the release, you can click on the link in the Slack message to monitor the remainder of the process.
+
+   Once the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
+
+   You're done!
+
+## Performing operations across the monorepo
+
+This repository relies on Yarn's [workspaces feature](https://yarnpkg.com/features/workspaces) to provide a way to work with packages individually and collectively. Refer to the documentation for the following Yarn commands for usage instructions:
+
+- [`yarn workspace`](https://yarnpkg.com/cli/workspace)
+- [`yarn workspaces foreach`](https://yarnpkg.com/cli/workspaces/foreach)
+
+> **Note**
+>
+> - `workspaceName` in the Yarn documentation is the `name` field within a package's `package.json`, e.g., `@metamask/address-book-controller`, not the directory where it is located, e.g., `packages/address-book-controller`.
+> - `commandName` in the Yarn documentation is any sub-command that the `yarn` executable would usually take. Pay special attention to the difference between `run` vs `exec`. If you want to run a package script, you would use `run`, e.g., `yarn workspace @metamask/address-book-controller run changelog:validate`; but if you want to run _any_ shell command, you'd use `exec`, e.g. `yarn workspace @metamask/address-book-controller exec cat package.json | jq '.version'`.
+
+## Adding new packages to the monorepo
+
+> [!NOTE]
 > If you're migrating an existing package to the monorepo, please see [the package migration documentation](./package-migration-process-guide.md).
 > You may be able to make use of `create-package` when migrating your package, but there's a lot more to it.
 
@@ -173,95 +279,10 @@ And that's it!
 
 ### Contributing to `create-package`
 
-Along with this documentation, `create-package` is intended to be the source of truth for the
-process of adding new packages to the monorepo. Consequently, to change that process, you will want
-to change `create-package`.
+Along with this documentation, `create-package` is intended to be the source of truth for the process of adding new packages to the monorepo. Consequently, to change that process, you will want to change `create-package`.
 
-The `create-package` directory contains a [template package](../scripts/create-package/package-template/). The CLI is not aware of the contents of the template, only that its files have
-[placeholder values](../scripts/create-package/constants.ts). When a new package is created, the template files are read from disk, the
-placeholder values are replaced with real ones, and the updated files are added to a new directory
-in `/packages`. To modify the template package:
+The `create-package` directory contains a [template package](../scripts/create-package/package-template/). The CLI is not aware of the contents of the template, only that its files have [placeholder values](../scripts/create-package/constants.ts). When a new package is created, the template files are read from disk, the placeholder values are replaced with real ones, and the updated files are added to a new directory in `/packages`. To modify the template package:
 
-- If you need to add or modify any files or folders, just go ahead and make your changes in
-  [`/scripts/create-package/package-template`](../scripts/create-package/package-template/).
-  The CLI will read whatever's in that directory and write it to disk.
-- If you need to add or modify any placeholders, make sure that your desired values are added to
-  both the relevant file(s) and
-  [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts).
-  Then, update the implementation of the CLI accordingly.
-- As with placeholders, updating the monorepo files that the CLI interacts with begins by updating
-  [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts).
-
-## Releasing
-
-The [`create-release-branch`](https://github.com/MetaMask/create-release-branch) tool and [`action-publish-release`](https://github.com/MetaMask/action-publish-release) GitHub action are used to automate the release process.
-
-1. **Initiate the release branch and specify packages to be released.**
-
-   1. **Create the release branch.**
-
-      Start by running `yarn create-release-branch`. This command creates a branch named `release/<new release version>` which will represent the new release.
-
-   2. **Specify packages to release along with their versions.**
-
-      At this point, you need to tell the tool which packages you want to include in the next release and which versions to assign to those packages. You do this by modifying a YAML file called a "release spec", which the tool has generated and opened it in your editor. Follow the instructions at the top of the file to proceed.
-
-      To assist you, the tool has also updated all of the packages that have been changed since their previous releases so that their changelogs now reflect those new changes. This should help you to understand what will be released and how to bump the versions.
-
-      Once you save and close the release spec, the tool will proceed.
-
-2. **update all packages dependencies to their latest version**
-
-   Run `yarn constraints --fix && yarn && yarn dedupe`.
-
-3. **Review and update changelogs for relevant packages.**
-
-   1. At this point, the versions of all packages you intend to release have been bumped and their changelogs list new changes. Now you need to go through each changelog and make sure that they follow existing standards:
-
-      - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines.
-      - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
-      - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
-      - Consolidate related changes into single entries where appropriate.
-
-   2. Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
-
-4. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
-
-   Make sure the title of the pull request follows the pattern "Release \<new version\>".
-
-   If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
-
-5. **"Squash & Merge" the release.**
-
-   This step triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub.
-
-   Pay attention to the box you see when you press the green button and ensure that the final name of the commit follows the pattern "Release \<new version\>".
-
-6. **Publish the release on NPM.**
-
-   The `publish-release` GitHub Action workflow runs the `publish-npm` job, which publishes relevant packages to NPM. It requires approval from the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team to complete. If you're not on the team, ask a member to approve it for you; otherwise, approve the job.
-
-   Once the `publish-npm` job has finished, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
-
-### Handling common errors
-
-If an error occurs, re-edit the release spec and rerun `yarn create-release-branch`. Common errors include:
-
-- **Invalid Version Specifier:**
-
-  - Error: `* Line 14: "invalid_version" is not a valid version specifier...`
-  - Resolution: Use "major", "minor", "patch", or a specific version number like "1.2.3".
-
-- **Version Less than or Equal to Current:**
-
-  - Error: `* Line 14: "1.2.3" is not a valid version specifier...`
-  - Resolution: Specify a version greater than the current version of the package.
-
-- **Releasing Packages with Breaking Changes:**
-
-  - Error: `* The following dependents of package '@metamask/a'...`
-  - Resolution: Include dependent packages in the release or use "intentionally-skip" if certain they are unaffected.
-
-- **Dependencies/Peer Dependencies Missing:**
-  - Error: `* The following packages, which are dependencies...`
-  - Resolution: Include necessary dependencies or peer dependencies in the release or use "intentionally-skip" if certain they are unaffected.
+- If you need to add or modify any files or folders, just go ahead and make your changes in [`/scripts/create-package/package-template`](../scripts/create-package/package-template/). The CLI will read whatever's in that directory and write it to disk.
+- If you need to add or modify any placeholders, make sure that your desired values are added to both the relevant file(s) and [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts). Then, update the implementation of the CLI accordingly.
+- As with placeholders, updating the monorepo files that the CLI interacts with begins by updating [`/scripts/create-package/constants.ts`](../scripts/create-package/constants.ts).
