@@ -75,7 +75,7 @@
     "@metamask/eth-json-rpc-provider": "^4.1.6",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^22.0.1",
-    "@metamask/keyring-api": "^9.0.0",
+    "@metamask/keyring-api": "^10.1.0",
     "@metamask/network-controller": "^22.0.2",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
