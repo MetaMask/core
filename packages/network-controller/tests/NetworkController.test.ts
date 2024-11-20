@@ -11485,8 +11485,9 @@ describe('NetworkController', () => {
     ) => {
       const result = await withController(
         { state: props.controllerState },
-        async ({ controller }) => {
-          await controller.dangerouslySetNetworkConfiguration(
+        async ({ controller, messenger }) => {
+          await messenger.call(
+            'NetworkController:dangerouslySetNetworkConfiguration',
             props.overrideNetwork,
           );
           return {
