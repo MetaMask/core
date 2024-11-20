@@ -58,8 +58,8 @@ export type InternalScopesObject = Record<CaipChainId, InternalScopeObject> & {
 /**
  * Represents a `scopeObject` as defined in
  * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
- * we resolve the `references` property into multiple scopeObjects and
- * assign `accounts` property to empty array if not already defined
+ * we resolve the `references` property into a scopeObject per reference and
+ * assign an empty array to the `accounts` property if not already defined
  * to more easily read chain specific permissions.
  */
 export type NormalizedScopeObject = {
@@ -72,8 +72,8 @@ export type NormalizedScopeObject = {
 /**
  * Represents a keyed `scopeObject` as defined in
  * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
- * we resolve the `references` property into multiple scopeObjects and
- * assign `accounts` property to empty array if not already defined
+  * we resolve the `references` property into a scopeObject per reference and
+ * assign an empty array to the `accounts` property if not already defined
  * to more easily read chain specific permissions.
  */
 export type NormalizedScopesObject = Record<

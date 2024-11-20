@@ -502,7 +502,7 @@ describe('Scope Assert', () => {
       );
     });
 
-    it('throws and error if passed an object with an InternalScopeObject value that is not an object', () => {
+    it('throws an error if passed an object with an InternalScopeObject value that is not an object', () => {
       expect(() => assertIsInternalScopesObject({ 'eip155:1': 123 })).toThrow(
         'InternalScopeObject must be an object',
       );
