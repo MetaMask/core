@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - An argument `networkClientId` is added to `TokensController.ignoreTokens`, allowing tokens to be ignored on specific chains. ([#4949](https://github.com/MetaMask/core/pull/4949))
-- Bump `@metamask/{keyring-api,eth-snap-keyring,snaps-*}` ([#4948](https://github.com/MetaMask/core/pull/4948))
 
 ## [44.0.1]
 
