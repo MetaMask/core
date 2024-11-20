@@ -503,7 +503,7 @@ export type NetworkControllerRemoveNetworkAction = {
 
 export type NetworkControllerDangerouslySetNetworkConfigurationAction = {
   type: 'NetworkController:dangerouslySetNetworkConfiguration';
-  handler: NetworkController['dangerouslySetNetworkConfiguration'];
+  handler: (networkConfiguration: NetworkConfiguration) => Promise<void>;
 };
 
 export type NetworkControllerActions =
@@ -1009,7 +1009,7 @@ export class NetworkController extends BaseController<
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:dangerouslySetNetworkConfiguration`,
-      this.dangerouslySetNetworkConfiguration.bind(this),
+      this.#dangerouslySetNetworkConfiguration.bind(this),
     );
   }
 
@@ -2012,7 +2012,7 @@ export class NetworkController extends BaseController<
    * This will subsequently update the network client registry; state.networksMetadata, and state.selectedNetworkClientId
    * @param networkConfiguration - the network configuration to override
    */
-  async dangerouslySetNetworkConfiguration(
+  async #dangerouslySetNetworkConfiguration(
     networkConfiguration: NetworkConfiguration,
   ) {
     const prevNetworkConfig: NetworkConfiguration | undefined =
