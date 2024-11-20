@@ -22,8 +22,8 @@ export type {
   ExternalScopeObject,
   ExternalScopesObject,
   InternalScopeString,
-  InternalScopeObject,
-  InternalScopesObject,
+  NormalizedScopeObject,
+  NormalizedScopesObject,
   ScopedProperties,
   NonWalletKnownCaipNamespace,
 } from './scope/types';

@@ -5,7 +5,7 @@ import { KnownCaipNamespace } from '@metamask/utils';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { KnownNotifications, KnownRpcMethods } from '../scope/constants';
 import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { InternalScopesObject } from '../scope/types';
+import type { InternalScopesObject, NormalizedScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
@@ -20,17 +20,25 @@ export const getPermittedEthChainIds = (
   >,
 ) => {
   const ethChainIds: Hex[] = [];
-  const sessionScopes = mergeScopes(
-    caip25CaveatValue.requiredScopes,
-    caip25CaveatValue.optionalScopes,
-  );
+  // const sessionScopes = mergeScopes(
+  //   caip25CaveatValue.requiredScopes,
+  //   caip25CaveatValue.optionalScopes,
+  // );
 
-  Object.keys(sessionScopes).forEach((scopeString) => {
+  Object.keys(caip25CaveatValue.requiredScopes).forEach((scopeString) => {
     const { namespace, reference } = parseScopeString(scopeString);
     if (namespace === KnownCaipNamespace.Eip155 && reference) {
       ethChainIds.push(toHex(reference));
     }
   });
+
+  Object.keys(caip25CaveatValue.optionalScopes).forEach((scopeString) => {
+    const { namespace, reference } = parseScopeString(scopeString);
+    if (namespace === KnownCaipNamespace.Eip155 && reference) {
+      ethChainIds.push(toHex(reference));
+    }
+  });
+
 
   return getUniqueArrayItems(ethChainIds);
 };
@@ -45,7 +53,7 @@ export const getPermittedEthChainIds = (
 export const addPermittedEthChainId = (
   caip25CaveatValue: Caip25CaveatValue,
   chainId: Hex,
-) => {
+): Caip25CaveatValue => {
   const scopeString = `eip155:${parseInt(chainId, 16)}`;
   if (
     Object.keys(caip25CaveatValue.requiredScopes).includes(scopeString) ||
@@ -59,8 +67,6 @@ export const addPermittedEthChainId = (
     optionalScopes: {
       ...caip25CaveatValue.optionalScopes,
       [scopeString]: {
-        methods: KnownRpcMethods.eip155,
-        notifications: KnownNotifications.eip155,
         accounts: [],
       },
     },
@@ -79,7 +85,7 @@ export const addPermittedEthChainId = (
 const filterEthScopesObjectByChainId = (
   scopesObject: InternalScopesObject,
   chainIds: Hex[],
-) => {
+): InternalScopesObject => {
   const updatedScopesObject: InternalScopesObject = {};
 
   Object.entries(scopesObject).forEach(([key, scopeObject]) => {
@@ -112,7 +118,7 @@ const filterEthScopesObjectByChainId = (
 export const setPermittedEthChainIds = (
   caip25CaveatValue: Caip25CaveatValue,
   chainIds: Hex[],
-) => {
+): Caip25CaveatValue => {
   let updatedCaveatValue: Caip25CaveatValue = {
     ...caip25CaveatValue,
     requiredScopes: filterEthScopesObjectByChainId(

@@ -57,6 +57,13 @@ export type NormalizedScopeObject = {
  * `scopeObject`s do not contain `references` in our internal representations of CAIP-25 session scopes.
  * e.g. We flatten each reference into its own scopeObject before storing them in a `endowment:caip25` permission.
  */
+export type NormalizedScopesObject = Record<CaipChainId, NormalizedScopeObject> & {
+  [KnownCaipNamespace.Wallet]?: NormalizedScopeObject;
+};
+
+export type InternalScopeObject = {
+  accounts: CaipAccountId[]
+}
 export type InternalScopesObject = Record<CaipChainId, InternalScopeObject> & {
   [KnownCaipNamespace.Wallet]?: InternalScopeObject;
 };

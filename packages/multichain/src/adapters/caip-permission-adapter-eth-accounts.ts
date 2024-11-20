@@ -9,7 +9,7 @@ import {
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { KnownWalletScopeString } from '../scope/constants';
 import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { InternalScopesObject, InternalScopeString } from '../scope/types';
+import type { NormalizedScopesObject, InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
@@ -38,12 +38,12 @@ export const getEthAccounts = (
   >,
 ): Hex[] => {
   const ethAccounts: Hex[] = [];
-  const sessionScopes = mergeScopes(
-    caip25CaveatValue.requiredScopes,
-    caip25CaveatValue.optionalScopes,
-  );
+  // const sessionScopes = mergeScopes(
+  //   caip25CaveatValue.requiredScopes,
+  //   caip25CaveatValue.optionalScopes,
+  // );
 
-  Object.entries(sessionScopes).forEach(([_, { accounts }]) => {
+  Object.entries(caip25CaveatValue.requiredScopes).forEach(([_, { accounts }]) => {
     accounts?.forEach((account) => {
       const { address, chainId } = parseCaipAccountId(account);
 
@@ -55,6 +55,20 @@ export const getEthAccounts = (
       }
     });
   });
+
+  Object.entries(caip25CaveatValue.optionalScopes).forEach(([_, { accounts }]) => {
+    accounts?.forEach((account) => {
+      const { address, chainId } = parseCaipAccountId(account);
+
+      if (isEip155ScopeString(chainId)) {
+        // This address should always be a valid Hex string because
+        // it's an EIP155/Ethereum account
+        assertIsStrictHexString(address);
+        ethAccounts.push(address);
+      }
+    });
+  });
+
 
   return getUniqueArrayItems(ethAccounts);
 };
@@ -116,7 +130,7 @@ const setEthAccountsForScopesObject = (
 export const setEthAccounts = (
   caip25CaveatValue: Caip25CaveatValue,
   accounts: Hex[],
-) => {
+): Caip25CaveatValue => {
   return {
     ...caip25CaveatValue,
     requiredScopes: setEthAccountsForScopesObject(
@@ -126,8 +140,6 @@ export const setEthAccounts = (
     optionalScopes: setEthAccountsForScopesObject(
       {
         [KnownWalletScopeString.Eip155]: {
-          methods: [],
-          notifications: [],
           accounts: [],
         },
         ...caip25CaveatValue.optionalScopes,
