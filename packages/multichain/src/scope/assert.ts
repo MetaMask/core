@@ -4,6 +4,7 @@ import {
   isCaipChainId,
   isCaipNamespace,
   isCaipReference,
+  KnownCaipNamespace,
   type Hex,
 } from '@metamask/utils';
 
@@ -17,6 +18,9 @@ import type {
   ExternalScopeObject,
   ExternalScopesObject,
   ExternalScopeString,
+  InternalScopeObject,
+  InternalScopesObject,
+  InternalScopeString,
   NormalizedScopeObject,
   NormalizedScopesObject,
 } from './types';
@@ -186,5 +190,59 @@ export function assertIsExternalScopesObject(
   for (const [scopeString, scopeObject] of Object.entries(obj)) {
     assertIsExternalScopeString(scopeString);
     assertIsExternalScopeObject(scopeObject);
+  }
+}
+
+/**
+ * Asserts that an object is a valid InternalScopeObject.
+ * @param obj - The object to assert.
+ */
+function assertIsInternalScopeObject(
+  obj: unknown,
+): asserts obj is InternalScopeObject {
+  if (typeof obj !== 'object' || obj === null) {
+    throw new Error('InternalScopeObject must be an object');
+  }
+
+  if (
+    !hasProperty(obj, 'accounts') ||
+    !Array.isArray(obj.accounts) ||
+    !obj.accounts.every(isCaipAccountId)
+  ) {
+    throw new Error(
+      'InternalScopeObject.accounts must be an array of CaipAccountId',
+    );
+  }
+}
+
+/**
+ * Asserts that a scope string is a valid InternalScopeString.
+ * @param scopeString - The scope string to assert.
+ */
+function assertIsInternalScopeString(
+  scopeString: unknown,
+): asserts scopeString is InternalScopeString {
+  if (
+    typeof scopeString !== 'string' ||
+    (scopeString !== KnownCaipNamespace.Wallet && !isCaipChainId(scopeString))
+  ) {
+    throw new Error('scopeString is not a valid InternalScopeString');
+  }
+}
+
+/**
+ * Asserts that an object is a valid InternalScopesObject.
+ * @param obj - The object to assert.
+ */
+export function assertIsInternalScopesObject(
+  obj: unknown,
+): asserts obj is InternalScopesObject {
+  if (typeof obj !== 'object' || obj === null) {
+    throw new Error('InternalScopesObject must be an object');
+  }
+
+  for (const [scopeString, scopeObject] of Object.entries(obj)) {
+    assertIsInternalScopeString(scopeString);
+    assertIsInternalScopeObject(scopeObject);
   }
 }

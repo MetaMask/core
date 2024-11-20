@@ -4,6 +4,7 @@ import {
   assertScopeSupported,
   assertScopesSupported,
   assertIsExternalScopesObject,
+  assertIsInternalScopesObject,
 } from './assert';
 import { Caip25Errors } from './errors';
 import * as Supported from './supported';
@@ -478,6 +479,86 @@ describe('Scope Assert', () => {
       expect(() =>
         assertIsExternalScopesObject(invalidExternalScopeObject),
       ).toThrow('ExternalScopeObject.rpcEndpoints must be an array of strings');
+    });
+  });
+
+
+  describe('assertIsInternalScopesObject', () => {
+    it('does not throw if passed obj is a valid InternalScopesObject with all valid properties', () => {
+      const obj = {
+        'eip155:1': {
+          accounts: ['eip155:1:0x1234'],
+        },
+      };
+      expect(() => assertIsInternalScopesObject(obj)).not.toThrow();
+    });
+
+    it('throws an error if passed obj is not an object', () => {
+      expect(() => assertIsInternalScopesObject(null)).toThrow(
+        'InternalScopesObject must be an object',
+      );
+      expect(() => assertIsInternalScopesObject(123)).toThrow(
+        'InternalScopesObject must be an object',
+      );
+      expect(() => assertIsInternalScopesObject('string')).toThrow(
+        'InternalScopesObject must be an object',
+      );
+    });
+
+    it('throws and error if passed an object with an InternalScopeObject value that is not an object', () => {
+      expect(() => assertIsInternalScopesObject({ 'eip155:1': 123 })).toThrow(
+        'InternalScopeObject must be an object',
+      );
+    });
+
+    it('throws an error if passed an object with a key that is not a valid InternalScopeString', () => {
+      jest.spyOn(Utils, 'isCaipReference').mockImplementation(() => false);
+
+      expect(() =>
+        assertIsInternalScopesObject({ 'invalid-scope-string': {} }),
+      ).toThrow('scopeString is not a valid InternalScopeString');
+    });
+
+    it('throws an error if passed an object with an InternalScopeObject without an accounts property', () => {
+      const invalidInternalScopeObject = {
+        'eip155:1': {},
+      };
+      expect(() =>
+        assertIsInternalScopesObject(invalidInternalScopeObject),
+      ).toThrow(
+        'InternalScopeObject.accounts must be an array of CaipAccountId',
+      );
+    });
+
+
+    it('throws an error if passed an object with an InternalScopeObject with an accounts property that is not an array', () => {
+      const invalidInternalScopeObject = {
+        'eip155:1': {
+          accounts: 'not-an-array',
+        },
+      };
+      expect(() =>
+        assertIsInternalScopesObject(invalidInternalScopeObject),
+      ).toThrow(
+        'InternalScopeObject.accounts must be an array of CaipAccountId',
+      );
+    });
+
+    it('throws an error if accounts contains invalid CaipAccountId', () => {
+      const invalidInternalScopeObject = {
+        'eip155:1': {
+          accounts: ['eip155:1:0x1234', 'invalidAccount'],
+        },
+      };
+      MockUtils.isCaipAccountId.mockImplementation(
+        (id) => id !== 'invalidAccount',
+      );
+      expect(() =>
+        assertIsInternalScopesObject(invalidInternalScopeObject),
+      ).toThrow(
+        'InternalScopeObject.accounts must be an array of CaipAccountId',
+      );
+      jest.restoreAllMocks();
     });
   });
 });
