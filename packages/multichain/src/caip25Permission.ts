@@ -21,7 +21,6 @@ import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
-import { Caip25Errors } from './scope/errors';
 import { isSupportedScopeString } from './scope/supported';
 import {
   type ExternalScopeString,
@@ -142,7 +141,9 @@ const specificationBuilder: PermissionSpecificationBuilder<
           isSupportedScopeString(scopeString, isChainIdSupported),
       );
       if (!allRequiredScopesSupported || !allOptionalScopesSupported) {
-        throw Caip25Errors.requestedChainsNotSupportedError();
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+        );
       }
 
       // Fetch EVM accounts from native wallet keyring

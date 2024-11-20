@@ -545,6 +545,39 @@ describe('caip25EndowmentBuilder', () => {
       expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
     });
 
+    it('throws if not all scopeStrings are supported', () => {
+      expect(() => {
+        validator({
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {
+                  'eip155:1': {
+                    accounts: ['eip155:1:0xdead'],
+                  },
+                },
+                optionalScopes: {
+                  'eip155:5': {
+                    accounts: ['eip155:5:0xbeef'],
+                  },
+                },
+                isMultichainOrigin: true,
+              },
+            },
+          ],
+          date: 1234,
+          id: '1',
+          invoker: 'test.com',
+          parentCapability: Caip25EndowmentPermissionName,
+        });
+      }).toThrow(
+        new Error(
+          `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+        ),
+      );
+    });
+
     it('throws if the eth accounts specified in the internal scopeObjects are not found in the wallet keyring', () => {
       MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
       listAccounts.mockReturnValue([{ address: '0xdead' }]); // missing '0xbeef'
