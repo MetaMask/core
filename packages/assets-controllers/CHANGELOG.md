@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [44.1.0]
 
-### Uncategorized
+### Changed
 
-- feat: add networkClientId as param for func ignoreTokens ([#4949](https://github.com/MetaMask/core/pull/4949))
-- chore: bump `@metamask/{keyring-api,eth-snap-keyring,snaps-*}` ([#4948](https://github.com/MetaMask/core/pull/4948))
+- An argument `networkClientId` is added to `TokensController.ignoreTokens`, allowing tokens to be ignored on specific chains.
+
+- Bump `@metamask/{keyring-api,eth-snap-keyring,snaps-*}` ([#4948](https://github.com/MetaMask/core/pull/4948))
 
 ## [44.0.1]
 
