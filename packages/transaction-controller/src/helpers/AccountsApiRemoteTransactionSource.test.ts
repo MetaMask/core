@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 
 import type { TransactionResponse } from '../api/accounts-api';
 import { getAccountTransactionsAllPages } from '../api/accounts-api';
+import { CHAIN_IDS } from '../constants';
 import { AccountsApiRemoteTransactionSource } from './AccountsApiRemoteTransactionSource';
 
 jest.mock('../api/accounts-api');
@@ -9,10 +10,14 @@ jest.mock('../api/accounts-api');
 jest.useFakeTimers();
 
 const ADDRESS_MOCK = '0x123';
-const CHAIN_IDS_MOCK = ['0x1', '0x2'] as Hex[];
+const CHAIN_IDS_MOCK = [CHAIN_IDS.MAINNET, CHAIN_IDS.LINEA_MAINNET] as Hex[];
 const LIMIT_MOCK = 10;
-const START_TIMESTAMP_BY_CHAIN_ID_MOCK = { '0x1': 123000, '0x2': 456000 };
 const NOW_MOCK = 789000;
+
+const START_TIMESTAMP_BY_CHAIN_ID_MOCK = {
+  [CHAIN_IDS.MAINNET]: 123000,
+  [CHAIN_IDS.LINEA_MAINNET]: 456000,
+};
 
 const RESPONSE_STANDARD_MOCK: TransactionResponse = {
   hash: '0x1',
@@ -95,11 +100,19 @@ describe('AccountsApiRemoteTransactionSource', () => {
     getAccountTransactionsAllPagesMock.mockResolvedValue([]);
   });
 
+  describe('getSupportedChains', () => {
+    it('returns supported chains', () => {
+      const supportedChains =
+        new AccountsApiRemoteTransactionSource().getSupportedChains();
+      expect(supportedChains.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('fetchTransactions', () => {
     it('queries accounts API with correct parameters', async () => {
       await new AccountsApiRemoteTransactionSource().fetchTransactions({
         address: ADDRESS_MOCK,
-        chainIds: CHAIN_IDS_MOCK,
+        chainIds: [...CHAIN_IDS_MOCK, '0x123'],
         limit: LIMIT_MOCK,
         startTimestampByChainId: START_TIMESTAMP_BY_CHAIN_ID_MOCK,
       });
@@ -108,7 +121,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
       expect(getAccountTransactionsAllPagesMock).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
         chainIds: CHAIN_IDS_MOCK,
-        startTimestamp: 123,
+        startTimestamp: 123000,
         endTimestamp: 789,
       });
     });

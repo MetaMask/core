@@ -886,10 +886,9 @@ export interface RemoteTransactionSourceRequest {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface RemoteTransactionSource {
   /**
-   * @param chainId - The chainId of the current network.
-   * @returns Whether the remote transaction source supports the specified network.
+   * @returns Array of chain IDs supported by the remote source.
    */
-  isChainsSupported: (chainIds: Hex[]) => boolean;
+  getSupportedChains: () => Hex[];
 
   /**
    * @returns An array of additional keys to use when caching the last fetched block number.

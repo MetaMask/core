@@ -878,7 +878,7 @@ describe('TransactionController', () => {
       expect(controller.state).toStrictEqual({
         methodData: {},
         transactions: [],
-        lastFetchedBlockNumbers: {},
+        lastFetchedTimestamps: {},
         submitHistory: [],
       });
     });
@@ -1016,7 +1016,7 @@ describe('TransactionController', () => {
       const mockedControllerState = {
         transactions: mockedTransactions,
         methodData: {},
-        lastFetchedBlockNumbers: {},
+        lastFetchedTimestamps: {},
       };
 
       const { controller } = setupController({
@@ -1075,7 +1075,7 @@ describe('TransactionController', () => {
       const mockedControllerState = {
         transactions: mockedTransactions,
         methodData: {},
-        lastFetchedBlockNumbers: {},
+        lastFetchedTimestamps: {},
       };
 
       const { controller } = setupController({
@@ -3923,46 +3923,19 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('on incoming transaction helper transactions event', () => {
+  describe('on incoming transaction helper incoming-transactions event', () => {
     it('adds new transactions to state', async () => {
       const { controller } = setupController();
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
-        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
-        updated: [],
-      });
-
-      expect(controller.state.transactions).toStrictEqual([
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
         TRANSACTION_META_MOCK,
         TRANSACTION_META_2_MOCK,
       ]);
-    });
-
-    it('updates existing transactions in state', async () => {
-      const { controller } = setupController({
-        options: {
-          state: {
-            transactions: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
-          },
-        },
-      });
-
-      const updatedTransaction = {
-        ...TRANSACTION_META_MOCK,
-        status: 'failed',
-      };
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
-        added: [],
-        updated: [updatedTransaction],
-      });
 
       expect(controller.state.transactions).toStrictEqual([
-        updatedTransaction,
+        TRANSACTION_META_MOCK,
         TRANSACTION_META_2_MOCK,
       ]);
     });
@@ -3974,58 +3947,56 @@ describe('TransactionController', () => {
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]({
-        added: [TRANSACTION_META_MOCK, TRANSACTION_META_2_MOCK],
-        updated: [],
-      });
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
 
       expect(controller.state.transactions).toStrictEqual([
         TRANSACTION_META_2_MOCK,
       ]);
     });
-  });
 
-  describe('on incoming transaction helper lastFetchedBlockNumbers event', () => {
-    it('updates state', async () => {
-      const { controller } = setupController();
-
-      const lastFetchedBlockNumbers = {
-        key: 234,
-      };
-
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
-        lastFetchedBlockNumbers,
-        blockNumber: 123,
-      });
-
-      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual(
-        lastFetchedBlockNumbers,
-      );
-    });
-
-    it('publishes TransactionController:incomingTransactionBlockReceived', async () => {
-      const blockNumber = 123;
+    it('publishes TransactionController:incomingTransactionsReceived', async () => {
       const listener = jest.fn();
 
       const { messenger } = setupController();
       messenger.subscribe(
-        'TransactionController:incomingTransactionBlockReceived',
+        'TransactionController:incomingTransactionsReceived',
         listener,
       );
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
-        lastFetchedBlockNumbers: {
-          key: 234,
-        },
-        blockNumber,
-      });
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
 
       expect(listener).toHaveBeenCalledTimes(1);
-      expect(listener).toHaveBeenCalledWith(blockNumber);
+      expect(listener).toHaveBeenCalledWith([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+  });
+
+  describe('on incoming transaction helper updated-last-fetched-timestamp event', () => {
+    it('updates state', async () => {
+      const { controller } = setupController();
+      const key = 'testKey';
+      const timestamp = 123;
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
+        key,
+        timestamp,
+      });
+
+      expect(controller.state.lastFetchedTimestamps).toStrictEqual({
+        [key]: timestamp,
+      });
     });
   });
 

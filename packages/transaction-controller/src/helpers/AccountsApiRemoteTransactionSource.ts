@@ -3,10 +3,13 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { v1 as random } from 'uuid';
 
-import type { GetAccountTransactionsResponse } from '../api/accounts-api';
+import type {
+  GetAccountTransactionsResponse,
+  TransactionResponse,
+} from '../api/accounts-api';
 import { getAccountTransactionsAllPages } from '../api/accounts-api';
 import { CHAIN_IDS } from '../constants';
-import { incomingTransactionsLogger as log } from '../logger';
+import { createModuleLogger, incomingTransactionsLogger } from '../logger';
 import type {
   RemoteTransactionSource,
   RemoteTransactionSourceRequest,
@@ -26,37 +29,81 @@ const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.SCROLL,
 ];
 
+const log = createModuleLogger(
+  incomingTransactionsLogger,
+  'accounts-api-source',
+);
+
 /**
- * A RemoteTransactionSource that fetches transaction data from Etherscan.
+ * A RemoteTransactionSource that fetches incoming transactions using the Accounts API.
  */
 export class AccountsApiRemoteTransactionSource
   implements RemoteTransactionSource
 {
-  isChainsSupported(chainIds: Hex[]): boolean {
-    return chainIds.every((chainId) => SUPPORTED_CHAIN_IDS.includes(chainId));
+  getSupportedChains(): Hex[] {
+    return SUPPORTED_CHAIN_IDS;
   }
 
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
-    log('Fetching transactions from accounts API', request);
+    const { address } = request;
 
-    const { address, chainIds, limit, startTimestampByChainId } = request;
+    const responseTransactions = await this.#getTransactions(request);
 
-    const startTimestamp = Math.round(
-      Math.min(...Object.values(startTimestampByChainId)) / 1000,
+    const incomingTransactions = this.#filterTransactions(
+      request,
+      responseTransactions,
     );
 
-    const endTimestamp = Math.round(Date.now() / 1000);
+    const normalizedTransactions = incomingTransactions.map((tx) =>
+      this.#normalizeTransaction(address, tx),
+    );
 
-    const response = await getAccountTransactionsAllPages({
+    log('Filtered and normalized transactions', normalizedTransactions);
+
+    return normalizedTransactions;
+  }
+
+  async #getTransactions(request: RemoteTransactionSourceRequest) {
+    log('Fetching transactions', request);
+
+    const {
+      address,
+      chainIds: requestedChainIds,
+      startTimestampByChainId,
+    } = request;
+
+    const chainIds = requestedChainIds.filter((chainId) =>
+      SUPPORTED_CHAIN_IDS.includes(chainId),
+    );
+
+    const unsupportedChainIds = requestedChainIds.filter(
+      (chainId) => !chainIds.includes(chainId),
+    );
+
+    if (unsupportedChainIds.length) {
+      log('Ignoring unsupported chain IDs', unsupportedChainIds);
+    }
+
+    const startTimestamp = Math.min(...Object.values(startTimestampByChainId));
+    const endTimestamp = this.#getTimestampSeconds(Date.now());
+
+    return await getAccountTransactionsAllPages({
       address,
       chainIds,
       startTimestamp,
       endTimestamp,
     });
+  }
 
-    const incomingTransactions = response.filter(
+  #filterTransactions(
+    request: RemoteTransactionSourceRequest,
+    responseTransactions: TransactionResponse[],
+  ) {
+    const { address, startTimestampByChainId, limit } = request;
+
+    const incomingTransactions = responseTransactions.filter(
       (tx) =>
         tx.to === address || tx.valueTransfers.some((vt) => vt.to === address),
     );
@@ -66,24 +113,16 @@ export class AccountsApiRemoteTransactionSource
       incomingTransactions,
     );
 
-    let transactions = incomingTransactions
-      .filter((tx) => {
+    const incomingTransactionsMatchingTimestamp = incomingTransactions.filter(
+      (tx) => {
         const chainId = `0x${tx.chainId.toString(16)}` as Hex;
         const chainStartTimestamp = startTimestampByChainId[chainId];
         const timestamp = new Date(tx.timestamp).getTime();
-        const isNew = timestamp >= chainStartTimestamp;
+        return timestamp >= chainStartTimestamp;
+      },
+    );
 
-        return isNew;
-      })
-      .map((tx) => this.#normalizeTransaction(address, tx));
-
-    if (limit !== undefined) {
-      transactions = transactions.slice(0, limit);
-    }
-
-    log('Filtered and normalized transactions from accounts API', transactions);
-
-    return transactions;
+    return incomingTransactionsMatchingTimestamp.slice(0, limit);
   }
 
   #normalizeTransaction(
@@ -154,5 +193,9 @@ export class AccountsApiRemoteTransactionSource
           }
         : undefined,
     };
+  }
+
+  #getTimestampSeconds(timestampMilliseconds: number) {
+    return Math.ceil(timestampMilliseconds / 1000);
   }
 }

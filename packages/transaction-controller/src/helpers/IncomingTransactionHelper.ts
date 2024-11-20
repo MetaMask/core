@@ -5,8 +5,6 @@ import EventEmitter from 'events';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
-const FIRST_QUERY_HISTORY_DURATION = 1000 * 60 * 60 * 24 * 2; // 2 Days
-
 /**
  * Configuration options for the IncomingTransactionHelper
  *
@@ -18,6 +16,7 @@ export type IncomingTransactionOptions = {
   isEnabled?: () => boolean;
 };
 
+const FIRST_QUERY_HISTORY_DURATION = 1000 * 60 * 60 * 24 * 2; // 2 Days
 const INTERVAL = 1000 * 30; // 30 Seconds
 
 export class IncomingTransactionHelper {
@@ -27,7 +26,7 @@ export class IncomingTransactionHelper {
     AccountsController['getSelectedAccount']
   >;
 
-  #getLastFetchedBlockNumbers: () => Record<string, number>;
+  #getLastFetchedTimestamps: () => Record<string, number>;
 
   #getChainIds: () => Hex[];
 
@@ -43,7 +42,7 @@ export class IncomingTransactionHelper {
 
   constructor({
     getCurrentAccount,
-    getLastFetchedBlockNumbers,
+    getLastFetchedTimestamps,
     getChainIds,
     isEnabled,
     remoteTransactionSource,
@@ -52,7 +51,7 @@ export class IncomingTransactionHelper {
     getCurrentAccount: () => ReturnType<
       AccountsController['getSelectedAccount']
     >;
-    getLastFetchedBlockNumbers: () => Record<string, number>;
+    getLastFetchedTimestamps: () => Record<string, number>;
     getChainIds: () => Hex[];
     isEnabled?: () => boolean;
     queryEntireHistory?: boolean;
@@ -63,7 +62,7 @@ export class IncomingTransactionHelper {
     this.hub = new EventEmitter();
 
     this.#getCurrentAccount = getCurrentAccount;
-    this.#getLastFetchedBlockNumbers = getLastFetchedBlockNumbers;
+    this.#getLastFetchedTimestamps = getLastFetchedTimestamps;
     this.#getChainIds = getChainIds;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
@@ -83,6 +82,8 @@ export class IncomingTransactionHelper {
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeoutId = setTimeout(() => this.#onInterval(), INTERVAL);
     this.#isRunning = true;
+
+    log('Started polling');
   }
 
   stop() {
@@ -90,7 +91,13 @@ export class IncomingTransactionHelper {
       clearTimeout(this.#timeoutId as number);
     }
 
+    if (!this.#isRunning) {
+      return;
+    }
+
     this.#isRunning = false;
+
+    log('Stopped polling');
   }
 
   async #onInterval() {
@@ -139,10 +146,7 @@ export class IncomingTransactionHelper {
 
       log('Found incoming transactions', { remoteTransactions });
 
-      this.hub.emit('transactions', {
-        added: remoteTransactions,
-        updated: [],
-      });
+      this.hub.emit('incoming-transactions', remoteTransactions);
     }
 
     for (const chainId of chainIds) {
@@ -160,7 +164,7 @@ export class IncomingTransactionHelper {
 
       const startTimestamp = lastFetchedTimestamp
         ? lastFetchedTimestamp + 1
-        : Date.now() - FIRST_QUERY_HISTORY_DURATION;
+        : this.#getTimestampSeconds(Date.now() - FIRST_QUERY_HISTORY_DURATION);
 
       return { ...acc, [chainId]: startTimestamp };
     }, {});
@@ -168,8 +172,8 @@ export class IncomingTransactionHelper {
 
   #getLastFetchedTimestamp(chainId: Hex): number {
     const lastFetchedKey = this.#getTimestampKey(chainId);
-    const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
-    return lastFetchedBlockNumbers[lastFetchedKey];
+    const lastFetchedTimestamps = this.#getLastFetchedTimestamps();
+    return lastFetchedTimestamps[lastFetchedKey];
   }
 
   #updateLastFetchedTimestamp(chainId: Hex, remoteTxs: TransactionMeta[]) {
@@ -177,7 +181,8 @@ export class IncomingTransactionHelper {
     let lastFetchedTimestamp = -1;
 
     for (const tx of chainTxs) {
-      lastFetchedTimestamp = Math.max(lastFetchedTimestamp, tx.time);
+      const currentTimestamp = this.#getTimestampSeconds(tx.time);
+      lastFetchedTimestamp = Math.max(lastFetchedTimestamp, currentTimestamp);
     }
 
     if (lastFetchedTimestamp === -1) {
@@ -185,19 +190,21 @@ export class IncomingTransactionHelper {
     }
 
     const lastFetchedKey = this.#getTimestampKey(chainId);
-    const lastFetchedTimestamps = this.#getLastFetchedBlockNumbers();
+    const lastFetchedTimestamps = this.#getLastFetchedTimestamps();
     const previousValue = lastFetchedTimestamps[lastFetchedKey];
 
     if (previousValue >= lastFetchedTimestamp) {
       return;
     }
 
-    this.hub.emit('updatedLastFetchedBlockNumbers', {
-      lastFetchedBlockNumbers: {
-        ...lastFetchedTimestamps,
-        [lastFetchedKey]: lastFetchedTimestamp,
-      },
-      blockNumber: lastFetchedTimestamp,
+    log('Updating last fetched timestamp', {
+      key: lastFetchedKey,
+      timestamp: lastFetchedTimestamp,
+    });
+
+    this.hub.emit('updated-last-fetched-timestamp', {
+      key: lastFetchedKey,
+      timestamp: lastFetchedTimestamp,
     });
   }
 
@@ -210,9 +217,17 @@ export class IncomingTransactionHelper {
     const isEnabled = this.#isEnabled();
     const chainIds = this.#getChainIds();
 
-    const isChainsSupported =
-      this.#remoteTransactionSource.isChainsSupported(chainIds);
+    const supportedChainIds =
+      this.#remoteTransactionSource.getSupportedChains();
 
-    return isEnabled && isChainsSupported;
+    const isAnyChainSupported = chainIds.some((chainId) =>
+      supportedChainIds.includes(chainId),
+    );
+
+    return isEnabled && isAnyChainSupported;
+  }
+
+  #getTimestampSeconds(timestampMilliseconds: number): number {
+    return Math.ceil(timestampMilliseconds / 1000);
   }
 }

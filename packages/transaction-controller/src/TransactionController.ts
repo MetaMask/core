@@ -140,7 +140,7 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
-  lastFetchedBlockNumbers: {
+  lastFetchedTimestamps: {
     persist: true,
     anonymous: false,
   },
@@ -198,12 +198,12 @@ export type MethodData = {
  *
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
- * @property lastFetchedBlockNumbers - Last fetched block numbers.
+ * @property lastFetchedTimestamps - Last fetched block numbers.
  */
 export type TransactionControllerState = {
   transactions: TransactionMeta[];
   methodData: Record<string, MethodData>;
-  lastFetchedBlockNumbers: { [key: string]: number };
+  lastFetchedTimestamps: { [key: string]: number };
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -358,11 +358,11 @@ export type TransactionControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 /**
- * Represents the `TransactionController:incomingTransactionBlockReceived` event.
+ * Represents the `TransactionController:incomingTransactionsReceived` event.
  */
-export type TransactionControllerIncomingTransactionBlockReceivedEvent = {
-  type: `${typeof controllerName}:incomingTransactionBlockReceived`;
-  payload: [blockNumber: number];
+export type TransactionControllerIncomingTransactionsReceivedEvent = {
+  type: `${typeof controllerName}:incomingTransactionsReceived`;
+  payload: [incomingTransactions: TransactionMeta[]];
 };
 
 /**
@@ -519,7 +519,7 @@ export type TransactionControllerUnapprovedTransactionAddedEvent = {
  * The internal events available to the {@link TransactionController}.
  */
 export type TransactionControllerEvents =
-  | TransactionControllerIncomingTransactionBlockReceivedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent
   | TransactionControllerPostTransactionBalanceUpdatedEvent
   | TransactionControllerSpeedupTransactionAddedEvent
   | TransactionControllerStateChangeEvent
@@ -566,7 +566,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     methodData: {},
     transactions: [],
-    lastFetchedBlockNumbers: {},
+    lastFetchedTimestamps: {},
     submitHistory: [],
   };
 }
@@ -1484,31 +1484,63 @@ export class TransactionController extends BaseController<
    * wiped on current network.
    */
   wipeTransactions(ignoreNetwork?: boolean, address?: string) {
+    log('Wiping transactions', { ignoreNetwork, address });
+
     /* istanbul ignore next */
     if (ignoreNetwork && !address) {
       this.update((state) => {
         state.transactions = [];
+        state.lastFetchedTimestamps = {};
       });
+
       return;
     }
 
     const currentChainId = this.getChainId();
-    const newTransactions = this.state.transactions.filter(
-      ({ chainId, txParams }) => {
-        const isMatchingNetwork = ignoreNetwork || chainId === currentChainId;
+    const { lastFetchedTimestamps, transactions } = this.state;
 
-        if (!isMatchingNetwork) {
-          return true;
-        }
+    const newTransactions = transactions.filter((tx) => {
+      const { chainId, txParams } = tx;
+      const isMatchingNetwork = ignoreNetwork || chainId === currentChainId;
 
-        const isMatchingAddress =
-          !address || txParams.from?.toLowerCase() === address.toLowerCase();
+      if (!isMatchingNetwork) {
+        return true;
+      }
 
-        return !isMatchingAddress;
-      },
-    );
+      const isMatchingAddress =
+        !address ||
+        txParams.from?.toLowerCase() === address.toLowerCase() ||
+        txParams.to?.toLowerCase() === address.toLowerCase();
+
+      if (isMatchingAddress) {
+        log('Removing transaction', tx);
+      }
+
+      return !isMatchingAddress;
+    });
+
+    const newLastFetchedTimestamps = Object.keys(lastFetchedTimestamps).reduce<{
+      [key: string]: number;
+    }>((acc, key) => {
+      const timestamp = lastFetchedTimestamps[key];
+
+      const isMatchingNetwork =
+        ignoreNetwork || key.startsWith(`${currentChainId}#`);
+
+      const isMatchingAddress =
+        !address || key.endsWith(`#${address.toLowerCase()}`);
+
+      if (!isMatchingNetwork || !isMatchingAddress) {
+        acc[key] = timestamp;
+      } else {
+        log('Removing last fetched timestamp', { key, timestamp });
+      }
+
+      return acc;
+    }, {});
 
     this.update((state) => {
+      state.lastFetchedTimestamps = newLastFetchedTimestamps;
       state.transactions = this.trimTransactionsForState(newTransactions);
     });
   }
@@ -2896,46 +2928,32 @@ export class TransactionController extends BaseController<
     return Common.custom(customChainParams);
   }
 
-  private onIncomingTransactions({
-    added,
-    updated,
-  }: {
-    added: TransactionMeta[];
-    updated: TransactionMeta[];
-  }) {
+  private onIncomingTransactions(incomingTransactions: TransactionMeta[]) {
     this.update((state) => {
       const { transactions: currentTransactions } = state;
-      const updatedTransactions = [
-        ...added,
-        ...currentTransactions.map((originalTransaction) => {
-          const updatedTransaction = updated.find(
-            ({ hash }) => hash === originalTransaction.hash,
-          );
 
-          return updatedTransaction ?? originalTransaction;
-        }),
-      ];
-
-      state.transactions = this.trimTransactionsForState(updatedTransactions);
+      state.transactions = this.trimTransactionsForState([
+        ...incomingTransactions,
+        ...currentTransactions,
+      ]);
     });
+
+    this.messagingSystem.publish(
+      `${controllerName}:incomingTransactionsReceived`,
+      incomingTransactions,
+    );
   }
 
-  private onUpdatedLastFetchedBlockNumbers({
-    lastFetchedBlockNumbers,
-    blockNumber,
+  private onUpdatedLastFetchedTimestamp({
+    key,
+    timestamp,
   }: {
-    lastFetchedBlockNumbers: {
-      [key: string]: number;
-    };
-    blockNumber: number;
+    key: string;
+    timestamp: number;
   }) {
     this.update((state) => {
-      state.lastFetchedBlockNumbers = lastFetchedBlockNumbers;
+      state.lastFetchedTimestamps[key] = timestamp;
     });
-    this.messagingSystem.publish(
-      `${controllerName}:incomingTransactionBlockReceived`,
-      blockNumber,
-    );
   }
 
   private generateDappSuggestedGasFees(
@@ -3322,7 +3340,7 @@ export class TransactionController extends BaseController<
   } = {}): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
       getCurrentAccount: () => this.#getSelectedAccount(),
-      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getLastFetchedTimestamps: () => this.state.lastFetchedTimestamps,
       getChainIds: chainId ? () => [chainId] : () => [this.getChainId()],
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
@@ -3394,9 +3412,9 @@ export class TransactionController extends BaseController<
   #removeIncomingTransactionHelperListeners(
     incomingTransactionHelper: IncomingTransactionHelper,
   ) {
-    incomingTransactionHelper.hub.removeAllListeners('transactions');
+    incomingTransactionHelper.hub.removeAllListeners('incoming-transactions');
     incomingTransactionHelper.hub.removeAllListeners(
-      'updatedLastFetchedBlockNumbers',
+      'updated-last-fetched-timestamp',
     );
   }
 
@@ -3404,12 +3422,13 @@ export class TransactionController extends BaseController<
     incomingTransactionHelper: IncomingTransactionHelper,
   ) {
     incomingTransactionHelper.hub.on(
-      'transactions',
+      'incoming-transactions',
       this.onIncomingTransactions.bind(this),
     );
+
     incomingTransactionHelper.hub.on(
-      'updatedLastFetchedBlockNumbers',
-      this.onUpdatedLastFetchedBlockNumbers.bind(this),
+      'updated-last-fetched-timestamp',
+      this.onUpdatedLastFetchedTimestamp.bind(this),
     );
   }
 
