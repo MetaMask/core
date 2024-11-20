@@ -10,6 +10,15 @@ export enum KnownWalletScopeString {
 }
 
 /**
+ * Regexes defining how references must be formed for non-wallet known CAIP namespaces
+ */
+export const CaipReferenceRegexes: Record<NonWalletKnownCaipNamespace, RegExp> =
+  {
+    eip155: /^(0|[1-9][0-9]*)$/u,
+    bip122: /.*/u,
+  };
+
+/**
  * Methods that do not belong exclusively to any CAIP namespace.
  */
 export const KnownWalletRpcMethods: string[] = [
