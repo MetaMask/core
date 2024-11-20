@@ -19,7 +19,7 @@ export type ExternalScopeString = CaipChainId | CaipNamespace;
 /**
  * Represents a `scopeObject` as defined in [CAIP-217](https://chainagnostic.org/CAIPs/caip-217).
  */
-export type ExternalScopeObject = Omit<InternalScopeObject, 'accounts'> & {
+export type ExternalScopeObject = Omit<NormalizedScopeObject, 'accounts'> & {
   references?: CaipReference[];
   accounts?: CaipAccountId[];
 };
@@ -44,7 +44,7 @@ export type InternalScopeString = CaipChainId | KnownCaipNamespace.Wallet;
  * the `references` property is disallowed for our internal representations of CAIP-25 session scopes.
  * e.g. We flatten each reference into its own scopeObject before storing them in a `endowment:caip25` permission.
  */
-export type InternalScopeObject = {
+export type NormalizedScopeObject = {
   methods: string[];
   notifications: string[];
   accounts: CaipAccountId[];

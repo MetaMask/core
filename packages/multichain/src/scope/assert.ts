@@ -17,8 +17,8 @@ import type {
   ExternalScopeObject,
   ExternalScopesObject,
   ExternalScopeString,
-  InternalScopeObject,
-  InternalScopesObject,
+  NormalizedScopeObject,
+  NormalizedScopesObject,
 } from './types';
 
 /**
@@ -30,7 +30,7 @@ import type {
  */
 export const assertScopeSupported = (
   scopeString: string,
-  scopeObject: InternalScopeObject,
+  scopeObject: NormalizedScopeObject,
   {
     isChainIdSupported,
   }: {
@@ -67,7 +67,7 @@ export const assertScopeSupported = (
  * @param options.isChainIdSupported - A predicate that determines if a chainID is supported.
  */
 export const assertScopesSupported = (
-  scopes: InternalScopesObject,
+  scopes: NormalizedScopesObject,
   {
     isChainIdSupported,
   }: {

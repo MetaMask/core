@@ -7,7 +7,7 @@ import {
 } from './assert';
 import { Caip25Errors } from './errors';
 import * as Supported from './supported';
-import type { InternalScopeObject } from './types';
+import type { NormalizedScopeObject } from './types';
 
 jest.mock('./supported', () => ({
   isSupportedScopeString: jest.fn(),
@@ -24,7 +24,7 @@ jest.mock('@metamask/utils', () => ({
 const MockSupported = jest.mocked(Supported);
 const MockUtils = jest.mocked(Utils);
 
-const validScopeObject: InternalScopeObject = {
+const validScopeObject: NormalizedScopeObject = {
   methods: [],
   notifications: [],
   accounts: [],
