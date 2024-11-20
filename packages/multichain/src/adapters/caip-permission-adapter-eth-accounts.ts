@@ -28,7 +28,7 @@ const isEip155ScopeString = (scopeString: InternalScopeString) => {
 
 /**
  * Gets the Ethereum (EIP155 namespaced) accounts from internal scopes.
- * @param scopes - The internal scopes from which to get the Ethereum accounts from.
+ * @param scopes - The internal scopes from which to get the Ethereum accounts.
  * @returns An array of Ethereum accounts.
  */
 const getEthAccountsFromScopes = (scopes: InternalScopesObject) => {
