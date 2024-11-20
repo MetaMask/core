@@ -306,7 +306,6 @@ describe('Scope Assert', () => {
       ).toThrow(
         'ExternalScopeObject.references must be an array of CaipReference',
       );
-      jest.restoreAllMocks();
     });
 
     it('throws an error if passed an object with an ExternalScopeObject with an accounts property that is not an array', () => {
@@ -346,7 +345,6 @@ describe('Scope Assert', () => {
       ).toThrow(
         'ExternalScopeObject.accounts must be an array of CaipAccountId',
       );
-      jest.restoreAllMocks();
     });
 
     it('throws an error if passed an object with an ExternalScopeObject with a methods property that is not an array', () => {
@@ -556,7 +554,6 @@ describe('Scope Assert', () => {
       ).toThrow(
         'InternalScopeObject.accounts must be an array of CaipAccountId',
       );
-      jest.restoreAllMocks();
     });
   });
 });
