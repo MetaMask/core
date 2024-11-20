@@ -72,7 +72,7 @@ export type NormalizedScopeObject = {
 /**
  * Represents a keyed `scopeObject` as defined in
  * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
- * we resolve the `references` property into multiple scopeObjects and
+  * we resolve the `references` property into a scopeObject per reference and
  * assign an empty array to the `accounts` property if not already defined
  * to more easily read chain specific permissions.
  */
