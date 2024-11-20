@@ -29,10 +29,6 @@ import {
   type InternalScopesObject,
 } from './scope/types';
 
-// This really isn't a "caip25" permission anymore
-
-// Bad name
-
 /**
  * The CAIP-25 permission caveat value.
  * This permission contains the required and optional scopes and session properties from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request that initiated the permission session.
