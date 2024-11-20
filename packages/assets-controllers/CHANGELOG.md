@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [44.0.1]
 
-### Uncategorized
+### Changed
 
-- fix: fix add tokens and take chainId from networkID if provided ([#4940](https://github.com/MetaMask/core/pull/4940))
-- fix token detection fallback ([#4928](https://github.com/MetaMask/core/pull/4928))
+- Fixes an issue where the token detection was unnecessarily falling back to an RPC approach, causing redundant detections. ([#4928](https://github.com/MetaMask/core/pull/4928))
+
+- Fixes an issue where `TokensController.addTokens` was not respecting the network client id passed to it. ([#4940](https://github.com/MetaMask/core/pull/4940))
 
 ## [44.0.0]
 
