@@ -8,8 +8,8 @@ import {
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { KnownWalletScopeString } from '../scope/constants';
-import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { NormalizedScopesObject, InternalScopeString, InternalScopesObject } from '../scope/types';
+import { getUniqueArrayItems } from '../scope/transform';
+import type { InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
@@ -27,6 +27,30 @@ const isEip155ScopeString = (scopeString: InternalScopeString) => {
 };
 
 /**
+ * Gets the Ethereum (EIP155 namespaced) accounts from internal scopes.
+ * @param scopes - The internal scopes from which to get the Ethereum accounts from.
+ * @returns An array of Ethereum accounts.
+ */
+const getEthAccountsFromScopes = (scopes: InternalScopesObject) => {
+  const ethAccounts: Hex[] = [];
+
+  Object.entries(scopes).forEach(([_, { accounts }]) => {
+    accounts?.forEach((account) => {
+      const { address, chainId } = parseCaipAccountId(account);
+
+      if (isEip155ScopeString(chainId)) {
+        // This address should always be a valid Hex string because
+        // it's an EIP155/Ethereum account
+        assertIsStrictHexString(address);
+        ethAccounts.push(address);
+      }
+    });
+  });
+
+  return ethAccounts;
+};
+
+/**
  * Gets the Ethereum (EIP155 namespaced) accounts from the required and optional scopes.
  * @param caip25CaveatValue - The CAIP-25 caveat value to get the Ethereum accounts from.
  * @returns An array of Ethereum accounts.
@@ -37,38 +61,12 @@ export const getEthAccounts = (
     'requiredScopes' | 'optionalScopes'
   >,
 ): Hex[] => {
-  const ethAccounts: Hex[] = [];
-  // const sessionScopes = mergeScopes(
-  //   caip25CaveatValue.requiredScopes,
-  //   caip25CaveatValue.optionalScopes,
-  // );
+  const { requiredScopes, optionalScopes } = caip25CaveatValue;
 
-  Object.entries(caip25CaveatValue.requiredScopes).forEach(([_, { accounts }]) => {
-    accounts?.forEach((account) => {
-      const { address, chainId } = parseCaipAccountId(account);
-
-      if (isEip155ScopeString(chainId)) {
-        // This address should always be a valid Hex string because
-        // it's an EIP155/Ethereum account
-        assertIsStrictHexString(address);
-        ethAccounts.push(address);
-      }
-    });
-  });
-
-  Object.entries(caip25CaveatValue.optionalScopes).forEach(([_, { accounts }]) => {
-    accounts?.forEach((account) => {
-      const { address, chainId } = parseCaipAccountId(account);
-
-      if (isEip155ScopeString(chainId)) {
-        // This address should always be a valid Hex string because
-        // it's an EIP155/Ethereum account
-        assertIsStrictHexString(address);
-        ethAccounts.push(address);
-      }
-    });
-  });
-
+  const ethAccounts: Hex[] = [
+    ...getEthAccountsFromScopes(requiredScopes),
+    ...getEthAccountsFromScopes(optionalScopes),
+  ];
 
   return getUniqueArrayItems(ethAccounts);
 };

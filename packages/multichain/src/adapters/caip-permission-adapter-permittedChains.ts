@@ -3,10 +3,27 @@ import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
-import { KnownNotifications, KnownRpcMethods } from '../scope/constants';
-import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { InternalScopesObject, NormalizedScopesObject } from '../scope/types';
+import { getUniqueArrayItems } from '../scope/transform';
+import type { InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
+
+/**
+ * Gets the Ethereum (EIP155 namespaced) chainIDs from internal scopes.
+ * @param scopes - The internal scopes from which to get the Ethereum chainIDs.
+ * @returns An array of Ethereum chainIDs.
+ */
+const getPermittedEthChainIdsFromScopes = (scopes: InternalScopesObject) => {
+  const ethChainIds: Hex[] = [];
+
+  Object.keys(scopes).forEach((scopeString) => {
+    const { namespace, reference } = parseScopeString(scopeString);
+    if (namespace === KnownCaipNamespace.Eip155 && reference) {
+      ethChainIds.push(toHex(reference));
+    }
+  });
+
+  return ethChainIds;
+};
 
 /**
  * Gets the Ethereum (EIP155 namespaced) chainIDs from the required and optional scopes.
@@ -19,26 +36,12 @@ export const getPermittedEthChainIds = (
     'requiredScopes' | 'optionalScopes'
   >,
 ) => {
-  const ethChainIds: Hex[] = [];
-  // const sessionScopes = mergeScopes(
-  //   caip25CaveatValue.requiredScopes,
-  //   caip25CaveatValue.optionalScopes,
-  // );
+  const { requiredScopes, optionalScopes } = caip25CaveatValue;
 
-  Object.keys(caip25CaveatValue.requiredScopes).forEach((scopeString) => {
-    const { namespace, reference } = parseScopeString(scopeString);
-    if (namespace === KnownCaipNamespace.Eip155 && reference) {
-      ethChainIds.push(toHex(reference));
-    }
-  });
-
-  Object.keys(caip25CaveatValue.optionalScopes).forEach((scopeString) => {
-    const { namespace, reference } = parseScopeString(scopeString);
-    if (namespace === KnownCaipNamespace.Eip155 && reference) {
-      ethChainIds.push(toHex(reference));
-    }
-  });
-
+  const ethChainIds: Hex[] = [
+    ...getPermittedEthChainIdsFromScopes(requiredScopes),
+    ...getPermittedEthChainIdsFromScopes(optionalScopes),
+  ];
 
   return getUniqueArrayItems(ethChainIds);
 };
