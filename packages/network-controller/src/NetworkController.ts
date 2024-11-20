@@ -34,7 +34,6 @@ import type {
   ProxyWithAccessibleTarget,
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
-import { updateNetworkConfigurationLastUpdatedAt } from './last-updated-at-network-configuration';
 import { projectLogger, createModuleLogger } from './logger';
 import { NetworkClientType } from './types';
 import type {
@@ -2444,9 +2443,13 @@ export class NetworkController extends BaseController<
     }
 
     if (mode === 'add' || mode === 'update') {
-      updateNetworkConfigurationLastUpdatedAt(
-        args.networkConfigurationToPersist,
-      );
+      if (
+        JSON.stringify(
+          state.networkConfigurationsByChainId[args.networkFields.chainId],
+        ) !== JSON.stringify(args.networkConfigurationToPersist)
+      ) {
+        args.networkConfigurationToPersist.lastUpdatedAt = Date.now();
+      }
       state.networkConfigurationsByChainId[args.networkFields.chainId] =
         args.networkConfigurationToPersist;
     }
