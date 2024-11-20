@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add account sync analytics & add state helpers ([#4944](https://github.com/MetaMask/core/pull/4944))
-
 ## [1.0.1]
 
 ### Added
