@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.2]
 
-### Uncategorized
+### Added
 
-- feat: add account sync analytics & add state helpers ([#4944](https://github.com/MetaMask/core/pull/4944))
+- new analytics callback and various helpers & improvements ([#4944](https://github.com/MetaMask/core/pull/4944))
+  - new `UserStorageController` state keys: `hasAccountSyncingSyncedAtLeastOnce` and `isAccountSyncingReadyToBeDispatched`
+  - new `onAccountSyncErroneousSituation` analytics callback to track how often erroneous situations happen during account syncing
+
+### Changed
+
+- set `hasAccountSyncingSyncedAtLeastOnce` also for a profile id that has never synced accounts before ([#4944](https://github.com/MetaMask/core/pull/4944))
 
 ## [1.0.1]
 
