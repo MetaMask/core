@@ -168,7 +168,8 @@ const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
  * Returns the address that should be used to query the price api for the
  * chain's native token. On most chains, this is signified by the zero address.
  * But on some chains, the native token has a specific address.
- * @param chainId
+ * @param chainId - The hexadecimal chain id.
+ * @returns The address of the chain's native token.
  */
 export const getNativeTokenAddress = (chainId: Hex): Hex =>
   chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
