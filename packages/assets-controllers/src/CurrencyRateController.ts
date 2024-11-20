@@ -62,6 +62,8 @@ type CurrencyRateMessenger = RestrictedControllerMessenger<
   never
 >;
 
+const DEFAULT_INTERVAL = 180000;
+
 const metadata = {
   currentCurrency: { persist: true, anonymous: true },
   currencyRates: { persist: true, anonymous: true },
@@ -105,7 +107,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<
    */
   constructor({
     includeUsdRate = false,
-    interval = 180000,
+    interval = DEFAULT_INTERVAL,
     messenger,
     state,
     fetchExchangeRate = defaultFetchExchangeRate,
@@ -157,7 +159,11 @@ export class CurrencyRateController extends StaticIntervalPollingController<
    *
    * @param currentCurrency - ISO 4217 currency code.
    */
-  async setCurrentCurrency(currentCurrency: string) {
+  async setCurrentCurrency(currentCurrency: string): Promise<void> {
+    if (currentCurrency === '') {
+      throw new Error('The currency can not be an empty string');
+    }
+
     const nativeCurrencies = Object.keys(this.state.currencyRates);
     await this.withLock(async () => {
       this.update(() => {
@@ -167,9 +173,10 @@ export class CurrencyRateController extends StaticIntervalPollingController<
         };
       });
     });
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    nativeCurrencies.forEach(this.updateExchangeRate.bind(this));
+
+    await Promise.all(
+      nativeCurrencies.map((currency) => this.updateExchangeRate(currency)),
+    );
   }
 
   /**
@@ -182,7 +189,9 @@ export class CurrencyRateController extends StaticIntervalPollingController<
       const { currentCurrency } = this.state;
 
       if (!this.shouldFetchExchangeRate(currentCurrency, nativeCurrency)) {
-        return;
+        throw new Error(
+          'Cannot fetch exchange rate because of missing data. Parameters should be non-empty strings.',
+        );
       }
 
       const nativeCurrencyForExchangeRate =
@@ -208,16 +217,60 @@ export class CurrencyRateController extends StaticIntervalPollingController<
     });
   }
 
+  /**
+   * Prepare to discard this controller.
+   *
+   * This stops any active polling.
+   */
+  override destroy() {
+    super.destroy();
+    this.stopAllPolling();
+  }
+
+  /**
+   * Updates exchange rate for the current currency.
+   *
+   * @param networkClientId - The network client ID used to get a ticker value.
+   * @returns The controller state.
+   */
+  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    await this.updateExchangeRate(networkClient.configuration.ticker);
+  }
+
+  /**
+   * Determines whether is possible or not to fetch
+   * the exchange rate based on the provided inputs.
+   * @param currentCurrency - The current currency.
+   * @param nativeCurrency - The native currency.
+   * @returns Whether is possible or not to fetch the exchange rate.
+   */
   private shouldFetchExchangeRate(
     currentCurrency: string,
     nativeCurrency: string,
   ): boolean {
-    return currentCurrency !== '' && nativeCurrency !== '';
+    return (
+      Boolean(currentCurrency && nativeCurrency) &&
+      currentCurrency !== '' &&
+      nativeCurrency !== ''
+    );
   }
 
+  /**
+   * Sets the correct ticker for EVM testnet edge cases.
+   *
+   * In the case of testnets like Sepolia, Goerli, Linea Sepolia, and Linea Goerli
+   * the ticker symbol should be ETH because we use the same rate as the Ethereum mainnet asset.
+   *
+   * @param nativeCurrency - The ticker symbol for the chain.
+   * @returns The ticker symbol for the chain.
+   */
   private getNativeCurrencyForExchangeRate(nativeCurrency: string): string {
     return Object.values(TESTNET_TICKER_SYMBOLS).includes(nativeCurrency)
-      ? FALL_BACK_VS_CURRENCY // ETH
+      ? FALL_BACK_VS_CURRENCY
       : nativeCurrency;
   }
 
@@ -263,30 +316,6 @@ export class CurrencyRateController extends StaticIntervalPollingController<
       error instanceof Error &&
       error.message.includes('market does not exist for this coin pair')
     );
-  }
-
-  /**
-   * Prepare to discard this controller.
-   *
-   * This stops any active polling.
-   */
-  override destroy() {
-    super.destroy();
-    this.stopAllPolling();
-  }
-
-  /**
-   * Updates exchange rate for the current currency.
-   *
-   * @param networkClientId - The network client ID used to get a ticker value.
-   * @returns The controller state.
-   */
-  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-    await this.updateExchangeRate(networkClient.configuration.ticker);
   }
 }
 
