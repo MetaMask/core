@@ -27,7 +27,7 @@ import { isEqual } from 'lodash';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
-import { ZERO_ADDRESS } from './token-prices-service/codefi-v2';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 import type {
   TokensControllerGetStateAction,
   TokensControllerStateChangeEvent,
@@ -718,9 +718,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         });
 
       contractNativeInformations = {
-        [ZERO_ADDRESS]: {
+        [getNativeTokenAddress(chainId)]: {
           currency: nativeCurrency,
-          ...contractNativeInformationsNative[ZERO_ADDRESS],
+          ...contractNativeInformationsNative[getNativeTokenAddress(chainId)],
         },
       };
     }
