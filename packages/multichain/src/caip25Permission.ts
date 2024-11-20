@@ -20,21 +20,14 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
+import { assertIsInternalScopesObject } from './scope/assert';
+import { Caip25Errors } from './scope/errors';
+import { isSupportedScopeString } from './scope/supported';
 import {
-  assertScopesSupported,
-  assertIsExternalScopesObject,
-} from './scope/assert';
-import { validateAndNormalizeScopes } from './scope/authorization';
-import {
-  parseScopeString,
   type ExternalScopeString,
   type InternalScopeObject,
   type InternalScopesObject,
-  type NormalizedScopeObject,
 } from './scope/types';
-import { isSupportedScopeString } from './scope/supported';
-import { Caip25Errors } from './scope/errors';
-
 
 // This really isn't a "caip25" permission anymore
 
@@ -130,17 +123,10 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      const requiredScopes = caip25Caveat.value.requiredScopes as InternalScopeObject;
-      const optionalScopes = caip25Caveat.value.optionalScopes as InternalScopeObject;
+      const { requiredScopes, optionalScopes } = caip25Caveat.value;
 
-      // TODO: Add assertion to types
-      // const { requiredScopes, optionalScopes } = caip25Caveat.value;
-
-      // assertIsExternalScopesObject(requiredScopes);
-      // assertIsExternalScopesObject(optionalScopes);
-
-      // const { normalizedRequiredScopes, normalizedOptionalScopes } =
-      //   validateAndNormalizeScopes(requiredScopes, optionalScopes);
+      assertIsInternalScopesObject(requiredScopes);
+      assertIsInternalScopesObject(optionalScopes);
 
       const isChainIdSupported = (chainId: Hex) => {
         try {
@@ -151,18 +137,17 @@ const specificationBuilder: PermissionSpecificationBuilder<
         }
       };
 
-      Object.keys(requiredScopes).forEach((scopeString) => {
-        if (!isSupportedScopeString(scopeString, isChainIdSupported)) {
-          throw Caip25Errors.requestedChainsNotSupportedError();
-        }
-      })
-
-      // assertScopesSupported(normalizedRequiredScopes, {
-      //   isChainIdSupported,
-      // });
-      // assertScopesSupported(normalizedOptionalScopes, {
-      //   isChainIdSupported,
-      // });
+      const allRequiredScopesSupported = Object.keys(requiredScopes).every(
+        (scopeString) =>
+          isSupportedScopeString(scopeString, isChainIdSupported),
+      );
+      const allOptionalScopesSupported = Object.keys(optionalScopes).every(
+        (scopeString) =>
+          isSupportedScopeString(scopeString, isChainIdSupported),
+      );
+      if (!allRequiredScopesSupported || !allOptionalScopesSupported) {
+        throw Caip25Errors.requestedChainsNotSupportedError();
+      }
 
       // Fetch EVM accounts from native wallet keyring
       // These addresses are lowercased already

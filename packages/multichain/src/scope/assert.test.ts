@@ -482,7 +482,6 @@ describe('Scope Assert', () => {
     });
   });
 
-
   describe('assertIsInternalScopesObject', () => {
     it('does not throw if passed obj is a valid InternalScopesObject with all valid properties', () => {
       const obj = {
@@ -529,7 +528,6 @@ describe('Scope Assert', () => {
         'InternalScopeObject.accounts must be an array of CaipAccountId',
       );
     });
-
 
     it('throws an error if passed an object with an InternalScopeObject with an accounts property that is not an array', () => {
       const invalidInternalScopeObject = {
