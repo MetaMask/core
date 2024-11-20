@@ -21,6 +21,9 @@ const RECEIPT_STATUS_SUCCESS = '0x1';
 const RECEIPT_STATUS_FAILURE = '0x0';
 const MAX_RETRY_BLOCK_DISTANCE = 50;
 
+const MAX_ACCELERATED_POLLS = 5;
+const ACCELERATED_POLLING_INTERVAL = 2000;
+
 const KNOWN_TRANSACTION_ERRORS = [
   'replacement transaction underpriced',
   'known transaction',
@@ -92,6 +95,10 @@ export class PendingTransactionTracker {
 
   #beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
+  #acceleratedPollingCount: number;
+
+  #acceleratedPollingEnabled: boolean;
+
   constructor({
     blockTracker,
     getChainId,
@@ -100,6 +107,7 @@ export class PendingTransactionTracker {
     isResubmitEnabled,
     getGlobalLock,
     publishTransaction,
+    acceleratedPollingEnabled,
     hooks,
   }: {
     blockTracker: BlockTracker;
@@ -112,6 +120,7 @@ export class PendingTransactionTracker {
       ethQuery: EthQuery,
       transactionMeta: TransactionMeta,
     ) => Promise<string>;
+    acceleratedPollingEnabled: boolean;
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
@@ -120,7 +129,6 @@ export class PendingTransactionTracker {
     };
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
-
     this.#blockTracker = blockTracker;
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
@@ -134,12 +142,15 @@ export class PendingTransactionTracker {
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
+    this.#acceleratedPollingCount = 0;
+    this.#acceleratedPollingEnabled = acceleratedPollingEnabled;
   }
 
   startIfPendingTransactions = () => {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (pendingTransactions.length) {
+      this.#resetAcceleratedPolling();
       this.#start();
     } else {
       this.stop();
@@ -169,7 +180,17 @@ export class PendingTransactionTracker {
       return;
     }
 
-    this.#blockTracker.on('latest', this.#listener);
+    if (
+      this.#acceleratedPollingEnabled &&
+      this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS
+    ) {
+      // Start accelerated polling
+      this.#startAcceleratedPolling();
+    } else {
+      // Fall back to normal block-based polling
+      this.#startNormalPolling();
+    }
+
     this.#running = true;
 
     log('Started polling');
@@ -184,6 +205,45 @@ export class PendingTransactionTracker {
     this.#running = false;
 
     log('Stopped polling');
+  }
+
+  #startAcceleratedPolling() {
+    const checkAndSchedule = async () => {
+      const releaseLock = await this.#getGlobalLock();
+      try {
+        await this.#checkTransactions();
+      } finally {
+        releaseLock();
+      }
+
+      // If we no longer have pending transactions, stop polling
+      if (this.#getPendingTransactions().length === 0) {
+        this.stop();
+        return;
+      }
+      // If we still have pending transactions, and we are below the max poll, do an additional accelerated poll
+      if (this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS) {
+        this.#acceleratedPollingCount += 1;
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        setTimeout(checkAndSchedule, ACCELERATED_POLLING_INTERVAL);
+      } else {
+        // If we have reached the max poll, fall back to normal polling
+        this.#startNormalPolling();
+      }
+    };
+
+    // Start the first aggressive check
+    // eslint-disable-next-line no-void
+    void checkAndSchedule();
+  }
+
+  #startNormalPolling() {
+    this.#blockTracker.on('latest', this.#listener);
+  }
+
+  #resetAcceleratedPolling() {
+    // Reset counter when transaction list changes
+    this.#acceleratedPollingCount = 0;
   }
 
   async #onLatestBlock(latestBlockNumber: string) {

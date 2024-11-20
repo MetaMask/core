@@ -35,3 +35,6 @@ scripts/coverage
 
 # typescript
 packages/*/*.tsbuildinfo
+
+# Webstorm IDE
+.idea
