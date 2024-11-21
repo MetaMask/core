@@ -880,7 +880,7 @@ describe('TransactionController', () => {
       expect(controller.state).toStrictEqual({
         methodData: {},
         transactions: [],
-        lastFetchedTimestamps: {},
+        lastFetchedBlockNumbers: {},
         submitHistory: [],
       });
     });
@@ -1018,7 +1018,7 @@ describe('TransactionController', () => {
       const mockedControllerState = {
         transactions: mockedTransactions,
         methodData: {},
-        lastFetchedTimestamps: {},
+        lastFetchedBlockNumbers: {},
       };
 
       const { controller } = setupController({
@@ -1077,7 +1077,7 @@ describe('TransactionController', () => {
       const mockedControllerState = {
         transactions: mockedTransactions,
         methodData: {},
-        lastFetchedTimestamps: {},
+        lastFetchedBlockNumbers: {},
       };
 
       const { controller } = setupController({
@@ -2462,6 +2462,23 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe('4');
+    });
+
+    it('clears incoming transaction cache', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            lastFetchedBlockNumbers: {
+              test1: 1,
+              test2: 'test',
+            },
+          },
+        },
+      });
+
+      controller.wipeTransactions();
+
+      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual({});
     });
   });
 
@@ -4022,7 +4039,7 @@ describe('TransactionController', () => {
         },
       );
 
-      expect(controller.state.lastFetchedTimestamps).toStrictEqual({
+      expect(controller.state.lastFetchedBlockNumbers).toStrictEqual({
         [key]: value,
       });
     });

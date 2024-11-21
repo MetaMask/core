@@ -140,7 +140,7 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
-  lastFetchedTimestamps: {
+  lastFetchedBlockNumbers: {
     persist: true,
     anonymous: false,
   },
@@ -198,12 +198,12 @@ export type MethodData = {
  *
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
- * @property lastFetchedTimestamps - Last fetched block numbers.
+ * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
   transactions: TransactionMeta[];
   methodData: Record<string, MethodData>;
-  lastFetchedTimestamps: { [key: string]: number };
+  lastFetchedBlockNumbers: { [key: string]: number | string };
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -566,7 +566,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
   return {
     methodData: {},
     transactions: [],
-    lastFetchedTimestamps: {},
+    lastFetchedBlockNumbers: {},
     submitHistory: [],
   };
 }
@@ -1490,7 +1490,7 @@ export class TransactionController extends BaseController<
     if (ignoreNetwork && !address) {
       this.update((state) => {
         state.transactions = [];
-        state.lastFetchedTimestamps = {};
+        state.lastFetchedBlockNumbers = {};
       });
 
       return;
@@ -1520,7 +1520,7 @@ export class TransactionController extends BaseController<
     });
 
     this.update((state) => {
-      state.lastFetchedTimestamps = {};
+      state.lastFetchedBlockNumbers = {};
       state.transactions = this.trimTransactionsForState(newTransactions);
     });
   }
@@ -3321,13 +3321,13 @@ export class TransactionController extends BaseController<
   } = {}): IncomingTransactionHelper {
     const updateCache = (fn: (cache: Record<string, unknown>) => void) => {
       this.update((state) => {
-        fn(state.lastFetchedTimestamps);
+        fn(state.lastFetchedBlockNumbers);
       });
     };
 
     const incomingTransactionHelper = new IncomingTransactionHelper({
       getCurrentAccount: () => this.#getSelectedAccount(),
-      getCache: () => this.state.lastFetchedTimestamps,
+      getCache: () => this.state.lastFetchedBlockNumbers,
       getChainIds: chainId ? () => [chainId] : () => [this.getChainId()],
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
@@ -3403,7 +3403,7 @@ export class TransactionController extends BaseController<
   #removeIncomingTransactionHelperListeners(
     incomingTransactionHelper: IncomingTransactionHelper,
   ) {
-    incomingTransactionHelper.hub.removeAllListeners('incoming-transactions');
+    incomingTransactionHelper.hub.removeAllListeners('transactions');
     incomingTransactionHelper.hub.removeAllListeners(
       'updated-last-fetched-timestamp',
     );

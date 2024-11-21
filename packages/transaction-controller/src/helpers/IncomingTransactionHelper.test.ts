@@ -88,7 +88,6 @@ async function runInterval(
   { start, error }: { start?: boolean; error?: boolean } = {},
 ) {
   const incomingTransactionsListener = jest.fn();
-  const lastFetchedListener = jest.fn();
 
   if (error) {
     incomingTransactionsListener.mockImplementation(() => {
@@ -97,7 +96,6 @@ async function runInterval(
   }
 
   helper.hub.addListener('transactions', incomingTransactionsListener);
-  helper.hub.addListener('updated-last-fetched-timestamp', lastFetchedListener);
 
   if (start !== false) {
     helper.start();
@@ -109,9 +107,7 @@ async function runInterval(
 
   return {
     transactions: incomingTransactionsListener.mock.calls[0]?.[0],
-    lastFetchedTimestamps: lastFetchedListener.mock.calls[0]?.[0],
     incomingTransactionsListener,
-    lastFetchedListener,
   };
 }
 
