@@ -54,6 +54,12 @@ const getNormalizedScopesObject = (
   return normalizedScopes;
 };
 
+/**
+ * Takes the scopes from an endowment:caip25 permission caveat value, 
+ * hydrates them with supported methods and notifications, and returns a NormalizedScopesObject.
+ * @param caip25CaveatValue - The CAIP-25 CaveatValue to convert.
+ * @returns A NormalizedScopesObject.
+ */
 export const getSessionScopes = (
   caip25CaveatValue: Pick<
     Caip25CaveatValue,
