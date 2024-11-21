@@ -13,7 +13,8 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import type { ExternalScopeString, InternalScopeString } from '../scope/types';
+import { assertIsInternalScopeString } from '../scope/assert';
+import type { ExternalScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
@@ -48,6 +49,8 @@ async function walletInvokeMethodHandler(
     request: JsonRpcRequest;
   };
 
+  assertIsInternalScopeString(scope);
+
   let caveat;
   try {
     caveat = hooks.getCaveat(
@@ -62,9 +65,7 @@ async function walletInvokeMethodHandler(
     return end(providerErrors.unauthorized());
   }
 
-  const scopeObject = getSessionScopes(caveat.value)[
-    scope as InternalScopeString
-  ];
+  const scopeObject = getSessionScopes(caveat.value)[scope];
 
   if (!scopeObject?.methods?.includes(wrappedRequest.method)) {
     return end(providerErrors.unauthorized());

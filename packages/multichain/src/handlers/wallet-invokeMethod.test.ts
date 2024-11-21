@@ -100,7 +100,7 @@ describe('wallet_invokeMethod', () => {
         notifications: [],
         accounts: [],
       },
-      'unhandled:scope': {
+      'unknown:scope': {
         methods: ['foobar'],
         notifications: [],
         accounts: [],
@@ -211,7 +211,7 @@ describe('wallet_invokeMethod', () => {
       ...request,
       params: {
         ...request.params,
-        scope: 'unhandled:scope',
+        scope: 'unknown:scope',
         request: {
           ...request.params.request,
           method: 'foobar',
