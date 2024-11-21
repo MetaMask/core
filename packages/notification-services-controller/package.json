@@ -111,7 +111,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^18.0.0",
+    "@metamask/keyring-controller": "^18.0.1",
     "@metamask/profile-sync-controller": "^1.0.2",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",

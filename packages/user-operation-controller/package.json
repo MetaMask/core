@@ -64,7 +64,7 @@
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/gas-fee-controller": "^22.0.1",
-    "@metamask/keyring-controller": "^18.0.0",
+    "@metamask/keyring-controller": "^18.0.1",
     "@metamask/network-controller": "^22.0.2",
     "@metamask/transaction-controller": "^39.1.0",
     "@types/jest": "^27.4.1",
