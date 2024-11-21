@@ -1,3 +1,4 @@
+import { FirstTimeInteractionError } from '../errors';
 import { getAccountAddressRelationship } from './accounts-api';
 import type { GetAccountAddressRelationshipRequest } from './accounts-api';
 
@@ -33,25 +34,18 @@ describe('Accounts API', () => {
       to: TO_ADDRESS,
     };
 
-    const RESPONSE_ERROR_MOCK = {
-      error: 'Some error',
-    };
-
     const EXISTING_RELATIONSHIP_RESPONSE_MOCK = {
       count: 1,
     };
 
-    const NO_COUNT_RESPONSE_MOCK = {};
-
-    describe('returns isFirstTimeInteraction as true', () => {
+    describe('returns API response', () => {
       it('for 204 responses', async () => {
         mockFetchResponse({}, 204);
 
         const result = await getAccountAddressRelationship(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          isFirstTimeInteraction: true,
-          isFirstTimeInteractionDisabled: false,
+          count: 0,
         });
       });
 
@@ -61,58 +55,40 @@ describe('Accounts API', () => {
         const result = await getAccountAddressRelationship(REQUEST_MOCK);
 
         expect(result).toStrictEqual({
-          isFirstTimeInteraction: true,
-          isFirstTimeInteractionDisabled: false,
+          count: 0,
         });
       });
     });
 
-    it('returns isFirstTimeInteraction as false for existing relationship', async () => {
+    it('returns correct response for existing relationship', async () => {
       mockFetchResponse(EXISTING_RELATIONSHIP_RESPONSE_MOCK);
 
       const result = await getAccountAddressRelationship(REQUEST_MOCK);
 
-      expect(result).toStrictEqual({
-        isFirstTimeInteraction: false,
-        isFirstTimeInteractionDisabled: false,
-      });
+      expect(result).toStrictEqual(EXISTING_RELATIONSHIP_RESPONSE_MOCK);
     });
 
-    describe('returns isFirstTimeInteractionDisabled as true', () => {
+    describe('throws FirstTimeInteractionError', () => {
       it('for unsupported chains', async () => {
         const request = {
           chainId: CHAIN_ID_UNSUPPORTED,
           from: FROM_ADDRESS,
           to: TO_ADDRESS,
         };
-        const result = await getAccountAddressRelationship(request);
 
-        expect(result).toStrictEqual({
-          isFirstTimeInteraction: undefined,
-          isFirstTimeInteractionDisabled: true,
-        });
+        await expect(getAccountAddressRelationship(request)).rejects.toThrow(
+          FirstTimeInteractionError,
+        );
       });
 
-      it('if no count property in response', async () => {
-        mockFetchResponse(NO_COUNT_RESPONSE_MOCK);
-
-        const result = await getAccountAddressRelationship(REQUEST_MOCK);
-
-        expect(result).toStrictEqual({
-          isFirstTimeInteraction: undefined,
-          isFirstTimeInteractionDisabled: true,
+      it('on error response', async () => {
+        mockFetchResponse({
+          error: { code: 'error_code', message: 'Some error' },
         });
-      });
 
-      it('on error', async () => {
-        mockFetchResponse(RESPONSE_ERROR_MOCK);
-
-        const result = await getAccountAddressRelationship(REQUEST_MOCK);
-
-        expect(result).toStrictEqual({
-          isFirstTimeInteraction: undefined,
-          isFirstTimeInteractionDisabled: true,
-        });
+        await expect(
+          getAccountAddressRelationship(REQUEST_MOCK),
+        ).rejects.toThrow(FirstTimeInteractionError);
       });
     });
   });

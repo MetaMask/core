@@ -877,8 +877,7 @@ describe('TransactionController', () => {
     );
 
     getAccountAddressRelationshipMock.mockResolvedValue({
-      isFirstTimeInteraction: undefined,
-      isFirstTimeInteractionDisabled: false,
+      count: 1,
     });
   });
 
@@ -1389,8 +1388,7 @@ describe('TransactionController', () => {
       const { controller } = setupController();
 
       getAccountAddressRelationshipMock.mockResolvedValueOnce({
-        isFirstTimeInteraction: true,
-        isFirstTimeInteractionDisabled: false,
+        count: 0,
       });
 
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
@@ -1581,8 +1579,7 @@ describe('TransactionController', () => {
         dappSuggestedGasFees: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
-        isFirstTimeInteraction: false,
-        isFirstTimeInteractionDisabled: false,
+        isFirstTimeInteraction: undefined,
         networkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
         origin: undefined,
         securityAlertResponse: undefined,

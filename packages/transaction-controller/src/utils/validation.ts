@@ -4,7 +4,6 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString } from '@metamask/utils';
 
-import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api';
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
 
@@ -65,18 +64,6 @@ export function validateTxParams(
   validateParamData(txParams.data);
   validateParamChainId(txParams.chainId);
   validateGasFeeParams(txParams);
-}
-
-/**
- * Validates the request for the first time interaction API.
- *
- * @param request - The request to validate.
- */
-export function validateAccountAddressRelationshipRequest(
-  request: GetAccountAddressRelationshipRequest,
-) {
-  const { to } = request;
-  validateParamTo(to);
 }
 
 /**
@@ -203,7 +190,7 @@ function validateParamFrom(from: string) {
  * @param to - The to property to validate.
  * @throws Throws an error if the recipient address is invalid.
  */
-function validateParamTo(to?: string) {
+export function validateParamTo(to?: string) {
   if (!to || typeof to !== 'string') {
     throw rpcErrors.invalidParams(`Invalid "to" address`);
   }

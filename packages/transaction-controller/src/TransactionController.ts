@@ -127,7 +127,7 @@ import {
   normalizeGasFeeValues,
 } from './utils/utils';
 import {
-  validateAccountAddressRelationshipRequest,
+  validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
@@ -1102,8 +1102,7 @@ export class TransactionController extends BaseController<
           dappSuggestedGasFees,
           deviceConfirmedOn,
           id: random(),
-          isFirstTimeInteraction: false,
-          isFirstTimeInteractionDisabled: false,
+          isFirstTimeInteraction: undefined,
           networkClientId,
           origin,
           securityAlertResponse,
@@ -3656,11 +3655,11 @@ export class TransactionController extends BaseController<
 
     const request: GetAccountAddressRelationshipRequest = {
       chainId: hexToNumber(chainId),
-      to: to as string, // This is validated in validateAccountAddressRelationshipRequest
+      to: to as string,
       from,
     };
 
-    validateAccountAddressRelationshipRequest(request);
+    validateParamTo(to);
 
     const existingTransaction = this.state.transactions.find(
       (tx) =>
@@ -3676,38 +3675,45 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    const { isFirstTimeInteractionDisabled, isFirstTimeInteraction } =
-      await this.#trace(
+    try {
+      const { count } = await this.#trace(
         { name: 'Account Address Relationship', parentContext: traceContext },
         () => getAccountAddressRelationship(request),
       );
 
-    const finalTransactionMeta = this.getTransaction(transactionId);
+      const isFirstTimeInteraction =
+        count === undefined ? undefined : count === 0;
 
-    /* istanbul ignore if */
-    if (!finalTransactionMeta) {
-      log(
-        'Cannot update first time interaction properties as transaction not found',
-        transactionId,
+      const finalTransactionMeta = this.getTransaction(transactionId);
+
+      /* istanbul ignore if */
+      if (!finalTransactionMeta) {
+        log(
+          'Cannot update first time interaction as transaction not found',
+          transactionId,
+        );
+        return;
+      }
+
+      this.#updateTransactionInternal(
+        {
+          transactionId,
+          note: 'TransactionController#updateFirstInteraction - Update first time interaction',
+        },
+        (txMeta) => {
+          txMeta.isFirstTimeInteraction = isFirstTimeInteraction;
+        },
       );
-      return;
+
+      log('Updated first time interaction', transactionId, {
+        isFirstTimeInteraction,
+      });
+    } catch (error) {
+      log(
+        'Error fetching account address relationship, skipping first time interaction update',
+        error,
+      );
     }
-
-    this.#updateTransactionInternal(
-      {
-        transactionId,
-        note: 'TransactionController#updateFirstInteraction - Update first time interaction',
-      },
-      (txMeta) => {
-        txMeta.isFirstTimeInteraction = isFirstTimeInteraction;
-        txMeta.isFirstTimeInteractionDisabled = isFirstTimeInteractionDisabled;
-      },
-    );
-
-    log('Updated first time interaction properties', transactionId, {
-      isFirstTimeInteractionDisabled,
-      isFirstTimeInteraction,
-    });
   }
 
   async #updateSimulationData(

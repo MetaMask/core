@@ -1,5 +1,6 @@
 import { createModuleLogger } from '@metamask/utils';
 
+import { FirstTimeInteractionError } from '../errors';
 import { projectLogger } from '../logger';
 
 const SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API = [
@@ -14,9 +15,9 @@ const SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API = [
 ];
 
 export type AccountAddressRelationshipResponse = {
-  chainId: number;
-  count: number;
-  data: {
+  chainId?: number;
+  count?: number;
+  data?: {
     hash: string;
     timestamp: string;
     chainId: number;
@@ -33,12 +34,15 @@ export type AccountAddressRelationshipResponse = {
     to: string;
     from: string;
   };
-  txHash: string;
+  txHash?: string;
 };
 
 export type AccountAddressRelationshipResult =
   AccountAddressRelationshipResponse & {
-    error?: string;
+    error?: {
+      code: string;
+      message: string;
+    };
   };
 
 export type GetAccountAddressRelationshipRequest = {
@@ -52,11 +56,6 @@ export type GetAccountAddressRelationshipRequest = {
   from: string;
 };
 
-export type GetAccountFirstTimeInteractionResponse = {
-  isFirstTimeInteraction: boolean | undefined;
-  isFirstTimeInteractionDisabled: boolean;
-};
-
 const BASE_URL = `https://accounts.api.cx.metamask.io/v1/accounts/`;
 
 const log = createModuleLogger(projectLogger, 'accounts-api');
@@ -64,19 +63,16 @@ const log = createModuleLogger(projectLogger, 'accounts-api');
 /**
  * Fetch account address relationship from the accounts API.
  * @param request - The request object.
- * @returns The response object.
+ * @returns The raw response object from the API.
  */
 export async function getAccountAddressRelationship(
   request: GetAccountAddressRelationshipRequest,
-): Promise<GetAccountFirstTimeInteractionResponse> {
+): Promise<AccountAddressRelationshipResult> {
   const { chainId, from, to } = request;
 
   if (!SUPPORTED_CHAIN_IDS_FOR_RELATIONSHIP_API.includes(chainId)) {
     log('Unsupported chain ID for account relationship API', chainId);
-    return {
-      isFirstTimeInteraction: undefined,
-      isFirstTimeInteractionDisabled: true,
-    };
+    throw new FirstTimeInteractionError('Unsupported chain ID');
   }
 
   const url = `${BASE_URL}/v1/networks/${chainId}/accounts/${from}/relationships/${to}`;
@@ -85,15 +81,10 @@ export async function getAccountAddressRelationship(
 
   const response = await fetch(url);
 
-  // The accounts API returns a 204 if the relationship does not exist
   if (response.status === 204) {
-    log(
-      'No content for account address relationship, marking as first interaction',
-    );
-    return {
-      isFirstTimeInteraction: true,
-      isFirstTimeInteractionDisabled: false,
-    };
+    // The accounts API returns a 204 status code when there are no transactions with empty body
+    // imitating a count of 0
+    return { count: 0 };
   }
 
   const responseJson: AccountAddressRelationshipResult = await response.json();
@@ -101,26 +92,9 @@ export async function getAccountAddressRelationship(
   log('Retrieved account address relationship', responseJson);
 
   if (responseJson.error) {
-    // The accounts API returns an error we ignore the relationship feature
-    log('Error fetching account address relationship', responseJson.error);
-    return {
-      isFirstTimeInteraction: undefined,
-      isFirstTimeInteractionDisabled: true,
-    };
+    const { code, message } = responseJson.error;
+    throw new FirstTimeInteractionError(message, code);
   }
 
-  const { count } = responseJson;
-
-  if (count === undefined) {
-    // The accounts API returns no count hence we will ignore the relationship feature
-    return {
-      isFirstTimeInteraction: undefined,
-      isFirstTimeInteractionDisabled: true,
-    };
-  }
-
-  return {
-    isFirstTimeInteraction: count === 0,
-    isFirstTimeInteractionDisabled: false,
-  };
+  return responseJson;
 }
