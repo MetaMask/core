@@ -20,15 +20,12 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
+import { assertIsInternalScopesObject } from './scope/assert';
+import { isSupportedScopeString } from './scope/supported';
 import {
-  assertScopesSupported,
-  assertIsExternalScopesObject,
-} from './scope/assert';
-import { validateAndNormalizeScopes } from './scope/authorization';
-import type {
-  ExternalScopeString,
-  InternalScopeObject,
-  InternalScopesObject,
+  type ExternalScopeString,
+  type InternalScopeObject,
+  type InternalScopesObject,
 } from './scope/types';
 
 /**
@@ -120,13 +117,11 @@ const specificationBuilder: PermissionSpecificationBuilder<
           `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
         );
       }
+
       const { requiredScopes, optionalScopes } = caip25Caveat.value;
 
-      assertIsExternalScopesObject(requiredScopes);
-      assertIsExternalScopesObject(optionalScopes);
-
-      const { normalizedRequiredScopes, normalizedOptionalScopes } =
-        validateAndNormalizeScopes(requiredScopes, optionalScopes);
+      assertIsInternalScopesObject(requiredScopes);
+      assertIsInternalScopesObject(optionalScopes);
 
       const isChainIdSupported = (chainId: Hex) => {
         try {
@@ -137,12 +132,19 @@ const specificationBuilder: PermissionSpecificationBuilder<
         }
       };
 
-      assertScopesSupported(normalizedRequiredScopes, {
-        isChainIdSupported,
-      });
-      assertScopesSupported(normalizedOptionalScopes, {
-        isChainIdSupported,
-      });
+      const allRequiredScopesSupported = Object.keys(requiredScopes).every(
+        (scopeString) =>
+          isSupportedScopeString(scopeString, isChainIdSupported),
+      );
+      const allOptionalScopesSupported = Object.keys(optionalScopes).every(
+        (scopeString) =>
+          isSupportedScopeString(scopeString, isChainIdSupported),
+      );
+      if (!allRequiredScopesSupported || !allOptionalScopesSupported) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+        );
+      }
 
       // Fetch EVM accounts from native wallet keyring
       // These addresses are lowercased already
@@ -150,8 +152,8 @@ const specificationBuilder: PermissionSpecificationBuilder<
         .listAccounts()
         .map((account) => account.address);
       const ethAccounts = getEthAccounts({
-        requiredScopes: normalizedRequiredScopes,
-        optionalScopes: normalizedOptionalScopes,
+        requiredScopes,
+        optionalScopes,
       }).map((address) => address.toLowerCase() as Hex);
 
       const allEthAccountsSupported = ethAccounts.every((address) =>
@@ -160,15 +162,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
       if (!allEthAccountsSupported) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
-        );
-      }
-
-      if (
-        !isEqual(requiredScopes, normalizedRequiredScopes) ||
-        !isEqual(optionalScopes, normalizedOptionalScopes)
-      ) {
-        throw new Error(
-          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
         );
       }
     },
