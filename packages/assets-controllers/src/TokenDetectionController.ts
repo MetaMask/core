@@ -35,6 +35,7 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
+import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
@@ -46,6 +47,7 @@ import type {
   GetTokenListState,
   TokenListMap,
   TokenListStateChange,
+  TokensChainsCache,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type {
@@ -68,6 +70,11 @@ type TokenDetectionMap = {
   [P in keyof TokenListMap]: Omit<TokenListMap[P], 'occurrences'>;
 };
 
+type NetworkClient = {
+  chainId: Hex;
+  networkClientId: string;
+};
+
 export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
   contractMap,
 ).reduce<TokenDetectionMap>((acc, [base, contract]) => {
@@ -82,6 +89,22 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
     },
   };
 }, {});
+
+/**
+ * Function that takes a TokensChainsCache object and maps chainId with TokenListMap.
+ * @param tokensChainsCache - TokensChainsCache input object
+ * @returns returns the map of chainId with TokenListMap
+ */
+export function mapChainIdWithTokenListMap(
+  tokensChainsCache: TokensChainsCache,
+) {
+  return mapValues(tokensChainsCache, (value) => {
+    if (isObject(value) && 'data' in value) {
+      return get(value, ['data']);
+    }
+    return value;
+  });
+}
 
 export const controllerName = 'TokenDetectionController';
 
@@ -131,7 +154,7 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
 
 /** The input to start polling for the {@link TokenDetectionController} */
 type TokenDetectionPollingInput = {
-  networkClientId: NetworkClientId;
+  chainIds: Hex[];
   address: string;
 };
 
@@ -156,7 +179,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #networkClientId: NetworkClientId;
 
-  #tokenList: TokenDetectionMap = {};
+  #tokensChainsCache: TokensChainsCache = {};
 
   #disabled: boolean;
 
@@ -185,6 +208,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   #accountsAPI = {
     isAccountsAPIEnabled: true,
     supportedNetworksCache: null as number[] | null,
+    platform: '' as 'extension' | 'mobile',
+
     async getSupportedNetworks() {
       /* istanbul ignore next */
       if (!this.isAccountsAPIEnabled) {
@@ -201,24 +226,30 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return result;
     },
 
-    async getMultiChainBalances(address: string, chainId: Hex) {
-      if (!this.isAccountsAPIEnabled) {
-        throw new Error('Accounts API Feature Switch is disabled');
-      }
+    async getMultiNetworksBalances(
+      address: string,
+      chainIds: Hex[],
+      supportedNetworks: number[] | null,
+    ) {
+      const chainIdNumbers = chainIds.map((chainId) => hexToNumber(chainId));
 
-      const chainIdNumber = hexToNumber(chainId);
-      const supportedNetworks = await this.getSupportedNetworks();
-
-      if (!supportedNetworks || !supportedNetworks.includes(chainIdNumber)) {
+      if (
+        !supportedNetworks ||
+        !chainIdNumbers.every((id) => supportedNetworks.includes(id))
+      ) {
         const supportedNetworksErrStr = (supportedNetworks ?? []).toString();
         throw new Error(
-          `Unsupported Network: supported networks ${supportedNetworksErrStr}, network: ${chainIdNumber}`,
+          `Unsupported Network: supported networks ${supportedNetworksErrStr}, requested networks: ${chainIdNumbers.toString()}`,
         );
       }
 
-      const result = await fetchMultiChainBalances(address, {
-        networks: [chainIdNumber],
-      });
+      const result = await fetchMultiChainBalances(
+        address,
+        {
+          networks: chainIdNumbers,
+        },
+        this.platform,
+      );
 
       return result.balances;
     },
@@ -234,6 +265,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useAccountsAPI - Feature Switch for using the accounts API when detecting tokens (default: true)
+   * @param options.platform - Indicates whether the platform is extension or mobile
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -242,6 +274,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     trackMetaMetricsEvent,
     messenger,
     useAccountsAPI = true,
+    platform,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -261,6 +294,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }) => void;
     messenger: TokenDetectionControllerMessenger;
     useAccountsAPI?: boolean;
+    platform: 'extension' | 'mobile';
   }) {
     super({
       name: controllerName,
@@ -278,6 +312,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       this.#getCorrectChainIdAndNetworkClientId();
     this.#networkClientId = networkClientId;
 
+    const { tokensChainsCache } = this.messagingSystem.call(
+      'TokenListController:getState',
+    );
+
+    this.#tokensChainsCache = tokensChainsCache;
+
     const { useTokenDetection: defaultUseTokenDetection } =
       this.messagingSystem.call('PreferencesController:getState');
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
@@ -294,6 +334,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#isUnlocked = isUnlocked;
 
     this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
+    this.#accountsAPI.platform = platform;
 
     this.#registerEventListeners();
   }
@@ -318,10 +359,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       'TokenListController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ tokenList }) => {
-        const hasTokens = Object.keys(tokenList).length;
-
-        if (hasTokens) {
+      async ({ tokensChainsCache }) => {
+        const isEqualValues = this.#compareTokensChainsCache(
+          tokensChainsCache,
+          this.#tokensChainsCache,
+        );
+        if (!isEqualValues) {
           await this.#restartTokenDetection();
         }
       },
@@ -357,28 +400,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           this.#selectedAccountId = selectedAccount.id;
           await this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
-          });
-        }
-      },
-    );
-
-    this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ selectedNetworkClientId }) => {
-        const isNetworkClientIdChanged =
-          this.#networkClientId !== selectedNetworkClientId;
-
-        const { chainId: newChainId } =
-          this.#getCorrectChainIdAndNetworkClientId(selectedNetworkClientId);
-        this.#isDetectionEnabledForNetwork =
-          isTokenDetectionSupportedForNetwork(newChainId);
-
-        if (isNetworkClientIdChanged && this.#isDetectionEnabledForNetwork) {
-          this.#networkClientId = selectedNetworkClientId;
-          await this.#restartTokenDetection({
-            networkClientId: this.#networkClientId,
           });
         }
       },
@@ -445,22 +466,61 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }, this.getIntervalLength());
   }
 
-  #getCorrectChainIdAndNetworkClientId(networkClientId?: NetworkClientId): {
-    chainId: Hex;
-    networkClientId: NetworkClientId;
-  } {
-    if (networkClientId) {
+  /**
+   * Compares current and previous tokensChainsCache object focusing only on the data object.
+   * @param tokensChainsCache - current tokensChainsCache input object
+   * @param previousTokensChainsCache - previous tokensChainsCache input object
+   * @returns boolean indicating if the two objects are equal
+   */
+
+  #compareTokensChainsCache(
+    tokensChainsCache: TokensChainsCache,
+    previousTokensChainsCache: TokensChainsCache,
+  ): boolean {
+    const cleanPreviousTokensChainsCache = mapChainIdWithTokenListMap(
+      previousTokensChainsCache,
+    );
+    const cleanTokensChainsCache =
+      mapChainIdWithTokenListMap(tokensChainsCache);
+    const isEqualValues = isEqual(
+      cleanTokensChainsCache,
+      cleanPreviousTokensChainsCache,
+    );
+    return isEqualValues;
+  }
+
+  #getCorrectNetworkClientIdByChainId(
+    chainIds: Hex[] | undefined,
+  ): { chainId: Hex; networkClientId: NetworkClientId }[] {
+    const { networkConfigurationsByChainId, selectedNetworkClientId } =
+      this.messagingSystem.call('NetworkController:getState');
+
+    if (!chainIds) {
       const networkConfiguration = this.messagingSystem.call(
         'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId,
+        selectedNetworkClientId,
       );
-      if (networkConfiguration) {
-        return {
-          chainId: networkConfiguration.chainId,
-          networkClientId,
-        };
-      }
+
+      return [
+        {
+          chainId: networkConfiguration?.chainId ?? ChainId.mainnet,
+          networkClientId: selectedNetworkClientId,
+        },
+      ];
     }
+
+    return chainIds.map((chainId) => {
+      const configuration = networkConfigurationsByChainId[chainId];
+      return {
+        chainId,
+        networkClientId:
+          configuration.rpcEndpoints[configuration.defaultRpcEndpointIndex]
+            .networkClientId,
+      };
+    });
+  }
+
+  #getCorrectChainIdAndNetworkClientId() {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
@@ -477,14 +537,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   async _executePoll({
-    networkClientId,
+    chainIds,
     address,
   }: TokenDetectionPollingInput): Promise<void> {
     if (!this.isActive) {
       return;
     }
     await this.detectTokens({
-      networkClientId,
+      chainIds,
       selectedAddress: address,
     });
   }
@@ -495,20 +555,119 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    *
    * @param options - Options for restart token detection.
    * @param options.selectedAddress - the selectedAddress against which to detect for token balances
-   * @param options.networkClientId - The ID of the network client to use.
+   * @param options.chainIds - The chain IDs of the network client to use.
    */
   async #restartTokenDetection({
     selectedAddress,
-    networkClientId,
+    chainIds,
   }: {
     selectedAddress?: string;
-    networkClientId?: NetworkClientId;
+    chainIds?: Hex[];
   } = {}): Promise<void> {
     await this.detectTokens({
-      networkClientId,
+      chainIds,
       selectedAddress,
     });
     this.setIntervalLength(DEFAULT_INTERVAL);
+  }
+
+  #getChainsToDetect(
+    clientNetworks: NetworkClient[],
+    supportedNetworks: number[] | null | undefined,
+  ) {
+    const chainsToDetectUsingAccountAPI: Hex[] = [];
+    const chainsToDetectUsingRpc: NetworkClient[] = [];
+
+    clientNetworks.forEach(({ chainId, networkClientId }) => {
+      if (supportedNetworks?.includes(hexToNumber(chainId))) {
+        chainsToDetectUsingAccountAPI.push(chainId);
+      } else {
+        chainsToDetectUsingRpc.push({ chainId, networkClientId });
+      }
+    });
+
+    return { chainsToDetectUsingRpc, chainsToDetectUsingAccountAPI };
+  }
+
+  async #attemptAccountAPIDetection(
+    chainsToDetectUsingAccountAPI: Hex[],
+    addressToDetect: string,
+    supportedNetworks: number[] | null,
+  ) {
+    return await this.#addDetectedTokensViaAPI({
+      chainIds: chainsToDetectUsingAccountAPI,
+      selectedAddress: addressToDetect,
+      supportedNetworks,
+    });
+  }
+
+  #addChainsToRpcDetection(
+    chainsToDetectUsingRpc: NetworkClient[],
+    chainsToDetectUsingAccountAPI: Hex[],
+    clientNetworks: NetworkClient[],
+  ): void {
+    chainsToDetectUsingAccountAPI.forEach((chainId) => {
+      const networkEntry = clientNetworks.find(
+        (network) => network.chainId === chainId,
+      );
+      if (networkEntry) {
+        chainsToDetectUsingRpc.push({
+          chainId: networkEntry.chainId,
+          networkClientId: networkEntry.networkClientId,
+        });
+      }
+    });
+  }
+
+  #shouldDetectTokens(chainId: Hex): boolean {
+    if (!isTokenDetectionSupportedForNetwork(chainId)) {
+      return false;
+    }
+    if (
+      !this.#isDetectionEnabledFromPreferences &&
+      chainId !== ChainId.mainnet
+    ) {
+      return false;
+    }
+
+    const isMainnetDetectionInactive =
+      !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
+    if (isMainnetDetectionInactive) {
+      this.#tokensChainsCache = this.#getConvertedStaticMainnetTokenList();
+    } else {
+      const { tokensChainsCache } = this.messagingSystem.call(
+        'TokenListController:getState',
+      );
+      this.#tokensChainsCache = tokensChainsCache ?? {};
+    }
+
+    return true;
+  }
+
+  async #detectTokensUsingRpc(
+    chainsToDetectUsingRpc: NetworkClient[],
+    addressToDetect: string,
+  ): Promise<void> {
+    for (const { chainId, networkClientId } of chainsToDetectUsingRpc) {
+      if (!this.#shouldDetectTokens(chainId)) {
+        continue;
+      }
+
+      const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
+        chainId,
+        selectedAddress: addressToDetect,
+      });
+      const tokenDetectionPromises = tokenCandidateSlices.map((tokensSlice) =>
+        this.#addDetectedTokens({
+          tokensSlice,
+          selectedAddress: addressToDetect,
+          networkClientId,
+          chainId,
+        }),
+      );
+
+      await Promise.all(tokenDetectionPromises);
+    }
   }
 
   /**
@@ -516,72 +675,52 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * On mainnet, if token detection is disabled in preferences, ERC20 token auto detection will be triggered for each contract address in the legacy token list from the @metamask/contract-metadata repo.
    *
    * @param options - Options for token detection.
-   * @param options.networkClientId - The ID of the network client to use.
+   * @param options.chainIds - The chain IDs of the network client to use.
    * @param options.selectedAddress - the selectedAddress against which to detect for token balances.
    */
   async detectTokens({
-    networkClientId,
+    chainIds,
     selectedAddress,
   }: {
-    networkClientId?: NetworkClientId;
+    chainIds?: Hex[];
     selectedAddress?: string;
   } = {}): Promise<void> {
     if (!this.isActive) {
       return;
     }
 
-    const addressAgainstWhichToDetect =
-      selectedAddress ?? this.#getSelectedAddress();
-    const { chainId, networkClientId: selectedNetworkClientId } =
-      this.#getCorrectChainIdAndNetworkClientId(networkClientId);
-    const chainIdAgainstWhichToDetect = chainId;
-    const networkClientIdAgainstWhichToDetect = selectedNetworkClientId;
+    const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
+    const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
-    if (!isTokenDetectionSupportedForNetwork(chainIdAgainstWhichToDetect)) {
-      return;
+    let supportedNetworks;
+    if (this.#accountsAPI.isAccountsAPIEnabled) {
+      supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
     }
-    if (
-      !this.#isDetectionEnabledFromPreferences &&
-      chainIdAgainstWhichToDetect !== ChainId.mainnet
-    ) {
-      return;
-    }
-    const isTokenDetectionInactiveInMainnet =
-      !this.#isDetectionEnabledFromPreferences &&
-      chainIdAgainstWhichToDetect === ChainId.mainnet;
-    const { tokensChainsCache } = this.messagingSystem.call(
-      'TokenListController:getState',
-    );
-    this.#tokenList = isTokenDetectionInactiveInMainnet
-      ? STATIC_MAINNET_TOKEN_LIST
-      : tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
+    const { chainsToDetectUsingRpc, chainsToDetectUsingAccountAPI } =
+      this.#getChainsToDetect(clientNetworks, supportedNetworks);
 
-    const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
-      chainId: chainIdAgainstWhichToDetect,
-      selectedAddress: addressAgainstWhichToDetect,
-    });
+    // Try detecting tokens via Account API first if conditions allow
+    if (supportedNetworks && chainsToDetectUsingAccountAPI.length > 0) {
+      const apiResult = await this.#attemptAccountAPIDetection(
+        chainsToDetectUsingAccountAPI,
+        addressToDetect,
+        supportedNetworks,
+      );
 
-    // Attempt Accounts API Detection
-    const accountAPIResult = await this.#addDetectedTokensViaAPI({
-      chainId: chainIdAgainstWhichToDetect,
-      selectedAddress: addressAgainstWhichToDetect,
-      tokenCandidateSlices,
-    });
-    if (accountAPIResult?.result === 'success') {
-      return;
+      // If the account API call failed, have those chains fall back to RPC detection
+      if (apiResult?.result === 'failed') {
+        this.#addChainsToRpcDetection(
+          chainsToDetectUsingRpc,
+          chainsToDetectUsingAccountAPI,
+          clientNetworks,
+        );
+      }
     }
 
-    // Attempt RPC Detection
-    const tokenDetectionPromises = tokenCandidateSlices.map((tokensSlice) =>
-      this.#addDetectedTokens({
-        tokensSlice,
-        selectedAddress: addressAgainstWhichToDetect,
-        networkClientId: networkClientIdAgainstWhichToDetect,
-        chainId: chainIdAgainstWhichToDetect,
-      }),
-    );
-
-    await Promise.all(tokenDetectionPromises);
+    // Proceed with RPC detection if there are chains remaining in chainsToDetectUsingRpc
+    if (chainsToDetectUsingRpc.length > 0) {
+      await this.#detectTokensUsingRpc(chainsToDetectUsingRpc, addressToDetect);
+    }
   }
 
   #getSlicesOfTokensToDetect({
@@ -604,7 +743,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     );
 
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(this.#tokenList)) {
+    for (const tokenAddress of Object.keys(
+      this.#tokensChainsCache?.[chainId]?.data || {},
+    )) {
       if (
         [
           tokensAddresses,
@@ -629,95 +770,184 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     return slicesOfTokensToDetect;
   }
 
+  #getConvertedStaticMainnetTokenList(): TokensChainsCache {
+    const data: TokenListMap = Object.entries(STATIC_MAINNET_TOKEN_LIST).reduce(
+      (acc, [key, value]) => ({
+        ...acc,
+        [key]: {
+          name: value.name,
+          symbol: value.symbol,
+          decimals: value.decimals,
+          address: value.address,
+          aggregators: [],
+          iconUrl: value?.iconUrl,
+        },
+      }),
+      {},
+    );
+    return {
+      '0x1': {
+        data,
+        timestamp: 0,
+      },
+    };
+  }
+
   /**
    * This adds detected tokens from the Accounts API, avoiding the multi-call RPC calls for balances
    * @param options - method arguments
    * @param options.selectedAddress - address to check against
-   * @param options.chainId - chainId to check tokens for
-   * @param options.tokenCandidateSlices - these are tokens we know a user does not have (by checking the tokens controller).
-   * We will use these these token candidates to determine if a token found from the API is valid to be added on the users wallet.
-   * It will also prevent us to adding tokens a user already has
+   * @param options.chainIds - array of chainIds to check tokens for
+   * @param options.supportedNetworks - array of chainIds to check tokens for
    * @returns a success or failed object
    */
   async #addDetectedTokensViaAPI({
     selectedAddress,
-    chainId,
-    tokenCandidateSlices,
+    chainIds,
+    supportedNetworks,
   }: {
     selectedAddress: string;
-    chainId: Hex;
-    tokenCandidateSlices: string[][];
+    chainIds: Hex[];
+    supportedNetworks: number[] | null;
   }) {
     return await safelyExecute(async () => {
-      const tokenBalances = await this.#accountsAPI
-        .getMultiChainBalances(selectedAddress, chainId)
+      // Fetch balances for multiple chain IDs at once
+      const tokenBalancesByChain = await this.#accountsAPI
+        .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
         .catch(() => null);
 
-      if (!tokenBalances || tokenBalances.length === 0) {
+      if (tokenBalancesByChain === null) {
         return { result: 'failed' } as const;
       }
 
-      const tokensWithBalance: Token[] = [];
-      const eventTokensDetails: string[] = [];
-
-      const tokenCandidateSet = new Set<string>(tokenCandidateSlices.flat());
-
-      tokenBalances.forEach((token) => {
-        const tokenAddress = token.address;
-
-        // Make sure that the token to add is in our candidate list
-        // Ensures we don't add tokens we already own
-        if (!tokenCandidateSet.has(token.address)) {
-          return;
-        }
-
-        // We need specific data from tokenList to correctly create a token
-        // So even if we have a token that was detected correctly by the API, if its missing data we cannot safely add it.
-        if (!this.#tokenList[token.address]) {
-          return;
-        }
-
-        const { decimals, symbol, aggregators, iconUrl, name } =
-          this.#tokenList[token.address];
-        eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
-        tokensWithBalance.push({
-          address: tokenAddress,
-          decimals,
-          symbol,
-          aggregators,
-          image: iconUrl,
-          isERC721: false,
-          name,
-        });
-      });
-
-      if (tokensWithBalance.length) {
-        this.#trackMetaMetricsEvent({
-          event: 'Token Detected',
-          category: 'Wallet',
-          properties: {
-            tokens: eventTokensDetails,
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            token_standard: ERC20,
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            asset_type: ASSET_TYPES.TOKEN,
-          },
-        });
-
-        await this.messagingSystem.call(
-          'TokensController:addDetectedTokens',
-          tokensWithBalance,
-          {
-            selectedAddress,
-            chainId,
-          },
+      // Process each chain ID individually
+      for (const chainId of chainIds) {
+        const isTokenDetectionInactiveInMainnet =
+          !this.#isDetectionEnabledFromPreferences &&
+          chainId === ChainId.mainnet;
+        const { tokensChainsCache } = this.messagingSystem.call(
+          'TokenListController:getState',
         );
+        this.#tokensChainsCache = isTokenDetectionInactiveInMainnet
+          ? this.#getConvertedStaticMainnetTokenList()
+          : tokensChainsCache ?? {};
+
+        // Generate token candidates based on chainId and selectedAddress
+        const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
+          chainId,
+          selectedAddress,
+        });
+
+        // Filter balances for the current chainId
+        const tokenBalances = tokenBalancesByChain.filter(
+          (balance) => balance.chainId === hexToNumber(chainId),
+        );
+
+        if (!tokenBalances || tokenBalances.length === 0) {
+          continue;
+        }
+
+        // Use helper function to filter tokens with balance for this chainId
+        const { tokensWithBalance, eventTokensDetails } =
+          this.#filterAndBuildTokensWithBalance(
+            tokenCandidateSlices,
+            tokenBalances,
+            chainId,
+          );
+
+        if (tokensWithBalance.length) {
+          this.#trackMetaMetricsEvent({
+            event: 'Token Detected',
+            category: 'Wallet',
+            properties: {
+              tokens: eventTokensDetails,
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
+              token_standard: ERC20,
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
+              asset_type: ASSET_TYPES.TOKEN,
+            },
+          });
+
+          await this.messagingSystem.call(
+            'TokensController:addDetectedTokens',
+            tokensWithBalance,
+            {
+              selectedAddress,
+              chainId,
+            },
+          );
+        }
       }
 
       return { result: 'success' } as const;
     });
+  }
+
+  /**
+   * Helper function to filter and build token data for detected tokens
+   * @param options.tokenCandidateSlices - these are tokens we know a user does not have (by checking the tokens controller).
+   * We will use these these token candidates to determine if a token found from the API is valid to be added on the users wallet.
+   * It will also prevent us to adding tokens a user already has
+   * @param tokenBalances - Tokens balances fetched from API
+   * @param chainId - The chain ID being processed
+   * @returns an object containing tokensWithBalance and eventTokensDetails arrays
+   */
+
+  #filterAndBuildTokensWithBalance(
+    tokenCandidateSlices: string[][],
+    tokenBalances:
+      | {
+          object: string;
+          type?: string;
+          timestamp?: string;
+          address: string;
+          symbol: string;
+          name: string;
+          decimals: number;
+          chainId: number;
+          balance: string;
+        }[]
+      | null,
+    chainId: Hex,
+  ) {
+    const tokensWithBalance: Token[] = [];
+    const eventTokensDetails: string[] = [];
+
+    const tokenCandidateSet = new Set<string>(tokenCandidateSlices.flat());
+
+    tokenBalances?.forEach((token) => {
+      const tokenAddress = token.address;
+
+      // Make sure the token to add is in our candidate list
+      if (!tokenCandidateSet.has(tokenAddress)) {
+        return;
+      }
+
+      // Retrieve token data from cache to safely add it
+      const tokenData = this.#tokensChainsCache[chainId]?.data[tokenAddress];
+
+      // We need specific data from tokensChainsCache to correctly create a token
+      // So even if we have a token that was detected correctly by the API, if its missing data we cannot safely add it.
+      if (!tokenData) {
+        return;
+      }
+
+      const { decimals, symbol, aggregators, iconUrl, name } = tokenData;
+      eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
+      tokensWithBalance.push({
+        address: tokenAddress,
+        decimals,
+        symbol,
+        aggregators,
+        image: iconUrl,
+        isERC721: false,
+        name,
+      });
+    });
+
+    return { tokensWithBalance, eventTokensDetails };
   }
 
   async #addDetectedTokens({
@@ -742,7 +972,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
         const { decimals, symbol, aggregators, iconUrl, name } =
-          this.#tokenList[nonZeroTokenAddress];
+          this.#tokensChainsCache[chainId].data[nonZeroTokenAddress];
         eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
         tokensWithBalance.push({
           address: nonZeroTokenAddress,

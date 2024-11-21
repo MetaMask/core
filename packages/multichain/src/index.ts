@@ -2,7 +2,6 @@ export {
   getEthAccounts,
   setEthAccounts,
 } from './adapters/caip-permission-adapter-eth-accounts';
-export { caipPermissionAdapterMiddleware } from './adapters/caip-permission-adapter-middleware';
 export {
   getPermittedEthChainIds,
   addPermittedEthChainId,
@@ -29,18 +28,20 @@ export {
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownNotifications,
+  KnownWalletScopeString,
 } from './scope/constants';
 export type {
   ExternalScopeString,
   ExternalScopeObject,
   ExternalScopesObject,
-  ScopeString,
-  ScopeObject,
-  ScopesObject,
+  InternalScopeString,
+  InternalScopeObject,
+  InternalScopesObject,
   ScopedProperties,
   NonWalletKnownCaipNamespace,
 } from './scope/types';
 export { parseScopeString, KnownWalletScopeString } from './scope/types';
+// Do these need to be exported?
 export {
   isSupportedScopeString,
   isSupportedAccount,
@@ -53,14 +54,14 @@ export {
   mergeScopes,
   normalizeAndMergeScopes,
 } from './scope/transform';
+// does this need to be exported?
 export { isValidScope, validateScopes } from './scope/validation';
 
 export type { Caip25CaveatValue } from './caip25Permission';
 export {
   Caip25CaveatType,
-  Caip25CaveatFactoryFn,
+  createCaip25Caveat,
   Caip25EndowmentPermissionName,
   caip25EndowmentBuilder,
-  Caip25CaveatMutatorFactories,
-  removeScope,
+  Caip25CaveatMutators,
 } from './caip25Permission';

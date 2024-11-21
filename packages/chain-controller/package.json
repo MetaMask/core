@@ -47,12 +47,12 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.1",
+    "@metamask/base-controller": "^7.0.2",
     "@metamask/chain-api": "^0.1.0",
-    "@metamask/keyring-api": "^8.1.3",
-    "@metamask/snaps-controllers": "^9.7.0",
-    "@metamask/snaps-sdk": "^6.5.0",
-    "@metamask/snaps-utils": "^8.1.1",
+    "@metamask/keyring-api": "^10.1.0",
+    "@metamask/snaps-controllers": "^9.10.0",
+    "@metamask/snaps-sdk": "^6.7.0",
+    "@metamask/snaps-utils": "^8.3.0",
     "@metamask/utils": "^10.0.0",
     "uuid": "^8.3.2"
   },

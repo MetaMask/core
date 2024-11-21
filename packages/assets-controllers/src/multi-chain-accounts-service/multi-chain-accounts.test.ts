@@ -46,7 +46,7 @@ describe('fetchMultiChainBalances()', () => {
   it('should successfully return balances response', async () => {
     const mockAPI = createMockAPI().reply(200, MOCK_GET_BALANCES_RESPONSE);
 
-    const result = await fetchMultiChainBalances(MOCK_ADDRESS);
+    const result = await fetchMultiChainBalances(MOCK_ADDRESS, {}, 'extension');
     expect(result).toBeDefined();
     expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
     expect(mockAPI.isDone()).toBe(true);
@@ -59,9 +59,13 @@ describe('fetchMultiChainBalances()', () => {
       })
       .reply(200, MOCK_GET_BALANCES_RESPONSE);
 
-    const result = await fetchMultiChainBalances(MOCK_ADDRESS, {
-      networks: [1, 10],
-    });
+    const result = await fetchMultiChainBalances(
+      MOCK_ADDRESS,
+      {
+        networks: [1, 10],
+      },
+      'extension',
+    );
     expect(result).toBeDefined();
     expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
     expect(mockAPI.isDone()).toBe(true);
@@ -79,7 +83,8 @@ describe('fetchMultiChainBalances()', () => {
       const mockAPI = createMockAPI().reply(httpCode);
 
       await expect(
-        async () => await fetchMultiChainBalances(MOCK_ADDRESS),
+        async () =>
+          await fetchMultiChainBalances(MOCK_ADDRESS, {}, 'extension'),
       ).rejects.toThrow(expect.any(Error));
       expect(mockAPI.isDone()).toBe(true);
     },

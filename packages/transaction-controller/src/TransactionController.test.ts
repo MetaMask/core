@@ -17,8 +17,6 @@ import {
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -71,6 +69,7 @@ import type {
   GasFeeFlow,
   GasFeeFlowResponse,
   SubmitHistoryEntry,
+  InternalAccount,
 } from './types';
 import {
   GasFeeEstimateType,
@@ -87,6 +86,7 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
+import { shouldResimulate } from './utils/resimulate';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -112,9 +112,10 @@ jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
-jest.mock('./utils/swaps');
 jest.mock('./utils/layer1-gas-fee-flow');
+jest.mock('./utils/resimulate');
 jest.mock('./utils/simulation');
+jest.mock('./utils/swaps');
 jest.mock('uuid');
 
 // TODO: Replace `any` with type
@@ -397,10 +398,11 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
 };
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
-const INTERNAL_ACCOUNT_MOCK = {
+
+const INTERNAL_ACCOUNT_MOCK: InternalAccount = {
   id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
   address: ACCOUNT_MOCK,
-  type: EthAccountType.Eoa,
+  type: 'eip155:eoa',
   options: {},
   methods: [],
   metadata: {
@@ -485,6 +487,7 @@ describe('TransactionController', () => {
     getTransactionLayer1GasFee,
   );
   const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
+  const shouldResimulateMock = jest.mocked(shouldResimulate);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -1829,13 +1832,18 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-        expect(getSimulationDataMock).toHaveBeenCalledWith({
-          chainId: MOCK_NETWORK.chainId,
-          data: undefined,
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        });
+        expect(getSimulationDataMock).toHaveBeenCalledWith(
+          {
+            chainId: MOCK_NETWORK.chainId,
+            data: undefined,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            blockTime: undefined,
+          },
+        );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
           SIMULATION_DATA_MOCK,
@@ -4086,13 +4094,13 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      const gas = '0xgas';
-      const gasLimit = '0xgasLimit';
-      const gasPrice = '0xgasPrice';
-      const estimateUsed = '0xestimateUsed';
-      const estimateSuggested = '0xestimateSuggested';
-      const defaultGasEstimates = '0xdefaultGasEstimates';
-      const originalGasEstimate = '0xoriginalGasEstimate';
+      const gas = '0x1';
+      const gasLimit = '0x2';
+      const gasPrice = '0x12';
+      const estimateUsed = '0x3';
+      const estimateSuggested = '0x123';
+      const defaultGasEstimates = '0x124';
+      const originalGasEstimate = '0x134';
       const userEditedGasLimit = true;
       const userFeeLevel = '0xuserFeeLevel';
 
@@ -4124,8 +4132,8 @@ describe('TransactionController', () => {
     });
 
     it('updates provided 1559 gas values', async () => {
-      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
-      const maxFeePerGas = '0xmaxFeePerGas';
+      const maxPriorityFeePerGas = '0x01';
+      const maxFeePerGas = '0x01';
       const transactionId = '123';
 
       const { controller } = setupController({
@@ -5667,35 +5675,6 @@ describe('TransactionController', () => {
         .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
       Current tx status: ${TransactionStatus.submitted}`);
     });
-
-    it.each(['value', 'to', 'data'])(
-      'updates simulation data if %s changes',
-      async (param) => {
-        const { controller } = setupController({
-          options: {
-            state: {
-              transactions: [
-                {
-                  ...transactionMeta,
-                },
-              ],
-            },
-          },
-          updateToInitialState: true,
-        });
-
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
-
-        await controller.updateEditableParams(transactionMeta.id, {
-          ...transactionMeta.txParams,
-          [param]: ACCOUNT_2_MOCK,
-        });
-
-        await flushPromises();
-
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-      },
-    );
   });
 
   describe('abortTransactionSigning', () => {
@@ -5823,6 +5802,86 @@ describe('TransactionController', () => {
             networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         }),
+      );
+    });
+  });
+
+  describe('resimulate', () => {
+    it('triggers simulation if re-simulation detected on state update', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                status: TransactionStatus.unapproved,
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+
+      shouldResimulateMock.mockReturnValueOnce({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationDataMock).toHaveBeenCalledWith(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: TRANSACTION_META_MOCK.txParams.value,
+        },
+        {
+          blockTime: 123,
+        },
+      );
+    });
+
+    it('does not trigger simulation loop', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                status: TransactionStatus.unapproved,
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+
+      shouldResimulateMock.mockReturnValue({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationDataMock).toHaveBeenCalledWith(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: TRANSACTION_META_MOCK.txParams.value,
+        },
+        {
+          blockTime: 123,
+        },
       );
     });
   });

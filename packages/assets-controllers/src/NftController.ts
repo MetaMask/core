@@ -2060,6 +2060,15 @@ export class NftController extends BaseController<
       });
     }
   }
+
+  /**
+   * Reset the controller state to the default state.
+   */
+  resetState() {
+    this.update(() => {
+      return getDefaultNftControllerState();
+    });
+  }
 }
 
 export default NftController;

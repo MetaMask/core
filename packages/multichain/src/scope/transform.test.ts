@@ -4,14 +4,14 @@ import {
   mergeScopeObject,
   normalizeAndMergeScopes,
 } from './transform';
-import type { ExternalScopeObject, ScopeObject } from './types';
+import type { ExternalScopeObject, InternalScopeObject } from './types';
 
 const externalScopeObject: ExternalScopeObject = {
   methods: [],
   notifications: [],
 };
 
-const validScopeObject: ScopeObject = {
+const validScopeObject: InternalScopeObject = {
   methods: [],
   notifications: [],
   accounts: [],
@@ -19,15 +19,25 @@ const validScopeObject: ScopeObject = {
 
 describe('Scope Transform', () => {
   describe('normalizeScope', () => {
-    it('returns the scope with empty accounts array when the scopeString is chain scoped when accounts are not defined', () => {
-      expect(normalizeScope('eip155:1', externalScopeObject)).toStrictEqual({
-        'eip155:1': validScopeObject,
+    describe('scopeString is chain scoped', () => {
+      it('returns the scope with empty accounts array when accounts are not defined', () => {
+        expect(normalizeScope('eip155:1', externalScopeObject)).toStrictEqual({
+          'eip155:1': {
+            ...externalScopeObject,
+            accounts: [],
+          },
+        });
       });
-    });
 
-    it('returns the scope as is when the scopeString is chain scoped and accounts are defined', () => {
-      expect(normalizeScope('eip155:1', validScopeObject)).toStrictEqual({
-        'eip155:1': validScopeObject,
+      it('returns the scope unchanged when accounts are defined', () => {
+        expect(
+          normalizeScope('eip155:1', { ...externalScopeObject, accounts: [] }),
+        ).toStrictEqual({
+          'eip155:1': {
+            ...externalScopeObject,
+            accounts: [],
+          },
+        });
       });
     });
 
@@ -63,6 +73,14 @@ describe('Scope Transform', () => {
         expect(normalizedScopes['eip155:1'].methods).not.toBe(
           normalizedScopes['eip155:5'].methods,
         );
+      });
+
+      it('returns the scope as is when `references` is an empty array', () => {
+        expect(
+          normalizeScope('eip155', { ...validScopeObject, references: [] }),
+        ).toStrictEqual({
+          eip155: validScopeObject,
+        });
       });
     });
   });
@@ -303,6 +321,18 @@ describe('Scope Transform', () => {
         },
       });
     });
+    it('returns an empty object when no scopes are provided', () => {
+      expect(mergeScopes({}, {})).toStrictEqual({});
+    });
+
+    it('returns an unchanged scope when two identical scopeObjects are provided', () => {
+      expect(
+        mergeScopes(
+          { 'eip155:1': validScopeObject },
+          { 'eip155:1': validScopeObject },
+        ),
+      ).toStrictEqual({ 'eip155:1': validScopeObject });
+    });
   });
 
   describe('normalizeAndMergeScopes', () => {
@@ -328,6 +358,22 @@ describe('Scope Transform', () => {
           ...validScopeObject,
           methods: ['a', 'b'],
         },
+      });
+    });
+    it('returns an empty object when no scopes are provided', () => {
+      expect(normalizeAndMergeScopes({})).toStrictEqual({});
+    });
+    it('return an unchanged scope when scopeObjects are already normalized (i.e. none contain references to flatten)', () => {
+      expect(
+        normalizeAndMergeScopes({
+          'eip155:1': validScopeObject,
+          'eip155:2': validScopeObject,
+          'eip155:3': validScopeObject,
+        }),
+      ).toStrictEqual({
+        'eip155:1': validScopeObject,
+        'eip155:2': validScopeObject,
+        'eip155:3': validScopeObject,
       });
     });
   });

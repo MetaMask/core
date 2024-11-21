@@ -44,6 +44,7 @@ import type {
   LegacyStateMessage,
   StateSIWEMessage,
 } from './types';
+import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -156,6 +157,16 @@ export type SignatureControllerOptions = {
   ) => Promise<any>;
 
   /**
+   * URL of API to retrieve decoding data for typed requests.
+   */
+  decodingApiUrl?: string;
+
+  /**
+   * Function to check if decoding signature request is enabled
+   */
+  isDecodeSignatureRequestEnabled?: () => boolean;
+
+  /**
    * Initial state of the controller.
    */
   state?: SignatureControllerState;
@@ -176,17 +187,29 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
+  #decodingApiUrl?: string;
+
+  #isDecodeSignatureRequestEnabled?: () => boolean;
+
   #trace: TraceCallback;
 
   /**
    * Construct a Sign controller.
    *
    * @param options - The controller options.
+   * @param options.decodingApiUrl - Api used to get decoded data for permits.
+   * @param options.isDecodeSignatureRequestEnabled - Function to check is decoding signature request is enabled.
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
    */
-  constructor({ messenger, state, trace }: SignatureControllerOptions) {
+  constructor({
+    decodingApiUrl,
+    isDecodeSignatureRequestEnabled,
+    messenger,
+    state,
+    trace,
+  }: SignatureControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
@@ -199,6 +222,8 @@ export class SignatureController extends BaseController<
 
     this.hub = new EventEmitter();
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#decodingApiUrl = decodingApiUrl;
+    this.#isDecodeSignatureRequestEnabled = isDecodeSignatureRequestEnabled;
   }
 
   /**
@@ -462,6 +487,7 @@ export class SignatureController extends BaseController<
     let approveOrSignError: unknown;
 
     const finalMetadataPromise = this.#waitForFinished(metadata.id);
+    this.#decodePermitSignatureRequest(metadata.id, request, chainId);
 
     try {
       resultCallbacks = await this.#processApproval({
@@ -879,5 +905,37 @@ export class SignatureController extends BaseController<
     );
 
     return networkClient.configuration.chainId;
+  }
+
+  #decodePermitSignatureRequest(
+    signatureRequestId: string,
+    request: OriginalRequest,
+    chainId: string,
+  ) {
+    if (!this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl) {
+      return;
+    }
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.decodingLoading = true;
+    });
+    decodeSignature(request, chainId, this.#decodingApiUrl)
+      .then((decodingData) =>
+        this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+          draftMetadata.decodingData = decodingData;
+          draftMetadata.decodingLoading = false;
+        }),
+      )
+      .catch((error) =>
+        this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+          draftMetadata.decodingData = {
+            stateChanges: null,
+            error: {
+              message: (error as unknown as Error).message,
+              type: DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+            },
+          };
+          draftMetadata.decodingLoading = false;
+        }),
+      );
   }
 }

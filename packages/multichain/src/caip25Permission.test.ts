@@ -1,5 +1,3 @@
-import type { NonEmptyArray } from '@metamask/controller-utils';
-import type { CaveatConstraint } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
   PermissionType,
@@ -10,9 +8,8 @@ import {
   Caip25CaveatType,
   caip25EndowmentBuilder,
   Caip25EndowmentPermissionName,
-  Caip25CaveatMutatorFactories,
-  removeScope,
-  Caip25CaveatFactoryFn,
+  Caip25CaveatMutators,
+  createCaip25Caveat,
 } from './caip25Permission';
 import * as ScopeAssert from './scope/assert';
 import * as ScopeAuthorization from './scope/authorization';
@@ -23,13 +20,15 @@ jest.mock('./scope/authorization', () => ({
 const MockScopeAuthorization = jest.mocked(ScopeAuthorization);
 
 jest.mock('./scope/assert', () => ({
+  ...jest.requireActual('./scope/assert'),
   assertScopesSupported: jest.fn(),
 }));
+
 const MockScopeAssert = jest.mocked(ScopeAssert);
 
-const { removeAccount } = Caip25CaveatMutatorFactories[Caip25CaveatType];
+const { removeAccount, removeScope } = Caip25CaveatMutators[Caip25CaveatType];
 
-describe('endowment:caip25', () => {
+describe('caip25EndowmentBuilder', () => {
   beforeEach(() => {
     MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
       normalizedRequiredScopes: {},
@@ -37,65 +36,49 @@ describe('endowment:caip25', () => {
     });
   });
 
-  it('builds the expected permission specification', () => {
-    const specification = caip25EndowmentBuilder.specificationBuilder({
-      methodHooks: {
-        findNetworkClientIdByChainId: jest.fn(),
-        listAccounts: jest.fn(),
-      },
-    });
-    expect(specification).toStrictEqual({
-      permissionType: PermissionType.Endowment,
-      targetName: Caip25EndowmentPermissionName,
-      endowmentGetter: expect.any(Function),
-      allowedCaveats: [Caip25CaveatType],
-      validator: expect.any(Function),
-    });
+  describe('specificationBuilder', () => {
+    it('builds the expected permission specification', () => {
+      const specification = caip25EndowmentBuilder.specificationBuilder({
+        methodHooks: {
+          findNetworkClientIdByChainId: jest.fn(),
+          listAccounts: jest.fn(),
+        },
+      });
+      expect(specification).toStrictEqual({
+        permissionType: PermissionType.Endowment,
+        targetName: Caip25EndowmentPermissionName,
+        endowmentGetter: expect.any(Function),
+        allowedCaveats: [Caip25CaveatType],
+        validator: expect.any(Function),
+      });
 
-    expect(specification.endowmentGetter()).toBeNull();
-  });
-
-  it('builds the caveat', () => {
-    expect(
-      Caip25CaveatFactoryFn({
-        requiredScopes: {},
-        optionalScopes: {},
-        isMultichainOrigin: true,
-      }),
-    ).toStrictEqual({
-      type: Caip25CaveatType,
-      value: {
-        requiredScopes: {},
-        optionalScopes: {},
-        isMultichainOrigin: true,
-      },
+      expect(specification.endowmentGetter()).toBeNull();
     });
   });
 
-  describe('caveat mutator removeScope', () => {
-    it('can remove a caveat', () => {
-      const ethereumGoerliCaveat = {
-        requiredScopes: {
-          'eip155:1': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-            accounts: [],
-          },
-        },
-        optionalScopes: {
-          'eip155:5': {
-            methods: ['eth_call'],
-            notifications: ['accountsChanged'],
-            accounts: [],
-          },
-        },
-        sessionProperties: {},
-        isMultichainOrigin: true,
-      };
-      const result = removeScope('eip155:5', ethereumGoerliCaveat);
-      expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.UpdateValue,
+  describe('createCaip25Caveat', () => {
+    it('builds the caveat', () => {
+      expect(
+        createCaip25Caveat({
+          requiredScopes: {},
+          optionalScopes: {},
+          isMultichainOrigin: true,
+        }),
+      ).toStrictEqual({
+        type: Caip25CaveatType,
         value: {
+          requiredScopes: {},
+          optionalScopes: {},
+          isMultichainOrigin: true,
+        },
+      });
+    });
+  });
+
+  describe('Caip25CaveatMutators.authorizedScopes', () => {
+    describe('removeScope', () => {
+      it('returns a version of the caveat with the given scope removed from requiredScopes if it is present', () => {
+        const ethereumGoerliCaveat = {
           requiredScopes: {
             'eip155:1': {
               methods: ['eth_call'],
@@ -103,139 +86,265 @@ describe('endowment:caip25', () => {
               accounts: [],
             },
           },
-          optionalScopes: {},
-        },
+          optionalScopes: {
+            'eip155:5': {
+              methods: ['eth_call'],
+              notifications: ['accountsChanged'],
+              accounts: [],
+            },
+          },
+          sessionProperties: {},
+          isMultichainOrigin: true,
+        };
+        const result = removeScope(ethereumGoerliCaveat, 'eip155:1');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.UpdateValue,
+          value: {
+            requiredScopes: {},
+            optionalScopes: {
+              'eip155:5': {
+                methods: ['eth_call'],
+                notifications: ['accountsChanged'],
+                accounts: [],
+              },
+            },
+          },
+        });
       });
-    });
 
-    it('can noop when nothing is removed', () => {
-      const ethereumGoerliCaveat = {
-        requiredScopes: {
-          'eip155:1': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-            accounts: [],
-          },
-        },
-        optionalScopes: {
-          'eip155:5': {
-            methods: ['eth_call'],
-            notifications: ['accountsChanged'],
-            accounts: [],
-          },
-        },
-        sessionProperties: {},
-        isMultichainOrigin: true,
-      };
-      const result = removeScope('eip155:2', ethereumGoerliCaveat);
-      expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.Noop,
-      });
-    });
-  });
-
-  describe('caveat mutator removeAccount', () => {
-    it('can remove an account', () => {
-      const ethereumGoerliCaveat: Caip25CaveatValue = {
-        requiredScopes: {
-          'eip155:1': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-            accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
-          },
-        },
-        optionalScopes: {},
-        isMultichainOrigin: true,
-      };
-      const result = removeAccount('0x1', ethereumGoerliCaveat);
-      expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.UpdateValue,
-        value: {
+      it('returns a version of the caveat with the given scope removed from optionalScopes if it is present', () => {
+        const ethereumGoerliCaveat = {
           requiredScopes: {
             'eip155:1': {
               methods: ['eth_call'],
               notifications: ['chainChanged'],
-              accounts: ['eip155:1:0x2'],
+              accounts: [],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              methods: ['eth_call'],
+              notifications: ['accountsChanged'],
+              accounts: [],
+            },
+          },
+          sessionProperties: {},
+          isMultichainOrigin: true,
+        };
+        const result = removeScope(ethereumGoerliCaveat, 'eip155:5');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.UpdateValue,
+          value: {
+            requiredScopes: {
+              'eip155:1': {
+                methods: ['eth_call'],
+                notifications: ['chainChanged'],
+                accounts: [],
+              },
+            },
+            optionalScopes: {},
+          },
+        });
+      });
+
+      it('returns a version of the caveat with the given scope removed from requiredScopes and optionalScopes if it is present', () => {
+        const ethereumGoerliCaveat = {
+          requiredScopes: {
+            'eip155:1': {
+              methods: ['eth_call'],
+              notifications: ['chainChanged'],
+              accounts: [],
+            },
+            'eip155:5': {
+              methods: [],
+              notifications: ['chainChanged'],
+              accounts: [],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              methods: ['eth_call'],
+              notifications: ['accountsChanged'],
+              accounts: [],
+            },
+          },
+          sessionProperties: {},
+          isMultichainOrigin: true,
+        };
+        const result = removeScope(ethereumGoerliCaveat, 'eip155:5');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.UpdateValue,
+          value: {
+            requiredScopes: {
+              'eip155:1': {
+                methods: ['eth_call'],
+                notifications: ['chainChanged'],
+                accounts: [],
+              },
+            },
+            optionalScopes: {},
+          },
+        });
+      });
+
+      it('returns the caveat unchanged when the given scope is not found in either requiredScopes or optionalScopes', () => {
+        const ethereumGoerliCaveat = {
+          requiredScopes: {
+            'eip155:1': {
+              methods: ['eth_call'],
+              notifications: ['chainChanged'],
+              accounts: [],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              methods: ['eth_call'],
+              notifications: ['accountsChanged'],
+              accounts: [],
+            },
+          },
+          sessionProperties: {},
+          isMultichainOrigin: true,
+        };
+        const result = removeScope(ethereumGoerliCaveat, 'eip155:2');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.Noop,
+        });
+      });
+    });
+
+    describe('removeAccount', () => {
+      it('returns a version of the caveat with the given account removed from requiredScopes if it is present', () => {
+        const ethereumGoerliCaveat: Caip25CaveatValue = {
+          requiredScopes: {
+            'eip155:1': {
+              methods: ['eth_call'],
+              notifications: ['chainChanged'],
+              accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
           optionalScopes: {},
           isMultichainOrigin: true,
-        },
+        };
+        const result = removeAccount(ethereumGoerliCaveat, '0x1');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.UpdateValue,
+          value: {
+            requiredScopes: {
+              'eip155:1': {
+                methods: ['eth_call'],
+                notifications: ['chainChanged'],
+                accounts: ['eip155:1:0x2'],
+              },
+            },
+            optionalScopes: {},
+            isMultichainOrigin: true,
+          },
+        });
       });
-    });
 
-    it('can remove an account in multiple scopes in optional and required', () => {
-      const ethereumGoerliCaveat: Caip25CaveatValue = {
-        requiredScopes: {
-          'eip155:1': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-            accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
+      it('returns a version of the caveat with the given account removed from optionalScopes if it is present', () => {
+        const ethereumGoerliCaveat: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              methods: ['eth_call'],
+              notifications: ['chainChanged'],
+              accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
+            },
           },
-          'eip155:2': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-            accounts: ['eip155:2:0x1', 'eip155:2:0x2'],
+          isMultichainOrigin: true,
+        };
+        const result = removeAccount(ethereumGoerliCaveat, '0x1');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.UpdateValue,
+          value: {
+            requiredScopes: {},
+            optionalScopes: {
+              'eip155:1': {
+                methods: ['eth_call'],
+                notifications: ['chainChanged'],
+                accounts: ['eip155:1:0x2'],
+              },
+            },
+            isMultichainOrigin: true,
           },
-        },
-        optionalScopes: {
-          'eip155:3': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-            accounts: ['eip155:3:0x1', 'eip155:3:0x2'],
-          },
-        },
-        isMultichainOrigin: true,
-      };
-      const result = removeAccount('0x1', ethereumGoerliCaveat);
-      expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.UpdateValue,
-        value: {
+        });
+      });
+
+      it('returns a version of the caveat with the given account removed from requiredScopes and optionalScopes if it is present', () => {
+        const ethereumGoerliCaveat: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
               methods: ['eth_call'],
               notifications: ['chainChanged'],
-              accounts: ['eip155:1:0x2'],
+              accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
             'eip155:2': {
               methods: ['eth_call'],
               notifications: ['chainChanged'],
-              accounts: ['eip155:2:0x2'],
+              accounts: ['eip155:2:0x1', 'eip155:2:0x2'],
             },
           },
           optionalScopes: {
             'eip155:3': {
               methods: ['eth_call'],
               notifications: ['chainChanged'],
-              accounts: ['eip155:3:0x2'],
+              accounts: ['eip155:3:0x1', 'eip155:3:0x2'],
             },
           },
           isMultichainOrigin: true,
-        },
+        };
+        const result = removeAccount(ethereumGoerliCaveat, '0x1');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.UpdateValue,
+          value: {
+            requiredScopes: {
+              'eip155:1': {
+                methods: ['eth_call'],
+                notifications: ['chainChanged'],
+                accounts: ['eip155:1:0x2'],
+              },
+              'eip155:2': {
+                methods: ['eth_call'],
+                notifications: ['chainChanged'],
+                accounts: ['eip155:2:0x2'],
+              },
+            },
+            optionalScopes: {
+              'eip155:3': {
+                methods: ['eth_call'],
+                notifications: ['chainChanged'],
+                accounts: ['eip155:3:0x2'],
+              },
+            },
+            isMultichainOrigin: true,
+          },
+        });
       });
-    });
 
-    it('can noop when nothing is removed', () => {
-      const ethereumGoerliCaveat: Caip25CaveatValue = {
-        requiredScopes: {
-          'eip155:1': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-            accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
+      it('returns the caveat unchanged when the given account is not found in either requiredScopes or optionalScopes', () => {
+        const ethereumGoerliCaveat: Caip25CaveatValue = {
+          requiredScopes: {
+            'eip155:1': {
+              methods: ['eth_call'],
+              notifications: ['chainChanged'],
+              accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
+            },
           },
-        },
-        optionalScopes: {
-          'eip155:5': {
-            methods: ['eth_call'],
-            notifications: ['accountsChanged'],
-            accounts: [],
+          optionalScopes: {
+            'eip155:5': {
+              methods: ['eth_call'],
+              notifications: ['accountsChanged'],
+              accounts: [],
+            },
           },
-        },
-        isMultichainOrigin: true,
-      };
-      const result = removeAccount('0x3', ethereumGoerliCaveat);
-      expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.Noop,
+          isMultichainOrigin: true,
+        };
+        const result = removeAccount(ethereumGoerliCaveat, '0x3');
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.Noop,
+        });
       });
     });
   });
@@ -276,7 +385,8 @@ describe('endowment:caip25', () => {
 
       expect(() => {
         validator({
-          caveats: [] as unknown as NonEmptyArray<CaveatConstraint>,
+          // @ts-expect-error Intentionally invalid input
+          caveats: [],
           date: 1234,
           id: '1',
           invoker: 'test.com',
@@ -727,7 +837,11 @@ describe('endowment:caip25', () => {
           invoker: 'test.com',
           parentCapability: Caip25EndowmentPermissionName,
         });
-      }).toThrow(/Expected values to be strictly deep-equal/u);
+      }).toThrow(
+        new Error(
+          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
+        ),
+      );
     });
 
     it('throws if the input optionalScopes does not match the output of validateAndNormalizeScopes', () => {
@@ -772,10 +886,14 @@ describe('endowment:caip25', () => {
           invoker: 'test.com',
           parentCapability: Caip25EndowmentPermissionName,
         });
-      }).toThrow(/Expected values to be strictly deep-equal/u);
+      }).toThrow(
+        new Error(
+          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
+        ),
+      );
     });
 
-    it('does not throw if the input requiredScopes and optionalScopes ScopesObject are already validated and normalized', () => {
+    it('does not throw if the input requiredScopes and optionalScopes InternalScopesObject are already validated and normalized', () => {
       MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
         normalizedRequiredScopes: {
           'eip155:1': {

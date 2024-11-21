@@ -1,11 +1,10 @@
 import { bucketScopes, validateAndNormalizeScopes } from './authorization';
-import * as Filter from './filter';
 import * as Transform from './transform';
 import type { ExternalScopeObject } from './types';
 import * as Validation from './validation';
 
 jest.mock('./validation', () => ({
-  validateScopes: jest.fn(),
+  getValidScopes: jest.fn(),
 }));
 const MockValidation = jest.mocked(Validation);
 
@@ -13,11 +12,6 @@ jest.mock('./transform', () => ({
   normalizeAndMergeScopes: jest.fn(),
 }));
 const MockTransform = jest.mocked(Transform);
-
-jest.mock('./filter', () => ({
-  bucketScopesBySupport: jest.fn(),
-}));
-const MockFilter = jest.mocked(Filter);
 
 const validScopeObject: ExternalScopeObject = {
   methods: [],
@@ -27,19 +21,19 @@ const validScopeObject: ExternalScopeObject = {
 describe('Scope Authorization', () => {
   describe('validateAndNormalizeScopes', () => {
     it('validates the scopes', () => {
-      try {
-        validateAndNormalizeScopes(
-          {
-            'eip155:1': validScopeObject,
-          },
-          {
-            'eip155:5': validScopeObject,
-          },
-        );
-      } catch (err) {
-        // noop
-      }
-      expect(MockValidation.validateScopes).toHaveBeenCalledWith(
+      MockValidation.getValidScopes.mockReturnValue({
+        validRequiredScopes: {},
+        validOptionalScopes: {},
+      });
+      validateAndNormalizeScopes(
+        {
+          'eip155:1': validScopeObject,
+        },
+        {
+          'eip155:5': validScopeObject,
+        },
+      );
+      expect(MockValidation.getValidScopes).toHaveBeenCalledWith(
         {
           'eip155:1': validScopeObject,
         },
@@ -49,8 +43,8 @@ describe('Scope Authorization', () => {
       );
     });
 
-    it('normalized and merges the validated scopes', () => {
-      MockValidation.validateScopes.mockReturnValue({
+    it('normalizes and merges the validated scopes', () => {
+      MockValidation.getValidScopes.mockReturnValue({
         validRequiredScopes: {
           'eip155:1': validScopeObject,
         },
@@ -69,7 +63,7 @@ describe('Scope Authorization', () => {
     });
 
     it('returns the normalized and merged scopes', () => {
-      MockValidation.validateScopes.mockReturnValue({
+      MockValidation.getValidScopes.mockReturnValue({
         validRequiredScopes: {
           'eip155:1': validScopeObject,
         },

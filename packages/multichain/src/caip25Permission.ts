@@ -12,38 +12,57 @@ import {
 } from '@metamask/permission-controller';
 import type { CaipAccountId, Json } from '@metamask/utils';
 import {
+  hasProperty,
   parseCaipAccountId,
   type Hex,
   type NonEmptyArray,
 } from '@metamask/utils';
-import { strict as assert } from 'assert';
 import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
-import { assertScopesSupported } from './scope/assert';
+import {
+  assertScopesSupported,
+  assertIsExternalScopesObject,
+} from './scope/assert';
 import { validateAndNormalizeScopes } from './scope/authorization';
 import type {
   ExternalScopeString,
-  ScopeObject,
-  ScopesObject,
+  InternalScopeObject,
+  InternalScopesObject,
 } from './scope/types';
 
+/**
+ * The CAIP-25 permission caveat value.
+ * This permission contains the required and optional scopes and session properties from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request that initiated the permission session.
+ * It also contains a boolean (isMultichainOrigin) indicating if the permission session is multichain, which may be needed to determine implicit permissioning.
+ */
 export type Caip25CaveatValue = {
-  requiredScopes: ScopesObject;
-  optionalScopes: ScopesObject;
+  requiredScopes: InternalScopesObject;
+  optionalScopes: InternalScopesObject;
   sessionProperties?: Record<string, Json>;
   isMultichainOrigin: boolean;
 };
 
+/**
+ * The name of the CAIP-25 permission caveat.
+ */
 export const Caip25CaveatType = 'authorizedScopes';
 
-export const Caip25CaveatFactoryFn = (value: Caip25CaveatValue) => {
+/**
+ * Creates a CAIP-25 permission caveat.
+ * @param value - The CAIP-25 permission caveat value.
+ * @returns The CAIP-25 permission caveat (now including the type).
+ */
+export const createCaip25Caveat = (value: Caip25CaveatValue) => {
   return {
     type: Caip25CaveatType,
     value,
   };
 };
 
+/**
+ * The target name of the CAIP-25 endowment permission.
+ */
 export const Caip25EndowmentPermissionName = 'endowment:caip25';
 
 type Caip25EndowmentSpecification = ValidPermissionSpecification<{
@@ -90,18 +109,21 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      const { requiredScopes, optionalScopes, isMultichainOrigin } =
-        caip25Caveat.value as Caip25CaveatValue;
-
       if (
-        !requiredScopes ||
-        !optionalScopes ||
-        typeof isMultichainOrigin !== 'boolean'
+        !caip25Caveat.value ||
+        !hasProperty(caip25Caveat.value, 'requiredScopes') ||
+        !hasProperty(caip25Caveat.value, 'optionalScopes') ||
+        !hasProperty(caip25Caveat.value, 'isMultichainOrigin') ||
+        typeof caip25Caveat.value.isMultichainOrigin !== 'boolean'
       ) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
         );
       }
+      const { requiredScopes, optionalScopes } = caip25Caveat.value;
+
+      assertIsExternalScopesObject(requiredScopes);
+      assertIsExternalScopesObject(optionalScopes);
 
       const { normalizedRequiredScopes, normalizedOptionalScopes } =
         validateAndNormalizeScopes(requiredScopes, optionalScopes);
@@ -141,12 +163,23 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      assert.deepEqual(requiredScopes, normalizedRequiredScopes);
-      assert.deepEqual(optionalScopes, normalizedOptionalScopes);
+      if (
+        !isEqual(requiredScopes, normalizedRequiredScopes) ||
+        !isEqual(optionalScopes, normalizedOptionalScopes)
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
     },
   };
 };
 
+/**
+ * The `caip25` endowment specification builder. Passed to the
+ * `PermissionController` for constructing and validating the
+ * `endowment:caip25` permission.
+ */
 export const caip25EndowmentBuilder = Object.freeze({
   targetName: Caip25EndowmentPermissionName,
   specificationBuilder,
@@ -156,21 +189,11 @@ export const caip25EndowmentBuilder = Object.freeze({
  * Factories that construct caveat mutator functions that are passed to
  * PermissionController.updatePermissionsByCaveat.
  */
-export const Caip25CaveatMutatorFactories = {
+export const Caip25CaveatMutators = {
   [Caip25CaveatType]: {
     removeScope,
     removeAccount,
   },
-};
-
-const reduceKeysHelper = <Key extends string, Value>(
-  acc: Record<Key, Value>,
-  [key, value]: [Key, Value],
-) => {
-  return {
-    ...acc,
-    [key]: value,
-  };
 };
 
 /**
@@ -189,10 +212,13 @@ function removeAccountFilterFn(targetAddress: string) {
 /**
  * Removes the account from the scope object.
  *
- * @param targetAddress - The address to remove from the scope object.
  * @param scopeObject - The scope object to remove the account from.
+ * @param targetAddress - The address to remove from the scope object.
  */
-function removeAccountOnScope(targetAddress: string, scopeObject: ScopeObject) {
+function removeAccountFromScopeObject(
+  scopeObject: InternalScopeObject,
+  targetAddress: string,
+) {
   if (scopeObject.accounts) {
     scopeObject.accounts = scopeObject.accounts.filter(
       removeAccountFilterFn(targetAddress),
@@ -203,28 +229,25 @@ function removeAccountOnScope(targetAddress: string, scopeObject: ScopeObject) {
 /**
  * Removes the target account from the scope object.
  *
- * @param targetAddress - The address to remove from the scope object.
- * @param existingScopes - The scope object to remove the account from.
+ * @param caip25CaveatValue - The CAIP-25 permission caveat value from which to remove the account (across all chain scopes).
+ * @param targetAddress - The address to remove from the scope object. Not a CAIP-10 formatted address because it will be removed across each chain scope.
  * @returns The updated scope object.
  */
 function removeAccount(
-  targetAddress: string, // non caip-10 formatted address
-  existingScopes: Caip25CaveatValue,
+  caip25CaveatValue: Caip25CaveatValue,
+  targetAddress: Hex,
 ) {
-  // copy existing scopes
-  const copyOfExistingScopes = cloneDeep(existingScopes);
+  const copyOfCaveatValue = cloneDeep(caip25CaveatValue);
 
-  [
-    copyOfExistingScopes.requiredScopes,
-    copyOfExistingScopes.optionalScopes,
-  ].forEach((scopes) => {
-    Object.entries(scopes).forEach(([, scopeObject]) => {
-      removeAccountOnScope(targetAddress, scopeObject);
-    });
-  });
+  [copyOfCaveatValue.requiredScopes, copyOfCaveatValue.optionalScopes].forEach(
+    (scopes) => {
+      Object.entries(scopes).forEach(([, scopeObject]) => {
+        removeAccountFromScopeObject(scopeObject, targetAddress);
+      });
+    },
+  );
 
-  // deep equal check for changes
-  const noChange = isEqual(copyOfExistingScopes, existingScopes);
+  const noChange = isEqual(copyOfCaveatValue, caip25CaveatValue);
 
   if (noChange) {
     return {
@@ -234,22 +257,22 @@ function removeAccount(
 
   return {
     operation: CaveatMutatorOperation.UpdateValue,
-    value: copyOfExistingScopes,
+    value: copyOfCaveatValue,
   };
 }
 
 /**
- * Removes the target account from the value arrays of all
- * `endowment:caip25` caveats. No-ops if the target scopeString is not in
- * the existing scopes,.
+ * Removes the target account from the value arrays of the given
+ * `endowment:caip25` caveat. No-ops if the target scopeString is not in
+ * the existing scopes.
  *
- * @param targetScopeString - The scope that is being removed.
  * @param caip25CaveatValue - The CAIP-25 permission caveat value to remove the scope from.
+ * @param targetScopeString - The scope that is being removed.
  * @returns The updated CAIP-25 permission caveat value.
  */
-export function removeScope(
-  targetScopeString: ExternalScopeString,
+function removeScope(
   caip25CaveatValue: Caip25CaveatValue,
+  targetScopeString: ExternalScopeString,
 ) {
   const newRequiredScopes = Object.entries(
     caip25CaveatValue.requiredScopes,
@@ -271,8 +294,8 @@ export function removeScope(
     return {
       operation: CaveatMutatorOperation.UpdateValue,
       value: {
-        requiredScopes: newRequiredScopes.reduce(reduceKeysHelper, {}),
-        optionalScopes: newOptionalScopes.reduce(reduceKeysHelper, {}),
+        requiredScopes: Object.fromEntries(newRequiredScopes),
+        optionalScopes: Object.fromEntries(newOptionalScopes),
       },
     };
   }

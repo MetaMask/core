@@ -1,14 +1,17 @@
 import type { Hex, Json } from '@metamask/utils';
 
-import { bucketScopesBySupport } from './filter';
 import { normalizeAndMergeScopes } from './transform';
 import type {
   ExternalScopesObject,
   ExternalScopeString,
-  ScopesObject,
+  InternalScopesObject,
 } from './types';
-import { validateScopes } from './validation';
+import { getValidScopes } from './validation';
+import { bucketScopesBySupport } from './filter';
 
+/**
+ * Represents the parameters of a [CAIP-25](https://chainagnostic.org/CAIPs/caip-25) request.
+ */
 export type Caip25Authorization = (
   | {
       requiredScopes: ExternalScopesObject;
@@ -23,14 +26,20 @@ export type Caip25Authorization = (
   scopedProperties?: Record<ExternalScopeString, Json>;
 };
 
+/**
+ * Validates and normalizes a set of scopes according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
+ * @param requiredScopes - The required scopes to validate and normalize.
+ * @param optionalScopes - The optional scopes to validate and normalize.
+ * @returns An object containing the normalized required scopes and normalized optional scopes.
+ */
 export const validateAndNormalizeScopes = (
   requiredScopes: ExternalScopesObject,
   optionalScopes: ExternalScopesObject,
 ): {
-  normalizedRequiredScopes: ScopesObject;
-  normalizedOptionalScopes: ScopesObject;
+  normalizedRequiredScopes: InternalScopesObject;
+  normalizedOptionalScopes: InternalScopesObject;
 } => {
-  const { validRequiredScopes, validOptionalScopes } = validateScopes(
+  const { validRequiredScopes, validOptionalScopes } = getValidScopes(
     requiredScopes,
     optionalScopes,
   );
@@ -45,7 +54,7 @@ export const validateAndNormalizeScopes = (
 };
 
 export const bucketScopes = (
-  scopes: ScopesObject,
+  scopes: InternalScopesObject,
   {
     isChainIdSupported,
     isChainIdSupportable,
@@ -54,9 +63,9 @@ export const bucketScopes = (
     isChainIdSupportable: (chainId: Hex) => boolean;
   },
 ): {
-  supportedScopes: ScopesObject;
-  supportableScopes: ScopesObject;
-  unsupportableScopes: ScopesObject;
+  supportedScopes: InternalScopesObject;
+  supportableScopes: InternalScopesObject;
+  unsupportableScopes: InternalScopesObject;
 } => {
   const { supportedScopes, unsupportedScopes: maybeSupportableScopes } =
     bucketScopesBySupport(scopes, {
