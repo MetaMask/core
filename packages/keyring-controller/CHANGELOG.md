@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.0.0]
 
-## [18.0.1]
-
 ### Changed
 
-- Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+- **BREAKING:** Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+  - Bump the peer dependency `@metamask/providers` from `^17.2.0` to `^18.1.0`.
 
 ## [18.0.0]
 
