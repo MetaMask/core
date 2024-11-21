@@ -71,6 +71,7 @@ export class AccountsApiRemoteTransactionSource
     const {
       address,
       chainIds: requestedChainIds,
+      endTimestamp,
       startTimestampByChainId,
     } = request;
 
@@ -87,7 +88,6 @@ export class AccountsApiRemoteTransactionSource
     }
 
     const startTimestamp = Math.min(...Object.values(startTimestampByChainId));
-    const endTimestamp = this.#getTimestampSeconds(Date.now());
 
     return await getAccountTransactionsAllPages({
       address,
@@ -193,9 +193,5 @@ export class AccountsApiRemoteTransactionSource
           }
         : undefined,
     };
-  }
-
-  #getTimestampSeconds(timestampMilliseconds: number) {
-    return Math.ceil(timestampMilliseconds / 1000);
   }
 }

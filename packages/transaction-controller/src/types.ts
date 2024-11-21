@@ -867,14 +867,19 @@ export interface RemoteTransactionSourceRequest {
   chainIds: Hex[];
 
   /**
-   * Timestamp to start fetching transactions from.
+   * Timestamp to not fetch transactions beyond.
    */
-  startTimestampByChainId: Record<Hex, number>;
+  endTimestamp: number;
 
   /**
    * Maximum number of transactions to retrieve.
    */
   limit?: number;
+
+  /**
+   * Timestamp to start fetching transactions from.
+   */
+  startTimestampByChainId: Record<Hex, number>;
 }
 
 /**

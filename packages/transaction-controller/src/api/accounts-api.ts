@@ -47,6 +47,8 @@ export type GetAccountTransactionsResponse = {
 };
 
 const BASE_URL = `https://accounts.api.cx.metamask.io/v1/accounts/`;
+const CLIENT_HEADER = 'x-metamask-clientproduct';
+const CLIENT_ID = 'metamask-incoming-transactions';
 
 const log = createModuleLogger(projectLogger, 'accounts-api');
 
@@ -86,7 +88,11 @@ export async function getAccountTransactions(
 
   log('Getting account transactions', { request, url });
 
-  const response = await fetch(url);
+  const headers = {
+    [CLIENT_HEADER]: CLIENT_ID,
+  };
+
+  const response = await fetch(url, { headers });
   const responseJson = await response.json();
 
   log('Retrieved account transactions', responseJson);

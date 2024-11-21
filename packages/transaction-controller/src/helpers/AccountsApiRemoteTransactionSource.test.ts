@@ -11,6 +11,7 @@ jest.useFakeTimers();
 
 const ADDRESS_MOCK = '0x123';
 const CHAIN_IDS_MOCK = [CHAIN_IDS.MAINNET, CHAIN_IDS.LINEA_MAINNET] as Hex[];
+const END_TIMESTAMP_MOCK = 789;
 const LIMIT_MOCK = 10;
 const NOW_MOCK = 789000;
 
@@ -113,6 +114,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
       await new AccountsApiRemoteTransactionSource().fetchTransactions({
         address: ADDRESS_MOCK,
         chainIds: [...CHAIN_IDS_MOCK, '0x123'],
+        endTimestamp: END_TIMESTAMP_MOCK,
         limit: LIMIT_MOCK,
         startTimestampByChainId: START_TIMESTAMP_BY_CHAIN_ID_MOCK,
       });
@@ -135,6 +137,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
         await new AccountsApiRemoteTransactionSource().fetchTransactions({
           address: ADDRESS_MOCK,
           chainIds: CHAIN_IDS_MOCK,
+          endTimestamp: END_TIMESTAMP_MOCK,
           limit: LIMIT_MOCK,
           startTimestampByChainId: START_TIMESTAMP_BY_CHAIN_ID_MOCK,
         });
@@ -151,6 +154,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
         await new AccountsApiRemoteTransactionSource().fetchTransactions({
           address: ADDRESS_MOCK,
           chainIds: CHAIN_IDS_MOCK,
+          endTimestamp: END_TIMESTAMP_MOCK,
           limit: LIMIT_MOCK,
           startTimestampByChainId: START_TIMESTAMP_BY_CHAIN_ID_MOCK,
         });
@@ -167,6 +171,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
         await new AccountsApiRemoteTransactionSource().fetchTransactions({
           address: ADDRESS_MOCK,
           chainIds: CHAIN_IDS_MOCK,
+          endTimestamp: END_TIMESTAMP_MOCK,
           limit: LIMIT_MOCK,
           startTimestampByChainId: { '0x1': 123001, '0x2': 123000 },
         });
@@ -183,6 +188,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
         await new AccountsApiRemoteTransactionSource().fetchTransactions({
           address: ADDRESS_MOCK,
           chainIds: CHAIN_IDS_MOCK,
+          endTimestamp: END_TIMESTAMP_MOCK,
           limit: 0,
           startTimestampByChainId: START_TIMESTAMP_BY_CHAIN_ID_MOCK,
         });

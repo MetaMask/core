@@ -56,6 +56,7 @@ describe('Accounts API', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledWith(
         `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions?networks=${CHAIN_IDS_MOCK[0]},${CHAIN_IDS_MOCK[1]}&startTimestamp=${START_TIMESTAMP_MOCK}&endTimestamp=${END_TIMESTAMP_MOCK}&cursor=${CURSOR_MOCK}`,
+        expect.any(Object),
       );
     });
   });
@@ -96,12 +97,15 @@ describe('Accounts API', () => {
       expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(fetchMock).toHaveBeenCalledWith(
         `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions`,
+        expect.any(Object),
       );
       expect(fetchMock).toHaveBeenCalledWith(
         `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions?cursor=0x1`,
+        expect.any(Object),
       );
       expect(fetchMock).toHaveBeenCalledWith(
         `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions?cursor=0x2`,
+        expect.any(Object),
       );
     });
   });

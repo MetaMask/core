@@ -125,6 +125,7 @@ export class IncomingTransactionHelper {
     const account = this.#getCurrentAccount();
     const chainIds = this.#getChainIds();
     const startTimestampByChainId = this.#getStartTimestampByChainId(chainIds);
+    const endTimestamp = this.#getTimestampSeconds(Date.now());
 
     let remoteTransactions: TransactionMeta[] = [];
 
@@ -133,8 +134,9 @@ export class IncomingTransactionHelper {
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
           chainIds,
-          startTimestampByChainId,
+          endTimestamp,
           limit: this.#transactionLimit,
+          startTimestampByChainId,
         });
     } catch (error: unknown) {
       log('Error while fetching remote transactions', error);
@@ -150,7 +152,7 @@ export class IncomingTransactionHelper {
     }
 
     for (const chainId of chainIds) {
-      this.#updateLastFetchedTimestamp(chainId, remoteTransactions);
+      this.#updateLastFetchedTimestamp(chainId, endTimestamp);
     }
   }
 
@@ -176,35 +178,17 @@ export class IncomingTransactionHelper {
     return lastFetchedTimestamps[lastFetchedKey];
   }
 
-  #updateLastFetchedTimestamp(chainId: Hex, remoteTxs: TransactionMeta[]) {
-    const chainTxs = remoteTxs.filter((tx) => tx.chainId === chainId);
-    let lastFetchedTimestamp = -1;
-
-    for (const tx of chainTxs) {
-      const currentTimestamp = this.#getTimestampSeconds(tx.time);
-      lastFetchedTimestamp = Math.max(lastFetchedTimestamp, currentTimestamp);
-    }
-
-    if (lastFetchedTimestamp === -1) {
-      return;
-    }
-
+  #updateLastFetchedTimestamp(chainId: Hex, newTimestamp: number) {
     const lastFetchedKey = this.#getTimestampKey(chainId);
-    const lastFetchedTimestamps = this.#getLastFetchedTimestamps();
-    const previousValue = lastFetchedTimestamps[lastFetchedKey];
-
-    if (previousValue >= lastFetchedTimestamp) {
-      return;
-    }
 
     log('Updating last fetched timestamp', {
       key: lastFetchedKey,
-      timestamp: lastFetchedTimestamp,
+      timestamp: newTimestamp,
     });
 
     this.hub.emit('updated-last-fetched-timestamp', {
       key: lastFetchedKey,
-      timestamp: lastFetchedTimestamp,
+      timestamp: newTimestamp,
     });
   }
 
