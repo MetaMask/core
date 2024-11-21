@@ -16,6 +16,29 @@ import type {
 import { parseScopeString } from '../scope/types';
 
 /**
+ * Converts an NormalizedScopesObject to a InternalScopesObject.
+ * @param normalizedScopesObject - The NormalizedScopesObject to convert.
+ * @returns An InternalScopesObject.
+ */
+export const getInternalScopesObject = (
+  normalizedScopesObject: NormalizedScopesObject,
+) => {
+  const internalScopes: InternalScopesObject = {};
+
+  Object.entries(normalizedScopesObject).forEach(
+    ([_scopeString, { accounts }]) => {
+      const scopeString = _scopeString as keyof typeof normalizedScopesObject;
+
+      internalScopes[scopeString] = {
+        accounts,
+      };
+    },
+  );
+
+  return internalScopes;
+};
+
+/**
  * Converts an InternalScopesObject to a NormalizedScopesObject.
  * @param internalScopesObject - The InternalScopesObject to convert.
  * @returns A NormalizedScopesObject.

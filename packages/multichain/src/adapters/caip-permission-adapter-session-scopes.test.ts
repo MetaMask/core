@@ -4,9 +4,38 @@ import {
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from '../scope/constants';
-import { getSessionScopes } from './caip-permission-adapter-session-scopes';
+import {
+  getInternalScopesObject,
+  getSessionScopes,
+} from './caip-permission-adapter-session-scopes';
 
 describe('CAIP-25 session scopes adapters', () => {
+  describe('getInternalScopesObject', () => {
+    it('returns a InternalScopesObject using only the accounts value of each NormalizedScopeObject', () => {
+      const result = getInternalScopesObject({
+        'wallet:eip155': {
+          methods: ['foo', 'bar'],
+          notifications: ['baz'],
+          accounts: ['wallet:eip155:0xdead'],
+        },
+        'eip155:1': {
+          methods: ['eth_call'],
+          notifications: ['eth_subscription'],
+          accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+        },
+      });
+
+      expect(result).toStrictEqual({
+        'wallet:eip155': {
+          accounts: ['wallet:eip155:0xdead'],
+        },
+        'eip155:1': {
+          accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+        },
+      });
+    });
+  });
+
   describe('getSessionScopes', () => {
     it('returns a NormalizedScopesObject for the wallet scope', () => {
       const result = getSessionScopes({
