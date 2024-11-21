@@ -13,8 +13,6 @@ import {
   InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import {
   NetworkController,
   NetworkClientType,
@@ -54,6 +52,7 @@ import type {
   TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
+import type { InternalAccount } from './types';
 import { TransactionStatus, TransactionType } from './types';
 
 jest.mock('uuid', () => {
@@ -94,22 +93,15 @@ const createMockInternalAccount = ({
     id,
     address,
     options: {},
-    methods: [
-      EthMethod.PersonalSign,
-      EthMethod.Sign,
-      EthMethod.SignTransaction,
-      EthMethod.SignTypedDataV1,
-      EthMethod.SignTypedDataV3,
-      EthMethod.SignTypedDataV4,
-    ],
-    type: EthAccountType.Eoa,
+    methods: [],
+    type: 'eip155:eoa',
     metadata: {
       name,
       keyring: { type: 'HD Key Tree' },
       importTime,
       lastSelected,
     },
-  } as InternalAccount;
+  };
 };
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';

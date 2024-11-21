@@ -1,4 +1,5 @@
 import type { AccessList } from '@ethereumjs/tx';
+import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
@@ -1348,3 +1349,7 @@ export type SubmitHistoryEntry = {
   /** The transaction parameters that were submitted. */
   transaction: TransactionParams;
 };
+
+export type InternalAccount = ReturnType<
+  AccountsController['getSelectedAccount']
+>;
