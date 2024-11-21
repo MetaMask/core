@@ -11,6 +11,7 @@ describe('@metamask/multichain', () => {
         "setPermittedEthChainIds",
         "getInternalScopesObject",
         "getSessionScopes",
+        "caipPermissionAdapterMiddleware",
         "walletGetSession",
         "walletInvokeMethod",
         "walletRevokeSession",
