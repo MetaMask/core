@@ -15,6 +15,11 @@ import type {
 } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
+/**
+ * Converts an InternalScopesObject to a NormalizedScopesObject.
+ * @param internalScopesObject - The InternalScopesObject to convert.
+ * @returns A NormalizedScopesObject.
+ */
 const getNormalizedScopesObject = (
   internalScopesObject: InternalScopesObject,
 ) => {
