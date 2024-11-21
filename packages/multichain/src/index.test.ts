@@ -9,6 +9,7 @@ describe('@metamask/multichain', () => {
         "getPermittedEthChainIds",
         "addPermittedEthChainId",
         "setPermittedEthChainIds",
+        "caipPermissionAdapterMiddleware",
         "walletGetSession",
         "walletInvokeMethod",
         "walletRevokeSession",
