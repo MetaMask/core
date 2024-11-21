@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.0.1]
 
-### Uncategorized
+### Changed
 
-- chore: bump `@metamask/{keyring-api,eth-snap-keyring,snaps-*}` ([#4948](https://github.com/MetaMask/core/pull/4948))
+- Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+- Bump `@metamask/eth-snap-keyring` from `^4.3.6` to `^5.0.1` ([#4948](https://github.com/MetaMask/core/pull/4948))
+- Bump `@metamask/snaps-utils` from `^4.3.6` to `^8.3.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+- Bump `@metamask/snaps-sdk` from `^6.5.0` to `^6.7.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+- Bump peer dependency `@metamask/snaps-controllers` from `^9.7.0`to `^9.10.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
 
 ## [19.0.0]
 
