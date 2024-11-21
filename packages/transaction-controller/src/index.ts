@@ -81,4 +81,4 @@ export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils';
-export { CHAIN_IDS, ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
+export { CHAIN_IDS } from './constants';
