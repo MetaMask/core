@@ -3664,7 +3664,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^39.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^39.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3684,7 +3684,6 @@ __metadata:
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/gas-fee-controller": "npm:^22.0.1"
-    "@metamask/keyring-api": "npm:^10.1.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^22.0.2"
     "@metamask/nonce-tracker": "npm:^6.0.0"
@@ -3732,7 +3731,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^12.0.1"
     "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^39.0.0"
+    "@metamask/transaction-controller": "npm:^39.1.0"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
