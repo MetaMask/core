@@ -56,7 +56,7 @@ export type GetAccountAddressRelationshipRequest = {
   from: string;
 };
 
-const BASE_URL = `https://accounts.api.cx.metamask.io/v1/accounts`;
+const BASE_URL = `https://accounts.api.cx.metamask.io`;
 
 const log = createModuleLogger(projectLogger, 'accounts-api');
 
