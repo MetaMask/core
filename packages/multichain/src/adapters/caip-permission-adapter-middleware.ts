@@ -11,8 +11,8 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { mergeScopes } from '../scope/transform';
-import { KnownWalletScopeString, type ScopeString } from '../scope/types';
+import { KnownWalletScopeString } from '../scope/constants';
+import type { InternalScopeString } from '../scope/types';
 import { getSessionScopes } from './caip-permission-adapter-session-scopes';
 
 /**
@@ -62,11 +62,9 @@ export async function caipPermissionAdapterMiddleware(
   const { chainId } =
     hooks.getNetworkConfigurationByNetworkClientId(networkClientId);
 
-  const scope: ScopeString = `eip155:${parseInt(chainId, 16)}`;
+  const scope: InternalScopeString = `eip155:${parseInt(chainId, 16)}`;
 
-  const sesionScopes = getSessionScopes(
-    caveat.value
-  );
+  const sesionScopes = getSessionScopes(caveat.value);
 
   if (
     !sesionScopes[scope]?.methods?.includes(method) &&

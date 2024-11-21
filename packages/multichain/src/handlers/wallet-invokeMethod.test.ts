@@ -1,11 +1,19 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
+import * as PermissionAdapterSessionScopes from '../adapters/caip-permission-adapter-session-scopes';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
 import { walletInvokeMethod } from './wallet-invokeMethod';
+
+jest.mock('../adapters/caip-permission-adapter-session-scopes', () => ({
+  getSessionScopes: jest.fn(),
+}));
+const MockPermissionAdapterSessionScopes = jest.mocked(
+  PermissionAdapterSessionScopes,
+);
 
 const createMockedRequest = () => ({
   jsonrpc: '2.0' as const,
@@ -30,30 +38,17 @@ const createMockedHandler = () => {
     value: {
       requiredScopes: {
         'eip155:1': {
-          methods: ['eth_call'],
-          notifications: [],
           accounts: [],
         },
         'eip155:5': {
-          methods: ['eth_chainId'],
-          notifications: [],
           accounts: [],
         },
       },
       optionalScopes: {
         'eip155:1': {
-          methods: ['net_version'],
-          notifications: [],
           accounts: [],
         },
         wallet: {
-          methods: ['wallet_watchAsset'],
-          notifications: [],
-          accounts: [],
-        },
-        unhandled: {
-          methods: ['foobar'],
-          notifications: [],
           accounts: [],
         },
       },
@@ -88,6 +83,35 @@ const createMockedHandler = () => {
 };
 
 describe('wallet_invokeMethod', () => {
+  beforeEach(() => {
+    MockPermissionAdapterSessionScopes.getSessionScopes.mockReturnValue({
+      'eip155:1': {
+        methods: ['eth_call', 'net_version'],
+        notifications: [],
+        accounts: [],
+      },
+      'eip155:5': {
+        methods: ['eth_chainId'],
+        notifications: [],
+        accounts: [],
+      },
+      wallet: {
+        methods: ['wallet_watchAsset'],
+        notifications: [],
+        accounts: [],
+      },
+      'unhandled:scope': {
+        methods: ['foobar'],
+        notifications: [],
+        accounts: [],
+      },
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
     const request = createMockedRequest();
     const { handler, getCaveat } = createMockedHandler();
@@ -97,6 +121,33 @@ describe('wallet_invokeMethod', () => {
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
     );
+  });
+
+  it('gets the session scopes from the CAIP-25 caveat value', async () => {
+    const request = createMockedRequest();
+    const { handler } = createMockedHandler();
+    await handler(request);
+    expect(
+      MockPermissionAdapterSessionScopes.getSessionScopes,
+    ).toHaveBeenCalledWith({
+      requiredScopes: {
+        'eip155:1': {
+          accounts: [],
+        },
+        'eip155:5': {
+          accounts: [],
+        },
+      },
+      optionalScopes: {
+        'eip155:1': {
+          accounts: [],
+        },
+        wallet: {
+          accounts: [],
+        },
+      },
+      isMultichainOrigin: true,
+    });
   });
 
   it('throws an unauthorized error when there is no CAIP-25 endowment permission', async () => {
@@ -152,7 +203,7 @@ describe('wallet_invokeMethod', () => {
     expect(end).toHaveBeenCalledWith(providerErrors.unauthorized());
   });
 
-  it('throws an internal error for authorized but unhandled scopes', async () => {
+  it('throws an internal error for authorized but unsupported scopes', async () => {
     const request = createMockedRequest();
     const { handler, end } = createMockedHandler();
 
@@ -160,7 +211,7 @@ describe('wallet_invokeMethod', () => {
       ...request,
       params: {
         ...request.params,
-        scope: 'unhandled',
+        scope: 'unhandled:scope',
         request: {
           ...request.params.request,
           method: 'foobar',

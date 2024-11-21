@@ -1,10 +1,18 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 
+import * as PermissionAdapterSessionScopes from '../adapters/caip-permission-adapter-session-scopes';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
 import { walletGetSession } from './wallet-getSession';
+
+jest.mock('../adapters/caip-permission-adapter-session-scopes', () => ({
+  getSessionScopes: jest.fn(),
+}));
+const MockPermissionAdapterSessionScopes = jest.mocked(
+  PermissionAdapterSessionScopes,
+);
 
 const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',
@@ -21,25 +29,17 @@ const createMockedHandler = () => {
     value: {
       requiredScopes: {
         'eip155:1': {
-          methods: ['eth_call'],
-          notifications: [],
           accounts: [],
         },
         'eip155:5': {
-          methods: ['eth_chainId'],
-          notifications: [],
           accounts: [],
         },
       },
       optionalScopes: {
         'eip155:1': {
-          methods: ['net_version'],
-          notifications: ['chainChanged'],
           accounts: [],
         },
         wallet: {
-          methods: ['wallet_watchAsset'],
-          notifications: [],
           accounts: [],
         },
       },
@@ -67,6 +67,10 @@ const createMockedHandler = () => {
 };
 
 describe('wallet_getSession', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
     const { handler, getCaveat } = createMockedHandler();
 
@@ -90,8 +94,52 @@ describe('wallet_getSession', () => {
     });
   });
 
-  it('returns the merged scopes', async () => {
+  it('gets the session scopes from the CAIP-25 caveat value', async () => {
+    const { handler } = createMockedHandler();
+
+    await handler(baseRequest);
+    expect(
+      MockPermissionAdapterSessionScopes.getSessionScopes,
+    ).toHaveBeenCalledWith({
+      requiredScopes: {
+        'eip155:1': {
+          accounts: [],
+        },
+        'eip155:5': {
+          accounts: [],
+        },
+      },
+      optionalScopes: {
+        'eip155:1': {
+          accounts: [],
+        },
+        wallet: {
+          accounts: [],
+        },
+      },
+    });
+  });
+
+  it('returns the session scopes', async () => {
     const { handler, response } = createMockedHandler();
+
+    MockPermissionAdapterSessionScopes.getSessionScopes.mockReturnValue({
+      'eip155:1': {
+        methods: ['eth_call', 'net_version'],
+        notifications: ['chainChanged'],
+        accounts: [],
+      },
+      'eip155:5': {
+        methods: ['eth_chainId'],
+        notifications: [],
+        accounts: [],
+      },
+      wallet: {
+        methods: ['wallet_watchAsset'],
+        notifications: [],
+        accounts: [],
+      },
+    });
 
     await handler(baseRequest);
     expect(response.result).toStrictEqual({

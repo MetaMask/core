@@ -7,15 +7,14 @@ import type {
 } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
+import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { mergeScopes } from '../scope/transform';
-import type { ScopeString } from '../scope/types';
+import type { ExternalScopeString, InternalScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
-import { getSessionScopes } from 'src/adapters/caip-permission-adapter-session-scopes';
 
 /**
  * Handler for the `wallet_invokeMethod` RPC method.
@@ -45,7 +44,7 @@ async function walletInvokeMethodHandler(
   },
 ) {
   const { scope, request: wrappedRequest } = request.params as {
-    scope: ScopeString;
+    scope: ExternalScopeString;
     request: JsonRpcRequest;
   };
 
@@ -63,7 +62,9 @@ async function walletInvokeMethodHandler(
     return end(providerErrors.unauthorized());
   }
 
-  const scopeObject = getSessionScopes(caveat.value)[scope];
+  const scopeObject = getSessionScopes(caveat.value)[
+    scope as InternalScopeString
+  ];
 
   if (!scopeObject?.methods?.includes(wrappedRequest.method)) {
     return end(providerErrors.unauthorized());
