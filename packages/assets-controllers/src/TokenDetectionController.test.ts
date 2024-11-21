@@ -8,7 +8,10 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
-import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import {
+  getDefaultNetworkControllerState,
+  RpcEndpointType,
+} from '@metamask/network-controller';
 import type {
   NetworkState,
   NetworkConfiguration,
@@ -1014,6 +1017,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockGetAccount,
             mockTokenListGetState,
+            mockNetworkState,
             triggerPreferencesStateChange,
             triggerSelectedAccountChange,
             callActionSpy,
@@ -1037,6 +1041,26 @@ describe('TokenDetectionController', () => {
                   },
                 },
               },
+            });
+            mockNetworkState({
+              networkConfigurationsByChainId: {
+                '0x1': {
+                  name: 'ethereum',
+                  nativeCurrency: 'ETH',
+                  rpcEndpoints: [
+                    {
+                      networkClientId: 'mainnet',
+                      type: RpcEndpointType.Infura,
+                      url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+                    },
+                  ],
+                  blockExplorerUrls: [],
+                  chainId: '0x1',
+                  defaultRpcEndpointIndex: 0,
+                },
+              },
+              networksMetadata: {},
+              selectedNetworkClientId: 'mainnet',
             });
 
             triggerPreferencesStateChange({
