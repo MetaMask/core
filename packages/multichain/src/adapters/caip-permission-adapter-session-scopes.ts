@@ -1,19 +1,22 @@
 import { KnownCaipNamespace } from '@metamask/utils';
-import { Caip25CaveatValue } from 'src/caip25Permission';
+
+import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
-} from 'src/scope/constants';
-import { mergeScopes } from 'src/scope/transform';
+  KnownWalletRpcMethods,
+} from '../scope/constants';
+import { mergeScopes } from '../scope/transform';
 import type {
   InternalScopesObject,
+  NonWalletKnownCaipNamespace,
   NormalizedScopesObject,
-} from 'src/scope/types';
-import { parseScopeString } from 'src/scope/types';
+} from '../scope/types';
+import { parseScopeString } from '../scope/types';
 
 const getNormalizedScopesObject = (
-  internalScopesObject: InternalScopesObject
+  internalScopesObject: InternalScopesObject,
 ) => {
   const normalizedScopes: NormalizedScopesObject = {};
 
@@ -24,15 +27,20 @@ const getNormalizedScopesObject = (
       let methods: string[] = [];
       let notifications: string[] = [];
 
-      // TODO: write this better to work more generically
-      if (namespace === KnownCaipNamespace.Eip155) {
-        methods = KnownRpcMethods.eip155;
-        notifications = KnownNotifications.eip155;
-      } else if (
-        namespace === KnownCaipNamespace.Wallet &&
-        reference === KnownCaipNamespace.Eip155
-      ) {
-        methods = KnownWalletNamespaceRpcMethods.eip155;
+      if (namespace === KnownCaipNamespace.Wallet) {
+        if (reference) {
+          methods =
+            KnownWalletNamespaceRpcMethods[
+              reference as NonWalletKnownCaipNamespace
+            ] ?? [];
+        } else {
+          methods = KnownWalletRpcMethods;
+        }
+      } else {
+        methods =
+          KnownRpcMethods[namespace as NonWalletKnownCaipNamespace] ?? [];
+        notifications =
+          KnownNotifications[namespace as NonWalletKnownCaipNamespace] ?? [];
       }
 
       normalizedScopes[scopeString] = {
@@ -44,7 +52,7 @@ const getNormalizedScopesObject = (
   );
 
   return normalizedScopes;
-}
+};
 
 export const getSessionScopes = (
   caip25CaveatValue: Pick<
@@ -55,5 +63,5 @@ export const getSessionScopes = (
   return mergeScopes(
     getNormalizedScopesObject(caip25CaveatValue.requiredScopes),
     getNormalizedScopesObject(caip25CaveatValue.optionalScopes),
-  )
+  );
 };
