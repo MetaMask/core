@@ -1,12 +1,6 @@
 name: 'Add PR to Project Board - Wallet Framework Team'
 
 on:
-  workflow_dispatch:
-    inputs:
-      scan_existing_prs:
-        description: 'Scan existing open PRs'
-        type: boolean
-        default: false
   pull_request:
     types: [opened, labeled, review_requested]
 
@@ -19,19 +13,6 @@ jobs:
       TEAM_LABEL: 'team-wallet-framework'
 
     steps:
-      - name: Get existing PRs
-        if: github.event.inputs.scan_existing_prs == 'true'
-        id: get-prs
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const prs = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open'
-            });
-            return prs.data;
-
       - name: Add PR to project board
         uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e
         if: |
