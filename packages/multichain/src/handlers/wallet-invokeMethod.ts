@@ -15,6 +15,7 @@ import {
 import { mergeScopes } from '../scope/transform';
 import type { ScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
+import { getSessionScopes } from 'src/adapters/caip-permission-adapter-session-scopes';
 
 /**
  * Handler for the `wallet_invokeMethod` RPC method.
@@ -62,10 +63,7 @@ async function walletInvokeMethodHandler(
     return end(providerErrors.unauthorized());
   }
 
-  const scopeObject = mergeScopes(
-    caveat.value.requiredScopes,
-    caveat.value.optionalScopes,
-  )[scope];
+  const scopeObject = getSessionScopes(caveat.value)[scope];
 
   if (!scopeObject?.methods?.includes(wrappedRequest.method)) {
     return end(providerErrors.unauthorized());

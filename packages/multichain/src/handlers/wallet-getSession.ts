@@ -8,6 +8,7 @@ import {
 } from '../caip25Permission';
 import { mergeScopes } from '../scope/transform';
 import type { ScopesObject } from '../scope/types';
+import { getSessionScopes } from 'src/adapters/caip-permission-adapter-session-scopes';
 
 /**
  * Handler for the `wallet_getSession` RPC method.
@@ -49,10 +50,7 @@ async function walletGetSessionHandler(
   }
 
   response.result = {
-    sessionScopes: mergeScopes(
-      caveat.value.requiredScopes,
-      caveat.value.optionalScopes,
-    ),
+    sessionScopes: getSessionScopes(caveat.value),
   };
   return end();
 }
