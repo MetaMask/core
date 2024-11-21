@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Caip25 permission refactor ([#4950](https://github.com/MetaMask/core/pull/4950))
+
 [Unreleased]: https://github.com/MetaMask/core/
