@@ -102,6 +102,8 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -181,6 +183,8 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -260,6 +264,8 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -363,6 +369,8 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -463,6 +471,8 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -564,6 +574,8 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -662,6 +674,8 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -752,6 +766,8 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -796,6 +812,8 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -826,6 +844,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
@@ -966,7 +986,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
   });
 
-  it('creates internal accounts if user storage has more accounts', async () => {
+  it('creates internal accounts if user storage has more accounts. it also updates hasAccountSyncingSyncedAtLeastOnce accordingly', async () => {
     const mockUserStorageAccountsResponse = async () => {
       return {
         status: 200,
@@ -1037,6 +1057,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     );
 
     expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
+
+    expect(controller.state.hasAccountSyncingSyncedAtLeastOnce).toBe(true);
   });
 
   describe('handles corrupted user storage gracefully', () => {
@@ -1106,6 +1128,28 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
       expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(false);
       expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
+    });
+
+    it('fires the onAccountSyncErroneousSituation callback in erroneous situations', async () => {
+      const onAccountSyncErroneousSituation = jest.fn();
+
+      const { messengerMocks } = await arrangeMocksForBogusAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        config: {
+          accountSyncing: {
+            onAccountSyncErroneousSituation,
+          },
+        },
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1759,6 +1803,8 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        hasAccountSyncingSyncedAtLeastOnce: false,
+        isAccountSyncingReadyToBeDispatched: false,
       },
     });
 
