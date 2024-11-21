@@ -1,7 +1,6 @@
 /* eslint-disable jest/expect-expect */
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
-import type { AccountsController } from '@metamask/accounts-controller';
 import type {
   AddApprovalRequest,
   AddResult,
@@ -70,6 +69,7 @@ import type {
   GasFeeFlow,
   GasFeeFlowResponse,
   SubmitHistoryEntry,
+  InternalAccount,
 } from './types';
 import {
   GasFeeEstimateType,
@@ -399,7 +399,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 
-const INTERNAL_ACCOUNT_MOCK = {
+const INTERNAL_ACCOUNT_MOCK: InternalAccount = {
   id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
   address: ACCOUNT_MOCK,
   type: 'eip155:eoa',
@@ -411,7 +411,7 @@ const INTERNAL_ACCOUNT_MOCK = {
     importTime: 1631619180000,
     lastSelected: 1631619180000,
   },
-} as unknown as AccountsController['getSelectedAccount'];
+};
 
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
@@ -562,7 +562,7 @@ describe('TransactionController', () => {
         typeof mockAddTransactionApprovalRequest
       >[1];
     };
-    selectedAccount?: AccountsController['getSelectedAccount'];
+    selectedAccount?: InternalAccount;
     mockNetworkClientConfigurationsByNetworkClientId?: Record<
       NetworkClientId,
       NetworkClientConfiguration
