@@ -73,7 +73,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^19.0.0",
-    "@metamask/snaps-controllers": "^9.10.0"
+    "@metamask/snaps-controllers": "^9.7.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

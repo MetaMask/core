@@ -17,8 +17,6 @@ import {
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType } from '@metamask/keyring-api';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -71,6 +69,7 @@ import type {
   GasFeeFlow,
   GasFeeFlowResponse,
   SubmitHistoryEntry,
+  InternalAccount,
 } from './types';
 import {
   GasFeeEstimateType,
@@ -399,10 +398,11 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
 };
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
-const INTERNAL_ACCOUNT_MOCK = {
+
+const INTERNAL_ACCOUNT_MOCK: InternalAccount = {
   id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
   address: ACCOUNT_MOCK,
-  type: EthAccountType.Eoa,
+  type: 'eip155:eoa',
   options: {},
   methods: [],
   metadata: {
