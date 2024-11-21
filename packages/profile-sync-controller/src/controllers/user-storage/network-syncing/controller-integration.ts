@@ -139,7 +139,7 @@ export async function performMainNetworkSync(
 
       /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
-        console.error(
+        log.error(
           'performMainNetworkSync() - NetworkController:addNetwork failures',
           errors,
         );
@@ -168,7 +168,7 @@ export async function performMainNetworkSync(
 
       /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
-        console.error(
+        log.error(
           'performMainNetworkSync() - NetworkController:dangerouslySetNetworkConfiguration failed',
           errors,
         );
@@ -194,7 +194,7 @@ export async function performMainNetworkSync(
 
       /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
-        console.error(
+        log.error(
           'performMainNetworkSync() - NetworkController:removeNetwork failed',
           errors,
         );
@@ -202,7 +202,7 @@ export async function performMainNetworkSync(
     }
   } catch (e) {
     /* istanbul ignore next - only logs errors, not useful to test */
-    console.error('performMainNetworkSync() failed', e);
+    log.error('performMainNetworkSync() failed', e);
     // Silently fail sync
   } finally {
     isMainNetworkSyncInProgress = false;
