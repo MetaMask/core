@@ -100,11 +100,21 @@ export type UserStorageControllerState = {
    * Loading state for the profile syncing update
    */
   isProfileSyncingUpdateLoading: boolean;
+  /**
+   * Condition used by E2E tests to determine if account syncing has been dispatched at least once.
+   */
+  hasAccountSyncingSyncedAtLeastOnce: boolean;
+  /**
+   * Condition used by UI to determine if account syncing is ready to be dispatched.
+   */
+  isAccountSyncingReadyToBeDispatched: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
   isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
+  hasAccountSyncingSyncedAtLeastOnce: false,
+  isAccountSyncingReadyToBeDispatched: false,
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
@@ -113,6 +123,14 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: true,
   },
   isProfileSyncingUpdateLoading: {
+    persist: false,
+    anonymous: false,
+  },
+  hasAccountSyncingSyncedAtLeastOnce: {
+    persist: true,
+    anonymous: true,
+  },
+  isAccountSyncingReadyToBeDispatched: {
     persist: false,
     anonymous: false,
   },
@@ -132,6 +150,15 @@ type ControllerConfig = {
      * This is used for analytics.
      */
     onAccountNameUpdated?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when an erroneous situation happens during account sync.
+     * This is used for analytics.
+     */
+    onAccountSyncErroneousSituation?: (
+      profileId: string,
+      situationMessage: string,
+    ) => void;
   };
 };
 
@@ -280,7 +307,6 @@ export default class UserStorageController extends BaseController<
     isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
     maxNumberOfAccountsToAdd: 0,
-    hasSyncedAtLeastOnce: false,
     canSync: () => {
       try {
         this.#assertProfileSyncingEnabled();
@@ -309,7 +335,7 @@ export default class UserStorageController extends BaseController<
         async (account) => {
           if (
             !this.#accounts.canSync() ||
-            !this.#accounts.hasSyncedAtLeastOnce
+            !this.state.hasAccountSyncingSyncedAtLeastOnce
           ) {
             return;
           }
@@ -324,7 +350,7 @@ export default class UserStorageController extends BaseController<
         async (account) => {
           if (
             !this.#accounts.canSync() ||
-            !this.#accounts.hasSyncedAtLeastOnce
+            !this.state.hasAccountSyncingSyncedAtLeastOnce
           ) {
             return;
           }
@@ -861,6 +887,24 @@ export default class UserStorageController extends BaseController<
     });
   }
 
+  private async setHasAccountSyncingSyncedAtLeastOnce(
+    hasAccountSyncingSyncedAtLeastOnce: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.hasAccountSyncingSyncedAtLeastOnce =
+        hasAccountSyncingSyncedAtLeastOnce;
+    });
+  }
+
+  public async setIsAccountSyncingReadyToBeDispatched(
+    isAccountSyncingReadyToBeDispatched: boolean,
+  ): Promise<void> {
+    this.update((state) => {
+      state.isAccountSyncingReadyToBeDispatched =
+        isAccountSyncingReadyToBeDispatched;
+    });
+  }
+
   /**
    * Syncs the internal accounts list with the user storage accounts list.
    * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
@@ -881,6 +925,7 @@ export default class UserStorageController extends BaseController<
 
       if (!userStorageAccountsList || !userStorageAccountsList.length) {
         await this.#accounts.saveInternalAccountsListToUserStorage();
+        await this.setHasAccountSyncingSyncedAtLeastOnce(true);
         return;
       }
 
@@ -934,6 +979,10 @@ export default class UserStorageController extends BaseController<
         if (!userStorageAccount) {
           // If the account was just added in the previous step, skip saving it, it's likely to be a bogus account
           if (newlyAddedAccounts.includes(internalAccount)) {
+            this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
+              profileId,
+              'An account was added to the internal accounts list but was not present in the user storage accounts list',
+            );
             continue;
           }
           // Otherwise, it means that this internal account was present before the sync, and needs to be saved to the user storage
@@ -1036,10 +1085,15 @@ export default class UserStorageController extends BaseController<
           USER_STORAGE_FEATURE_NAMES.accounts,
           userStorageAccountsToBeDeleted.map((account) => account.a),
         );
+        this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
+          profileId,
+          'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
+        );
       }
 
-      // We add this here and not in the finally statement because we want to make sure that the accounts are saved before we set this flag
-      this.#accounts.hasSyncedAtLeastOnce = true;
+      // We do this here and not in the finally statement because we want to make sure that
+      // the accounts are saved / updated / deleted at least once before we set this flag
+      await this.setHasAccountSyncingSyncedAtLeastOnce(true);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
