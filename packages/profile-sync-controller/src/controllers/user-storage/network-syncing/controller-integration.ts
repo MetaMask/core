@@ -5,6 +5,7 @@ import type { UserStorageControllerMessenger } from '../UserStorageController';
 import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
+import type { NetworkConfiguration } from './types';
 
 type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
@@ -15,10 +16,13 @@ type StartNetworkSyncingProps = {
 type PerformMainNetworkSyncProps = {
   messenger: UserStorageControllerMessenger;
   getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
+  maxNetworksToAdd?: number;
   onNetworkAdded?: (chainId: string) => void;
   onNetworkUpdated?: (chainId: string) => void;
   onNetworkRemoved?: (chainId: string) => void;
 };
+
+export const MAX_NETWORKS_SIZE = 50;
 
 /**
  * Global in-mem cache to signify that the network syncing is in progress
@@ -73,6 +77,50 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
 }
 
 /**
+ * Calculates the available space to add new networks
+ * exported for testability.
+ * @param originalListSize - size of original list
+ * @param maxSize - max size
+ * @returns a positive number on the available space
+ */
+export const calculateAvailableSpaceToAdd = (
+  originalListSize: number,
+  maxSize: number,
+) => {
+  return Math.max(0, maxSize - originalListSize);
+};
+
+/**
+ * Returns a bounded number of networks to add (set by a max bound)
+ * The items will be ordered to give determinism on items to append (not random)
+ *
+ * @param originalNetworks - The original list of network configurations.
+ * @param networksToAdd - The list of network configurations to add.
+ * @param maxSize - The maximum allowed size of the list. Defaults to MAX_NETWORKS_SIZE.
+ * @returns The networks to add, sorted by chainId.
+ */
+export const getBoundedNetworksToAdd = (
+  originalNetworks: NetworkConfiguration[],
+  networksToAdd: NetworkConfiguration[],
+  maxSize = MAX_NETWORKS_SIZE,
+) => {
+  const availableSpace = calculateAvailableSpaceToAdd(
+    originalNetworks.length,
+    maxSize,
+  );
+  const numberOfNetworksToAppend = Math.min(
+    availableSpace,
+    networksToAdd.length,
+  );
+
+  // Order and slice the networks to append
+  // Ordering so we have some determinism on the order of items
+  return networksToAdd
+    .sort((a, b) => a.chainId.localeCompare(b.chainId))
+    .slice(0, numberOfNetworksToAppend);
+};
+
+/**
  * Action to perform the main network sync.
  * It will fetch local networks and remote networks, then determines which networks (local and remote) to add/update
  * @param props - parameters used for this main sync
@@ -80,7 +128,14 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
 export async function performMainNetworkSync(
   props: PerformMainNetworkSyncProps,
 ) {
-  const { messenger, getStorageConfig } = props;
+  const {
+    messenger,
+    getStorageConfig,
+    maxNetworksToAdd,
+    onNetworkAdded,
+    onNetworkRemoved,
+    onNetworkUpdated,
+  } = props;
 
   // Edge-Case, we do not want to re-run the main-sync if it already is in progress
   /* istanbul ignore if - this is not testable */
@@ -121,15 +176,19 @@ export async function performMainNetworkSync(
     }
 
     // Add missing local networks
-    if (
+    const boundedNetworkedToAdd =
       networkChanges?.missingLocalNetworks &&
-      networkChanges.missingLocalNetworks.length > 0
-    ) {
+      getBoundedNetworksToAdd(
+        localNetworks,
+        networkChanges.missingLocalNetworks,
+        maxNetworksToAdd,
+      );
+    if (boundedNetworkedToAdd && boundedNetworkedToAdd.length > 0) {
       const errors: unknown[] = [];
-      networkChanges.missingLocalNetworks.forEach((n) => {
+      boundedNetworkedToAdd.forEach((n) => {
         try {
           messenger.call('NetworkController:addNetwork', n);
-          props.onNetworkAdded?.(n.chainId);
+          onNetworkAdded?.(n.chainId);
         } catch (e) {
           /* istanbul ignore next - allocates logs, do not need to test */
           errors.push(e);
@@ -158,7 +217,7 @@ export async function performMainNetworkSync(
             'NetworkController:dangerouslySetNetworkConfiguration',
             n,
           );
-          props.onNetworkUpdated?.(n.chainId);
+          onNetworkUpdated?.(n.chainId);
         } catch (e) {
           /* istanbul ignore next - allocates logs, do not need to test */
           errors.push(e);
@@ -184,7 +243,7 @@ export async function performMainNetworkSync(
       networkChanges.localNetworksToRemove.forEach((n) => {
         try {
           messenger.call('NetworkController:removeNetwork', n.chainId);
-          props.onNetworkRemoved?.(n.chainId);
+          onNetworkRemoved?.(n.chainId);
         } catch (e) {
           /* istanbul ignore next - allocates logs, do not need to test */
           errors.push(e);
