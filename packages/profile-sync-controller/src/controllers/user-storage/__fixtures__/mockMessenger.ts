@@ -2,7 +2,11 @@ import type { NotNamespacedBy } from '@metamask/base-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 
 import { MOCK_STORAGE_KEY_SIGNATURE } from '.';
-import type { AllowedActions, AllowedEvents } from '..';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  UserStorageControllerMessenger,
+} from '..';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
   AllowedActions,
@@ -80,13 +84,18 @@ export function createCustomUserStorageMessenger(props?: {
   };
 }
 
+type OverrideMessengers = {
+  baseMessenger: ControllerMessenger<AllowedActions, AllowedEvents>;
+  messenger: UserStorageControllerMessenger;
+};
+
 /**
  * Jest Mock Utility to generate a mock User Storage Messenger
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
  * @returns series of mocks to actions that can be called
  */
 export function mockUserStorageMessenger(
-  overrideMessengers?: ReturnType<typeof createCustomUserStorageMessenger>,
+  overrideMessengers?: OverrideMessengers,
 ) {
   const { baseMessenger, messenger } =
     overrideMessengers ?? createCustomUserStorageMessenger();
