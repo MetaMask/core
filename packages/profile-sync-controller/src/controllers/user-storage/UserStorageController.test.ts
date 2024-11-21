@@ -29,7 +29,7 @@ import type {
   GetUserStorageResponse,
   UserStorageBaseOptions,
 } from './services';
-import UserStorageController from './UserStorageController';
+import UserStorageController, { defaultState } from './UserStorageController';
 
 describe('user-storage/user-storage-controller - constructor() tests', () => {
   const arrangeMocks = () => {
@@ -49,15 +49,21 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
   });
 
   it('should call startNetworkSyncing', async () => {
+    // Arrange Mock Syncing
     const mockStartNetworkSyncing = jest.spyOn(
       NetworkSyncIntegrationModule,
       'startNetworkSyncing',
     );
     let storageConfig: UserStorageBaseOptions | null = null;
-    mockStartNetworkSyncing.mockImplementation(({ getStorageConfig }) => {
-      // eslint-disable-next-line no-void
-      void getStorageConfig().then((s) => (storageConfig = s));
-    });
+    let isSyncingBlocked: boolean | null = null;
+    mockStartNetworkSyncing.mockImplementation(
+      ({ getStorageConfig, isMutationSyncBlocked }) => {
+        // eslint-disable-next-line no-void
+        void getStorageConfig().then((s) => (storageConfig = s));
+
+        isSyncingBlocked = isMutationSyncBlocked();
+      },
+    );
 
     const { messengerMocks } = arrangeMocks();
     new UserStorageController({
@@ -66,9 +72,15 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
       env: {
         isNetworkSyncingEnabled: true,
       },
+      state: {
+        ...defaultState,
+        hasNetworkSyncingSyncedAtLeastOnce: true,
+      },
     });
 
+    // Assert Syncing Properties
     await waitFor(() => expect(storageConfig).toBeDefined());
+    expect(isSyncingBlocked).toBe(false);
   });
 });
 
@@ -2064,6 +2076,7 @@ describe('user-storage/user-storage-controller - syncNetworks() tests', () => {
 
     expect(mockGetSessionProfile).toHaveBeenCalled();
     expect(mockPerformMainNetworkSync).toHaveBeenCalled();
+    expect(controller.state.hasNetworkSyncingSyncedAtLeastOnce).toBe(true);
   });
 });
 

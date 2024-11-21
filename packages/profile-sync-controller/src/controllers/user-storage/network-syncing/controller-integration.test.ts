@@ -42,68 +42,64 @@ const storageOpts: UserStorageBaseOptions = {
 
 describe('network-syncing/controller-integration - startNetworkSyncing()', () => {
   it(`should successfully sync when NetworkController:networkRemoved is emitted`, async () => {
-    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
-      arrangeMocks();
-    startNetworkSyncing({ messenger, getStorageConfig });
+    const { baseMessenger, props, deleteNetworkMock } = arrangeMocks();
+    startNetworkSyncing(props);
     baseMessenger.publish(
       'NetworkController:networkRemoved',
       createMockNetworkConfiguration(),
     );
 
     await waitFor(() => {
-      expect(getStorageConfig).toHaveBeenCalled();
+      expect(props.getStorageConfig).toHaveBeenCalled();
       expect(deleteNetworkMock).toHaveBeenCalled();
     });
   });
 
   it('should silently fail is unable to authenticate or get storage key', async () => {
-    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
-      arrangeMocks();
-    getStorageConfig.mockRejectedValue(new Error('Mock Error'));
-    startNetworkSyncing({ messenger, getStorageConfig });
+    const { baseMessenger, props, deleteNetworkMock } = arrangeMocks();
+    props.getStorageConfig.mockRejectedValue(new Error('Mock Error'));
+    startNetworkSyncing(props);
     baseMessenger.publish(
       'NetworkController:networkRemoved',
       createMockNetworkConfiguration(),
     );
 
     await waitFor(() => {
-      expect(getStorageConfig).toHaveBeenCalled();
+      expect(props.getStorageConfig).toHaveBeenCalled();
       expect(deleteNetworkMock).not.toHaveBeenCalled();
     });
   });
 
   it('should silently fail if unable to get storage config', async () => {
-    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
-      arrangeMocks();
-    getStorageConfig.mockResolvedValue(null);
-    startNetworkSyncing({ messenger, getStorageConfig });
+    const { baseMessenger, props, deleteNetworkMock } = arrangeMocks();
+    props.getStorageConfig.mockResolvedValue(null);
+    startNetworkSyncing(props);
     baseMessenger.publish(
       'NetworkController:networkRemoved',
       createMockNetworkConfiguration(),
     );
 
     await waitFor(() => {
-      expect(getStorageConfig).toHaveBeenCalled();
+      expect(props.getStorageConfig).toHaveBeenCalled();
       expect(deleteNetworkMock).not.toHaveBeenCalled();
     });
   });
 
   it(`should emit a warning if controller messenger is missing the NetworkController:networkRemoved event`, async () => {
     // arrange without setting event permissions
-    const getStorageConfig = jest.fn().mockResolvedValue(storageOpts);
+    const { props } = arrangeMocks();
     const { messenger } = mockUserStorageMessenger(
       createCustomUserStorageMessenger({ overrideEvents: [] }),
     );
 
     await waitFor(() => {
-      startNetworkSyncing({ messenger, getStorageConfig });
+      startNetworkSyncing({ ...props, messenger });
       expect(warnMock).toHaveBeenCalled();
     });
   });
 
   it('should not remove networks if main sync is in progress', async () => {
-    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
-      arrangeMocks();
+    const { baseMessenger, props, deleteNetworkMock } = arrangeMocks();
 
     // TODO - replace with jest.replaceProperty once we upgrade jest.
     Object.defineProperty(
@@ -112,17 +108,14 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
       { value: true },
     );
 
-    startNetworkSyncing({
-      messenger,
-      getStorageConfig,
-    });
+    startNetworkSyncing(props);
 
     baseMessenger.publish(
       'NetworkController:networkRemoved',
       createMockNetworkConfiguration(),
     );
 
-    expect(getStorageConfig).not.toHaveBeenCalled();
+    expect(props.getStorageConfig).not.toHaveBeenCalled();
     expect(deleteNetworkMock).not.toHaveBeenCalled();
 
     // Reset this property
@@ -131,6 +124,21 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
       'isMainNetworkSyncInProgress',
       { value: false },
     );
+  });
+
+  it('should not remove networks if the mutation sync is blocked (e.g. main sync has not happened before)', async () => {
+    const { props, baseMessenger, deleteNetworkMock } = arrangeMocks();
+    const mockIsBlocked = jest.fn(() => true);
+    startNetworkSyncing({ ...props, isMutationSyncBlocked: mockIsBlocked });
+
+    baseMessenger.publish(
+      'NetworkController:networkRemoved',
+      createMockNetworkConfiguration(),
+    );
+
+    expect(mockIsBlocked).toHaveBeenCalled();
+    expect(props.getStorageConfig).not.toHaveBeenCalled();
+    expect(deleteNetworkMock).not.toHaveBeenCalled();
   });
 
   /**
@@ -145,9 +153,12 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
       .mockResolvedValue();
 
     return {
-      getStorageConfig: getStorageConfigMock,
+      props: {
+        getStorageConfig: getStorageConfigMock,
+        messenger: messengerMocks.messenger,
+        isMutationSyncBlocked: () => false,
+      },
       deleteNetworkMock,
-      messenger: messengerMocks.messenger,
       baseMessenger: messengerMocks.baseMessenger,
     };
   }

@@ -113,6 +113,10 @@ export type UserStorageControllerState = {
    * Condition used by UI to determine if account syncing is ready to be dispatched.
    */
   isAccountSyncingReadyToBeDispatched: boolean;
+  /**
+   * Condition used to ensure that we do not perform any network sync mutations until we have synced at least once
+   */
+  hasNetworkSyncingSyncedAtLeastOnce?: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
@@ -133,10 +137,14 @@ const metadata: StateMetadata<UserStorageControllerState> = {
   },
   hasAccountSyncingSyncedAtLeastOnce: {
     persist: true,
-    anonymous: true,
+    anonymous: false,
   },
   isAccountSyncingReadyToBeDispatched: {
     persist: false,
+    anonymous: false,
+  },
+  hasNetworkSyncingSyncedAtLeastOnce: {
+    persist: true,
     anonymous: false,
   },
 };
@@ -523,6 +531,8 @@ export default class UserStorageController extends BaseController<
       startNetworkSyncing({
         messenger,
         getStorageConfig: () => this.#getStorageOptions(),
+        isMutationSyncBlocked: () =>
+          !this.state.hasNetworkSyncingSyncedAtLeastOnce,
       });
     }
   }
@@ -1172,6 +1182,10 @@ export default class UserStorageController extends BaseController<
         this.#config?.networkSyncing?.onNetworkUpdated?.(profileId, cId),
       onNetworkRemoved: (cId) =>
         this.#config?.networkSyncing?.onNetworkRemoved?.(profileId, cId),
+    });
+
+    this.update((s) => {
+      s.hasNetworkSyncingSyncedAtLeastOnce = true;
     });
   }
 }

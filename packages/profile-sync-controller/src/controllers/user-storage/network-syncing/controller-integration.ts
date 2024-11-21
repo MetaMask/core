@@ -9,6 +9,7 @@ import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
 type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
   getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
+  isMutationSyncBlocked: () => boolean;
 };
 
 type PerformMainNetworkSyncProps = {
@@ -38,13 +39,18 @@ export let isMainNetworkSyncInProgress = false;
  * @param props - parameters used for initializing and enabling network syncing
  */
 export function startNetworkSyncing(props: StartNetworkSyncingProps) {
-  const { messenger, getStorageConfig } = props;
+  const { messenger, getStorageConfig, isMutationSyncBlocked } = props;
   try {
     messenger.subscribe(
       'NetworkController:networkRemoved',
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (networkConfiguration) => {
         try {
+          // If blocked (e.g. we have not yet performed a main-sync), then we should not perform any mutations
+          if (isMutationSyncBlocked()) {
+            return;
+          }
+
           // As main sync is in progress, it will already local and remote networks
           // So no need to re-process again.
           if (isMainNetworkSyncInProgress) {
