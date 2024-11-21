@@ -1,5 +1,6 @@
 import type { Hex, Json } from '@metamask/utils';
 
+import { bucketScopesBySupport } from './filter';
 import { normalizeAndMergeScopes } from './transform';
 import type {
   ExternalScopesObject,
@@ -7,7 +8,6 @@ import type {
   NormalizedScopesObject,
 } from './types';
 import { getValidScopes } from './validation';
-import { bucketScopesBySupport } from './filter';
 
 /**
  * Represents the parameters of a [CAIP-25](https://chainagnostic.org/CAIPs/caip-25) request.
@@ -54,7 +54,7 @@ export const validateAndNormalizeScopes = (
 };
 
 export const bucketScopes = (
-  scopes: InternalScopesObject,
+  scopes: NormalizedScopesObject,
   {
     isChainIdSupported,
     isChainIdSupportable,
@@ -63,9 +63,9 @@ export const bucketScopes = (
     isChainIdSupportable: (chainId: Hex) => boolean;
   },
 ): {
-  supportedScopes: InternalScopesObject;
-  supportableScopes: InternalScopesObject;
-  unsupportableScopes: InternalScopesObject;
+  supportedScopes: NormalizedScopesObject;
+  supportableScopes: NormalizedScopesObject;
+  unsupportableScopes: NormalizedScopesObject;
 } => {
   const { supportedScopes, unsupportedScopes: maybeSupportableScopes } =
     bucketScopesBySupport(scopes, {
