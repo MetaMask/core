@@ -707,20 +707,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         supportedNetworks,
       );
 
-      // If API succeeds and no chains are left for RPC detection, we can return early
-      if (
-        apiResult?.result === 'success' &&
-        chainsToDetectUsingRpc.length === 0
-      ) {
-        return;
+      // If the account API call failed, have those chains fall back to RPC detection
+      if (apiResult?.result === 'failed') {
+        this.#addChainsToRpcDetection(
+          chainsToDetectUsingRpc,
+          chainsToDetectUsingAccountAPI,
+          clientNetworks,
+        );
       }
-
-      // If API fails or chainsToDetectUsingRpc still has items, add chains to RPC detection
-      this.#addChainsToRpcDetection(
-        chainsToDetectUsingRpc,
-        chainsToDetectUsingAccountAPI,
-        clientNetworks,
-      );
     }
 
     // Proceed with RPC detection if there are chains remaining in chainsToDetectUsingRpc
@@ -822,10 +816,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
         .catch(() => null);
 
-      if (
-        !tokenBalancesByChain ||
-        Object.keys(tokenBalancesByChain).length === 0
-      ) {
+      if (tokenBalancesByChain === null) {
         return { result: 'failed' } as const;
       }
 
