@@ -7,17 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0]
+## [0.2.0]
 
 ### Changed
 
 - **BREAKING:** Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
   - Bump the peer dependency `@metamask/providers` from `^17.2.0` to `^18.1.0`.
-
-## [0.1.4]
-
-### Changed
-
 - Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
 - Bump `@metamask/snaps-utils` from `^4.3.6` to `^8.3.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
 - Bump `@metamask/snaps-sdk` from `^6.5.0` to `^6.7.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
@@ -74,9 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@1.0.0...HEAD
-[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.4...@metamask/chain-controller@1.0.0
-[0.1.4]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.3...@metamask/chain-controller@0.1.4
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.3...@metamask/chain-controller@0.2.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...@metamask/chain-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.1...@metamask/chain-controller@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.0...@metamask/chain-controller@0.1.1
