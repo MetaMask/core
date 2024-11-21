@@ -175,6 +175,7 @@ type ControllerConfig = {
   };
 
   networkSyncing?: {
+    maxNumberOfNetworksToAdd?: number;
     /**
      * Callback that fires when network sync adds a network
      * This is used for analytics.
@@ -1188,6 +1189,7 @@ export default class UserStorageController extends BaseController<
     await performMainNetworkSync({
       messenger: this.messagingSystem,
       getStorageConfig: () => this.#getStorageOptions(),
+      maxNetworksToAdd: this.#config?.networkSyncing?.maxNumberOfNetworksToAdd,
       onNetworkAdded: (cId) =>
         this.#config?.networkSyncing?.onNetworkAdded?.(profileId, cId),
       onNetworkUpdated: (cId) =>
