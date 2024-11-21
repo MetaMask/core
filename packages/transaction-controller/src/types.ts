@@ -863,24 +863,34 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
+   * Numerical cache to optimize fetching transactions.
+   */
+  cache: Record<string, unknown>;
+
+  /**
    * The IDs of the chains to query.
    */
   chainIds: Hex[];
 
   /**
-   * Timestamp to not fetch transactions beyond.
+   * Whether to also include incoming token transfers.
    */
-  endTimestamp: number;
+  includeTokenTransfers: boolean;
 
   /**
-   * Maximum number of transactions to retrieve.
+   * Whether to initially query the entire transaction history.
    */
-  limit?: number;
+  queryEntireHistory: boolean;
 
   /**
-   * Timestamp to start fetching transactions from.
+   * Callback to update the cache.
    */
-  startTimestampByChainId: Record<Hex, number>;
+  updateCache(fn: (cache: Record<string, unknown>) => void): void;
+
+  /**
+   * Whether to also retrieve outgoing transactions.
+   */
+  updateTransactions: boolean;
 }
 
 /**
@@ -895,11 +905,6 @@ export interface RemoteTransactionSource {
    * @returns Array of chain IDs supported by the remote source.
    */
   getSupportedChains: () => Hex[];
-
-  /**
-   * @returns An array of additional keys to use when caching the last fetched block number.
-   */
-  getLastBlockVariations?: () => string[];
 
   /**
    * @param request - A request object containing data such as the address and chain ID.

@@ -773,6 +773,8 @@ describe('TransactionController', () => {
   }
 
   beforeEach(() => {
+    jest.resetAllMocks();
+
     jest.spyOn(Date, 'now').mockImplementation(() => {
       timeCounter += 1;
       return timeCounter;
@@ -3923,7 +3925,7 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('on incoming transaction helper incoming-transactions event', () => {
+  describe('on incoming transaction helper transactions event', () => {
     it('adds new transactions to state', async () => {
       const { controller } = setupController();
 
@@ -3957,6 +3959,31 @@ describe('TransactionController', () => {
       ]);
     });
 
+    it('ignores duplicate existing transactions when adding to state', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, type: TransactionType.incoming },
+            ],
+          },
+        },
+      });
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+
+      expect(controller.state.transactions).toHaveLength(2);
+      expect(controller.state.transactions).toStrictEqual([
+        { ...TRANSACTION_META_MOCK, type: TransactionType.incoming },
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+
     it('publishes TransactionController:incomingTransactionsReceived', async () => {
       const listener = jest.fn();
 
@@ -3981,21 +4008,22 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('on incoming transaction helper updated-last-fetched-timestamp event', () => {
+  describe('on incoming transaction helper updateCache call', () => {
     it('updates state', async () => {
       const { controller } = setupController();
       const key = 'testKey';
-      const timestamp = 123;
+      const value = 123;
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (incomingTransactionHelperMock.hub.on as any).mock.calls[1][1]({
-        key,
-        timestamp,
-      });
+      incomingTransactionHelperClassMock.mock.calls[0][0].updateCache(
+        (cache) => {
+          cache[key] = value;
+        },
+      );
 
       expect(controller.state.lastFetchedTimestamps).toStrictEqual({
-        [key]: timestamp,
+        [key]: value,
       });
     });
   });

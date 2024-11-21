@@ -1,3 +1,4 @@
+import { successfulFetch } from '@metamask/controller-utils';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
@@ -34,6 +35,7 @@ export type GetAccountTransactionsRequest = {
   chainIds?: Hex[];
   cursor?: string;
   endTimestamp?: number;
+  sortDirection?: 'ASC' | 'DESC';
   startTimestamp?: number;
 };
 
@@ -60,7 +62,14 @@ const log = createModuleLogger(projectLogger, 'accounts-api');
 export async function getAccountTransactions(
   request: GetAccountTransactionsRequest,
 ): Promise<GetAccountTransactionsResponse> {
-  const { address, chainIds, cursor, endTimestamp, startTimestamp } = request;
+  const {
+    address,
+    chainIds,
+    cursor,
+    endTimestamp,
+    sortDirection,
+    startTimestamp,
+  } = request;
 
   let url = `${BASE_URL}${address}/transactions`;
   const params = [];
@@ -82,6 +91,10 @@ export async function getAccountTransactions(
     params.push(`cursor=${cursor}`);
   }
 
+  if (sortDirection) {
+    params.push(`sortDirection=${sortDirection}`);
+  }
+
   if (params.length) {
     url += `?${params.join('&')}`;
   }
@@ -92,39 +105,10 @@ export async function getAccountTransactions(
     [CLIENT_HEADER]: CLIENT_ID,
   };
 
-  const response = await fetch(url, { headers });
+  const response = await successfulFetch(url, { headers });
   const responseJson = await response.json();
 
   log('Retrieved account transactions', responseJson);
 
   return responseJson;
-}
-
-/**
- * Fetch account transactions from the accounts API.
- * Automatically fetches all pages.
- * @param request - The request object.
- * @returns An array of transaction objects.
- */
-export async function getAccountTransactionsAllPages(
-  request: GetAccountTransactionsRequest,
-): Promise<TransactionResponse[]> {
-  const transactions = [];
-
-  let cursor;
-  let hasNextPage = true;
-
-  log('Getting account transactions from all pages', request);
-
-  while (hasNextPage) {
-    const response = await getAccountTransactions({ ...request, cursor });
-    transactions.push(...response.data);
-
-    cursor = response.pageInfo.cursor;
-    hasNextPage = response.pageInfo.hasNextPage;
-  }
-
-  log('Retrieved account transactions from all pages', transactions);
-
-  return transactions;
 }

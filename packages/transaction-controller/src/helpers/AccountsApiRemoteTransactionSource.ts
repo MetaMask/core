@@ -7,7 +7,7 @@ import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
 } from '../api/accounts-api';
-import { getAccountTransactionsAllPages } from '../api/accounts-api';
+import { getAccountTransactions } from '../api/accounts-api';
 import { CHAIN_IDS } from '../constants';
 import { createModuleLogger, incomingTransactionsLogger } from '../logger';
 import type {
@@ -51,29 +51,28 @@ export class AccountsApiRemoteTransactionSource
 
     const responseTransactions = await this.#getTransactions(request);
 
-    const incomingTransactions = this.#filterTransactions(
-      request,
-      responseTransactions,
-    );
+    log('Fetched transactions', responseTransactions);
 
-    const normalizedTransactions = incomingTransactions.map((tx) =>
+    const normalizedTransactions = responseTransactions.map((tx) =>
       this.#normalizeTransaction(address, tx),
     );
 
-    log('Filtered and normalized transactions', normalizedTransactions);
+    log('Normalized transactions', normalizedTransactions);
 
-    return normalizedTransactions;
+    const filteredTransactions = this.#filterTransactions(
+      request,
+      normalizedTransactions,
+    );
+
+    log('Filtered transactions', filteredTransactions);
+
+    return filteredTransactions;
   }
 
   async #getTransactions(request: RemoteTransactionSourceRequest) {
-    log('Fetching transactions', request);
+    log('Getting transactions', request);
 
-    const {
-      address,
-      chainIds: requestedChainIds,
-      endTimestamp,
-      startTimestampByChainId,
-    } = request;
+    const { address, cache, chainIds: requestedChainIds } = request;
 
     const chainIds = requestedChainIds.filter((chainId) =>
       SUPPORTED_CHAIN_IDS.includes(chainId),
@@ -87,42 +86,91 @@ export class AccountsApiRemoteTransactionSource
       log('Ignoring unsupported chain IDs', unsupportedChainIds);
     }
 
-    const startTimestamp = Math.min(...Object.values(startTimestampByChainId));
+    const cursor = this.#getCacheCursor(cache, chainIds, address);
 
-    return await getAccountTransactionsAllPages({
-      address,
-      chainIds,
-      startTimestamp,
-      endTimestamp,
-    });
+    if (cursor) {
+      log('Using cached cursor', cursor);
+    }
+
+    return await this.#queryTransactions(request, chainIds, cursor);
+  }
+
+  async #queryTransactions(
+    request: RemoteTransactionSourceRequest,
+    chainIds: Hex[],
+    cursor?: string,
+  ): Promise<TransactionResponse[]> {
+    const { address, queryEntireHistory, updateCache } = request;
+    const transactions: TransactionResponse[] = [];
+
+    let hasNextPage = true;
+    let currentCursor = cursor;
+    let pageCount = 0;
+
+    const startTimestamp = queryEntireHistory
+      ? undefined
+      : this.#getTimestampSeconds(Date.now());
+
+    while (hasNextPage) {
+      try {
+        const response = await getAccountTransactions({
+          address,
+          chainIds,
+          cursor: currentCursor,
+          sortDirection: 'ASC',
+          startTimestamp,
+        });
+
+        pageCount += 1;
+
+        if (response?.data) {
+          transactions.push(...response.data);
+        }
+
+        hasNextPage = response?.pageInfo?.hasNextPage;
+        currentCursor = response?.pageInfo?.cursor;
+
+        if (currentCursor) {
+          // eslint-disable-next-line no-loop-func
+          updateCache((cache) => {
+            const key = this.#getCacheKey(chainIds, address);
+            cache[key] = currentCursor;
+
+            log('Updated cache', { key, newCursor: currentCursor });
+          });
+        }
+      } catch (error) {
+        log('Error while fetching transactions', error);
+        break;
+      }
+    }
+
+    log('Queried transactions', { pageCount });
+
+    return transactions;
   }
 
   #filterTransactions(
     request: RemoteTransactionSourceRequest,
-    responseTransactions: TransactionResponse[],
+    transactions: TransactionMeta[],
   ) {
-    const { address, startTimestampByChainId, limit } = request;
+    const { address, includeTokenTransfers, updateTransactions } = request;
 
-    const incomingTransactions = responseTransactions.filter(
-      (tx) =>
-        tx.to === address || tx.valueTransfers.some((vt) => vt.to === address),
-    );
+    let filteredTransactions = transactions;
 
-    log(
-      'Fetched incoming transactions from accounts API',
-      incomingTransactions,
-    );
+    if (!updateTransactions) {
+      filteredTransactions = filteredTransactions.filter(
+        (tx) => tx.txParams.to === address,
+      );
+    }
 
-    const incomingTransactionsMatchingTimestamp = incomingTransactions.filter(
-      (tx) => {
-        const chainId = `0x${tx.chainId.toString(16)}` as Hex;
-        const chainStartTimestamp = startTimestampByChainId[chainId];
-        const timestamp = new Date(tx.timestamp).getTime();
-        return timestamp >= chainStartTimestamp;
-      },
-    );
+    if (!includeTokenTransfers) {
+      filteredTransactions = filteredTransactions.filter(
+        (tx) => !tx.isTransfer,
+      );
+    }
 
-    return incomingTransactionsMatchingTimestamp.slice(0, limit);
+    return filteredTransactions;
   }
 
   #normalizeTransaction(
@@ -147,7 +195,7 @@ export class AccountsApiRemoteTransactionSource
       : TransactionStatus.confirmed;
 
     const valueTransfer = responseTransaction.valueTransfers.find(
-      (vt) => vt.to === address,
+      (vt) => vt.to === address && vt.contractAddress,
     );
 
     const isTransfer = Boolean(valueTransfer);
@@ -159,7 +207,7 @@ export class AccountsApiRemoteTransactionSource
       new BN(valueTransfer?.amount ?? responseTransaction.value),
     );
 
-    const to = address;
+    const to = valueTransfer ? address : responseTransaction.to;
 
     return {
       blockNumber,
@@ -193,5 +241,22 @@ export class AccountsApiRemoteTransactionSource
           }
         : undefined,
     };
+  }
+
+  #getCacheKey(chainIds: Hex[], address: Hex): string {
+    return `accounts-api#${chainIds.join(',')}#${address}`;
+  }
+
+  #getCacheCursor(
+    cache: Record<string, unknown>,
+    chainIds: Hex[],
+    address: Hex,
+  ): string | undefined {
+    const key = this.#getCacheKey(chainIds, address);
+    return cache[key] as string | undefined;
+  }
+
+  #getTimestampSeconds(timestampMs: number): number {
+    return Math.floor(timestampMs / 1000);
   }
 }

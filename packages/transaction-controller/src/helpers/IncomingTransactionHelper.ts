@@ -5,69 +5,78 @@ import EventEmitter from 'events';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
-/**
- * Configuration options for the IncomingTransactionHelper
- *
- * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
- * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
- */
 export type IncomingTransactionOptions = {
   includeTokenTransfers?: boolean;
   isEnabled?: () => boolean;
+  queryEntireHistory?: boolean;
+  updateTransactions?: boolean;
 };
 
-const FIRST_QUERY_HISTORY_DURATION = 1000 * 60 * 60 * 24 * 2; // 2 Days
 const INTERVAL = 1000 * 30; // 30 Seconds
 
 export class IncomingTransactionHelper {
   hub: EventEmitter;
 
+  #getCache: () => Record<string, unknown>;
+
   #getCurrentAccount: () => ReturnType<
     AccountsController['getSelectedAccount']
   >;
 
-  #getLastFetchedTimestamps: () => Record<string, number>;
-
   #getChainIds: () => Hex[];
+
+  #includeTokenTransfers?: boolean;
 
   #isEnabled: () => boolean;
 
   #isRunning: boolean;
 
+  #queryEntireHistory?: boolean;
+
   #remoteTransactionSource: RemoteTransactionSource;
 
   #timeoutId?: unknown;
 
-  #transactionLimit?: number;
+  #updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
+
+  #updateTransactions?: boolean;
 
   constructor({
+    getCache,
     getCurrentAccount,
-    getLastFetchedTimestamps,
     getChainIds,
+    includeTokenTransfers,
     isEnabled,
+    queryEntireHistory,
     remoteTransactionSource,
-    transactionLimit,
+    updateCache,
+    updateTransactions,
   }: {
+    getCache: () => Record<string, unknown>;
     getCurrentAccount: () => ReturnType<
       AccountsController['getSelectedAccount']
     >;
-    getLastFetchedTimestamps: () => Record<string, number>;
     getChainIds: () => Hex[];
+    includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
     queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
     transactionLimit?: number;
+    updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
     updateTransactions?: boolean;
   }) {
     this.hub = new EventEmitter();
 
+    this.#getCache = getCache;
     this.#getCurrentAccount = getCurrentAccount;
-    this.#getLastFetchedTimestamps = getLastFetchedTimestamps;
     this.#getChainIds = getChainIds;
+    this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
+    this.#queryEntireHistory = queryEntireHistory;
     this.#remoteTransactionSource = remoteTransactionSource;
-    this.#transactionLimit = transactionLimit;
+    this.#updateCache = updateCache;
+    this.#updateTransactions = updateTransactions;
   }
 
   start() {
@@ -124,8 +133,10 @@ export class IncomingTransactionHelper {
 
     const account = this.#getCurrentAccount();
     const chainIds = this.#getChainIds();
-    const startTimestampByChainId = this.#getStartTimestampByChainId(chainIds);
-    const endTimestamp = this.#getTimestampSeconds(Date.now());
+    const cache = this.#getCache();
+    const includeTokenTransfers = this.#includeTokenTransfers ?? true;
+    const queryEntireHistory = this.#queryEntireHistory ?? true;
+    const updateTransactions = this.#updateTransactions ?? false;
 
     let remoteTransactions: TransactionMeta[] = [];
 
@@ -133,10 +144,12 @@ export class IncomingTransactionHelper {
       remoteTransactions =
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
+          cache,
           chainIds,
-          endTimestamp,
-          limit: this.#transactionLimit,
-          startTimestampByChainId,
+          includeTokenTransfers,
+          queryEntireHistory,
+          updateCache: this.#updateCache,
+          updateTransactions,
         });
     } catch (error: unknown) {
       log('Error while fetching remote transactions', error);
@@ -146,55 +159,14 @@ export class IncomingTransactionHelper {
     if (remoteTransactions.length > 0) {
       this.#sortTransactionsByTime(remoteTransactions);
 
-      log('Found incoming transactions', { remoteTransactions });
+      log('Found transactions', remoteTransactions);
 
-      this.hub.emit('incoming-transactions', remoteTransactions);
-    }
-
-    for (const chainId of chainIds) {
-      this.#updateLastFetchedTimestamp(chainId, endTimestamp);
+      this.hub.emit('transactions', remoteTransactions);
     }
   }
 
   #sortTransactionsByTime(transactions: TransactionMeta[]) {
     transactions.sort((a, b) => (a.time < b.time ? -1 : 1));
-  }
-
-  #getStartTimestampByChainId(chainIds: Hex[]): Record<Hex, number> {
-    return chainIds.reduce((acc, chainId) => {
-      const lastFetchedTimestamp = this.#getLastFetchedTimestamp(chainId);
-
-      const startTimestamp = lastFetchedTimestamp
-        ? lastFetchedTimestamp + 1
-        : this.#getTimestampSeconds(Date.now() - FIRST_QUERY_HISTORY_DURATION);
-
-      return { ...acc, [chainId]: startTimestamp };
-    }, {});
-  }
-
-  #getLastFetchedTimestamp(chainId: Hex): number {
-    const lastFetchedKey = this.#getTimestampKey(chainId);
-    const lastFetchedTimestamps = this.#getLastFetchedTimestamps();
-    return lastFetchedTimestamps[lastFetchedKey];
-  }
-
-  #updateLastFetchedTimestamp(chainId: Hex, newTimestamp: number) {
-    const lastFetchedKey = this.#getTimestampKey(chainId);
-
-    log('Updating last fetched timestamp', {
-      key: lastFetchedKey,
-      timestamp: newTimestamp,
-    });
-
-    this.hub.emit('updated-last-fetched-timestamp', {
-      key: lastFetchedKey,
-      timestamp: newTimestamp,
-    });
-  }
-
-  #getTimestampKey(chainId: Hex): string {
-    const currentAccount = this.#getCurrentAccount()?.address.toLowerCase();
-    return [chainId, currentAccount].join('#');
   }
 
   #canStart(): boolean {
@@ -209,9 +181,5 @@ export class IncomingTransactionHelper {
     );
 
     return isEnabled && isAnyChainSupported;
-  }
-
-  #getTimestampSeconds(timestampMilliseconds: number): number {
-    return Math.ceil(timestampMilliseconds / 1000);
   }
 }

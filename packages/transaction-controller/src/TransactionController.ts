@@ -1497,7 +1497,7 @@ export class TransactionController extends BaseController<
     }
 
     const currentChainId = this.getChainId();
-    const { lastFetchedTimestamps, transactions } = this.state;
+    const { transactions } = this.state;
 
     const newTransactions = transactions.filter((tx) => {
       const { chainId, txParams } = tx;
@@ -1519,28 +1519,8 @@ export class TransactionController extends BaseController<
       return !isMatchingAddress;
     });
 
-    const newLastFetchedTimestamps = Object.keys(lastFetchedTimestamps).reduce<{
-      [key: string]: number;
-    }>((acc, key) => {
-      const timestamp = lastFetchedTimestamps[key];
-
-      const isMatchingNetwork =
-        ignoreNetwork || key.startsWith(`${currentChainId}#`);
-
-      const isMatchingAddress =
-        !address || key.endsWith(`#${address.toLowerCase()}`);
-
-      if (!isMatchingNetwork || !isMatchingAddress) {
-        acc[key] = timestamp;
-      } else {
-        log('Removing last fetched timestamp', { key, timestamp });
-      }
-
-      return acc;
-    }, {});
-
     this.update((state) => {
-      state.lastFetchedTimestamps = newLastFetchedTimestamps;
+      state.lastFetchedTimestamps = {};
       state.transactions = this.trimTransactionsForState(newTransactions);
     });
   }
@@ -2928,32 +2908,33 @@ export class TransactionController extends BaseController<
     return Common.custom(customChainParams);
   }
 
-  private onIncomingTransactions(incomingTransactions: TransactionMeta[]) {
+  private onIncomingTransactions(transactions: TransactionMeta[]) {
     this.update((state) => {
       const { transactions: currentTransactions } = state;
 
+      const newTransactions = transactions.filter(
+        (tx) =>
+          !currentTransactions.some(
+            (currentTx) =>
+              currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
+              currentTx.type === TransactionType.incoming,
+          ),
+      );
+
+      log('Adding incoming transactions to state', newTransactions.length, {
+        newTransactions,
+      });
+
       state.transactions = this.trimTransactionsForState([
-        ...incomingTransactions,
+        ...newTransactions,
         ...currentTransactions,
       ]);
     });
 
     this.messagingSystem.publish(
       `${controllerName}:incomingTransactionsReceived`,
-      incomingTransactions,
+      transactions,
     );
-  }
-
-  private onUpdatedLastFetchedTimestamp({
-    key,
-    timestamp,
-  }: {
-    key: string;
-    timestamp: number;
-  }) {
-    this.update((state) => {
-      state.lastFetchedTimestamps[key] = timestamp;
-    });
   }
 
   private generateDappSuggestedGasFees(
@@ -3338,13 +3319,23 @@ export class TransactionController extends BaseController<
   }: {
     chainId?: Hex;
   } = {}): IncomingTransactionHelper {
+    const updateCache = (fn: (cache: Record<string, unknown>) => void) => {
+      this.update((state) => {
+        fn(state.lastFetchedTimestamps);
+      });
+    };
+
     const incomingTransactionHelper = new IncomingTransactionHelper({
       getCurrentAccount: () => this.#getSelectedAccount(),
-      getLastFetchedTimestamps: () => this.state.lastFetchedTimestamps,
+      getCache: () => this.state.lastFetchedTimestamps,
       getChainIds: chainId ? () => [chainId] : () => [this.getChainId()],
+      includeTokenTransfers:
+        this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
+      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
-      transactionLimit: this.#transactionHistoryLimit,
+      updateCache,
+      updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
 
     this.#addIncomingTransactionHelperListeners(incomingTransactionHelper);
@@ -3422,13 +3413,8 @@ export class TransactionController extends BaseController<
     incomingTransactionHelper: IncomingTransactionHelper,
   ) {
     incomingTransactionHelper.hub.on(
-      'incoming-transactions',
+      'transactions',
       this.onIncomingTransactions.bind(this),
-    );
-
-    incomingTransactionHelper.hub.on(
-      'updated-last-fetched-timestamp',
-      this.onUpdatedLastFetchedTimestamp.bind(this),
     );
   }
 

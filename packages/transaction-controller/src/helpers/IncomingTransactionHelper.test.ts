@@ -10,21 +10,17 @@ import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 
 jest.useFakeTimers();
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  isSmartContractCode: jest.fn(),
-  query: () => Promise.resolve({}),
-}));
-
 // eslint-disable-next-line jest/prefer-spy-on
 console.error = jest.fn();
 
 const CHAIN_ID_MOCK = '0x1' as const;
 const ADDRESS_MOCK = '0x1';
 const SYSTEM_TIME_MOCK = 1000 * 60 * 60 * 24 * 2;
-const TIMESTAMP_MOCK = 123;
+const CACHE_MOCK = {};
 
-const CONTROLLER_ARGS_MOCK = {
+const CONTROLLER_ARGS_MOCK: ConstructorParameters<
+  typeof IncomingTransactionHelper
+>[0] = {
   getCurrentAccount: () => {
     return {
       id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
@@ -40,10 +36,10 @@ const CONTROLLER_ARGS_MOCK = {
       },
     };
   },
-  getLastFetchedTimestamps: () => ({}),
+  getCache: () => CACHE_MOCK,
   getChainIds: () => [CHAIN_ID_MOCK],
   remoteTransactionSource: {} as RemoteTransactionSource,
-  transactionLimit: 1,
+  updateCache: jest.fn(),
 };
 
 const TRANSACTION_MOCK: TransactionMeta = {
@@ -100,7 +96,7 @@ async function runInterval(
     });
   }
 
-  helper.hub.addListener('incoming-transactions', incomingTransactionsListener);
+  helper.hub.addListener('transactions', incomingTransactionsListener);
   helper.hub.addListener('updated-last-fetched-timestamp', lastFetchedListener);
 
   if (start !== false) {
@@ -139,80 +135,32 @@ describe('IncomingTransactionHelper', () => {
       await runInterval(helper, { error: true });
     });
 
-    describe('fetches remote transactions', () => {
-      it('using remote transaction source', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+    it('fetches remote transactions using remote transaction source', async () => {
+      const remoteTransactionSource = createRemoteTransactionSourceMock([]);
 
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource,
-        });
-
-        await runInterval(helper);
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
-          address: ADDRESS_MOCK,
-          chainIds: [CHAIN_ID_MOCK],
-          endTimestamp: Math.ceil(SYSTEM_TIME_MOCK / 1000 + 30),
-          limit: CONTROLLER_ARGS_MOCK.transactionLimit,
-          startTimestampByChainId: expect.any(Object),
-        });
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        remoteTransactionSource,
       });
 
-      it('using 2 days ago as start timestamp if no state', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
+      await runInterval(helper);
 
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource,
-          queryEntireHistory: false,
-        });
+      expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
+        1,
+      );
 
-        await runInterval(helper);
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith(
-          expect.objectContaining({
-            startTimestampByChainId: { [CHAIN_ID_MOCK]: 30 },
-          }),
-        );
-      });
-
-      it('using last timestamp from state plus one', async () => {
-        const remoteTransactionSource = createRemoteTransactionSourceMock([]);
-
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource,
-          getLastFetchedTimestamps: () => ({
-            [`${CHAIN_ID_MOCK}#${ADDRESS_MOCK}`]: TIMESTAMP_MOCK,
-          }),
-        });
-
-        await runInterval(helper);
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledTimes(
-          1,
-        );
-
-        expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith(
-          expect.objectContaining({
-            startTimestampByChainId: {
-              [CHAIN_ID_MOCK]: TIMESTAMP_MOCK + 1,
-            },
-          }),
-        );
+      expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
+        address: ADDRESS_MOCK,
+        cache: CACHE_MOCK,
+        chainIds: [CHAIN_ID_MOCK],
+        includeTokenTransfers: true,
+        queryEntireHistory: true,
+        updateCache: expect.any(Function),
+        updateTransactions: false,
       });
     });
 
-    describe('emits incoming-transactions event', () => {
+    describe('emits transactions event', () => {
       it('if new transaction fetched', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
@@ -224,29 +172,6 @@ describe('IncomingTransactionHelper', () => {
         const { transactions } = await runInterval(helper);
 
         expect(transactions).toStrictEqual([TRANSACTION_MOCK_2]);
-      });
-
-      it('if new outgoing transaction fetched and update transactions enabled', async () => {
-        const outgoingTransaction = {
-          ...TRANSACTION_MOCK_2,
-          txParams: {
-            ...TRANSACTION_MOCK_2.txParams,
-            from: '0x1',
-            to: '0x2',
-          },
-        };
-
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource: createRemoteTransactionSourceMock([
-            outgoingTransaction,
-          ]),
-          updateTransactions: true,
-        });
-
-        const { transactions } = await runInterval(helper);
-
-        expect(transactions).toStrictEqual([outgoingTransaction]);
       });
 
       it('sorted by time in ascending order', async () => {
@@ -343,22 +268,6 @@ describe('IncomingTransactionHelper', () => {
         expect(incomingTransactionsListener).not.toHaveBeenCalled();
       });
     });
-
-    it('emits updated-last-fetched-timestamp event', async () => {
-      const helper = new IncomingTransactionHelper({
-        ...CONTROLLER_ARGS_MOCK,
-        remoteTransactionSource: createRemoteTransactionSourceMock([
-          TRANSACTION_MOCK_2,
-        ]),
-      });
-
-      const { lastFetchedTimestamps } = await runInterval(helper);
-
-      expect(lastFetchedTimestamps).toStrictEqual({
-        key: `${CHAIN_ID_MOCK}#${ADDRESS_MOCK}`,
-        timestamp: Math.ceil(SYSTEM_TIME_MOCK / 1000 + 30),
-      });
-    });
   });
 
   describe('start', () => {
@@ -426,7 +335,7 @@ describe('IncomingTransactionHelper', () => {
   });
 
   describe('update', () => {
-    it('emits incoming-transactions event', async () => {
+    it('emits transactions event', async () => {
       const listener = jest.fn();
 
       const helper = new IncomingTransactionHelper({
@@ -436,7 +345,7 @@ describe('IncomingTransactionHelper', () => {
         ]),
       });
 
-      helper.hub.on('incoming-transactions', listener);
+      helper.hub.on('transactions', listener);
 
       await helper.update();
 
