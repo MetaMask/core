@@ -2096,7 +2096,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/keyring-controller": ^18.0.0
-    "@metamask/snaps-controllers": ^9.10.0
+    "@metamask/snaps-controllers": ^9.7.0
   languageName: unknown
   linkType: soft
 
