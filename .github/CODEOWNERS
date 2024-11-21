@@ -29,7 +29,6 @@
 
 ## Notifications Team
 /packages/notification-services-controller     @MetaMask/notifications
-/packages/profile-sync-controller              @MetaMask/notifications
 
 ## Product Safety Team
 /packages/phishing-controller              @MetaMask/product-safety
@@ -60,6 +59,7 @@
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/snaps-devs
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/selected-network-controller  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
+/packages/profile-sync-controller      @MetaMask/notifications @MetaMask/identity
 
 ## Package Release related
 /packages/accounts-controller/package.json        @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
@@ -92,8 +92,8 @@
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
-/packages/profile-sync-controller/package.json    @MetaMask/notifications @MetaMask/wallet-framework-engineers
-/packages/profile-sync-controller/CHANGELOG.md    @MetaMask/notifications @MetaMask/wallet-framework-engineers
+/packages/profile-sync-controller/package.json    @MetaMask/notifications @MetaMask/identity @MetaMask/wallet-framework-engineers
+/packages/profile-sync-controller/CHANGELOG.md    @MetaMask/notifications @MetaMask/identity @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/CHANGELOG.md  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/wallet-framework-engineers

@@ -1,5 +1,4 @@
-import { EthMethod } from '../constants';
-import { type OriginalRequest } from '../types';
+import { EthMethod, type OriginalRequest } from '../types';
 import { convertNumericValuesToQuotedString } from './normalize';
 
 export const DECODING_API_ERRORS = {
@@ -18,11 +17,8 @@ export const DECODING_API_ERRORS = {
 export async function decodeSignature(
   request: OriginalRequest,
   chainId: string,
-  decodingApiUrl?: string,
+  decodingApiUrl: string,
 ) {
-  if (!decodingApiUrl) {
-    return undefined;
-  }
   try {
     const { method, origin, params } = request;
     if (request.method === EthMethod.SignTypedDataV4) {

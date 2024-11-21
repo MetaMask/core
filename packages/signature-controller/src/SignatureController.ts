@@ -162,6 +162,11 @@ export type SignatureControllerOptions = {
   decodingApiUrl?: string;
 
   /**
+   * Function to check if decoding signature request is enabled
+   */
+  isDecodeSignatureRequestEnabled?: () => boolean;
+
+  /**
    * Initial state of the controller.
    */
   state?: SignatureControllerState;
@@ -184,19 +189,23 @@ export class SignatureController extends BaseController<
 
   #decodingApiUrl?: string;
 
+  #isDecodeSignatureRequestEnabled?: () => boolean;
+
   #trace: TraceCallback;
 
   /**
    * Construct a Sign controller.
    *
    * @param options - The controller options.
+   * @param options.decodingApiUrl - Api used to get decoded data for permits.
+   * @param options.isDecodeSignatureRequestEnabled - Function to check is decoding signature request is enabled.
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
-   * @param options.decodingApiUrl - Api used to get decoded data for permits.
    */
   constructor({
     decodingApiUrl,
+    isDecodeSignatureRequestEnabled,
     messenger,
     state,
     trace,
@@ -214,6 +223,7 @@ export class SignatureController extends BaseController<
     this.hub = new EventEmitter();
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
     this.#decodingApiUrl = decodingApiUrl;
+    this.#isDecodeSignatureRequestEnabled = isDecodeSignatureRequestEnabled;
   }
 
   /**
@@ -902,6 +912,9 @@ export class SignatureController extends BaseController<
     request: OriginalRequest,
     chainId: string,
   ) {
+    if (!this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl) {
+      return;
+    }
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.decodingLoading = true;
     });

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [21.1.0]
+
+### Added
+
+- Add `isDecodeSignatureRequestEnabled` constructor callback to determine if decoding API should be used ([#4903](https://github.com/MetaMask/core/pull/4903))
+- Add `decodingApiUrl` constructor property to specify URL of API to provide additional decoding data. ([#4855](https://github.com/MetaMask/core/pull/4855))
+
 ## [21.0.0]
 
 ### Added
@@ -400,7 +414,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@21.1.0...@metamask/signature-controller@22.0.0
+[21.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@21.0.0...@metamask/signature-controller@21.1.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@20.1.0...@metamask/signature-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@20.0.0...@metamask/signature-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...@metamask/signature-controller@20.0.0
