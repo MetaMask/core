@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: update transaction polling variables ([#4953](https://github.com/MetaMask/core/pull/4953))
+- feat: increase pending transaction polling rate ([#4917](https://github.com/MetaMask/core/pull/4917))
+- chore: bump `@metamask/{keyring-api,eth-snap-keyring,snaps-*}` ([#4948](https://github.com/MetaMask/core/pull/4948))
+
 ## [39.0.0]
 
 ### Changed
