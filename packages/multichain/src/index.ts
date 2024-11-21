@@ -7,6 +7,10 @@ export {
   addPermittedEthChainId,
   setPermittedEthChainIds,
 } from './adapters/caip-permission-adapter-permittedChains';
+export {
+  getInternalScopesObject,
+  getSessionScopes,
+} from './adapters/caip-permission-adapter-session-scopes';
 
 export { walletGetSession } from './handlers/wallet-getSession';
 export { walletInvokeMethod } from './handlers/wallet-invokeMethod';

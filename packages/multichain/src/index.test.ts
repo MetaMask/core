@@ -9,6 +9,8 @@ describe('@metamask/multichain', () => {
         "getPermittedEthChainIds",
         "addPermittedEthChainId",
         "setPermittedEthChainIds",
+        "getInternalScopesObject",
+        "getSessionScopes",
         "walletGetSession",
         "walletInvokeMethod",
         "walletRevokeSession",
