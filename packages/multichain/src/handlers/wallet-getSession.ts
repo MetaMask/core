@@ -1,13 +1,13 @@
 import type { Caveat } from '@metamask/permission-controller';
 import type { JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
+import type { NormalizedScopesObject } from 'src/scope/types';
 
+import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { mergeScopes } from '../scope/transform';
-import type { ScopesObject } from '../scope/types';
 
 /**
  * Handler for the `wallet_getSession` RPC method.
@@ -21,7 +21,7 @@ import type { ScopesObject } from '../scope/types';
  */
 async function walletGetSessionHandler(
   request: JsonRpcRequest & { origin: string },
-  response: JsonRpcSuccess<{ sessionScopes: ScopesObject }>,
+  response: JsonRpcSuccess<{ sessionScopes: NormalizedScopesObject }>,
   _next: () => void,
   end: () => void,
   hooks: {
@@ -49,10 +49,7 @@ async function walletGetSessionHandler(
   }
 
   response.result = {
-    sessionScopes: mergeScopes(
-      caveat.value.requiredScopes,
-      caveat.value.optionalScopes,
-    ),
+    sessionScopes: getSessionScopes(caveat.value),
   };
   return end();
 }

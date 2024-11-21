@@ -59,7 +59,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^9.0.3",
+    "@metamask/json-rpc-engine": "^10.0.1",
     "@metamask/network-controller": "^22.0.2",
     "@metamask/permission-controller": "^11.0.3",
     "@open-rpc/meta-schema": "^1.14.6",

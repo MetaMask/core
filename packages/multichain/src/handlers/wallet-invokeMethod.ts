@@ -7,13 +7,14 @@ import type {
 } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
+import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { mergeScopes } from '../scope/transform';
-import type { ScopeString } from '../scope/types';
+import { assertIsInternalScopeString } from '../scope/assert';
+import type { ExternalScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
@@ -44,9 +45,11 @@ async function walletInvokeMethodHandler(
   },
 ) {
   const { scope, request: wrappedRequest } = request.params as {
-    scope: ScopeString;
+    scope: ExternalScopeString;
     request: JsonRpcRequest;
   };
+
+  assertIsInternalScopeString(scope);
 
   let caveat;
   try {
@@ -62,10 +65,7 @@ async function walletInvokeMethodHandler(
     return end(providerErrors.unauthorized());
   }
 
-  const scopeObject = mergeScopes(
-    caveat.value.requiredScopes,
-    caveat.value.optionalScopes,
-  )[scope];
+  const scopeObject = getSessionScopes(caveat.value)[scope];
 
   if (!scopeObject?.methods?.includes(wrappedRequest.method)) {
     return end(providerErrors.unauthorized());

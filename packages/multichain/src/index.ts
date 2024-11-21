@@ -42,7 +42,7 @@ export type {
   ScopedProperties,
   NonWalletKnownCaipNamespace,
 } from './scope/types';
-export { parseScopeString, KnownWalletScopeString } from './scope/types';
+export { parseScopeString } from './scope/types';
 // Do these need to be exported?
 export {
   isSupportedScopeString,
@@ -57,7 +57,7 @@ export {
   normalizeAndMergeScopes,
 } from './scope/transform';
 // does this need to be exported?
-export { isValidScope, validateScopes } from './scope/validation';
+export { isValidScope, getValidScopes } from './scope/validation';
 
 export type { Caip25CaveatValue } from './caip25Permission';
 export {
