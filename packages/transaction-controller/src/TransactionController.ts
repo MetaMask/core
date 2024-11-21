@@ -1163,7 +1163,7 @@ export class TransactionController extends BaseController<
           throw error;
         });
 
-        this.#updateFirstInteractionProperties(addedTransactionMeta, {
+        this.#updateFirstTimeInteraction(addedTransactionMeta, {
           traceContext,
         }).catch((error) => {
           log('Error while updating first interaction properties', error);
@@ -3635,7 +3635,7 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
-  async #updateFirstInteractionProperties(
+  async #updateFirstTimeInteraction(
     transactionMeta: TransactionMeta,
     {
       traceContext,
