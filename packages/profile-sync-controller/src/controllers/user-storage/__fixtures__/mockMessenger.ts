@@ -140,9 +140,9 @@ export function mockUserStorageMessenger(
     'KeyringController:addNewAccount',
   );
 
-  const mockAccountsListAccounts = typedMockFn(
-    'AccountsController:listAccounts',
-  );
+  // Untyped mock as there is a TS(2742) issue.
+  // This will return `InternalAccount[]`
+  const mockAccountsListAccounts = jest.fn();
 
   const mockAccountsUpdateAccountMetadata = typedMockFn(
     'AccountsController:updateAccountMetadata',
