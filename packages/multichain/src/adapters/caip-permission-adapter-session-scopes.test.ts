@@ -11,7 +11,7 @@ import {
 
 describe('CAIP-25 session scopes adapters', () => {
   describe('getInternalScopesObject', () => {
-    it('returns a InternalScopesObject using only the accounts value of each NormalizedScopeObject', () => {
+    it('returns an InternalScopesObject with only the accounts from each NormalizedScopeObject', () => {
       const result = getInternalScopesObject({
         'wallet:eip155': {
           methods: ['foo', 'bar'],
