@@ -18,7 +18,7 @@ import type {
 } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
-const SUPPORTED_CHAIN_IDS: Hex[] = [
+export const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.MAINNET,
   CHAIN_IDS.POLYGON,
   CHAIN_IDS.BSC,
