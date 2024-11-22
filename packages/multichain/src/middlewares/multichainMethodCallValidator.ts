@@ -57,6 +57,7 @@ const multichainMethodCallValidator = async (
   params: JsonRpcParams | undefined,
 ) => {
   const dereffed = await dereffedPromise;
+
   const methodToCheck = dereffed.methods.find(
     (m) => (m as unknown as ContentDescriptorObject).name === method,
   );
@@ -77,13 +78,13 @@ const multichainMethodCallValidator = async (
       },
     ];
   }
-
   // check each param and aggregate errors
   (methodToCheck as unknown as MethodObject).params.forEach((param, i) => {
     let paramToCheck: Json | undefined;
     const p = param as ContentDescriptorObject;
     if (isObject(params)) {
       paramToCheck = params[p.name];
+      // TODO: according to the spec all of the multichain method params are objects, should this be removed?
     } else if (params && Array.isArray(params)) {
       paramToCheck = params[i];
     } else {
