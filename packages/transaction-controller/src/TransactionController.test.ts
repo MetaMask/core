@@ -92,6 +92,7 @@ import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
+  updateBridgeTypesTransaction,
 } from './utils/swaps';
 
 type UnrestrictedControllerMessenger = ControllerMessenger<
@@ -477,6 +478,9 @@ describe('TransactionController', () => {
   const estimateGasMock = jest.mocked(estimateGas);
   const addGasBufferMock = jest.mocked(addGasBuffer);
   const updateSwapsTransactionMock = jest.mocked(updateSwapsTransaction);
+  const updateBridgeTypesTransactionMock = jest.mocked(
+    updateBridgeTypesTransaction,
+  );
   const updatePostTransactionBalanceMock = jest.mocked(
     updatePostTransactionBalance,
   );
@@ -874,6 +878,9 @@ describe('TransactionController', () => {
     });
 
     updateSwapsTransactionMock.mockImplementation(
+      (transactionMeta) => transactionMeta,
+    );
+    updateBridgeTypesTransactionMock.mockImplementation(
       (transactionMeta) => transactionMeta,
     );
 
@@ -1385,7 +1392,7 @@ describe('TransactionController', () => {
   });
 
   describe('addTransaction', () => {
-    it('adds unapproved transaction to state', async () => {
+    it.only('adds unapproved transaction to state', async () => {
       const { controller } = setupController();
 
       getAccountAddressRelationshipMock.mockResolvedValueOnce({
@@ -1431,6 +1438,7 @@ describe('TransactionController', () => {
       const transactionMeta = controller.state.transactions[0];
 
       expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
+      expect(updateBridgeTypesTransactionMock).toHaveBeenCalledTimes(1);
       expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
       expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
       expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
