@@ -107,9 +107,10 @@ export class AccountsApiRemoteTransactionSource
     let currentCursor = cursor;
     let pageCount = 0;
 
-    const startTimestamp = queryEntireHistory
-      ? undefined
-      : this.#getTimestampSeconds(Date.now());
+    const startTimestamp =
+      queryEntireHistory || cursor
+        ? undefined
+        : this.#getTimestampSeconds(Date.now());
 
     while (hasNextPage) {
       try {
