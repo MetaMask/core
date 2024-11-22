@@ -1392,7 +1392,7 @@ describe('TransactionController', () => {
   });
 
   describe('addTransaction', () => {
-    it.only('adds unapproved transaction to state', async () => {
+    it('adds unapproved transaction to state', async () => {
       const { controller } = setupController();
 
       getAccountAddressRelationshipMock.mockResolvedValueOnce({
