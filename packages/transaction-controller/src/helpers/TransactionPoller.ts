@@ -5,8 +5,8 @@ import { isEqual } from 'lodash';
 import { projectLogger } from '../logger';
 import type { TransactionMeta } from '../types';
 
-export const ACCELERATED_COUNT_MAX = 5;
-export const ACCELERATED_INTERVAL = 1000 * 2; // 2 Seconds
+export const ACCELERATED_COUNT_MAX = 10;
+export const ACCELERATED_INTERVAL = 1000 * 3; // 3 Seconds
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
