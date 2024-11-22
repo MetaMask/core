@@ -10,7 +10,6 @@ import type {
   KnownCaipNamespace,
   CaipNamespace,
   Json,
-  JsonRpcRequest,
   JsonRpcParams,
 } from '@metamask/utils';
 
