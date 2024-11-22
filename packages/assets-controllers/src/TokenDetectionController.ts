@@ -394,12 +394,18 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (selectedAccount) => {
+        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+          'NetworkController:getState',
+        );
+
+        const chainIds = Object.keys(networkConfigurationsByChainId) as Hex[];
         const isSelectedAccountIdChanged =
           this.#selectedAccountId !== selectedAccount.id;
         if (isSelectedAccountIdChanged) {
           this.#selectedAccountId = selectedAccount.id;
           await this.#restartTokenDetection({
             selectedAddress: selectedAccount.address,
+            chainIds,
           });
         }
       },
