@@ -37,6 +37,10 @@ export const Eip1193OnlyMethods = [
   'eth_accounts',
   'eth_coinbase',
   'net_version',
+  'metamask_logWeb3ShimUsage',
+  'metamask_getProviderState',
+  'metamask_sendDomainMetadata',
+  'wallet_registerOnboarding',
 ];
 
 /**
