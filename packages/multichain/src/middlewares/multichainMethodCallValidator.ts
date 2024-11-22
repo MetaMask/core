@@ -18,7 +18,11 @@ import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-r
 import type { Schema, ValidationError } from 'jsonschema';
 import { Validator } from 'jsonschema';
 
-import type { Caip27Params, Caip285Params, Caip319Params } from '../scope/types';
+import type {
+  Caip27Params,
+  Caip285Params,
+  Caip319Params,
+} from '../scope/types';
 
 const transformError = (
   error: ValidationError,
@@ -77,7 +81,6 @@ const multichainMethodCallValidator = async (
   // check each param and aggregate errors
   (methodToCheck as unknown as MethodObject).params.forEach((param, i) => {
     let paramToCheck: Json | undefined;
-    console.log('param', param);
     const p = param as ContentDescriptorObject;
     if (isObject(params)) {
       paramToCheck = params[p.name];
@@ -86,8 +89,6 @@ const multichainMethodCallValidator = async (
     } else {
       paramToCheck = undefined;
     }
-    console.log('paramToCheck', paramToCheck);
-    console.log('p.schema', p.schema);
     const result = v.validate(paramToCheck, p.schema as unknown as Schema, {
       required: p.required,
     });
@@ -99,11 +100,9 @@ const multichainMethodCallValidator = async (
       );
     }
   });
-  console.log('errors', errors);
   if (errors.length > 0) {
     return errors;
   }
-  console.log('no errors');
   // feels like this should return true to indicate that its valid but i'd rather check the falsy value since errors
   // would be an array and return true if it's empty
   return false;
@@ -116,9 +115,7 @@ export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware<
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
   multichainMethodCallValidator(request.method, request.params).then(
     (errors) => {
-      console.log('errors', errors);
       if (errors) {
-        console.log('errors', errors);
         return end(rpcErrors.invalidParams<JsonRpcError[]>({ data: errors }));
       }
       return next();
