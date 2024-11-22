@@ -18,7 +18,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
   });
 
   describe('"wallet_invokeMethod" request', () => {
-    it('should pass validation for a "wallet_invokeMethod" request and call next', async () => {
+    it('should pass validation and call next when passed a valid "wallet_invokeMethod" request', async () => {
       const request: JsonRpcRequest<Caip27Params> = {
         id: 1,
         jsonrpc: '2.0',
@@ -55,7 +55,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
         });
       });
     });
-    it('should throw an error for a a "wallet_invokeMethod" request with no scope', async () => {
+    it('should throw an error when passed a "wallet_invokeMethod" request with no scope', async () => {
       const request: JsonRpcRequest<Caip27Params> = {
         id: 1,
         jsonrpc: '2.0',
@@ -221,16 +221,14 @@ describe('multichainMethodCallValidatorMiddleware', () => {
     });
 
     it('should throw an error for a "wallet_notify" request with invalid params', async () => {
-      const request: JsonRpcRequest<Caip27Params> = {
+      const request: JsonRpcRequest<Caip319Params> = {
         id: 2,
         jsonrpc: '2.0',
         method: 'wallet_notify',
+        // @ts-expect-error test
         params: {
-          // Missing required parameters or invalid structure
           scope: 'test_scope',
           request: {
-            // @ts-expect-error test
-            event: '',
             data: {},
           },
         },
@@ -289,7 +287,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
   });
 
   describe('"wallet_revokeSession" request', () => {
-    it('should pass validation for a "wallet_revokeSession" request and call next', async () => {
+    it('should pass validation and call next when passed a valid "wallet_revokeSession" request', async () => {
       const request: JsonRpcRequest<Caip285Params> = {
         id: 3,
         jsonrpc: '2.0',
@@ -320,7 +318,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
   });
 
   describe('"wallet_getSession" request', () => {
-    it('should pass validation for a "wallet_getSession" request and call next', async () => {
+    it('should pass validation and call next when passed a valid "wallet_getSession" request', async () => {
       const request: JsonRpcRequest<Caip285Params> = {
         id: 5,
         jsonrpc: '2.0',
@@ -352,7 +350,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
     });
   });
 
-  it('should throw an error is passed an unknown method', async () => {
+  it('should throw an error when passed an unknown method', async () => {
     const request: JsonRpcRequest<Caip27Params> = {
       id: 1,
       jsonrpc: '2.0',

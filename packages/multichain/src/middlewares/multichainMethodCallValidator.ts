@@ -84,7 +84,7 @@ const multichainMethodCallValidator = async (
     const p = param as ContentDescriptorObject;
     if (isObject(params)) {
       paramToCheck = params[p.name];
-      // TODO: according to the spec all of the multichain method params are objects, should this be removed?
+      // TODO: according to the spec all of the multichain method params values should be objects, should this be removed?
     } else if (params && Array.isArray(params)) {
       paramToCheck = params[i];
     } else {
