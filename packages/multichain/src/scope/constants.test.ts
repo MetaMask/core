@@ -6,9 +6,15 @@ describe('KnownRpcMethods', () => {
       Object {
         "bip122": Array [],
         "eip155": Array [
+          "wallet_switchEthereumChain",
+          "wallet_getPermissions",
+          "wallet_requestPermissions",
+          "wallet_revokePermissions",
           "personal_sign",
           "eth_signTypedData_v4",
           "wallet_watchAsset",
+          "eth_requestAccounts",
+          "eth_accounts",
           "eth_sendTransaction",
           "eth_decrypt",
           "eth_getEncryptionPublicKey",
@@ -18,6 +24,7 @@ describe('KnownRpcMethods', () => {
           "eth_blockNumber",
           "eth_call",
           "eth_chainId",
+          "eth_coinbase",
           "eth_estimateGas",
           "eth_feeHistory",
           "eth_gasPrice",

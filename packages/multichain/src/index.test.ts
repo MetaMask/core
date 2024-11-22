@@ -29,7 +29,6 @@ describe('@metamask/multichain', () => {
         "KnownWalletNamespaceRpcMethods",
         "KnownNotifications",
         "KnownWalletScopeString",
-        "Eip1193OnlyMethods",
         "parseScopeString",
         "isSupportedScopeString",
         "isSupportedAccount",

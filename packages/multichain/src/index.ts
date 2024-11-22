@@ -34,7 +34,6 @@ export {
   KnownWalletNamespaceRpcMethods,
   KnownNotifications,
   KnownWalletScopeString,
-  Eip1193OnlyMethods,
 } from './scope/constants';
 export type {
   ExternalScopeString,
