@@ -28,7 +28,7 @@ export const KnownWalletRpcMethods: string[] = [
 
 const WalletEip155Methods = ['wallet_addEthereumChain'];
 
-const Eip1193OnlyMethods = [
+export const Eip1193OnlyMethods = [
   'wallet_switchEthereumChain',
   'wallet_getPermissions',
   'wallet_requestPermissions',
