@@ -76,7 +76,7 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     });
   }
 
-  #removeSubscriptionEntry({ scope, origin, tabId }: SubscriptionKey) {
+  #removeSubscriptionEntry({ scope, origin, tabId }: SubscriptionEntry) {
     this.#subscriptions = this.#subscriptions.filter((subscriptionEntry) => {
       return (
         subscriptionEntry.scope !== scope ||
@@ -116,16 +116,10 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     return subscriptionManager;
   }
 
-  #unsubscribe(subscriptionKey: SubscriptionKey) {
-    const existingSubscriptionEntry =
-      this.#getSubscriptionEntry(subscriptionKey);
-    if (!existingSubscriptionEntry) {
-      return;
-    }
+  #unsubscribe(subscriptionEntry: SubscriptionEntry) {
+    subscriptionEntry.subscriptionManager.destroy?.();
 
-    existingSubscriptionEntry.subscriptionManager.destroy?.();
-
-    this.#removeSubscriptionEntry(subscriptionKey);
+    this.#removeSubscriptionEntry(subscriptionEntry);
   }
 
   unsubscribeByScope(scope: ExternalScopeString) {
@@ -137,6 +131,7 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
   }
 
   unsubscribeByScopeAndOrigin(scope: ExternalScopeString, origin: string) {
+    console.log('unsubscribing by scope and origin', scope, origin);
     this.#subscriptions.forEach((subscriptionEntry) => {
       if (
         subscriptionEntry.scope === scope &&

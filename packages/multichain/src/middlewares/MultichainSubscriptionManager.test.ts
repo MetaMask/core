@@ -63,6 +63,26 @@ describe('MultichainSubscriptionManager', () => {
     MockCreateSubscriptionManager.mockReturnValue(mockSubscriptionManager);
   });
 
+  it('should not create a new subscriptionManager if one matches the passed in subscriptionKey', () => {
+    const { multichainSubscriptionManager } =
+      createMultichainSubscriptionManager();
+
+    const firstSubscription = multichainSubscriptionManager.subscribe({
+      scope,
+      origin,
+      tabId,
+    });
+
+    const secondSubscription = multichainSubscriptionManager.subscribe({
+      scope,
+      origin,
+      tabId,
+    });
+
+    expect(secondSubscription).toBe(firstSubscription);
+    expect(MockCreateSubscriptionManager).toHaveBeenCalledTimes(1);
+  });
+
   it('should subscribe to a scope, origin, and tabId', () => {
     const { multichainSubscriptionManager } =
       createMultichainSubscriptionManager();
@@ -103,6 +123,26 @@ describe('MultichainSubscriptionManager', () => {
     );
 
     expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
+  });
+
+  it('should do nothing if an unsubscribe call does not match an existing subscription', () => {
+    const { multichainSubscriptionManager } =
+      createMultichainSubscriptionManager();
+    multichainSubscriptionManager.subscribe({ scope, origin, tabId });
+    multichainSubscriptionManager.unsubscribeByScope('eip155:10');
+    multichainSubscriptionManager.unsubscribeByScopeAndOrigin(
+      scope,
+      'other-origin',
+    );
+    multichainSubscriptionManager.unsubscribeByOriginAndTabId(
+      'other-origin',
+      123,
+    );
+    mockSubscriptionManager.events.on.mock.calls[0][1](
+      newHeadsNotificationMock,
+    );
+
+    expect(mockSubscriptionManager.destroy).not.toHaveBeenCalled();
   });
 
   it('should unsubscribe from a origin and tabId', () => {
