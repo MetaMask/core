@@ -11,7 +11,7 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { KnownWalletScopeString } from '../scope/constants';
+import { Eip1193OnlyMethods, KnownWalletScopeString } from '../scope/constants';
 import type { InternalScopeString } from '../scope/types';
 import { getSessionScopes } from './caip-permission-adapter-session-scopes';
 
@@ -69,7 +69,8 @@ export async function caipPermissionAdapterMiddleware(
   if (
     !sesionScopes[scope]?.methods?.includes(method) &&
     !sesionScopes[KnownWalletScopeString.Eip155]?.methods?.includes(method) &&
-    !sesionScopes.wallet?.methods?.includes(method)
+    !sesionScopes.wallet?.methods?.includes(method) &&
+    !Eip1193OnlyMethods.includes(method)
   ) {
     return end(providerErrors.unauthorized());
   }
