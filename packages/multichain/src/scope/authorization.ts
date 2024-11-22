@@ -4,7 +4,7 @@ import { normalizeAndMergeScopes } from './transform';
 import type {
   ExternalScopesObject,
   ExternalScopeString,
-  InternalScopesObject,
+  NormalizedScopesObject,
 } from './types';
 import { getValidScopes } from './validation';
 
@@ -35,8 +35,8 @@ export const validateAndNormalizeScopes = (
   requiredScopes: ExternalScopesObject,
   optionalScopes: ExternalScopesObject,
 ): {
-  normalizedRequiredScopes: InternalScopesObject;
-  normalizedOptionalScopes: InternalScopesObject;
+  normalizedRequiredScopes: NormalizedScopesObject;
+  normalizedOptionalScopes: NormalizedScopesObject;
 } => {
   const { validRequiredScopes, validOptionalScopes } = getValidScopes(
     requiredScopes,
