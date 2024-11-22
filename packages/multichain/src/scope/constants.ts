@@ -28,13 +28,25 @@ export const KnownWalletRpcMethods: string[] = [
 
 const WalletEip155Methods = ['wallet_addEthereumChain'];
 
+const Eip1193OnlyMethods = [
+  'wallet_switchEthereumChain',
+  'wallet_getPermissions',
+  'wallet_requestPermissions',
+  'wallet_revokePermissions',
+  'eth_requestAccounts',
+  'eth_accounts',
+  'eth_coinbase',
+  'net_version',
+]
+
 /**
  * All MetaMask methods, except for ones we have specified in the constants above.
  */
 const Eip155Methods = MetaMaskOpenRPCDocument.methods
   .map(({ name }: { name: string }) => name)
   .filter((method: string) => !WalletEip155Methods.includes(method))
-  .filter((method: string) => !KnownWalletRpcMethods.includes(method));
+  .filter((method: string) => !KnownWalletRpcMethods.includes(method))
+  .filter((method: string) => !Eip1193OnlyMethods.includes(method))
 
 /**
  * Methods by ecosystem that are chain specific.
