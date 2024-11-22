@@ -186,14 +186,14 @@ export class MultichainBalancesController extends BaseController<
   /**
    * Starts the polling process.
    */
-  async start(): Promise<void> {
+  start(): void {
     this.#tracker.start();
   }
 
   /**
    * Stops the polling process.
    */
-  async stop(): Promise<void> {
+  stop(): void {
     this.#tracker.stop();
   }
 
