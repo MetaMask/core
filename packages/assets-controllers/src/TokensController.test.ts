@@ -764,6 +764,86 @@ describe('TokensController', () => {
         },
       );
     });
+
+    it('should ignore tokens by networkClientId', async () => {
+      const selectedAddress = '0x0001';
+      const otherAddress = '0x0002';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+      const otherAccount = createMockInternalAccount({
+        address: otherAddress,
+      });
+
+      await withController(
+        {
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
+          // Select the first account
+          triggerSelectedAccountChange(selectedAccount);
+
+          // Add and ignore a token on Sepolia
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'Token1',
+            decimals: 18,
+          });
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+
+          // Verify that Goerli network has no ignored tokens
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          // Add and ignore a token on Goerli
+          await controller.addToken({
+            address: '0x02',
+            symbol: 'Token2',
+            decimals: 8,
+          });
+          controller.ignoreTokens(['0x02'], InfuraNetworkType.goerli);
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
+
+          // Verify that switching back to Sepolia retains its ignored tokens
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+
+          // Switch to a different account on Goerli
+          triggerSelectedAccountChange(otherAccount);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          // Add and ignore a token on the new account
+          await controller.addToken({
+            address: '0x03',
+            symbol: 'Token3',
+            decimals: 6,
+          });
+          controller.ignoreTokens(['0x03'], InfuraNetworkType.goerli);
+          expect(controller.state.ignoredTokens).toStrictEqual(['0x03']);
+
+          // Validate the overall ignored tokens state
+          expect(controller.state.allIgnoredTokens).toStrictEqual({
+            [ChainId.sepolia]: {
+              [selectedAddress]: ['0x01'],
+            },
+            [ChainId.goerli]: {
+              [selectedAddress]: ['0x02'],
+              [otherAddress]: ['0x03'],
+            },
+          });
+        },
+      );
+    });
   });
 
   it('should ignore multiple tokens with single ignoreTokens call', async () => {
