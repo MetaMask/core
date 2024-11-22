@@ -79,17 +79,17 @@ const multichainMethodCallValidator = async (
     ];
   }
   // check each param and aggregate errors
-  (methodToCheck as unknown as MethodObject).params.forEach((param, i) => {
-    let paramToCheck: Json | undefined;
+  (methodToCheck as unknown as MethodObject).params.forEach((param) => {
     const p = param as ContentDescriptorObject;
-    if (isObject(params)) {
-      paramToCheck = params[p.name];
-      // TODO: according to the spec all of the multichain method params values should be objects, should this be removed?
-    } else if (params && Array.isArray(params)) {
-      paramToCheck = params[i];
-    } else {
-      paramToCheck = undefined;
+    if (!isObject(params)) {
+      errors.push({
+        code: -32602,
+        message: 'Invalid method parameter(s).',
+      });
+      return;
     }
+    const paramToCheck = params[p.name];
+
     const result = v.validate(paramToCheck, p.schema as unknown as Schema, {
       required: p.required,
     });

@@ -350,7 +350,47 @@ describe('multichainMethodCallValidatorMiddleware', () => {
     });
   });
 
-  it('should throw an error when passed an unknown method', async () => {
+  it('should throw an error if the top level params are not an object', async () => {
+    const request: JsonRpcRequest<Caip27Params> = {
+      id: 1,
+      jsonrpc: '2.0',
+      method: 'wallet_invokeMethod',
+      // @ts-expect-error test
+      params: ['test'],
+    };
+    const response = {} as JsonRpcResponse<typeof request>;
+
+    await new Promise<void>((resolve, reject) => {
+      multichainMethodCallValidatorMiddleware(
+        request,
+        response,
+        mockNext,
+        (error) => {
+          try {
+            expect(error).toBeDefined();
+            expect((error as JsonRpcError).code).toBe(-32602);
+            expect((error as JsonRpcError).message).toBe(
+              'Invalid method parameter(s).',
+            );
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        },
+      );
+
+      process.nextTick(() => {
+        try {
+          expect(mockNext).not.toHaveBeenCalled();
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+  });
+
+  it('should throw an error when passed an unknown method at the top level', async () => {
     const request: JsonRpcRequest<Caip27Params> = {
       id: 1,
       jsonrpc: '2.0',
