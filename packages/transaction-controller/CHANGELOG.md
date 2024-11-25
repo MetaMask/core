@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `firstTimeInteraction` to transaction meta ([#4895](https://github.com/MetaMask/core/pull/4895))
   - This is a boolean value that indicates whether the transaction is the first time the user has interacted with it.
+- Add `isFirstTimeInteractionEnabled` callback constructor option ([#4895](https://github.com/MetaMask/core/pull/4895))
+  - This is a function that returns a boolean value indicating whether the first time interaction check should be enabled.
 
 ## [40.0.0]
 
