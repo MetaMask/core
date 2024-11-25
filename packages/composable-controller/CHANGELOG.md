@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `ComposableController` constructor option `controllers` and generic type argument `ChildControllers` are re-defined from an array of controller instances to an object that maps controller names to controller instances.
+- **BREAKING:** `ComposableController` `state` field and `metadata` objects exclude child controllers that do not extend from `BaseController` or `BaseControllerV1`.
+
+## Fixed
+
+- **BREAKING:** `ComposableController` `metadata` field object now correctly populates `BaseControllerV1` controller properties with a metadata object that maps state property names to `StateMetadataProperty` type objects.
+  - Previously, during `metadata` object instantiation, `BaseControllerV1` controllers were assigned the object `{ persist: true, anonymous: true }`, and their state properties were overwritten.
+
 ## [9.0.1]
 
 ### Fixed
