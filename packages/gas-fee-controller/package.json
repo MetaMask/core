@@ -59,6 +59,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^22.0.2",
     "@types/jest": "^27.4.1",

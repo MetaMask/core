@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove peer dependency `@babel/runtime@^7.23.9`
+  - This was presumably added because it is a peer dependency of `eth-method-registry`, but it only needs to be added as a dev dependency.
+
 ## [40.1.0]
 
 ### Added
