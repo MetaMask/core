@@ -3,10 +3,27 @@ import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
-import { KnownNotifications, KnownRpcMethods } from '../scope/constants';
-import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
+import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
+
+/**
+ * Gets the Ethereum (EIP155 namespaced) chainIDs from internal scopes.
+ * @param scopes - The internal scopes from which to get the Ethereum chainIDs.
+ * @returns An array of Ethereum chainIDs.
+ */
+const getPermittedEthChainIdsFromScopes = (scopes: InternalScopesObject) => {
+  const ethChainIds: Hex[] = [];
+
+  Object.keys(scopes).forEach((scopeString) => {
+    const { namespace, reference } = parseScopeString(scopeString);
+    if (namespace === KnownCaipNamespace.Eip155 && reference) {
+      ethChainIds.push(toHex(reference));
+    }
+  });
+
+  return ethChainIds;
+};
 
 /**
  * Gets the Ethereum (EIP155 namespaced) chainIDs from the required and optional scopes.
@@ -19,18 +36,12 @@ export const getPermittedEthChainIds = (
     'requiredScopes' | 'optionalScopes'
   >,
 ) => {
-  const ethChainIds: Hex[] = [];
-  const sessionScopes = mergeScopes(
-    caip25CaveatValue.requiredScopes,
-    caip25CaveatValue.optionalScopes,
-  );
+  const { requiredScopes, optionalScopes } = caip25CaveatValue;
 
-  Object.keys(sessionScopes).forEach((scopeString) => {
-    const { namespace, reference } = parseScopeString(scopeString);
-    if (namespace === KnownCaipNamespace.Eip155 && reference) {
-      ethChainIds.push(toHex(reference));
-    }
-  });
+  const ethChainIds: Hex[] = [
+    ...getPermittedEthChainIdsFromScopes(requiredScopes),
+    ...getPermittedEthChainIdsFromScopes(optionalScopes),
+  ];
 
   return getUniqueArrayItems(ethChainIds);
 };
@@ -45,7 +56,7 @@ export const getPermittedEthChainIds = (
 export const addPermittedEthChainId = (
   caip25CaveatValue: Caip25CaveatValue,
   chainId: Hex,
-) => {
+): Caip25CaveatValue => {
   const scopeString = `eip155:${parseInt(chainId, 16)}`;
   if (
     Object.keys(caip25CaveatValue.requiredScopes).includes(scopeString) ||
@@ -59,8 +70,6 @@ export const addPermittedEthChainId = (
     optionalScopes: {
       ...caip25CaveatValue.optionalScopes,
       [scopeString]: {
-        methods: KnownRpcMethods.eip155,
-        notifications: KnownNotifications.eip155,
         accounts: [],
       },
     },
@@ -79,7 +88,7 @@ export const addPermittedEthChainId = (
 const filterEthScopesObjectByChainId = (
   scopesObject: InternalScopesObject,
   chainIds: Hex[],
-) => {
+): InternalScopesObject => {
   const updatedScopesObject: InternalScopesObject = {};
 
   Object.entries(scopesObject).forEach(([key, scopeObject]) => {
@@ -112,7 +121,7 @@ const filterEthScopesObjectByChainId = (
 export const setPermittedEthChainIds = (
   caip25CaveatValue: Caip25CaveatValue,
   chainIds: Hex[],
-) => {
+): Caip25CaveatValue => {
   let updatedCaveatValue: Caip25CaveatValue = {
     ...caip25CaveatValue,
     requiredScopes: filterEthScopesObjectByChainId(

@@ -157,6 +157,24 @@ export const ZERO_ADDRESS: Hex =
   '0x0000000000000000000000000000000000000000' as const;
 
 /**
+ * A mapping from chain id to the address of the chain's native token.
+ * Only for chains whose native tokens have a specific address.
+ */
+const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
+  '0x89': '0x0000000000000000000000000000000000001010',
+};
+
+/**
+ * Returns the address that should be used to query the price api for the
+ * chain's native token. On most chains, this is signified by the zero address.
+ * But on some chains, the native token has a specific address.
+ * @param chainId - The hexadecimal chain id.
+ * @returns The address of the chain's native token.
+ */
+export const getNativeTokenAddress = (chainId: Hex): Hex =>
+  chainIdToNativeTokenAddress[chainId] ?? ZERO_ADDRESS;
+
+/**
  * A currency that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
@@ -435,7 +453,7 @@ export class CodefiTokenPricesServiceV2
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
     url.searchParams.append(
       'tokenAddresses',
-      [ZERO_ADDRESS, ...tokenAddresses].join(','),
+      [getNativeTokenAddress(chainId), ...tokenAddresses].join(','),
     );
     url.searchParams.append('vsCurrency', currency);
     url.searchParams.append('includeMarketData', 'true');
@@ -445,7 +463,7 @@ export class CodefiTokenPricesServiceV2
         handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
       );
 
-    return [ZERO_ADDRESS, ...tokenAddresses].reduce(
+    return [getNativeTokenAddress(chainId), ...tokenAddresses].reduce(
       (
         obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
         tokenAddress,

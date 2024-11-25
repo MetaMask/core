@@ -44,6 +44,7 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import { getAccountAddressRelationship } from './api/accounts-api';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
@@ -102,6 +103,7 @@ const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const TRANSACTION_HASH_MOCK = '0x123456';
 
 jest.mock('@metamask/eth-query');
+jest.mock('./api/accounts-api');
 jest.mock('./gas-flows/DefaultGasFeeFlow');
 jest.mock('./gas-flows/LineaGasFeeFlow');
 jest.mock('./gas-flows/TestGasFeeFlow');
@@ -488,6 +490,9 @@ describe('TransactionController', () => {
   );
   const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
   const shouldResimulateMock = jest.mocked(shouldResimulate);
+  const getAccountAddressRelationshipMock = jest.mocked(
+    getAccountAddressRelationship,
+  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -872,6 +877,10 @@ describe('TransactionController', () => {
     updateSwapsTransactionMock.mockImplementation(
       (transactionMeta) => transactionMeta,
     );
+
+    getAccountAddressRelationshipMock.mockResolvedValue({
+      count: 1,
+    });
   });
 
   describe('constructor', () => {
@@ -1380,6 +1389,10 @@ describe('TransactionController', () => {
     it('adds unapproved transaction to state', async () => {
       const { controller } = setupController();
 
+      getAccountAddressRelationshipMock.mockResolvedValueOnce({
+        count: 0,
+      });
+
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
@@ -1414,6 +1427,8 @@ describe('TransactionController', () => {
         },
       );
 
+      await flushPromises();
+
       const transactionMeta = controller.state.transactions[0];
 
       expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
@@ -1428,6 +1443,58 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
         mockSendFlowHistory,
       );
+      expect(controller.state.transactions[0].isFirstTimeInteraction).toBe(
+        true,
+      );
+    });
+
+    it('does not check account address relationship if a transaction with the same from, to, and chainId exists', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '1',
+                chainId: MOCK_NETWORK.chainId,
+                status: TransactionStatus.confirmed as const,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_MOCK,
+                },
+                isFirstTimeInteraction: false, // Ensure this is set
+              },
+            ],
+          },
+        },
+      });
+
+      // Add second transaction with the same from, to, and chainId
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      await flushPromises();
+
+      expect(controller.state.transactions[1].isFirstTimeInteraction).toBe(
+        false,
+      );
+    });
+
+    it('does not update first time interaction properties if disabled', async () => {
+      const { controller } = setupController({
+        options: { isFirstTimeInteractionEnabled: () => false },
+      });
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      await flushPromises();
+
+      expect(getAccountAddressRelationshipMock).not.toHaveBeenCalled();
     });
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {
@@ -1514,6 +1581,7 @@ describe('TransactionController', () => {
         dappSuggestedGasFees: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
+        isFirstTimeInteraction: undefined,
         networkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
         origin: undefined,
         securityAlertResponse: undefined,
@@ -2213,7 +2281,7 @@ describe('TransactionController', () => {
 
         const mockActionId = 'mockActionId';
 
-        const { result, transactionMeta } = await controller.addTransaction(
+        const { result } = await controller.addTransaction(
           {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_MOCK,
@@ -2233,10 +2301,14 @@ describe('TransactionController', () => {
         await finishedPromise;
 
         expect(rejectedEventListener).toHaveBeenCalledTimes(1);
-        expect(rejectedEventListener).toHaveBeenCalledWith({
-          transactionMeta: { ...transactionMeta, status: 'rejected' },
-          actionId: mockActionId,
-        });
+        expect(rejectedEventListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              status: 'rejected',
+            }),
+            actionId: mockActionId,
+          }),
+        );
       });
     });
 
