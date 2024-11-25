@@ -136,12 +136,7 @@ export const setEthAccounts = (
       accounts,
     ),
     optionalScopes: setEthAccountsForScopesObject(
-      {
-        [KnownWalletScopeString.Eip155]: {
-          accounts: [],
-        },
-        ...caip25CaveatValue.optionalScopes,
-      },
+      caip25CaveatValue.optionalScopes,
       accounts,
     ),
   };

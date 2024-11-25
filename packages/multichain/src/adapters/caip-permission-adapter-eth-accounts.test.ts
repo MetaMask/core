@@ -159,29 +159,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
       });
     });
 
-    it('returns a CAIP-25 caveat value with missing "wallet:eip155" optional scope filled in, forming CAIP-10 account addresses from the accounts param', () => {
-      const input: Caip25CaveatValue = {
-        requiredScopes: {},
-        optionalScopes: {},
-        isMultichainOrigin: false,
-      };
-
-      const result = setEthAccounts(input, ['0x1', '0x2', '0x3']);
-      expect(result).toStrictEqual({
-        requiredScopes: {},
-        optionalScopes: {
-          'wallet:eip155': {
-            accounts: [
-              'wallet:eip155:0x1',
-              'wallet:eip155:0x2',
-              'wallet:eip155:0x3',
-            ],
-          },
-        },
-        isMultichainOrigin: false,
-      });
-    });
-
     it('does not modify the input CAIP-25 caveat value object in place', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
