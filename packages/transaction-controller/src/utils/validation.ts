@@ -185,6 +185,18 @@ function validateParamFrom(from: string) {
 }
 
 /**
+ * Validates the recipient address in a transaction's parameters.
+ *
+ * @param to - The to property to validate.
+ * @throws Throws an error if the recipient address is invalid.
+ */
+export function validateParamTo(to?: string) {
+  if (!to || typeof to !== 'string') {
+    throw rpcErrors.invalidParams(`Invalid "to" address`);
+  }
+}
+
+/**
  * Validates input data for transactions.
  *
  * @param value - The input data to validate.
