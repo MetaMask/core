@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 245.0.0 ([#4915](https://github.com/MetaMask/core.git/pull/4915))
+- Release 236.0.0 ([#4870](https://github.com/MetaMask/core.git/pull/4870))
+- Release 233.0.0 ([#4862](https://github.com/MetaMask/core.git/pull/4862))
+
 ## [12.3.0]
 
 ### Fixed
@@ -305,36 +311,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.0...HEAD
-[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.2.0...@metamask/phishing-controller@12.3.0
-[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...@metamask/phishing-controller@12.2.0
-[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...@metamask/phishing-controller@12.1.0
-[12.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
-[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
-[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1
-[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@11.0.0...@metamask/phishing-controller@12.0.0
-[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.1...@metamask/phishing-controller@11.0.0
-[10.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.0...@metamask/phishing-controller@10.1.1
-[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.0.0...@metamask/phishing-controller@10.1.0
-[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.4...@metamask/phishing-controller@10.0.0
-[9.0.4]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.3...@metamask/phishing-controller@9.0.4
-[9.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.2...@metamask/phishing-controller@9.0.3
-[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.1...@metamask/phishing-controller@9.0.2
-[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.0...@metamask/phishing-controller@9.0.1
-[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@8.0.2...@metamask/phishing-controller@9.0.0
-[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@8.0.1...@metamask/phishing-controller@8.0.2
-[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@8.0.0...@metamask/phishing-controller@8.0.1
-[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@7.0.1...@metamask/phishing-controller@8.0.0
-[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@7.0.0...@metamask/phishing-controller@7.0.1
-[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.2...@metamask/phishing-controller@7.0.0
-[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.1...@metamask/phishing-controller@6.0.2
-[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@6.0.0...@metamask/phishing-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@5.0.0...@metamask/phishing-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@4.0.0...@metamask/phishing-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@3.0.0...@metamask/phishing-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@2.0.0...@metamask/phishing-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.2...@metamask/phishing-controller@2.0.0
-[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.1...@metamask/phishing-controller@1.1.2
-[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.1.0...@metamask/phishing-controller@1.1.1
-[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@1.0.0...@metamask/phishing-controller@1.1.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/phishing-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.3.0...HEAD
+[12.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.2.0...@metamask/phishing-controller@12.3.0
+[12.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.1.0...@metamask/phishing-controller@12.2.0
+[12.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.0.3...@metamask/phishing-controller@12.1.0
+[12.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
+[12.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
+[12.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@11.0.0...@metamask/phishing-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.1.1...@metamask/phishing-controller@11.0.0
+[10.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.1.0...@metamask/phishing-controller@10.1.1
+[10.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.0.0...@metamask/phishing-controller@10.1.0
+[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@9.0.4...@metamask/phishing-controller@10.0.0
+[9.0.4]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@9.0.3...@metamask/phishing-controller@9.0.4
+[9.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@9.0.2...@metamask/phishing-controller@9.0.3
+[9.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@9.0.1...@metamask/phishing-controller@9.0.2
+[9.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@9.0.0...@metamask/phishing-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@8.0.2...@metamask/phishing-controller@9.0.0
+[8.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@8.0.1...@metamask/phishing-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@8.0.0...@metamask/phishing-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@7.0.1...@metamask/phishing-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@7.0.0...@metamask/phishing-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@6.0.2...@metamask/phishing-controller@7.0.0
+[6.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@6.0.1...@metamask/phishing-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@6.0.0...@metamask/phishing-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@5.0.0...@metamask/phishing-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@4.0.0...@metamask/phishing-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@3.0.0...@metamask/phishing-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@2.0.0...@metamask/phishing-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@1.1.2...@metamask/phishing-controller@2.0.0
+[1.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@1.1.1...@metamask/phishing-controller@1.1.2
+[1.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@1.1.0...@metamask/phishing-controller@1.1.1
+[1.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@1.0.0...@metamask/phishing-controller@1.1.0
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/phishing-controller@1.0.0
