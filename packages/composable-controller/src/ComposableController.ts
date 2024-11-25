@@ -184,7 +184,7 @@ export class ComposableController<
           if (isBaseController(controller) || isBaseControllerV1(controller)) {
             // Type assertion is necessary to assign new properties to a generic type - ts(2862)
             // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
-            (state as Record<string, StateConstraint | object>)[name] =
+            (state as LegacyComposableControllerStateConstraint)[name] =
               controller.state;
           }
           return state;
@@ -218,7 +218,8 @@ export class ComposableController<
         `${name}:stateChange`,
         (childState: LegacyControllerStateConstraint) => {
           this.update((state) => {
-            Object.assign(state, { [name]: childState });
+            (state as LegacyComposableControllerStateConstraint)[name] =
+              childState;
           });
         },
       );
@@ -230,7 +231,7 @@ export class ComposableController<
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState: StateConstraintV1) => {
         this.update((state) => {
-          Object.assign(state, { [name]: childState });
+          (state as Record<string, StateConstraintV1>)[name] = childState;
         });
       });
     }
