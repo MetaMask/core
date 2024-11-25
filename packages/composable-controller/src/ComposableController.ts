@@ -3,6 +3,7 @@ import type {
   StateConstraint,
   StateConstraintV1,
   StateMetadata,
+  StateMetadataConstraint,
   ControllerStateChangeEvent,
   LegacyControllerStateConstraint,
   ControllerInstance,
@@ -161,7 +162,13 @@ export class ComposableController<
         (metadata, controller) => {
           metadata[controller.name] = isBaseController(controller)
             ? controller.metadata
-            : { persist: true, anonymous: true };
+            : Object.keys(controller.state).reduce<StateMetadataConstraint>(
+                (acc, curr) => {
+                  acc[curr] = { persist: true, anonymous: true };
+                  return acc;
+                },
+                {} as never,
+              );
           return metadata;
         },
         {} as never,
