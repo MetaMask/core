@@ -3902,6 +3902,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
