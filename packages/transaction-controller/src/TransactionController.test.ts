@@ -3980,9 +3980,7 @@ describe('TransactionController', () => {
       const { controller } = setupController({
         options: {
           state: {
-            transactions: [
-              { ...TRANSACTION_META_MOCK, type: TransactionType.incoming },
-            ],
+            transactions: [{ ...TRANSACTION_META_MOCK }],
           },
         },
       });
@@ -3994,9 +3992,36 @@ describe('TransactionController', () => {
         TRANSACTION_META_2_MOCK,
       ]);
 
-      expect(controller.state.transactions).toHaveLength(2);
       expect(controller.state.transactions).toStrictEqual([
-        { ...TRANSACTION_META_MOCK, type: TransactionType.incoming },
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+    });
+
+    it('does not ignore if existing transaction with different from', async () => {
+      const newTransaction = {
+        ...TRANSACTION_META_MOCK,
+        txParams: { ...TRANSACTION_META_MOCK, from: ACCOUNT_2_MOCK },
+      };
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [newTransaction],
+          },
+        },
+      });
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+        TRANSACTION_META_2_MOCK,
+      ]);
+
+      expect(controller.state.transactions).toStrictEqual([
+        newTransaction,
+        TRANSACTION_META_MOCK,
         TRANSACTION_META_2_MOCK,
       ]);
     });
@@ -4022,6 +4047,31 @@ describe('TransactionController', () => {
         TRANSACTION_META_MOCK,
         TRANSACTION_META_2_MOCK,
       ]);
+    });
+
+    it('does not publish TransactionController:incomingTransactionsReceived if no new transactions', async () => {
+      const listener = jest.fn();
+
+      const { messenger } = setupController({
+        options: {
+          state: {
+            transactions: [TRANSACTION_META_MOCK],
+          },
+        },
+      });
+
+      messenger.subscribe(
+        'TransactionController:incomingTransactionsReceived',
+        listener,
+      );
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (incomingTransactionHelperMock.hub.on as any).mock.calls[0][1]([
+        TRANSACTION_META_MOCK,
+      ]);
+
+      expect(listener).toHaveBeenCalledTimes(0);
     });
   });
 

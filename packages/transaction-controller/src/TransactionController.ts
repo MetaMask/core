@@ -2909,17 +2909,24 @@ export class TransactionController extends BaseController<
   }
 
   private onIncomingTransactions(transactions: TransactionMeta[]) {
+    let newTransactions: TransactionMeta[] = [];
+
     this.update((state) => {
       const { transactions: currentTransactions } = state;
 
-      const newTransactions = transactions.filter(
+      newTransactions = transactions.filter(
         (tx) =>
           !currentTransactions.some(
             (currentTx) =>
               currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
-              currentTx.type === TransactionType.incoming,
+              currentTx.txParams.from?.toLowerCase() ===
+                tx.txParams.from?.toLowerCase(),
           ),
       );
+
+      if (!newTransactions.length) {
+        return;
+      }
 
       log('Adding incoming transactions to state', newTransactions.length, {
         newTransactions,
@@ -2931,9 +2938,13 @@ export class TransactionController extends BaseController<
       ]);
     });
 
+    if (!newTransactions.length) {
+      return;
+    }
+
     this.messagingSystem.publish(
       `${controllerName}:incomingTransactionsReceived`,
-      transactions,
+      newTransactions,
     );
   }
 

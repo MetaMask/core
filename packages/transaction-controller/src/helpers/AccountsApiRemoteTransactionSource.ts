@@ -196,7 +196,8 @@ export class AccountsApiRemoteTransactionSource
       : TransactionStatus.confirmed;
 
     const valueTransfer = responseTransaction.valueTransfers.find(
-      (vt) => vt.to === address && vt.contractAddress,
+      (vt) =>
+        vt.to.toLowerCase() === address.toLowerCase() && vt.contractAddress,
     );
 
     const isTransfer = Boolean(valueTransfer);
