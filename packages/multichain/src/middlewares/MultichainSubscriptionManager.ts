@@ -131,7 +131,6 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
   }
 
   unsubscribeByScopeAndOrigin(scope: ExternalScopeString, origin: string) {
-    console.log('unsubscribing by scope and origin', scope, origin);
     this.#subscriptions.forEach((subscriptionEntry) => {
       if (
         subscriptionEntry.scope === scope &&
