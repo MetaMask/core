@@ -160,25 +160,33 @@ export class ComposableController<
       metadata: Object.entries(controllers).reduce<
         StateMetadata<ComposableControllerState>
       >((metadata, [name, controller]) => {
-        // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
-        (metadata as unknown as Record<string, StateMetadataConstraint>)[name] =
-          isBaseController(controller)
-            ? controller.metadata
-            : Object.keys(controller.state).reduce<StateMetadataConstraint>(
-                (acc, curr) => {
-                  acc[curr] = { persist: true, anonymous: true };
-                  return acc;
-                },
-                {} as never,
-              );
+        if (isBaseController(controller)) {
+          // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
+          (metadata as unknown as Record<string, StateMetadataConstraint>)[
+            name
+          ] = controller.metadata;
+        } else if (isBaseControllerV1(controller)) {
+          // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
+          (metadata as unknown as Record<string, StateMetadataConstraint>)[
+            name
+          ] = Object.keys(controller.state).reduce<StateMetadataConstraint>(
+            (acc, curr) => {
+              acc[curr] = { persist: true, anonymous: true };
+              return acc;
+            },
+            {} as never,
+          );
+        }
         return metadata;
       }, {} as never),
       state: Object.entries(controllers).reduce<ComposableControllerState>(
         (state, [name, controller]) => {
-          // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
-          // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
-          (state as Record<string, StateConstraint | object>)[name] =
-            controller.state;
+          if (isBaseController(controller) || isBaseControllerV1(controller)) {
+            // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
+            // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
+            (state as Record<string, StateConstraint | object>)[name] =
+              controller.state;
+          }
           return state;
         },
         {} as never,
