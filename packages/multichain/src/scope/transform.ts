@@ -4,8 +4,8 @@ import { cloneDeep } from 'lodash';
 import type {
   ExternalScopeObject,
   ExternalScopesObject,
-  InternalScopeObject,
-  InternalScopesObject,
+  NormalizedScopeObject,
+  NormalizedScopesObject,
 } from './types';
 import { parseScopeString } from './types';
 
@@ -21,7 +21,7 @@ export const getUniqueArrayItems = <Value>(list: Value[]): Value[] => {
 
 /**
  * Normalizes a ScopeString and ExternalScopeObject into a separate
- * InternalScopeString and InternalScopeObject for each reference in the `references`
+ * InternalScopeString and NormalizedScopeObject for each reference in the `references`
  * value if defined and adds an empty `accounts` array if not defined.
  *
  * @param scopeString - The string representing the scope
@@ -31,11 +31,11 @@ export const getUniqueArrayItems = <Value>(list: Value[]): Value[] => {
 export const normalizeScope = (
   scopeString: string,
   externalScopeObject: ExternalScopeObject,
-): InternalScopesObject => {
+): NormalizedScopesObject => {
   const { references, ...scopeObject } = externalScopeObject;
   const { namespace, reference } = parseScopeString(scopeString);
 
-  const normalizedScopeObject: InternalScopeObject = {
+  const normalizedScopeObject: NormalizedScopeObject = {
     accounts: [],
     ...scopeObject,
   };
@@ -58,16 +58,16 @@ export const normalizeScope = (
 };
 
 /**
- * Merges two InternalScopeObjects
+ * Merges two NormalizedScopeObjects
  * @param scopeObjectA - The first scope object to merge.
  * @param scopeObjectB - The second scope object to merge.
  * @returns The merged scope object.
  */
 export const mergeScopeObject = (
-  scopeObjectA: InternalScopeObject,
-  scopeObjectB: InternalScopeObject,
+  scopeObjectA: NormalizedScopeObject,
+  scopeObjectB: NormalizedScopeObject,
 ) => {
-  const mergedScopeObject: InternalScopeObject = {
+  const mergedScopeObject: NormalizedScopeObject = {
     methods: getUniqueArrayItems([
       ...scopeObjectA.methods,
       ...scopeObjectB.methods,
@@ -100,16 +100,16 @@ export const mergeScopeObject = (
 };
 
 /**
- * Merges two InternalScopeObjects
+ * Merges two NormalizedScopeObjects
  * @param scopeA - The first scope object to merge.
  * @param scopeB - The second scope object to merge.
  * @returns The merged scope object.
  */
 export const mergeScopes = (
-  scopeA: InternalScopesObject,
-  scopeB: InternalScopesObject,
-): InternalScopesObject => {
-  const scope: InternalScopesObject = {};
+  scopeA: NormalizedScopesObject,
+  scopeB: NormalizedScopesObject,
+): NormalizedScopesObject => {
+  const scope: NormalizedScopesObject = {};
 
   Object.entries(scopeA).forEach(([_scopeString, scopeObjectA]) => {
     // Cast needed because index type is returned as `string` by `Object.entries`
@@ -135,14 +135,14 @@ export const mergeScopes = (
 };
 
 /**
- * Normalizes and merges a set of ExternalScopesObjects into a InternalScopesObject (i.e. a set of InternalScopeObjects where references are flattened).
+ * Normalizes and merges a set of ExternalScopesObjects into a NormalizedScopesObject (i.e. a set of NormalizedScopeObjects where references are flattened).
  * @param scopes - The external scopes to normalize and merge.
  * @returns The normalized and merged scopes.
  */
 export const normalizeAndMergeScopes = (
   scopes: ExternalScopesObject,
-): InternalScopesObject => {
-  let mergedScopes: InternalScopesObject = {};
+): NormalizedScopesObject => {
+  let mergedScopes: NormalizedScopesObject = {};
   Object.keys(scopes).forEach((scopeString) => {
     const normalizedScopes = normalizeScope(scopeString, scopes[scopeString]);
     mergedScopes = mergeScopes(mergedScopes, normalizedScopes);
