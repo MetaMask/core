@@ -129,7 +129,11 @@ export async function getAccountAddressRelationship(
 
   log('Getting account address relationship', { request, url });
 
-  const response = await successfulFetch(url);
+  const headers = {
+    [CLIENT_HEADER]: CLIENT_ID,
+  };
+
+  const response = await successfulFetch(url, { headers });
 
   if (response.status === 204) {
     // The accounts API returns a 204 status code when there are no transactions with empty body
