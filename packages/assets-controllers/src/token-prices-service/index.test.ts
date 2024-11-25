@@ -6,6 +6,7 @@ describe('token-prices-service', () => {
       Array [
         "CodefiTokenPricesServiceV2",
         "SUPPORTED_CHAIN_IDS",
+        "getNativeTokenAddress",
       ]
     `);
   });
