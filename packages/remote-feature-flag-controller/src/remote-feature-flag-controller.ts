@@ -4,6 +4,7 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { createDeferredPromise } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
@@ -11,7 +12,7 @@ import type { FeatureFlags } from './remote-feature-flag-controller-types';
 // === GENERAL ===
 
 export const controllerName = 'RemoteFeatureFlagController';
-const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
+export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
 // === STATE ===
 
@@ -87,7 +88,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #clientConfigApiService: AbstractClientConfigApiService;
 
-  #inProgressFlagUpdate?: Promise<{ cachedData: FeatureFlags }>;
+  #inProgressFlagUpdate?: Promise<FeatureFlags>;
 
   constructor({
     messenger,
@@ -97,7 +98,7 @@ export class RemoteFeatureFlagController extends BaseController<
     disabled = false,
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
-    state: Partial<RemoteFeatureFlagControllerState>;
+    state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     fetchInterval?: number;
     disabled?: boolean;
@@ -117,7 +118,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#clientConfigApiService = clientConfigApiService;
   }
 
-  private isCacheValid(): boolean {
+  #isCacheExpired(): boolean {
     return Date.now() - this.state.cacheTimestamp < this.#fetchInterval;
   }
 
@@ -126,36 +127,39 @@ export class RemoteFeatureFlagController extends BaseController<
       return [];
     }
 
-    if (this.isCacheValid()) {
+    if (this.#isCacheExpired()) {
       return this.state.remoteFeatureFlags;
     }
 
     if (this.#inProgressFlagUpdate) {
-      await this.#inProgressFlagUpdate;
+      return await this.#inProgressFlagUpdate;
     }
 
-    try {
-      this.#inProgressFlagUpdate = this.#clientConfigApiService.fetchFlags();
-      const flags = await this.#inProgressFlagUpdate;
+    const { promise, resolve } = createDeferredPromise<FeatureFlags>({
+      suppressUnhandledRejection: true,
+    });
+    this.#inProgressFlagUpdate = promise;
 
+    try {
+      const flags =
+        await this.#clientConfigApiService.fetchRemoteFeatureFlags();
       if (flags.cachedData.length > 0) {
         this.updateCache(flags.cachedData);
-        return flags.cachedData;
+        resolve(flags.cachedData);
       }
+      return await promise;
     } finally {
       this.#inProgressFlagUpdate = undefined;
     }
-
-    return this.state.remoteFeatureFlags;
   }
 
   private updateCache(remoteFeatureFlags: FeatureFlags) {
-    const newState: RemoteFeatureFlagControllerState = {
-      remoteFeatureFlags,
-      cacheTimestamp: Date.now(),
-    };
-
-    this.update(() => newState);
+    this.update(() => {
+      return {
+        remoteFeatureFlags,
+        cacheTimestamp: Date.now(),
+      };
+    });
   }
 
   /**

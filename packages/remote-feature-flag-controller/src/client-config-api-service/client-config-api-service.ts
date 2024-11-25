@@ -127,14 +127,18 @@ export class ClientConfigApiService {
   /**
    * Fetches feature flags from the API with specific client, distribution, and environment parameters.
    * Provides structured error handling, including fallback to cached data if available.
-   * @param cachedData - cachedData from controller state
-   * @param cacheTimestamp - timestamp of data being cached from controller state
+   * @param options - The options object
+   * @param options.cachedData - Optional cached feature flags data
+   * @param options.cacheTimestamp - Optional timestamp of the cached data
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
-  public async fetchFlags(
-    cachedData?: FeatureFlags,
-    cacheTimestamp?: number,
-  ): Promise<ApiResponse> {
+  public async fetchRemoteFeatureFlags({
+    cachedData,
+    cacheTimestamp,
+  }: {
+    cachedData?: FeatureFlags;
+    cacheTimestamp?: number;
+  } = {}): Promise<ApiResponse> {
     const url = `${this.#baseUrl}/flags?client=${this.#client}&distribution=${
       this.#distribution
     }&environment=${this.#environment}`;

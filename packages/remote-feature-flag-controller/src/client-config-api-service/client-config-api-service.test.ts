@@ -8,13 +8,10 @@ import { ClientConfigApiService } from './client-config-api-service';
 
 const BASE_URL = 'https://client-config.api.cx.metamask.io/v1';
 
-// eslint-disable-next-line jest/prefer-spy-on
-console.error = jest.fn();
-
 describe('ClientConfigApiService', () => {
-  let clientConfigApiService: ClientConfigApiService;
   let mockFetch: jest.Mock;
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let consoleErrorSpy: jest.SpyInstance;
   const mockFeatureFlags: FeatureFlags = [
     { feature1: false },
     { feature2: { chrome: '<109' } },
@@ -30,7 +27,11 @@ describe('ClientConfigApiService', () => {
 
   beforeEach(() => {
     mockFetch = jest.fn();
-    clientConfigApiService = new ClientConfigApiService({
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+  });
+
+  it('should successfully fetch and return feature flags', async () => {
+    const clientConfigApiService = new ClientConfigApiService({
       fetch: mockFetch,
       retries: 0,
       config: {
@@ -39,13 +40,7 @@ describe('ClientConfigApiService', () => {
         environment: EnvironmentType.Production,
       },
     });
-  });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should successfully fetch and return feature flags', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -53,7 +48,7 @@ describe('ClientConfigApiService', () => {
       json: async () => mockFeatureFlags,
     });
 
-    const result = await clientConfigApiService.fetchFlags();
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags();
 
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE_URL}/flags?client=extension&distribution=main&environment=prod`,
@@ -71,15 +66,25 @@ describe('ClientConfigApiService', () => {
   });
 
   it('should return cached data when API request fails and cached data is available', async () => {
+    const clientConfigApiService = new ClientConfigApiService({
+      fetch: mockFetch,
+      retries: 0,
+      config: {
+        client: ClientType.Extension,
+        distribution: DistributionType.Main,
+        environment: EnvironmentType.Production,
+      },
+    });
+
     const cachedData = [{ feature3: true }];
     const cacheTimestamp = Date.now();
 
     mockFetch.mockRejectedValueOnce(networkError);
 
-    const result = await clientConfigApiService.fetchFlags(
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags({
       cachedData,
       cacheTimestamp,
-    );
+    });
 
     expect(result).toStrictEqual({
       error: true,
@@ -92,8 +97,18 @@ describe('ClientConfigApiService', () => {
   });
 
   it('should return empty object when API request fails and cached data is not available', async () => {
+    const clientConfigApiService = new ClientConfigApiService({
+      fetch: mockFetch,
+      retries: 0,
+      config: {
+        client: ClientType.Extension,
+        distribution: DistributionType.Main,
+        environment: EnvironmentType.Production,
+      },
+    });
+
     mockFetch.mockRejectedValueOnce(networkError);
-    const result = await clientConfigApiService.fetchFlags();
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags();
 
     expect(result).toStrictEqual({
       error: true,
@@ -106,13 +121,23 @@ describe('ClientConfigApiService', () => {
   });
 
   it('should handle non-200 responses without cache data', async () => {
+    const clientConfigApiService = new ClientConfigApiService({
+      fetch: mockFetch,
+      retries: 0,
+      config: {
+        client: ClientType.Extension,
+        distribution: DistributionType.Main,
+        environment: EnvironmentType.Production,
+      },
+    });
+
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 404,
       statusText: 'Not Found',
     });
 
-    const result = await clientConfigApiService.fetchFlags();
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags();
     const currentTime = Date.now();
     expect(result).toStrictEqual({
       error: true,
@@ -125,6 +150,16 @@ describe('ClientConfigApiService', () => {
   });
 
   it('should handle non-200 responses with cache data', async () => {
+    const clientConfigApiService = new ClientConfigApiService({
+      fetch: mockFetch,
+      retries: 0,
+      config: {
+        client: ClientType.Extension,
+        distribution: DistributionType.Main,
+        environment: EnvironmentType.Production,
+      },
+    });
+
     const cachedData = [{ feature3: true }];
     const cacheTimestamp = Date.now();
     mockFetch.mockResolvedValueOnce({
@@ -133,10 +168,10 @@ describe('ClientConfigApiService', () => {
       statusText: 'Not Found',
     });
 
-    const result = await clientConfigApiService.fetchFlags(
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags({
       cachedData,
       cacheTimestamp,
-    );
+    });
 
     expect(result).toStrictEqual({
       error: true,
@@ -150,7 +185,7 @@ describe('ClientConfigApiService', () => {
 
   it('should retry the fetch the specified number of times on failure', async () => {
     const maxRetries = 3;
-    clientConfigApiService = new ClientConfigApiService({
+    const clientConfigApiService = new ClientConfigApiService({
       fetch: mockFetch,
       retries: maxRetries,
       config: {
@@ -163,7 +198,7 @@ describe('ClientConfigApiService', () => {
     // Mock fetch to fail every time
     mockFetch.mockRejectedValue(networkError);
 
-    const result = await clientConfigApiService.fetchFlags();
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags();
     const currentTime = Date.now();
     expect(result).toStrictEqual({
       error: true,
@@ -179,7 +214,7 @@ describe('ClientConfigApiService', () => {
 
   it('should open the circuit breaker after consecutive failures', async () => {
     const maxFailures = 3; // Set max consecutive failures for circuit breaker
-    clientConfigApiService = new ClientConfigApiService({
+    const clientConfigApiService = new ClientConfigApiService({
       fetch: mockFetch,
       maximumConsecutiveFailures: maxFailures,
       config: {
@@ -194,10 +229,10 @@ describe('ClientConfigApiService', () => {
 
     // Trigger fetch attempts
     for (let i = 0; i < maxFailures; i++) {
-      await clientConfigApiService.fetchFlags();
+      await clientConfigApiService.fetchRemoteFeatureFlags();
     }
 
-    const result = await clientConfigApiService.fetchFlags();
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags();
 
     expect(result).toStrictEqual({
       error: true,
@@ -213,10 +248,11 @@ describe('ClientConfigApiService', () => {
   });
 
   it('should call the onDegraded callback when requests are slow', async () => {
+    jest.setTimeout(7000);
     const onDegraded = jest.fn();
     const slowFetchTime = 5500; // Exceed the DEFAULT_DEGRADED_THRESHOLD (5000ms)
 
-    clientConfigApiService = new ClientConfigApiService({
+    const clientConfigApiService = new ClientConfigApiService({
       fetch: mockFetch,
       onDegraded,
       config: {
@@ -243,15 +279,15 @@ describe('ClientConfigApiService', () => {
         ),
     );
 
-    await clientConfigApiService.fetchFlags();
+    await clientConfigApiService.fetchRemoteFeatureFlags();
 
     // Verify the degraded callback was called
     expect(onDegraded).toHaveBeenCalled();
-  });
+  }, 7000);
 
   it('should succeed on a subsequent fetch attempt after retries', async () => {
     const maxRetries = 2;
-    clientConfigApiService = new ClientConfigApiService({
+    const clientConfigApiService = new ClientConfigApiService({
       fetch: mockFetch,
       retries: maxRetries,
       config: {
@@ -272,7 +308,7 @@ describe('ClientConfigApiService', () => {
         json: async () => mockFeatureFlags, // Third attempt succeeds
       });
 
-    const result = await clientConfigApiService.fetchFlags();
+    const result = await clientConfigApiService.fetchRemoteFeatureFlags();
 
     // Verify success on the third attempt
     expect(result).toStrictEqual({
