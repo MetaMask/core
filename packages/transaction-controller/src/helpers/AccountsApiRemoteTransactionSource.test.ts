@@ -72,6 +72,7 @@ const TRANSACTION_STANDARD_MOCK = {
   isTransfer: false,
   status: 'confirmed',
   time: 123000,
+  toSmartContract: false,
   transferInformation: undefined,
   txParams: {
     chainId: '0x1',

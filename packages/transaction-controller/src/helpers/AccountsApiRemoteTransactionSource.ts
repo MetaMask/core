@@ -211,17 +211,30 @@ export class AccountsApiRemoteTransactionSource
 
     const to = valueTransfer ? address : responseTransaction.to;
 
+    const error =
+      status === TransactionStatus.failed
+        ? new Error('Transaction failed')
+        : (undefined as unknown as TransactionError);
+
+    const transferInformation = isTransfer
+      ? {
+          contractAddress,
+          decimals,
+          symbol,
+        }
+      : undefined;
+
     return {
       blockNumber,
       chainId,
+      error,
       hash,
       id,
+      isTransfer,
       status,
-      error:
-        status === TransactionStatus.failed
-          ? new Error('Transaction failed')
-          : (undefined as unknown as TransactionError),
       time,
+      toSmartContract: false,
+      transferInformation,
       txParams: {
         chainId,
         from,
@@ -234,14 +247,6 @@ export class AccountsApiRemoteTransactionSource
       },
       type,
       verifiedOnBlockchain,
-      isTransfer,
-      transferInformation: isTransfer
-        ? {
-            contractAddress,
-            decimals,
-            symbol,
-          }
-        : undefined,
     };
   }
 
