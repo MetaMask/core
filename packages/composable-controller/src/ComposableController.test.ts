@@ -207,18 +207,18 @@ describe('ComposableController', () => {
       });
       const controller = new ComposableController<
         ComposableControllerState,
-        ControllersMap[keyof ComposableControllerState]
+        Pick<ControllersMap, keyof ComposableControllerState>
       >({
-        controllers: [
-          new BarController(),
-          new BazController({
+        controllers: {
+          BarController: new BarController(),
+          BazController: new BazController({
             messenger: new ControllerMessenger<never, never>().getRestricted({
               name: 'BazController',
               allowedActions: [],
               allowedEvents: [],
             }),
           }),
-        ],
+        },
         messenger: composableMessenger,
       });
 
@@ -246,9 +246,9 @@ describe('ComposableController', () => {
       const barController = new BarController();
       new ComposableController<
         ComposableControllerState,
-        ControllersMap[keyof ComposableControllerState]
+        Pick<ControllersMap, keyof ComposableControllerState>
       >({
-        controllers: [barController],
+        controllers: { BarController: barController },
         messenger: composableMessenger,
       });
       const listener = sinon.stub();
@@ -310,9 +310,12 @@ describe('ComposableController', () => {
       });
       const composableController = new ComposableController<
         ComposableControllerState,
-        ControllersMap[keyof ComposableControllerState]
+        Pick<ControllersMap, keyof ComposableControllerState>
       >({
-        controllers: [fooController, quzController],
+        controllers: {
+          FooController: fooController,
+          QuzController: quzController,
+        },
         messenger: composableControllerMessenger,
       });
       expect(composableController.state).toStrictEqual({
@@ -345,9 +348,11 @@ describe('ComposableController', () => {
       });
       new ComposableController<
         ComposableControllerState,
-        ControllersMap[keyof ComposableControllerState]
+        Pick<ControllersMap, keyof ComposableControllerState>
       >({
-        controllers: [fooController],
+        controllers: {
+          FooController: fooController,
+        },
         messenger: composableControllerMessenger,
       });
 
@@ -396,9 +401,12 @@ describe('ComposableController', () => {
       });
       const composableController = new ComposableController<
         ComposableControllerState,
-        ControllersMap[keyof ComposableControllerState]
+        Pick<ControllersMap, keyof ComposableControllerState>
       >({
-        controllers: [barController, fooController],
+        controllers: {
+          BarController: barController,
+          FooController: fooController,
+        },
         messenger: composableControllerMessenger,
       });
       expect(composableController.state).toStrictEqual({
@@ -435,9 +443,12 @@ describe('ComposableController', () => {
       });
       new ComposableController<
         ComposableControllerState,
-        ControllersMap[keyof ComposableControllerState]
+        Pick<ControllersMap, keyof ComposableControllerState>
       >({
-        controllers: [barController, fooController],
+        controllers: {
+          BarController: barController,
+          FooController: fooController,
+        },
         messenger: composableControllerMessenger,
       });
       const listener = sinon.stub();
@@ -486,9 +497,12 @@ describe('ComposableController', () => {
       });
       new ComposableController<
         ComposableControllerState,
-        ControllersMap[keyof ComposableControllerState]
+        Pick<ControllersMap, keyof ComposableControllerState>
       >({
-        controllers: [barController, fooController],
+        controllers: {
+          BarController: barController,
+          FooController: fooController,
+        },
         messenger: composableControllerMessenger,
       });
 
@@ -526,7 +540,10 @@ describe('ComposableController', () => {
         () =>
           // @ts-expect-error - Suppressing type error to test for runtime error handling
           new ComposableController({
-            controllers: [barController, fooController],
+            controllers: {
+              BarController: barController,
+              FooController: fooController,
+            },
           }),
       ).toThrow('Messaging system is required');
     });
@@ -558,7 +575,7 @@ describe('ComposableController', () => {
         () =>
           new ComposableController<
             ComposableControllerState,
-            ControllersMap[keyof ComposableControllerState]
+            Pick<ControllersMap, keyof ComposableControllerState>
           >({
             // @ts-expect-error - Suppressing type error to test for runtime error handling
             controllers: [notController, fooController],
