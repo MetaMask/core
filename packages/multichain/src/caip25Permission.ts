@@ -13,6 +13,7 @@ import {
 import type { CaipAccountId, Json } from '@metamask/utils';
 import {
   hasProperty,
+  KnownCaipNamespace,
   parseCaipAccountId,
   type Hex,
   type NonEmptyArray,
@@ -20,10 +21,10 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
-import { getPermittedEthChainIds } from './adapters/caip-permission-adapter-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import { isSupportedScopeString } from './scope/supported';
 import {
+  parseScopeString,
   type ExternalScopeString,
   type InternalScopeObject,
   type InternalScopesObject,
@@ -250,21 +251,25 @@ function removeAccount(
     };
   }
 
-  const ethAccounts = getEthAccounts(updatedCaveatValue);
-  if (ethAccounts.length === 0) {
+  const hasAccounts = [
+    ...Object.values(updatedCaveatValue.requiredScopes),
+    ...Object.values(updatedCaveatValue.optionalScopes),
+  ].some(({ accounts }) => accounts.length > 0);
+
+  if (hasAccounts) {
     return {
-      operation: CaveatMutatorOperation.RevokePermission,
+      operation: CaveatMutatorOperation.UpdateValue,
+      value: updatedCaveatValue,
     };
   }
 
   return {
-    operation: CaveatMutatorOperation.UpdateValue,
-    value: updatedCaveatValue,
+    operation: CaveatMutatorOperation.RevokePermission,
   };
 }
 
 /**
- * Removes the target account from the value arrays of the given
+ * Removes the target scope from the value arrays of the given
  * `endowment:caip25` caveat. No-ops if the target scopeString is not in
  * the existing scopes.
  *
@@ -303,15 +308,21 @@ function removeScope(
     optionalScopes: Object.fromEntries(newOptionalScopes),
   };
 
-  const ethChainIds = getPermittedEthChainIds(updatedCaveatValue);
-  if (ethChainIds.length === 0) {
+  const hasNonWalletScopes = [...newRequiredScopes, ...newOptionalScopes].some(
+    ([scopeString]) => {
+      const { namespace } = parseScopeString(scopeString);
+      return namespace !== KnownCaipNamespace.Wallet;
+    },
+  );
+
+  if (hasNonWalletScopes) {
     return {
-      operation: CaveatMutatorOperation.RevokePermission,
+      operation: CaveatMutatorOperation.UpdateValue,
+      value: updatedCaveatValue,
     };
   }
 
   return {
-    operation: CaveatMutatorOperation.UpdateValue,
-    value: updatedCaveatValue,
+    operation: CaveatMutatorOperation.RevokePermission,
   };
 }

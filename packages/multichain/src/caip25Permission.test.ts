@@ -153,11 +153,17 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('revokes the permission if the only eip155 scope is removed', () => {
+      it('revokes the permission if the only non wallet scope is removed', () => {
         const caveatValue = {
           requiredScopes: {},
           optionalScopes: {
             'eip155:5': {
+              accounts: [],
+            },
+            'wallet:eip155': {
+              accounts: [],
+            },
+            wallet: {
               accounts: [],
             },
           },
@@ -168,6 +174,26 @@ describe('caip25EndowmentBuilder', () => {
         expect(result).toStrictEqual({
           operation: CaveatMutatorOperation.RevokePermission,
         });
+      });
+
+      it('does not revoke the permission if the target scope does not exist but the permission only has wallet scopes', () => {
+        const caveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'wallet:eip155': {
+              accounts: [],
+            },
+            wallet: {
+              accounts: [],
+            },
+          },
+          sessionProperties: {},
+          isMultichainOrigin: true,
+        };
+        const result = removeScope(caveatValue, 'eip155:5');
+        expect(result.operation).not.toStrictEqual(
+          CaveatMutatorOperation.RevokePermission,
+        );
       });
 
       it('returns the caveat unchanged when the given scope is not found in either requiredScopes or optionalScopes', () => {
@@ -282,7 +308,7 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('revokes the permission when the only eip155 account is removed', () => {
+      it('revokes the permission if the only account is removed', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {},
           optionalScopes: {
@@ -296,6 +322,22 @@ describe('caip25EndowmentBuilder', () => {
         expect(result).toStrictEqual({
           operation: CaveatMutatorOperation.RevokePermission,
         });
+      });
+
+      it('does not revoke the permission if the target account does not exist but the permission already has no accounts', () => {
+        const caveatValue: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: [],
+            },
+          },
+          isMultichainOrigin: true,
+        };
+        const result = removeAccount(caveatValue, '0x1');
+        expect(result.operation).not.toStrictEqual(
+          CaveatMutatorOperation.RevokePermission,
+        );
       });
 
       it('returns the caveat unchanged when the given account is not found in either requiredScopes or optionalScopes', () => {
