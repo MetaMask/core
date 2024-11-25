@@ -160,7 +160,10 @@ export class ComposableController<
       name: controllerName,
       metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
         (metadata, controller) => {
-          metadata[controller.name] = isBaseController(controller)
+          // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
+          (metadata as unknown as Record<string, StateMetadataConstraint>)[
+            controller.name
+          ] = isBaseController(controller)
             ? controller.metadata
             : Object.keys(controller.state).reduce<StateMetadataConstraint>(
                 (acc, curr) => {
@@ -175,7 +178,10 @@ export class ComposableController<
       ),
       state: controllers.reduce<ComposableControllerState>(
         (state, controller) => {
-          state[controller.name] = controller.state;
+          // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
+          // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
+          (state as Record<string, StateConstraint | object>)[controller.name] =
+            controller.state;
           return state;
         },
         {} as never,
