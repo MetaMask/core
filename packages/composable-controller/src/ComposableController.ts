@@ -158,17 +158,18 @@ export class ComposableController<
     super({
       name: controllerName,
       metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
-        (metadata, controller) => ({
-          ...metadata,
-          [controller.name]: isBaseController(controller)
+        (metadata, controller) => {
+          metadata[controller.name] = isBaseController(controller)
             ? controller.metadata
-            : { persist: true, anonymous: true },
-        }),
+            : { persist: true, anonymous: true };
+          return metadata;
+        },
         {} as never,
       ),
       state: controllers.reduce<ComposableControllerState>(
         (state, controller) => {
-          return { ...state, [controller.name]: controller.state };
+          state[controller.name] = controller.state;
+          return state;
         },
         {} as never,
       ),
