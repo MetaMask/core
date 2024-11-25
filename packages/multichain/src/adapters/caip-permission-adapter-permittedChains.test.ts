@@ -1,5 +1,4 @@
 import type { Caip25CaveatValue } from '../caip25Permission';
-import { KnownNotifications, KnownRpcMethods } from '../scope/constants';
 import {
   addPermittedEthChainId,
   getPermittedEthChainIds,
@@ -12,18 +11,12 @@ describe('CAIP-25 permittedChains adapters', () => {
       const ethChainIds = getPermittedEthChainIds({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
           'eip155:5': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:5:0x2', 'eip155:1:0x3'],
           },
           'bip122:000000000019d6689c085ae165831e93': {
-            methods: [],
-            notifications: [],
             accounts: [
               'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
             ],
@@ -31,18 +24,12 @@ describe('CAIP-25 permittedChains adapters', () => {
         },
         optionalScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x4'],
           },
           'eip155:10': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x100'],
           },
         },
@@ -58,20 +45,14 @@ describe('CAIP-25 permittedChains adapters', () => {
         {
           requiredScopes: {
             'eip155:1': {
-              methods: [],
-              notifications: [],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
           optionalScopes: {
             'eip155:100': {
-              methods: [],
-              notifications: [],
               accounts: ['eip155:100:0x100'],
             },
             'wallet:eip155': {
-              methods: [],
-              notifications: [],
               accounts: [],
             },
           },
@@ -83,25 +64,17 @@ describe('CAIP-25 permittedChains adapters', () => {
       expect(result).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },
         optionalScopes: {
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x100'],
           },
           'eip155:101': {
-            methods: KnownRpcMethods.eip155,
-            notifications: KnownNotifications.eip155,
             accounts: [],
           },
           'wallet:eip155': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
         },
@@ -113,8 +86,6 @@ describe('CAIP-25 permittedChains adapters', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },
@@ -127,8 +98,6 @@ describe('CAIP-25 permittedChains adapters', () => {
       expect(input).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },
@@ -142,15 +111,11 @@ describe('CAIP-25 permittedChains adapters', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },
         optionalScopes: {
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x100'],
           },
         },
@@ -165,15 +130,11 @@ describe('CAIP-25 permittedChains adapters', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },
         optionalScopes: {
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x100'],
           },
         },
@@ -191,30 +152,20 @@ describe('CAIP-25 permittedChains adapters', () => {
         {
           requiredScopes: {
             'eip155:1': {
-              methods: [],
-              notifications: [],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
             'bip122:000000000019d6689c085ae165831e93': {
-              methods: [],
-              notifications: [],
               accounts: [],
             },
           },
           optionalScopes: {
             wallet: {
-              methods: [],
-              notifications: [],
               accounts: [],
             },
             'eip155:1': {
-              methods: ['eth_chainId'],
-              notifications: [],
               accounts: [],
             },
             'eip155:100': {
-              methods: [],
-              notifications: [],
               accounts: ['eip155:100:0x100'],
             },
           },
@@ -226,25 +177,17 @@ describe('CAIP-25 permittedChains adapters', () => {
       expect(result).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
           'bip122:000000000019d6689c085ae165831e93': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
         },
         optionalScopes: {
           wallet: {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
           'eip155:1': {
-            methods: ['eth_chainId'],
-            notifications: [],
             accounts: [],
           },
         },
@@ -257,20 +200,14 @@ describe('CAIP-25 permittedChains adapters', () => {
         {
           requiredScopes: {
             'eip155:1': {
-              methods: [],
-              notifications: [],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
           optionalScopes: {
             'eip155:1': {
-              methods: ['eth_chainId'],
-              notifications: [],
               accounts: [],
             },
             'eip155:100': {
-              methods: [],
-              notifications: [],
               accounts: ['eip155:100:0x100'],
             },
           },
@@ -282,25 +219,17 @@ describe('CAIP-25 permittedChains adapters', () => {
       expect(result).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },
         optionalScopes: {
           'eip155:1': {
-            methods: ['eth_chainId'],
-            notifications: [],
             accounts: [],
           },
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x100'],
           },
           'eip155:101': {
-            methods: KnownRpcMethods.eip155,
-            notifications: KnownNotifications.eip155,
             accounts: [],
           },
         },
@@ -312,8 +241,6 @@ describe('CAIP-25 permittedChains adapters', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },
@@ -326,8 +253,6 @@ describe('CAIP-25 permittedChains adapters', () => {
       expect(input).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
         },

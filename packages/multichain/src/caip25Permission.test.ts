@@ -11,31 +11,17 @@ import {
   Caip25CaveatMutators,
   createCaip25Caveat,
 } from './caip25Permission';
-import * as ScopeAssert from './scope/assert';
-import * as ScopeAuthorization from './scope/authorization';
+import * as ScopeSupported from './scope/supported';
 
-jest.mock('./scope/authorization', () => ({
-  validateAndNormalizeScopes: jest.fn(),
+jest.mock('./scope/supported', () => ({
+  ...jest.requireActual('./scope/supported'),
+  isSupportedScopeString: jest.fn(),
 }));
-const MockScopeAuthorization = jest.mocked(ScopeAuthorization);
-
-jest.mock('./scope/assert', () => ({
-  ...jest.requireActual('./scope/assert'),
-  assertScopesSupported: jest.fn(),
-}));
-
-const MockScopeAssert = jest.mocked(ScopeAssert);
+const MockScopeSupported = jest.mocked(ScopeSupported);
 
 const { removeAccount, removeScope } = Caip25CaveatMutators[Caip25CaveatType];
 
 describe('caip25EndowmentBuilder', () => {
-  beforeEach(() => {
-    MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-      normalizedRequiredScopes: {},
-      normalizedOptionalScopes: {},
-    });
-  });
-
   describe('specificationBuilder', () => {
     it('builds the expected permission specification', () => {
       const specification = caip25EndowmentBuilder.specificationBuilder({
@@ -81,15 +67,11 @@ describe('caip25EndowmentBuilder', () => {
         const ethereumGoerliCaveat = {
           requiredScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              methods: ['eth_call'],
-              notifications: ['accountsChanged'],
               accounts: [],
             },
           },
@@ -103,8 +85,6 @@ describe('caip25EndowmentBuilder', () => {
             requiredScopes: {},
             optionalScopes: {
               'eip155:5': {
-                methods: ['eth_call'],
-                notifications: ['accountsChanged'],
                 accounts: [],
               },
             },
@@ -116,15 +96,11 @@ describe('caip25EndowmentBuilder', () => {
         const ethereumGoerliCaveat = {
           requiredScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              methods: ['eth_call'],
-              notifications: ['accountsChanged'],
               accounts: [],
             },
           },
@@ -137,8 +113,6 @@ describe('caip25EndowmentBuilder', () => {
           value: {
             requiredScopes: {
               'eip155:1': {
-                methods: ['eth_call'],
-                notifications: ['chainChanged'],
                 accounts: [],
               },
             },
@@ -151,20 +125,14 @@ describe('caip25EndowmentBuilder', () => {
         const ethereumGoerliCaveat = {
           requiredScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: [],
             },
             'eip155:5': {
-              methods: [],
-              notifications: ['chainChanged'],
               accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              methods: ['eth_call'],
-              notifications: ['accountsChanged'],
               accounts: [],
             },
           },
@@ -177,8 +145,6 @@ describe('caip25EndowmentBuilder', () => {
           value: {
             requiredScopes: {
               'eip155:1': {
-                methods: ['eth_call'],
-                notifications: ['chainChanged'],
                 accounts: [],
               },
             },
@@ -191,15 +157,11 @@ describe('caip25EndowmentBuilder', () => {
         const ethereumGoerliCaveat = {
           requiredScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: [],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              methods: ['eth_call'],
-              notifications: ['accountsChanged'],
               accounts: [],
             },
           },
@@ -218,8 +180,6 @@ describe('caip25EndowmentBuilder', () => {
         const ethereumGoerliCaveat: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
@@ -232,8 +192,6 @@ describe('caip25EndowmentBuilder', () => {
           value: {
             requiredScopes: {
               'eip155:1': {
-                methods: ['eth_call'],
-                notifications: ['chainChanged'],
                 accounts: ['eip155:1:0x2'],
               },
             },
@@ -248,8 +206,6 @@ describe('caip25EndowmentBuilder', () => {
           requiredScopes: {},
           optionalScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
@@ -262,8 +218,6 @@ describe('caip25EndowmentBuilder', () => {
             requiredScopes: {},
             optionalScopes: {
               'eip155:1': {
-                methods: ['eth_call'],
-                notifications: ['chainChanged'],
                 accounts: ['eip155:1:0x2'],
               },
             },
@@ -276,20 +230,14 @@ describe('caip25EndowmentBuilder', () => {
         const ethereumGoerliCaveat: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
             'eip155:2': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: ['eip155:2:0x1', 'eip155:2:0x2'],
             },
           },
           optionalScopes: {
             'eip155:3': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: ['eip155:3:0x1', 'eip155:3:0x2'],
             },
           },
@@ -301,20 +249,14 @@ describe('caip25EndowmentBuilder', () => {
           value: {
             requiredScopes: {
               'eip155:1': {
-                methods: ['eth_call'],
-                notifications: ['chainChanged'],
                 accounts: ['eip155:1:0x2'],
               },
               'eip155:2': {
-                methods: ['eth_call'],
-                notifications: ['chainChanged'],
                 accounts: ['eip155:2:0x2'],
               },
             },
             optionalScopes: {
               'eip155:3': {
-                methods: ['eth_call'],
-                notifications: ['chainChanged'],
                 accounts: ['eip155:3:0x2'],
               },
             },
@@ -327,15 +269,11 @@ describe('caip25EndowmentBuilder', () => {
         const ethereumGoerliCaveat: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
-              methods: ['eth_call'],
-              notifications: ['chainChanged'],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
           optionalScopes: {
             'eip155:5': {
-              methods: ['eth_call'],
-              notifications: ['accountsChanged'],
               accounts: [],
             },
           },
@@ -491,7 +429,7 @@ describe('caip25EndowmentBuilder', () => {
       );
     });
 
-    it('validates and normalizes the ScopesObjects', () => {
+    it('asserts the internal required scopeStrings are supported', () => {
       try {
         validator({
           caveats: [
@@ -500,15 +438,11 @@ describe('caip25EndowmentBuilder', () => {
               value: {
                 requiredScopes: {
                   'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
                     accounts: ['eip155:1:0xdead'],
                   },
                 },
                 optionalScopes: {
                   'eip155:5': {
-                    methods: [],
-                    notifications: [],
                     accounts: ['eip155:5:0xbeef'],
                   },
                 },
@@ -524,111 +458,16 @@ describe('caip25EndowmentBuilder', () => {
       } catch (err) {
         // noop
       }
-      expect(
-        MockScopeAuthorization.validateAndNormalizeScopes,
-      ).toHaveBeenCalledWith(
-        {
-          'eip155:1': {
-            methods: ['eth_chainId'],
-            notifications: [],
-            accounts: ['eip155:1:0xdead'],
-          },
-        },
-        {
-          'eip155:5': {
-            methods: [],
-            notifications: [],
-            accounts: ['eip155:5:0xbeef'],
-          },
-        },
-      );
-    });
-
-    it('asserts the validated and normalized required scopes are supported', () => {
-      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-        normalizedRequiredScopes: {
-          'eip155:1': {
-            methods: ['normalized_required'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-        normalizedOptionalScopes: {
-          'eip155:1': {
-            methods: ['normalized_optional'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-      });
-      try {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    methods: [],
-                    notifications: [],
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      } catch (err) {
-        // noop
-      }
-      expect(MockScopeAssert.assertScopesSupported).toHaveBeenCalledWith(
-        {
-          'eip155:1': {
-            methods: ['normalized_required'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-        expect.objectContaining({
-          isChainIdSupported: expect.any(Function),
-        }),
+      expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
+        'eip155:1',
+        expect.any(Function),
       );
 
-      MockScopeAssert.assertScopesSupported.mock.calls[0][1].isChainIdSupported(
-        '0x1',
-      );
+      MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1');
       expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
     });
 
-    it('asserts the validated and normalized optional scopes are supported', () => {
-      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-        normalizedRequiredScopes: {
-          'eip155:1': {
-            methods: ['normalized_required'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-        normalizedOptionalScopes: {
-          'eip155:5': {
-            methods: ['normalized_optional'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-      });
+    it('asserts the internal optional scopeStrings are supported', () => {
       try {
         validator({
           caveats: [
@@ -637,15 +476,11 @@ describe('caip25EndowmentBuilder', () => {
               value: {
                 requiredScopes: {
                   'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
                     accounts: ['eip155:1:0xdead'],
                   },
                 },
                 optionalScopes: {
                   'eip155:5': {
-                    methods: [],
-                    notifications: [],
                     accounts: ['eip155:5:0xbeef'],
                   },
                 },
@@ -661,41 +496,17 @@ describe('caip25EndowmentBuilder', () => {
       } catch (err) {
         // noop
       }
-      expect(MockScopeAssert.assertScopesSupported).toHaveBeenCalledWith(
-        {
-          'eip155:5': {
-            methods: ['normalized_optional'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-        expect.objectContaining({
-          isChainIdSupported: expect.any(Function),
-        }),
+
+      expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
+        'eip155:5',
+        expect.any(Function),
       );
-      MockScopeAssert.assertScopesSupported.mock.calls[1][1].isChainIdSupported(
-        '0x1',
-      );
-      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
+
+      MockScopeSupported.isSupportedScopeString.mock.calls[1][1]('0x5');
+      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x5');
     });
 
     it('does not throw if unable to find a network client for the chainId', () => {
-      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-        normalizedRequiredScopes: {
-          'eip155:1': {
-            methods: ['normalized_required'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-        normalizedOptionalScopes: {
-          'eip155:5': {
-            methods: ['normalized_optional'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-      });
       findNetworkClientIdByChainId.mockImplementation(() => {
         throw new Error('unable to find network client');
       });
@@ -707,15 +518,11 @@ describe('caip25EndowmentBuilder', () => {
               value: {
                 requiredScopes: {
                   'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
                     accounts: ['eip155:1:0xdead'],
                   },
                 },
                 optionalScopes: {
                   'eip155:5': {
-                    methods: [],
-                    notifications: [],
                     accounts: ['eip155:5:0xbeef'],
                   },
                 },
@@ -733,30 +540,46 @@ describe('caip25EndowmentBuilder', () => {
       }
 
       expect(
-        MockScopeAssert.assertScopesSupported.mock.calls[0][1].isChainIdSupported(
-          '0x1',
-        ),
+        MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1'),
       ).toBe(false);
       expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
     });
 
-    it('throws if the eth accounts specified in the normalized scopeObjects are not found in the wallet keyring', () => {
-      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-        normalizedRequiredScopes: {
-          'eip155:1': {
-            methods: ['eth_chainId'],
-            notifications: [],
-            accounts: ['eip155:1:0xdead'],
-          },
-        },
-        normalizedOptionalScopes: {
-          'eip155:5': {
-            methods: [],
-            notifications: [],
-            accounts: ['eip155:5:0xbeef'],
-          },
-        },
-      });
+    it('throws if not all scopeStrings are supported', () => {
+      expect(() => {
+        validator({
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {
+                  'eip155:1': {
+                    accounts: ['eip155:1:0xdead'],
+                  },
+                },
+                optionalScopes: {
+                  'eip155:5': {
+                    accounts: ['eip155:5:0xbeef'],
+                  },
+                },
+                isMultichainOrigin: true,
+              },
+            },
+          ],
+          date: 1234,
+          id: '1',
+          invoker: 'test.com',
+          parentCapability: Caip25EndowmentPermissionName,
+        });
+      }).toThrow(
+        new Error(
+          `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+        ),
+      );
+    });
+
+    it('throws if the eth accounts specified in the internal scopeObjects are not found in the wallet keyring', () => {
+      MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
       listAccounts.mockReturnValue([{ address: '0xdead' }]); // missing '0xbeef'
 
       expect(() => {
@@ -767,15 +590,11 @@ describe('caip25EndowmentBuilder', () => {
               value: {
                 requiredScopes: {
                   'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
                     accounts: ['eip155:1:0xdead'],
                   },
                 },
                 optionalScopes: {
                   'eip155:5': {
-                    methods: [],
-                    notifications: [],
                     accounts: ['eip155:5:0xbeef'],
                   },
                 },
@@ -795,121 +614,8 @@ describe('caip25EndowmentBuilder', () => {
       );
     });
 
-    it('throws if the input requiredScopes does not match the output of validateAndNormalizeScopes', () => {
-      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-        normalizedRequiredScopes: {},
-        normalizedOptionalScopes: {
-          'eip155:5': {
-            methods: [],
-            notifications: [],
-            accounts: ['eip155:5:0xbeef'],
-          },
-        },
-      });
-      listAccounts.mockReturnValue([{ address: '0xbeef' }]);
-
-      expect(() => {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    methods: [],
-                    notifications: [],
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      }).toThrow(
-        new Error(
-          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
-        ),
-      );
-    });
-
-    it('throws if the input optionalScopes does not match the output of validateAndNormalizeScopes', () => {
-      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-        normalizedRequiredScopes: {
-          'eip155:1': {
-            methods: ['eth_chainId'],
-            notifications: [],
-            accounts: ['eip155:1:0xdead'],
-          },
-        },
-        normalizedOptionalScopes: {},
-      });
-      listAccounts.mockReturnValue([{ address: '0xdead' }]);
-
-      expect(() => {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    methods: [],
-                    notifications: [],
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      }).toThrow(
-        new Error(
-          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
-        ),
-      );
-    });
-
-    it('does not throw if the input requiredScopes and optionalScopes InternalScopesObject are already validated and normalized', () => {
-      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
-        normalizedRequiredScopes: {
-          'eip155:1': {
-            methods: ['eth_chainId'],
-            notifications: [],
-            accounts: ['eip155:1:0xdead'],
-          },
-        },
-        normalizedOptionalScopes: {
-          'eip155:5': {
-            methods: [],
-            notifications: [],
-            accounts: ['eip155:5:0xbeef'],
-          },
-        },
-      });
+    it('does not throw if the CAIP-25 caveat value is valid', () => {
+      MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
       listAccounts.mockReturnValue([
         { address: '0xdead' },
         { address: '0xbeef' },
@@ -923,15 +629,11 @@ describe('caip25EndowmentBuilder', () => {
               value: {
                 requiredScopes: {
                   'eip155:1': {
-                    methods: ['eth_chainId'],
-                    notifications: [],
                     accounts: ['eip155:1:0xdead'],
                   },
                 },
                 optionalScopes: {
                   'eip155:5': {
-                    methods: [],
-                    notifications: [],
                     accounts: ['eip155:5:0xbeef'],
                   },
                 },
