@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core.git/pull/4862))
-- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core.git/pull/4831))
-- Release 220.0.0 ([#4798](https://github.com/MetaMask/core.git/pull/4798))
-
 ## [3.0.1]
 
 ### Changed
@@ -77,10 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@3.0.1...HEAD
-[3.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@3.0.0...@metamask/permission-log-controller@3.0.1
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@2.0.2...@metamask/permission-log-controller@3.0.0
-[2.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@2.0.1...@metamask/permission-log-controller@2.0.2
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@2.0.0...@metamask/permission-log-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-log-controller@1.0.0...@metamask/permission-log-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/permission-log-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.0...@metamask/permission-log-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.2...@metamask/permission-log-controller@3.0.0
+[2.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.1...@metamask/permission-log-controller@2.0.2
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.0...@metamask/permission-log-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@1.0.0...@metamask/permission-log-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/permission-log-controller@1.0.0
