@@ -10,6 +10,7 @@ import { cloneDeep, merge } from 'lodash';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
+import { TransactionPoller } from './TransactionPoller';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -63,8 +64,6 @@ export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #blockTracker: BlockTracker;
-
   #droppedBlockCountByHash: Map<string, number>;
 
   #getChainId: () => string;
@@ -89,6 +88,8 @@ export class PendingTransactionTracker {
   ) => Promise<string>;
 
   #running: boolean;
+
+  #transactionPoller: TransactionPoller;
 
   #beforeCheckPendingTransaction: (transactionMeta: TransactionMeta) => boolean;
 
@@ -123,7 +124,6 @@ export class PendingTransactionTracker {
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
-    this.#blockTracker = blockTracker;
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
     this.#getEthQuery = getEthQuery;
@@ -134,6 +134,7 @@ export class PendingTransactionTracker {
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
+    this.#transactionPoller = new TransactionPoller(blockTracker);
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
@@ -143,7 +144,7 @@ export class PendingTransactionTracker {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (pendingTransactions.length) {
-      this.#start();
+      this.#start(pendingTransactions);
     } else {
       this.stop();
     }
@@ -167,12 +168,14 @@ export class PendingTransactionTracker {
     }
   }
 
-  #start() {
+  #start(pendingTransactions: TransactionMeta[]) {
+    this.#transactionPoller.setPendingTransactions(pendingTransactions);
+
     if (this.#running) {
       return;
     }
 
-    this.#blockTracker.on('latest', this.#listener);
+    this.#transactionPoller.start(this.#listener);
     this.#running = true;
 
     this.#log('Started polling');
@@ -183,7 +186,7 @@ export class PendingTransactionTracker {
       return;
     }
 
-    this.#blockTracker.removeListener('latest', this.#listener);
+    this.#transactionPoller.stop();
     this.#running = false;
 
     this.#log('Stopped polling');

@@ -1,4 +1,5 @@
 import type { AccessList } from '@ethereumjs/tx';
+import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
@@ -166,6 +167,11 @@ type TransactionMetaBase = {
    * The number of the latest block when the transaction submit was first retried.
    */
   firstRetryBlockNumber?: string;
+
+  /**
+   * Whether the transaction is the first time interaction.
+   */
+  isFirstTimeInteraction?: boolean;
 
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
@@ -1344,3 +1350,7 @@ export type SubmitHistoryEntry = {
   /** The transaction parameters that were submitted. */
   transaction: TransactionParams;
 };
+
+export type InternalAccount = ReturnType<
+  AccountsController['getSelectedAccount']
+>;

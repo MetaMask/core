@@ -12,8 +12,15 @@ import type {
 
 export const name = 'RatesController';
 
+/**
+ * Supported cryptocurrencies that can be used as a base currency. The value needs to be compatible
+ * with CryptoCompare's API which is the default source for the rates.
+ *
+ * See: https://min-api.cryptocompare.com/documentation?key=Price&cat=multipleSymbolsPriceEndpoint
+ */
 export enum Cryptocurrency {
   Btc = 'btc',
+  Solana = 'sol',
 }
 
 const DEFAULT_INTERVAL = 180000;
@@ -31,8 +38,12 @@ const defaultState = {
       conversionDate: 0,
       conversionRate: 0,
     },
+    [Cryptocurrency.Solana]: {
+      conversionDate: 0,
+      conversionRate: 0,
+    },
   },
-  cryptocurrencies: [Cryptocurrency.Btc],
+  cryptocurrencies: [Cryptocurrency.Btc, Cryptocurrency.Solana],
 };
 
 export class RatesController extends BaseController<
