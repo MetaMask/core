@@ -3,7 +3,7 @@ import type {
   StateConstraint,
   StateConstraintV1,
   StateMetadata,
-  StateMetadataConstraint,
+  StatePropertyMetadataConstraint,
   ControllerStateChangeEvent,
   LegacyControllerStateConstraint,
   ControllerInstance,
@@ -157,26 +157,14 @@ export class ComposableController<
 
     super({
       name: controllerName,
-      metadata: Object.entries(controllers).reduce<
+      metadata: Object.keys(controllers).reduce<
         StateMetadata<ComposableControllerState>
-      >((metadata, [name, controller]) => {
-        if (isBaseController(controller)) {
-          // Type assertion is necessary to assign new properties to a generic type - ts(2862)
-          (metadata as unknown as Record<string, StateMetadataConstraint>)[
-            name
-          ] = controller.metadata;
-        } else if (isBaseControllerV1(controller)) {
-          // Type assertion is necessary to assign new properties to a generic type - ts(2862)
-          (metadata as unknown as Record<string, StateMetadataConstraint>)[
-            name
-          ] = Object.keys(controller.state).reduce<StateMetadataConstraint>(
-            (acc, curr) => {
-              acc[curr] = { persist: true, anonymous: true };
-              return acc;
-            },
-            {} as never,
-          );
-        }
+      >((metadata, name) => {
+        // Type assertion is necessary to assign new properties to a generic type - ts(2862)
+        (metadata as Record<string, StatePropertyMetadataConstraint>)[name] = {
+          persist: true,
+          anonymous: true,
+        };
         return metadata;
       }, {} as never),
       state: Object.entries(controllers).reduce<ComposableControllerState>(
