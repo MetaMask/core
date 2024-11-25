@@ -45,13 +45,17 @@ import type {
 import { NonceTracker } from '@metamask/nonce-tracker';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
-import { add0x } from '@metamask/utils';
+import { add0x, hexToNumber } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
+import {
+  getAccountAddressRelationship,
+  type GetAccountAddressRelationshipRequest,
+} from './api/accounts-api';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
@@ -123,6 +127,7 @@ import {
   normalizeGasFeeValues,
 } from './utils/utils';
 import {
+  validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
@@ -297,6 +302,7 @@ export type TransactionControllerOptions = {
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
   isMultichainEnabled: boolean;
+  isFirstTimeInteractionEnabled?: () => boolean;
   isSimulationEnabled?: () => boolean;
   messenger: TransactionControllerMessenger;
   onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
@@ -638,6 +644,8 @@ export class TransactionController extends BaseController<
 
   #transactionHistoryLimit: number;
 
+  #isFirstTimeInteractionEnabled: () => boolean;
+
   #isSimulationEnabled: () => boolean;
 
   #testGasFeeFlows: boolean;
@@ -756,6 +764,7 @@ export class TransactionController extends BaseController<
    * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
+   * @param options.isFirstTimeInteractionEnabled - Whether first time interaction checks are enabled.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
@@ -784,6 +793,7 @@ export class TransactionController extends BaseController<
     getSavedGasFees,
     incomingTransactions = {},
     isMultichainEnabled = false,
+    isFirstTimeInteractionEnabled,
     isSimulationEnabled,
     messenger,
     onNetworkStateChange,
@@ -812,6 +822,8 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
+    this.#isFirstTimeInteractionEnabled =
+      isFirstTimeInteractionEnabled ?? (() => true);
     this.#isSimulationEnabled = isSimulationEnabled ?? (() => true);
     // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
     this.registry = new MethodRegistry({ provider });
@@ -1090,15 +1102,16 @@ export class TransactionController extends BaseController<
           dappSuggestedGasFees,
           deviceConfirmedOn,
           id: random(),
+          isFirstTimeInteraction: undefined,
+          networkClientId,
           origin,
           securityAlertResponse,
           status: TransactionStatus.unapproved as const,
           time: Date.now(),
           txParams,
+          type: transactionType,
           userEditedGasLimit: false,
           verifiedOnBlockchain: false,
-          type: transactionType,
-          networkClientId,
         };
 
     await this.#trace(
@@ -1149,8 +1162,16 @@ export class TransactionController extends BaseController<
           log('Error while updating simulation data', error);
           throw error;
         });
+
+        this.#updateFirstTimeInteraction(addedTransactionMeta, {
+          traceContext,
+        }).catch((error) => {
+          log('Error while updating first interaction properties', error);
+        });
       } else {
-        log('Skipping simulation as approval not required');
+        log(
+          'Skipping simulation & first interaction update as approval not required',
+        );
       }
 
       this.messagingSystem.publish(
@@ -3612,6 +3633,87 @@ export class TransactionController extends BaseController<
     }
 
     return transactionMeta;
+  }
+
+  async #updateFirstTimeInteraction(
+    transactionMeta: TransactionMeta,
+    {
+      traceContext,
+    }: {
+      traceContext?: TraceContext;
+    } = {},
+  ) {
+    if (!this.#isFirstTimeInteractionEnabled()) {
+      return;
+    }
+
+    const {
+      chainId,
+      id: transactionId,
+      txParams: { to, from },
+    } = transactionMeta;
+
+    const request: GetAccountAddressRelationshipRequest = {
+      chainId: hexToNumber(chainId),
+      to: to as string,
+      from,
+    };
+
+    validateParamTo(to);
+
+    const existingTransaction = this.state.transactions.find(
+      (tx) =>
+        tx.chainId === chainId &&
+        tx.txParams.from === from &&
+        tx.txParams.to === to &&
+        tx.id !== transactionId,
+    );
+
+    // Check if there is an existing transaction with the same from, to, and chainId
+    // else we continue to check the account address relationship from API
+    if (existingTransaction) {
+      return;
+    }
+
+    try {
+      const { count } = await this.#trace(
+        { name: 'Account Address Relationship', parentContext: traceContext },
+        () => getAccountAddressRelationship(request),
+      );
+
+      const isFirstTimeInteraction =
+        count === undefined ? undefined : count === 0;
+
+      const finalTransactionMeta = this.getTransaction(transactionId);
+
+      /* istanbul ignore if */
+      if (!finalTransactionMeta) {
+        log(
+          'Cannot update first time interaction as transaction not found',
+          transactionId,
+        );
+        return;
+      }
+
+      this.#updateTransactionInternal(
+        {
+          transactionId,
+          note: 'TransactionController#updateFirstInteraction - Update first time interaction',
+        },
+        (txMeta) => {
+          txMeta.isFirstTimeInteraction = isFirstTimeInteraction;
+        },
+      );
+
+      log('Updated first time interaction', transactionId, {
+        isFirstTimeInteraction,
+      });
+    } catch (error) {
+      log(
+        'Error fetching account address relationship, skipping first time interaction update',
+        error,
+      );
+    }
   }
 
   async #updateSimulationData(

@@ -12,6 +12,16 @@ export class SimulationError extends Error {
   }
 }
 
+export class FirstTimeInteractionError extends Error {
+  code?: string | number;
+
+  constructor(message?: string, code?: string | number) {
+    super(message ?? 'Error checking first time interaction');
+
+    this.code = code;
+  }
+}
+
 export class SimulationChainNotSupportedError extends SimulationError {
   constructor(chainId: Hex) {
     super(

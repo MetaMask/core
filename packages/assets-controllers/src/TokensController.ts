@@ -495,9 +495,20 @@ export class TokensController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, ignoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
+
+    let interactingChainId;
+    if (networkClientId) {
+      interactingChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      ).configuration.chainId;
+    }
+
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[this.#chainId]?.[this.#getSelectedAccount().address] || []),
+      ...(allTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAccount().address
+      ] || []),
       ...tokensToImport,
     ].reduce((output, token) => {
       output[token.address] = token;
@@ -525,14 +536,6 @@ export class TokensController extends BaseController<
       const newIgnoredTokens = ignoredTokens.filter(
         (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
-
-      let interactingChainId;
-      if (networkClientId) {
-        interactingChainId = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          networkClientId,
-        ).configuration.chainId;
-      }
 
       const detectedTokensForGivenChain = interactingChainId
         ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
@@ -567,11 +570,23 @@ export class TokensController extends BaseController<
    * Ignore a batch of tokens.
    *
    * @param tokenAddressesToIgnore - Array of token addresses to ignore.
+   * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
-  ignoreTokens(tokenAddressesToIgnore: string[]) {
+  ignoreTokens(
+    tokenAddressesToIgnore: string[],
+    networkClientId?: NetworkClientId,
+  ) {
     const { ignoredTokens, detectedTokens, tokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
     let newIgnoredTokens: string[] = [...ignoredTokens];
+
+    let interactingChainId;
+    if (networkClientId) {
+      interactingChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      ).configuration.chainId;
+    }
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -591,6 +606,7 @@ export class TokensController extends BaseController<
         newIgnoredTokens,
         newDetectedTokens,
         newTokens,
+        interactingChainId,
       });
 
     this.update((state) => {
