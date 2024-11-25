@@ -127,7 +127,7 @@ export type ComposableControllerMessenger<
  * Controller that composes multiple child controllers and maintains up-to-date composed state.
  *
  * @template ComposableControllerState - A type object containing the names and state types of the child controllers.
- * @template ChildControllers - A type object containing child controllers that are being used to instantiate the {@link ComposableController}.
+ * @template ChildControllers - A type object that specifies the child controllers which are used to instantiate the {@link ComposableController}.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
@@ -141,7 +141,7 @@ export class ComposableController<
    * Creates a ComposableController instance.
    *
    * @param options - Initial options used to configure this controller
-   * @param options.controllers - An object that maps child controller names to corresponding controller instances.
+   * @param options.controllers - An object that contains child controllers keyed by their names.
    * @param options.messenger - A restricted controller messenger.
    */
   constructor({
