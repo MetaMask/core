@@ -46,7 +46,7 @@ export class MultichainMiddlewareManager {
     });
   }
 
-  #removeMiddlewareEntry({ scope, origin, tabId }: MiddlewareKey) {
+  #removeMiddlewareEntry({ scope, origin, tabId }: MiddlewareEntry) {
     this.#middlewares = this.#middlewares.filter((middlewareEntry) => {
       return (
         middlewareEntry.scope !== scope ||
@@ -63,18 +63,13 @@ export class MultichainMiddlewareManager {
     }
   }
 
-  #removeMiddleware(middlewareKey: MiddlewareKey) {
-    const existingMiddlewareEntry = this.#getMiddlewareEntry(middlewareKey);
-    if (!existingMiddlewareEntry) {
-      return;
-    }
-
+  #removeMiddleware(middlewareEntry: MiddlewareEntry) {
     // When the destroy function on the middleware is async,
     // we don't need to wait for it complete
     // eslint-disable-next-line no-void
-    void existingMiddlewareEntry.middleware.destroy?.();
+    void middlewareEntry.middleware.destroy?.();
 
-    this.#removeMiddlewareEntry(middlewareKey);
+    this.#removeMiddlewareEntry(middlewareEntry);
   }
 
   removeMiddlewareByScope(scope: ExternalScopeString) {
