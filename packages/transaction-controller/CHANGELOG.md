@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: Add `firstTimeInteraction` to `transactionMeta` ([#4895](https://github.com/MetaMask/core/pull/4895))
+
 ## [40.0.0]
 
 ### Changed
