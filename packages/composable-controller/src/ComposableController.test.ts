@@ -587,11 +587,19 @@ describe('ComposableController', () => {
       expect(
         () =>
           new ComposableController<
-            ComposableControllerState,
-            Pick<ControllersMap, keyof ComposableControllerState>
-          >({
+            ComposableControllerState & {
+              JsonRpcEngine: Record<string, unknown>;
+            },
             // @ts-expect-error - Suppressing type error to test for runtime error handling
-            controllers: [notController, fooController],
+            {
+              JsonRpcEngine: typeof notController;
+              FooController: FooController;
+            }
+          >({
+            controllers: {
+              JsonRpcEngine: notController,
+              FooController: fooController,
+            },
             messenger: composableControllerMessenger,
           }),
       ).toThrow(INVALID_CONTROLLER_ERROR);
