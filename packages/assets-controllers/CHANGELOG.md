@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [45.1.0]
+
+### Added
+
+- `chainIdToNativeTokenAddress` to record chains with unique (non-zero) addresses ([#4952](https://github.com/MetaMask/core/pull/4952))
+- `getNativeTokenAddress()` exported function to return the correct native token address for native assets ([#4952](https://github.com/MetaMask/core/pull/4952))
+- add support for all added networks when switching account for Token Detection ([#4957](https://github.com/MetaMask/core/pull/4957))
+
+### Changed
+
+- Update price API calls to use the native token by chain instead of relying on the zero address. ([#4952](https://github.com/MetaMask/core/pull/4952))
+- Update `TokenRatesController` market data mapping to use `getNativeTokenAddress` instead of the zero address for native tokens. ([#4952](https://github.com/MetaMask/core/pull/4952))
+
+## [45.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^14.0.0` to `^15.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+
 ## [44.1.0]
 
 ### Changed
@@ -1244,7 +1265,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.0...HEAD
+[45.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.0.0...@metamask/assets-controllers@45.1.0
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.1.0...@metamask/assets-controllers@45.0.0
 [44.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.0.1...@metamask/assets-controllers@44.1.0
 [44.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.0.0...@metamask/assets-controllers@44.0.1
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.1...@metamask/assets-controllers@44.0.0
