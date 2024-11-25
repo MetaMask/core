@@ -203,7 +203,10 @@ describe('ComposableController', () => {
       >().getRestricted({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: ['BazController:stateChange'],
+        allowedEvents: [
+          'BarController:stateChange',
+          'BazController:stateChange',
+        ],
       });
       const controller = new ComposableController<
         ComposableControllerState,
@@ -236,12 +239,13 @@ describe('ComposableController', () => {
       };
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerEvents<ComposableControllerState>
+        | ComposableControllerEvents<ComposableControllerState>
+        | ChildControllerStateChangeEvents<ComposableControllerState>
       >();
       const composableMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: [],
+        allowedEvents: ['BarController:stateChange'],
       });
       const barController = new BarController();
       new ComposableController<
@@ -386,7 +390,7 @@ describe('ComposableController', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
         | ComposableControllerEvents<ComposableControllerState>
-        | FooControllerEvent
+        | ChildControllerStateChangeEvents<ComposableControllerState>
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -397,7 +401,10 @@ describe('ComposableController', () => {
       const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+        allowedEvents: [
+          'BarController:stateChange',
+          'FooController:stateChange',
+        ],
       });
       const composableController = new ComposableController<
         ComposableControllerState,
@@ -428,7 +435,7 @@ describe('ComposableController', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
         | ComposableControllerEvents<ComposableControllerState>
-        | FooControllerEvent
+        | ChildControllerStateChangeEvents<ComposableControllerState>
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -439,7 +446,10 @@ describe('ComposableController', () => {
       const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+        allowedEvents: [
+          'BarController:stateChange',
+          'FooController:stateChange',
+        ],
       });
       new ComposableController<
         ComposableControllerState,
@@ -482,7 +492,7 @@ describe('ComposableController', () => {
       const controllerMessenger = new ControllerMessenger<
         never,
         | ComposableControllerEvents<ComposableControllerState>
-        | FooControllerEvent
+        | ChildControllerStateChangeEvents<ComposableControllerState>
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -493,7 +503,10 @@ describe('ComposableController', () => {
       const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+        allowedEvents: [
+          'BarController:stateChange',
+          'FooController:stateChange',
+        ],
       });
       new ComposableController<
         ComposableControllerState,
