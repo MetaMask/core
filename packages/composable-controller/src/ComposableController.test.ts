@@ -1,3 +1,6 @@
+// `ComposableControllerState` type objects are keyed with controller names written in PascalCase.
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import type {
   BaseState,
   RestrictedControllerMessenger,
@@ -166,17 +169,9 @@ class BazController extends BaseControllerV1<never, BazControllerState> {
 }
 
 type ControllersMap = {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   FooController: FooController;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   QuzController: QuzController;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   BarController: BarController;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   BazController: BazController;
 };
 
@@ -188,11 +183,7 @@ describe('ComposableController', () => {
   describe('BaseControllerV1', () => {
     it('should compose controller state', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         BarController: BarControllerState;
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         BazController: BazControllerState;
       };
 
@@ -233,8 +224,6 @@ describe('ComposableController', () => {
 
     it('should notify listeners of nested state change', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         BarController: BarControllerState;
       };
       const controllerMessenger = new ControllerMessenger<
@@ -274,11 +263,7 @@ describe('ComposableController', () => {
   describe('BaseControllerV2', () => {
     it('should compose controller state', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         FooController: FooControllerState;
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         QuzController: QuzControllerState;
       };
       const controllerMessenger = new ControllerMessenger<
@@ -330,8 +315,6 @@ describe('ComposableController', () => {
 
     it('should notify listeners of nested state change', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         FooController: FooControllerState;
       };
       const controllerMessenger = new ControllerMessenger<
@@ -379,11 +362,7 @@ describe('ComposableController', () => {
   describe('Mixed BaseControllerV1 and BaseControllerV2', () => {
     it('should compose controller state', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         BarController: BarControllerState;
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         FooController: FooControllerState;
       };
       const barController = new BarController();
@@ -424,11 +403,7 @@ describe('ComposableController', () => {
 
     it('should notify listeners of BaseControllerV1 state change', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         BarController: BarControllerState;
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         FooController: FooControllerState;
       };
       const barController = new BarController();
@@ -481,11 +456,7 @@ describe('ComposableController', () => {
 
     it('should notify listeners of BaseControllerV2 state change', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         BarController: BarControllerState;
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         FooController: FooControllerState;
       };
       const barController = new BarController();
@@ -563,8 +534,6 @@ describe('ComposableController', () => {
 
     it('should throw if composing a controller that does not extend from BaseController', () => {
       type ComposableControllerState = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         FooController: FooControllerState;
       };
       const notController = new JsonRpcEngine();
