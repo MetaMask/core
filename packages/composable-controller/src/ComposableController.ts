@@ -167,14 +167,13 @@ export class ComposableController<
         };
         return metadata;
       }, {} as never),
-      state: Object.entries(controllers).reduce<ComposableControllerState>(
-        (state, [name, controller]) => {
-          if (isBaseController(controller) || isBaseControllerV1(controller)) {
-            // Type assertion is necessary to assign new properties to a generic type - ts(2862)
-            // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
-            (state as LegacyComposableControllerStateConstraint)[name] =
-              controller.state;
-          }
+      state: Object.values(controllers).reduce<ComposableControllerState>(
+        (state, controller) => {
+          // Type assertion is necessary to assign new properties to a generic type - ts(2862)
+          // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
+          (state as LegacyComposableControllerStateConstraint)[
+            controller.name
+          ] = controller.state;
           return state;
         },
         {} as never,
@@ -182,9 +181,9 @@ export class ComposableController<
       messenger,
     });
 
-    Object.keys(controllers).forEach((name) =>
-      this.#updateChildController(controllers[name]),
-    );
+    Object.values(controllers).forEach((controller) => {
+      this.#updateChildController(controller);
+    });
   }
 
   /**
@@ -195,6 +194,8 @@ export class ComposableController<
   #updateChildController(controller: ControllerInstance): void {
     const { name } = controller;
     if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
+      delete this.metadata[name];
+      delete this.state[name];
       // False negative. `name` is a string type.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
