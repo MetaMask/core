@@ -168,6 +168,11 @@ type TransactionMetaBase = {
    */
   firstRetryBlockNumber?: string;
 
+  /**
+   * Whether the transaction is the first time interaction.
+   */
+  isFirstTimeInteraction?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 

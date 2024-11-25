@@ -2348,6 +2348,55 @@ describe('TokenRatesController', () => {
         );
       });
 
+      it('correctly calls the Price API with unqiue native token addresses (e.g. MATIC)', async () => {
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchTokenPrices: jest.fn().mockResolvedValue({
+            '0x0000000000000000000000000000000000001010': {
+              currency: 'MATIC',
+              tokenAddress: '0x0000000000000000000000000000000000001010',
+              value: 0.001,
+            },
+          }),
+        });
+
+        await withController(
+          {
+            options: { tokenPricesService },
+            mockNetworkClientConfigurationsByNetworkClientId: {
+              'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
+                chainId: '0x89',
+              }),
+            },
+          },
+          async ({
+            controller,
+            triggerTokensStateChange,
+            triggerNetworkStateChange,
+          }) => {
+            await callUpdateExchangeRatesMethod({
+              allTokens: {
+                '0x89': {
+                  [defaultSelectedAddress]: [],
+                },
+              },
+              chainId: '0x89',
+              controller,
+              triggerTokensStateChange,
+              triggerNetworkStateChange,
+              method,
+              nativeCurrency: 'MATIC',
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
+            });
+
+            expect(
+              controller.state.marketData['0x89'][
+                '0x0000000000000000000000000000000000001010'
+              ],
+            ).toBeDefined();
+          },
+        );
+      });
+
       it('only updates rates once when called twice', async () => {
         const tokenAddresses = [
           '0x0000000000000000000000000000000000000001',
