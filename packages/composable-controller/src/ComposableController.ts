@@ -131,7 +131,7 @@ export type ComposableControllerMessenger<
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
-  ChildControllers extends ControllerInstance,
+  ChildControllers extends Record<string, ControllerInstance>,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
@@ -141,15 +141,14 @@ export class ComposableController<
    * Creates a ComposableController instance.
    *
    * @param options - Initial options used to configure this controller
-   * @param options.controllers - List of child controller instances to compose.
+   * @param options.controllers - An object of child controller instances to compose that is keyed with the names of the controllers.
    * @param options.messenger - A restricted controller messenger.
    */
-
   constructor({
     controllers,
     messenger,
   }: {
-    controllers: ChildControllers[];
+    controllers: ChildControllers;
     messenger: ComposableControllerMessenger<ComposableControllerState>;
   }) {
     if (messenger === undefined) {
@@ -158,12 +157,12 @@ export class ComposableController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
-        (metadata, controller) => {
-          // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
-          (metadata as unknown as Record<string, StateMetadataConstraint>)[
-            controller.name
-          ] = isBaseController(controller)
+      metadata: Object.entries(controllers).reduce<
+        StateMetadata<ComposableControllerState>
+      >((metadata, [name, controller]) => {
+        // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
+        (metadata as unknown as Record<string, StateMetadataConstraint>)[name] =
+          isBaseController(controller)
             ? controller.metadata
             : Object.keys(controller.state).reduce<StateMetadataConstraint>(
                 (acc, curr) => {
@@ -172,15 +171,13 @@ export class ComposableController<
                 },
                 {} as never,
               );
-          return metadata;
-        },
-        {} as never,
-      ),
-      state: controllers.reduce<ComposableControllerState>(
-        (state, controller) => {
+        return metadata;
+      }, {} as never),
+      state: Object.entries(controllers).reduce<ComposableControllerState>(
+        (state, [name, controller]) => {
           // Type assertion is necessary for to assign new properties to a generic type - ts(2862)
           // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
-          (state as Record<string, StateConstraint | object>)[controller.name] =
+          (state as Record<string, StateConstraint | object>)[name] =
             controller.state;
           return state;
         },
@@ -189,8 +186,8 @@ export class ComposableController<
       messenger,
     });
 
-    controllers.forEach((controller) =>
-      this.#updateChildController(controller),
+    Object.keys(controllers).forEach((name) =>
+      this.#updateChildController(controllers[name]),
     );
   }
 
