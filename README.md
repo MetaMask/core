@@ -51,7 +51,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
 - [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
-- [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)

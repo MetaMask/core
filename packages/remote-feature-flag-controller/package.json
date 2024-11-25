@@ -1,6 +1,6 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "private": true,
   "description": "Controller with caching, fallback, and privacy for managing feature flags via ClientConfigAPI",
   "keywords": [

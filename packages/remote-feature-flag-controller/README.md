@@ -1,6 +1,6 @@
-# `@metamask/example-controllers`
+# `@metamask/remote-feature-flag-controller`
 
-This package is designed to illustrate best practices for controller packages and controller files, including tests.
+Controller with caching, fallback, and privacy for managing feature flags via ClientConfigAPI.
 
 ## Installation
 
