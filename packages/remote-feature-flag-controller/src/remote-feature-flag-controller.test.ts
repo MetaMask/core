@@ -20,9 +20,6 @@ const mockFlagsTwo = [{ different: true }];
 
 /**
  * Creates a controller instance with default parameters for testing
- */
-/**
- * Creates a controller instance with default parameters for testing
  * @param options - The controller configuration options
  * @param options.messenger - The controller messenger instance
  * @param options.state - The initial controller state
@@ -243,7 +240,9 @@ describe('RemoteFeatureFlagController', () => {
       const result = await controller.getRemoteFeatureFlags();
 
       expect(result).toStrictEqual([]);
-      expect(clientConfigApiService.fetchRemoteFeatureFlags).toHaveBeenCalledTimes(1);
+      expect(
+        clientConfigApiService.fetchRemoteFeatureFlags,
+      ).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -279,14 +278,18 @@ function getControllerMessenger(
 
 /**
  * Builds a mock client config API service for testing
- * @param options0 - The options object
- * @param options0.cacheTimestamp - Optional timestamp to use for the cache
+ * @param options - The options object
+ * @param options.cachedData - Optional feature flags data to return
+ * @param options.cacheTimestamp - Optional timestamp to use for the cache
  * @returns A mock client config API service
  */
 function buildClientConfigApiService({
   cachedData,
   cacheTimestamp,
-}: { cachedData?: FeatureFlags; cacheTimestamp?: number } = {}): AbstractClientConfigApiService {
+}: {
+  cachedData?: FeatureFlags;
+  cacheTimestamp?: number;
+} = {}): AbstractClientConfigApiService {
   return {
     fetchRemoteFeatureFlags: jest.fn().mockResolvedValue({
       error: false,
