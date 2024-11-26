@@ -25,10 +25,6 @@ module.exports = {
 
     {
       files: ['*.test.ts', '*.test.js'],
-      parserOptions: {
-        project: ['./tsconfig.test.json'],
-        tsconfigRootDir: __dirname,
-      },
       extends: ['@metamask/eslint-config-jest'],
     },
   ],

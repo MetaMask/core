@@ -13,7 +13,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsc --project .",
+    "build": "tsc --project tsconfig.build.json",
     "build:clean": "rm -rf dist && yarn build",
     "build:link": "yarn build && cd dist && yarn link && rm -rf node_modules && cd ..",
     "lint": "yarn lint:eslint && yarn lint:misc --check",
