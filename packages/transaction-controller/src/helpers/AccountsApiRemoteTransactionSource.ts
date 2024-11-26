@@ -51,7 +51,11 @@ export class AccountsApiRemoteTransactionSource
 
     const responseTransactions = await this.#getTransactions(request);
 
-    log('Fetched transactions', responseTransactions);
+    log(
+      'Fetched transactions',
+      responseTransactions.length,
+      responseTransactions,
+    );
 
     const normalizedTransactions = responseTransactions.map((tx) =>
       this.#normalizeTransaction(address, tx),
@@ -64,7 +68,11 @@ export class AccountsApiRemoteTransactionSource
       normalizedTransactions,
     );
 
-    log('Filtered transactions', filteredTransactions);
+    log(
+      'Filtered transactions',
+      filteredTransactions.length,
+      filteredTransactions,
+    );
 
     return filteredTransactions;
   }

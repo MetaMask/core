@@ -38,23 +38,27 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
   },
   getCache: () => CACHE_MOCK,
   getChainIds: () => [CHAIN_ID_MOCK],
+  getLocalTransactions: () => [],
   remoteTransactionSource: {} as RemoteTransactionSource,
+  trimTransactions: (transactions) => transactions,
   updateCache: jest.fn(),
 };
 
 const TRANSACTION_MOCK: TransactionMeta = {
+  id: '1',
   chainId: '0x1',
   hash: '0x1',
   status: TransactionStatus.submitted,
   time: 0,
-  txParams: { to: '0x1', gasUsed: '0x1' },
+  txParams: { from: '0x2', to: '0x1', gasUsed: '0x1' },
 } as unknown as TransactionMeta;
 
 const TRANSACTION_MOCK_2: TransactionMeta = {
+  id: '2',
   hash: '0x2',
   chainId: '0x1',
   time: 1,
-  txParams: { to: '0x1' },
+  txParams: { from: '0x3', to: '0x1' },
 } as unknown as TransactionMeta;
 
 const createRemoteTransactionSourceMock = (
@@ -193,6 +197,45 @@ describe('IncomingTransactionHelper', () => {
         ]);
       });
 
+      it('excluding duplicates already in local transactions', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          getLocalTransactions: () => [TRANSACTION_MOCK],
+          remoteTransactionSource: createRemoteTransactionSourceMock([
+            TRANSACTION_MOCK,
+            TRANSACTION_MOCK_2,
+          ]),
+        });
+
+        const { transactions } = await runInterval(helper);
+
+        expect(transactions).toStrictEqual([TRANSACTION_MOCK_2]);
+      });
+
+      it('including transactions with existing hash but unique from', async () => {
+        const localTransaction = {
+          ...TRANSACTION_MOCK,
+          txParams: { from: '0x4' },
+        };
+
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          getLocalTransactions: () => [localTransaction],
+          remoteTransactionSource: createRemoteTransactionSourceMock([
+            TRANSACTION_MOCK,
+            TRANSACTION_MOCK_2,
+          ]),
+        });
+
+        const { transactions } = await runInterval(helper);
+
+        expect(transactions).toStrictEqual([
+          TRANSACTION_MOCK,
+          TRANSACTION_MOCK_2,
+          localTransaction,
+        ]);
+      });
+
       it('does not if disabled', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
@@ -252,6 +295,38 @@ describe('IncomingTransactionHelper', () => {
       it('does not if not started', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
+          remoteTransactionSource: createRemoteTransactionSourceMock([
+            TRANSACTION_MOCK,
+          ]),
+        });
+
+        const { incomingTransactionsListener } = await runInterval(helper, {
+          start: false,
+        });
+
+        expect(incomingTransactionsListener).not.toHaveBeenCalled();
+      });
+
+      it('does not if no unique transactions', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          getLocalTransactions: () => [TRANSACTION_MOCK],
+          remoteTransactionSource: createRemoteTransactionSourceMock([
+            TRANSACTION_MOCK,
+          ]),
+        });
+
+        const { incomingTransactionsListener } = await runInterval(helper, {
+          start: false,
+        });
+
+        expect(incomingTransactionsListener).not.toHaveBeenCalled();
+      });
+
+      it('does not if all unique transactions are truncated', async () => {
+        const helper = new IncomingTransactionHelper({
+          ...CONTROLLER_ARGS_MOCK,
+          trimTransactions: () => [],
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK,
           ]),

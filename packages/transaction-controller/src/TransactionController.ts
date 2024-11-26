@@ -2930,42 +2930,28 @@ export class TransactionController extends BaseController<
   }
 
   private onIncomingTransactions(transactions: TransactionMeta[]) {
-    let newTransactions: TransactionMeta[] = [];
+    if (!transactions.length) {
+      return;
+    }
 
     this.update((state) => {
       const { transactions: currentTransactions } = state;
 
-      newTransactions = transactions.filter(
-        (tx) =>
-          !currentTransactions.some(
-            (currentTx) =>
-              currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
-              currentTx.txParams.from?.toLowerCase() ===
-                tx.txParams.from?.toLowerCase(),
-          ),
-      );
-
-      if (!newTransactions.length) {
-        return;
-      }
-
-      log('Adding incoming transactions to state', newTransactions.length, {
-        newTransactions,
-      });
-
       state.transactions = this.trimTransactionsForState([
-        ...newTransactions,
+        ...transactions,
         ...currentTransactions,
       ]);
-    });
 
-    if (!newTransactions.length) {
-      return;
-    }
+      log(
+        'Added incoming transactions to state',
+        transactions.length,
+        transactions,
+      );
+    });
 
     this.messagingSystem.publish(
       `${controllerName}:incomingTransactionsReceived`,
-      newTransactions,
+      transactions,
     );
   }
 
@@ -3361,11 +3347,13 @@ export class TransactionController extends BaseController<
       getCurrentAccount: () => this.#getSelectedAccount(),
       getCache: () => this.state.lastFetchedBlockNumbers,
       getChainIds: chainId ? () => [chainId] : () => [this.getChainId()],
+      getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
         this.#incomingTransactionOptions.includeTokenTransfers,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
+      trimTransactions: this.trimTransactionsForState.bind(this),
       updateCache,
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });

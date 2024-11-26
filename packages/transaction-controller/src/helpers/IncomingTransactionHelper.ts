@@ -25,6 +25,8 @@ export class IncomingTransactionHelper {
 
   #getChainIds: () => Hex[];
 
+  #getLocalTransactions: () => TransactionMeta[];
+
   #includeTokenTransfers?: boolean;
 
   #isEnabled: () => boolean;
@@ -37,6 +39,8 @@ export class IncomingTransactionHelper {
 
   #timeoutId?: unknown;
 
+  #trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
+
   #updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
 
   #updateTransactions?: boolean;
@@ -45,10 +49,12 @@ export class IncomingTransactionHelper {
     getCache,
     getCurrentAccount,
     getChainIds,
+    getLocalTransactions,
     includeTokenTransfers,
     isEnabled,
     queryEntireHistory,
     remoteTransactionSource,
+    trimTransactions,
     updateCache,
     updateTransactions,
   }: {
@@ -57,11 +63,12 @@ export class IncomingTransactionHelper {
       AccountsController['getSelectedAccount']
     >;
     getChainIds: () => Hex[];
+    getLocalTransactions: () => TransactionMeta[];
     includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
     queryEntireHistory?: boolean;
     remoteTransactionSource: RemoteTransactionSource;
-    transactionLimit?: number;
+    trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
     updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
     updateTransactions?: boolean;
   }) {
@@ -70,11 +77,13 @@ export class IncomingTransactionHelper {
     this.#getCache = getCache;
     this.#getCurrentAccount = getCurrentAccount;
     this.#getChainIds = getChainIds;
+    this.#getLocalTransactions = getLocalTransactions;
     this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
     this.#queryEntireHistory = queryEntireHistory;
     this.#remoteTransactionSource = remoteTransactionSource;
+    this.#trimTransactions = trimTransactions;
     this.#updateCache = updateCache;
     this.#updateTransactions = updateTransactions;
   }
@@ -156,13 +165,60 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    if (remoteTransactions.length > 0) {
-      this.#sortTransactionsByTime(remoteTransactions);
-
-      log('Found transactions', remoteTransactions);
-
-      this.hub.emit('transactions', remoteTransactions);
+    if (!remoteTransactions.length) {
+      return;
     }
+
+    this.#sortTransactionsByTime(remoteTransactions);
+
+    log(
+      'Found potential transactions',
+      remoteTransactions.length,
+      remoteTransactions,
+    );
+
+    const localTransactions = this.#getLocalTransactions();
+
+    const uniqueTransactions = remoteTransactions.filter(
+      (tx) =>
+        !localTransactions.some(
+          (currentTx) =>
+            currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
+            currentTx.txParams.from?.toLowerCase() ===
+              tx.txParams.from?.toLowerCase(),
+        ),
+    );
+
+    if (!uniqueTransactions.length) {
+      log('All transactions are already known');
+      return;
+    }
+
+    log(
+      'Found unique transactions',
+      uniqueTransactions.length,
+      uniqueTransactions,
+    );
+
+    const trimmedTransactions = this.#trimTransactions([
+      ...uniqueTransactions,
+      ...localTransactions,
+    ]);
+
+    const uniqueTransactionIds = uniqueTransactions.map((tx) => tx.id);
+
+    const newTransactions = trimmedTransactions.filter((tx) =>
+      uniqueTransactionIds.includes(tx.id),
+    );
+
+    if (!newTransactions.length) {
+      log('All unique transactions truncated due to limit');
+      return;
+    }
+
+    log('Adding new transactions', newTransactions.length, newTransactions);
+
+    this.hub.emit('transactions', newTransactions);
   }
 
   #sortTransactionsByTime(transactions: TransactionMeta[]) {
