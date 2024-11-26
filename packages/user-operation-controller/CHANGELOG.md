@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
   - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
     - `@metamask/eth-block-tracker` `>=9` (required by `@metamask/transaction-controller`)
