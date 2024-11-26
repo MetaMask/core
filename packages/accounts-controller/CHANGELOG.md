@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add peer dependency `@metamask/providers@^18.1.1` ([#4974](https://github.com/MetaMask/core/pull/4974))
-  - This is a peer dependency of `@metamask/keyring-api`. Consumers may already need to add it as a dependency to create a working build; this change is therefore more of a formality.
-- Add peer dependency `webextension-polyfill@^0.12.0` ([#4974](https://github.com/MetaMask/core/pull/4974))
-  - This is a peer dependency of `@metamask/providers`. Consumers may already need to add it as a dependency to create a working build; this change is therefore more of a formality.
+- Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
+    - `@metamask/providers` `^18.1.0` (required by `@metamask/keyring-api`)
+    - `webextension-polyfill` `^0.10.0 || ^0.11.0 || ^0.12.0` (required by `@metamask/providers`)
+  - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
+  - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
 
 ## [20.0.0]
 

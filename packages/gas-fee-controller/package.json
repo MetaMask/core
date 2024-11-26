@@ -75,6 +75,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
+    "@babel/runtime": "^7.0.0",
     "@metamask/network-controller": "^22.0.0"
   },
   "engines": {

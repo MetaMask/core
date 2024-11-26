@@ -2199,6 +2199,8 @@ __metadata:
     "@metamask/keyring-controller": ^19.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/preferences-controller": ^15.0.0
+    "@metamask/providers": ^18.1.1
+    webextension-polyfill: ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2312,6 +2314,9 @@ __metadata:
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
+  peerDependencies:
+    "@metamask/providers": ^18.1.1
+    webextension-polyfill: ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2365,6 +2370,8 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@babel/runtime": ^7.23.9
   languageName: unknown
   linkType: soft
 
@@ -2875,6 +2882,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
   peerDependencies:
+    "@babel/runtime": ^7.23.9
     "@metamask/network-controller": ^22.0.0
   languageName: unknown
   linkType: soft
@@ -2999,6 +3007,9 @@ __metadata:
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
+  peerDependencies:
+    "@metamask/providers": ^18.1.1
+    webextension-polyfill: ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -3391,7 +3402,9 @@ __metadata:
     "@metamask/accounts-controller": ^20.0.0
     "@metamask/keyring-controller": ^19.0.0
     "@metamask/network-controller": ^22.0.0
+    "@metamask/providers": ^18.1.1
     "@metamask/snaps-controllers": ^9.10.0
+    webextension-polyfill: ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -3706,7 +3719,6 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.2"
     "@metamask/controller-utils": "npm:^11.4.3"
-    "@metamask/eth-block-tracker": "npm:^11.0.2"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.6"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"

@@ -70,6 +70,9 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
   },
+  "peerDependencies": {
+    "@babel/runtime": "^7.0.0"
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },

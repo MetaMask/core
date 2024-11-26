@@ -135,7 +135,9 @@
     "@metamask/accounts-controller": "^20.0.0",
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/network-controller": "^22.0.0",
-    "@metamask/snaps-controllers": "^9.10.0"
+    "@metamask/providers": "^18.1.0",
+    "@metamask/snaps-controllers": "^9.10.0",
+    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
