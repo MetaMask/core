@@ -65,8 +65,9 @@ export type RemoteFeatureFlagControllerMessenger =
   >;
 
 /**
- * Returns the default state for the RemoteFeatureFlagController
- * @returns The default controller state
+ * Returns the default state for the RemoteFeatureFlagController.
+ *
+ * @returns The default controller state.
  */
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
@@ -75,8 +76,12 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
   };
 }
 
-// === CONTROLLER DEFINITION ===
-
+/**
+ * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
+ * It fetches feature flags from a remote API, caches them, and provides methods to access
+ * and manage these flags. The controller ensures that feature flags are refreshed based on
+ * a specified interval and handles cases where the controller is disabled or the network is unavailable.
+ */
 export class RemoteFeatureFlagController extends BaseController<
   typeof controllerName,
   RemoteFeatureFlagControllerState,
@@ -90,6 +95,16 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #inProgressFlagUpdate?: Promise<FeatureFlags>;
 
+  /**
+   * Constructs a new RemoteFeatureFlagController instance.
+   *
+   * @param options - The controller options.
+   * @param options.messenger - The controller messenger used for communication.
+   * @param options.state - The initial state of the controller.
+   * @param options.clientConfigApiService - The service instance to fetch remote feature flags.
+   * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
+   * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
+   */
   constructor({
     messenger,
     state,
@@ -118,10 +133,22 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#clientConfigApiService = clientConfigApiService;
   }
 
+  /**
+   * Checks if the cached feature flags are expired based on the fetch interval.
+   *
+   * @returns Whether the cache is expired (`true`) or still valid (`false`).
+   * @private
+   */
   #isCacheExpired(): boolean {
     return Date.now() - this.state.cacheTimestamp > this.#fetchInterval;
   }
 
+  /**
+   * Retrieves the remote feature flags, fetching from the API if necessary.
+   * Uses caching to prevent redundant API calls and handles concurrent fetches.
+   *
+   * @returns A promise that resolves to the current set of feature flags.
+   */
   async getRemoteFeatureFlags(): Promise<FeatureFlags> {
     if (this.#disabled) {
       return [];
@@ -155,6 +182,12 @@ export class RemoteFeatureFlagController extends BaseController<
     }
   }
 
+  /**
+   * Updates the controller's state with new feature flags and resets the cache timestamp.
+   *
+   * @param remoteFeatureFlags - The new feature flags to cache.
+   * @private
+   */
   private updateCache(remoteFeatureFlags: FeatureFlags) {
     this.update(() => {
       return {
@@ -165,14 +198,14 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   /**
-   * Allows controller to make network request
+   * Enables the controller, allowing it to make network requests.
    */
   enable(): void {
     this.#disabled = false;
   }
 
   /**
-   * Blocks controller from making network request
+   * Disables the controller, preventing it from making network requests.
    */
   disable(): void {
     this.#disabled = true;
