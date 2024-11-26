@@ -42,8 +42,6 @@ export type {
   InferTransactionTypeResult,
   LegacyGasFeeEstimates,
   Log,
-  RemoteTransactionSource,
-  RemoteTransactionSourceRequest,
   SavedGasFees,
   SecurityAlertResponse,
   SecurityProviderRequest,
