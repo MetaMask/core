@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [7.1.0]
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/selected-network-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4979](https://github.com/MetaMask/core/pull/4979))
 
 ### Removed
 
-- `createQueuedRequestMiddleware` no longer takes a `useRequestQueue` parameter. All requests are now queued if `shouldEnqueueRequest(req)` returns true. ([#4941](https://github.com/MetaMask/core/pull/4941))
+- **BREAKING:** `createQueuedRequestMiddleware` no longer takes a `useRequestQueue` parameter. All requests are now queued if `shouldEnqueueRequest(req)` returns true. ([#4941](https://github.com/MetaMask/core/pull/4941))
 
 ## [7.0.1]
 
@@ -303,8 +307,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.1.0...HEAD
-[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.1...@metamask/queued-request-controller@7.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.1...@metamask/queued-request-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.0...@metamask/queued-request-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@6.0.0...@metamask/queued-request-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.1.0...@metamask/queued-request-controller@6.0.0
