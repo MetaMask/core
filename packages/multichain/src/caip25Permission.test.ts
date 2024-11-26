@@ -324,6 +324,25 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
+      it('does not revoke the permission if the target account does exist and `wallet:eip155` is the only scope with remaining accounts', () => {
+        const caveatValue: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0x1'],
+            },
+            'wallet:eip155': {
+              accounts: ['wallet:eip155:0x1', 'wallet:eip155:0x2'],
+            },
+          },
+          isMultichainOrigin: true,
+        };
+        const result = removeAccount(caveatValue, '0x1');
+        expect(result.operation).not.toStrictEqual(
+          CaveatMutatorOperation.RevokePermission,
+        );
+      });
+
       it('does not revoke the permission if the target account does not exist but the permission already has no accounts', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {},
