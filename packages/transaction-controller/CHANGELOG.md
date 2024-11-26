@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920)) 
   - Remove the `blockTracker`, `isMultichainEnabled`, `onNetworkStateChange` and `provider` constructor options.
   - Remove `filterToCurrentNetwork` option from `getTransactions` method.
 
