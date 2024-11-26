@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.0.0]
+
+### Added
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Add required `networkClientId` argument to `handleMethodData` method.
+
+### Changed
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Require `networkClientId` option in `addTransaction` method.
+  - Require `networkClientId` property in `TransactionMeta` type.
+  - Change `wipeTransactions` method arguments to optional object containing `address` and `chainId` properties.
+  - Require `networkClientId` argument in `estimateGas`, `estimateGasBuffered` and `getNonceLock` methods.
+
+### Removed
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Remove the `blockTracker`, `isMultichainEnabled`, `onNetworkStateChange` and `provider` constructor options.
+  - Remove `filterToCurrentNetwork` option from `getTransactions` method.
+
 ## [40.1.0]
 
 ### Added
@@ -1142,7 +1163,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.0.0...HEAD
+[41.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.1.0...@metamask/transaction-controller@41.0.0
 [40.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.0.0...@metamask/transaction-controller@40.1.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@39.1.0...@metamask/transaction-controller@40.0.0
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@39.0.0...@metamask/transaction-controller@39.1.0

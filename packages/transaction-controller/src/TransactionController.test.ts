@@ -10,7 +10,6 @@ import {
   ChainId,
   NetworkType,
   toHex,
-  BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
@@ -25,11 +24,9 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import {
-  NetworkClientType,
   NetworkStatus,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
-import * as NonceTrackerPackage from '@metamask/nonce-tracker';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
@@ -39,7 +36,6 @@ import * as uuidModule from 'uuid';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { flushPromises } from '../../../tests/helpers';
-import { mockNetwork } from '../../../tests/mock-network';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
@@ -51,13 +47,16 @@ import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type {
   AllowedActions,
   AllowedEvents,
+  MethodData,
   TransactionControllerActions,
   TransactionControllerEvents,
+  TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type {
@@ -109,6 +108,7 @@ jest.mock('./gas-flows/LineaGasFeeFlow');
 jest.mock('./gas-flows/TestGasFeeFlow');
 jest.mock('./helpers/GasFeePoller');
 jest.mock('./helpers/IncomingTransactionHelper');
+jest.mock('./helpers/MethodDataHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
@@ -348,23 +348,6 @@ const MOCK_NETWORK: MockNetwork = {
   subscribe: () => undefined,
 };
 
-const MOCK_MAINNET_NETWORK: MockNetwork = {
-  chainId: ChainId.mainnet,
-  provider: HTTP_PROVIDERS.mainnet,
-  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.mainnet),
-  state: {
-    selectedNetworkClientId: NetworkType.mainnet,
-    networksMetadata: {
-      [NetworkType.mainnet]: {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    networkConfigurationsByChainId: {},
-  },
-  subscribe: () => undefined,
-};
-
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   chainId: ChainId['linea-mainnet'],
   provider: HTTP_PROVIDERS.linea,
@@ -469,6 +452,14 @@ const GAS_FEE_ESTIMATES_MOCK: GasFeeFlowResponse = {
   },
 };
 
+const METHOD_DATA_MOCK: MethodData = {
+  registryMethod: 'testMethod(uint256,uint256)',
+  parsedRegistryMethod: {
+    name: 'testMethod',
+    args: [{ type: 'uint256' }, { type: 'uint256' }],
+  },
+};
+
 describe('TransactionController', () => {
   const uuidModuleMock = jest.mocked(uuidModule);
   const EthQueryMock = jest.mocked(EthQuery);
@@ -493,6 +484,7 @@ describe('TransactionController', () => {
   const getAccountAddressRelationshipMock = jest.mocked(
     getAccountAddressRelationship,
   );
+  const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -503,6 +495,7 @@ describe('TransactionController', () => {
   let lineaGasFeeFlowMock: jest.Mocked<LineaGasFeeFlow>;
   let testGasFeeFlowMock: jest.Mocked<TestGasFeeFlow>;
   let gasFeePollerMock: jest.Mocked<GasFeePoller>;
+  let methodDataHelperMock: jest.Mocked<MethodDataHelper>;
   let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
@@ -550,7 +543,11 @@ describe('TransactionController', () => {
     network = {},
     messengerOptions = {},
     selectedAccount = INTERNAL_ACCOUNT_MOCK,
-    mockNetworkClientConfigurationsByNetworkClientId = {},
+    mockNetworkClientConfigurationsByNetworkClientId = {
+      [NETWORK_CLIENT_ID_MOCK]: buildCustomNetworkClientConfiguration({
+        chainId: CHAIN_ID_MOCK,
+      }),
+    },
     updateToInitialState = false,
   }: {
     options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
@@ -579,9 +576,6 @@ describe('TransactionController', () => {
       selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
       ...network.state,
     };
-    const provider = network.provider ?? new FakeProvider();
-    const blockTracker =
-      network.blockTracker ?? new FakeBlockTracker({ provider });
     const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
     const changeNetwork = ({
       selectedNetworkClientId,
@@ -596,10 +590,6 @@ describe('TransactionController', () => {
         listener(networkState);
       });
     };
-    const onNetworkStateChange = (
-      listener: (networkState: NetworkState) => void,
-    ) => onNetworkDidChangeListeners.push(listener);
-
     const unrestrictedMessenger: UnrestrictedControllerMessenger =
       new ControllerMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById(
@@ -617,21 +607,20 @@ describe('TransactionController', () => {
       addTransactionApprovalRequest,
     );
 
-    const { messenger: givenRestrictedMessenger, ...otherOptions } = {
-      blockTracker,
+    const {
+      messenger: givenRestrictedMessenger,
+      ...otherOptions
+    }: Partial<TransactionControllerOptions> = {
       disableHistory: false,
       disableSendFlowHistory: false,
       disableSwaps: false,
       getCurrentNetworkEIP1559Compatibility: async () => false,
       getNetworkState: () => networkState,
-      // TODO: Replace with a real type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getNetworkClientRegistry: () => ({} as any),
+      getNetworkClientRegistry: () =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        mockNetworkClientConfigurationsByNetworkClientId as any,
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
-      isMultichainEnabled: false,
       hooks: {},
-      onNetworkStateChange,
-      provider,
       sign: async (transaction: TypedTransaction) => transaction,
       transactionHistoryLimit: 40,
       ...givenOptions,
@@ -659,7 +648,7 @@ describe('TransactionController', () => {
     const controller = new TransactionController({
       ...otherOptions,
       messenger: restrictedMessenger,
-    });
+    } as TransactionControllerOptions);
 
     const state = givenOptions?.state;
 
@@ -667,6 +656,16 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (controller as any).update(() => state);
     }
+
+    multichainTrackingHelperClassMock.mock.calls[0][0].createIncomingTransactionHelper(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {} as any,
+    );
+
+    multichainTrackingHelperClassMock.mock.calls[0][0].createPendingTransactionTracker(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {} as any,
+    );
 
     return {
       controller,
@@ -826,18 +825,21 @@ describe('TransactionController', () => {
       return pendingTransactionTrackerMock;
     });
 
-    multichainTrackingHelperClassMock.mockImplementation(({ provider }) => {
+    multichainTrackingHelperClassMock.mockImplementation(() => {
       multichainTrackingHelperMock = {
-        getEthQuery: jest.fn().mockImplementation(() => {
-          return new EthQuery(provider);
-        }),
-        getProvider: jest.fn().mockImplementation(() => {
-          return provider;
+        getNetworkClient: jest.fn().mockImplementation(() => {
+          return {
+            configuration: {
+              chainId: CHAIN_ID_MOCK,
+            },
+            id: NETWORK_CLIENT_ID_MOCK,
+            provider: new FakeProvider(),
+          } as unknown as NetworkClientConfiguration;
         }),
         checkForPendingTransactionAndStartPolling: jest.fn(),
         getNonceLock: getNonceLockSpy,
         initialize: jest.fn(),
-        has: jest.fn().mockReturnValue(false),
+        has: jest.fn().mockReturnValue(true),
       } as unknown as jest.Mocked<MultichainTrackingHelper>;
       return multichainTrackingHelperMock;
     });
@@ -870,6 +872,16 @@ describe('TransactionController', () => {
         },
       } as unknown as jest.Mocked<GasFeePoller>;
       return gasFeePollerMock;
+    });
+
+    methodDataHelperClassMock.mockImplementation(() => {
+      methodDataHelperMock = {
+        lookup: jest.fn(),
+        hub: {
+          on: jest.fn(),
+        },
+      } as unknown as jest.Mocked<MethodDataHelper>;
+      return methodDataHelperMock;
     });
 
     updateSwapsTransactionMock.mockImplementation(
@@ -916,57 +928,6 @@ describe('TransactionController', () => {
           gasFeeFlows: [testGasFeeFlowMock],
         }),
       );
-    });
-
-    describe('nonce tracker', () => {
-      it('uses external pending transactions', async () => {
-        const nonceTrackerMock = jest
-          .spyOn(NonceTrackerPackage, 'NonceTracker')
-          .mockImplementation();
-
-        const externalPendingTransactions = [
-          {
-            from: '0x1',
-          },
-          { from: '0x2' },
-        ];
-
-        const getExternalPendingTransactions = jest
-          .fn()
-          .mockReturnValueOnce(externalPendingTransactions);
-
-        setupController({
-          options: {
-            getExternalPendingTransactions,
-            state: {
-              transactions: [
-                {
-                  ...TRANSACTION_META_MOCK,
-                  chainId: MOCK_NETWORK.chainId,
-                  status: TransactionStatus.submitted,
-                },
-              ],
-            },
-          },
-        });
-
-        const pendingTransactions =
-          nonceTrackerMock.mock.calls[0][0].getPendingTransactions(
-            ACCOUNT_MOCK,
-          );
-
-        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
-        expect(pendingTransactions).toStrictEqual([
-          expect.any(Object),
-          ...externalPendingTransactions,
-        ]);
-        expect(getExternalPendingTransactions).toHaveBeenCalledTimes(1);
-        expect(getExternalPendingTransactions).toHaveBeenCalledWith(
-          ACCOUNT_MOCK,
-          // This is undefined for the base nonceTracker
-          undefined,
-        );
-      });
     });
 
     it('fails approved and signed transactions for all chains', async () => {
@@ -1120,10 +1081,13 @@ describe('TransactionController', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
-      const { gas, simulationFails } = await controller.estimateGas({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      const { gas, simulationFails } = await controller.estimateGas(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        NETWORK_CLIENT_ID_MOCK,
+      );
 
       expect(gas).toBe(gasMock);
       expect(simulationFails).toBe(simulationFailsMock);
@@ -1163,6 +1127,7 @@ describe('TransactionController', () => {
       const { gas, simulationFails } = await controller.estimateGasBuffered(
         transactionParamsMock,
         multiplierMock,
+        NETWORK_CLIENT_ID_MOCK,
       );
 
       expect(estimateGasMock).toHaveBeenCalledTimes(1);
@@ -1197,6 +1162,7 @@ describe('TransactionController', () => {
         {
           origin: mockOrigin,
           actionId: ACTION_ID_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
@@ -1210,6 +1176,7 @@ describe('TransactionController', () => {
         {
           origin: mockOrigin,
           actionId: ACTION_ID_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
       const secondTransactionCount = controller.state.transactions.length;
@@ -1247,6 +1214,7 @@ describe('TransactionController', () => {
         {
           origin: mockOrigin,
           actionId: ACTION_ID_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
@@ -1264,6 +1232,7 @@ describe('TransactionController', () => {
         {
           origin: mockOrigin,
           actionId: ACTION_ID_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
       secondResult
@@ -1315,6 +1284,7 @@ describe('TransactionController', () => {
           {
             origin: mockOrigin,
             actionId: firstActionId,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         );
 
@@ -1326,6 +1296,7 @@ describe('TransactionController', () => {
           {
             origin: mockOrigin,
             actionId: secondActionId,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         );
         const { transactions } = controller.state;
@@ -1361,13 +1332,19 @@ describe('TransactionController', () => {
         const { controller } = setupController();
         const signSpy = jest.spyOn(controller, 'sign');
 
-        const { transactionMeta } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          gas: '0x0',
-          gasPrice: '0x50fd51da',
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        });
+        const { transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x50fd51da',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
         await controller.speedUpTransaction(transactionMeta.id, undefined, {
           actionId: ACTION_ID_MOCK,
         });
@@ -1422,6 +1399,7 @@ describe('TransactionController', () => {
           origin: mockOrigin,
           securityAlertResponse: mockSecurityAlertResponse,
           sendFlowHistory: mockSendFlowHistory,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
@@ -1454,6 +1432,7 @@ describe('TransactionController', () => {
               {
                 id: '1',
                 chainId: MOCK_NETWORK.chainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.confirmed as const,
                 time: 123456789,
                 txParams: {
@@ -1468,10 +1447,15 @@ describe('TransactionController', () => {
       });
 
       // Add second transaction with the same from, to, and chainId
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await flushPromises();
 
@@ -1485,10 +1469,15 @@ describe('TransactionController', () => {
         options: { isFirstTimeInteractionEnabled: () => false },
       });
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await flushPromises();
 
@@ -1497,9 +1486,7 @@ describe('TransactionController', () => {
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
-        const { controller } = setupController({
-          options: { isMultichainEnabled: true },
-        });
+        const { controller } = setupController();
         const sepoliaTxParams: TransactionParams = {
           chainId: ChainId.sepolia,
           from: ACCOUNT_MOCK,
@@ -1519,14 +1506,13 @@ describe('TransactionController', () => {
         expect(transactionMeta.txParams.from).toStrictEqual(
           sepoliaTxParams.from,
         );
-        expect(transactionMeta.chainId).toStrictEqual(sepoliaTxParams.chainId);
+        expect(transactionMeta.chainId).toStrictEqual(CHAIN_ID_MOCK);
         expect(transactionMeta.networkClientId).toBe('sepolia');
         expect(transactionMeta.origin).toBe('metamask');
       });
 
       it('adds unapproved transaction with networkClientId and can be updated to submitted', async () => {
         const { controller, messenger } = setupController({
-          options: { isMultichainEnabled: true },
           messengerOptions: {
             addTransactionApprovalRequest: {
               state: 'approved',
@@ -1560,7 +1546,7 @@ describe('TransactionController', () => {
         expect(submittedEventListener).toHaveBeenCalledTimes(1);
         expect(txParams.from).toBe(ACCOUNT_MOCK);
         expect(networkClientId).toBe('sepolia');
-        expect(chainId).toBe(ChainId.sepolia);
+        expect(chainId).toBe(CHAIN_ID_MOCK);
         expect(status).toBe(TransactionStatus.submitted);
       });
     });
@@ -1568,10 +1554,15 @@ describe('TransactionController', () => {
     it('generates initial history', async () => {
       const { controller } = setupController();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       const expectedInitialSnapshot = {
         actionId: undefined,
@@ -1580,7 +1571,7 @@ describe('TransactionController', () => {
         deviceConfirmedOn: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
-        networkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: undefined,
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
@@ -1612,6 +1603,7 @@ describe('TransactionController', () => {
           },
           {
             origin,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         );
         expect(
@@ -1638,6 +1630,7 @@ describe('TransactionController', () => {
             },
             {
               origin: mockDappOrigin,
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
             },
           );
           expect(
@@ -1659,13 +1652,18 @@ describe('TransactionController', () => {
       });
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.mainnet });
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       expect(controller.state.transactions[0].txParams.from).toBe(ACCOUNT_MOCK);
-      expect(controller.state.transactions[0].chainId).toBe(ChainId.mainnet);
+      expect(controller.state.transactions[0].chainId).toBe(CHAIN_ID_MOCK);
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
       );
@@ -1686,13 +1684,18 @@ describe('TransactionController', () => {
       });
       changeNetwork({ selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD' });
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+        },
+      );
 
       expect(controller.state.transactions[0].txParams.from).toBe(ACCOUNT_MOCK);
-      expect(controller.state.transactions[0].chainId).toBe('0x1337');
+      expect(controller.state.transactions[0].chainId).toBe(CHAIN_ID_MOCK);
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.unapproved,
       );
@@ -1700,9 +1703,12 @@ describe('TransactionController', () => {
 
     it('throws if address invalid', async () => {
       const { controller } = setupController();
-      await expect(controller.addTransaction({ from: 'foo' })).rejects.toThrow(
-        'Invalid "from" address',
-      );
+      await expect(
+        controller.addTransaction(
+          { from: 'foo' },
+          { networkClientId: NETWORK_CLIENT_ID_MOCK },
+        ),
+      ).rejects.toThrow('Invalid "from" address');
     });
 
     it('increments nonce when adding a new non-cancel non-speedup transaction', async () => {
@@ -1718,13 +1724,18 @@ describe('TransactionController', () => {
         },
       });
 
-      const { result: firstResult } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { result: firstResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await firstResult.catch(() => undefined);
 
@@ -1736,13 +1747,18 @@ describe('TransactionController', () => {
         releaseLock: () => Promise.resolve(),
       });
 
-      const { result: secondResult } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x2',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x1290',
-      });
+      const { result: secondResult } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x2',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x1290',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await secondResult.catch(() => undefined);
 
@@ -1762,10 +1778,15 @@ describe('TransactionController', () => {
       const { controller, messenger } = setupController();
       const messengerCallSpy = jest.spyOn(messenger, 'call');
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       expect(
         messengerCallSpy.mock.calls.filter(
@@ -1796,6 +1817,7 @@ describe('TransactionController', () => {
         },
         {
           requireApproval: false,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
@@ -1827,6 +1849,7 @@ describe('TransactionController', () => {
         },
         {
           method: mockRPCMethodName,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
@@ -1847,16 +1870,20 @@ describe('TransactionController', () => {
     it('updates gas properties', async () => {
       const { controller } = setupController();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
         ethQuery: expect.any(Object),
-        chainId: MOCK_NETWORK.chainId,
-        // XXX: Is this right?
+        chainId: CHAIN_ID_MOCK,
         isCustomNetwork: false,
         txMeta: expect.any(Object),
       });
@@ -1870,10 +1897,15 @@ describe('TransactionController', () => {
         },
       });
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       expect(updateGasFeesMock).toHaveBeenCalledTimes(1);
       expect(updateGasFeesMock).toHaveBeenCalledWith({
@@ -1892,10 +1924,15 @@ describe('TransactionController', () => {
 
         const { controller } = setupController();
 
-        await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         await flushPromises();
 
@@ -1925,10 +1962,15 @@ describe('TransactionController', () => {
           options: { isSimulationEnabled: () => false },
         });
 
-        await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].simulationData).toStrictEqual({
@@ -1950,7 +1992,7 @@ describe('TransactionController', () => {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_MOCK,
           },
-          { requireApproval: false },
+          { requireApproval: false, networkClientId: NETWORK_CLIENT_ID_MOCK },
         );
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
@@ -1973,13 +2015,18 @@ describe('TransactionController', () => {
           submittedEventListener,
         );
 
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          gas: '0x0',
-          gasPrice: '0x0',
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        });
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x0',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         await result;
 
@@ -2025,10 +2072,15 @@ describe('TransactionController', () => {
           },
         });
 
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         await result;
 
@@ -2054,10 +2106,15 @@ describe('TransactionController', () => {
           },
         });
 
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         try {
           await result;
@@ -2072,10 +2129,15 @@ describe('TransactionController', () => {
         const { controller, mockTransactionApprovalRequest } =
           setupController();
 
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         const transaction = controller.state.transactions[0];
 
@@ -2105,10 +2167,15 @@ describe('TransactionController', () => {
           controller: TransactionController,
           expectedError: string,
         ) {
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_MOCK,
-          });
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
           await expect(result).rejects.toThrow(expectedError);
 
@@ -2150,30 +2217,6 @@ describe('TransactionController', () => {
           await expectTransactionToFail(controller, 'No sign method defined');
         });
 
-        it('if no chainId defined', async () => {
-          const { controller } = setupController({
-            mockNetworkClientConfigurationsByNetworkClientId: {
-              'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
-                rpcUrl: 'https://test.network',
-                ticker: 'TEST',
-                chainId: undefined,
-              }),
-            },
-            network: {
-              state: {
-                selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
-              },
-            },
-            messengerOptions: {
-              addTransactionApprovalRequest: {
-                state: 'approved',
-              },
-            },
-          });
-
-          await expectTransactionToFail(controller, 'No chainId defined');
-        });
-
         it('if unexpected status', async () => {
           const { controller } = setupController({
             messengerOptions: {
@@ -2184,13 +2227,18 @@ describe('TransactionController', () => {
             },
           });
 
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            gas: '0x0',
-            gasPrice: '0x0',
-            to: ACCOUNT_MOCK,
-            value: '0x0',
-          });
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
           await expect(result).rejects.toThrow('Unknown problem');
         });
@@ -2205,13 +2253,18 @@ describe('TransactionController', () => {
             },
           });
 
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            gas: '0x0',
-            gasPrice: '0x0',
-            to: ACCOUNT_MOCK,
-            value: '0x0',
-          });
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
           await expect(result).rejects.toThrow('TestError');
         });
@@ -2220,13 +2273,18 @@ describe('TransactionController', () => {
           const { controller, mockTransactionApprovalRequest } =
             setupController();
 
-          const { result } = await controller.addTransaction({
-            from: ACCOUNT_MOCK,
-            gas: '0x0',
-            gasPrice: '0x0',
-            to: ACCOUNT_MOCK,
-            value: '0x0',
-          });
+          const { result } = await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              gas: '0x0',
+              gasPrice: '0x0',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
 
           controller.clearUnapprovedTransactions();
           mockTransactionApprovalRequest.reject(new Error('Unknown problem'));
@@ -2246,10 +2304,15 @@ describe('TransactionController', () => {
           },
         });
 
-        const { result } = await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
         const finishedPromise = waitForTransactionFinished(messenger);
 
@@ -2286,6 +2349,7 @@ describe('TransactionController', () => {
           },
           {
             actionId: mockActionId,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         );
 
@@ -2321,7 +2385,10 @@ describe('TransactionController', () => {
               from: notSelectedFromAddress,
               to: ACCOUNT_MOCK,
             },
-            { origin: ORIGIN_METAMASK },
+            {
+              origin: ORIGIN_METAMASK,
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
           ),
         ).rejects.toThrow(
           rpcErrors.internal({
@@ -2341,7 +2408,7 @@ describe('TransactionController', () => {
         await expect(
           controller.addTransaction(
             { from: ACCOUNT_2_MOCK, to: ACCOUNT_MOCK },
-            { origin: expectedOrigin },
+            { origin: expectedOrigin, networkClientId: NETWORK_CLIENT_ID_MOCK },
           ),
         ).rejects.toThrow(
           providerErrors.unauthorized({ data: { origin: expectedOrigin } }),
@@ -2373,7 +2440,7 @@ describe('TransactionController', () => {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_MOCK,
           },
-          { origin: ORIGIN_METAMASK },
+          { origin: ORIGIN_METAMASK, networkClientId: NETWORK_CLIENT_ID_MOCK },
         );
 
         await result;
@@ -2382,8 +2449,8 @@ describe('TransactionController', () => {
           {
             chainId: MOCK_NETWORK.chainId,
             hash: TRANSACTION_HASH_MOCK,
-            networkType: NetworkType.goerli,
-            networkUrl: expect.stringContaining('goerli.infura.io'),
+            networkType: NETWORK_CLIENT_ID_MOCK,
+            networkUrl: undefined,
             origin: ORIGIN_METAMASK,
             rawTransaction: expect.stringContaining('0x'),
             time: expect.any(Number),
@@ -2427,6 +2494,7 @@ describe('TransactionController', () => {
           },
           {
             origin: ORIGIN_METAMASK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         );
 
@@ -2450,10 +2518,15 @@ describe('TransactionController', () => {
 
       controller.wipeTransactions();
 
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       controller.wipeTransactions();
 
@@ -2471,6 +2544,7 @@ describe('TransactionController', () => {
               {
                 id: '1',
                 chainId: mockCurrentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.confirmed as const,
                 time: 123456789,
                 txParams: {
@@ -2480,6 +2554,7 @@ describe('TransactionController', () => {
               {
                 id: '2',
                 chainId: mockCurrentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.confirmed as const,
                 time: 987654321,
                 txParams: {
@@ -2491,7 +2566,7 @@ describe('TransactionController', () => {
         },
       });
 
-      controller.wipeTransactions(true, mockFromAccount2);
+      controller.wipeTransactions({ address: mockFromAccount2 });
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe('1');
@@ -2508,6 +2583,7 @@ describe('TransactionController', () => {
               {
                 id: '1',
                 chainId: mockCurrentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 txParams: {
                   from: mockFromAccount1,
                 },
@@ -2517,6 +2593,7 @@ describe('TransactionController', () => {
               {
                 id: '4',
                 chainId: mockDifferentChainId,
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 txParams: {
                   from: mockFromAccount1,
                 },
@@ -2528,7 +2605,10 @@ describe('TransactionController', () => {
         },
       });
 
-      controller.wipeTransactions(false, mockFromAccount1);
+      controller.wipeTransactions({
+        chainId: mockCurrentChainId,
+        address: mockFromAccount1,
+      });
 
       expect(controller.state.transactions).toHaveLength(1);
       expect(controller.state.transactions[0].id).toBe('4');
@@ -2536,86 +2616,30 @@ describe('TransactionController', () => {
   });
 
   describe('handleMethodData', () => {
-    it('loads method data from registry', async () => {
-      const { controller } = setupController({ network: MOCK_MAINNET_NETWORK });
-      mockNetwork({
-        networkClientConfiguration: {
-          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
-          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-          type: NetworkClientType.Infura,
-          network: 'mainnet',
-          infuraProjectId: INFURA_PROJECT_ID,
-        },
-        mocks: [
-          {
-            request: {
-              method: 'eth_call',
-              params: [
-                {
-                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
-                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
-                },
-                'latest',
-              ],
-            },
-            response: {
-              result:
-                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
-            },
-          },
-        ],
-      });
-      const registry = await controller.handleMethodData('0xf39b5b9b');
+    it('invokes helper', async () => {
+      const { controller } = setupController();
 
-      expect(registry.parsedRegistryMethod).toStrictEqual({
-        args: [{ type: 'uint256' }, { type: 'uint256' }],
-        name: 'Eth To Token Swap Input',
-      });
-      expect(registry.registryMethod).toBe(
-        'ethToTokenSwapInput(uint256,uint256)',
+      methodDataHelperMock.lookup.mockResolvedValueOnce(METHOD_DATA_MOCK);
+
+      const result = await controller.handleMethodData(
+        'mockMethodData',
+        NETWORK_CLIENT_ID_MOCK,
       );
+
+      expect(result).toStrictEqual(METHOD_DATA_MOCK);
     });
 
-    it('skips reading registry if already cached in state', async () => {
-      const { controller } = setupController({ network: MOCK_MAINNET_NETWORK });
-      mockNetwork({
-        networkClientConfiguration: {
-          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
-          type: NetworkClientType.Infura,
-          network: 'mainnet',
-          infuraProjectId: INFURA_PROJECT_ID,
-        },
-        mocks: [
-          {
-            request: {
-              method: 'eth_call',
-              params: [
-                {
-                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
-                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
-                },
-                'latest',
-              ],
-            },
-            response: {
-              result:
-                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
-            },
-          },
-        ],
+    it('updates state when helper emits update event', async () => {
+      const { controller } = setupController();
+
+      jest.mocked(methodDataHelperMock.hub.on).mock.calls[0][1]({
+        fourBytePrefix: '0x12345678',
+        methodData: METHOD_DATA_MOCK,
       });
 
-      await controller.handleMethodData('0xf39b5b9b');
-
-      const registryLookup = jest.spyOn<TransactionController, never>(
-        controller,
-        'registryLookup' as never,
-      );
-
-      await controller.handleMethodData('0xf39b5b9b');
-
-      expect(registryLookup).not.toHaveBeenCalled();
+      expect(controller.state.methodData).toStrictEqual({
+        '0x12345678': METHOD_DATA_MOCK,
+      });
     });
   });
 
@@ -2630,6 +2654,7 @@ describe('TransactionController', () => {
                 actionId: mockActionId,
                 id: '2',
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.submitted,
                 type: TransactionType.cancel,
                 time: 123456789,
@@ -2657,6 +2682,7 @@ describe('TransactionController', () => {
               {
                 id: '2',
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.submitted,
                 type: TransactionType.cancel,
                 time: 123456789,
@@ -2694,6 +2720,7 @@ describe('TransactionController', () => {
               {
                 id: '2',
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.submitted,
                 type: TransactionType.cancel,
                 time: 123456789,
@@ -2740,6 +2767,7 @@ describe('TransactionController', () => {
               {
                 id: simpleSendTransactionId,
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.submitted,
                 type: TransactionType.simpleSend,
                 time: 123456789,
@@ -2784,6 +2812,7 @@ describe('TransactionController', () => {
               {
                 id: simpleSendTransactionId,
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.submitted,
                 type: TransactionType.simpleSend,
                 time: 123456789,
@@ -2839,7 +2868,10 @@ describe('TransactionController', () => {
     it('throws if no sign method', async () => {
       const { controller } = setupController({ options: { sign: undefined } });
 
-      await controller.addTransaction({ from: ACCOUNT_MOCK, to: ACCOUNT_MOCK });
+      await controller.addTransaction(
+        { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+        { networkClientId: NETWORK_CLIENT_ID_MOCK },
+      );
 
       await expect(
         controller.stopTransaction(controller.state.transactions[0].id),
@@ -2865,13 +2897,18 @@ describe('TransactionController', () => {
         submittedEventListener,
       );
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x1',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x1',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       messenger.subscribe(
         'TransactionController:transactionFinished',
@@ -2931,6 +2968,7 @@ describe('TransactionController', () => {
         },
         {
           origin: ORIGIN_METAMASK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
@@ -2944,8 +2982,8 @@ describe('TransactionController', () => {
         {
           chainId: MOCK_NETWORK.chainId,
           hash: TRANSACTION_HASH_MOCK,
-          networkType: NetworkType.goerli,
-          networkUrl: expect.stringContaining('goerli.infura.io'),
+          networkType: NETWORK_CLIENT_ID_MOCK,
+          networkUrl: undefined,
           origin: 'cancel',
           rawTransaction: expect.stringContaining('0x'),
           time: expect.any(Number),
@@ -2975,13 +3013,18 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await controller.speedUpTransaction(transactionMeta.id);
 
@@ -3001,6 +3044,7 @@ describe('TransactionController', () => {
               {
                 actionId: mockActionId,
                 id: '2',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 chainId: toHex(5),
                 status: TransactionStatus.submitted,
                 type: TransactionType.retry,
@@ -3029,6 +3073,7 @@ describe('TransactionController', () => {
               {
                 id: '2',
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.submitted,
                 type: TransactionType.retry,
                 time: 123456789,
@@ -3066,6 +3111,7 @@ describe('TransactionController', () => {
               {
                 id: '2',
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.submitted,
                 type: TransactionType.retry,
                 time: 123456789,
@@ -3100,13 +3146,18 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await controller.speedUpTransaction(transactionMeta.id);
 
@@ -3131,13 +3182,18 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await controller.speedUpTransaction(transactionMeta.id);
 
@@ -3167,13 +3223,18 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await controller.speedUpTransaction(transactionMeta.id);
 
@@ -3193,13 +3254,18 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await controller.speedUpTransaction(transactionMeta.id, {
         gasPrice: '0x62DEF4DA',
@@ -3219,13 +3285,18 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta, result } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        gas: '0x1',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta, result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0x1',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await result;
       await controller.speedUpTransaction(transactionMeta.id, undefined, {
@@ -3255,14 +3326,19 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta, result } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        nonce: '1111111',
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        to: ACCOUNT_MOCK,
-        value: '0x0',
-      });
+      const { transactionMeta, result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          nonce: '1111111',
+          gas: '0x0',
+          gasPrice: '0x50fd51da',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       await result;
       await controller.speedUpTransaction(transactionMeta.id);
@@ -3291,13 +3367,18 @@ describe('TransactionController', () => {
       );
 
       const { transactionMeta: firstTransactionMeta } =
-        await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          gas: '0x0',
-          gasPrice: '0x1',
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        });
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            gas: '0x0',
+            gasPrice: '0x1',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
 
       messenger.subscribe(
         'TransactionController:speedupTransactionAdded',
@@ -3346,6 +3427,7 @@ describe('TransactionController', () => {
         },
         {
           origin: ORIGIN_METAMASK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
 
@@ -3359,8 +3441,8 @@ describe('TransactionController', () => {
         {
           chainId: MOCK_NETWORK.chainId,
           hash: TRANSACTION_HASH_MOCK,
-          networkType: NetworkType.goerli,
-          networkUrl: expect.stringContaining('goerli.infura.io'),
+          networkType: NETWORK_CLIENT_ID_MOCK,
+          networkUrl: undefined,
           origin: 'speed up',
           rawTransaction: expect.stringContaining('0x'),
           time: expect.any(Number),
@@ -3388,6 +3470,7 @@ describe('TransactionController', () => {
       const externalTransactionToConfirm = {
         id: '1',
         chainId: toHex(1),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         time: 123456789,
         status: TransactionStatus.confirmed as const,
         txParams: {
@@ -3426,6 +3509,7 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         id: '1',
         chainId: toHex(1),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         status: TransactionStatus.confirmed as const,
         time: 123456789,
         txParams: {
@@ -3451,6 +3535,7 @@ describe('TransactionController', () => {
         chainId: '0x1',
         from: ACCOUNT_MOCK,
         id: '1',
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         time: 123456789,
         status: TransactionStatus.confirmed as const,
         to: ACCOUNT_2_MOCK,
@@ -3500,6 +3585,7 @@ describe('TransactionController', () => {
         hash: externalTransactionHash,
         id: externalTransactionId,
         chainId: toHex(5),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         status: TransactionStatus.confirmed as const,
         time: 123456789,
         txParams: {
@@ -3528,6 +3614,7 @@ describe('TransactionController', () => {
               {
                 id: localTransactionIdWithSameNonce,
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.unapproved as const,
                 time: 123456789,
                 txParams: {
@@ -3591,6 +3678,7 @@ describe('TransactionController', () => {
         to: ACCOUNT_2_MOCK,
         hash: externalTransactionHash,
         id: externalTransactionId,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         chainId: toHex(5),
         status: TransactionStatus.confirmed as const,
         time: 123456789,
@@ -3614,6 +3702,7 @@ describe('TransactionController', () => {
                 // Off-chain failed local transaction with the same chainId and nonce
                 id: localTransactionIdWithSameNonce,
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 status: TransactionStatus.failed as const,
                 error: new Error('mock error'),
                 time: 123456789,
@@ -3768,10 +3857,13 @@ describe('TransactionController', () => {
           timestamp: 1650663928211,
         },
       ];
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        { networkClientId: NETWORK_CLIENT_ID_MOCK },
+      );
       const addedTxId = controller.state.transactions[0].id;
       controller.updateTransactionSendFlowHistory(
         addedTxId,
@@ -3806,6 +3898,7 @@ describe('TransactionController', () => {
         },
         {
           sendFlowHistory: mockExistingSendFlowHistory,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
         },
       );
       const addedTxId = controller.state.transactions[0].id;
@@ -3830,10 +3923,15 @@ describe('TransactionController', () => {
           timestamp: 1650663928211,
         },
       ];
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
       const addedTxId = controller.state.transactions[0].id;
       controller.updateTransactionSendFlowHistory(
         addedTxId,
@@ -3857,10 +3955,15 @@ describe('TransactionController', () => {
           timestamp: 1650663928211,
         },
       ];
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
       const addedTxId = controller.state.transactions[0].id;
       expect(() =>
         controller.updateTransactionSendFlowHistory(
@@ -3901,6 +4004,7 @@ describe('TransactionController', () => {
               {
                 id: 'foo',
                 chainId: toHex(5),
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 hash: '1337',
                 status: TransactionStatus.submitted as const,
                 time: 123456789,
@@ -3940,6 +4044,7 @@ describe('TransactionController', () => {
 
       const transactionMeta = {
         chainId: toHex(5),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         status: TransactionStatus.unapproved as const,
         time: 123456789,
         txParams: {
@@ -4007,8 +4112,8 @@ describe('TransactionController', () => {
       });
 
       expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_MOCK,
-        TRANSACTION_META_2_MOCK,
+        { ...TRANSACTION_META_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
       ]);
     });
 
@@ -4023,6 +4128,7 @@ describe('TransactionController', () => {
 
       const updatedTransaction = {
         ...TRANSACTION_META_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         status: 'failed',
       };
 
@@ -4035,7 +4141,7 @@ describe('TransactionController', () => {
 
       expect(controller.state.transactions).toStrictEqual([
         updatedTransaction,
-        TRANSACTION_META_2_MOCK,
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
       ]);
     });
 
@@ -4052,7 +4158,7 @@ describe('TransactionController', () => {
       });
 
       expect(controller.state.transactions).toStrictEqual([
-        TRANSACTION_META_2_MOCK,
+        { ...TRANSACTION_META_2_MOCK, networkClientId: NETWORK_CLIENT_ID_MOCK },
       ]);
     });
   });
@@ -4124,6 +4230,7 @@ describe('TransactionController', () => {
                 status,
                 error: new Error('mock error'),
                 chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 time: 123456789,
                 txParams: {} as TransactionParams,
               },
@@ -4149,6 +4256,7 @@ describe('TransactionController', () => {
               {
                 id: transactionId,
                 chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 time: 123456789,
                 status: TransactionStatus.unapproved as const,
                 history: [
@@ -4215,6 +4323,7 @@ describe('TransactionController', () => {
               {
                 id: transactionId,
                 chainId: '0x1',
+                networkClientId: NETWORK_CLIENT_ID_MOCK,
                 time: 123456789,
                 status: TransactionStatus.unapproved as const,
                 history: [
@@ -4778,7 +4887,10 @@ describe('TransactionController', () => {
         mockTransactionParam2,
       ]);
 
-      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK, 'goerli');
+      expect(getNonceLockSpy).toHaveBeenCalledWith(
+        ACCOUNT_MOCK,
+        NETWORK_CLIENT_ID_MOCK,
+      );
     });
   });
 
@@ -4791,6 +4903,7 @@ describe('TransactionController', () => {
     const metadataMock: TransactionMeta = {
       txParams: paramsMock,
       chainId: '0x1' as const,
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
       id: '1',
       time: 0,
       status: TransactionStatus.approved,
@@ -4812,6 +4925,7 @@ describe('TransactionController', () => {
       await controller.addTransaction(paramsMock, {
         origin: 'origin',
         actionId: ACTION_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
       });
 
       mockTransactionApprovalRequest.approve({
@@ -4854,6 +4968,7 @@ describe('TransactionController', () => {
       await controller.addTransaction(paramsMock, {
         origin: 'origin',
         actionId: ACTION_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
       });
 
       mockTransactionApprovalRequest.approve({
@@ -4880,6 +4995,7 @@ describe('TransactionController', () => {
       await controller.addTransaction(paramsMock, {
         origin: 'origin',
         actionId: ACTION_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
       });
 
       mockTransactionApprovalRequest.approve();
@@ -4918,7 +5034,9 @@ describe('TransactionController', () => {
       });
       jest.spyOn(mockEthQuery, 'sendRawTransaction');
 
-      const { result } = await controller.addTransaction(paramsMock);
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       await result;
 
@@ -4947,7 +5065,9 @@ describe('TransactionController', () => {
         },
       });
 
-      const { result } = await controller.addTransaction(paramsMock);
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       await result;
 
@@ -4976,7 +5096,9 @@ describe('TransactionController', () => {
         },
       });
 
-      const { result } = await controller.addTransaction(paramsMock);
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       await result;
 
@@ -5124,6 +5246,7 @@ describe('TransactionController', () => {
       baseTransaction = {
         id: transactionId,
         chainId: toHex(5),
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
         status: statusMock,
         time: 123456789,
         txParams: {
@@ -5316,6 +5439,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1' },
@@ -5323,6 +5447,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 2,
           txParams: { from: '0x2' },
@@ -5330,6 +5455,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 1,
           txParams: { from: '0x3' },
@@ -5346,7 +5472,6 @@ describe('TransactionController', () => {
       expect(
         controller.getTransactions({
           searchCriteria: { time: 1 },
-          filterToCurrentNetwork: false,
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
@@ -5356,6 +5481,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1' },
@@ -5363,6 +5489,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 2,
           txParams: { from: '0x2' },
@@ -5370,6 +5497,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 3,
           txParams: { from: '0x1' },
@@ -5386,7 +5514,6 @@ describe('TransactionController', () => {
       expect(
         controller.getTransactions({
           searchCriteria: { from: '0x1' },
-          filterToCurrentNetwork: false,
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
@@ -5396,6 +5523,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1' },
@@ -5403,6 +5531,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 2,
           txParams: { from: '0x2' },
@@ -5410,6 +5539,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 1,
           txParams: { from: '0x1' },
@@ -5426,7 +5556,6 @@ describe('TransactionController', () => {
       expect(
         controller.getTransactions({
           searchCriteria: { from: '0x1', time: 1 },
-          filterToCurrentNetwork: false,
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
@@ -5436,6 +5565,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1' },
@@ -5443,6 +5573,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 2,
           txParams: { from: '0x2' },
@@ -5450,6 +5581,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 1,
           txParams: { from: '0x3' },
@@ -5468,16 +5600,16 @@ describe('TransactionController', () => {
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           searchCriteria: { time: (v: any) => v === 1 },
-          filterToCurrentNetwork: false,
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
 
-    it('returns transactions matching current network', () => {
+    it('returns transactions matching specified chain', () => {
       const transactions: TransactionMeta[] = [
         {
           chainId: MOCK_NETWORK.chainId,
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1' },
@@ -5485,6 +5617,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x2',
           id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 2,
           txParams: { from: '0x2' },
@@ -5492,6 +5625,7 @@ describe('TransactionController', () => {
         {
           chainId: MOCK_NETWORK.chainId,
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 1,
           txParams: { from: '0x3' },
@@ -5507,7 +5641,7 @@ describe('TransactionController', () => {
 
       expect(
         controller.getTransactions({
-          filterToCurrentNetwork: true,
+          searchCriteria: { chainId: MOCK_NETWORK.chainId },
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
@@ -5519,6 +5653,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1' },
@@ -5526,6 +5661,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 2,
           txParams: { from: '0x2' },
@@ -5533,6 +5669,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 1,
           txParams: { from: '0x3' },
@@ -5543,7 +5680,6 @@ describe('TransactionController', () => {
         controller.getTransactions({
           searchCriteria: { time: 1 },
           initialList: transactions,
-          filterToCurrentNetwork: false,
         }),
       ).toStrictEqual([transactions[0], transactions[2]]);
     });
@@ -5553,6 +5689,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1', nonce: '0x1' },
@@ -5560,6 +5697,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId2',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 2,
           txParams: { from: '0x1', nonce: '0x2' },
@@ -5567,6 +5705,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 3,
           txParams: { from: '0x2', nonce: '0x3' },
@@ -5574,6 +5713,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId4',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 4,
           txParams: { from: '0x1', nonce: '0x4' },
@@ -5590,7 +5730,6 @@ describe('TransactionController', () => {
       expect(
         controller.getTransactions({
           searchCriteria: { from: '0x1' },
-          filterToCurrentNetwork: false,
           limit: 2,
         }),
       ).toStrictEqual([transactions[1], transactions[3]]);
@@ -5601,6 +5740,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId1',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.confirmed,
           time: 1,
           txParams: { from: '0x1', nonce: '0x1' },
@@ -5608,7 +5748,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId2',
-
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.unapproved,
           time: 2,
           txParams: { from: '0x2', nonce: '0x2' },
@@ -5616,6 +5756,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId3',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 3,
           txParams: { from: '0x1', nonce: '0x1' },
@@ -5623,6 +5764,7 @@ describe('TransactionController', () => {
         {
           chainId: '0x1',
           id: 'testId4',
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
           status: TransactionStatus.submitted,
           time: 4,
           txParams: { from: '0x1', nonce: '0x3' },
@@ -5639,7 +5781,6 @@ describe('TransactionController', () => {
       expect(
         controller.getTransactions({
           searchCriteria: { from: '0x1' },
-          filterToCurrentNetwork: false,
           limit: 2,
         }),
       ).toStrictEqual([transactions[0], transactions[2], transactions[3]]);
@@ -5660,6 +5801,7 @@ describe('TransactionController', () => {
     const baseTransaction = {
       id: transactionId,
       chainId: toHex(5),
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
       status: TransactionStatus.unapproved as const,
       time: 123456789,
       txParams: {
@@ -5786,10 +5928,15 @@ describe('TransactionController', () => {
         },
       });
 
-      const { transactionMeta, result } = await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
+      const { transactionMeta, result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
 
       result.catch(() => {
         // Ignore error
@@ -5846,6 +5993,7 @@ describe('TransactionController', () => {
 
       const result = await controller.estimateGasFee({
         transactionParams: TRANSACTION_META_MOCK.txParams,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
       });
 
       expect(result).toStrictEqual(GAS_FEE_ESTIMATES_MOCK);
