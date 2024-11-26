@@ -1,20 +1,13 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
-  BlockTracker,
-  NetworkClient,
   NetworkState,
-  Provider,
   NetworkControllerActions,
 } from '@metamask/network-controller';
 import {
-  NetworkClientType,
   NetworkController,
   NetworkStatus,
   RpcEndpointType,
 } from '@metamask/network-controller';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import * as CreateNetworkClientModule from '@metamask/network-controller/dist/create-network-client.cjs';
 import nock from 'nock';
 
 import type { UserStorageControllerMessenger } from '..';
@@ -59,28 +52,6 @@ const createNetworkConfigurationWithRpcs = (rpcs: RPCEndpoint[]) => {
   return config;
 };
 
-const createNetworkClientMock = () =>
-  jest.spyOn(CreateNetworkClientModule, 'createNetworkClient').mockReturnValue({
-    configuration: {
-      type: NetworkClientType.Custom,
-      ticker: 'TEST',
-      chainId: '0x1',
-      rpcUrl: 'https://test.network',
-    },
-    provider: {
-      request: jest.fn().mockResolvedValue({ method: 'eth_getBlockByNumber' }),
-    } as unknown as Provider,
-    blockTracker: {
-      getLatestBlock: () => Promise.resolve('21272895'),
-      getCurrentBlock: () => '21272895',
-      checkForLatestBlock: () => Promise.resolve('21272895'),
-      isRunning: () => true,
-    } as unknown as BlockTracker,
-    destroy: () => {
-      // do nothing
-    },
-  } as NetworkClient);
-
 describe('network-syncing/controller-integration - dispatchUpdateNetwork()', () => {
   beforeEach(() => {
     nock('https://mainnet.infura.io').post('/v3/TEST_ID').reply(200, {
@@ -114,8 +85,6 @@ describe('network-syncing/controller-integration - dispatchUpdateNetwork()', () 
   };
 
   const arrangeNetworkController = (networkState: NetworkState) => {
-    createNetworkClientMock();
-
     const baseMessenger = new ControllerMessenger<
       NetworkControllerActions,
       never

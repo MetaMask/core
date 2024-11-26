@@ -506,11 +506,6 @@ export type NetworkControllerUpdateNetworkAction = {
   handler: NetworkController['updateNetwork'];
 };
 
-export type NetworkControllerDangerouslySetNetworkConfigurationAction = {
-  type: 'NetworkController:dangerouslySetNetworkConfiguration';
-  handler: (networkConfiguration: NetworkConfiguration) => Promise<void>;
-};
-
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetEthQueryAction
@@ -524,8 +519,7 @@ export type NetworkControllerActions =
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerAddNetworkAction
   | NetworkControllerRemoveNetworkAction
-  | NetworkControllerUpdateNetworkAction
-  | NetworkControllerDangerouslySetNetworkConfigurationAction;
+  | NetworkControllerUpdateNetworkAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -1016,13 +1010,6 @@ export class NetworkController extends BaseController<
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `${this.name}:dangerouslySetNetworkConfiguration`,
-      this.#dangerouslySetNetworkConfiguration.bind(this),
     );
   }
 
@@ -2015,129 +2002,6 @@ export class NetworkController extends BaseController<
       'NetworkController:networkRemoved',
       existingNetworkConfiguration,
     );
-  }
-
-  /**
-   * This is used to override an existing network configuration.
-   * This is only meant for internal use only and not to be exposed via the UI.
-   * It is used as part of "Network Syncing", to sync networks, RPCs and block explorers cross devices.
-   *
-   * This will subsequently update the network client registry; state.networksMetadata, and state.selectedNetworkClientId
-   * @param networkConfiguration - the network configuration to override
-   */
-  async #dangerouslySetNetworkConfiguration(
-    networkConfiguration: NetworkConfiguration,
-  ) {
-    const prevNetworkConfig: NetworkConfiguration | undefined =
-      networkConfiguration.chainId in this.state.networkConfigurationsByChainId
-        ? this.state.networkConfigurationsByChainId[
-            networkConfiguration.chainId
-          ]
-        : undefined;
-
-    if (!prevNetworkConfig) {
-      // We only want to perform overrides, not add new network configurations
-      return;
-    }
-
-    // Update Registry (remove old and add new)
-    const updateRegistry = () => {
-      // Unregister old networks we want to override
-      const autoManagedNetworkClientRegistry =
-        this.#ensureAutoManagedNetworkClientRegistryPopulated();
-      const networkClientRemoveOperations = prevNetworkConfig.rpcEndpoints.map(
-        (rpcEndpoint) => {
-          return {
-            type: 'remove' as const,
-            rpcEndpoint,
-          };
-        },
-      );
-      this.#unregisterNetworkClientsAsNeeded({
-        networkClientOperations: networkClientRemoveOperations,
-        autoManagedNetworkClientRegistry,
-      });
-
-      // Register new networks we want to override
-      const networkClientAddOperations = networkConfiguration.rpcEndpoints.map(
-        (rpcEndpoint) => {
-          return {
-            type: 'add' as const,
-            rpcEndpoint,
-          };
-        },
-      );
-      this.#registerNetworkClientsAsNeeded({
-        networkFields: networkConfiguration,
-        networkClientOperations: networkClientAddOperations,
-        autoManagedNetworkClientRegistry,
-      });
-    };
-
-    // Replace the networkConfiguration with our new networkConfiguration
-    // This is a full replace (no merging)
-    const replaceNetworkConfiguration = () => {
-      // Update State
-      this.update((state) => {
-        state.networkConfigurationsByChainId[networkConfiguration.chainId] =
-          networkConfiguration;
-      });
-
-      // Update Cache
-      this.#networkConfigurationsByNetworkClientId =
-        buildNetworkConfigurationsByNetworkClientId(
-          this.state.networkConfigurationsByChainId,
-        );
-    };
-
-    // Updates the NetworksMetadata State
-    const updateNetworksMetadata = async () => {
-      // Remove old metadata state
-      this.update((state) => {
-        prevNetworkConfig.rpcEndpoints.forEach((r) => {
-          if (state.networksMetadata?.[r.networkClientId]) {
-            delete state.networksMetadata[r.networkClientId];
-          }
-        });
-      });
-
-      // Add new metadata state
-      for (const r of networkConfiguration.rpcEndpoints) {
-        await this.lookupNetwork(r.networkClientId);
-      }
-    };
-
-    // Update selectedNetworkId State
-    // Will try to keep the same OR will select a new RPC from new network OR any network (edge case)
-    const updateSelectedNetworkId = async () => {
-      const selectedClientId = this.state.selectedNetworkClientId;
-      const wasClientIdReplaced = prevNetworkConfig.rpcEndpoints.some(
-        (r) => r.networkClientId === selectedClientId,
-      );
-      const doesExistInNewNetwork = networkConfiguration.rpcEndpoints.some(
-        (r) => r.networkClientId === selectedClientId,
-      );
-
-      const shouldUpdateSelectedNetworkId =
-        wasClientIdReplaced && !doesExistInNewNetwork;
-      if (shouldUpdateSelectedNetworkId) {
-        // Update the clientId to "something" that exists
-        const newRPCClientId = networkConfiguration.rpcEndpoints.find(
-          (r) => r.networkClientId in this.state.networksMetadata,
-        )?.networkClientId;
-        const anyRPCClientId = Object.keys(this.state.networksMetadata)[0];
-        /* istanbul ignore next: anyRPCClientId and selectedClientId are fallbacks and should be impossible to reach  */
-        const newlySelectedNetwork =
-          newRPCClientId ?? anyRPCClientId ?? selectedClientId;
-        await this.#refreshNetwork(newlySelectedNetwork);
-      }
-    };
-
-    // Execute Set Network Config
-    updateRegistry();
-    replaceNetworkConfiguration();
-    await updateNetworksMetadata();
-    await updateSelectedNetworkId();
   }
 
   /**
