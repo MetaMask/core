@@ -177,6 +177,72 @@ describe('multichainMethodCallValidatorMiddleware', () => {
         });
       });
     });
+    it('should throw an error for an invalidly formatted "wallet_invokeMethod" request', async () => {
+      const request: JsonRpcRequest<Caip27Params> = {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'wallet_invokeMethod',
+        // @ts-expect-error test
+        params: {
+          scope: 'test',
+          request: {
+            method: {}, // expected to be a string
+            params: {
+              test: 'test',
+            },
+          },
+        },
+      };
+      const response = {} as JsonRpcResponse<typeof request>;
+
+      await new Promise<void>((resolve, reject) => {
+        multichainMethodCallValidatorMiddleware(
+          request,
+          response,
+          mockNext,
+          (error) => {
+            try {
+              expect(error).toBeDefined();
+              expect((error as JsonRpcError).message).toBe(
+                'Invalid method parameter(s).',
+              );
+              expect((error as JsonRpcError).code).toBe(-32602);
+              expect((error as JsonRpcError).data).toStrictEqual([
+                {
+                  code: -32602,
+                  data: {
+                    got: {
+                      method: {},
+                      params: {
+                        test: 'test',
+                      },
+                    },
+                    param: 'request',
+                    path: ['method'],
+                    schema: {
+                      type: 'string',
+                    },
+                  },
+                  message: 'request.method is not of a type(s) string',
+                },
+              ]);
+              resolve();
+            } catch (e) {
+              reject(e);
+            }
+          },
+        );
+
+        process.nextTick(() => {
+          try {
+            expect(mockNext).not.toHaveBeenCalled();
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        });
+      });
+    });
   });
 
   describe('"wallet_notify" request', () => {
