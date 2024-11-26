@@ -256,8 +256,10 @@ export type Keyring<State extends Json> = {
   /**
    * Generates the properties for the keyring based on the given
    * BIP39-compliant mnemonic.
+   *
+   * @returns A promise resolving when the keyring has generated the properties.
    */
-  generateRandomMnemonic?(): void;
+  generateRandomMnemonic?(): Promise<void>;
 
   /**
    * Destroy the keyring.
