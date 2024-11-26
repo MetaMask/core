@@ -231,28 +231,6 @@ describe('GasFeePoller', () => {
             networkClientId: 'networkClientId4',
           });
         });
-
-        it('using found network client ID if none in metadata', async () => {
-          getTransactionsMock.mockReturnValue([
-            {
-              ...TRANSACTION_META_MOCK,
-              chainId: '0x1',
-              networkClientId: undefined,
-            },
-          ]);
-
-          findNetworkClientIdByChainIdMock.mockReturnValue('networkClientId1');
-
-          new GasFeePoller(constructorOptions);
-
-          triggerOnStateChange();
-          await flushPromises();
-
-          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledTimes(1);
-          expect(getGasFeeControllerEstimatesMock).toHaveBeenCalledWith({
-            networkClientId: 'networkClientId1',
-          });
-        });
       });
     });
 

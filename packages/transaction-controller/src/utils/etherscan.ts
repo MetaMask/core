@@ -2,7 +2,9 @@ import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ETHERSCAN_SUPPORTED_NETWORKS } from '../constants';
-import { incomingTransactionsLogger as log } from '../logger';
+import { createModuleLogger, projectLogger } from '../logger';
+
+const log = createModuleLogger(projectLogger, 'etherscan');
 
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -174,7 +176,7 @@ async function fetchTransactions<
     apikey: apiKey,
   });
 
-  log('Sending Etherscan request', etherscanTxUrl);
+  log('Sending request', etherscanTxUrl);
 
   const response = (await handleFetch(
     etherscanTxUrl,
