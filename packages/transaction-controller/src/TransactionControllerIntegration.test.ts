@@ -200,7 +200,6 @@ const setupController = async (
   );
 
   const options: TransactionControllerOptions = {
-    blockTracker,
     disableHistory: false,
     disableSendFlowHistory: false,
     disableSwaps: false,
@@ -217,15 +216,10 @@ const setupController = async (
       networkController.getNetworkClientRegistry(),
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
     hooks: {},
-    isMultichainEnabled: false,
     messenger,
-    onNetworkStateChange: () => {
-      // noop
-    },
     pendingTransactions: {
       isResubmitEnabled: () => false,
     },
-    provider,
     sign: async (transaction: TypedTransaction) => transaction,
     transactionHistoryLimit: 40,
     ...givenOptions,
@@ -296,7 +290,6 @@ describe('TransactionController Integration', () => {
       });
 
       const { transactionController } = await setupController({
-        isMultichainEnabled: true,
         state: {
           transactions: [
             {
@@ -389,7 +382,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('multichain transaction lifecycle', () => {
-    describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
+    describe('when a transaction is added with a networkClientId', () => {
       it('should add a new unapproved transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -401,9 +394,7 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
           ],
         });
-        const { transactionController } = await setupController({
-          isMultichainEnabled: true,
-        });
+        const { transactionController } = await setupController();
         await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
@@ -438,7 +429,7 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -482,7 +473,7 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -550,7 +541,7 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const firstTransaction = await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
@@ -624,7 +615,7 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -688,7 +679,7 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -763,7 +754,7 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -868,7 +859,6 @@ describe('TransactionController Integration', () => {
 
         const { approvalController, networkController, transactionController } =
           await setupController({
-            isMultichainEnabled: true,
             getPermittedAccounts: async () => [ACCOUNT_MOCK],
           });
         const existingGoerliNetworkConfiguration =
@@ -964,7 +954,6 @@ describe('TransactionController Integration', () => {
         const { approvalController, transactionController } =
           await setupController(
             {
-              isMultichainEnabled: true,
               getPermittedAccounts: async () => [ACCOUNT_MOCK],
             },
             { selectedAccount: INTERNAL_ACCOUNT_MOCK },
@@ -1036,9 +1025,8 @@ describe('TransactionController Integration', () => {
         buildEthGasPriceRequestMock(),
       ],
     });
-    const { networkController, transactionController } = await setupController({
-      isMultichainEnabled: true,
-    });
+    const { networkController, transactionController } =
+      await setupController();
 
     const existingGoerliNetworkConfiguration =
       networkController.getNetworkConfigurationByChainId(ChainId.goerli);
@@ -1101,7 +1089,9 @@ describe('TransactionController Integration', () => {
         },
       ),
     ).rejects.toThrow(
-      'The networkClientId for this transaction could not be found',
+      `Network client not found - ${
+        networkConfiguration.rpcEndpoints[0].networkClientId as string
+      }`,
     );
 
     expect(transactionController).toBeDefined();
@@ -1109,76 +1099,11 @@ describe('TransactionController Integration', () => {
   });
 
   describe('feature flag', () => {
-    it('should not allow transaction to be added with a networkClientId when feature flag is disabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x2'),
-          buildEthGetBlockByNumberRequestMock('0x1'),
-          buildEthGasPriceRequestMock(),
-          buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-        ],
-      });
-
-      const { networkController, transactionController } =
-        await setupController({
-          isMultichainEnabled: false,
-        });
-
-      const networkConfiguration = networkController.addNetwork(
-        buildAddNetworkFields(),
-      );
-
-      // add a transaction with the networkClientId of the newly added network
-      // and expect it to throw since the networkClientId won't be found in the trackingMap
-      await expect(
-        transactionController.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-          {
-            networkClientId:
-              networkConfiguration.rpcEndpoints[0].networkClientId,
-          },
-        ),
-      ).rejects.toThrow(
-        'The networkClientId for this transaction could not be found',
-      );
-
-      // adding a transaction without a networkClientId should work
-      expect(
-        await transactionController.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        }),
-      ).toBeDefined();
-      transactionController.destroy();
-    });
-
-    it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
-      const getNetworkClientRegistrySpy = jest.fn();
-
-      const { networkController, transactionController } =
-        await setupController({
-          isMultichainEnabled: false,
-          getNetworkClientRegistry: getNetworkClientRegistrySpy,
-        });
-
-      networkController.addNetwork(buildAddNetworkFields());
-
-      expect(getNetworkClientRegistrySpy).not.toHaveBeenCalled();
-      transactionController.destroy();
-    });
-
     it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
       uuidV4Mock.mockReturnValue('AAAA-AAAA-AAAA-AAAA');
 
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
       const getNetworkClientRegistrySpy = jest.spyOn(
         networkController,
         'getNetworkClientRegistry',
@@ -1200,7 +1125,6 @@ describe('TransactionController Integration', () => {
       });
 
       await setupController({
-        isMultichainEnabled: true,
         getNetworkClientRegistry: getNetworkClientRegistrySpy,
       });
 
@@ -1211,7 +1135,7 @@ describe('TransactionController Integration', () => {
   describe('getNonceLock', () => {
     it('should get the nonce lock from the nonceTracker for the given networkClientId', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1246,7 +1170,7 @@ describe('TransactionController Integration', () => {
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the networkClientId until the previous lock is released', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1310,7 +1234,7 @@ describe('TransactionController Integration', () => {
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the different networkClientIds on the same chainId until the previous lock is released', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.goerli,
@@ -1401,9 +1325,7 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for the same addresses from the nonceTracker for different networkClientIds', async () => {
-      const { transactionController } = await setupController({
-        isMultichainEnabled: true,
-      });
+      const { transactionController } = await setupController();
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1450,7 +1372,7 @@ describe('TransactionController Integration', () => {
 
     it('should not block attempts to get the nonce lock for different addresses from the nonceTracker for the networkClientId', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1495,110 +1417,6 @@ describe('TransactionController Integration', () => {
           expect(secondNonceLock.nextNonce).toBe(15);
         }),
       );
-      transactionController.destroy();
-    });
-
-    it('should get the nonce lock from the globally selected nonceTracker if no networkClientId is provided', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
-        ],
-      });
-
-      const { transactionController } = await setupController({});
-
-      const nonceLockPromise = transactionController.getNonceLock(ACCOUNT_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const nonceLock = await nonceLockPromise;
-
-      expect(nonceLock.nextNonce).toBe(10);
-      transactionController.destroy();
-    });
-
-    it('should block attempts to get the nonce lock from the globally selected NonceTracker for the same address until the previous lock is released', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
-        ],
-      });
-
-      const { transactionController } = await setupController({});
-
-      const firstNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const firstNonceLock = await firstNonceLockPromise;
-
-      expect(firstNonceLock.nextNonce).toBe(10);
-
-      const secondNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_MOCK);
-      const delay = () =>
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        new Promise<null>(async (resolve) => {
-          await advanceTime({ clock, duration: 100 });
-          resolve(null);
-        });
-
-      let secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLockPromise,
-        delay(),
-      ]);
-      expect(secondNonceLockIfAcquired).toBeNull();
-
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await firstNonceLock.releaseLock();
-
-      secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLockPromise,
-        delay(),
-      ]);
-      expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
-      transactionController.destroy();
-    });
-
-    it('should not block attempts to get the nonce lock from the globally selected nonceTracker for different addresses', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_2_MOCK, '0x1', '0xf'),
-        ],
-      });
-
-      const { transactionController } = await setupController({});
-
-      const firstNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const firstNonceLock = await firstNonceLockPromise;
-
-      expect(firstNonceLock.nextNonce).toBe(10);
-
-      const secondNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_2_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const secondNonceLock = await secondNonceLockPromise;
-
-      expect(secondNonceLock.nextNonce).toBe(15);
-
       transactionController.destroy();
     });
   });

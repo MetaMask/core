@@ -212,7 +212,7 @@ type TransactionMetaBase = {
   /**
    * The ID of the network client used by the transaction.
    */
-  networkClientId?: NetworkClientId;
+  networkClientId: NetworkClientId;
 
   /**
    * Network code as per EIP-155 for this transaction

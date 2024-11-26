@@ -97,6 +97,8 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    log('Starting polling');
+
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeoutId = setTimeout(() => this.#onInterval(), INTERVAL);
     this.#isRunning = true;

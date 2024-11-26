@@ -70,6 +70,7 @@ const TRANSACTION_STANDARD_MOCK = {
   hash: '0x1',
   id: expect.any(String),
   isTransfer: false,
+  networkClientId: '',
   status: 'confirmed',
   time: 123000,
   toSmartContract: false,

@@ -239,6 +239,8 @@ export class AccountsApiRemoteTransactionSource
       hash,
       id,
       isTransfer,
+      // Populated by TransactionController when added to state
+      networkClientId: '',
       status,
       time,
       toSmartContract: false,
