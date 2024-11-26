@@ -52,10 +52,13 @@ describe('updateTransactionLayer1GasFee', () => {
         layer1Fee: LAYER1_GAS_FEE_VALUE_MATCH_MOCK,
       }),
     ];
+
     providerMock = {} as Provider;
+
     transactionMetaMock = {
       id: '1',
       chainId: '0x123',
+      networkClientId: 'testNetworkClientId',
       status: TransactionStatus.unapproved,
       time: 0,
       txParams: {
