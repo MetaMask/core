@@ -24,6 +24,7 @@ jest.mock('@metamask/controller-utils', () => ({
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
   chainId: '0x123',
+  networkClientId: 'testNetworkClientId',
   status: TransactionStatus.unapproved,
   time: 0,
   txParams: {

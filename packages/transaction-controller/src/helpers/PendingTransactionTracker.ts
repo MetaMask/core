@@ -80,6 +80,8 @@ export class PendingTransactionTracker {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #listener: any;
 
+  #log: debug.Debugger;
+
   #getGlobalLock: () => Promise<() => void>;
 
   #publishTransaction: (
@@ -130,6 +132,7 @@ export class PendingTransactionTracker {
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? (() => true);
     this.#listener = this.#onLatestBlock.bind(this);
+    this.#log = createModuleLogger(log, getChainId());
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
@@ -161,7 +164,7 @@ export class PendingTransactionTracker {
       await this.#checkTransaction(txMeta);
     } catch (error) {
       /* istanbul ignore next */
-      log('Failed to check transaction', error);
+      this.#log('Failed to check transaction', error);
     } finally {
       releaseLock();
     }
@@ -177,7 +180,7 @@ export class PendingTransactionTracker {
     this.#transactionPoller.start(this.#listener);
     this.#running = true;
 
-    log('Started polling');
+    this.#log('Started polling');
   }
 
   stop() {
@@ -188,7 +191,7 @@ export class PendingTransactionTracker {
     this.#transactionPoller.stop();
     this.#running = false;
 
-    log('Stopped polling');
+    this.#log('Stopped polling');
   }
 
   async #onLatestBlock(latestBlockNumber: string) {
@@ -198,7 +201,7 @@ export class PendingTransactionTracker {
       await this.#checkTransactions();
     } catch (error) {
       /* istanbul ignore next */
-      log('Failed to check transactions', error);
+      this.#log('Failed to check transactions', error);
     } finally {
       releaseLock();
     }
@@ -207,21 +210,21 @@ export class PendingTransactionTracker {
       await this.#resubmitTransactions(latestBlockNumber);
     } catch (error) {
       /* istanbul ignore next */
-      log('Failed to resubmit transactions', error);
+      this.#log('Failed to resubmit transactions', error);
     }
   }
 
   async #checkTransactions() {
-    log('Checking transactions');
+    this.#log('Checking transactions');
 
     const pendingTransactions = this.#getPendingTransactions();
 
     if (!pendingTransactions.length) {
-      log('No pending transactions to check');
+      this.#log('No pending transactions to check');
       return;
     }
 
-    log('Found pending transactions to check', {
+    this.#log('Found pending transactions to check', {
       count: pendingTransactions.length,
       ids: pendingTransactions.map((tx) => tx.id),
     });
@@ -236,16 +239,16 @@ export class PendingTransactionTracker {
       return;
     }
 
-    log('Resubmitting transactions');
+    this.#log('Resubmitting transactions');
 
     const pendingTransactions = this.#getPendingTransactions();
 
     if (!pendingTransactions.length) {
-      log('No pending transactions to resubmit');
+      this.#log('No pending transactions to resubmit');
       return;
     }
 
-    log('Found pending transactions to resubmit', {
+    this.#log('Found pending transactions to resubmit', {
       count: pendingTransactions.length,
       ids: pendingTransactions.map((tx) => tx.id),
     });
@@ -263,7 +266,7 @@ export class PendingTransactionTracker {
           String(error);
 
         if (this.#isKnownTransactionError(errorMessage)) {
-          log('Ignoring known transaction error', errorMessage);
+          this.#log('Ignoring known transaction error', errorMessage);
           continue;
         }
 
@@ -351,7 +354,7 @@ export class PendingTransactionTracker {
     }
 
     if (this.#isNonceTaken(txMeta)) {
-      log('Nonce already taken', id);
+      this.#log('Nonce already taken', id);
       this.#dropTransaction(txMeta);
       return;
     }
@@ -362,7 +365,7 @@ export class PendingTransactionTracker {
       const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
       if (isFailure) {
-        log('Transaction receipt has failed status');
+        this.#log('Transaction receipt has failed status');
 
         this.#failTransaction(
           txMeta,
@@ -386,7 +389,7 @@ export class PendingTransactionTracker {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      log('Failed to check transaction', id, error);
+      this.#log('Failed to check transaction', id, error);
 
       this.#warnTransaction(
         txMeta,
@@ -409,7 +412,7 @@ export class PendingTransactionTracker {
     const { id } = txMeta;
     const { blockHash } = receipt;
 
-    log('Transaction confirmed', id);
+    this.#log('Transaction confirmed', id);
 
     const { baseFeePerGas, timestamp: blockTimestamp } =
       await this.#getBlockByHash(blockHash, false);
@@ -461,12 +464,12 @@ export class PendingTransactionTracker {
     }
 
     if (droppedBlockCount < DROPPED_BLOCK_COUNT) {
-      log('Incrementing dropped block count', { id, droppedBlockCount });
+      this.#log('Incrementing dropped block count', { id, droppedBlockCount });
       this.#droppedBlockCountByHash.set(hash, droppedBlockCount + 1);
       return false;
     }
 
-    log('Hit dropped block count', id);
+    this.#log('Hit dropped block count', id);
 
     this.#droppedBlockCountByHash.delete(hash);
     return true;
@@ -505,12 +508,12 @@ export class PendingTransactionTracker {
   }
 
   #failTransaction(txMeta: TransactionMeta, error: Error) {
-    log('Transaction failed', txMeta.id, error);
+    this.#log('Transaction failed', txMeta.id, error);
     this.hub.emit('transaction-failed', txMeta, error);
   }
 
   #dropTransaction(txMeta: TransactionMeta) {
-    log('Transaction dropped', txMeta.id);
+    this.#log('Transaction dropped', txMeta.id);
     this.hub.emit('transaction-dropped', txMeta);
   }
 

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { NetworkType } from '@metamask/controller-utils';
 import { BN } from 'bn.js';
 
 import { CHAIN_IDS } from '../constants';
@@ -61,6 +62,7 @@ const SIMULATION_DATA_2_MOCK: SimulationData = {
 const TRANSACTION_META_MOCK: TransactionMeta = {
   chainId: CHAIN_IDS.MAINNET,
   id: '123-456',
+  networkClientId: NetworkType.mainnet,
   securityAlertResponse: SECURITY_ALERT_RESPONSE_MOCK,
   status: TransactionStatus.unapproved,
   time: 1234567890,
