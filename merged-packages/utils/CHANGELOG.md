@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+### Changed
+- **BREAKING:** `generateRandomMnemonic` now returns `Promise<void>` instead of `void` ([#222](https://github.com/MetaMask/utils/pull/222))
+
 ## [10.0.1]
 ### Added
 - Add Solana CAIP namespace ([#219](https://github.com/MetaMask/utils/pull/219))
@@ -273,7 +277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/utils/compare/v10.0.1...v11.0.0
 [10.0.1]: https://github.com/MetaMask/utils/compare/v10.0.0...v10.0.1
 [10.0.0]: https://github.com/MetaMask/utils/compare/v9.3.0...v10.0.0
 [9.3.0]: https://github.com/MetaMask/utils/compare/v9.2.1...v9.3.0
