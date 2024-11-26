@@ -68,9 +68,11 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@babel/runtime": "^7.23.9",
     "@metamask/accounts-controller": "^20.0.0",
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/eth-block-tracker": "^11.0.2",
     "@metamask/eth-json-rpc-provider": "^4.1.6",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^22.0.1",

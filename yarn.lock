@@ -2063,9 +2063,9 @@ __metadata:
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
     "@metamask/keyring-controller": ^19.0.0
-    "@metamask/providers": ^18.1.1
+    "@metamask/providers": ^18.1.0
     "@metamask/snaps-controllers": ^9.7.0
-    webextension-polyfill: ^0.12.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2199,8 +2199,8 @@ __metadata:
     "@metamask/keyring-controller": ^19.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/preferences-controller": ^15.0.0
-    "@metamask/providers": ^18.1.1
-    webextension-polyfill: ^0.12.0
+    "@metamask/providers": ^18.1.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2315,8 +2315,8 @@ __metadata:
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/providers": ^18.1.1
-    webextension-polyfill: ^0.12.0
+    "@metamask/providers": ^18.1.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -2371,7 +2371,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@babel/runtime": ^7.23.9
+    "@babel/runtime": ^7.0.0
   languageName: unknown
   linkType: soft
 
@@ -2882,7 +2882,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
   peerDependencies:
-    "@babel/runtime": ^7.23.9
+    "@babel/runtime": ^7.0.0
     "@metamask/network-controller": ^22.0.0
   languageName: unknown
   linkType: soft
@@ -3008,8 +3008,8 @@ __metadata:
     uuid: "npm:^8.3.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/providers": ^18.1.1
-    webextension-polyfill: ^0.12.0
+    "@metamask/providers": ^18.1.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -3402,9 +3402,9 @@ __metadata:
     "@metamask/accounts-controller": ^20.0.0
     "@metamask/keyring-controller": ^19.0.0
     "@metamask/network-controller": ^22.0.0
-    "@metamask/providers": ^18.1.1
+    "@metamask/providers": ^18.1.0
     "@metamask/snaps-controllers": ^9.10.0
-    webextension-polyfill: ^0.12.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
@@ -3708,6 +3708,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
+    "@babel/runtime": "npm:^7.23.9"
     "@ethereumjs/common": "npm:^3.2.0"
     "@ethereumjs/tx": "npm:^4.2.0"
     "@ethereumjs/util": "npm:^8.1.0"
@@ -3719,6 +3720,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.2"
     "@metamask/controller-utils": "npm:^11.4.3"
+    "@metamask/eth-block-tracker": "npm:^11.0.2"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.6"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
@@ -3747,8 +3749,10 @@ __metadata:
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
   peerDependencies:
+    "@babel/runtime": ^7.0.0
     "@metamask/accounts-controller": ^20.0.0
     "@metamask/approval-controller": ^7.0.0
+    "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^22.0.0
     "@metamask/network-controller": ^22.0.0
   languageName: unknown
@@ -3762,6 +3766,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.2"
     "@metamask/controller-utils": "npm:^11.4.3"
+    "@metamask/eth-block-tracker": "npm:^11.0.2"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/gas-fee-controller": "npm:^22.0.1"
     "@metamask/keyring-controller": "npm:^19.0.0"
@@ -3784,6 +3789,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/approval-controller": ^7.0.0
+    "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^22.0.0
     "@metamask/keyring-controller": ^19.0.0
     "@metamask/network-controller": ^22.0.0
