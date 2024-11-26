@@ -129,6 +129,10 @@ export type PreferencesState = {
    */
   tokenSortConfig: TokenSortConfig;
   /**
+   * Controls which order tokens are sorted in
+   */
+  tokenNetworkFilter: Record<string, boolean>;
+  /**
    * Controls whether balance and assets are hidden or not
    */
   privacyMode: boolean;
@@ -153,6 +157,7 @@ const metadata = {
   useMultiRpcMigration: { persist: true, anonymous: true },
   useSafeChainsListValidation: { persist: true, anonymous: true },
   tokenSortConfig: { persist: true, anonymous: true },
+  tokenNetworkFilter: { persist: true, anonymous: true },
   privacyMode: { persist: true, anonymous: true },
 };
 
@@ -232,6 +237,7 @@ export function getDefaultPreferencesState(): PreferencesState {
       order: 'dsc',
       sortCallback: 'stringNumeric',
     },
+    tokenNetworkFilter: {},
     privacyMode: false,
   };
 }
@@ -561,6 +567,17 @@ export class PreferencesController extends BaseController<
   setTokenSortConfig(tokenSortConfig: TokenSortConfig) {
     this.update((state) => {
       state.tokenSortConfig = tokenSortConfig;
+    });
+  }
+
+  /**
+   * A setter to update the user's selected chains in the token network filter.
+   *
+   * @param tokenNetworkFilter - an representing which chains to include in the token network filter.
+   */
+  setTokenNetworkFilter(tokenNetworkFilter: Record<string, boolean>) {
+    this.update((state) => {
+      state.tokenNetworkFilter = tokenNetworkFilter;
     });
   }
 
