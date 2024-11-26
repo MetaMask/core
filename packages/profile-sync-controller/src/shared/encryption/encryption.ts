@@ -171,6 +171,32 @@ class EncryptorDecryptor {
     return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));
   }
 
+  getSalt(encryptedDataStr: string) {
+    try {
+      const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
+      if (encryptedData.v === '1') {
+        if (encryptedData.t === 'scrypt') {
+          const { d: base64CiphertextAndNonceAndSalt, saltLen } = encryptedData;
+
+          // Decode the base64.
+          const ciphertextAndNonceAndSalt = base64ToByteArray(
+            base64CiphertextAndNonceAndSalt,
+          );
+
+          // Create buffers of salt and ciphertextAndNonce.
+          const salt = ciphertextAndNonceAndSalt.slice(0, saltLen);
+          return salt;
+        }
+      }
+      throw new Error(
+        `Unsupported encrypted data payload - ${encryptedDataStr}`,
+      );
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      throw new Error(`Unable to decrypt string - ${errorMessage}`);
+    }
+  }
+
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
     const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
 

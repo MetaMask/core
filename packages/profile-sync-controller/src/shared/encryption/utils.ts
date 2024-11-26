@@ -14,3 +14,15 @@ export const bytesToUtf8 = (byteArray: Uint8Array) => {
 export const stringToByteArray = (str: string) => {
   return new TextEncoder().encode(str);
 };
+
+export const areAllUInt8ArraysUnique = (arrays: Uint8Array[]) => {
+  const seen = new Set<string>();
+  for (const arr of arrays) {
+    const str = arr.toString();
+    if (seen.has(str)) {
+      return false;
+    }
+    seen.add(str);
+  }
+  return true;
+};

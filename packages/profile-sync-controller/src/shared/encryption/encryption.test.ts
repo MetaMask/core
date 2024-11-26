@@ -37,4 +37,16 @@ describe('encryption tests', () => {
     const hash2 = createSHA256Hash(DATA);
     expect(hash1).toBe(hash2);
   });
+
+  it('should be able to get the salt from an encrypted string', async () => {
+    const encryptedData = `{"v":"1","t":"scrypt","d":"d9k8wRtOOq97OyNqRNnTCa3ct7+z9nRjV75Am+ND9yMoV/bMcnrzZqO2EhjL3viJyA==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}`;
+    const saltUsedToPreviouslyEncryptData = new Uint8Array([
+      119, 217, 60, 193, 27, 78, 58, 175, 123, 59, 35, 106, 68, 217, 211, 9,
+    ]);
+
+    const salt = encryption.getSalt(encryptedData);
+    expect(salt).toBeInstanceOf(Uint8Array);
+    expect(salt).toHaveLength(16);
+    expect(salt).toStrictEqual(saltUsedToPreviouslyEncryptData);
+  });
 });

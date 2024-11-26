@@ -24,6 +24,7 @@ import {
   deleteUserStorageAllFeatureEntries,
   deleteUserStorage,
 } from './services';
+import { getIfEntriesHaveDifferentSalts } from './utils';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
   const actCallGetUserStorage = async () => {
@@ -101,6 +102,55 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
 
     mockGetUserStorageAllFeatureEntries.done();
     expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
+  });
+
+  it('re-encrypts data if entries were encrypted with different salts, and saves it back to user storage', async () => {
+    // This corresponds to [['entry1', 'data1'], ['entry2', 'data2']]
+    // Each entry has been encrypted with a different salt
+    const mockResponse = [
+      {
+        HashedKey: 'entry1',
+        Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      },
+      {
+        HashedKey: 'entry2',
+        Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOlnfa4ysuUNeLYTTmJ+qrq7gwI6hURH3ooUcBldJkHtvuQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      },
+    ];
+
+    const mockGetUserStorageAllFeatureEntries =
+      await mockEndpointGetUserStorageAllFeatureEntries(
+        USER_STORAGE_FEATURE_NAMES.notifications,
+        {
+          status: 200,
+          body: JSON.stringify(mockResponse),
+        },
+      );
+
+    const mockBatchUpsertUserStorage = mockEndpointBatchUpsertUserStorage(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+      undefined,
+      async (_uri, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const doEntriesHaveDifferentSalts = getIfEntriesHaveDifferentSalts(
+          Object.entries(requestBody.data).map((entry) => ({
+            HashedKey: entry[0],
+            Data: entry[1] as string,
+          })),
+        );
+
+        expect(doEntriesHaveDifferentSalts).toBe(false);
+      },
+    );
+
+    const result = await actCallGetUserStorageAllFeatureEntries();
+
+    mockGetUserStorageAllFeatureEntries.done();
+    mockBatchUpsertUserStorage.done();
+    expect(result).toStrictEqual(['data1', 'data2']);
   });
 
   it('returns null if endpoint does not have entry', async () => {
