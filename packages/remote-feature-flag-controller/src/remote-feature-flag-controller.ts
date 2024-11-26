@@ -119,7 +119,7 @@ export class RemoteFeatureFlagController extends BaseController<
   }
 
   #isCacheExpired(): boolean {
-    return Date.now() - this.state.cacheTimestamp < this.#fetchInterval;
+    return Date.now() - this.state.cacheTimestamp > this.#fetchInterval;
   }
 
   async getRemoteFeatureFlags(): Promise<FeatureFlags> {
@@ -127,7 +127,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return [];
     }
 
-    if (this.#isCacheExpired()) {
+    if (!this.#isCacheExpired()) {
       return this.state.remoteFeatureFlags;
     }
 
@@ -146,6 +146,8 @@ export class RemoteFeatureFlagController extends BaseController<
       if (flags.cachedData.length > 0) {
         this.updateCache(flags.cachedData);
         resolve(flags.cachedData);
+      } else {
+        resolve([]); // Resolve with empty array if no data is returned
       }
       return await promise;
     } finally {
