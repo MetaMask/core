@@ -3,7 +3,7 @@ import type {
   StateConstraint,
   StateConstraintV1,
   StateMetadata,
-  StatePropertyMetadataConstraint,
+  StateMetadataConstraint,
   ControllerStateChangeEvent,
   LegacyControllerStateConstraint,
   ControllerInstance,
@@ -131,7 +131,10 @@ export type ComposableControllerMessenger<
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
-  ChildControllers extends Record<string, ControllerInstance>,
+  ChildControllers extends Record<
+    keyof ComposableControllerState,
+    ControllerInstance
+  >,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
@@ -160,8 +163,7 @@ export class ComposableController<
       metadata: Object.keys(controllers).reduce<
         StateMetadata<ComposableControllerState>
       >((metadata, name) => {
-        // Type assertion is necessary to assign new properties to a generic type - ts(2862)
-        (metadata as Record<string, StatePropertyMetadataConstraint>)[name] = {
+        (metadata as StateMetadataConstraint)[name] = {
           persist: true,
           anonymous: true,
         };
@@ -169,11 +171,8 @@ export class ComposableController<
       }, {} as never),
       state: Object.values(controllers).reduce<ComposableControllerState>(
         (state, controller) => {
-          // Type assertion is necessary to assign new properties to a generic type - ts(2862)
-          // TODO: Remove the 'object' member once `BaseControllerV2` migrations are completed for all controllers.
-          (state as LegacyComposableControllerStateConstraint)[
-            controller.name
-          ] = controller.state;
+          (state as ComposableControllerStateConstraint)[controller.name] =
+            controller.state;
           return state;
         },
         {} as never,
@@ -211,8 +210,7 @@ export class ComposableController<
         `${name}:stateChange`,
         (childState: LegacyControllerStateConstraint) => {
           this.update((state) => {
-            (state as LegacyComposableControllerStateConstraint)[name] =
-              childState;
+            (state as ComposableControllerStateConstraint)[name] = childState;
           });
         },
       );
@@ -224,7 +222,7 @@ export class ComposableController<
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState: StateConstraintV1) => {
         this.update((state) => {
-          (state as Record<string, StateConstraintV1>)[name] = childState;
+          (state as ComposableControllerStateConstraint)[name] = childState;
         });
       });
     }
