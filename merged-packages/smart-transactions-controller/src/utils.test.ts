@@ -1,7 +1,6 @@
 import { ChainId } from '@metamask/controller-utils';
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
+import packageJson from '../package.json';
 import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
 import {
   SmartTransactionMinedTx,
@@ -10,7 +9,6 @@ import {
   SmartTransactionCancellationReason,
 } from './types';
 import * as utils from './utils';
-import packageJson from '../package.json';
 
 const createSignedTransaction = () => {
   return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
