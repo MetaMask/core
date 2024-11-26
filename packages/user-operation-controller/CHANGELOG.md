@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.0.0]
 
-### Uncategorized
+### Changed
 
-- refactor: remove global network from transaction controller ([#4920](https://github.com/MetaMask/core/pull/4920))
-- Release 257.0.0 ([#4976](https://github.com/MetaMask/core/pull/4976))
-- Revert "Release `257.0.0` (#4969)" ([#4969](https://github.com/MetaMask/core/pull/4969))
-- Release `257.0.0` ([#4969](https://github.com/MetaMask/core/pull/4969))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^40.1.0` to `^41.0.0` ([#4982](https://github.com/MetaMask/core/pull/4982))
 
 ## [19.0.0]
 
