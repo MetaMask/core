@@ -63,7 +63,7 @@ describe('caip25EndowmentBuilder', () => {
 
   describe('Caip25CaveatMutators.authorizedScopes', () => {
     describe('removeScope', () => {
-      it('returns a version of the caveat with the given scope removed from requiredScopes if it is present', () => {
+      it('updates the caveat with the given scope removed from requiredScopes if it is present', () => {
         const caveatValue = {
           requiredScopes: {
             'eip155:1': {
@@ -92,7 +92,7 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('returns a version of the caveat with the given scope removed from optionalScopes if it is present', () => {
+      it('updates the caveat with the given scope removed from optionalScopes if it is present', () => {
         const caveatValue = {
           requiredScopes: {
             'eip155:1': {
@@ -121,7 +121,7 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('returns a version of the caveat with the given scope removed from requiredScopes and optionalScopes if it is present', () => {
+      it('updates the caveat with the given scope removed from requiredScopes and optionalScopes if it is present', () => {
         const caveatValue = {
           requiredScopes: {
             'eip155:1': {
@@ -176,7 +176,7 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('does not revoke the permission if the target scope does not exist but the permission only has wallet scopes', () => {
+      it('does nothing if the target scope does not exist but the permission only has wallet scopes', () => {
         const caveatValue = {
           requiredScopes: {},
           optionalScopes: {
@@ -191,12 +191,12 @@ describe('caip25EndowmentBuilder', () => {
           isMultichainOrigin: true,
         };
         const result = removeScope(caveatValue, 'eip155:5');
-        expect(result.operation).not.toStrictEqual(
-          CaveatMutatorOperation.RevokePermission,
-        );
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.Noop,
+        });
       });
 
-      it('returns the caveat unchanged when the given scope is not found in either requiredScopes or optionalScopes', () => {
+      it('does nothing if the given scope is not found in either requiredScopes or optionalScopes', () => {
         const caveatValue = {
           requiredScopes: {
             'eip155:1': {
@@ -219,7 +219,7 @@ describe('caip25EndowmentBuilder', () => {
     });
 
     describe('removeAccount', () => {
-      it('returns a version of the caveat with the given account removed from requiredScopes if it is present', () => {
+      it('updates the caveat with the given account removed from requiredScopes if it is present', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
@@ -244,7 +244,7 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('returns a version of the caveat with the given account removed from optionalScopes if it is present', () => {
+      it('updates the caveat with the given account removed from optionalScopes if it is present', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {},
           optionalScopes: {
@@ -269,7 +269,7 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('returns a version of the caveat with the given account removed from requiredScopes and optionalScopes if it is present', () => {
+      it('updates the caveat with the given account removed from requiredScopes and optionalScopes if it is present', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
@@ -324,7 +324,7 @@ describe('caip25EndowmentBuilder', () => {
         });
       });
 
-      it('does not revoke the permission if the target account does exist and `wallet:eip155` is the only scope with remaining accounts', () => {
+      it('updates the permission with the target account removed if the target account does exist and `wallet:eip155` is the only scope with remaining accounts after', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {},
           optionalScopes: {
@@ -338,12 +338,24 @@ describe('caip25EndowmentBuilder', () => {
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
-        expect(result.operation).not.toStrictEqual(
-          CaveatMutatorOperation.RevokePermission,
-        );
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.UpdateValue,
+          value: {
+            requiredScopes: {},
+            optionalScopes: {
+              'eip155:1': {
+                accounts: [],
+              },
+              'wallet:eip155': {
+                accounts: ['wallet:eip155:0x2'],
+              },
+            },
+            isMultichainOrigin: true,
+          },
+        });
       });
 
-      it('does not revoke the permission if the target account does not exist but the permission already has no accounts', () => {
+      it('does nothing if the target account does not exist but the permission already has no accounts', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {},
           optionalScopes: {
@@ -354,12 +366,12 @@ describe('caip25EndowmentBuilder', () => {
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
-        expect(result.operation).not.toStrictEqual(
-          CaveatMutatorOperation.RevokePermission,
-        );
+        expect(result).toStrictEqual({
+          operation: CaveatMutatorOperation.Noop,
+        });
       });
 
-      it('returns the caveat unchanged when the given account is not found in either requiredScopes or optionalScopes', () => {
+      it('does nothing if the given account is not found in either requiredScopes or optionalScopes', () => {
         const caveatValue: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
