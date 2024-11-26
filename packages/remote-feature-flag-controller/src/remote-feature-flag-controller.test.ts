@@ -12,6 +12,7 @@ import type {
   RemoteFeatureFlagControllerState,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';
+import type { FeatureFlags } from './remote-feature-flag-controller-types';
 
 const mockFlags = [{ feature1: true }, { feature2: { chrome: '<109' } }];
 
@@ -232,6 +233,18 @@ describe('RemoteFeatureFlagController', () => {
       expect(secondFlags).toStrictEqual(mockFlagsTwo);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
+
+    it('should resolve with empty array when API returns no cached data', async () => {
+      clientConfigApiService = buildClientConfigApiService({
+        cachedData: [],
+      });
+
+      const controller = createController({ clientConfigApiService });
+      const result = await controller.getRemoteFeatureFlags();
+
+      expect(result).toStrictEqual([]);
+      expect(clientConfigApiService.fetchRemoteFeatureFlags).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
@@ -271,15 +284,16 @@ function getControllerMessenger(
  * @returns A mock client config API service
  */
 function buildClientConfigApiService({
+  cachedData,
   cacheTimestamp,
-}: { cacheTimestamp?: number } = {}): AbstractClientConfigApiService {
+}: { cachedData?: FeatureFlags; cacheTimestamp?: number } = {}): AbstractClientConfigApiService {
   return {
     fetchRemoteFeatureFlags: jest.fn().mockResolvedValue({
       error: false,
       message: 'Success',
       statusCode: '200',
       statusText: 'OK',
-      cachedData: mockFlags,
+      cachedData: cachedData ?? mockFlags,
       cacheTimestamp: cacheTimestamp ?? Date.now(),
     }),
   };
