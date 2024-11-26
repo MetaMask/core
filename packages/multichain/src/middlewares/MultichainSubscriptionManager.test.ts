@@ -51,15 +51,21 @@ const createMultichainSubscriptionManager = () => {
   return { multichainSubscriptionManager };
 };
 
-describe('MultichainSubscriptionManager', () => {
-  const mockSubscriptionManager = {
-    events: {
-      on: jest.fn(),
-    },
+const createMockSubscriptionManager = () => ({
+  events: {
+    on: jest.fn(),
+  },
+  destroy: jest.fn(),
+  middleware: {
     destroy: jest.fn(),
-  };
+  },
+});
+
+describe('MultichainSubscriptionManager', () => {
+  let mockSubscriptionManager = createMockSubscriptionManager();
 
   beforeEach(() => {
+    mockSubscriptionManager = createMockSubscriptionManager();
     MockCreateSubscriptionManager.mockReturnValue(mockSubscriptionManager);
   });
 
@@ -154,6 +160,15 @@ describe('MultichainSubscriptionManager', () => {
     mockSubscriptionManager.events.on.mock.calls[0][1](
       newHeadsNotificationMock,
     );
+
+    expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
+  });
+
+  it('should unsubscribe when the middleware is destroyed', () => {
+    const { multichainSubscriptionManager } =
+      createMultichainSubscriptionManager();
+    multichainSubscriptionManager.subscribe({ scope, origin, tabId });
+    mockSubscriptionManager.middleware.destroy();
 
     expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });

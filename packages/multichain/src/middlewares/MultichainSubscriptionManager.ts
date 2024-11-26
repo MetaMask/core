@@ -87,9 +87,10 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
   }
 
   subscribe(subscriptionKey: SubscriptionKey) {
-    const subscriptionEntry = this.#getSubscriptionEntry(subscriptionKey);
-    if (subscriptionEntry) {
-      return subscriptionEntry.subscriptionManager;
+    const existingSubscriptionEntry =
+      this.#getSubscriptionEntry(subscriptionKey);
+    if (existingSubscriptionEntry) {
+      return existingSubscriptionEntry.subscriptionManager;
     }
 
     const networkClientId = this.#findNetworkClientIdByChainId(
@@ -108,10 +109,19 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
       },
     );
 
-    this.#subscriptions.push({
+    const newSubscriptionEntry = {
       ...subscriptionKey,
       subscriptionManager,
-    });
+    };
+    this.#subscriptions.push(newSubscriptionEntry);
+
+    // subscriptionManager.middleware.destroy is set to
+    // subscriptionManager.destroy internally and can be
+    // disregarded as long as subscriptionManager.destroy
+    // is eventually called when the middleware is destroyed.
+    subscriptionManager.middleware.destroy = () => {
+      this.#unsubscribe(newSubscriptionEntry);
+    };
 
     return subscriptionManager;
   }
