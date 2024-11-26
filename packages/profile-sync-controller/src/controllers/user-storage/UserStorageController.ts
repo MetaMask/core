@@ -76,8 +76,8 @@ export type NetworkControllerRemoveNetworkAction = {
   handler: NetworkController['removeNetwork'];
 };
 export type NetworkControllerDangerouslySetNetworkConfigurationAction = {
-  type: 'NetworkController:dangerouslySetNetworkConfiguration';
-  handler: (networkConfiguration: NetworkConfiguration) => Promise<void>;
+  type: 'NetworkController:updateNetwork';
+  handler: NetworkController['updateNetwork'];
 };
 
 // TODO: fix external dependencies

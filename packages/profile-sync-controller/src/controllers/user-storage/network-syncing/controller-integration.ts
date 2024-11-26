@@ -6,6 +6,7 @@ import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
 import type { NetworkConfiguration } from './types';
+import { createUpdateNetworkProps } from './update-network-utils';
 
 type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
@@ -120,6 +121,34 @@ export const getBoundedNetworksToAdd = (
     .slice(0, numberOfNetworksToAppend);
 };
 
+export const dispatchUpdateNetwork = async (props: {
+  messenger: UserStorageControllerMessenger;
+  originalNetworkConfiguration: NetworkConfiguration;
+  newNetworkConfiguration: NetworkConfiguration;
+  selectedNetworkClientId: string;
+}) => {
+  const {
+    messenger,
+    originalNetworkConfiguration,
+    newNetworkConfiguration,
+    selectedNetworkClientId,
+  } = props;
+
+  const { updateNetworkFields, newSelectedRpcEndpointIndex } =
+    createUpdateNetworkProps({
+      originalNetworkConfiguration,
+      newNetworkConfiguration,
+      selectedNetworkClientId,
+    });
+
+  await messenger.call(
+    'NetworkController:updateNetwork',
+    updateNetworkFields.chainId,
+    updateNetworkFields,
+    { replacementSelectedRpcEndpointIndex: newSelectedRpcEndpointIndex },
+  );
+};
+
 /**
  * Action to perform the main network sync.
  * It will fetch local networks and remote networks, then determines which networks (local and remote) to add/update
@@ -213,10 +242,14 @@ export async function performMainNetworkSync(
       const errors: unknown[] = [];
       for (const n of networkChanges.localNetworksToUpdate) {
         try {
-          await messenger.call(
-            'NetworkController:dangerouslySetNetworkConfiguration',
-            n,
-          );
+          await dispatchUpdateNetwork({
+            messenger,
+            originalNetworkConfiguration:
+              networkControllerState.networkConfigurationsByChainId[n.chainId],
+            newNetworkConfiguration: n,
+            selectedNetworkClientId:
+              networkControllerState.selectedNetworkClientId,
+          });
           onNetworkUpdated?.(n.chainId);
         } catch (e) {
           /* istanbul ignore next - allocates logs, do not need to test */

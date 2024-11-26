@@ -332,6 +332,15 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   it('should update local networks', async () => {
     const { messenger, getStorageConfig, mockSync, mockServices, mockCalls } =
       arrangeMocks();
+
+    mockCalls.mockNetworkControllerGetState.mockReturnValue({
+      networkConfigurationsByChainId: {
+        '0x1337': createMockNetworkConfiguration(),
+      },
+      selectedNetworkClientId: '1111-1111-1111',
+      networksMetadata: {},
+    });
+
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [],
       missingLocalNetworks: [],
@@ -348,9 +357,11 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
 
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).toHaveBeenCalled();
+    await waitFor(() =>
+      expect(
+        mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
+      ).toHaveBeenCalled(),
+    );
     expect(mockUpdateCallback).toHaveBeenCalledTimes(1);
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
@@ -383,6 +394,15 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   it('should handle multiple networks to update', async () => {
     const { messenger, getStorageConfig, mockSync, mockServices, mockCalls } =
       arrangeMocks();
+
+    mockCalls.mockNetworkControllerGetState.mockReturnValue({
+      networkConfigurationsByChainId: {
+        '0x1337': createMockNetworkConfiguration(),
+      },
+      selectedNetworkClientId: '1111-1111-1111',
+      networksMetadata: {},
+    });
+
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [
         createMockRemoteNetworkConfiguration(),
