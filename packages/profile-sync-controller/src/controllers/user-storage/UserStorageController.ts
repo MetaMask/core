@@ -426,6 +426,8 @@ export default class UserStorageController extends BaseController<
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
+        // ESLint is confused here.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );

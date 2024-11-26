@@ -576,10 +576,6 @@ export class TokensController extends BaseController<
     tokenAddressesToIgnore: string[],
     networkClientId?: NetworkClientId,
   ) {
-    const { ignoredTokens, detectedTokens, tokens } = this.state;
-    const ignoredTokensMap: { [key: string]: true } = {};
-    let newIgnoredTokens: string[] = [...ignoredTokens];
-
     let interactingChainId;
     if (networkClientId) {
       interactingChainId = this.messagingSystem.call(
@@ -587,6 +583,24 @@ export class TokensController extends BaseController<
         networkClientId,
       ).configuration.chainId;
     }
+
+    const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
+    const ignoredTokensMap: { [key: string]: true } = {};
+    const ignoredTokens =
+      allIgnoredTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAddress()
+      ] || [];
+    let newIgnoredTokens: string[] = [...ignoredTokens];
+
+    const tokens =
+      allTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAddress()
+      ] || [];
+
+    const detectedTokens =
+      allDetectedTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAddress()
+      ] || [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);

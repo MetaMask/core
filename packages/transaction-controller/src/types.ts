@@ -212,7 +212,7 @@ type TransactionMetaBase = {
   /**
    * The ID of the network client used by the transaction.
    */
-  networkClientId?: NetworkClientId;
+  networkClientId: NetworkClientId;
 
   /**
    * Network code as per EIP-155 for this transaction
@@ -868,9 +868,9 @@ export interface RemoteTransactionSourceRequest {
   address: string;
 
   /**
-   * The chainId of the current network.
+   * The ID of the chain to query transactions for.
    */
-  currentChainId: Hex;
+  chainId: Hex;
 
   /**
    * Block number to start fetching transactions from.
