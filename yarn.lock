@@ -2063,7 +2063,9 @@ __metadata:
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
     "@metamask/keyring-controller": ^19.0.0
+    "@metamask/providers": ^18.1.1
     "@metamask/snaps-controllers": ^9.7.0
+    webextension-polyfill: ^0.12.0
   languageName: unknown
   linkType: soft
 

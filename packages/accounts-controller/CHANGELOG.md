@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add peer dependency `@metamask/providers@^18.1.1` ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - This is a peer dependency of `@metamask/keyring-api`. Consumers may already need to add it as a dependency to create a working build; this change is therefore more of a formality.
+- Add peer dependency `webextension-polyfill@^0.12.0` ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - This is a peer dependency of `@metamask/providers`. Consumers may already need to add it as a dependency to create a working build; this change is therefore more of a formality.
+
 ## [20.0.0]
 
 ### Changed
