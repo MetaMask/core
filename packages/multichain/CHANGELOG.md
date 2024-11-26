@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: revoke CAIP-25 endowment if only eip155 account or scope is removed ([#4978](https://github.com/MetaMask/core/pull/4978))
+
 ## [1.0.0]
 
 ### Added
