@@ -30,11 +30,11 @@ import type {
   SmartTransactionsControllerActions,
   SmartTransactionsControllerEvents,
 } from './SmartTransactionsController';
-import { advanceTime, flushPromises, getFakeProvider } from './test-helpers';
 import type { SmartTransaction, UnsignedTransaction, Hex } from './types';
 import { SmartTransactionStatuses } from './types';
 import * as utils from './utils';
 import packageJson from '../package.json';
+import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
 
 jest.mock('@ethersproject/bytes', () => ({
   ...jest.requireActual('@ethersproject/bytes'),
