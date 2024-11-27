@@ -261,7 +261,7 @@ export async function performMainNetworkSync(
       /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
         log.error(
-          'performMainNetworkSync() - NetworkController:dangerouslySetNetworkConfiguration failed',
+          'performMainNetworkSync() - NetworkController:updateNetwork failed',
           errors,
         );
       }
