@@ -7,10 +7,13 @@ import { parseCaipChainId } from '@metamask/utils';
 import type EventEmitter from 'events';
 
 import type { ExternalScopeString } from '../scope/types';
+import { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
+import { middleware } from 'yargs';
 
 export type SubscriptionManager = {
   events: EventEmitter;
   destroy?: () => void;
+  middleware: ExtendedJsonRpcMiddleware;
 };
 
 type SubscriptionNotificationEvent = {
@@ -29,6 +32,7 @@ type SubscriptionKey = {
 };
 type SubscriptionEntry = SubscriptionKey & {
   subscriptionManager: SubscriptionManager;
+  middleware: ExtendedJsonRpcMiddleware;
 };
 
 type MultichainSubscriptionManagerOptions = {
@@ -90,7 +94,8 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     const existingSubscriptionEntry =
       this.#getSubscriptionEntry(subscriptionKey);
     if (existingSubscriptionEntry) {
-      return existingSubscriptionEntry.subscriptionManager;
+      const { subscriptionManager, middleware } = existingSubscriptionEntry;
+      return { subscriptionManager, middleware }
     }
 
     const networkClientId = this.#findNetworkClientIdByChainId(
@@ -109,20 +114,23 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
       },
     );
 
+    const middleware: ExtendedJsonRpcMiddleware = (req, res, next, end) => {
+      return subscriptionManager.middleware(req,res,next,end)
+    };
+
     const newSubscriptionEntry = {
       ...subscriptionKey,
       subscriptionManager,
+      middleware,
     };
     this.#subscriptions.push(newSubscriptionEntry);
 
-    // subscriptionManager.middleware.destroy is set to
-    // subscriptionManager.destroy internally
-    subscriptionManager.middleware.destroy = this.#unsubscribe.bind(
+    middleware.destroy = this.#unsubscribe.bind(
       this,
       newSubscriptionEntry
     );
 
-    return subscriptionManager;
+    return { subscriptionManager, middleware }
   }
 
   #unsubscribe(subscriptionEntry: SubscriptionEntry) {
