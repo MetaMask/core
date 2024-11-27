@@ -1170,6 +1170,8 @@ export default class UserStorageController extends BaseController<
   }
 
   async syncNetworks() {
+    console.log('START', this.#env.isNetworkSyncingEnabled);
+
     if (!this.#env.isNetworkSyncingEnabled) {
       return;
     }

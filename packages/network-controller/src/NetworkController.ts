@@ -1614,8 +1614,7 @@ export class NetworkController extends BaseController<
           defaultOrCustomRpcEndpointFields.type === RpcEndpointType.Custom
             ? {
                 ...defaultOrCustomRpcEndpointFields,
-                networkClientId:
-                  defaultOrCustomRpcEndpointFields.networkClientId ?? uuidV4(),
+                networkClientId: uuidV4(),
               }
             : defaultOrCustomRpcEndpointFields;
         return {
