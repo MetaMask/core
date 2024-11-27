@@ -168,6 +168,11 @@ type TransactionMetaBase = {
    */
   firstRetryBlockNumber?: string;
 
+  /**
+   * Whether the transaction is the first time interaction.
+   */
+  isFirstTimeInteraction?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -207,7 +212,7 @@ type TransactionMetaBase = {
   /**
    * The ID of the network client used by the transaction.
    */
-  networkClientId?: NetworkClientId;
+  networkClientId: NetworkClientId;
 
   /**
    * Network code as per EIP-155 for this transaction
@@ -863,9 +868,9 @@ export interface RemoteTransactionSourceRequest {
   address: string;
 
   /**
-   * The chainId of the current network.
+   * The ID of the chain to query transactions for.
    */
-  currentChainId: Hex;
+  chainId: Hex;
 
   /**
    * Block number to start fetching transactions from.

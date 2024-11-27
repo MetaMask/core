@@ -288,6 +288,7 @@ function createMinimalMockTransaction(): TransactionMeta {
   return {
     chainId: toHex(1337),
     id: 'mock-id',
+    networkClientId: 'testNetworkClientId',
     time: 0,
     status: TransactionStatus.submitted as const,
     txParams: {

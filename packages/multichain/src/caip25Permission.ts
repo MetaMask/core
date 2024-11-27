@@ -13,6 +13,7 @@ import {
 import type { CaipAccountId, Json } from '@metamask/utils';
 import {
   hasProperty,
+  KnownCaipNamespace,
   parseCaipAccountId,
   type Hex,
   type NonEmptyArray,
@@ -20,15 +21,13 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
+import { assertIsInternalScopesObject } from './scope/assert';
+import { isSupportedScopeString } from './scope/supported';
 import {
-  assertScopesSupported,
-  assertIsExternalScopesObject,
-} from './scope/assert';
-import { validateAndNormalizeScopes } from './scope/authorization';
-import type {
-  ExternalScopeString,
-  InternalScopeObject,
-  InternalScopesObject,
+  parseScopeString,
+  type ExternalScopeString,
+  type InternalScopeObject,
+  type InternalScopesObject,
 } from './scope/types';
 
 /**
@@ -120,13 +119,11 @@ const specificationBuilder: PermissionSpecificationBuilder<
           `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
         );
       }
+
       const { requiredScopes, optionalScopes } = caip25Caveat.value;
 
-      assertIsExternalScopesObject(requiredScopes);
-      assertIsExternalScopesObject(optionalScopes);
-
-      const { normalizedRequiredScopes, normalizedOptionalScopes } =
-        validateAndNormalizeScopes(requiredScopes, optionalScopes);
+      assertIsInternalScopesObject(requiredScopes);
+      assertIsInternalScopesObject(optionalScopes);
 
       const isChainIdSupported = (chainId: Hex) => {
         try {
@@ -137,12 +134,19 @@ const specificationBuilder: PermissionSpecificationBuilder<
         }
       };
 
-      assertScopesSupported(normalizedRequiredScopes, {
-        isChainIdSupported,
-      });
-      assertScopesSupported(normalizedOptionalScopes, {
-        isChainIdSupported,
-      });
+      const allRequiredScopesSupported = Object.keys(requiredScopes).every(
+        (scopeString) =>
+          isSupportedScopeString(scopeString, isChainIdSupported),
+      );
+      const allOptionalScopesSupported = Object.keys(optionalScopes).every(
+        (scopeString) =>
+          isSupportedScopeString(scopeString, isChainIdSupported),
+      );
+      if (!allRequiredScopesSupported || !allOptionalScopesSupported) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+        );
+      }
 
       // Fetch EVM accounts from native wallet keyring
       // These addresses are lowercased already
@@ -150,8 +154,8 @@ const specificationBuilder: PermissionSpecificationBuilder<
         .listAccounts()
         .map((account) => account.address);
       const ethAccounts = getEthAccounts({
-        requiredScopes: normalizedRequiredScopes,
-        optionalScopes: normalizedOptionalScopes,
+        requiredScopes,
+        optionalScopes,
       }).map((address) => address.toLowerCase() as Hex);
 
       const allEthAccountsSupported = ethAccounts.every((address) =>
@@ -160,15 +164,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
       if (!allEthAccountsSupported) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
-        );
-      }
-
-      if (
-        !isEqual(requiredScopes, normalizedRequiredScopes) ||
-        !isEqual(optionalScopes, normalizedOptionalScopes)
-      ) {
-        throw new Error(
-          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
         );
       }
     },
@@ -237,17 +232,18 @@ function removeAccount(
   caip25CaveatValue: Caip25CaveatValue,
   targetAddress: Hex,
 ) {
-  const copyOfCaveatValue = cloneDeep(caip25CaveatValue);
+  const updatedCaveatValue = cloneDeep(caip25CaveatValue);
 
-  [copyOfCaveatValue.requiredScopes, copyOfCaveatValue.optionalScopes].forEach(
-    (scopes) => {
-      Object.entries(scopes).forEach(([, scopeObject]) => {
-        removeAccountFromScopeObject(scopeObject, targetAddress);
-      });
-    },
-  );
+  [
+    updatedCaveatValue.requiredScopes,
+    updatedCaveatValue.optionalScopes,
+  ].forEach((scopes) => {
+    Object.entries(scopes).forEach(([, scopeObject]) => {
+      removeAccountFromScopeObject(scopeObject, targetAddress);
+    });
+  });
 
-  const noChange = isEqual(copyOfCaveatValue, caip25CaveatValue);
+  const noChange = isEqual(updatedCaveatValue, caip25CaveatValue);
 
   if (noChange) {
     return {
@@ -255,14 +251,25 @@ function removeAccount(
     };
   }
 
+  const hasAccounts = [
+    ...Object.values(updatedCaveatValue.requiredScopes),
+    ...Object.values(updatedCaveatValue.optionalScopes),
+  ].some(({ accounts }) => accounts.length > 0);
+
+  if (hasAccounts) {
+    return {
+      operation: CaveatMutatorOperation.UpdateValue,
+      value: updatedCaveatValue,
+    };
+  }
+
   return {
-    operation: CaveatMutatorOperation.UpdateValue,
-    value: copyOfCaveatValue,
+    operation: CaveatMutatorOperation.RevokePermission,
   };
 }
 
 /**
- * Removes the target account from the value arrays of the given
+ * Removes the target scope from the value arrays of the given
  * `endowment:caip25` caveat. No-ops if the target scopeString is not in
  * the existing scopes.
  *
@@ -290,17 +297,32 @@ function removeScope(
     newOptionalScopes.length !==
     Object.keys(caip25CaveatValue.optionalScopes).length;
 
-  if (requiredScopesRemoved || optionalScopesRemoved) {
+  if (!requiredScopesRemoved && !optionalScopesRemoved) {
+    return {
+      operation: CaveatMutatorOperation.Noop,
+    };
+  }
+
+  const updatedCaveatValue = {
+    requiredScopes: Object.fromEntries(newRequiredScopes),
+    optionalScopes: Object.fromEntries(newOptionalScopes),
+  };
+
+  const hasNonWalletScopes = [...newRequiredScopes, ...newOptionalScopes].some(
+    ([scopeString]) => {
+      const { namespace } = parseScopeString(scopeString);
+      return namespace !== KnownCaipNamespace.Wallet;
+    },
+  );
+
+  if (hasNonWalletScopes) {
     return {
       operation: CaveatMutatorOperation.UpdateValue,
-      value: {
-        requiredScopes: Object.fromEntries(newRequiredScopes),
-        optionalScopes: Object.fromEntries(newOptionalScopes),
-      },
+      value: updatedCaveatValue,
     };
   }
 
   return {
-    operation: CaveatMutatorOperation.Noop,
+    operation: CaveatMutatorOperation.RevokePermission,
   };
 }

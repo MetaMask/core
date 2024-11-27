@@ -5,6 +5,8 @@ import {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
   SUPPORTED_CURRENCIES,
+  ZERO_ADDRESS,
+  getNativeTokenAddress,
 } from './codefi-v2';
 
 // We're not customizing the default max delay
@@ -206,6 +208,51 @@ describe('CodefiTokenPricesServiceV2', () => {
           pricePercentChange1y: -2.2992517267242754,
         },
       });
+    });
+
+    it('calls the /spot-prices endpoint using the correct native token address', async () => {
+      const mockPriceAPI = nock('https://price.api.cx.metamask.io')
+        .get('/v2/chains/137/spot-prices')
+        .query({
+          tokenAddresses: '0x0000000000000000000000000000000000001010',
+          vsCurrency: 'ETH',
+          includeMarketData: 'true',
+        })
+        .reply(200, {
+          '0x0000000000000000000000000000000000001010': {
+            price: 14,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
+          },
+        });
+
+      const marketData =
+        await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+          chainId: '0x89',
+          tokenAddresses: [],
+          currency: 'ETH',
+        });
+
+      expect(mockPriceAPI.isDone()).toBe(true);
+      expect(
+        marketData['0x0000000000000000000000000000000000001010'],
+      ).toBeDefined();
     });
 
     it('should not include token price object for token address when token price in not included the response data', async () => {
@@ -1958,6 +2005,19 @@ describe('CodefiTokenPricesServiceV2', () => {
       expect(
         new CodefiTokenPricesServiceV2().validateCurrencySupported('LOL'),
       ).toBe(false);
+    });
+  });
+
+  describe('getNativeTokenAddress', () => {
+    it('should return unique native token address for MATIC', () => {
+      expect(getNativeTokenAddress('0x89')).toBe(
+        '0x0000000000000000000000000000000000001010',
+      );
+    });
+    it('should return zero address for other chains', () => {
+      (['0x1', '0x2', '0x1337'] as const).forEach((chainId) => {
+        expect(getNativeTokenAddress(chainId)).toBe(ZERO_ADDRESS);
+      });
     });
   });
 });
