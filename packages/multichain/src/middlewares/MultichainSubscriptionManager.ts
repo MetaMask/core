@@ -116,12 +116,14 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     this.#subscriptions.push(newSubscriptionEntry);
 
     // subscriptionManager.middleware.destroy is set to
-    // subscriptionManager.destroy internally and can be
-    // disregarded as long as subscriptionManager.destroy
-    // is eventually called when the middleware is destroyed.
-    subscriptionManager.middleware.destroy = () => {
-      this.#unsubscribe(newSubscriptionEntry);
-    };
+    // subscriptionManager.destroy internally
+    const originalDestroy = subscriptionManager.destroy
+    const wrappedDestroy = () => {
+      originalDestroy()
+      this.#removeSubscriptionEntry(newSubscriptionEntry);
+    }
+    subscriptionManager.destroy = wrappedDestroy
+    subscriptionManager.middleware.destroy = wrappedDestroy
 
     return subscriptionManager;
   }
