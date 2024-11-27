@@ -16,8 +16,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
     it('returns an empty array if the scope objects have no accounts', () => {
       const ethAccounts = getEthAccounts({
         requiredScopes: {
-          'eip155:1': { methods: [], notifications: [], accounts: [] },
-          'eip155:2': { methods: [], notifications: [], accounts: [] },
+          'eip155:1': { accounts: [] },
+          'eip155:2': { accounts: [] },
         },
         optionalScopes: {},
       });
@@ -27,8 +27,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
       const ethAccounts = getEthAccounts({
         requiredScopes: {
           'bip122:000000000019d6689c085ae165831e93': {
-            methods: [],
-            notifications: [],
             accounts: [
               'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
             ],
@@ -43,18 +41,12 @@ describe('CAIP-25 eth_accounts adapters', () => {
       const ethAccounts = getEthAccounts({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
           'eip155:5': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:5:0x2', 'eip155:1:0x3'],
           },
           'bip122:000000000019d6689c085ae165831e93': {
-            methods: [],
-            notifications: [],
             accounts: [
               'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
             ],
@@ -62,23 +54,15 @@ describe('CAIP-25 eth_accounts adapters', () => {
         },
         optionalScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x4'],
           },
           'eip155:10': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x100'],
           },
           'wallet:eip155': {
-            methods: [],
-            notifications: [],
             accounts: ['wallet:eip155:0x5'],
           },
         },
@@ -87,8 +71,8 @@ describe('CAIP-25 eth_accounts adapters', () => {
       expect(ethAccounts).toStrictEqual([
         '0x1',
         '0x2',
-        '0x4',
         '0x3',
+        '0x4',
         '0x100',
         '0x5',
       ]);
@@ -100,18 +84,12 @@ describe('CAIP-25 eth_accounts adapters', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
           },
           'eip155:5': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:5:0x2', 'eip155:1:0x3'],
           },
           'bip122:000000000019d6689c085ae165831e93': {
-            methods: [],
-            notifications: [],
             accounts: [
               'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
             ],
@@ -119,28 +97,18 @@ describe('CAIP-25 eth_accounts adapters', () => {
         },
         optionalScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x4'],
           },
           'eip155:10': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x100'],
           },
           'wallet:eip155': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
           wallet: {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
         },
@@ -151,18 +119,12 @@ describe('CAIP-25 eth_accounts adapters', () => {
       expect(result).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2', 'eip155:1:0x3'],
           },
           'eip155:5': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:5:0x1', 'eip155:5:0x2', 'eip155:5:0x3'],
           },
           'bip122:000000000019d6689c085ae165831e93': {
-            methods: [],
-            notifications: [],
             accounts: [
               'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
             ],
@@ -170,23 +132,15 @@ describe('CAIP-25 eth_accounts adapters', () => {
         },
         optionalScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:1:0x1', 'eip155:1:0x2', 'eip155:1:0x3'],
           },
           'eip155:10': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:10:0x1', 'eip155:10:0x2', 'eip155:10:0x3'],
           },
           'eip155:100': {
-            methods: [],
-            notifications: [],
             accounts: ['eip155:100:0x1', 'eip155:100:0x2', 'eip155:100:0x3'],
           },
           'wallet:eip155': {
-            methods: [],
-            notifications: [],
             accounts: [
               'wallet:eip155:0x1',
               'wallet:eip155:0x2',
@@ -194,33 +148,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
             ],
           },
           wallet: {
-            methods: [],
-            notifications: [],
-            accounts: [
-              'wallet:eip155:0x1',
-              'wallet:eip155:0x2',
-              'wallet:eip155:0x3',
-            ],
-          },
-        },
-        isMultichainOrigin: false,
-      });
-    });
-
-    it('returns a CAIP-25 caveat value with missing "wallet:eip155" optional scope filled in, forming CAIP-10 account addresses from the accounts param', () => {
-      const input: Caip25CaveatValue = {
-        requiredScopes: {},
-        optionalScopes: {},
-        isMultichainOrigin: false,
-      };
-
-      const result = setEthAccounts(input, ['0x1', '0x2', '0x3']);
-      expect(result).toStrictEqual({
-        requiredScopes: {},
-        optionalScopes: {
-          'wallet:eip155': {
-            methods: [],
-            notifications: [],
             accounts: [
               'wallet:eip155:0x1',
               'wallet:eip155:0x2',
@@ -236,8 +163,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
         },
@@ -249,8 +174,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
       expect(input).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
         },

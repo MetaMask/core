@@ -37,7 +37,7 @@ export class GasFeePoller {
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
+  #getProvider: (networkClientId: NetworkClientId) => Provider;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -72,7 +72,7 @@ export class GasFeePoller {
     getGasFeeControllerEstimates: (
       options: FetchGasFeeEstimateOptions,
     ) => Promise<GasFeeState>;
-    getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
+    getProvider: (networkClientId: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     onStateChange: (listener: () => void) => void;
@@ -190,9 +190,9 @@ export class GasFeePoller {
     | { gasFeeEstimates?: GasFeeEstimates; gasFeeEstimatesLoaded: boolean }
     | undefined
   > {
-    const { chainId, networkClientId } = transactionMeta;
+    const { networkClientId } = transactionMeta;
 
-    const ethQuery = new EthQuery(this.#getProvider(chainId, networkClientId));
+    const ethQuery = new EthQuery(this.#getProvider(networkClientId));
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
     if (gasFeeFlow) {
@@ -235,8 +235,8 @@ export class GasFeePoller {
   async #updateTransactionLayer1GasFee(
     transactionMeta: TransactionMeta,
   ): Promise<Hex | undefined> {
-    const { chainId, networkClientId } = transactionMeta;
-    const provider = this.#getProvider(chainId, networkClientId);
+    const { networkClientId } = transactionMeta;
+    const provider = this.#getProvider(networkClientId);
 
     const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,

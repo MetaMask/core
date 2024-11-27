@@ -8,7 +8,10 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
-import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import {
+  getDefaultNetworkControllerState,
+  RpcEndpointType,
+} from '@metamask/network-controller';
 import type {
   NetworkState,
   NetworkConfiguration,
@@ -1014,6 +1017,7 @@ describe('TokenDetectionController', () => {
           async ({
             mockGetAccount,
             mockTokenListGetState,
+            mockNetworkState,
             triggerPreferencesStateChange,
             triggerSelectedAccountChange,
             callActionSpy,
@@ -1038,6 +1042,26 @@ describe('TokenDetectionController', () => {
                 },
               },
             });
+            mockNetworkState({
+              networkConfigurationsByChainId: {
+                '0x1': {
+                  name: 'ethereum',
+                  nativeCurrency: 'ETH',
+                  rpcEndpoints: [
+                    {
+                      networkClientId: 'mainnet',
+                      type: RpcEndpointType.Infura,
+                      url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+                    },
+                  ],
+                  blockExplorerUrls: [],
+                  chainId: '0x1',
+                  defaultRpcEndpointIndex: 0,
+                },
+              },
+              networksMetadata: {},
+              selectedNetworkClientId: 'mainnet',
+            });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
@@ -1055,6 +1079,85 @@ describe('TokenDetectionController', () => {
                 selectedAddress: secondSelectedAccount.address,
               },
             );
+          },
+        );
+      });
+
+      it('should detect new tokens after switching between accounts on different chains', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+              useAccountsAPI: true, // USING ACCOUNTS API
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
+            },
+          },
+          async ({
+            mockGetAccount,
+            mockTokenListGetState,
+            mockNetworkState,
+            triggerPreferencesStateChange,
+            triggerSelectedAccountChange,
+            controller,
+          }) => {
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+            mockMultiChainAccountsService();
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                '0x1': {
+                  timestamp: 0,
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                },
+              },
+            });
+            mockNetworkState({
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: NetworkType.mainnet,
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              useTokenDetection: true,
+            });
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
+
+            await advanceTime({ clock, duration: 1 });
+
+            expect(mockTokens).toHaveBeenNthCalledWith(1, {
+              chainIds: [
+                '0x1',
+                '0x5',
+                '0xaa36a7',
+                '0xe704',
+                '0xe705',
+                '0xe708',
+              ],
+              selectedAddress: secondSelectedAccount.address,
+            });
           },
         );
       });

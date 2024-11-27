@@ -8,8 +8,8 @@ import {
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { KnownWalletScopeString } from '../scope/constants';
-import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { InternalScopesObject, InternalScopeString } from '../scope/types';
+import { getUniqueArrayItems } from '../scope/transform';
+import type { InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
@@ -27,23 +27,14 @@ const isEip155ScopeString = (scopeString: InternalScopeString) => {
 };
 
 /**
- * Gets the Ethereum (EIP155 namespaced) accounts from the required and optional scopes.
- * @param caip25CaveatValue - The CAIP-25 caveat value to get the Ethereum accounts from.
+ * Gets the Ethereum (EIP155 namespaced) accounts from internal scopes.
+ * @param scopes - The internal scopes from which to get the Ethereum accounts.
  * @returns An array of Ethereum accounts.
  */
-export const getEthAccounts = (
-  caip25CaveatValue: Pick<
-    Caip25CaveatValue,
-    'requiredScopes' | 'optionalScopes'
-  >,
-): Hex[] => {
+const getEthAccountsFromScopes = (scopes: InternalScopesObject) => {
   const ethAccounts: Hex[] = [];
-  const sessionScopes = mergeScopes(
-    caip25CaveatValue.requiredScopes,
-    caip25CaveatValue.optionalScopes,
-  );
 
-  Object.entries(sessionScopes).forEach(([_, { accounts }]) => {
+  Object.entries(scopes).forEach(([_, { accounts }]) => {
     accounts?.forEach((account) => {
       const { address, chainId } = parseCaipAccountId(account);
 
@@ -55,6 +46,27 @@ export const getEthAccounts = (
       }
     });
   });
+
+  return ethAccounts;
+};
+
+/**
+ * Gets the Ethereum (EIP155 namespaced) accounts from the required and optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to get the Ethereum accounts from.
+ * @returns An array of Ethereum accounts.
+ */
+export const getEthAccounts = (
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes'
+  >,
+): Hex[] => {
+  const { requiredScopes, optionalScopes } = caip25CaveatValue;
+
+  const ethAccounts: Hex[] = [
+    ...getEthAccountsFromScopes(requiredScopes),
+    ...getEthAccountsFromScopes(optionalScopes),
+  ];
 
   return getUniqueArrayItems(ethAccounts);
 };
@@ -104,11 +116,6 @@ const setEthAccountsForScopesObject = (
  * Sets the Ethereum (EIP155 namespaced) accounts for the given CAIP-25 caveat value.
  * We set the same accounts for all the scopes that are EIP155 or Wallet namespaced because
  * we do not provide UI/UX flows for selecting different accounts across different chains.
- *
- * Additionally, this function  adds a `wallet:eip155` scope with empty methods, notifications, and accounts
- * to ensure that the `wallet:eip155` scope is always present in the caveat value.
- * This is required for Snaps currently can have account permissions without chain permissions.
- * This added `wallet:eip155` scope should be removed once Snaps are able to have/use chain permissions.
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the Ethereum accounts for.
  * @param accounts - The Ethereum accounts to set.
  * @returns The updated CAIP-25 caveat value with the Ethereum accounts set.
@@ -116,7 +123,7 @@ const setEthAccountsForScopesObject = (
 export const setEthAccounts = (
   caip25CaveatValue: Caip25CaveatValue,
   accounts: Hex[],
-) => {
+): Caip25CaveatValue => {
   return {
     ...caip25CaveatValue,
     requiredScopes: setEthAccountsForScopesObject(
@@ -124,14 +131,7 @@ export const setEthAccounts = (
       accounts,
     ),
     optionalScopes: setEthAccountsForScopesObject(
-      {
-        [KnownWalletScopeString.Eip155]: {
-          methods: [],
-          notifications: [],
-          accounts: [],
-        },
-        ...caip25CaveatValue.optionalScopes,
-      },
+      caip25CaveatValue.optionalScopes,
       accounts,
     ),
   };
