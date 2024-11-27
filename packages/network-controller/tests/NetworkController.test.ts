@@ -11535,6 +11535,38 @@ describe('NetworkController', () => {
           },
         );
       });
+
+      it('emits the NetworkController:networkRemoved event', async () => {
+        const networkConfig = buildCustomNetworkConfiguration();
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: InfuraNetworkType.goerli,
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfig,
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            const networkRemovedListener = jest.fn();
+            messenger.subscribe(
+              'NetworkController:networkRemoved',
+              networkRemovedListener,
+            );
+
+            expect(
+              controller.state.networkConfigurationsByChainId,
+            ).toHaveProperty('0x1337');
+
+            messenger.call('NetworkController:removeNetwork', '0x1337');
+
+            expect(networkRemovedListener).toHaveBeenCalledWith(networkConfig);
+          },
+        );
+      });
     });
   });
 
