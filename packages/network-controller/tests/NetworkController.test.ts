@@ -4583,6 +4583,59 @@ describe('NetworkController', () => {
       );
     });
 
+    it('is callable from the controller messenger', async () => {
+      const originalNetwork = buildCustomNetworkConfiguration({
+        chainId: '0x1337',
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.network',
+          }),
+        ],
+      });
+
+      const networkToUpdate = buildCustomNetworkConfiguration({
+        chainId: '0x1337',
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            name: 'Custom Name',
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.network',
+          }),
+        ],
+      });
+
+      const controllerState =
+        buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+          networkConfigurationsByChainId: {
+            [originalNetwork.chainId]: originalNetwork,
+          },
+          networksMetadata: {
+            'AAAA-AAAA-AAAA-AAAA': {
+              EIPS: {
+                '1559': true,
+              },
+              status: NetworkStatus.Available,
+            },
+          },
+        });
+
+      await withController(
+        { state: controllerState },
+        async ({ controller, messenger }) => {
+          await messenger.call(
+            'NetworkController:updateNetwork',
+            networkToUpdate.chainId,
+            networkToUpdate,
+          );
+          expect(
+            controller.state.networkConfigurationsByChainId['0x1337']
+              .rpcEndpoints[0].name,
+          ).toBe('Custom Name');
+        },
+      );
+    });
+
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];

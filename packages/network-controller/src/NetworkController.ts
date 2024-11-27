@@ -493,6 +493,11 @@ export type NetworkControllerRemoveNetworkAction = {
   handler: NetworkController['removeNetwork'];
 };
 
+export type NetworkControllerUpdateNetworkAction = {
+  type: 'NetworkController:updateNetwork';
+  handler: NetworkController['updateNetwork'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetEthQueryAction
@@ -505,7 +510,8 @@ export type NetworkControllerActions =
   | NetworkControllerGetNetworkConfigurationByChainId
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerAddNetworkAction
-  | NetworkControllerRemoveNetworkAction;
+  | NetworkControllerRemoveNetworkAction
+  | NetworkControllerUpdateNetworkAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -989,6 +995,13 @@ export class NetworkController extends BaseController<
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:removeNetwork`,
       this.removeNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // ESLint is mistaken here; `name` is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:updateNetwork`,
+      this.updateNetwork.bind(this),
     );
   }
 

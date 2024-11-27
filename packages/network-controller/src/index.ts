@@ -30,6 +30,7 @@ export type {
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerAddNetworkAction,
   NetworkControllerRemoveNetworkAction,
+  NetworkControllerUpdateNetworkAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerActions,
   NetworkControllerMessenger,
