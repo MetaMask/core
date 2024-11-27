@@ -7,6 +7,7 @@ import {
   APIType,
   SmartTransactionStatuses,
   SmartTransactionCancellationReason,
+  ClientId,
 } from './types';
 import * as utils from './utils';
 
@@ -46,6 +47,20 @@ describe('src/utils.js', () => {
       expect(utils.getAPIRequestURL(APIType.GET_FEES, ChainId.mainnet)).toBe(
         `${API_BASE_URL}/networks/${ethereumChainIdDec}/getFees`,
       );
+    });
+
+    it('returns correct URL for ESTIMATE_GAS', () => {
+      const chainId = '0x1'; // Mainnet in hex
+      const expectedUrl = `${API_BASE_URL}/networks/1/estimateGas`;
+      const result = utils.getAPIRequestURL(APIType.ESTIMATE_GAS, chainId);
+      expect(result).toBe(expectedUrl);
+    });
+
+    it('converts hex chainId to decimal for ESTIMATE_GAS', () => {
+      const chainId = '0x89'; // Polygon in hex (137 in decimal)
+      const expectedUrl = `${API_BASE_URL}/networks/137/estimateGas`;
+      const result = utils.getAPIRequestURL(APIType.ESTIMATE_GAS, chainId);
+      expect(result).toBe(expectedUrl);
     });
 
     it('returns a URL for submitting transactions', () => {
@@ -292,6 +307,24 @@ describe('src/utils.js', () => {
       expect(() => {
         utils.getTxHash('0x0302b75dfb9fd9eb34056af0');
       }).toThrow('kzg instance required to instantiate blob tx');
+    });
+  });
+
+  describe('getReturnTxHashAsap', () => {
+    it('returns extensionReturnTxHashAsap value for Extension client', () => {
+      const result = utils.getReturnTxHashAsap(ClientId.Extension, {
+        extensionReturnTxHashAsap: true,
+        mobileReturnTxHashAsap: false,
+      });
+      expect(result).toBe(true);
+    });
+
+    it('returns mobileReturnTxHashAsap value for Mobile client', () => {
+      const result = utils.getReturnTxHashAsap(ClientId.Mobile, {
+        extensionReturnTxHashAsap: false,
+        mobileReturnTxHashAsap: true,
+      });
+      expect(result).toBe(true);
     });
   });
 });

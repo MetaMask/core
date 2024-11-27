@@ -44,6 +44,11 @@ export enum SmartTransactionStatuses {
   RESOLVED = 'resolved',
 }
 
+export enum ClientId {
+  Mobile = 'mobile',
+  Extension = 'extension',
+}
+
 export const cancellationReasonToStatusMap = {
   [SmartTransactionCancellationReason.WOULD_REVERT]:
     SmartTransactionStatuses.CANCELLED_WOULD_REVERT,
@@ -97,6 +102,7 @@ export type SmartTransaction = {
   accountHardwareType?: string;
   accountType?: string;
   deviceModel?: string;
+  transactionId?: string; // It's an ID for a regular transaction from the TransactionController.
 };
 
 export type Fee = {
@@ -139,4 +145,11 @@ export type MetaMetricsProps = {
   accountHardwareType?: string;
   accountType?: string;
   deviceModel?: string;
+};
+
+export type FeatureFlags = {
+  smartTransactions?: {
+    mobileReturnTxHashAsap?: boolean;
+    extensionReturnTxHashAsap?: boolean;
+  };
 };

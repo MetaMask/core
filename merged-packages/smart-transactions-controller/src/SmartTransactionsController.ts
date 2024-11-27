@@ -38,6 +38,8 @@ import type {
   UnsignedTransaction,
   GetTransactionsOptions,
   MetaMetricsProps,
+  FeatureFlags,
+  ClientId,
 } from './types';
 import { APIType, SmartTransactionStatuses } from './types';
 import {
@@ -53,11 +55,11 @@ import {
   getTxHash,
   getSmartTransactionMetricsProperties,
   getSmartTransactionMetricsSensitiveProperties,
+  getReturnTxHashAsap,
 } from './utils';
 
 const SECOND = 1000;
 export const DEFAULT_INTERVAL = SECOND * 5;
-const DEFAULT_CLIENT_ID = 'default';
 const ETH_QUERY_ERROR_MSG =
   '`ethQuery` is not defined on SmartTransactionsController';
 
@@ -178,7 +180,7 @@ export type SmartTransactionsControllerMessenger =
 
 type SmartTransactionsControllerOptions = {
   interval?: number;
-  clientId?: string;
+  clientId: ClientId;
   chainId?: Hex;
   supportedChainIds?: Hex[];
   getNonceLock: TransactionController['getNonceLock'];
@@ -198,6 +200,8 @@ type SmartTransactionsControllerOptions = {
   messenger: SmartTransactionsControllerMessenger;
   getTransactions: (options?: GetTransactionsOptions) => TransactionMeta[];
   getMetaMetricsProps: () => Promise<MetaMetricsProps>;
+  getFeatureFlags: () => FeatureFlags;
+  updateTransaction: (transaction: TransactionMeta, note: string) => void;
 };
 
 export type SmartTransactionsControllerPollingInput = {
@@ -211,7 +215,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 > {
   #interval: number;
 
-  #clientId: string;
+  #clientId: ClientId;
 
   #chainId: Hex;
 
@@ -233,6 +237,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   readonly #getMetaMetricsProps: () => Promise<MetaMetricsProps>;
 
+  #getFeatureFlags: SmartTransactionsControllerOptions['getFeatureFlags'];
+
+  #updateTransaction: SmartTransactionsControllerOptions['updateTransaction'];
+
   /* istanbul ignore next */
   async #fetch(request: string, options?: RequestInit) {
     const fetchOptions = {
@@ -248,7 +256,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   constructor({
     interval = DEFAULT_INTERVAL,
-    clientId = DEFAULT_CLIENT_ID,
+    clientId,
     chainId: InitialChainId = ChainId.mainnet,
     supportedChainIds = [ChainId.mainnet, ChainId.sepolia],
     getNonceLock,
@@ -258,6 +266,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     messenger,
     getTransactions,
     getMetaMetricsProps,
+    getFeatureFlags,
+    updateTransaction,
   }: SmartTransactionsControllerOptions) {
     super({
       name: controllerName,
@@ -279,6 +289,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.#getRegularTransactions = getTransactions;
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.#getMetaMetricsProps = getMetaMetricsProps;
+    this.#getFeatureFlags = getFeatureFlags;
+    this.#updateTransaction = updateTransaction;
 
     this.initializeSmartTransactionsForChainId();
 
@@ -530,24 +542,47 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       return;
     }
 
+    const currentSmartTransaction = currentSmartTransactions[currentIndex];
+    const nextSmartTransaction = {
+      ...currentSmartTransaction,
+      ...smartTransaction,
+    };
+
     // We have to emit this event here, because then a txHash is returned to the TransactionController once it's available
     // and the #doesTransactionNeedConfirmation function will work properly, since it will find the txHash in the regular transactions list.
     this.messagingSystem.publish(
       `SmartTransactionsController:smartTransaction`,
-      smartTransaction,
+      nextSmartTransaction,
     );
+
+    if (nextSmartTransaction.status === SmartTransactionStatuses.CANCELLED) {
+      const returnTxHashAsap = getReturnTxHashAsap(
+        this.#clientId,
+        this.#getFeatureFlags()?.smartTransactions,
+      );
+      if (returnTxHashAsap && nextSmartTransaction.transactionId) {
+        const foundTransaction = this.#getRegularTransactions().find(
+          (transaction) =>
+            transaction.id === nextSmartTransaction.transactionId,
+        );
+        if (foundTransaction) {
+          const updatedTransaction = {
+            ...foundTransaction,
+            status: TransactionStatus.failed,
+          };
+          this.#updateTransaction(
+            updatedTransaction as TransactionMeta,
+            'Smart transaction cancelled',
+          );
+        }
+      }
+    }
 
     if (
       (smartTransaction.status === SmartTransactionStatuses.SUCCESS ||
         smartTransaction.status === SmartTransactionStatuses.REVERTED) &&
       !smartTransaction.confirmed
     ) {
-      // confirm smart transaction
-      const currentSmartTransaction = currentSmartTransactions[currentIndex];
-      const nextSmartTransaction = {
-        ...currentSmartTransaction,
-        ...smartTransaction,
-      };
       await this.#confirmSmartTransaction(nextSmartTransaction, {
         chainId,
         ethQuery,
@@ -892,6 +927,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           txHash: submitTransactionResponse.txHash,
           cancellable: true,
           type: transactionMeta?.type ?? 'swap',
+          transactionId: transactionMeta?.id,
         },
         { chainId, ethQuery },
       );

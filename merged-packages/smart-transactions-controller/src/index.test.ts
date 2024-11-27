@@ -8,6 +8,7 @@ import SmartTransactionsController, {
   type AllowedActions,
   type AllowedEvents,
 } from './SmartTransactionsController';
+import { ClientId } from './types';
 
 describe('default export', () => {
   it('exports SmartTransactionsController', () => {
@@ -30,6 +31,9 @@ describe('default export', () => {
       getMetaMetricsProps: jest.fn(async () => {
         return Promise.resolve({});
       }),
+      getFeatureFlags: jest.fn(),
+      updateTransaction: jest.fn(),
+      clientId: ClientId.Extension,
     });
     expect(controller).toBeInstanceOf(SmartTransactionsController);
     jest.clearAllTimers();

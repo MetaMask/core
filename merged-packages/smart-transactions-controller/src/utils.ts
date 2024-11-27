@@ -11,13 +11,18 @@ import _ from 'lodash';
 // @ts-ignore
 import packageJson from '../package.json';
 import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
-import type { SmartTransaction, SmartTransactionsStatus } from './types';
+import type {
+  SmartTransaction,
+  SmartTransactionsStatus,
+  FeatureFlags,
+} from './types';
 import {
   APIType,
   SmartTransactionStatuses,
   SmartTransactionCancellationReason,
   SmartTransactionMinedTx,
   cancellationReasonToStatusMap,
+  ClientId,
 } from './types';
 
 export function isSmartTransactionPending(smartTransaction: SmartTransaction) {
@@ -263,4 +268,13 @@ export const getSmartTransactionMetricsSensitiveProperties = (
     account_type: smartTransaction.accountType,
     device_model: smartTransaction.deviceModel,
   };
+};
+
+export const getReturnTxHashAsap = (
+  clientId: ClientId,
+  smartTransactionsFeatureFlags: FeatureFlags['smartTransactions'],
+) => {
+  return clientId === ClientId.Extension
+    ? smartTransactionsFeatureFlags?.extensionReturnTxHashAsap
+    : smartTransactionsFeatureFlags?.mobileReturnTxHashAsap;
 };

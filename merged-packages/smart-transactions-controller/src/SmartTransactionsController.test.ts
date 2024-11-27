@@ -31,7 +31,7 @@ import type {
   SmartTransactionsControllerEvents,
 } from './SmartTransactionsController';
 import type { SmartTransaction, UnsignedTransaction, Hex } from './types';
-import { SmartTransactionStatuses } from './types';
+import { SmartTransactionStatuses, ClientId } from './types';
 import * as utils from './utils';
 
 jest.mock('@ethersproject/bytes', () => ({
@@ -1214,6 +1214,170 @@ describe('SmartTransactionsController', () => {
         },
       );
     });
+
+    it('calls updateTransaction when smart transaction is cancelled and returnTxHashAsap is true', async () => {
+      const mockUpdateTransaction = jest.fn();
+      const defaultState = getDefaultSmartTransactionsControllerState();
+      const pendingStx = createStateAfterPending();
+      await withController(
+        {
+          options: {
+            updateTransaction: mockUpdateTransaction,
+            getFeatureFlags: () => ({
+              smartTransactions: {
+                mobileReturnTxHashAsap: true,
+              },
+            }),
+            getTransactions: () => [
+              {
+                id: 'test-tx-id',
+                status: TransactionStatus.submitted,
+                chainId: '0x1',
+                time: 123,
+                txParams: {
+                  from: '0x123',
+                },
+              },
+            ],
+            state: {
+              smartTransactionsState: {
+                ...defaultState.smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: pendingStx as SmartTransaction[],
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const smartTransaction = {
+            uuid: 'uuid1',
+            status: SmartTransactionStatuses.CANCELLED,
+            transactionId: 'test-tx-id',
+          };
+
+          controller.updateSmartTransaction(smartTransaction);
+
+          expect(mockUpdateTransaction).toHaveBeenCalledWith(
+            {
+              id: 'test-tx-id',
+              status: TransactionStatus.failed,
+              chainId: '0x1',
+              time: 123,
+              txParams: {
+                from: '0x123',
+              },
+            },
+            'Smart transaction cancelled',
+          );
+        },
+      );
+    });
+
+    it('does not call updateTransaction when smart transaction is cancelled but returnTxHashAsap is false', async () => {
+      const mockUpdateTransaction = jest.fn();
+      await withController(
+        {
+          options: {
+            updateTransaction: mockUpdateTransaction,
+            getFeatureFlags: () => ({
+              smartTransactions: {
+                mobileReturnTxHashAsap: false,
+              },
+            }),
+            getTransactions: () => [
+              {
+                id: 'test-tx-id',
+                status: TransactionStatus.submitted,
+                chainId: '0x1',
+                time: 123,
+                txParams: {
+                  from: '0x123',
+                },
+              },
+            ],
+          },
+        },
+        async ({ controller }) => {
+          const smartTransaction = {
+            uuid: 'test-uuid',
+            status: SmartTransactionStatuses.CANCELLED,
+            transactionId: 'test-tx-id',
+          };
+
+          controller.updateSmartTransaction(smartTransaction);
+
+          expect(mockUpdateTransaction).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not call updateTransaction when transaction is not found in regular transactions', async () => {
+      const mockUpdateTransaction = jest.fn();
+
+      await withController(
+        {
+          options: {
+            updateTransaction: mockUpdateTransaction,
+            getFeatureFlags: () => ({
+              smartTransactions: {
+                mobileReturnTxHashAsap: true,
+              },
+            }),
+            getTransactions: () => [],
+          },
+        },
+        async ({ controller }) => {
+          const smartTransaction = {
+            uuid: 'test-uuid',
+            status: SmartTransactionStatuses.CANCELLED,
+            transactionId: 'test-tx-id',
+          };
+
+          controller.updateSmartTransaction(smartTransaction);
+
+          expect(mockUpdateTransaction).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not call updateTransaction for non-cancelled transactions', async () => {
+      const mockUpdateTransaction = jest.fn();
+      await withController(
+        {
+          options: {
+            updateTransaction: mockUpdateTransaction,
+            getFeatureFlags: () => ({
+              smartTransactions: {
+                mobileReturnTxHashAsap: true,
+              },
+            }),
+            getTransactions: () => [
+              {
+                id: 'test-tx-id',
+                status: TransactionStatus.submitted,
+                chainId: '0x1',
+                time: 123,
+                txParams: {
+                  from: '0x123',
+                },
+              },
+            ],
+          },
+        },
+        async ({ controller }) => {
+          const smartTransaction = {
+            uuid: 'test-uuid',
+            status: SmartTransactionStatuses.PENDING,
+            transactionId: 'test-tx-id',
+          };
+
+          controller.updateSmartTransaction(smartTransaction);
+
+          expect(mockUpdateTransaction).not.toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   describe('cancelSmartTransaction', () => {
@@ -1438,7 +1602,7 @@ describe('SmartTransactionsController', () => {
           const fetchHeaders = {
             headers: {
               'Content-Type': 'application/json',
-              'X-Client-Id': 'default',
+              'X-Client-Id': ClientId.Mobile,
             },
           };
 
@@ -1813,6 +1977,7 @@ async function withController<ReturnValue>(
 
   const controller = new SmartTransactionsController({
     messenger,
+    clientId: ClientId.Mobile,
     getNonceLock: jest.fn().mockResolvedValue({
       nextNonce: 'nextNonce',
       releaseLock: jest.fn(),
@@ -1827,6 +1992,8 @@ async function withController<ReturnValue>(
         deviceModel: 'ledger',
       });
     }),
+    getFeatureFlags: jest.fn(),
+    updateTransaction: jest.fn(),
     ...options,
   });
 
