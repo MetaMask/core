@@ -162,7 +162,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return await this.#inProgressFlagUpdate;
     }
 
-    const { promise, resolve } = createDeferredPromise<FeatureFlags>({
+    const { promise, resolve, reject } = createDeferredPromise<FeatureFlags>({
       suppressUnhandledRejection: true,
     });
     this.#inProgressFlagUpdate = promise;
@@ -177,6 +177,9 @@ export class RemoteFeatureFlagController extends BaseController<
         resolve([]); // Resolve with empty array if no data is returned
       }
       return await promise;
+    } catch (e) {
+      reject(e);
+      throw e;
     } finally {
       this.#inProgressFlagUpdate = undefined;
     }

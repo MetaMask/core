@@ -18,10 +18,6 @@ import type {
 } from '../remote-feature-flag-controller-types';
 
 type ApiResponse = {
-  error: boolean;
-  message: string;
-  statusCode: string | null;
-  statusText: string | null;
   remoteFeatureFlag: FeatureFlags;
   cacheTimestamp: number | null;
 };
@@ -131,57 +127,24 @@ export class ClientConfigApiService {
    * @param options.cacheTimestamp - Optional timestamp of the cached data
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
-  public async fetchRemoteFeatureFlag({
-    remoteFeatureFlag,
-    cacheTimestamp,
-  }: {
-    remoteFeatureFlag?: FeatureFlags;
-    cacheTimestamp?: number;
-  } = {}): Promise<ApiResponse> {
+  public async fetchRemoteFeatureFlag(): Promise<ApiResponse> {
     const url = `${BASE_URL}/flags?client=${this.#client}&distribution=${
       this.#distribution
     }&environment=${this.#environment}`;
 
-    try {
-      const response = await this.#policy.execute(() =>
-        this.#fetch(url, { cache: 'no-cache' }),
-      );
+    const response = await this.#policy.execute(() =>
+      this.#fetch(url, { cache: 'no-cache' }),
+    );
 
-      if (!response.ok) {
-        return {
-          error: true,
-          message: 'Failed to fetch flags',
-          statusCode: response.status.toString() || null,
-          statusText: response.statusText || 'Error',
-          remoteFeatureFlag: remoteFeatureFlag ?? [],
-          cacheTimestamp: cacheTimestamp ?? Date.now(),
-        };
-      }
-
-      const data = await response.json();
-
-      return {
-        error: false,
-        message: 'Success',
-        statusCode: response.status.toString(),
-        statusText: response.statusText,
-        remoteFeatureFlag: data ?? [],
-        cacheTimestamp: Date.now(),
-      };
-    } catch (error) {
-      console.error('Feature flag API request failed:', error);
-
-      const err = error as Error & {
-        response?: { status: number; statusText: string };
-      };
-      return {
-        error: true,
-        message: err.message || 'Unknown error',
-        statusCode: err.response?.status?.toString() || null,
-        statusText: err.response?.statusText || null,
-        remoteFeatureFlag: remoteFeatureFlag ?? [],
-        cacheTimestamp: cacheTimestamp || Date.now(),
-      };
+    if (!response.ok) {
+      throw new Error('Failed to fetch feature flags');
     }
+
+    const data = await response.json();
+
+    return {
+      remoteFeatureFlag: data,
+      cacheTimestamp: Date.now(),
+    };
   }
 }
