@@ -130,6 +130,11 @@ const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
   JSON.stringify({ error: 'oops' }),
 );
 
+/**
+ * We are mocking/faking `Date.now` calls for test consistency
+ */
+const FAKE_DATE_NOW_MS = 1732114339518;
+
 describe('NetworkController', () => {
   let uuidCounter = 0;
 
@@ -139,6 +144,8 @@ describe('NetworkController', () => {
       uuidCounter += 1;
       return uuid;
     });
+
+    jest.spyOn(Date, 'now').mockReturnValue(FAKE_DATE_NOW_MS);
   });
 
   afterEach(() => {
@@ -3475,6 +3482,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3541,6 +3549,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3601,6 +3610,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3751,6 +3761,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint/2',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -3796,6 +3807,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -3841,6 +3853,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -3871,6 +3884,7 @@ describe('NetworkController', () => {
                   url: 'https://test.endpoint',
                 },
               ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
             },
           );
 
@@ -3889,6 +3903,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -4790,6 +4805,7 @@ describe('NetworkController', () => {
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -4851,6 +4867,7 @@ describe('NetworkController', () => {
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5032,6 +5049,7 @@ describe('NetworkController', () => {
                       url: 'https://rpc.endpoint/3',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5101,6 +5119,7 @@ describe('NetworkController', () => {
                       url: 'https://rpc.endpoint/3',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5199,6 +5218,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5243,6 +5263,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5939,6 +5960,7 @@ describe('NetworkController', () => {
                       url: 'https://some.other.url',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6008,6 +6030,7 @@ describe('NetworkController', () => {
                       url: 'https://some.other.url',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6326,6 +6349,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6379,6 +6403,7 @@ describe('NetworkController', () => {
                 expect(updatedNetworkConfiguration).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6804,6 +6829,7 @@ describe('NetworkController', () => {
                     url: 'https://rpc.endpoint/3',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6877,6 +6903,7 @@ describe('NetworkController', () => {
                     url: 'https://rpc.endpoint/3',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6973,6 +7000,7 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -7017,6 +7045,7 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -7709,6 +7738,7 @@ describe('NetworkController', () => {
                     url: 'https://some.other.url',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -7778,6 +7808,7 @@ describe('NetworkController', () => {
                     url: 'https://some.other.url',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8102,6 +8133,7 @@ describe('NetworkController', () => {
               ).toStrictEqual({
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8159,6 +8191,7 @@ describe('NetworkController', () => {
               expect(updatedNetworkConfiguration).toStrictEqual({
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8569,6 +8602,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -8815,6 +8849,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9196,6 +9231,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9483,6 +9519,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9872,6 +9909,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -10173,6 +10211,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -10560,6 +10599,7 @@ describe('NetworkController', () => {
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 },
               ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
             });
           },
         );
@@ -10842,6 +10882,7 @@ describe('NetworkController', () => {
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 },
               ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
             });
           },
         );
