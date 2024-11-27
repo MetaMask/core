@@ -117,11 +117,8 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
 
     // subscriptionManager.middleware.destroy is set to
     // subscriptionManager.destroy internally
-    subscriptionManager.middleware.destroy = () => {
-      const subEntry = this.#getSubscriptionEntry(subscriptionKey)
-      if (subEntry) {
-        this.#unsubscribe(subEntry);
-      }
+    subscriptionManager.middleware.destroy = function () {
+      this.#unsubscribe(newSubscriptionEntry);
     }
 
     return subscriptionManager;
