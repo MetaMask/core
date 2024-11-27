@@ -6,6 +6,7 @@ import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
 import type { NetworkConfiguration } from './types';
+import { createUpdateNetworkProps } from './update-network-utils';
 
 type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
@@ -121,6 +122,43 @@ export const getBoundedNetworksToAdd = (
 };
 
 /**
+ * method that will dispatch the `NetworkController:updateNetwork` action.
+ * transforms and corrects the network configuration (and RPCs) we pass through.
+ * @param props - properties
+ * @param props.messenger - messenger to call the action
+ * @param props.originalNetworkConfiguration - original network config (from network controller state)
+ * @param props.newNetworkConfiguration - new network config (from remote)
+ * @param props.selectedNetworkClientId - currently selected network client id
+ */
+export const dispatchUpdateNetwork = async (props: {
+  messenger: UserStorageControllerMessenger;
+  originalNetworkConfiguration: NetworkConfiguration;
+  newNetworkConfiguration: NetworkConfiguration;
+  selectedNetworkClientId: string;
+}) => {
+  const {
+    messenger,
+    originalNetworkConfiguration,
+    newNetworkConfiguration,
+    selectedNetworkClientId,
+  } = props;
+
+  const { updateNetworkFields, newSelectedRpcEndpointIndex } =
+    createUpdateNetworkProps({
+      originalNetworkConfiguration,
+      newNetworkConfiguration,
+      selectedNetworkClientId,
+    });
+
+  await messenger.call(
+    'NetworkController:updateNetwork',
+    updateNetworkFields.chainId,
+    updateNetworkFields,
+    { replacementSelectedRpcEndpointIndex: newSelectedRpcEndpointIndex },
+  );
+};
+
+/**
  * Action to perform the main network sync.
  * It will fetch local networks and remote networks, then determines which networks (local and remote) to add/update
  * @param props - parameters used for this main sync
@@ -213,10 +251,14 @@ export async function performMainNetworkSync(
       const errors: unknown[] = [];
       for (const n of networkChanges.localNetworksToUpdate) {
         try {
-          await messenger.call(
-            'NetworkController:dangerouslySetNetworkConfiguration',
-            n,
-          );
+          await dispatchUpdateNetwork({
+            messenger,
+            originalNetworkConfiguration:
+              networkControllerState.networkConfigurationsByChainId[n.chainId],
+            newNetworkConfiguration: n,
+            selectedNetworkClientId:
+              networkControllerState.selectedNetworkClientId,
+          });
           onNetworkUpdated?.(n.chainId);
         } catch (e) {
           /* istanbul ignore next - allocates logs, do not need to test */
@@ -228,7 +270,7 @@ export async function performMainNetworkSync(
       /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
         log.error(
-          'performMainNetworkSync() - NetworkController:dangerouslySetNetworkConfiguration failed',
+          'performMainNetworkSync() - NetworkController:updateNetwork failed',
           errors,
         );
       }

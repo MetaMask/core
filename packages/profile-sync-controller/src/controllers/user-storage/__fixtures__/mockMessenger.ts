@@ -66,7 +66,7 @@ export function createCustomUserStorageMessenger(props?: {
       'AccountsController:updateAccountMetadata',
       'NetworkController:getState',
       'NetworkController:addNetwork',
-      'NetworkController:dangerouslySetNetworkConfiguration',
+      'NetworkController:updateNetwork',
       'NetworkController:removeNetwork',
     ],
     allowedEvents: props?.overrideEvents ?? [
@@ -164,8 +164,8 @@ export function mockUserStorageMessenger(
     'NetworkController:removeNetwork',
   );
 
-  const mockNetworkControllerDangerouslySetNetworkConfiguration = typedMockFn(
-    'NetworkController:dangerouslySetNetworkConfiguration',
+  const mockNetworkControllerUpdateNetwork = typedMockFn(
+    'NetworkController:updateNetwork',
   );
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
@@ -254,9 +254,9 @@ export function mockUserStorageMessenger(
       return mockNetworkControllerRemoveNetwork(...params);
     }
 
-    if (actionType === 'NetworkController:dangerouslySetNetworkConfiguration') {
+    if (actionType === 'NetworkController:updateNetwork') {
       const [, ...params] = typedArgs;
-      return mockNetworkControllerDangerouslySetNetworkConfiguration(...params);
+      return mockNetworkControllerUpdateNetwork(...params);
     }
 
     throw new Error(
@@ -282,6 +282,6 @@ export function mockUserStorageMessenger(
     mockNetworkControllerGetState,
     mockNetworkControllerAddNetwork,
     mockNetworkControllerRemoveNetwork,
-    mockNetworkControllerDangerouslySetNetworkConfiguration,
+    mockNetworkControllerUpdateNetwork,
   };
 }

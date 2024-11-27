@@ -62,7 +62,7 @@ import {
 } from './services';
 
 // TODO - replace shimmed interface with actual interfaces once merged
-// Waiting on #4698, #4939
+// Waiting on #4698
 export type NetworkControllerNetworkRemovedEvent = {
   type: 'NetworkController:networkRemoved';
   payload: [networkConfiguration: NetworkConfiguration];
@@ -76,8 +76,8 @@ export type NetworkControllerRemoveNetworkAction = {
   handler: NetworkController['removeNetwork'];
 };
 export type NetworkControllerDangerouslySetNetworkConfigurationAction = {
-  type: 'NetworkController:dangerouslySetNetworkConfiguration';
-  handler: (networkConfiguration: NetworkConfiguration) => Promise<void>;
+  type: 'NetworkController:updateNetwork';
+  handler: NetworkController['updateNetwork'];
 };
 
 // TODO: fix external dependencies

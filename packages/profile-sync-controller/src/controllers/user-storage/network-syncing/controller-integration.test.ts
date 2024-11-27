@@ -247,9 +247,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).not.toHaveBeenCalled();
+    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -270,9 +268,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
 
     expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).not.toHaveBeenCalled();
+    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -296,9 +292,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).toHaveBeenCalled();
     expect(mockAddCallback).toHaveBeenCalledTimes(1);
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).not.toHaveBeenCalled();
+    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -323,9 +317,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
     expect(mockAddCallback).not.toHaveBeenCalled();
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).not.toHaveBeenCalled();
+    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -348,9 +340,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
 
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).toHaveBeenCalled();
+    expect(mockCalls.mockNetworkControllerUpdateNetwork).toHaveBeenCalled();
     expect(mockUpdateCallback).toHaveBeenCalledTimes(1);
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
@@ -373,9 +363,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).not.toHaveBeenCalled();
+    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).toHaveBeenCalled();
     expect(mockRemoveCallback).toHaveBeenCalledTimes(1);
   });
@@ -405,9 +393,9 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalledTimes(1);
     expect(mockCalls.mockNetworkControllerAddNetwork).toHaveBeenCalledTimes(2);
-    expect(
-      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
-    ).toHaveBeenCalledTimes(2);
+    expect(mockCalls.mockNetworkControllerUpdateNetwork).toHaveBeenCalledTimes(
+      2,
+    );
     expect(mockCalls.mockNetworkControllerRemoveNetwork).toHaveBeenCalledTimes(
       2,
     );
@@ -429,13 +417,21 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
       getStorageConfig: getStorageConfigMock,
       mockCalls: {
         mockNetworkControllerGetState:
-          messengerMocks.mockNetworkControllerGetState,
+          messengerMocks.mockNetworkControllerGetState.mockReturnValue({
+            networkConfigurationsByChainId: {
+              '0x1337': createMockNetworkConfiguration(),
+            },
+            selectedNetworkClientId: '1111-1111-1111',
+            networksMetadata: {},
+          }),
         mockNetworkControllerAddNetwork:
           messengerMocks.mockNetworkControllerAddNetwork,
         mockNetworkControllerRemoveNetwork:
           messengerMocks.mockNetworkControllerRemoveNetwork,
-        mockNetworkControllerDangerouslySetNetworkConfiguration:
-          messengerMocks.mockNetworkControllerDangerouslySetNetworkConfiguration,
+        mockNetworkControllerUpdateNetwork:
+          messengerMocks.mockNetworkControllerUpdateNetwork.mockResolvedValue(
+            createMockNetworkConfiguration(),
+          ),
       },
       mockServices: {
         mockGetAllRemoveNetworks: jest
