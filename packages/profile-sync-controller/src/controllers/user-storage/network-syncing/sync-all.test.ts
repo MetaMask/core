@@ -4,11 +4,10 @@ import {
 } from './__fixtures__/mockNetwork';
 import {
   checkWhichNetworkIsLatest,
-  findNetworksToUpdate,
   getDataStructures,
   getMissingNetworkLists,
-  getNewLocalNetworks,
   getUpdatedNetworkLists,
+  findNetworksToUpdate,
 } from './sync-all';
 import type { NetworkConfiguration, RemoteNetworkConfiguration } from './types';
 
@@ -205,75 +204,22 @@ describe('getUpdatedNetworkLists()', () => {
   });
 });
 
-/**
- * This is not used externally, but meant to check logic is consistent
- */
-describe('getNewLocalNetworks()', () => {
-  it('should append original list with missing networks', () => {
-    const originalList = arrangeLocalNetworks(['1', '2', '3']);
-    const missingNetworks = arrangeLocalNetworks(['4']);
-
-    const result = getNewLocalNetworks({
-      originalList,
-      missingLocalNetworks: missingNetworks,
-      localNetworksToRemove: [],
-      localNetworksToUpdate: [],
-    });
-
-    expect(result).toHaveLength(4);
-    expect(result.map((n) => n.chainId)).toStrictEqual([
-      '0x1',
-      '0x2',
-      '0x3',
-      '0x4',
-    ]);
-  });
-
-  it('should update original list if there are networks that need updating', () => {
-    const originalList = arrangeLocalNetworks(['1', '2', '3']);
-    const updatedNetwork = createMockNetworkConfiguration({
-      chainId: '0x1',
-      name: 'Updated Name',
-    });
-
-    const result = getNewLocalNetworks({
-      originalList,
-      missingLocalNetworks: [],
-      localNetworksToRemove: [],
-      localNetworksToUpdate: [updatedNetwork],
-    });
-
-    expect(result).toHaveLength(3);
-    expect(result.find((n) => n.chainId === '0x1')?.name).toBe('Updated Name');
-  });
-
-  it('should remote a network from the original list if there are networks that need to be removed', () => {
-    const originalList = arrangeLocalNetworks(['1', '2', '3']);
-    const deletedNetwork = createMockNetworkConfiguration({ chainId: '0x1' });
-
-    const result = getNewLocalNetworks({
-      originalList,
-      missingLocalNetworks: [],
-      localNetworksToRemove: [deletedNetwork],
-      localNetworksToUpdate: [],
-    });
-
-    expect(result).toHaveLength(2);
-    expect(result.find((n) => n.chainId === '0x1')).toBeUndefined();
-  });
-});
-
 describe('findNetworksToUpdate()', () => {
   it('should add missing networks to remote and local', () => {
     const localNetworks = arrangeLocalNetworks(['1']);
     const remoteNetworks = arrangeRemoteNetworks(['2']);
 
     const result = findNetworksToUpdate({ localNetworks, remoteNetworks });
-    expect(result?.newLocalNetworks).toHaveLength(2);
-    expect(result?.newLocalNetworks.map((n) => n.chainId)).toStrictEqual([
-      '0x1',
-      '0x2',
-    ]);
+
+    // Only 1 network needs to be added to local
+    expect(result?.missingLocalNetworks).toHaveLength(1);
+    expect(result?.missingLocalNetworks?.[0]?.chainId).toBe('0x2');
+
+    // No networks are to be removed locally
+    expect(result?.localNetworksToRemove).toStrictEqual([]);
+
+    // No networks are to be updated locally
+    expect(result?.localNetworksToUpdate).toStrictEqual([]);
 
     // Only 1 network needs to be updated
     expect(result?.remoteNetworksToUpdate).toHaveLength(1);
@@ -302,38 +248,43 @@ describe('findNetworksToUpdate()', () => {
     });
 
     const result = findNetworksToUpdate({ localNetworks, remoteNetworks });
-    const newLocalIds = result?.newLocalNetworks?.map((n) => n.chainId) ?? [];
+
+    // Assert - No local networks to add or remove
+    expect(result?.missingLocalNetworks).toStrictEqual([]);
+    expect(result?.localNetworksToRemove).toStrictEqual([]);
+
+    // Assert - Local and Remote networks to update
+    const updateLocalIds =
+      result?.localNetworksToUpdate?.map((n) => n.chainId) ?? [];
     const updateRemoteIds =
       result?.remoteNetworksToUpdate?.map((n) => n.chainId) ?? [];
-    // Assert - Test Matrix combinations were all tested
+
+    // Check Test Matrix combinations were all tested
     let testCount = 0;
     testMatrix.forEach(({ actual }, idx) => {
       const chainId = `0x${idx}` as const;
       if (actual === 'Do Nothing') {
         testCount += 1;
-        // Combined Local Networks will include this
-        // Updated Remote Networks will not include this, as it is not a network that needs updating on remote
+        // No lists are updated if nothing changes
         // eslint-disable-next-line jest/no-conditional-expect
         expect([
-          newLocalIds.includes(chainId),
+          updateLocalIds.includes(chainId),
           updateRemoteIds.includes(chainId),
-        ]).toStrictEqual([true, false]);
+        ]).toStrictEqual([false, false]);
       } else if (actual === 'Local Wins') {
         testCount += 1;
-        // Combined Local Networks will include this
-        // Updated Remote Networks will include this, as we need to update remote
+        // Only remote is updated if local wins
         // eslint-disable-next-line jest/no-conditional-expect
         expect([
-          newLocalIds.includes(chainId),
+          updateLocalIds.includes(chainId),
           updateRemoteIds.includes(chainId),
-        ]).toStrictEqual([true, true]);
+        ]).toStrictEqual([false, true]);
       } else if (actual === 'Remote Wins') {
         testCount += 1;
-        // Combined Local Networks will include this
-        // Updated Remote Networks will not include this, as it is not a network that needs updating on remote
+        // Only local is updated if remote wins
         // eslint-disable-next-line jest/no-conditional-expect
         expect([
-          newLocalIds.includes(chainId),
+          updateLocalIds.includes(chainId),
           updateRemoteIds.includes(chainId),
         ]).toStrictEqual([true, false]);
       }
@@ -349,11 +300,17 @@ describe('findNetworksToUpdate()', () => {
     remoteNetworks[1].d = true;
 
     const result = findNetworksToUpdate({ localNetworks, remoteNetworks });
-    // Combined Local List is updated
-    expect(result?.newLocalNetworks).toHaveLength(1);
-    expect(
-      result?.newLocalNetworks.find((n) => n.chainId === '0x2'),
-    ).toBeUndefined();
+
+    // Assert no remote networks need updating
+    expect(result?.remoteNetworksToUpdate).toStrictEqual([]);
+
+    // Assert no local networks need to be updated or added
+    expect(result?.localNetworksToUpdate).toStrictEqual([]);
+    expect(result?.missingLocalNetworks).toStrictEqual([]);
+
+    // Assert that a network needs to be removed locally (network 0x2)
+    expect(result?.localNetworksToRemove).toHaveLength(1);
+    expect(result?.localNetworksToRemove?.[0]?.chainId).toBe('0x2');
 
     // Remote List does not have any networks that need updating
     expect(result?.remoteNetworksToUpdate).toHaveLength(0);

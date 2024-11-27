@@ -130,6 +130,11 @@ const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
   JSON.stringify({ error: 'oops' }),
 );
 
+/**
+ * We are mocking/faking `Date.now` calls for test consistency
+ */
+const FAKE_DATE_NOW_MS = 1732114339518;
+
 describe('NetworkController', () => {
   let uuidCounter = 0;
 
@@ -139,6 +144,8 @@ describe('NetworkController', () => {
       uuidCounter += 1;
       return uuid;
     });
+
+    jest.spyOn(Date, 'now').mockReturnValue(FAKE_DATE_NOW_MS);
   });
 
   afterEach(() => {
@@ -3475,6 +3482,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3541,6 +3549,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3601,6 +3610,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3751,6 +3761,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint/2',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -3796,6 +3807,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -3841,8 +3853,84 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
+      });
+
+      it('is callable from the controller messenger', async () => {
+        uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
+
+        await withController(({ messenger }) => {
+          const networkAddedEventListener = jest.fn();
+          messenger.subscribe(
+            'NetworkController:networkAdded',
+            networkAddedEventListener,
+          );
+
+          const newNetworkConfiguration = messenger.call(
+            'NetworkController:addNetwork',
+            {
+              blockExplorerUrls: ['https://block.explorer'],
+              chainId: '0x1337',
+              defaultBlockExplorerUrlIndex: 0,
+              defaultRpcEndpointIndex: 0,
+              name: 'Some Network',
+              nativeCurrency: 'TOKEN',
+              rpcEndpoints: [
+                {
+                  name: 'Test Network',
+                  type: RpcEndpointType.Custom,
+                  url: 'https://test.endpoint',
+                },
+              ],
+            },
+          );
+
+          expect(newNetworkConfiguration).toStrictEqual({
+            blockExplorerUrls: ['https://block.explorer'],
+            chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
+            defaultRpcEndpointIndex: 0,
+            name: 'Some Network',
+            nativeCurrency: 'TOKEN',
+            rpcEndpoints: [
+              {
+                name: 'Test Network',
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                type: RpcEndpointType.Custom,
+                url: 'https://test.endpoint',
+              },
+            ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
+          });
+        });
+      });
+
+      it('adds the network with an existing networkClientId', async () => {
+        // Arrange
+        const customNetworkClientId = 'my-custom-client-config';
+        const networkConfigToAdd = buildCustomNetworkConfiguration({
+          chainId: '0x1337',
+          rpcEndpoints: [
+            buildCustomRpcEndpoint({
+              networkClientId: customNetworkClientId,
+              url: 'https://test.endpoint/1',
+            }),
+          ],
+        });
+
+        // Act
+        const result = await withController(({ controller }) => {
+          const newNetworkConfig = controller.addNetwork(networkConfigToAdd);
+          return newNetworkConfig;
+        });
+
+        // Assert - ensure that we use existing networkClientId & do not call uuidV4()
+        expect(result.rpcEndpoints[0].networkClientId).toBe(
+          customNetworkClientId,
+        );
+        expect(uuidV4Mock).not.toHaveBeenCalled();
       });
     });
   });
@@ -4689,6 +4777,7 @@ describe('NetworkController', () => {
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -4750,6 +4839,7 @@ describe('NetworkController', () => {
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -4931,6 +5021,7 @@ describe('NetworkController', () => {
                       url: 'https://rpc.endpoint/3',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5000,6 +5091,7 @@ describe('NetworkController', () => {
                       url: 'https://rpc.endpoint/3',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5098,6 +5190,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5142,6 +5235,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5838,6 +5932,7 @@ describe('NetworkController', () => {
                       url: 'https://some.other.url',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5907,6 +6002,7 @@ describe('NetworkController', () => {
                       url: 'https://some.other.url',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6225,6 +6321,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6278,6 +6375,7 @@ describe('NetworkController', () => {
                 expect(updatedNetworkConfiguration).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6703,6 +6801,7 @@ describe('NetworkController', () => {
                     url: 'https://rpc.endpoint/3',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6776,6 +6875,7 @@ describe('NetworkController', () => {
                     url: 'https://rpc.endpoint/3',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6872,6 +6972,7 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6916,6 +7017,7 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -7608,6 +7710,7 @@ describe('NetworkController', () => {
                     url: 'https://some.other.url',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -7677,6 +7780,7 @@ describe('NetworkController', () => {
                     url: 'https://some.other.url',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8001,6 +8105,7 @@ describe('NetworkController', () => {
               ).toStrictEqual({
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8058,6 +8163,7 @@ describe('NetworkController', () => {
               expect(updatedNetworkConfiguration).toStrictEqual({
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8468,6 +8574,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -8714,6 +8821,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9095,6 +9203,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9382,6 +9491,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9771,6 +9881,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -10072,6 +10183,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -10459,6 +10571,7 @@ describe('NetworkController', () => {
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 },
               ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
             });
           },
         );
@@ -10741,6 +10854,7 @@ describe('NetworkController', () => {
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 },
               ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
             });
           },
         );
@@ -11404,6 +11518,33 @@ describe('NetworkController', () => {
             expect(networkClientRegistry).not.toHaveProperty(
               'BBBB-BBBB-BBBB-BBBB',
             );
+          },
+        );
+      });
+
+      it('is callable from the controller messenger', async () => {
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: InfuraNetworkType.goerli,
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration(),
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            expect(
+              controller.state.networkConfigurationsByChainId,
+            ).toHaveProperty('0x1337');
+
+            messenger.call('NetworkController:removeNetwork', '0x1337');
+
+            expect(
+              controller.state.networkConfigurationsByChainId,
+            ).not.toHaveProperty('0x1337');
           },
         );
       });
