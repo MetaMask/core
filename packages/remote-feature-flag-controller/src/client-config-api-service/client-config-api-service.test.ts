@@ -49,10 +49,6 @@ describe('ClientConfigApiService', () => {
     );
 
     expect(result).toStrictEqual({
-      error: false,
-      message: 'Success',
-      statusCode: '200',
-      statusText: 'OK',
       remoteFeatureFlag: mockFeatureFlags,
       cacheTimestamp: expect.any(Number),
     });
@@ -74,19 +70,7 @@ describe('ClientConfigApiService', () => {
     const remoteFeatureFlag = [{ feature3: true }];
     const cacheTimestamp = Date.now();
 
-    const result = await clientConfigApiService.fetchRemoteFeatureFlag({
-      remoteFeatureFlag,
-      cacheTimestamp,
-    });
-
-    expect(result).toStrictEqual({
-      error: true,
-      message: 'Network error',
-      statusCode: '503',
-      statusText: 'Service Unavailable',
-      remoteFeatureFlag,
-      cacheTimestamp,
-    });
+    expect(clientConfigApiService.fetchRemoteFeatureFlag()).rejects.toThrow(networkError);
   });
 
   it('should return empty object when API request fails and cached data is not available', async () => {
@@ -101,16 +85,7 @@ describe('ClientConfigApiService', () => {
       },
     });
 
-    const result = await clientConfigApiService.fetchRemoteFeatureFlag();
-
-    expect(result).toStrictEqual({
-      error: true,
-      message: 'Network error',
-      statusCode: '503',
-      statusText: 'Service Unavailable',
-      remoteFeatureFlag: [],
-      cacheTimestamp: expect.any(Number),
-    });
+    expect(clientConfigApiService.fetchRemoteFeatureFlag()).rejects.toThrow(networkError);
   });
 
   it('should handle non-200 responses without cache data', async () => {
@@ -130,16 +105,7 @@ describe('ClientConfigApiService', () => {
         environment: EnvironmentType.Production,
       },
     });
-    const result = await clientConfigApiService.fetchRemoteFeatureFlag();
-    const currentTime = Date.now();
-    expect(result).toStrictEqual({
-      error: true,
-      message: 'Failed to fetch flags',
-      statusCode: '404',
-      statusText: 'Not Found',
-      remoteFeatureFlag: [],
-      cacheTimestamp: currentTime,
-    });
+    expect(clientConfigApiService.fetchRemoteFeatureFlag()).rejects.toThrow('Failed to fetch feature flags');
   });
 
   it('should handle non-200 responses with cache data', async () => {
@@ -160,22 +126,7 @@ describe('ClientConfigApiService', () => {
       },
     });
 
-    const remoteFeatureFlag = [{ feature3: true }];
-    const cacheTimestamp = Date.now();
-
-    const result = await clientConfigApiService.fetchRemoteFeatureFlag({
-      remoteFeatureFlag,
-      cacheTimestamp,
-    });
-
-    expect(result).toStrictEqual({
-      error: true,
-      message: 'Failed to fetch flags',
-      statusCode: '404',
-      statusText: 'Not Found',
-      remoteFeatureFlag,
-      cacheTimestamp,
-    });
+    expect(clientConfigApiService.fetchRemoteFeatureFlag()).rejects.toThrow('Failed to fetch feature flags');
   });
 
   it('should retry the fetch the specified number of times on failure', async () => {
@@ -191,16 +142,7 @@ describe('ClientConfigApiService', () => {
       },
     });
 
-    const result = await clientConfigApiService.fetchRemoteFeatureFlag();
-    const currentTime = Date.now();
-    expect(result).toStrictEqual({
-      error: true,
-      message: 'Network error',
-      statusCode: '503',
-      statusText: 'Service Unavailable',
-      remoteFeatureFlag: [],
-      cacheTimestamp: currentTime,
-    });
+    expect(clientConfigApiService.fetchRemoteFeatureFlag()).rejects.toThrow('Failed to fetch feature flags');
     // Check that fetch was retried the correct number of times
     expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1); // Initial + retries
   });
