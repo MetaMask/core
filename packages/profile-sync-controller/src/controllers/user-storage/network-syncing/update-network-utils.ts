@@ -174,7 +174,6 @@ export const createUpdateNetworkProps = (props: {
   // We cannot remove infura RPCs - so ensure that they stay populated
   // If we are removing a selected RPC - then we need to provide `replacementSelectedRpcEndpointIndex` to an index in the new list
   // If we are updating a selected RPC - then we need to provide `replacementSelectedRpcEndpointIndex` to the index in the new list
-  // This file will create and dispatch the correct params required to update a network configuration
 
   const mappedNetworkConfiguration = getMappedNetworkConfiguration({
     originalNetworkConfiguration,
