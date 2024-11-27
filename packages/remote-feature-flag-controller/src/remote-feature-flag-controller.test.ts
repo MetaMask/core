@@ -223,6 +223,51 @@ describe('RemoteFeatureFlagController', () => {
         clientConfigApiService.fetchRemoteFeatureFlag,
       ).toHaveBeenCalledTimes(1);
     });
+
+    it('should handle empty data from API', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlag: [],
+      });
+      const controller = createController({ clientConfigApiService });
+
+      const result = await controller.getRemoteFeatureFlag();
+      expect(result).toStrictEqual([]);
+    });
+
+    it('should handle errors during concurrent requests', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        error: new Error('API Error'),
+      });
+
+      const controller = createController({ clientConfigApiService });
+
+      await expect(
+        Promise.all([
+          controller.getRemoteFeatureFlag(),
+          controller.getRemoteFeatureFlag(),
+        ]),
+      ).rejects.toThrow('API Error');
+    });
+
+    it('should preserve cache when API request fails', async () => {
+      const clientConfigApiService = buildClientConfigApiService();
+      const controller = createController({
+        clientConfigApiService,
+        state: { remoteFeatureFlag: mockFlags, cacheTimestamp: 0 },
+      });
+
+      // First call succeeds and sets cache
+      await controller.getRemoteFeatureFlag();
+
+      // Mock API to fail
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlag')
+        .mockRejectedValue(new Error('API Error'));
+
+      // Should still return cached data
+      const result = await controller.getRemoteFeatureFlag();
+      expect(result).toStrictEqual(mockFlags);
+    });
   });
 
   describe('disable', () => {
@@ -283,23 +328,31 @@ function getControllerMessenger(
  * @param options - The options object
  * @param options.remoteFeatureFlag - Optional feature flags data to return
  * @param options.cacheTimestamp - Optional timestamp to use for the cache
+ * @param options.error - Optional error to simulate API failure
  * @returns A mock client config API service
  */
 function buildClientConfigApiService({
   remoteFeatureFlag,
   cacheTimestamp,
+  error,
 }: {
   remoteFeatureFlag?: FeatureFlags;
   cacheTimestamp?: number;
+  error?: Error;
 } = {}): AbstractClientConfigApiService {
   return {
-    fetchRemoteFeatureFlag: jest.fn().mockResolvedValue({
-      error: false,
-      message: 'Success',
-      statusCode: '200',
-      statusText: 'OK',
-      remoteFeatureFlag: remoteFeatureFlag ?? mockFlags,
-      cacheTimestamp: cacheTimestamp ?? Date.now(),
+    fetchRemoteFeatureFlag: jest.fn().mockImplementation(() => {
+      if (error) {
+        return Promise.reject(error);
+      }
+      return Promise.resolve({
+        error: false,
+        message: 'Success',
+        statusCode: '200',
+        statusText: 'OK',
+        remoteFeatureFlag: remoteFeatureFlag ?? mockFlags,
+        cacheTimestamp: cacheTimestamp ?? Date.now(),
+      });
     }),
   };
 }
