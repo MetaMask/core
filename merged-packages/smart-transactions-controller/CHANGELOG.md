@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Note that these versions have also been updated
     - `@metamask/network-controller` updated from v21.1.0 to v22.0.0 ([#471](https://github.com/MetaMask/smart-transactions-controller/pull/471))
     - `@metamask/transaction-controller` updated from v37.3.0 to v38.0.0 ([#471](https://github.com/MetaMask/smart-transactions-controller/pull/471))
+- **BREAKING**: Add support for returning a transaction hash asap after a smart transaction is submitted. This requires to pass 3 new parameters when calling the STX controller: `clientId`, `getFeatureFlags` and `updateTransaction` [#467](https://github.com/MetaMask/smart-transactions-controller/pull/467))
 - Update `@metamask/polling-controller` from v11.0.0 to v12.0.0 ([#471](https://github.com/MetaMask/smart-transactions-controller/pull/471))
 - Remove test-helpers from build ([#459](https://github.com/MetaMask/smart-transactions-controller/pull/459))
 - Bump `@metamask/eth-json-rpc-provider` from `^4.1.0` to `^4.1.6` ([#460](https://github.com/MetaMask/smart-transactions-controller/pull/460))
