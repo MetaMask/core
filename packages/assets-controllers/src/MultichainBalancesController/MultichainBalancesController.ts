@@ -10,7 +10,6 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
-  BtcAccountType,
   KeyringClient,
   type Balance,
   type CaipAssetType,
@@ -21,10 +20,11 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
-import { validate, Network } from 'bitcoin-address-validation';
 import type { Draft } from 'immer';
 
 import { BalancesTracker } from './BalancesTracker';
+import { BALANCE_UPDATE_INTERVALS } from './constants';
+import { getScopeForAddress } from './utils';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -57,7 +57,7 @@ export type MultichainBalancesControllerGetStateAction =
   >;
 
 /**
- * Updates the balances of all supported accounts.
+ * Updates the balances of all supported accounts in {@link MultichainBalancesController}.
  */
 export type MultichainBalancesControllerUpdateBalancesAction = {
   type: `${typeof controllerName}:updateBalances`;
@@ -126,14 +126,6 @@ const multichainBalancesControllerMetadata = {
   },
 };
 
-const BTC_TESTNET_ASSETS = ['bip122:000000000933ea01ad0ee984209779ba/slip44:0'];
-const BTC_MAINNET_ASSETS = ['bip122:000000000019d6689c085ae165831e93/slip44:0'];
-const BTC_AVG_BLOCK_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
-
-// NOTE: We set an interval of half the average block time to mitigate when our interval
-// is de-synchronized with the actual block time.
-export const BALANCES_UPDATE_TIME = BTC_AVG_BLOCK_TIME / 2;
-
 /**
  * The MultichainBalancesController is responsible for fetching and caching account
  * balances.
@@ -143,14 +135,22 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
-  #tracker: BalancesTracker;
+  readonly #tracker: BalancesTracker;
+
+  // As a temporary solution, we are using a map, provided during the construction
+  // of the controller, to store the assets that are hardcoded in the client.
+  // In the future, this mapping should be dynamic to allow a client to
+  // register and unregister assets
+  readonly #networkAssetsMap: Record<string, string[]>;
 
   constructor({
     messenger,
     state,
+    networkAssetsMap,
   }: {
     messenger: MultichainBalancesControllerMessenger;
     state: MultichainBalancesControllerState;
+    networkAssetsMap: Record<string, string[]>;
   }) {
     super({
       messenger,
@@ -166,10 +166,12 @@ export class MultichainBalancesController extends BaseController<
       async (accountId: string) => await this.#updateBalance(accountId),
     );
 
+    this.#networkAssetsMap = networkAssetsMap;
+
     // Register all non-EVM accounts into the tracker
     for (const account of this.#listAccounts()) {
       if (this.#isNonEvmAccount(account)) {
-        this.#tracker.track(account.id, BALANCES_UPDATE_TIME);
+        this.#trackAccount(account.id);
       }
     }
 
@@ -198,6 +200,20 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
+   * Tracks an account to get its balances.
+   *
+   * @param accountId - The account ID.
+   */
+  #trackAccount(accountId: string): void {
+    const updateTime =
+      // @ts-expect-error - For the moment we are only tracking non-EVM accounts and this is
+      // checked with the method `#isNonEvmAccount`. We can ignore this error since
+      // eip155:eoa and eip155:erc4337 account type balances are not tracked here.
+      BALANCE_UPDATE_INTERVALS[this.#getAccount(accountId).type];
+    this.#tracker.track(accountId, updateTime);
+  }
+
+  /**
    * Lists the multichain accounts coming from the `AccountsController`.
    *
    * @returns A list of multichain accounts.
@@ -211,15 +227,14 @@ export class MultichainBalancesController extends BaseController<
   /**
    * Lists the accounts that we should get balances for.
    *
-   * Currently, we only get balances for P2WPKH accounts, but this will change
-   * in the future when we start support other non-EVM account types.
+   * Currently, we only get balances for non-EVM accounts.
    *
    * @returns A list of accounts that we should get balances for.
    */
   #listAccounts(): InternalAccount[] {
     const accounts = this.#listMultichainAccounts();
 
-    return accounts.filter((account) => account.type === BtcAccountType.P2wpkh);
+    return accounts.filter((account) => this.#isNonEvmAccount(account));
   }
 
   /**
@@ -253,13 +268,14 @@ export class MultichainBalancesController extends BaseController<
     const account = this.#getAccount(accountId);
     const partialState: MultichainBalancesControllerState = { balances: {} };
 
+    const scope = getScopeForAddress(account);
+    const assetsList = this.#networkAssetsMap[scope];
+
     if (account.metadata.snap) {
       partialState.balances[account.id] = await this.#getBalances(
         account.id,
         account.metadata.snap.id,
-        validate(account.address, Network.mainnet)
-          ? BTC_MAINNET_ASSETS
-          : BTC_TESTNET_ASSETS,
+        assetsList,
       );
     }
 
@@ -317,7 +333,7 @@ export class MultichainBalancesController extends BaseController<
       return;
     }
 
-    this.#tracker.track(account.id, BTC_AVG_BLOCK_TIME);
+    this.#trackAccount(account.id);
     // NOTE: Unfortunately, we cannot update the balance right away here, because
     // messenger's events are running synchronously and fetching the balance is
     // asynchronous.
