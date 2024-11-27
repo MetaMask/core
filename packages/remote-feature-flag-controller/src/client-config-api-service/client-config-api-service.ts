@@ -9,6 +9,7 @@ import {
   CircuitState,
 } from 'cockatiel';
 
+import { BASE_URL } from '../constants';
 import type {
   FeatureFlags,
   ClientType,
@@ -17,11 +18,7 @@ import type {
 } from '../remote-feature-flag-controller-types';
 
 type ApiResponse = {
-  error: boolean;
-  message: string;
-  statusCode: string | null;
-  statusText: string | null;
-  cachedData: FeatureFlags;
+  remoteFeatureFlag: FeatureFlags;
   cacheTimestamp: number | null;
 };
 
@@ -29,7 +26,7 @@ const DEFAULT_FETCH_RETRIES = 3;
 // Each update attempt will result (1 + retries) calls if the server is down
 const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_FETCH_RETRIES) * 3;
 
-const DEFAULT_DEGRADED_THRESHOLD = 5000;
+export const DEFAULT_DEGRADED_THRESHOLD = 5000;
 
 /**
  * This service is responsible for fetching feature flags from the ClientConfig API.
@@ -38,8 +35,6 @@ export class ClientConfigApiService {
   #fetch: typeof fetch;
 
   #policy: IPolicy;
-
-  #baseUrl = 'https://client-config.api.cx.metamask.io/v1';
 
   #client: ClientType;
 
@@ -127,62 +122,26 @@ export class ClientConfigApiService {
   /**
    * Fetches feature flags from the API with specific client, distribution, and environment parameters.
    * Provides structured error handling, including fallback to cached data if available.
-   * @param options - The options object
-   * @param options.cachedData - Optional cached feature flags data
-   * @param options.cacheTimestamp - Optional timestamp of the cached data
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
-  public async fetchRemoteFeatureFlags({
-    cachedData,
-    cacheTimestamp,
-  }: {
-    cachedData?: FeatureFlags;
-    cacheTimestamp?: number;
-  } = {}): Promise<ApiResponse> {
-    const url = `${this.#baseUrl}/flags?client=${this.#client}&distribution=${
+  public async fetchRemoteFeatureFlag(): Promise<ApiResponse> {
+    const url = `${BASE_URL}/flags?client=${this.#client}&distribution=${
       this.#distribution
     }&environment=${this.#environment}`;
 
-    try {
-      const response = await this.#policy.execute(() =>
-        this.#fetch(url, { cache: 'no-cache' }),
-      );
+    const response = await this.#policy.execute(() =>
+      this.#fetch(url, { cache: 'no-cache' }),
+    );
 
-      if (!response || !response.ok) {
-        return {
-          error: true,
-          message: 'Failed to fetch flags',
-          statusCode: response?.status?.toString() || null,
-          statusText: response?.statusText || 'Error',
-          cachedData: cachedData || [],
-          cacheTimestamp: cacheTimestamp ?? Date.now(),
-        };
-      }
-
-      const data = await response.json();
-
-      return {
-        error: false,
-        message: 'Success',
-        statusCode: response.status.toString(),
-        statusText: response.statusText || 'OK',
-        cachedData: data || [],
-        cacheTimestamp: Date.now(),
-      };
-    } catch (error) {
-      console.error('Feature flag API request failed:', error);
-
-      const err = error as Error & {
-        response?: { status: number; statusText: string };
-      };
-      return {
-        error: true,
-        message: err.message || 'Unknown error',
-        statusCode: err.response?.status?.toString() || null,
-        statusText: err.response?.statusText || null,
-        cachedData: cachedData || [],
-        cacheTimestamp: cacheTimestamp || Date.now(),
-      };
+    if (!response.ok) {
+      throw new Error('Failed to fetch remote feature flags');
     }
+
+    const data = await response.json();
+
+    return {
+      remoteFeatureFlag: data,
+      cacheTimestamp: Date.now(),
+    };
   }
 }
