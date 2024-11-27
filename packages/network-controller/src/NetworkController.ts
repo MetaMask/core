@@ -20,6 +20,7 @@ import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
+import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
@@ -201,6 +202,11 @@ export type NetworkConfiguration = {
    * interact with the chain.
    */
   rpcEndpoints: RpcEndpoint[];
+  /**
+   * Profile Sync - Network Sync field.
+   * Allows comparison of local network state with state to sync.
+   */
+  lastUpdatedAt?: number;
 };
 
 /**
@@ -2429,6 +2435,14 @@ export class NetworkController extends BaseController<
     }
 
     if (mode === 'add' || mode === 'update') {
+      if (
+        !deepEqual(
+          state.networkConfigurationsByChainId[args.networkFields.chainId],
+          args.networkConfigurationToPersist,
+        )
+      ) {
+        args.networkConfigurationToPersist.lastUpdatedAt = Date.now();
+      }
       state.networkConfigurationsByChainId[args.networkFields.chainId] =
         args.networkConfigurationToPersist;
     }
