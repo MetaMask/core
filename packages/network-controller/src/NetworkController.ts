@@ -21,6 +21,7 @@ import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString, hasProperty, isPlainObject } from '@metamask/utils';
 import { strict as assert } from 'assert';
+import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
@@ -2444,9 +2445,10 @@ export class NetworkController extends BaseController<
 
     if (mode === 'add' || mode === 'update') {
       if (
-        JSON.stringify(
+        !deepEqual(
           state.networkConfigurationsByChainId[args.networkFields.chainId],
-        ) !== JSON.stringify(args.networkConfigurationToPersist)
+          args.networkConfigurationToPersist,
+        )
       ) {
         args.networkConfigurationToPersist.lastUpdatedAt = Date.now();
       }
