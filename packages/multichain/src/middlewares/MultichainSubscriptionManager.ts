@@ -7,12 +7,10 @@ import { parseCaipChainId } from '@metamask/utils';
 import type EventEmitter from 'events';
 
 import type { ExternalScopeString } from '../scope/types';
-import { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
 
 export type SubscriptionManager = {
   events: EventEmitter;
   destroy?: () => void;
-  middleware: ExtendedJsonRpcMiddleware;
 };
 
 type SubscriptionNotificationEvent = {
@@ -117,7 +115,12 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     };
     this.#subscriptions.push(newSubscriptionEntry);
 
-    subscriptionManager.middleware = this.#generateMiddlewareFromEntry(newSubscriptionEntry)
+    // subscriptionManager.middleware.destroy is set to
+    // subscriptionManager.destroy internally
+    subscriptionManager.middleware.destroy = this.#unsubscribe.bind(
+      this,
+      newSubscriptionEntry
+    );
 
     return subscriptionManager;
   }
@@ -156,19 +159,5 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
         this.#unsubscribe(subscriptionEntry);
       }
     });
-  }
-
-  #generateMiddlewareFromEntry(
-    subscriptionEntry: SubscriptionEntry
-  ) {
-    const middleware: ExtendedJsonRpcMiddleware = (req, res, next, end) => {
-      return subscriptionEntry.subscriptionManager.middleware(req, res, next, end)
-    };
-    middleware.destroy = this.#unsubscribe.bind(
-      this,
-      subscriptionEntry
-    );
-
-    return middleware;
   }
 }
