@@ -9,6 +9,7 @@ import {
   CircuitState,
 } from 'cockatiel';
 
+import { BASE_URL } from '../constants';
 import type {
   FeatureFlags,
   ClientType,
@@ -21,7 +22,7 @@ type ApiResponse = {
   message: string;
   statusCode: string | null;
   statusText: string | null;
-  cachedData: FeatureFlags;
+  remoteFeatureFlag: FeatureFlags;
   cacheTimestamp: number | null;
 };
 
@@ -38,8 +39,6 @@ export class ClientConfigApiService {
   #fetch: typeof fetch;
 
   #policy: IPolicy;
-
-  #baseUrl = 'https://client-config.api.cx.metamask.io/v1';
 
   #client: ClientType;
 
@@ -128,18 +127,18 @@ export class ClientConfigApiService {
    * Fetches feature flags from the API with specific client, distribution, and environment parameters.
    * Provides structured error handling, including fallback to cached data if available.
    * @param options - The options object
-   * @param options.cachedData - Optional cached feature flags data
+   * @param options.remoteFeatureFlag - Optional cached feature flags data
    * @param options.cacheTimestamp - Optional timestamp of the cached data
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
-  public async fetchRemoteFeatureFlags({
-    cachedData,
+  public async fetchRemoteFeatureFlag({
+    remoteFeatureFlag,
     cacheTimestamp,
   }: {
-    cachedData?: FeatureFlags;
+    remoteFeatureFlag?: FeatureFlags;
     cacheTimestamp?: number;
   } = {}): Promise<ApiResponse> {
-    const url = `${this.#baseUrl}/flags?client=${this.#client}&distribution=${
+    const url = `${BASE_URL}/flags?client=${this.#client}&distribution=${
       this.#distribution
     }&environment=${this.#environment}`;
 
@@ -148,13 +147,13 @@ export class ClientConfigApiService {
         this.#fetch(url, { cache: 'no-cache' }),
       );
 
-      if (!response || !response.ok) {
+      if (!response.ok) {
         return {
           error: true,
           message: 'Failed to fetch flags',
-          statusCode: response?.status?.toString() || null,
-          statusText: response?.statusText || 'Error',
-          cachedData: cachedData || [],
+          statusCode: response.status.toString() || null,
+          statusText: response.statusText || 'Error',
+          remoteFeatureFlag: remoteFeatureFlag ?? [],
           cacheTimestamp: cacheTimestamp ?? Date.now(),
         };
       }
@@ -165,8 +164,8 @@ export class ClientConfigApiService {
         error: false,
         message: 'Success',
         statusCode: response.status.toString(),
-        statusText: response.statusText || 'OK',
-        cachedData: data || [],
+        statusText: response.statusText,
+        remoteFeatureFlag: data ?? [],
         cacheTimestamp: Date.now(),
       };
     } catch (error) {
@@ -180,7 +179,7 @@ export class ClientConfigApiService {
         message: err.message || 'Unknown error',
         statusCode: err.response?.status?.toString() || null,
         statusText: err.response?.statusText || null,
-        cachedData: cachedData || [],
+        remoteFeatureFlag: remoteFeatureFlag ?? [],
         cacheTimestamp: cacheTimestamp || Date.now(),
       };
     }

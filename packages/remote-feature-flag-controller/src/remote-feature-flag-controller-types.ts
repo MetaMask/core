@@ -32,7 +32,7 @@ export type RemoteFeatureFlagControllerState = {
   /**
    * The collection of feature flags and their respective values, which can be objects.
    */
-  remoteFeatureFlags: FeatureFlags;
+  remoteFeatureFlag: FeatureFlags;
   /**
    * The timestamp of the last successful feature flag cache.
    */
@@ -46,7 +46,7 @@ export type RemoteFeatureFlagControllerState = {
  */
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
-    remoteFeatureFlags: [],
+    remoteFeatureFlag: [],
     cacheTimestamp: 0,
   };
 }

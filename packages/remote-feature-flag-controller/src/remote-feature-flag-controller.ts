@@ -17,12 +17,12 @@ export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
-  remoteFeatureFlags: FeatureFlags;
+  remoteFeatureFlag: FeatureFlags;
   cacheTimestamp: number;
 };
 
 const remoteFeatureFlagControllerMetadata = {
-  remoteFeatureFlags: { persist: true, anonymous: false },
+  remoteFeatureFlag: { persist: true, anonymous: false },
   cacheTimestamp: { persist: true, anonymous: true },
 };
 
@@ -34,9 +34,9 @@ export type RemoteFeatureFlagControllerGetStateAction =
     RemoteFeatureFlagControllerState
   >;
 
-export type RemoteFeatureFlagControllerGetRemoteFeatureFlagsAction = {
-  type: `${typeof controllerName}:getRemoteFeatureFlags`;
-  handler: RemoteFeatureFlagController['getRemoteFeatureFlags'];
+export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
+  type: `${typeof controllerName}:getRemoteFeatureFlag`;
+  handler: RemoteFeatureFlagController['getRemoteFeatureFlag'];
 };
 
 export type RemoteFeatureFlagControllerActions =
@@ -71,7 +71,7 @@ export type RemoteFeatureFlagControllerMessenger =
  */
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
-    remoteFeatureFlags: [],
+    remoteFeatureFlag: [],
     cacheTimestamp: 0,
   };
 }
@@ -149,13 +149,13 @@ export class RemoteFeatureFlagController extends BaseController<
    *
    * @returns A promise that resolves to the current set of feature flags.
    */
-  async getRemoteFeatureFlags(): Promise<FeatureFlags> {
+  async getRemoteFeatureFlag(): Promise<FeatureFlags> {
     if (this.#disabled) {
       return [];
     }
 
     if (!this.#isCacheExpired()) {
-      return this.state.remoteFeatureFlags;
+      return this.state.remoteFeatureFlag;
     }
 
     if (this.#inProgressFlagUpdate) {
@@ -168,11 +168,11 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#inProgressFlagUpdate = promise;
 
     try {
-      const flags =
-        await this.#clientConfigApiService.fetchRemoteFeatureFlags();
-      if (flags.cachedData.length > 0) {
-        this.updateCache(flags.cachedData);
-        resolve(flags.cachedData);
+      const serverData =
+        await this.#clientConfigApiService.fetchRemoteFeatureFlag();
+      if (serverData.remoteFeatureFlag.length > 0) {
+        this.updateCache(serverData.remoteFeatureFlag);
+        resolve(serverData.remoteFeatureFlag);
       } else {
         resolve([]); // Resolve with empty array if no data is returned
       }
@@ -185,13 +185,13 @@ export class RemoteFeatureFlagController extends BaseController<
   /**
    * Updates the controller's state with new feature flags and resets the cache timestamp.
    *
-   * @param remoteFeatureFlags - The new feature flags to cache.
+   * @param remoteFeatureFlag - The new feature flags to cache.
    * @private
    */
-  private updateCache(remoteFeatureFlags: FeatureFlags) {
+  private updateCache(remoteFeatureFlag: FeatureFlags) {
     this.update(() => {
       return {
-        remoteFeatureFlags,
+        remoteFeatureFlag,
         cacheTimestamp: Date.now(),
       };
     });
