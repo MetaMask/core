@@ -122,6 +122,11 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
+   * The Network ID as per EIP-155 of the destination chain of a bridge transaction.
+   */
+  destinationChainId?: Hex;
+
+  /**
    * The address of the token being received of swap transaction.
    */
   destinationTokenAddress?: string;
