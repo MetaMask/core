@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "40.1.0",
+  "version": "41.0.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -72,6 +72,7 @@
     "@metamask/accounts-controller": "^20.0.0",
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/eth-block-tracker": "^11.0.2",
     "@metamask/eth-json-rpc-provider": "^4.1.6",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^22.0.1",
@@ -90,9 +91,10 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@babel/runtime": "^7.23.9",
+    "@babel/runtime": "^7.0.0",
     "@metamask/accounts-controller": "^20.0.0",
     "@metamask/approval-controller": "^7.0.0",
+    "@metamask/eth-block-tracker": ">=9",
     "@metamask/gas-fee-controller": "^22.0.0",
     "@metamask/network-controller": "^22.0.0"
   },
