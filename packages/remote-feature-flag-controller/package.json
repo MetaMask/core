@@ -37,8 +37,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/remote-feature-flag-controllers",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/remote-feature-flag-controllers",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/remote-feature-flag-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/remote-feature-flag-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
