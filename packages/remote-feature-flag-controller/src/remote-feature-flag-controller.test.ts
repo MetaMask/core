@@ -185,18 +185,10 @@ describe('RemoteFeatureFlagController', () => {
       const fetchSpy = jest
         .fn()
         .mockResolvedValueOnce({
-          error: false,
-          message: 'Success',
-          statusCode: '200',
-          statusText: 'OK',
           remoteFeatureFlags: MOCK_FLAGS,
           cacheTimestamp: Date.now(),
         })
         .mockResolvedValueOnce({
-          error: false,
-          message: 'Success',
-          statusCode: '200',
-          statusText: 'OK',
           remoteFeatureFlags: MOCK_FLAGS_TWO,
           cacheTimestamp: Date.now(),
         });
