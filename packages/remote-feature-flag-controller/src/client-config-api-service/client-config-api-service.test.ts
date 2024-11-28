@@ -60,6 +60,23 @@ describe('ClientConfigApiService', () => {
       ).rejects.toThrow(networkError);
     });
 
+    it('should throw an error when the API does not return an array', async () => {
+      const mockFetch = createMockFetch({ data: undefined });
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        retries: 0,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow('Feature flags api did not return an array');
+    });
+
     it('should retry the fetch the specified number of times on failure', async () => {
       const mockFetch = createMockFetch({ error: networkError });
       const maxRetries = 3;

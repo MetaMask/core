@@ -139,6 +139,10 @@ export class ClientConfigApiService {
 
     const data = await response.json();
 
+    if (!Array.isArray(data)) {
+      throw new Error('Feature flags api did not return an array');
+    }
+
     return {
       remoteFeatureFlags: data,
       cacheTimestamp: Date.now(),
