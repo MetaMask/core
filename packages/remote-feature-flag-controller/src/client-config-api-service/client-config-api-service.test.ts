@@ -24,7 +24,7 @@ describe('ClientConfigApiService', () => {
   const networkError = new Error('Network error');
 
   describe('fetchRemoteFeatureFlags', () => {
-    it('should successfully fetch and return feature flags', async () => {
+    it('fetches successfully and returns feature flags', async () => {
       const mockFetch = createMockFetch({
         response: {
           ok: true,
@@ -55,7 +55,7 @@ describe('ClientConfigApiService', () => {
       });
     });
 
-    it('should throw error when API request fails', async () => {
+    it('throws an error when the API request fails', async () => {
       const mockFetch = createMockFetch({ error: networkError });
       const clientConfigApiService = new ClientConfigApiService({
         fetch: mockFetch,
@@ -72,7 +72,7 @@ describe('ClientConfigApiService', () => {
       ).rejects.toThrow(networkError);
     });
 
-    it('should throw error when network request returns a non-200 status code', async () => {
+    it('throws an error when the network request returns a non-200 status code', async () => {
       const mockFetch = createMockFetch({ response: { status: 400 } });
       const clientConfigApiService = new ClientConfigApiService({
         fetch: mockFetch,
@@ -89,7 +89,7 @@ describe('ClientConfigApiService', () => {
       ).rejects.toThrow('Failed to fetch remote feature flags');
     });
 
-    it('should throw an error when the API does not return an array', async () => {
+    it('should handle non-array response by throwing an error', async () => {
       const mockFetch = createMockFetch({
         response: {
           ok: true,
@@ -97,6 +97,7 @@ describe('ClientConfigApiService', () => {
           json: async () => ({ invalid: 'response' }),
         },
       });
+
       const clientConfigApiService = new ClientConfigApiService({
         fetch: mockFetch,
         retries: 0,
@@ -112,7 +113,7 @@ describe('ClientConfigApiService', () => {
       ).rejects.toThrow('Feature flags api did not return an array');
     });
 
-    it('should retry the fetch the specified number of times on failure', async () => {
+    it('retries the fetch the specified number of times on failure', async () => {
       const mockFetch = createMockFetch({ error: networkError });
       const maxRetries = 3;
       const clientConfigApiService = new ClientConfigApiService({
@@ -131,33 +132,10 @@ describe('ClientConfigApiService', () => {
       // Check that fetch was retried the correct number of times
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1); // Initial + retries
     });
-
-    it('should handle non-array response from API', async () => {
-      const mockFetch = createMockFetch({
-        response: {
-          ok: true,
-          status: 200,
-          json: async () => ({ invalid: 'response' }),
-        },
-      });
-
-      const clientConfigApiService = new ClientConfigApiService({
-        fetch: mockFetch,
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      });
-
-      await expect(
-        clientConfigApiService.fetchRemoteFeatureFlags(),
-      ).rejects.toThrow('Feature flags api did not return an array');
-    });
   });
 
   describe('circuit breaker', () => {
-    it('should open the circuit breaker after consecutive failures', async () => {
+    it('opens the circuit breaker after consecutive failures', async () => {
       const mockFetch = createMockFetch({ error: networkError });
       const maxFailures = 3;
       const clientConfigApiService = new ClientConfigApiService({
@@ -278,7 +256,7 @@ describe('ClientConfigApiService', () => {
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1);
     });
 
-    it('should call onDegraded when retries are exhausted and circuit is closed', async () => {
+    it('calls onDegraded when retries are exhausted and circuit is closed', async () => {
       const onDegraded = jest.fn();
       const mockFetch = jest.fn();
       mockFetch.mockRejectedValue(new Error('Network error'));

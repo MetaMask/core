@@ -49,7 +49,7 @@ function createController(
 
 describe('RemoteFeatureFlagController', () => {
   describe('constructor', () => {
-    it('should initialize with default state', () => {
+    it('initializes with default state', () => {
       const controller = createController();
 
       expect(controller.state).toStrictEqual({
@@ -58,7 +58,7 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('should initialize controller with default state if the disabled parameter is provided', () => {
+    it('initializes with default state if the disabled parameter is provided', () => {
       const controller = createController({ disabled: true });
 
       expect(controller.state).toStrictEqual({
@@ -67,7 +67,7 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('should initialize controller with custom state', () => {
+    it('initializes with custom state', () => {
       const customState = {
         remoteFeatureFlags: MOCK_FLAGS_TWO,
         cacheTimestamp: 123456789,
@@ -80,7 +80,7 @@ describe('RemoteFeatureFlagController', () => {
   });
 
   describe('updateRemoteFeatureFlags', () => {
-    it('should not make a network request and not modify state if disabled is true', async () => {
+    it('does not make a network request and does not modify state if disabled is true', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         state: {
@@ -98,7 +98,7 @@ describe('RemoteFeatureFlagController', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should not make a network request and not modify state when cache is not expired', async () => {
+    it('does not make a network request and does not modify state when cache is not expired', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         state: {
@@ -115,7 +115,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
 
-    it('should make network request to fetch when cache is expired, and then update cache', async () => {
+    it('makes a network request to fetch when cache is expired, and then updates the cache', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         cacheTimestamp: Date.now() - 10000,
       });
@@ -139,7 +139,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS_TWO);
     });
 
-    it('should use previously cached flags when cache is valid', async () => {
+    it('uses previously cached flags when cache is valid', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         clientConfigApiService,
@@ -163,7 +163,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
 
-    it('should only make one network request, and only one state update, when there are concurrent calls', async () => {
+    it('makes one network request, and only one state update, when there are concurrent calls', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({ clientConfigApiService });
 
@@ -179,7 +179,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
 
-    it('should create a new fetch, and correctly update state, when called sequentially with awaiting and sufficient delay', async () => {
+    it('creates a new fetch, and correctly updates state, when called sequentially with awaiting and sufficient delay', async () => {
       jest.useFakeTimers();
       const initialTime = Date.now();
       const fetchSpy = jest
@@ -228,7 +228,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
-    it('should throw an API error to the caller, while leaving cached state unchanged', async () => {
+    it('throws an API error to the caller, while leaving cached state unchanged', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         error: new Error('API Error'),
       });
@@ -248,7 +248,7 @@ describe('RemoteFeatureFlagController', () => {
   });
 
   describe('enable and disable', () => {
-    it('should enable the controller and make network request to fetch', async () => {
+    it('enables the controller and makes a network request to fetch', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         clientConfigApiService,
@@ -260,7 +260,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(clientConfigApiService.fetchRemoteFeatureFlags).toHaveBeenCalled();
     });
 
-    it('should preserve cached flags and return cached data when disabled', async () => {
+    it('preserves cached flags and returns cached data when disabled', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         clientConfigApiService,
