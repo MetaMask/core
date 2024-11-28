@@ -35,8 +35,8 @@ export type RemoteFeatureFlagControllerGetStateAction =
   >;
 
 export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
-  type: `${typeof controllerName}:getRemoteFeatureFlag`;
-  handler: RemoteFeatureFlagController['getRemoteFeatureFlag'];
+  type: `${typeof controllerName}:getRemoteFeatureFlags`;
+  handler: RemoteFeatureFlagController['getRemoteFeatureFlags'];
 };
 
 export type RemoteFeatureFlagControllerActions =
@@ -149,12 +149,8 @@ export class RemoteFeatureFlagController extends BaseController<
    *
    * @returns A promise that resolves to the current set of feature flags.
    */
-  async getRemoteFeatureFlag(): Promise<FeatureFlags> {
-    if (this.#disabled) {
-      return [];
-    }
-
-    if (!this.#isCacheExpired()) {
+  async getRemoteFeatureFlags(): Promise<FeatureFlags> {
+    if (this.#disabled || !this.#isCacheExpired()) {
       return this.state.remoteFeatureFlags;
     }
 
@@ -171,7 +167,7 @@ export class RemoteFeatureFlagController extends BaseController<
     });
 
     const serverData =
-      await this.#clientConfigApiService.fetchRemoteFeatureFlag();
+      await this.#clientConfigApiService.fetchRemoteFeatureFlags();
     if (serverData.remoteFeatureFlags.length > 0) {
       this.updateCache(serverData.remoteFeatureFlags);
       resolve(serverData.remoteFeatureFlags);
