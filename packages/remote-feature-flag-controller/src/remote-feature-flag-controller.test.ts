@@ -53,7 +53,7 @@ describe('RemoteFeatureFlagController', () => {
       const controller = createController();
 
       expect(controller.state).toStrictEqual({
-        remoteFeatureFlag: [],
+        remoteFeatureFlags: [],
         cacheTimestamp: 0,
       });
     });
@@ -62,14 +62,14 @@ describe('RemoteFeatureFlagController', () => {
       const controller = createController({ disabled: true });
 
       expect(controller.state).toStrictEqual({
-        remoteFeatureFlag: [],
+        remoteFeatureFlags: [],
         cacheTimestamp: 0,
       });
     });
 
     it('should initialize controller with custom state', () => {
       const customState = {
-        remoteFeatureFlag: mockFlagsTwo,
+        remoteFeatureFlags: mockFlagsTwo,
         cacheTimestamp: 123456789,
       };
 
@@ -79,7 +79,7 @@ describe('RemoteFeatureFlagController', () => {
     });
   });
 
-  describe('getRemoteFeatureFlag', () => {
+  describe('getRemoteFeatureFlags', () => {
     it('should return empty object when controller is disabled', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
@@ -87,9 +87,9 @@ describe('RemoteFeatureFlagController', () => {
         disabled: true,
       });
 
-      const remoteFeatureFlag = await controller.getRemoteFeatureFlag();
+      const remoteFeatureFlags = await controller.getRemoteFeatureFlags();
 
-      expect(remoteFeatureFlag).toStrictEqual([]);
+      expect(remoteFeatureFlags).toStrictEqual([]);
       expect(
         clientConfigApiService.fetchRemoteFeatureFlag,
       ).not.toHaveBeenCalled();
@@ -98,7 +98,7 @@ describe('RemoteFeatureFlagController', () => {
     it('should make network request to fetch when cache is not expired', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({ clientConfigApiService });
-      const flags = await controller.getRemoteFeatureFlag();
+      const flags = await controller.getRemoteFeatureFlags();
 
       expect(flags).toStrictEqual(mockFlags);
     });
@@ -120,12 +120,12 @@ describe('RemoteFeatureFlagController', () => {
           message: 'Success',
           statusCode: '200',
           statusText: 'OK',
-          remoteFeatureFlag: mockFlagsTwo,
+          remoteFeatureFlags: mockFlagsTwo,
           cacheTimestamp: Date.now(),
         }));
 
-      const remoteFeatureFlag = await controller.getRemoteFeatureFlag();
-      expect(remoteFeatureFlag).toStrictEqual(mockFlagsTwo);
+      const remoteFeatureFlags = await controller.getRemoteFeatureFlags();
+      expect(remoteFeatureFlags).toStrictEqual(mockFlagsTwo);
       expect(
         clientConfigApiService.fetchRemoteFeatureFlag,
       ).toHaveBeenCalledTimes(1);
@@ -136,20 +136,20 @@ describe('RemoteFeatureFlagController', () => {
       const controller = createController({ clientConfigApiService });
 
       // First call to set cache
-      await controller.getRemoteFeatureFlag();
+      await controller.getRemoteFeatureFlags();
 
       // Mock different response
       jest
         .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlag')
         .mockImplementation(() =>
           buildClientConfigApiService({
-            remoteFeatureFlag: [{ differentFlag: true }],
+            remoteFeatureFlags: [{ differentFlag: true }],
           }).fetchRemoteFeatureFlag(),
         );
 
-      const remoteFeatureFlag = await controller.getRemoteFeatureFlag();
+      const remoteFeatureFlags = await controller.getRemoteFeatureFlags();
 
-      expect(remoteFeatureFlag).toStrictEqual(mockFlags);
+      expect(remoteFeatureFlags).toStrictEqual(mockFlags);
     });
 
     it('should handle concurrent flag updates', async () => {
@@ -157,8 +157,8 @@ describe('RemoteFeatureFlagController', () => {
       const controller = createController({ clientConfigApiService });
 
       const [result1, result2] = await Promise.all([
-        controller.getRemoteFeatureFlag(),
-        controller.getRemoteFeatureFlag(),
+        controller.getRemoteFeatureFlags(),
+        controller.getRemoteFeatureFlags(),
       ]);
 
       expect(result1).toStrictEqual(mockFlags);
@@ -175,7 +175,7 @@ describe('RemoteFeatureFlagController', () => {
           message: 'Success',
           statusCode: '200',
           statusText: 'OK',
-          remoteFeatureFlag: mockFlags,
+          remoteFeatureFlags: mockFlags,
           cacheTimestamp: Date.now(),
         })
         .mockResolvedValueOnce({
@@ -183,7 +183,7 @@ describe('RemoteFeatureFlagController', () => {
           message: 'Success',
           statusCode: '200',
           statusText: 'OK',
-          remoteFeatureFlag: mockFlagsTwo,
+          remoteFeatureFlags: mockFlagsTwo,
           cacheTimestamp: Date.now(),
         });
 
@@ -193,11 +193,11 @@ describe('RemoteFeatureFlagController', () => {
 
       const controller = createController({
         clientConfigApiService,
-        state: { remoteFeatureFlag: [], cacheTimestamp: 0 },
+        state: { remoteFeatureFlags: [], cacheTimestamp: 0 },
       });
 
       // First call - should fetch new data
-      const firstFlags = await controller.getRemoteFeatureFlag();
+      const firstFlags = await controller.getRemoteFeatureFlags();
       expect(firstFlags).toStrictEqual(mockFlags);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
 
@@ -205,18 +205,18 @@ describe('RemoteFeatureFlagController', () => {
       jest.setSystemTime(initialTime + 2 * DEFAULT_CACHE_DURATION);
 
       // Second call - should fetch new data again
-      const secondFlags = await controller.getRemoteFeatureFlag();
+      const secondFlags = await controller.getRemoteFeatureFlags();
       expect(secondFlags).toStrictEqual(mockFlagsTwo);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it('should resolve with empty array when API returns no cached data', async () => {
       const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlag: [],
+        remoteFeatureFlags: [],
       });
 
       const controller = createController({ clientConfigApiService });
-      const result = await controller.getRemoteFeatureFlag();
+      const result = await controller.getRemoteFeatureFlags();
 
       expect(result).toStrictEqual([]);
       expect(
@@ -226,11 +226,11 @@ describe('RemoteFeatureFlagController', () => {
 
     it('should handle empty data from API', async () => {
       const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlag: [],
+        remoteFeatureFlags: [],
       });
       const controller = createController({ clientConfigApiService });
 
-      const result = await controller.getRemoteFeatureFlag();
+      const result = await controller.getRemoteFeatureFlags();
       expect(result).toStrictEqual([]);
     });
 
@@ -243,8 +243,8 @@ describe('RemoteFeatureFlagController', () => {
 
       await expect(
         Promise.all([
-          controller.getRemoteFeatureFlag(),
-          controller.getRemoteFeatureFlag(),
+          controller.getRemoteFeatureFlags(),
+          controller.getRemoteFeatureFlags(),
         ]),
       ).rejects.toThrow('API Error');
     });
@@ -253,11 +253,11 @@ describe('RemoteFeatureFlagController', () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         clientConfigApiService,
-        state: { remoteFeatureFlag: mockFlags, cacheTimestamp: 0 },
+        state: { remoteFeatureFlags: mockFlags, cacheTimestamp: 0 },
       });
 
       // First call succeeds and sets cache
-      await controller.getRemoteFeatureFlag();
+      await controller.getRemoteFeatureFlags();
 
       // Mock API to fail
       jest
@@ -265,7 +265,7 @@ describe('RemoteFeatureFlagController', () => {
         .mockRejectedValue(new Error('API Error'));
 
       // Should still return cached data
-      const result = await controller.getRemoteFeatureFlag();
+      const result = await controller.getRemoteFeatureFlags();
       expect(result).toStrictEqual(mockFlags);
     });
   });
@@ -276,20 +276,20 @@ describe('RemoteFeatureFlagController', () => {
       const controller = createController({
         clientConfigApiService,
         disabled: false,
-        state: { remoteFeatureFlag: mockFlags, cacheTimestamp: 0 },
+        state: { remoteFeatureFlags: mockFlags, cacheTimestamp: 0 },
       });
 
       // Verify cache is preserved
-      expect(controller.state.remoteFeatureFlag).toStrictEqual(mockFlags);
+      expect(controller.state.remoteFeatureFlags).toStrictEqual(mockFlags);
 
       // Disable the controller
       controller.disable();
 
       // Verify disabled behavior,
-      // cache should be preserved, but getRemoteFeatureFlag should return empty array
-      const remoteFeatureFlag = await controller.getRemoteFeatureFlag();
-      expect(remoteFeatureFlag).toStrictEqual([]);
-      expect(controller.state.remoteFeatureFlag).toStrictEqual(mockFlags);
+      // cache should be preserved, but getRemoteFeatureFlags should return empty array
+      const remoteFeatureFlags = await controller.getRemoteFeatureFlags();
+      expect(remoteFeatureFlags).toStrictEqual([]);
+      expect(controller.state.remoteFeatureFlags).toStrictEqual(mockFlags);
     });
   });
 });
@@ -326,17 +326,17 @@ function getControllerMessenger(
 /**
  * Builds a mock client config API service for testing
  * @param options - The options object
- * @param options.remoteFeatureFlag - Optional feature flags data to return
+ * @param options.remoteFeatureFlags - Optional feature flags data to return
  * @param options.cacheTimestamp - Optional timestamp to use for the cache
  * @param options.error - Optional error to simulate API failure
  * @returns A mock client config API service
  */
 function buildClientConfigApiService({
-  remoteFeatureFlag,
+  remoteFeatureFlags,
   cacheTimestamp,
   error,
 }: {
-  remoteFeatureFlag?: FeatureFlags;
+  remoteFeatureFlags?: FeatureFlags;
   cacheTimestamp?: number;
   error?: Error;
 } = {}): AbstractClientConfigApiService {
@@ -350,7 +350,7 @@ function buildClientConfigApiService({
         message: 'Success',
         statusCode: '200',
         statusText: 'OK',
-        remoteFeatureFlag: remoteFeatureFlag ?? mockFlags,
+        remoteFeatureFlags: remoteFeatureFlags ?? mockFlags,
         cacheTimestamp: cacheTimestamp ?? Date.now(),
       });
     }),

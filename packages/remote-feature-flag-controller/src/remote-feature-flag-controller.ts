@@ -20,12 +20,12 @@ export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
-  remoteFeatureFlag: FeatureFlags;
+  remoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number;
 };
 
 const remoteFeatureFlagControllerMetadata = {
-  remoteFeatureFlag: { persist: true, anonymous: false },
+  remoteFeatureFlags: { persist: true, anonymous: false },
   cacheTimestamp: { persist: true, anonymous: true },
 };
 
@@ -74,7 +74,7 @@ export type RemoteFeatureFlagControllerMessenger =
  */
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
-    remoteFeatureFlag: [],
+    remoteFeatureFlags: [],
     cacheTimestamp: 0,
   };
 }
@@ -158,7 +158,7 @@ export class RemoteFeatureFlagController extends BaseController<
     }
 
     if (!this.#isCacheExpired()) {
-      return this.state.remoteFeatureFlag;
+      return this.state.remoteFeatureFlags;
     }
 
     if (this.#inProgressFlagUpdate) {
@@ -175,9 +175,9 @@ export class RemoteFeatureFlagController extends BaseController<
 
     const serverData =
       await this.#clientConfigApiService.fetchRemoteFeatureFlag();
-    if (serverData.remoteFeatureFlag.length > 0) {
-      this.updateCache(serverData.remoteFeatureFlag);
-      resolve(serverData.remoteFeatureFlag);
+    if (serverData.remoteFeatureFlags.length > 0) {
+      this.updateCache(serverData.remoteFeatureFlags);
+      resolve(serverData.remoteFeatureFlags);
     } else {
       resolve([]); // Resolve with empty array if no data is returned
     }
@@ -187,13 +187,13 @@ export class RemoteFeatureFlagController extends BaseController<
   /**
    * Updates the controller's state with new feature flags and resets the cache timestamp.
    *
-   * @param remoteFeatureFlag - The new feature flags to cache.
+   * @param remoteFeatureFlags - The new feature flags to cache.
    * @private
    */
-  private updateCache(remoteFeatureFlag: FeatureFlags) {
+  private updateCache(remoteFeatureFlags: FeatureFlags) {
     this.update(() => {
       return {
-        remoteFeatureFlag,
+        remoteFeatureFlags,
         cacheTimestamp: Date.now(),
       };
     });
