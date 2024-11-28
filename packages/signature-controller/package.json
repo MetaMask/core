@@ -51,7 +51,7 @@
     "@metamask/controller-utils": "^11.4.3",
     "@metamask/eth-sig-util": "^8.0.0",
     "@metamask/utils": "^10.0.0",
-    "jsonschema": "^1.2.4",
+    "jsonschema": "^1.4.1",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
   },
