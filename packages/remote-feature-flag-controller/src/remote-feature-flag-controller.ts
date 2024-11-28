@@ -24,7 +24,7 @@ export type RemoteFeatureFlagControllerState = {
 };
 
 const remoteFeatureFlagControllerMetadata = {
-  remoteFeatureFlags: { persist: true, anonymous: false },
+  remoteFeatureFlags: { persist: true, anonymous: true },
   cacheTimestamp: { persist: true, anonymous: true },
 };
 
