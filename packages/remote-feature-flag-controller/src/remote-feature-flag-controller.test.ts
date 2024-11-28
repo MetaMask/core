@@ -271,10 +271,10 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       const result = await Promise.all([
-          controller.getRemoteFeatureFlags(),
-          controller.getRemoteFeatureFlags(),
-        ])
-      await expect(result[0]).toStrictEqual(MOCK_FLAGS);
+        controller.getRemoteFeatureFlags(),
+        controller.getRemoteFeatureFlags(),
+      ]);
+      expect(result[0]).toStrictEqual(MOCK_FLAGS);
     });
 
     it('should preserve cache when API request fails', async () => {
