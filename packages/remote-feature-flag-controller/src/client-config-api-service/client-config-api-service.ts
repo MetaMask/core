@@ -18,7 +18,7 @@ import type {
 } from '../remote-feature-flag-controller-types';
 
 type ApiResponse = {
-  remoteFeatureFlag: FeatureFlags;
+  remoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number | null;
 };
 
@@ -124,7 +124,7 @@ export class ClientConfigApiService {
    * Provides structured error handling, including fallback to cached data if available.
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
-  public async fetchRemoteFeatureFlag(): Promise<ApiResponse> {
+  public async fetchRemoteFeatureFlags(): Promise<ApiResponse> {
     const url = `${BASE_URL}/flags?client=${this.#client}&distribution=${
       this.#distribution
     }&environment=${this.#environment}`;
@@ -140,7 +140,7 @@ export class ClientConfigApiService {
     const data = await response.json();
 
     return {
-      remoteFeatureFlag: data,
+      remoteFeatureFlags: data,
       cacheTimestamp: Date.now(),
     };
   }

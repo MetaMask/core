@@ -15,7 +15,7 @@ describe('ClientConfigApiService', () => {
 
   const networkError = new Error('Network error');
 
-  describe('fetchRemoteFeatureFlag', () => {
+  describe('fetchRemoteFeatureFlags', () => {
     it('should successfully fetch and return feature flags', async () => {
       const mockFetch = createMockFetch({
         data: mockFeatureFlags,
@@ -30,7 +30,7 @@ describe('ClientConfigApiService', () => {
         },
       });
 
-      const result = await clientConfigApiService.fetchRemoteFeatureFlag();
+      const result = await clientConfigApiService.fetchRemoteFeatureFlags();
 
       expect(mockFetch).toHaveBeenCalledWith(
         `${BASE_URL}/flags?client=extension&distribution=main&environment=prod`,
@@ -38,7 +38,7 @@ describe('ClientConfigApiService', () => {
       );
 
       expect(result).toStrictEqual({
-        remoteFeatureFlag: mockFeatureFlags,
+        remoteFeatureFlags: mockFeatureFlags,
         cacheTimestamp: expect.any(Number),
       });
     });
@@ -56,7 +56,7 @@ describe('ClientConfigApiService', () => {
       });
 
       await expect(
-        clientConfigApiService.fetchRemoteFeatureFlag(),
+        clientConfigApiService.fetchRemoteFeatureFlags(),
       ).rejects.toThrow(networkError);
     });
 
@@ -74,7 +74,7 @@ describe('ClientConfigApiService', () => {
       });
 
       await expect(
-        clientConfigApiService.fetchRemoteFeatureFlag(),
+        clientConfigApiService.fetchRemoteFeatureFlags(),
       ).rejects.toThrow(networkError);
       // Check that fetch was retried the correct number of times
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1); // Initial + retries
@@ -98,7 +98,7 @@ describe('ClientConfigApiService', () => {
       // Attempt requests until circuit breaker opens
       for (let i = 0; i < maxFailures; i++) {
         await expect(
-          clientConfigApiService.fetchRemoteFeatureFlag(),
+          clientConfigApiService.fetchRemoteFeatureFlags(),
         ).rejects.toThrow(
           /Network error|Execution prevented because the circuit breaker is open/u,
         );
@@ -106,7 +106,7 @@ describe('ClientConfigApiService', () => {
 
       // Verify the circuit breaker is now open
       await expect(
-        clientConfigApiService.fetchRemoteFeatureFlag(),
+        clientConfigApiService.fetchRemoteFeatureFlags(),
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
@@ -135,7 +135,7 @@ describe('ClientConfigApiService', () => {
         },
       });
 
-      await clientConfigApiService.fetchRemoteFeatureFlag();
+      await clientConfigApiService.fetchRemoteFeatureFlags();
 
       // Verify the degraded callback was called
       expect(onDegraded).toHaveBeenCalled();
@@ -165,10 +165,10 @@ describe('ClientConfigApiService', () => {
         },
       });
 
-      const result = await clientConfigApiService.fetchRemoteFeatureFlag();
+      const result = await clientConfigApiService.fetchRemoteFeatureFlags();
 
       expect(result).toStrictEqual({
-        remoteFeatureFlag: mockFeatureFlags,
+        remoteFeatureFlags: mockFeatureFlags,
         cacheTimestamp: expect.any(Number),
       });
 
