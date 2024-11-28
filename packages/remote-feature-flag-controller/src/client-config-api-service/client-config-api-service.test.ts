@@ -96,6 +96,26 @@ describe('ClientConfigApiService', () => {
       // Check that fetch was retried the correct number of times
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1); // Initial + retries
     });
+
+    it('should handle non-array response from API', async () => {
+      const mockFetch = createMockFetch({
+        data: { invalid: 'response' },
+        options: { ok: true },
+      });
+
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow('Feature flags api did not return an array');
+    });
   });
 
   describe('circuit breaker', () => {
@@ -130,6 +150,30 @@ describe('ClientConfigApiService', () => {
 
       // Verify fetch was called the expected number of times
       expect(mockFetch).toHaveBeenCalledTimes(maxFailures);
+    });
+
+    it('should call onBreak when circuit breaker opens', async () => {
+      const onBreak = jest.fn();
+      const mockFetch = createMockFetch({ error: networkError });
+
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        maximumConsecutiveFailures: 1,
+        onBreak,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow(
+        'Execution prevented because the circuit breaker is open',
+      );
+
+      expect(onBreak).toHaveBeenCalled();
     });
 
     it('should call the onDegraded callback when requests are slow', async () => {

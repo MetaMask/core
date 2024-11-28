@@ -295,7 +295,19 @@ describe('RemoteFeatureFlagController', () => {
     });
   });
 
-  describe('disable', () => {
+  describe('enable and disable', () => {
+    it('should enable the controller and make network request to fetch', async () => {
+      const clientConfigApiService = buildClientConfigApiService();
+      const controller = createController({
+        clientConfigApiService,
+        disabled: true,
+      });
+
+      controller.enable();
+      await controller.getRemoteFeatureFlags();
+      expect(clientConfigApiService.fetchRemoteFeatureFlags).toHaveBeenCalled();
+    });
+
     it('should preserve cached flags and return cached data when disabled', async () => {
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
