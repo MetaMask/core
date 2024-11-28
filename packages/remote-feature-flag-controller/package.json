@@ -1,7 +1,7 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
   "version": "0.0.0",
-  "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.",
+  "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags",
   "keywords": [
     "MetaMask",
     "Ethereum"
@@ -43,7 +43,8 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "publish:preview": "yarn npm publish --tag preview"
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.2",
@@ -65,5 +66,9 @@
   },
   "engines": {
     "node": "^18.18 || >=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
