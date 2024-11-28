@@ -45,18 +45,6 @@ export type RemoteFeatureFlagControllerState = {
 };
 
 /**
- * Constructs the default state for the {@link RemoteFeatureFlagController}.
- *
- * @returns The default {@link RemoteFeatureFlagController} state.
- */
-export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
-  return {
-    remoteFeatureFlags: {},
-    cacheTimestamp: 0,
-  };
-}
-
-/**
  * The action to retrieve the state of the {@link RemoteFeatureFlagController}.
  */
 export type RemoteFeatureFlagControllerGetStateAction =

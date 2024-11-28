@@ -26,7 +26,11 @@ describe('ClientConfigApiService', () => {
   describe('fetchRemoteFeatureFlags', () => {
     it('should successfully fetch and return feature flags', async () => {
       const mockFetch = createMockFetch({
-        data: mockServerFeatureFlagsResponse,
+        response: {
+          ok: true,
+          status: 200,
+          json: async () => mockServerFeatureFlagsResponse,
+        },
       });
       const clientConfigApiService = new ClientConfigApiService({
         fetch: mockFetch,
@@ -68,8 +72,31 @@ describe('ClientConfigApiService', () => {
       ).rejects.toThrow(networkError);
     });
 
+    it('should throw error when network request returns a non-200 status code', async () => {
+      const mockFetch = createMockFetch({ response: { status: 400 } });
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        retries: 0,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow('Failed to fetch remote feature flags');
+    });
+
     it('should throw an error when the API does not return an array', async () => {
-      const mockFetch = createMockFetch({ data: undefined });
+      const mockFetch = createMockFetch({
+        response: {
+          ok: true,
+          status: 200,
+          json: async () => ({ invalid: 'response' }),
+        },
+      });
       const clientConfigApiService = new ClientConfigApiService({
         fetch: mockFetch,
         retries: 0,
@@ -107,8 +134,11 @@ describe('ClientConfigApiService', () => {
 
     it('should handle non-array response from API', async () => {
       const mockFetch = createMockFetch({
-        data: { invalid: 'response' },
-        options: { ok: true },
+        response: {
+          ok: true,
+          status: 200,
+          json: async () => ({ invalid: 'response' }),
+        },
       });
 
       const clientConfigApiService = new ClientConfigApiService({
@@ -190,7 +220,11 @@ describe('ClientConfigApiService', () => {
       const slowFetchTime = 5500; // Exceed the DEFAULT_DEGRADED_THRESHOLD (5000ms)
       // Mock fetch to take a long time
       const mockSlowFetch = createMockFetch({
-        data: mockServerFeatureFlagsResponse,
+        response: {
+          ok: true,
+          status: 200,
+          json: async () => mockServerFeatureFlagsResponse,
+        },
         delay: slowFetchTime,
       });
 
@@ -243,6 +277,30 @@ describe('ClientConfigApiService', () => {
 
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1);
     });
+
+    it('should call onDegraded when retries are exhausted and circuit is closed', async () => {
+      const onDegraded = jest.fn();
+      const mockFetch = jest.fn();
+      mockFetch.mockRejectedValue(new Error('Network error'));
+
+      const service = new ClientConfigApiService({
+        fetch: mockFetch,
+        retries: 2,
+        onDegraded,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      await expect(service.fetchRemoteFeatureFlags()).rejects.toThrow(
+        'Network error',
+      );
+
+      // Should be called once after all retries are exhausted
+      expect(onDegraded).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
@@ -250,20 +308,17 @@ describe('ClientConfigApiService', () => {
  * Creates a mock fetch function with configurable response data and options
  * @template T - The type of data to be returned by the fetch response
  * @param params - Configuration parameters
- * @param params.data - The data to be returned in the response body
- * @param params.options - Optional Response properties to override defaults
+ * @param params.response - Optional Response properties to override defaults
  * @param params.error - Error to reject with (if provided, mock will reject instead of resolve)
  * @param params.delay - Delay in milliseconds before resolving/rejecting
  * @returns A Jest mock function that resolves with a fetch-like Response object (or rejects with error if provided)
  */
-function createMockFetch<ResponseData>({
-  data,
-  options = {},
+function createMockFetch({
+  response,
   error,
   delay = 0,
 }: {
-  data?: ResponseData;
-  options?: Partial<Response>;
+  response?: Partial<Response>;
   error?: Error;
   delay?: number;
 }) {
@@ -276,20 +331,10 @@ function createMockFetch<ResponseData>({
       );
   }
 
-  return jest.fn().mockImplementation(
-    () =>
-      new Promise((resolve) =>
-        setTimeout(
-          () =>
-            resolve({
-              ok: true,
-              status: 200,
-              statusText: 'OK',
-              json: async () => data,
-              ...options,
-            }),
-          delay,
-        ),
-      ),
-  );
+  return jest
+    .fn()
+    .mockImplementation(
+      () =>
+        new Promise((resolve) => setTimeout(() => resolve(response), delay)),
+    );
 }

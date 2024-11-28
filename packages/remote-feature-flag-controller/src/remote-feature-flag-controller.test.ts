@@ -154,7 +154,7 @@ describe('RemoteFeatureFlagController', () => {
         .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
         .mockImplementation(() =>
           buildClientConfigApiService({
-            remoteFeatureFlags: [{ differentFlag: true }],
+            remoteFeatureFlags: { differentFlag: true },
           }).fetchRemoteFeatureFlags(),
         );
 
