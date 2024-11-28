@@ -327,10 +327,6 @@ function buildClientConfigApiService({
         return Promise.reject(error);
       }
       return Promise.resolve({
-        error: false,
-        message: 'Success',
-        statusCode: '200',
-        statusText: 'OK',
         remoteFeatureFlags: remoteFeatureFlags ?? MOCK_FLAGS,
         cacheTimestamp: cacheTimestamp ?? Date.now(),
       });
