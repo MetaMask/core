@@ -19,15 +19,13 @@ export enum EnvironmentType {
 }
 
 /** Type representing the feature flags collection */
-export type FeatureFlag = {
-  name?: string;
-} & {
+export type FeatureFlags = {
   [key: string]: Json;
 };
 
-export type FeatureFlags = FeatureFlag[];
+export type ApiDataResponse = FeatureFlags[];
 
-export type ApiResponse = {
+export type ServiceResponse = {
   remoteFeatureFlags: FeatureFlags;
   cacheTimestamp: number | null;
 };
@@ -53,7 +51,7 @@ export type RemoteFeatureFlagControllerState = {
  */
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
-    remoteFeatureFlags: [],
+    remoteFeatureFlags: {},
     cacheTimestamp: 0,
   };
 }

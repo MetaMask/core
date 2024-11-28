@@ -11,10 +11,12 @@ import {
 
 import { BASE_URL } from '../constants';
 import type {
+  FeatureFlags,
   ClientType,
   DistributionType,
   EnvironmentType,
-  ApiResponse,
+  ServiceResponse,
+  ApiDataResponse,
 } from '../remote-feature-flag-controller-types';
 
 const DEFAULT_FETCH_RETRIES = 3;
@@ -119,7 +121,7 @@ export class ClientConfigApiService {
    * Provides structured error handling, including fallback to cached data if available.
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
-  public async fetchRemoteFeatureFlags(): Promise<ApiResponse> {
+  public async fetchRemoteFeatureFlags(): Promise<ServiceResponse> {
     const url = `${BASE_URL}/flags?client=${this.#client}&distribution=${
       this.#distribution
     }&environment=${this.#environment}`;
@@ -138,9 +140,25 @@ export class ClientConfigApiService {
       throw new Error('Feature flags api did not return an array');
     }
 
+    const remoteFeatureFlags = this.flattenFeatureFlags(data);
+
     return {
-      remoteFeatureFlags: data,
+      remoteFeatureFlags,
       cacheTimestamp: Date.now(),
     };
+  }
+
+  /**
+   * Flattens an array of feature flag objects into a single feature flags object.
+   * @param responseData - Array of objects containing feature flag key-value pairs
+   * @returns A single object containing all feature flags merged together
+   * @example
+   * // Input: [{ flag1: true }, { flag2: [] }]
+   * // Output: { flag1: true, flag2: [] }
+   */
+  private flattenFeatureFlags(responseData: ApiDataResponse): FeatureFlags {
+    return responseData.reduce((acc, curr) => {
+      return { ...acc, ...curr };
+    }, {});
   }
 }

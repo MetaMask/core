@@ -1,5 +1,5 @@
 import { BASE_URL } from '../constants';
-import type { FeatureFlags } from '../remote-feature-flag-controller-types';
+import type { ApiDataResponse, FeatureFlags } from '../remote-feature-flag-controller-types';
 import {
   ClientType,
   DistributionType,
@@ -7,18 +7,23 @@ import {
 } from '../remote-feature-flag-controller-types';
 import { ClientConfigApiService } from './client-config-api-service';
 
-describe('ClientConfigApiService', () => {
-  const mockFeatureFlags: FeatureFlags = [
-    { feature1: false },
-    { feature2: { chrome: '<109' } },
-  ];
+const mockServerFeatureFlagsResponse: ApiDataResponse = [
+  { feature1: false },
+  { feature2: { chrome: '<109' } },
+];
 
+const mockFeatureFlags: FeatureFlags = {
+  feature1: false,
+  feature2: { chrome: '<109' },
+};
+
+describe('ClientConfigApiService', () => {
   const networkError = new Error('Network error');
 
   describe('fetchRemoteFeatureFlags', () => {
     it('should successfully fetch and return feature flags', async () => {
       const mockFetch = createMockFetch({
-        data: mockFeatureFlags,
+        data: mockServerFeatureFlagsResponse,
       });
       const clientConfigApiService = new ClientConfigApiService({
         fetch: mockFetch,
@@ -182,7 +187,7 @@ describe('ClientConfigApiService', () => {
       const slowFetchTime = 5500; // Exceed the DEFAULT_DEGRADED_THRESHOLD (5000ms)
       // Mock fetch to take a long time
       const mockSlowFetch = createMockFetch({
-        data: mockFeatureFlags,
+        data: mockServerFeatureFlagsResponse,
         delay: slowFetchTime,
       });
 
@@ -213,7 +218,7 @@ describe('ClientConfigApiService', () => {
           ok: true,
           status: 200,
           statusText: 'OK',
-          json: async () => mockFeatureFlags,
+          json: async () => mockServerFeatureFlagsResponse,
         });
 
       const clientConfigApiService = new ClientConfigApiService({
