@@ -7,14 +7,15 @@ import { BaseController } from '@metamask/base-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
-import { projectLogger, createModuleLogger } from './logger';
+import { createModuleLogger } from '@metamask/utils';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
+
+const log = createModuleLogger(projectLogger, 'RemoteFeatureFlagController');
 
 // === GENERAL ===
 
 export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
-const log = createModuleLogger(projectLogger, 'ClientConfigApiService');
 
 // === STATE ===
 
