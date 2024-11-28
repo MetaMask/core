@@ -169,24 +169,19 @@ export class RemoteFeatureFlagController extends BaseController<
       suppressUnhandledRejection: true,
     });
     this.#inProgressFlagUpdate = promise;
-
-    try {
-      const serverData =
-        await this.#clientConfigApiService.fetchRemoteFeatureFlag();
-      if (serverData.remoteFeatureFlag.length > 0) {
-        this.updateCache(serverData.remoteFeatureFlag);
-        resolve(serverData.remoteFeatureFlag);
-      } else {
-        resolve([]); // Resolve with empty array if no data is returned
-      }
-      return await promise;
-    } catch (error) {
-      log('Remote feature flag API request failed: %o', error);
-      reject(error);
-      throw error;
-    } finally {
+    promise.finally(() => {
       this.#inProgressFlagUpdate = undefined;
+    });
+
+    const serverData =
+      await this.#clientConfigApiService.fetchRemoteFeatureFlag();
+    if (serverData.remoteFeatureFlag.length > 0) {
+      this.updateCache(serverData.remoteFeatureFlag);
+      resolve(serverData.remoteFeatureFlag);
+    } else {
+      resolve([]); // Resolve with empty array if no data is returned
     }
+    return await promise;
   }
 
   /**
