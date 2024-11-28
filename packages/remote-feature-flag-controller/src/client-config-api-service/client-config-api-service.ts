@@ -11,16 +11,11 @@ import {
 
 import { BASE_URL } from '../constants';
 import type {
-  FeatureFlags,
   ClientType,
   DistributionType,
   EnvironmentType,
+  ApiResponse,
 } from '../remote-feature-flag-controller-types';
-
-type ApiResponse = {
-  remoteFeatureFlags: FeatureFlags;
-  cacheTimestamp: number | null;
-};
 
 const DEFAULT_FETCH_RETRIES = 3;
 // Each update attempt will result (1 + retries) calls if the server is down

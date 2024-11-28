@@ -149,10 +149,14 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('should use previously cached flags when cache is valid', async () => {
+      const CACHED_DATA = [{ test: 123 }];
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         clientConfigApiService,
-        state: { remoteFeatureFlags: [{ test: 123 }] },
+        state: {
+          remoteFeatureFlags: CACHED_DATA,
+          cacheTimestamp: Date.now() - 10,
+        },
       });
 
       // First call to set cache
@@ -169,7 +173,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const remoteFeatureFlags = await controller.getRemoteFeatureFlags();
 
-      expect(remoteFeatureFlags).toStrictEqual(MOCK_FLAGS_WITH_NAMES);
+      expect(remoteFeatureFlags).toStrictEqual(CACHED_DATA);
     });
 
     it('should handle concurrent flag updates', async () => {
@@ -259,14 +263,18 @@ describe('RemoteFeatureFlagController', () => {
         error: new Error('API Error'),
       });
 
-      const controller = createController({ clientConfigApiService });
+      const controller = createController({
+        clientConfigApiService,
+        state: {
+          remoteFeatureFlags: MOCK_FLAGS,
+        },
+      });
 
-      await expect(
-        Promise.all([
+      const result = await Promise.all([
           controller.getRemoteFeatureFlags(),
           controller.getRemoteFeatureFlags(),
-        ]),
-      ).rejects.toThrow('API Error');
+        ])
+      await expect(result[0]).toStrictEqual(MOCK_FLAGS);
     });
 
     it('should preserve cache when API request fails', async () => {
@@ -276,17 +284,14 @@ describe('RemoteFeatureFlagController', () => {
         state: { remoteFeatureFlags: MOCK_FLAGS, cacheTimestamp: 0 },
       });
 
-      // First call succeeds and sets cache
-      await controller.getRemoteFeatureFlags();
-
       // Mock API to fail
       jest
         .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockRejectedValue(new Error('API Error'));
+        .mockRejectedValue('API Error');
 
       // Should still return cached data
       const result = await controller.getRemoteFeatureFlags();
-      expect(result).toStrictEqual(MOCK_FLAGS_WITH_NAMES);
+      expect(result).toStrictEqual(MOCK_FLAGS);
     });
   });
 

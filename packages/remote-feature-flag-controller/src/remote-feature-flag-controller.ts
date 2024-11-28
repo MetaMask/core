@@ -166,7 +166,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
       this.#inProgressFlagUpdate =
         this.#clientConfigApiService.fetchRemoteFeatureFlags();
-      
+
       serverData = await this.#inProgressFlagUpdate;
     } catch {
       // Ignore
