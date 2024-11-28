@@ -11,5 +11,4 @@ export type {
   RemoteFeatureFlagControllerGetStateAction,
   FeatureFlags,
 } from './remote-feature-flag-controller-types';
-export { getDefaultRemoteFeatureFlagControllerState } from './remote-feature-flag-controller-types';
 export { ClientConfigApiService } from './client-config-api-service/client-config-api-service';
