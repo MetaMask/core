@@ -37,8 +37,8 @@ export type RemoteFeatureFlagControllerGetStateAction =
   >;
 
 export type RemoteFeatureFlagControllerGetRemoteFeatureFlagAction = {
-  type: `${typeof controllerName}:getRemoteFeatureFlags`;
-  handler: RemoteFeatureFlagController['getRemoteFeatureFlags'];
+  type: `${typeof controllerName}:updateRemoteFeatureFlags`;
+  handler: RemoteFeatureFlagController['updateRemoteFeatureFlags'];
 };
 
 export type RemoteFeatureFlagControllerActions =
@@ -151,29 +151,23 @@ export class RemoteFeatureFlagController extends BaseController<
    *
    * @returns A promise that resolves to the current set of feature flags.
    */
-  async getRemoteFeatureFlags(): Promise<FeatureFlags> {
+  async updateRemoteFeatureFlags(): Promise<void> {
     if (this.#disabled || !this.#isCacheExpired()) {
-      return this.state.remoteFeatureFlags;
+      return;
     }
 
     let serverData;
 
-    try {
-      if (this.#inProgressFlagUpdate) {
-        serverData = await this.#inProgressFlagUpdate;
-        const featureFlagsWithNames = this.getFeatureFlagsWithNames(
-          serverData.remoteFeatureFlags,
-        );
-        this.updateCache(featureFlagsWithNames);
-        return featureFlagsWithNames;
-      }
+    if (this.#inProgressFlagUpdate) {
+      await this.#inProgressFlagUpdate;
+      return;
+    }
 
+    try {
       this.#inProgressFlagUpdate =
         this.#clientConfigApiService.fetchRemoteFeatureFlags();
 
       serverData = await this.#inProgressFlagUpdate;
-    } catch {
-      // Ignore
     } finally {
       this.#inProgressFlagUpdate = undefined;
     }
@@ -183,9 +177,7 @@ export class RemoteFeatureFlagController extends BaseController<
         serverData.remoteFeatureFlags,
       );
       this.updateCache(featureFlagsWithNames);
-      return featureFlagsWithNames;
     }
-    return this.state.remoteFeatureFlags ?? []; // Resolve with cached state if no data is returned
   }
 
   /**
