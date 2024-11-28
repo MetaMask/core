@@ -8,7 +8,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
   FeatureFlags,
-  ApiResponse,
+  ServiceResponse,
 } from './remote-feature-flag-controller-types';
 
 // === GENERAL ===
@@ -73,7 +73,7 @@ export type RemoteFeatureFlagControllerMessenger =
  */
 export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagControllerState {
   return {
-    remoteFeatureFlags: [],
+    remoteFeatureFlags: {},
     cacheTimestamp: 0,
   };
 }
@@ -95,7 +95,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #clientConfigApiService: AbstractClientConfigApiService;
 
-  #inProgressFlagUpdate?: Promise<ApiResponse>;
+  #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -172,12 +172,7 @@ export class RemoteFeatureFlagController extends BaseController<
       this.#inProgressFlagUpdate = undefined;
     }
 
-    if (serverData) {
-      const featureFlagsWithNames = this.getFeatureFlagsWithNames(
-        serverData.remoteFeatureFlags,
-      );
-      this.updateCache(featureFlagsWithNames);
-    }
+    this.#updateCache(serverData.remoteFeatureFlags);
   }
 
   /**
@@ -193,14 +188,6 @@ export class RemoteFeatureFlagController extends BaseController<
         cacheTimestamp: Date.now(),
       };
     });
-  }
-
-  #getFeatureFlagsWithNames(remoteFeatureFlags: FeatureFlags) {
-    const featureFlagsWithNames = remoteFeatureFlags.map((flag) => ({
-      ...flag,
-      name: Object.keys(flag)?.[0],
-    }));
-    return featureFlagsWithNames;
   }
 
   /**
