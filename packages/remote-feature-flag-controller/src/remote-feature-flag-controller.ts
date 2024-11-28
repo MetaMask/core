@@ -169,8 +169,14 @@ export class RemoteFeatureFlagController extends BaseController<
     const serverData =
       await this.#clientConfigApiService.fetchRemoteFeatureFlags();
     if (serverData.remoteFeatureFlags.length > 0) {
-      this.updateCache(serverData.remoteFeatureFlags);
-      resolve(serverData.remoteFeatureFlags);
+      const featureFlagsWithNames = serverData.remoteFeatureFlags.map(
+        (flag) => ({
+          ...flag,
+          name: Object.keys(flag)?.[0],
+        }),
+      );
+      this.updateCache(featureFlagsWithNames);
+      resolve(featureFlagsWithNames);
     } else {
       resolve([]); // Resolve with empty array if no data is returned
     }

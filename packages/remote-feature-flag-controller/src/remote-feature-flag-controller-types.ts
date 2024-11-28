@@ -20,6 +20,8 @@ export enum EnvironmentType {
 
 /** Type representing the feature flags collection */
 export type FeatureFlag = {
+  name?: string;
+} & {
   [key: string]: Json;
 };
 
