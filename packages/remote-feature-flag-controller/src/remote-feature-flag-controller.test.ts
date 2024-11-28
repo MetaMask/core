@@ -120,7 +120,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
     });
 
-    it('should make network request to fetch when cache is expired', async () => {
+    it('should make network request to fetch when cache is expired, and then update cache', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         cacheTimestamp: Date.now() - 10000,
       });
@@ -146,17 +146,15 @@ describe('RemoteFeatureFlagController', () => {
       expect(
         clientConfigApiService.fetchRemoteFeatureFlags,
       ).toHaveBeenCalledTimes(1);
+      expect(controller.state.remoteFeatureFlags).toStrictEqual(
+        MOCK_FLAGS_TWO_WITH_NAMES,
+      );
     });
 
     it('should use previously cached flags when cache is valid', async () => {
-      const CACHED_DATA = [{ test: 123 }];
       const clientConfigApiService = buildClientConfigApiService();
       const controller = createController({
         clientConfigApiService,
-        state: {
-          remoteFeatureFlags: CACHED_DATA,
-          cacheTimestamp: Date.now() - 10,
-        },
       });
 
       // First call to set cache
@@ -173,7 +171,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const remoteFeatureFlags = await controller.getRemoteFeatureFlags();
 
-      expect(remoteFeatureFlags).toStrictEqual(CACHED_DATA);
+      expect(remoteFeatureFlags).toStrictEqual(MOCK_FLAGS_WITH_NAMES);
     });
 
     it('should handle concurrent flag updates', async () => {
@@ -187,6 +185,10 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(result1).toStrictEqual(MOCK_FLAGS_WITH_NAMES);
       expect(result2).toStrictEqual(MOCK_FLAGS_WITH_NAMES);
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual(
+        MOCK_FLAGS_WITH_NAMES,
+      );
     });
 
     it('should create a new fetch when called sequentially with awaiting and sufficient delay', async () => {

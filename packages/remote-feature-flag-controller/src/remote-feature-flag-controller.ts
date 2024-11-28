@@ -161,7 +161,11 @@ export class RemoteFeatureFlagController extends BaseController<
     try {
       if (this.#inProgressFlagUpdate) {
         serverData = await this.#inProgressFlagUpdate;
-        return this.getFeatureFlagsWithNames(serverData.remoteFeatureFlags);
+        const featureFlagsWithNames = this.getFeatureFlagsWithNames(
+          serverData.remoteFeatureFlags,
+        );
+        this.updateCache(featureFlagsWithNames);
+        return featureFlagsWithNames;
       }
 
       this.#inProgressFlagUpdate =
@@ -178,6 +182,7 @@ export class RemoteFeatureFlagController extends BaseController<
       const featureFlagsWithNames = this.getFeatureFlagsWithNames(
         serverData.remoteFeatureFlags,
       );
+      this.updateCache(featureFlagsWithNames);
       return featureFlagsWithNames;
     }
     return this.state.remoteFeatureFlags ?? []; // Resolve with cached state if no data is returned
