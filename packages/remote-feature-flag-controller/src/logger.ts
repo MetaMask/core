@@ -2,7 +2,7 @@
 
 import { createProjectLogger, createModuleLogger } from '@metamask/utils';
 
-export const projectLogger = createProjectLogger('transaction-controller');
+export const projectLogger = createProjectLogger('remote-feature-flag-controller');
 
 export const incomingTransactionsLogger = createModuleLogger(
   projectLogger,
