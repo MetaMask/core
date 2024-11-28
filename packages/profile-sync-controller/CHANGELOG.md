@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Suppress mistaken lint violation in UserStorageController ([#4971](https://github.com/MetaMask/core/pull/4971))
-
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))

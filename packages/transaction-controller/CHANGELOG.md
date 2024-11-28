@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Only enable Node lint rules for Node files ([#3672](https://github.com/MetaMask/core/pull/3672))
-- feat: add destinationChainId to support cross chain txs ([#4988](https://github.com/MetaMask/core/pull/4988))
-
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
