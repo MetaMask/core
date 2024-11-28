@@ -172,7 +172,7 @@ export class RemoteFeatureFlagController extends BaseController<
       this.#inProgressFlagUpdate = undefined;
     }
 
-    if (serverData && serverData.remoteFeatureFlags?.length > 0) {
+    if (serverData) {
       const featureFlagsWithNames = this.getFeatureFlagsWithNames(
         serverData.remoteFeatureFlags,
       );
@@ -186,7 +186,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    * @private
    */
-  private updateCache(remoteFeatureFlags: FeatureFlags) {
+  #updateCache(remoteFeatureFlags: FeatureFlags) {
     this.update(() => {
       return {
         remoteFeatureFlags,
@@ -195,7 +195,7 @@ export class RemoteFeatureFlagController extends BaseController<
     });
   }
 
-  private getFeatureFlagsWithNames(remoteFeatureFlags: FeatureFlags) {
+  #getFeatureFlagsWithNames(remoteFeatureFlags: FeatureFlags) {
     const featureFlagsWithNames = remoteFeatureFlags.map((flag) => ({
       ...flag,
       name: Object.keys(flag)?.[0],

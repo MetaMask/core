@@ -1,5 +1,8 @@
 import { BASE_URL } from '../constants';
-import type { ApiDataResponse, FeatureFlags } from '../remote-feature-flag-controller-types';
+import type {
+  ApiDataResponse,
+  FeatureFlags,
+} from '../remote-feature-flag-controller-types';
 import {
   ClientType,
   DistributionType,
