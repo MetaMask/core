@@ -1,7 +1,7 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
   "version": "0.0.0",
-  "description": "Controller with caching, fallback, and privacy for managing feature flags via ClientConfigAPI",
+  "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.",
   "keywords": [
     "MetaMask",
     "Ethereum"
