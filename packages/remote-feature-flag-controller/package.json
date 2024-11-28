@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
   "sideEffects": false,
   "exports": {
     ".": {
