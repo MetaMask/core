@@ -3478,6 +3478,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/remote-feature-flag-controller@workspace:packages/remote-feature-flag-controller"
+  dependencies:
+    "@lavamoat/allow-scripts": "npm:^3.0.4"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^7.0.2"
+    "@metamask/controller-utils": "npm:^11.4.3"
+    "@metamask/utils": "npm:^10.0.0"
+    "@types/jest": "npm:^27.4.1"
+    cockatiel: "npm:^3.1.2"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    nock: "npm:^13.3.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/rpc-errors@npm:^6.2.1":
   version: 6.3.1
   resolution: "@metamask/rpc-errors@npm:6.3.1"

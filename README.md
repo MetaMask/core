@@ -162,8 +162,8 @@ linkStyle default opacity:0.5
   preferences_controller --> keyring_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;
-  profile_sync_controller --> accounts_controller;
   profile_sync_controller --> network_controller;
+  profile_sync_controller --> accounts_controller;
   queued_request_controller --> base_controller;
   queued_request_controller --> controller_utils;
   queued_request_controller --> json_rpc_engine;
@@ -179,6 +179,7 @@ linkStyle default opacity:0.5
   signature_controller --> approval_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
+  signature_controller --> network_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
   transaction_controller --> accounts_controller;
