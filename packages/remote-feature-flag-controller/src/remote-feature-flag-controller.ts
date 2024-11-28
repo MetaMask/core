@@ -7,10 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
-import { createModuleLogger } from '@metamask/utils';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
-
-const log = createModuleLogger(projectLogger, 'RemoteFeatureFlagController');
 
 // === GENERAL ===
 
@@ -165,7 +162,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return await this.#inProgressFlagUpdate;
     }
 
-    const { promise, resolve, reject } = createDeferredPromise<FeatureFlags>({
+    const { promise, resolve } = createDeferredPromise<FeatureFlags>({
       suppressUnhandledRejection: true,
     });
     this.#inProgressFlagUpdate = promise;
