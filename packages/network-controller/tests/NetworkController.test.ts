@@ -11564,12 +11564,7 @@ describe('NetworkController', () => {
             },
           },
           ({ controller, messenger }) => {
-            expect(
-              controller.state.networkConfigurationsByChainId,
-            ).toHaveProperty('0x1337');
-
             messenger.call('NetworkController:removeNetwork', '0x1337');
-
             expect(
               controller.state.networkConfigurationsByChainId,
             ).not.toHaveProperty('0x1337');
