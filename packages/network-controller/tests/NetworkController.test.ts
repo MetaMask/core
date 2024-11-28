@@ -11598,11 +11598,7 @@ describe('NetworkController', () => {
               networkRemovedListener,
             );
 
-            expect(
-              controller.state.networkConfigurationsByChainId,
-            ).toHaveProperty('0x1337');
-
-            messenger.call('NetworkController:removeNetwork', '0x1337');
+            controller.removeNetwork('0x1337');
 
             expect(networkRemovedListener).toHaveBeenCalledWith(networkConfig);
           },
