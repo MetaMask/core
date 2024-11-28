@@ -27,6 +27,11 @@ export type FeatureFlag = {
 
 export type FeatureFlags = FeatureFlag[];
 
+export type ApiResponse = {
+  remoteFeatureFlags: FeatureFlags;
+  cacheTimestamp: number | null;
+};
+
 /**
  * Describes the shape of the state object for the {@link RemoteFeatureFlagController}.
  */

@@ -4,10 +4,12 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { createDeferredPromise } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
-import type { FeatureFlags } from './remote-feature-flag-controller-types';
+import type {
+  FeatureFlags,
+  ApiResponse,
+} from './remote-feature-flag-controller-types';
 
 // === GENERAL ===
 
@@ -93,7 +95,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #clientConfigApiService: AbstractClientConfigApiService;
 
-  #inProgressFlagUpdate?: Promise<FeatureFlags>;
+  #inProgressFlagUpdate?: Promise<ApiResponse>;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -154,33 +156,31 @@ export class RemoteFeatureFlagController extends BaseController<
       return this.state.remoteFeatureFlags;
     }
 
-    if (this.#inProgressFlagUpdate) {
-      return await this.#inProgressFlagUpdate;
-    }
+    let serverData;
 
-    const { promise, resolve } = createDeferredPromise<FeatureFlags>({
-      suppressUnhandledRejection: true,
-    });
-    this.#inProgressFlagUpdate = promise;
-    promise.finally(() => {
+    try {
+      if (this.#inProgressFlagUpdate) {
+        serverData = await this.#inProgressFlagUpdate;
+        return this.getFeatureFlagsWithNames(serverData.remoteFeatureFlags);
+      }
+
+      this.#inProgressFlagUpdate =
+        this.#clientConfigApiService.fetchRemoteFeatureFlags();
+      
+      serverData = await this.#inProgressFlagUpdate;
+    } catch {
+      // Ignore
+    } finally {
       this.#inProgressFlagUpdate = undefined;
-    });
-
-    const serverData =
-      await this.#clientConfigApiService.fetchRemoteFeatureFlags();
-    if (serverData.remoteFeatureFlags.length > 0) {
-      const featureFlagsWithNames = serverData.remoteFeatureFlags.map(
-        (flag) => ({
-          ...flag,
-          name: Object.keys(flag)?.[0],
-        }),
-      );
-      this.updateCache(featureFlagsWithNames);
-      resolve(featureFlagsWithNames);
-    } else {
-      resolve([]); // Resolve with empty array if no data is returned
     }
-    return await promise;
+
+    if (serverData && serverData.remoteFeatureFlags?.length > 0) {
+      const featureFlagsWithNames = this.getFeatureFlagsWithNames(
+        serverData.remoteFeatureFlags,
+      );
+      return featureFlagsWithNames;
+    }
+    return this.state.remoteFeatureFlags ?? []; // Resolve with cached state if no data is returned
   }
 
   /**
@@ -196,6 +196,14 @@ export class RemoteFeatureFlagController extends BaseController<
         cacheTimestamp: Date.now(),
       };
     });
+  }
+
+  private getFeatureFlagsWithNames(remoteFeatureFlags: FeatureFlags) {
+    const featureFlagsWithNames = remoteFeatureFlags.map((flag) => ({
+      ...flag,
+      name: Object.keys(flag)?.[0],
+    }));
+    return featureFlagsWithNames;
   }
 
   /**
