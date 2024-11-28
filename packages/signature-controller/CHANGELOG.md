@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Only enable Node lint rules for Node files ([#3672](https://github.com/MetaMask/core/pull/3672))
+
 ## [23.0.0]
 
 ### Changed
