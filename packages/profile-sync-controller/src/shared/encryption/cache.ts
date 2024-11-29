@@ -1,3 +1,4 @@
+import { SHARED_SALT } from './constants';
 import { byteArrayToBase64 } from './utils';
 
 type CachedEntry = {
@@ -53,19 +54,20 @@ export function getCachedKeyBySalt(
  * @param hashedPassword - hashed password for cache lookup
  * @returns the cached key
  */
-export function getCachedKeyGeneratedWithoutSalt(
+export function getCachedKeyGeneratedWithSharedSalt(
   hashedPassword: string,
 ): CachedEntry | undefined {
   const cache = getPasswordCache(hashedPassword);
-  const cachedKey = cache.get('');
+  const base64Salt = byteArrayToBase64(SHARED_SALT);
+  const cachedKey = cache.get(base64Salt);
 
   if (!cachedKey) {
     return undefined;
   }
 
   return {
-    salt: new Uint8Array(),
-    base64Salt: '',
+    salt: SHARED_SALT,
+    base64Salt,
     key: cachedKey,
   };
 }

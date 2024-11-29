@@ -1,6 +1,7 @@
 import log from 'loglevel';
 
 import encryption, { createSHA256Hash } from '../../shared/encryption';
+import { SHARED_SALT } from '../../shared/encryption/constants';
 import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
@@ -93,9 +94,9 @@ export async function getUserStorage(
       nativeScryptCrypto,
     );
 
-    // Re-encrypt and re-upload the entry if the salt is non-empty
+    // Re-encrypt and re-upload the entry if the salt is random
     const salt = encryption.getSalt(encryptedData);
-    if (salt.length) {
+    if (salt.toString() !== SHARED_SALT.toString()) {
       await upsertUserStorage(decryptedData, opts);
     }
 
@@ -159,9 +160,9 @@ export async function getUserStorageAllFeatureEntries(
         );
         decryptedData.push(data);
 
-        // Re-encrypt the entry if the salt is non-empty
+        // Re-encrypt the entry if the salt is different from the shared one
         const salt = encryption.getSalt(entry.Data);
-        if (salt.length) {
+        if (salt.toString() !== SHARED_SALT.toString()) {
           reEncryptedEntries.push([
             entry.HashedKey,
             await encryption.encryptString(

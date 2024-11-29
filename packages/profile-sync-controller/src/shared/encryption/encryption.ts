@@ -7,9 +7,18 @@ import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 import type { NativeScrypt } from '../types/encryption';
 import {
   getCachedKeyBySalt,
-  getCachedKeyGeneratedWithoutSalt,
+  getCachedKeyGeneratedWithSharedSalt,
   setCachedKey,
 } from './cache';
+import {
+  ALGORITHM_KEY_SIZE,
+  ALGORITHM_NONCE_SIZE,
+  SCRYPT_N,
+  SCRYPT_p,
+  SCRYPT_r,
+  SCRYPT_SALT_SIZE,
+  SHARED_SALT,
+} from './constants';
 import {
   base64ToByteArray,
   byteArrayToBase64,
@@ -39,19 +48,6 @@ export type EncryptedPayload = {
   // Salt options
   saltLen: number;
 };
-
-// Nonce/Key Sizes
-const ALGORITHM_NONCE_SIZE = 12; // 12 bytes
-const ALGORITHM_KEY_SIZE = 16; // 16 bytes
-
-// Scrypt settings
-// see: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt
-const SCRYPT_SALT_SIZE = 0; // We don't use a salt
-const SCRYPT_N = 2 ** 17; // CPU/memory cost parameter (must be a power of 2, > 1)
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const SCRYPT_r = 8; // Block size parameter
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const SCRYPT_p = 1; // Parallelization parameter
 
 class EncryptorDecryptor {
   async encryptString(
@@ -246,7 +242,7 @@ class EncryptorDecryptor {
     const hashedPassword = createSHA256Hash(password);
     const cachedKey = salt
       ? getCachedKeyBySalt(hashedPassword, salt)
-      : getCachedKeyGeneratedWithoutSalt(hashedPassword);
+      : getCachedKeyGeneratedWithSharedSalt(hashedPassword);
 
     if (cachedKey) {
       return {
@@ -255,7 +251,7 @@ class EncryptorDecryptor {
       };
     }
 
-    const newSalt = salt ?? new Uint8Array(SCRYPT_SALT_SIZE);
+    const newSalt = salt ?? SHARED_SALT;
 
     let newKey: Uint8Array;
 

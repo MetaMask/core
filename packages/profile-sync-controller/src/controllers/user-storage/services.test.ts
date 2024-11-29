@@ -1,4 +1,5 @@
 import encryption, { createSHA256Hash } from '../../shared/encryption';
+import { SHARED_SALT } from '../../shared/encryption/constants';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 import { createMockGetStorageResponse } from './__fixtures__';
@@ -84,13 +85,13 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
     expect(result).toBeNull();
   });
 
-  it('re-encrypts data if received entry was encrypted with a non-empty salt, and saves it back to user storage', async () => {
+  it('re-encrypts data if received entry was encrypted with a random salt, and saves it back to user storage', async () => {
     const DECRYPED_DATA = 'data1';
     const INITIAL_ENCRYPTED_DATA = {
       HashedKey: 'entry1',
       Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
     };
-    // Encrypted with a non-empty salt
+    // Encrypted with a random salt
     const mockResponse = INITIAL_ENCRYPTED_DATA;
 
     const mockGetUserStorage = await mockEndpointGetUserStorage(
@@ -109,11 +110,11 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
           return;
         }
 
-        const isNewSaltEmpty =
-          encryption.getSalt(requestBody.data).length === 0;
+        const isEncryptedUsingSharedSalt =
+          encryption.getSalt(requestBody.data).toString() ===
+          SHARED_SALT.toString();
 
-        expect(isNewSaltEmpty).toBe(true);
-        expect(JSON.parse(requestBody.data).saltLen).toBe(0);
+        expect(isEncryptedUsingSharedSalt).toBe(true);
       },
     );
 
@@ -145,10 +146,10 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
     expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
   });
 
-  it('re-encrypts data if received entries were encrypted with non-empty salts, and saves it back to user storage', async () => {
+  it('re-encrypts data if received entries were encrypted with random salts, and saves it back to user storage', async () => {
     // This corresponds to [['entry1', 'data1'], ['entry2', 'data2'], ['HASHED_KEY', '{ "hello": "world" }']]
-    // Each entry has been encrypted with a non-empty salt, except for the last entry
-    // The last entry is used to test if the function can handle entries with either empty or non-empty salts
+    // Each entry has been encrypted with a random salt, except for the last entry
+    // The last entry is used to test if the function can handle entries with both random salts and the shared salt
     const mockResponse = [
       {
         HashedKey: 'entry1',
@@ -185,12 +186,13 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
 
         expect(doEntriesHaveDifferentSalts).toBe(false);
 
-        const doEntriesHaveEmptySalts = Object.entries(requestBody.data).every(
+        const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
           ([_entryKey, entryValue]) =>
-            encryption.getSalt(entryValue as string).length === 0,
+            encryption.getSalt(entryValue as string).toString() ===
+            SHARED_SALT.toString(),
         );
 
-        expect(doEntriesHaveEmptySalts).toBe(true);
+        expect(doEntriesUseSharedSalt).toBe(true);
 
         const wereOnlyNonEmptySaltEntriesUploaded =
           Object.entries(requestBody.data).length === 2;

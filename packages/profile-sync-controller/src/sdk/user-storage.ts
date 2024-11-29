@@ -1,4 +1,5 @@
 import encryption, { createSHA256Hash } from '../shared/encryption';
+import { SHARED_SALT } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
 import type {
@@ -277,7 +278,7 @@ export class UserStorage {
         storageKey,
       );
 
-      // Re-encrypt the entry if the salt is non-empty
+      // Re-encrypt the entry if it was encrypted with a random salt
       const salt = encryption.getSalt(encryptedData);
       if (salt.length) {
         await this.#upsertUserStorage(path, decryptedData);
@@ -345,9 +346,9 @@ export class UserStorage {
           const data = await encryption.decryptString(entry.Data, storageKey);
           decryptedData.push(data);
 
-          // Re-encrypt the entry if the salt is non-empty
+          // Re-encrypt the entry was encrypted with a random salt
           const salt = encryption.getSalt(entry.Data);
-          if (salt.length) {
+          if (salt.toString() !== SHARED_SALT.toString()) {
             reEncryptedEntries.push([
               entry.HashedKey,
               await encryption.encryptString(data, storageKey),
