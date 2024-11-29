@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
+    - `@metamask/providers` `^18.1.0` (required by `@metamask/keyring-api`)
+    - `webextension-polyfill` `^0.10.0 || ^0.11.0 || ^0.12.0` (required by `@metamask/providers`)
+  - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
+  - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+  - If you are depending on `@metamask/providers` directly, you will need to upgrade to 18.1.0.
+
+## [18.0.0]
+
+### Removed
+
+- **BREAKING** Remove `addNewAccountWithoutUpdate` method ([#4845](https://github.com/MetaMask/core/pull/4845))
+
+## [17.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/eth-sig-util` from `^7.0.1` to `^8.0.0` ([#4830](https://github.com/MetaMask/core/pull/4830))
+
+## [17.3.0]
+
+### Changed
+
+- Bump `@metamask/message-manager` from `^10.1.1` to `^11.0.0` ([#4805](https://github.com/MetaMask/core/pull/4805))
+
 ## [17.2.2]
 
 ### Changed
@@ -561,7 +597,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@18.0.0...@metamask/keyring-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.1...@metamask/keyring-controller@18.0.0
+[17.3.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.0...@metamask/keyring-controller@17.3.1
+[17.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.2...@metamask/keyring-controller@17.3.0
 [17.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.1...@metamask/keyring-controller@17.2.2
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.0...@metamask/keyring-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.2...@metamask/keyring-controller@17.2.0

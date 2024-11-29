@@ -10,6 +10,7 @@ import { getAndFormatTransactionsForNonceTracker, getNextNonce } from './nonce';
 const TRANSACTION_META_MOCK: TransactionMeta = {
   chainId: '0x1',
   id: 'testId1',
+  networkClientId: 'testNetworkClientId',
   status: TransactionStatus.unapproved,
   time: 1,
   txParams: {
@@ -86,6 +87,7 @@ describe('nonce', () => {
         {
           id: '1',
           chainId: '0x1',
+          networkClientId: 'testNetworkClientId',
           time: 123456,
           txParams: {
             from: fromAddress,
@@ -98,6 +100,7 @@ describe('nonce', () => {
         {
           id: '2',
           chainId: '0x1',
+          networkClientId: 'testNetworkClientId',
           time: 123457,
           txParams: {
             from: '0x124',
@@ -110,6 +113,7 @@ describe('nonce', () => {
         {
           id: '3',
           chainId: '0x1',
+          networkClientId: 'testNetworkClientId',
           time: 123458,
           txParams: {
             from: fromAddress,
@@ -122,6 +126,7 @@ describe('nonce', () => {
         {
           id: '4',
           chainId: '0x2',
+          networkClientId: 'testNetworkClientId',
           time: 123459,
           txParams: {
             from: fromAddress,
@@ -134,6 +139,7 @@ describe('nonce', () => {
         {
           id: '5',
           chainId: '0x2',
+          networkClientId: 'testNetworkClientId',
           isTransfer: true,
           time: 123460,
           txParams: {

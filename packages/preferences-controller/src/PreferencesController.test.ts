@@ -28,13 +28,21 @@ describe('PreferencesController', () => {
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
+      useMultiRpcMigration: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce((acc, curr) => {
         acc[curr] = true;
         return acc;
       }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
-      smartTransactionsOptInStatus: false,
+      smartTransactionsOptInStatus: true,
+      useSafeChainsListValidation: true,
+      tokenSortConfig: {
+        key: 'tokenFiatAmount',
+        order: 'dsc',
+        sortCallback: 'stringNumeric',
+      },
+      privacyMode: false,
     });
   });
 
@@ -368,6 +376,12 @@ describe('PreferencesController', () => {
     );
   });
 
+  it('should set useMultiRpcMigration', () => {
+    const controller = setupPreferencesController();
+    controller.setUseMultiRpcMigration(true);
+    expect(controller.state.useMultiRpcMigration).toBe(true);
+  });
+
   it('should set featureFlags', () => {
     const controller = setupPreferencesController();
     controller.setFeatureFlag('Feature A', true);
@@ -411,6 +425,8 @@ describe('PreferencesController', () => {
 
   it('should set smartTransactionsOptInStatus', () => {
     const controller = setupPreferencesController();
+    controller.setSmartTransactionsOptInStatus(false);
+    expect(controller.state.smartTransactionsOptInStatus).toBe(false);
     controller.setSmartTransactionsOptInStatus(true);
     expect(controller.state.smartTransactionsOptInStatus).toBe(true);
   });
@@ -419,6 +435,45 @@ describe('PreferencesController', () => {
     const controller = setupPreferencesController();
     controller.setUseTransactionSimulations(false);
     expect(controller.state.useTransactionSimulations).toBe(false);
+  });
+
+  it('should set useSafeChainsListValidation', () => {
+    const controller = setupPreferencesController({
+      options: {
+        state: {
+          useSafeChainsListValidation: false,
+        },
+      },
+    });
+    expect(controller.state.useSafeChainsListValidation).toBe(false);
+    controller.setUseSafeChainsListValidation(true);
+    expect(controller.state.useSafeChainsListValidation).toBe(true);
+  });
+
+  it('should set tokenSortConfig', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.tokenSortConfig).toStrictEqual({
+      key: 'tokenFiatAmount',
+      order: 'dsc',
+      sortCallback: 'stringNumeric',
+    });
+    controller.setTokenSortConfig({
+      key: 'someToken',
+      order: 'asc',
+      sortCallback: 'stringNumeric',
+    });
+    expect(controller.state.tokenSortConfig).toStrictEqual({
+      key: 'someToken',
+      order: 'asc',
+      sortCallback: 'stringNumeric',
+    });
+  });
+
+  it('should set privacyMode', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.privacyMode).toBe(false);
+    controller.setPrivacyMode(true);
+    expect(controller.state.privacyMode).toBe(true);
   });
 });
 

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [13.3.0]
+
+### Changed
+
+- Enable smart transactions by default for new users ([#4885](https://github.com/MetaMask/core/pull/4885))
+
+## [13.2.0]
+
+### Added
+
+- Add `useSafeChainsListValidation` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `useSafeChainsListValidation` property to the `PreferencesController` state (default: `true`)
+  - Add `setUseSafeChainsListValidation` method to set this property
+- Add `tokenSortConfig` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `tokenSortConfig` property to the `PreferencesController` state (default value: `{ key: 'tokenFiatAmount', order: 'dsc', sortCallback: 'stringNumeric' }`)
+  - Add `setTokenSortConfig` method to set this property
+- Add `privacyMode` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `privacyMode` property to the `PreferencesController` state (default value: `false`)
+  - Add `setPrivacyMode` method to set this property
+- Add `useMultiRpcMigration` preference ([#4732](https://github.com/MetaMask/core/pull/4732))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.2` ([#4834](https://github.com/MetaMask/core/pull/4834), [#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+
+## [13.1.0]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
+
 ## [13.0.3]
 
 ### Fixed
@@ -282,7 +327,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@14.0.0...@metamask/preferences-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.3.0...@metamask/preferences-controller@14.0.0
+[13.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.2.0...@metamask/preferences-controller@13.3.0
+[13.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.1.0...@metamask/preferences-controller@13.2.0
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.3...@metamask/preferences-controller@13.1.0
 [13.0.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.2...@metamask/preferences-controller@13.0.3
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...@metamask/preferences-controller@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.0...@metamask/preferences-controller@13.0.1

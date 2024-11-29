@@ -2,9 +2,21 @@
 
 This monorepo is a collection of packages used across multiple MetaMask clients (e.g. [`metamask-extension`](https://github.com/MetaMask/metamask-extension/), [`metamask-mobile`](https://github.com/MetaMask/metamask-mobile/)).
 
-## Modules
+## Contributing
 
-This repository contains the following packages [^fn1]:
+See the [Contributor Guide](./docs/contributing.md) for help on:
+
+- Setting up your development environment
+- Working with the monorepo
+- Testing changes in clients
+- Issuing new releases
+- Creating a new package
+
+## Installation/Usage
+
+Each package in this repository has its own README where you can find installation and usage instructions. See `packages/` for more.
+
+## Packages
 
 <!-- start package list -->
 
@@ -26,6 +38,7 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/keyring-controller`](packages/keyring-controller)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
+- [`@metamask/multichain`](packages/multichain)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
@@ -43,8 +56,6 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 
 <!-- end package list -->
-
-Or, in graph form [^fn1]:
 
 <!-- start dependency graph -->
 
@@ -70,6 +81,7 @@ linkStyle default opacity:0.5
   keyring_controller(["@metamask/keyring-controller"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
+  multichain(["@metamask/multichain"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
@@ -91,14 +103,15 @@ linkStyle default opacity:0.5
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
   approval_controller --> base_controller;
-  assets_controllers --> accounts_controller;
-  assets_controllers --> approval_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
+  assets_controllers --> polling_controller;
+  assets_controllers --> accounts_controller;
+  assets_controllers --> approval_controller;
   assets_controllers --> keyring_controller;
   assets_controllers --> network_controller;
-  assets_controllers --> polling_controller;
   assets_controllers --> preferences_controller;
+  base_controller --> json_rpc_engine;
   chain_controller --> base_controller;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
@@ -108,8 +121,8 @@ linkStyle default opacity:0.5
   eth_json_rpc_provider --> json_rpc_engine;
   gas_fee_controller --> base_controller;
   gas_fee_controller --> controller_utils;
-  gas_fee_controller --> network_controller;
   gas_fee_controller --> polling_controller;
+  gas_fee_controller --> network_controller;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
   keyring_controller --> message_manager;
@@ -117,6 +130,9 @@ linkStyle default opacity:0.5
   logging_controller --> controller_utils;
   message_manager --> base_controller;
   message_manager --> controller_utils;
+  multichain --> controller_utils;
+  multichain --> network_controller;
+  multichain --> permission_controller;
   name_controller --> base_controller;
   name_controller --> controller_utils;
   network_controller --> base_controller;
@@ -142,6 +158,9 @@ linkStyle default opacity:0.5
   preferences_controller --> controller_utils;
   preferences_controller --> keyring_controller;
   profile_sync_controller --> base_controller;
+  profile_sync_controller --> keyring_controller;
+  profile_sync_controller --> network_controller;
+  profile_sync_controller --> accounts_controller;
   queued_request_controller --> base_controller;
   queued_request_controller --> controller_utils;
   queued_request_controller --> json_rpc_engine;
@@ -152,35 +171,29 @@ linkStyle default opacity:0.5
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
-  signature_controller --> approval_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
+  signature_controller --> approval_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
-  signature_controller --> message_manager;
-  transaction_controller --> accounts_controller;
-  transaction_controller --> approval_controller;
+  signature_controller --> network_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
+  transaction_controller --> accounts_controller;
+  transaction_controller --> approval_controller;
+  transaction_controller --> eth_json_rpc_provider;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
-  transaction_controller --> eth_json_rpc_provider;
-  user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
+  user_operation_controller --> polling_controller;
+  user_operation_controller --> approval_controller;
   user_operation_controller --> gas_fee_controller;
   user_operation_controller --> keyring_controller;
   user_operation_controller --> network_controller;
-  user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
 ```
 
 <!-- end dependency graph -->
 
-Refer to individual packages for usage instructions.
-
-## Learn more
-
-For instructions on performing common development-related tasks, see [contributing to the monorepo](./docs/contributing.md).
-
-[^fn1]: The package list and dependency graph should be programmatically generated by running `yarn update-readme-content`.
+(This section may be regenerated at any time by running `yarn update-readme-content`.)

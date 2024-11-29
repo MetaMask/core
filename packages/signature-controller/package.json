@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "20.0.0",
+  "version": "23.0.0",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -47,19 +47,20 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.1",
-    "@metamask/controller-utils": "^11.3.0",
-    "@metamask/eth-sig-util": "^7.0.1",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/base-controller": "^7.0.2",
+    "@metamask/controller-utils": "^11.4.3",
+    "@metamask/eth-sig-util": "^8.0.0",
+    "@metamask/utils": "^10.0.0",
     "jsonschema": "^1.2.4",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^7.1.0",
+    "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.2.2",
-    "@metamask/logging-controller": "^6.0.1",
+    "@metamask/keyring-controller": "^19.0.0",
+    "@metamask/logging-controller": "^6.0.2",
+    "@metamask/network-controller": "^22.0.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -70,8 +71,9 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^7.0.0",
-    "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/logging-controller": "^6.0.0"
+    "@metamask/keyring-controller": "^19.0.0",
+    "@metamask/logging-controller": "^6.0.0",
+    "@metamask/network-controller": "^22.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/selected-network-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4979](https://github.com/MetaMask/core/pull/4979))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+### Removed
+
+- **BREAKING:** `createQueuedRequestMiddleware` no longer takes a `useRequestQueue` parameter. All requests are now queued if `shouldEnqueueRequest(req)` returns true. ([#4941](https://github.com/MetaMask/core/pull/4941))
+
+## [7.0.1]
+
+### Fixed
+
+- Fix issue where `queuedRequestCount` state is not updated after flushing requests for an origin ([#4898](https://github.com/MetaMask/core/pull/4898))
+
+## [7.0.0]
+
+### Added
+
+- **BREAKING:** The `QueuedRequestController` now requires the `canRequestSwitchNetworkWithoutApproval` callback in its constructor params. ([#4846](https://github.com/MetaMask/core/pull/4846))
+
+### Changed
+
+- The `QueuedRequestController` now ensures that a request that can switch the globally selected network without approval is queued behind any existing pending requests. ([#4846](https://github.com/MetaMask/core/pull/4846))
+
+### Fixed
+
+- The `QueuedRequestController` now ensures that any queued requests for a origin are failed if a request that can switch the globally selected network without approval actually does change the globally selected network for that origin. ([#4846](https://github.com/MetaMask/core/pull/4846))
+
+## [6.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- Bump `@metamask/controller-utils` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/rpc-errors` to `^7.0.1` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/utils` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [5.1.0]
 
 ### Changed
@@ -268,7 +308,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.1...@metamask/queued-request-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.0...@metamask/queued-request-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@6.0.0...@metamask/queued-request-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.1.0...@metamask/queued-request-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.1...@metamask/queued-request-controller@5.1.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.0...@metamask/queued-request-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@4.0.0...@metamask/queued-request-controller@5.0.0
