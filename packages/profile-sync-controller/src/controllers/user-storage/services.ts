@@ -93,7 +93,7 @@ export async function getUserStorage(
       nativeScryptCrypto,
     );
 
-    // Re-encrypt the entry if the salt is non-empty
+    // Re-encrypt and re-upload the entry if the salt is non-empty
     const salt = encryption.getSalt(encryptedData);
     if (salt.length) {
       await upsertUserStorage(decryptedData, opts);
@@ -178,7 +178,10 @@ export async function getUserStorageAllFeatureEntries(
 
     // Re-upload the re-encrypted entries
     if (reEncryptedEntries.length) {
-      await batchUpsertUserStorage(reEncryptedEntries, opts);
+      await batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+        reEncryptedEntries,
+        opts,
+      );
     }
 
     return decryptedData;
@@ -247,6 +250,41 @@ export async function batchUpsertUserStorage(
       await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
     ]);
   }
+
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const formattedData = Object.fromEntries(encryptedData);
+
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify({ data: formattedData }),
+  });
+
+  if (!res.ok) {
+    throw new Error('user-storage - unable to batch upsert data');
+  }
+}
+
+/**
+ * User Storage Service - Set multiple storage entries for one specific feature.
+ * You cannot use this method to set multiple features at once.
+ *
+ * @param encryptedData - data to store, in the form of an array of [hashedKey, encryptedData] pairs
+ * @param opts - storage options
+ */
+export async function batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+  encryptedData: [string, string][],
+  opts: UserStorageBatchUpsertOptions,
+): Promise<void> {
+  if (!encryptedData.length) {
+    return;
+  }
+
+  const { bearerToken, path } = opts;
 
   const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 

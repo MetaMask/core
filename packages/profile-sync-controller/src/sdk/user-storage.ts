@@ -200,6 +200,47 @@ export class UserStorage {
     }
   }
 
+  async #batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+    path: UserStoragePathWithFeatureOnly,
+    encryptedData: [string, string][],
+  ): Promise<void> {
+    try {
+      if (!encryptedData.length) {
+        return;
+      }
+
+      const headers = await this.#getAuthorizationHeader();
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch upsert user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
   async #getUserStorage(
     path: UserStoragePathWithFeatureAndKey,
   ): Promise<string> {
@@ -319,7 +360,10 @@ export class UserStorage {
 
       // Re-upload the re-encrypted entries
       if (reEncryptedEntries.length) {
-        await this.#batchUpsertUserStorage(path, reEncryptedEntries);
+        await this.#batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+          path,
+          reEncryptedEntries,
+        );
       }
 
       return decryptedData;

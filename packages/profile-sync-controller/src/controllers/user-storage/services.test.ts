@@ -25,6 +25,7 @@ import {
   upsertUserStorage,
   deleteUserStorageAllFeatureEntries,
   deleteUserStorage,
+  batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries,
 } from './services';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
@@ -339,6 +340,79 @@ describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
         ]);
 
         expect(decryptedBody).toStrictEqual(expectedBody);
+      },
+    );
+
+    await actCallBatchUpsertUserStorage();
+
+    expect(mockUpsertUserStorage.isDone()).toBe(true);
+  });
+
+  it('throws error if unable to upsert user storage', async () => {
+    const mockUpsertUserStorage = mockEndpointBatchUpsertUserStorage(
+      USER_STORAGE_FEATURE_NAMES.accounts,
+      {
+        status: 500,
+      },
+    );
+
+    await expect(actCallBatchUpsertUserStorage()).rejects.toThrow(
+      expect.any(Error),
+    );
+    mockUpsertUserStorage.done();
+  });
+
+  it('does nothing if empty data is provided', async () => {
+    const mockUpsertUserStorage =
+      mockEndpointBatchUpsertUserStorage('accounts_v2');
+
+    await batchUpsertUserStorage([], {
+      bearerToken: 'MOCK_BEARER_TOKEN',
+      path: 'accounts_v2',
+      storageKey: MOCK_STORAGE_KEY,
+    });
+
+    expect(mockUpsertUserStorage.isDone()).toBe(false);
+  });
+});
+
+describe('user-storage/services.ts - batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries() tests', () => {
+  let dataToStore: [string, string][];
+  const getDataToStore = async (): Promise<[string, string][]> =>
+    (dataToStore ??= [
+      [
+        createSHA256Hash(`0x123${MOCK_STORAGE_KEY}`),
+        await encryption.encryptString(MOCK_STORAGE_DATA, MOCK_STORAGE_KEY),
+      ],
+      [
+        createSHA256Hash(`0x456${MOCK_STORAGE_KEY}`),
+        await encryption.encryptString(MOCK_STORAGE_DATA, MOCK_STORAGE_KEY),
+      ],
+    ]);
+
+  const actCallBatchUpsertUserStorage = async () => {
+    return await batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+      await getDataToStore(),
+      {
+        bearerToken: 'MOCK_BEARER_TOKEN',
+        path: USER_STORAGE_FEATURE_NAMES.accounts,
+        storageKey: MOCK_STORAGE_KEY,
+      },
+    );
+  };
+
+  it('invokes upsert endpoint with no errors', async () => {
+    const mockUpsertUserStorage = mockEndpointBatchUpsertUserStorage(
+      USER_STORAGE_FEATURE_NAMES.accounts,
+      undefined,
+      async (_uri, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const expectedBody = Object.fromEntries(await getDataToStore());
+
+        expect(requestBody.data).toStrictEqual(expectedBody);
       },
     );
 
