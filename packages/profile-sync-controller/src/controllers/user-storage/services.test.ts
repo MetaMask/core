@@ -1,5 +1,4 @@
 import encryption, { createSHA256Hash } from '../../shared/encryption';
-import { getIfEntriesHaveDifferentSalts } from '../../shared/encryption/utils';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 import { createMockGetStorageResponse } from './__fixtures__';
@@ -86,12 +85,13 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
   });
 
   it('re-encrypts data if received entry was encrypted with a non-empty salt, and saves it back to user storage', async () => {
-    // This corresponds to 'data1'
-    // Encrypted with a non-empty salt
-    const mockResponse = {
+    const DECRYPED_DATA = 'data1';
+    const INITIAL_ENCRYPTED_DATA = {
       HashedKey: 'entry1',
       Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
     };
+    // Encrypted with a non-empty salt
+    const mockResponse = INITIAL_ENCRYPTED_DATA;
 
     const mockGetUserStorage = await mockEndpointGetUserStorage(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
@@ -113,6 +113,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
           encryption.getSalt(requestBody.data).length === 0;
 
         expect(isNewSaltEmpty).toBe(true);
+        expect(JSON.parse(requestBody.data).saltLen).toBe(0);
       },
     );
 
@@ -120,7 +121,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
 
     mockGetUserStorage.done();
     mockUpsertUserStorage.done();
-    expect(result).toBe('data1');
+    expect(result).toBe(DECRYPED_DATA);
   });
 });
 
@@ -177,9 +178,10 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
           return;
         }
 
-        const doEntriesHaveDifferentSalts = getIfEntriesHaveDifferentSalts(
-          Object.entries(requestBody.data).map((entry) => entry[1] as string),
-        );
+        const doEntriesHaveDifferentSalts =
+          encryption.getIfEntriesHaveDifferentSalts(
+            Object.entries(requestBody.data).map((entry) => entry[1] as string),
+          );
 
         expect(doEntriesHaveDifferentSalts).toBe(false);
 

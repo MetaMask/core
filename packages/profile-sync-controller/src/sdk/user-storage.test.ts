@@ -1,5 +1,4 @@
 import encryption, { createSHA256Hash } from '../shared/encryption';
-import { getIfEntriesHaveDifferentSalts } from '../shared/encryption/utils';
 import { Env } from '../shared/env';
 import type { UserStorageFeatureKeys } from '../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
@@ -170,9 +169,10 @@ describe('User Storage', () => {
           return;
         }
 
-        const doEntriesHaveDifferentSalts = getIfEntriesHaveDifferentSalts(
-          Object.entries(requestBody.data).map((entry) => entry[1] as string),
-        );
+        const doEntriesHaveDifferentSalts =
+          encryption.getIfEntriesHaveDifferentSalts(
+            Object.entries(requestBody.data).map((entry) => entry[1] as string),
+          );
 
         expect(doEntriesHaveDifferentSalts).toBe(false);
 

@@ -47,12 +47,13 @@ export function getCachedKeyBySalt(
 }
 
 /**
- * Gets any cached key for a given hashed password
+ * Gets the cached key that was generated without a salt, if it exists.
+ * This is unique per hashed password.
  *
  * @param hashedPassword - hashed password for cache lookup
- * @returns any (the first) cached key
+ * @returns the cached key
  */
-export function getAnyCachedKey(
+export function getCachedKeyGeneratedWithoutSalt(
   hashedPassword: string,
 ): CachedEntry | undefined {
   const cache = getPasswordCache(hashedPassword);

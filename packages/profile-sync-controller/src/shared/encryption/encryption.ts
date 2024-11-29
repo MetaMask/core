@@ -5,7 +5,11 @@ import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
 import type { NativeScrypt } from '../types/encryption';
-import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
+import {
+  getCachedKeyBySalt,
+  getCachedKeyGeneratedWithoutSalt,
+  setCachedKey,
+} from './cache';
 import {
   base64ToByteArray,
   byteArrayToBase64,
@@ -193,8 +197,23 @@ class EncryptorDecryptor {
       );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(`Unable to decrypt string - ${errorMessage}`);
+      throw new Error(`Unable to get salt - ${errorMessage}`);
     }
+  }
+
+  getIfEntriesHaveDifferentSalts(entries: string[]): boolean {
+    const salts = entries
+      .map((e) => {
+        try {
+          return this.getSalt(e);
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((s): s is Uint8Array => s !== undefined);
+
+    const strSet = new Set(salts.map((arr) => arr.toString()));
+    return strSet.size === salts.length;
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
@@ -227,7 +246,7 @@ class EncryptorDecryptor {
     const hashedPassword = createSHA256Hash(password);
     const cachedKey = salt
       ? getCachedKeyBySalt(hashedPassword, salt)
-      : getAnyCachedKey(hashedPassword);
+      : getCachedKeyGeneratedWithoutSalt(hashedPassword);
 
     if (cachedKey) {
       return {
