@@ -1,7 +1,11 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
+import {
+  BtcAccountType,
+  EthAccountType,
+  BtcMethod,
+  EthMethod,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import { BtcMethod, EthMethod } from '@metamask/keyring-internal-api';
 import type {
   InternalAccount,
   InternalAccountType,
