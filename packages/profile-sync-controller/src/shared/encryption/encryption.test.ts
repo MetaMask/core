@@ -2,7 +2,6 @@ import encryption, { createSHA256Hash } from './encryption';
 
 describe('encryption tests', () => {
   const PASSWORD = '123';
-  const PASSWORD2 = '1234';
   const DATA1 = 'Hello World';
   const DATA2 = JSON.stringify({ foo: 'bar' });
 
