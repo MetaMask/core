@@ -8,7 +8,6 @@ import type {
 } from '../../shared/storage-schema';
 import { createEntryPath } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
-import { getIfEntriesHaveDifferentSalts } from './utils';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
 
@@ -93,6 +92,12 @@ export async function getUserStorage(
       nativeScryptCrypto,
     );
 
+    // Re-encrypt the entry if the salt is non-empty
+    const salt = encryption.getSalt(encryptedData);
+    if (salt.length) {
+      await upsertUserStorage(decryptedData, opts);
+    }
+
     return decryptedData;
   } catch (e) {
     log.error('Failed to get user storage', e);
@@ -136,12 +141,8 @@ export async function getUserStorageAllFeatureEntries(
       return null;
     }
 
-    // Before decrypting, check if entries have different salts
-    // If they do, we need to re-encrypt all entries with the same salt
-    const doEntriesHaveDifferentSalts =
-      userStorage.length > 1 && getIfEntriesHaveDifferentSalts(userStorage);
-
     const decryptedData: string[] = [];
+    const reEncryptedEntries: [string, string][] = [];
 
     for (const entry of userStorage) {
       if (!entry.Data) {
@@ -155,19 +156,27 @@ export async function getUserStorageAllFeatureEntries(
           nativeScryptCrypto,
         );
         decryptedData.push(data);
+
+        // Re-encrypt the entry if the salt is non-empty
+        const salt = encryption.getSalt(entry.Data);
+        if (salt.length) {
+          reEncryptedEntries.push([
+            entry.HashedKey,
+            await encryption.encryptString(
+              data,
+              opts.storageKey,
+              nativeScryptCrypto,
+            ),
+          ]);
+        }
       } catch {
         // do nothing
       }
     }
 
-    if (doEntriesHaveDifferentSalts) {
-      // If we have different salts, we need to re-encrypt all entries with the same salt
-      // This is done so we minimize the number of key computations when subsequently decrypting the entries
-      const hashedKeys = userStorage.map((e) => e.HashedKey);
-      const newEntries = decryptedData.map(
-        (d, idx) => [hashedKeys[idx], d] as [string, string],
-      );
-      await batchUpsertUserStorage(newEntries, opts);
+    // Re-upload the re-encrypted entries
+    if (reEncryptedEntries.length) {
+      await batchUpsertUserStorage(reEncryptedEntries, opts);
     }
 
     return decryptedData;

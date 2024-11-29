@@ -28,7 +28,7 @@ export type UserStorageOptions = {
   storage?: StorageOptions;
 };
 
-type GetUserStorageAllFeatureEntriesResponse = {
+export type GetUserStorageAllFeatureEntriesResponse = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   HashedKey: string;
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -87,9 +87,9 @@ export class UserStorage {
     return this.#deleteUserStorageAllFeatureEntries(path);
   }
 
-  async batchDeleteItems<FeatureName extends UserStorageFeatureNames>(
-    path: FeatureName,
-    values: UserStorageFeatureKeys<FeatureName>[],
+  async batchDeleteItems(
+    path: UserStoragePathWithFeatureOnly,
+    values: string[],
   ) {
     return this.#batchDeleteUserStorage(path, values);
   }
@@ -149,9 +149,9 @@ export class UserStorage {
     }
   }
 
-  async #batchUpsertUserStorage<FeatureName extends UserStorageFeatureNames>(
-    path: FeatureName,
-    data: [UserStorageFeatureKeys<FeatureName>, string][],
+  async #batchUpsertUserStorage(
+    path: UserStoragePathWithFeatureOnly,
+    data: [string, string][],
   ): Promise<void> {
     try {
       if (!data.length) {
@@ -231,7 +231,18 @@ export class UserStorage {
       }
 
       const { Data: encryptedData } = await response.json();
-      return encryption.decryptString(encryptedData, storageKey);
+      const decryptedData = await encryption.decryptString(
+        encryptedData,
+        storageKey,
+      );
+
+      // Re-encrypt the entry if the salt is non-empty
+      const salt = encryption.getSalt(encryptedData);
+      if (salt.length) {
+        await this.#upsertUserStorage(path, decryptedData);
+      }
+
+      return decryptedData;
     } catch (e) {
       if (e instanceof NotFoundError) {
         throw e;
@@ -281,17 +292,37 @@ export class UserStorage {
         return null;
       }
 
-      const decryptedData = userStorage.flatMap((entry) => {
+      const decryptedData: string[] = [];
+      const reEncryptedEntries: [string, string][] = [];
+
+      for (const entry of userStorage) {
         if (!entry.Data) {
-          return [];
+          continue;
         }
 
-        return encryption.decryptString(entry.Data, storageKey);
-      });
+        try {
+          const data = await encryption.decryptString(entry.Data, storageKey);
+          decryptedData.push(data);
 
-      return (await Promise.allSettled(decryptedData))
-        .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
-        .filter((d): d is string => d !== undefined);
+          // Re-encrypt the entry if the salt is non-empty
+          const salt = encryption.getSalt(entry.Data);
+          if (salt.length) {
+            reEncryptedEntries.push([
+              entry.HashedKey,
+              await encryption.encryptString(data, storageKey),
+            ]);
+          }
+        } catch {
+          // do nothing
+        }
+      }
+
+      // Re-upload the re-encrypted entries
+      if (reEncryptedEntries.length) {
+        await this.#batchUpsertUserStorage(path, reEncryptedEntries);
+      }
+
+      return decryptedData;
     } catch (e) {
       if (e instanceof NotFoundError) {
         throw e;
@@ -393,9 +424,9 @@ export class UserStorage {
     }
   }
 
-  async #batchDeleteUserStorage<FeatureName extends UserStorageFeatureNames>(
-    path: FeatureName,
-    data: UserStorageFeatureKeys<FeatureName>[],
+  async #batchDeleteUserStorage(
+    path: UserStoragePathWithFeatureOnly,
+    data: string[],
   ): Promise<void> {
     try {
       if (!data.length) {

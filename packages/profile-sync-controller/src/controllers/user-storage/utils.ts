@@ -1,7 +1,3 @@
-import encryption from '../../shared/encryption';
-import { areAllUInt8ArraysUnique } from '../../shared/encryption/utils';
-import type { GetUserStorageAllFeatureEntriesResponse } from './services';
-
 /**
  * Returns the difference between 2 sets.
  * NOTE - this is temporary until we can support Set().difference method
@@ -29,26 +25,4 @@ export function setIntersection<TItem>(
   const intersection = new Set<TItem>();
   a.forEach((e) => b.has(e) && intersection.add(e));
   return intersection;
-}
-
-/**
- * Returns a boolean indicating if the entries have different salts.
- *
- * @param entries - User Storage Entries
- * @returns A boolean indicating if the entries have different salts.
- */
-export function getIfEntriesHaveDifferentSalts(
-  entries: GetUserStorageAllFeatureEntriesResponse,
-): boolean {
-  const salts = entries
-    .map((e) => {
-      try {
-        return encryption.getSalt(e.Data);
-      } catch {
-        return undefined;
-      }
-    })
-    .filter((s): s is Uint8Array => s !== undefined);
-
-  return areAllUInt8ArraysUnique(salts);
 }

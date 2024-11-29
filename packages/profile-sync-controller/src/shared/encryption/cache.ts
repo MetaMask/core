@@ -1,4 +1,4 @@
-import { base64ToByteArray, byteArrayToBase64 } from './utils';
+import { byteArrayToBase64 } from './utils';
 
 type CachedEntry = {
   salt: Uint8Array;
@@ -56,22 +56,16 @@ export function getAnyCachedKey(
   hashedPassword: string,
 ): CachedEntry | undefined {
   const cache = getPasswordCache(hashedPassword);
+  const cachedKey = cache.get('');
 
-  // Takes 1 item from an Iterator via Map.entries()
-  const cachedEntry: [string, Uint8Array] | undefined = cache
-    .entries()
-    .next().value;
-
-  if (!cachedEntry) {
+  if (!cachedKey) {
     return undefined;
   }
 
-  const base64Salt = cachedEntry[0];
-  const bytesSalt = base64ToByteArray(base64Salt);
   return {
-    salt: bytesSalt,
-    base64Salt,
-    key: cachedEntry[1],
+    salt: new Uint8Array(),
+    base64Salt: '',
+    key: cachedKey,
   };
 }
 

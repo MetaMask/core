@@ -1,4 +1,5 @@
 import encryption, { createSHA256Hash } from '../shared/encryption';
+import { getIfEntriesHaveDifferentSalts } from '../shared/encryption/utils';
 import { Env } from '../shared/env';
 import type { UserStorageFeatureKeys } from '../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
@@ -12,6 +13,7 @@ import {
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
+  MOCK_STORAGE_RESPONSE,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -40,7 +42,7 @@ describe('User Storage', () => {
     const mockGet = await handleMockUserStorageGet();
 
     // Test Set
-    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    const data = MOCK_NOTIFICATIONS_DATA;
     await userStorage.setItem(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       data,
@@ -71,7 +73,7 @@ describe('User Storage', () => {
     const mockGet = await handleMockUserStorageGet();
 
     // Test Set
-    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    const data = MOCK_NOTIFICATIONS_DATA;
     await userStorage.setItem(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       data,
@@ -87,18 +89,112 @@ describe('User Storage', () => {
     expect(response).toBe(data);
   });
 
+  it('re-encrypts data if received entry was encrypted with a non-empty salt, and saves it back to user storage', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    // This corresponds to 'data1'
+    // Encrypted with a non-empty salt
+    const mockResponse = {
+      HashedKey: 'entry1',
+      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+    };
+
+    const mockGet = await handleMockUserStorageGet({
+      status: 200,
+      body: JSON.stringify(mockResponse),
+    });
+    const mockPut = handleMockUserStoragePut(
+      undefined,
+      async (_, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const isNewSaltEmpty =
+          encryption.getSalt(requestBody.data).length === 0;
+
+        expect(isNewSaltEmpty).toBe(true);
+      },
+    );
+
+    await userStorage.getItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    );
+    expect(mockGet.isDone()).toBe(true);
+    expect(mockPut.isDone()).toBe(true);
+  });
+
   it('gets all feature entries', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
     const mockGetAll = await handleMockUserStorageGetAllFeatureEntries();
 
-    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    const data = MOCK_NOTIFICATIONS_DATA;
     const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
     );
     expect(mockGetAll.isDone()).toBe(true);
     expect(responseAllFeatureEntries).toStrictEqual([data]);
+  });
+
+  it('re-encrypts data if received entries were encrypted with non-empty salts, and saves it back to user storage', async () => {
+    // This corresponds to [['entry1', 'data1'], ['entry2', 'data2'], ['HASHED_KEY', '{ "hello": "world" }']]
+    // Each entry has been encrypted with a non-empty salt, except for the last entry
+    // The last entry is used to test if the function can handle entries with either empty or non-empty salts
+    const mockResponse = [
+      {
+        HashedKey: 'entry1',
+        Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      },
+      {
+        HashedKey: 'entry2',
+        Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOlnfa4ysuUNeLYTTmJ+qrq7gwI6hURH3ooUcBldJkHtvuQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      },
+      await MOCK_STORAGE_RESPONSE('data3'),
+    ];
+
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries({
+      status: 200,
+      body: mockResponse,
+    });
+
+    const mockPut = handleMockUserStoragePut(
+      undefined,
+      async (_, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const doEntriesHaveDifferentSalts = getIfEntriesHaveDifferentSalts(
+          Object.entries(requestBody.data).map((entry) => entry[1] as string),
+        );
+
+        expect(doEntriesHaveDifferentSalts).toBe(false);
+
+        const doEntriesHaveEmptySalts = Object.entries(requestBody.data).every(
+          ([_entryKey, entryValue]) =>
+            encryption.getSalt(entryValue as string).length === 0,
+        );
+
+        expect(doEntriesHaveEmptySalts).toBe(true);
+
+        const wereOnlyNonEmptySaltEntriesUploaded =
+          Object.entries(requestBody.data).length === 2;
+
+        expect(wereOnlyNonEmptySaltEntriesUploaded).toBe(true);
+      },
+    );
+
+    await userStorage.getAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+    );
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(mockPut.isDone()).toBe(true);
   });
 
   it('batch set items', async () => {

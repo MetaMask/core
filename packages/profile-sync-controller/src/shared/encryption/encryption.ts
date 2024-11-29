@@ -42,7 +42,7 @@ const ALGORITHM_KEY_SIZE = 16; // 16 bytes
 
 // Scrypt settings
 // see: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt
-const SCRYPT_SALT_SIZE = 16; // 16 bytes
+const SCRYPT_SALT_SIZE = 0; // We don't use a salt
 const SCRYPT_N = 2 ** 17; // CPU/memory cost parameter (must be a power of 2, > 1)
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const SCRYPT_r = 8; // Block size parameter
@@ -236,7 +236,7 @@ class EncryptorDecryptor {
       };
     }
 
-    const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
+    const newSalt = salt ?? new Uint8Array(SCRYPT_SALT_SIZE);
 
     let newKey: Uint8Array;
 
@@ -257,6 +257,7 @@ class EncryptorDecryptor {
         dkLen: o.dkLen,
       });
     }
+
     setCachedKey(hashedPassword, newSalt, newKey);
 
     return {

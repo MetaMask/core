@@ -1,6 +1,8 @@
 import encryption, { createSHA256Hash } from '../../shared/encryption';
+import { getIfEntriesHaveDifferentSalts } from '../../shared/encryption/utils';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
+import { createMockGetStorageResponse } from './__fixtures__';
 import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
@@ -24,7 +26,6 @@ import {
   deleteUserStorageAllFeatureEntries,
   deleteUserStorage,
 } from './services';
-import { getIfEntriesHaveDifferentSalts } from './utils';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
   const actCallGetUserStorage = async () => {
@@ -82,6 +83,44 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
     mockGetUserStorage.done();
     expect(result).toBeNull();
   });
+
+  it('re-encrypts data if received entry was encrypted with a non-empty salt, and saves it back to user storage', async () => {
+    // This corresponds to 'data1'
+    // Encrypted with a non-empty salt
+    const mockResponse = {
+      HashedKey: 'entry1',
+      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+    };
+
+    const mockGetUserStorage = await mockEndpointGetUserStorage(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      {
+        status: 200,
+        body: JSON.stringify(mockResponse),
+      },
+    );
+
+    const mockUpsertUserStorage = mockEndpointUpsertUserStorage(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      undefined,
+      async (requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const isNewSaltEmpty =
+          encryption.getSalt(requestBody.data).length === 0;
+
+        expect(isNewSaltEmpty).toBe(true);
+      },
+    );
+
+    const result = await actCallGetUserStorage();
+
+    mockGetUserStorage.done();
+    mockUpsertUserStorage.done();
+    expect(result).toBe('data1');
+  });
 });
 
 describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', () => {
@@ -104,9 +143,10 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
     expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
   });
 
-  it('re-encrypts data if entries were encrypted with different salts, and saves it back to user storage', async () => {
-    // This corresponds to [['entry1', 'data1'], ['entry2', 'data2']]
-    // Each entry has been encrypted with a different salt
+  it('re-encrypts data if received entries were encrypted with non-empty salts, and saves it back to user storage', async () => {
+    // This corresponds to [['entry1', 'data1'], ['entry2', 'data2'], ['HASHED_KEY', '{ "hello": "world" }']]
+    // Each entry has been encrypted with a non-empty salt, except for the last entry
+    // The last entry is used to test if the function can handle entries with either empty or non-empty salts
     const mockResponse = [
       {
         HashedKey: 'entry1',
@@ -116,6 +156,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
         HashedKey: 'entry2',
         Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOlnfa4ysuUNeLYTTmJ+qrq7gwI6hURH3ooUcBldJkHtvuQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
       },
+      await createMockGetStorageResponse('data3'),
     ];
 
     const mockGetUserStorageAllFeatureEntries =
@@ -136,13 +177,22 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
         }
 
         const doEntriesHaveDifferentSalts = getIfEntriesHaveDifferentSalts(
-          Object.entries(requestBody.data).map((entry) => ({
-            HashedKey: entry[0],
-            Data: entry[1] as string,
-          })),
+          Object.entries(requestBody.data).map((entry) => entry[1] as string),
         );
 
         expect(doEntriesHaveDifferentSalts).toBe(false);
+
+        const doEntriesHaveEmptySalts = Object.entries(requestBody.data).every(
+          ([_entryKey, entryValue]) =>
+            encryption.getSalt(entryValue as string).length === 0,
+        );
+
+        expect(doEntriesHaveEmptySalts).toBe(true);
+
+        const wereOnlyNonEmptySaltEntriesUploaded =
+          Object.entries(requestBody.data).length === 2;
+
+        expect(wereOnlyNonEmptySaltEntriesUploaded).toBe(true);
       },
     );
 
@@ -150,7 +200,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
 
     mockGetUserStorageAllFeatureEntries.done();
     mockBatchUpsertUserStorage.done();
-    expect(result).toStrictEqual(['data1', 'data2']);
+    expect(result).toStrictEqual(['data1', 'data2', MOCK_STORAGE_DATA]);
   });
 
   it('returns null if endpoint does not have entry', async () => {
