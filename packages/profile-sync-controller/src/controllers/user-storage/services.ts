@@ -82,6 +82,7 @@ export async function getUserStorage(
       await userStorageResponse.json();
     const encryptedData = userStorage?.Data ?? null;
 
+    /* istanbul ignore if - this is an edge case where our endpoint returns invalid JSON payload */
     if (!encryptedData) {
       return null;
     }
@@ -145,6 +146,7 @@ export async function getUserStorageAllFeatureEntries(
     const reEncryptedEntries: [string, string][] = [];
 
     for (const entry of userStorage) {
+      /* istanbul ignore if - unreachable if statement, but kept as edge case */
       if (!entry.Data) {
         continue;
       }

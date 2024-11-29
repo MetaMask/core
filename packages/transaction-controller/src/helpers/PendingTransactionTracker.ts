@@ -4,6 +4,8 @@ import type {
   BlockTracker,
   NetworkClientId,
 } from '@metamask/network-controller';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 import { cloneDeep, merge } from 'lodash';
 

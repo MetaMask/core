@@ -1,7 +1,8 @@
+import type { NetworkConfiguration } from '@metamask/network-controller';
+
 import { setDifference, setIntersection } from '../utils';
 import {
   toRemoteNetworkConfiguration,
-  type NetworkConfiguration,
   type RemoteNetworkConfiguration,
   toNetworkConfiguration,
 } from './types';
@@ -81,6 +82,8 @@ export const checkWhichNetworkIsLatest = (
       : 'Remote Wins';
   }
 
+  // Unreachable statement
+  /* istanbul ignore next */
   return 'Do Nothing';
 };
 
@@ -141,6 +144,9 @@ export const getUpdatedNetworkLists = (
     const localNetwork = localMap.get(chain);
     const remoteNetwork = remoteMap.get(chain);
     if (!localNetwork || !remoteNetwork) {
+      // This should be unreachable as we know the Maps created will have the values
+      // This is to satisfy types
+      /* istanbul ignore next */
       return;
     }
 
@@ -173,35 +179,6 @@ export const getUpdatedNetworkLists = (
   };
 };
 
-export const getNewLocalNetworks = (props: {
-  originalList: NetworkConfiguration[];
-  missingLocalNetworks: NetworkConfiguration[];
-  localNetworksToUpdate: NetworkConfiguration[];
-  localNetworksToRemove: NetworkConfiguration[];
-}) => {
-  let newList = [...props.originalList];
-  newList.push(...props.missingLocalNetworks);
-  const updateMap = createMap(props.localNetworksToUpdate);
-  const remoteMap = createMap(props.localNetworksToRemove);
-
-  newList = newList
-    .map((n) => {
-      if (remoteMap.has(n.chainId)) {
-        return undefined;
-      }
-
-      const updatedNetwork = updateMap.get(n.chainId);
-      if (updatedNetwork) {
-        return updatedNetwork;
-      }
-
-      return n;
-    })
-    .filter((n): n is NetworkConfiguration => n !== undefined);
-
-  return newList;
-};
-
 export const findNetworksToUpdate = (props: FindNetworksToUpdateProps) => {
   try {
     const { localNetworks, remoteNetworks } = props;
@@ -221,21 +198,17 @@ export const findNetworksToUpdate = (props: FindNetworksToUpdateProps) => {
       ...updatedNetworks.remoteNetworksToUpdate,
     ];
 
-    // List of new local networks
-    const newLocalNetworks = getNewLocalNetworks({
-      originalList: localNetworks,
+    return {
+      remoteNetworksToUpdate,
       missingLocalNetworks: missingNetworks.missingLocalNetworks,
       localNetworksToRemove: updatedNetworks.localNetworksToRemove,
       localNetworksToUpdate: updatedNetworks.localNetworksToUpdate,
-    });
-
-    return {
-      remoteNetworksToUpdate,
-      newLocalNetworks,
     };
   } catch {
     // Unable to perform sync, silently fail
   }
 
+  // Unreachable statement
+  /* istanbul ignore next */
   return undefined;
 };

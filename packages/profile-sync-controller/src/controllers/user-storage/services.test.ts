@@ -360,6 +360,19 @@ describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
     );
     mockUpsertUserStorage.done();
   });
+
+  it('does nothing if empty data is provided', async () => {
+    const mockUpsertUserStorage =
+      mockEndpointBatchUpsertUserStorage('accounts_v2');
+
+    await batchUpsertUserStorage([], {
+      bearerToken: 'MOCK_BEARER_TOKEN',
+      path: 'accounts_v2',
+      storageKey: MOCK_STORAGE_KEY,
+    });
+
+    expect(mockUpsertUserStorage.isDone()).toBe(false);
+  });
 });
 
 describe('user-storage/services.ts - deleteUserStorage() tests', () => {
@@ -530,5 +543,18 @@ describe('user-storage/services.ts - batchDeleteUserStorage() tests', () => {
       expect.any(Error),
     );
     mockDeleteUserStorage.done();
+  });
+
+  it('does nothing if empty data is provided', async () => {
+    const mockDeleteUserStorage =
+      mockEndpointBatchDeleteUserStorage('accounts_v2');
+
+    await batchDeleteUserStorage([], {
+      bearerToken: 'MOCK_BEARER_TOKEN',
+      path: 'accounts_v2',
+      storageKey: MOCK_STORAGE_KEY,
+    });
+
+    expect(mockDeleteUserStorage.isDone()).toBe(false);
   });
 });
