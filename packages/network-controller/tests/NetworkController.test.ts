@@ -3857,6 +3857,56 @@ describe('NetworkController', () => {
           });
         });
       });
+
+      it('is callable from the controller messenger', async () => {
+        uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
+
+        await withController(({ messenger }) => {
+          const networkAddedEventListener = jest.fn();
+          messenger.subscribe(
+            'NetworkController:networkAdded',
+            networkAddedEventListener,
+          );
+
+          const newNetworkConfiguration = messenger.call(
+            'NetworkController:addNetwork',
+            {
+              blockExplorerUrls: ['https://block.explorer'],
+              chainId: '0x1337',
+              defaultBlockExplorerUrlIndex: 0,
+              defaultRpcEndpointIndex: 0,
+              name: 'Some Network',
+              nativeCurrency: 'TOKEN',
+              rpcEndpoints: [
+                {
+                  name: 'Test Network',
+                  type: RpcEndpointType.Custom,
+                  url: 'https://test.endpoint',
+                },
+              ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
+            },
+          );
+
+          expect(newNetworkConfiguration).toStrictEqual({
+            blockExplorerUrls: ['https://block.explorer'],
+            chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
+            defaultRpcEndpointIndex: 0,
+            name: 'Some Network',
+            nativeCurrency: 'TOKEN',
+            rpcEndpoints: [
+              {
+                name: 'Test Network',
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                type: RpcEndpointType.Custom,
+                url: 'https://test.endpoint',
+              },
+            ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
+          });
+        });
+      });
     });
   });
 
@@ -4544,6 +4594,59 @@ describe('NetworkController', () => {
               `Could not update network: \`replacementSelectedRpcEndpointIndex\` 9999 does not refer to an entry in \`rpcEndpoints\``,
             ),
           );
+        },
+      );
+    });
+
+    it('is callable from the controller messenger', async () => {
+      const originalNetwork = buildCustomNetworkConfiguration({
+        chainId: '0x1337',
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.network',
+          }),
+        ],
+      });
+
+      const networkToUpdate = buildCustomNetworkConfiguration({
+        chainId: '0x1337',
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            name: 'Custom Name',
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.network',
+          }),
+        ],
+      });
+
+      const controllerState =
+        buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+          networkConfigurationsByChainId: {
+            [originalNetwork.chainId]: originalNetwork,
+          },
+          networksMetadata: {
+            'AAAA-AAAA-AAAA-AAAA': {
+              EIPS: {
+                '1559': true,
+              },
+              status: NetworkStatus.Available,
+            },
+          },
+        });
+
+      await withController(
+        { state: controllerState },
+        async ({ controller, messenger }) => {
+          await messenger.call(
+            'NetworkController:updateNetwork',
+            networkToUpdate.chainId,
+            networkToUpdate,
+          );
+          expect(
+            controller.state.networkConfigurationsByChainId['0x1337']
+              .rpcEndpoints[0].name,
+          ).toBe('Custom Name');
         },
       );
     });
@@ -11443,6 +11546,56 @@ describe('NetworkController', () => {
             expect(networkClientRegistry).not.toHaveProperty(
               'BBBB-BBBB-BBBB-BBBB',
             );
+          },
+        );
+      });
+
+      it('is callable from the controller messenger', async () => {
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: InfuraNetworkType.goerli,
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration(),
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            messenger.call('NetworkController:removeNetwork', '0x1337');
+            expect(
+              controller.state.networkConfigurationsByChainId,
+            ).not.toHaveProperty('0x1337');
+          },
+        );
+      });
+
+      it('emits the NetworkController:networkRemoved event', async () => {
+        const networkConfig = buildCustomNetworkConfiguration();
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: InfuraNetworkType.goerli,
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfig,
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            const networkRemovedListener = jest.fn();
+            messenger.subscribe(
+              'NetworkController:networkRemoved',
+              networkRemovedListener,
+            );
+
+            controller.removeNetwork('0x1337');
+
+            expect(networkRemovedListener).toHaveBeenCalledWith(networkConfig);
           },
         );
       });
