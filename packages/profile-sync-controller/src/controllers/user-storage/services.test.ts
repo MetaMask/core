@@ -156,7 +156,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
         HashedKey: 'entry2',
         Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOlnfa4ysuUNeLYTTmJ+qrq7gwI6hURH3ooUcBldJkHtvuQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
       },
-      await createMockGetStorageResponse('data3'),
+      await createMockGetStorageResponse(),
     ];
 
     const mockGetUserStorageAllFeatureEntries =
