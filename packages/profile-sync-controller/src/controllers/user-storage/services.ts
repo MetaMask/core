@@ -100,6 +100,17 @@ export async function getUserStorage(
   }
 }
 
+// SHOVE THIS SOMEWHERE ELSE
+const areUInt8ArraysEqual = (arr1: Uint8Array, arr2: Uint8Array) => {
+  // Check if the arrays have the same length
+  if (arr1.length !== arr2.length) {
+    return false;
+  }
+
+  // Use the every method to compare each element
+  return arr1.every((value, index) => value === arr2[index]);
+};
+
 /**
  * User Storage Service - Get all storage entries for a specific feature.
  *
@@ -136,7 +147,20 @@ export async function getUserStorageAllFeatureEntries(
       return null;
     }
 
+    // BEFORE WE DECRYPT: lets see if we will need to make the entries converge to the same salt
+    const salts = userStorage
+      .map((e) => {
+        try {
+          return encryption.getSalt(e.Data);
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((s): s is Uint8Array => s !== undefined);
+    const hasDifferentSalts = new Set(salts).size !== salts.length;
+
     const decryptedData: string[] = [];
+    const hashedKey: string[] = [];
 
     for (const entry of userStorage) {
       /* istanbul ignore if - unreachable if statement, but kept as edge case */
@@ -151,9 +175,20 @@ export async function getUserStorageAllFeatureEntries(
           nativeScryptCrypto,
         );
         decryptedData.push(data);
+        hashedKey.push(entry.HashedKey);
       } catch {
         // do nothing
       }
+    }
+
+    // BEFORE WE RETURN, MAKE SURE TO ALIGN SALTS
+    if (hasDifferentSalts) {
+      // AH FEK, THIS FUNCTION DOESN'T TELL US THE KEYS
+      // TECHNICALLY WE ALREADY KNOW THE HASHED KEY? CAN WE MODIFY TO PASS IT IN?
+      const newEntries = decryptedData.map(
+        (d, idx) => [hashedKey[idx], d] as [string, string],
+      );
+      await batchUpsertUserStorage(newEntries, opts);
     }
 
     return decryptedData;
