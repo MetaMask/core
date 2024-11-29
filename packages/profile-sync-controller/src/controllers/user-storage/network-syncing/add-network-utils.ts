@@ -1,4 +1,4 @@
-import type { NetworkConfiguration } from './types';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 
 export const MAX_NETWORKS_SIZE = 50;
 

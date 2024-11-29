@@ -20,9 +20,11 @@ import {
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type {
-  NetworkConfiguration,
-  NetworkController,
+  NetworkControllerAddNetworkAction,
   NetworkControllerGetStateAction,
+  NetworkControllerNetworkRemovedEvent,
+  NetworkControllerRemoveNetworkAction,
+  NetworkControllerUpdateNetworkAction,
 } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
@@ -60,25 +62,6 @@ import {
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
-
-// TODO - replace shimmed interface with actual interfaces once merged
-// Waiting on #4698
-export type NetworkControllerNetworkRemovedEvent = {
-  type: 'NetworkController:networkRemoved';
-  payload: [networkConfiguration: NetworkConfiguration];
-};
-export type NetworkControllerAddNetworkAction = {
-  type: 'NetworkController:addNetwork';
-  handler: NetworkController['addNetwork'];
-};
-export type NetworkControllerRemoveNetworkAction = {
-  type: 'NetworkController:removeNetwork';
-  handler: NetworkController['removeNetwork'];
-};
-export type NetworkControllerDangerouslySetNetworkConfigurationAction = {
-  type: 'NetworkController:updateNetwork';
-  handler: NetworkController['updateNetwork'];
-};
 
 // TODO: fix external dependencies
 export declare type NotificationServicesControllerDisableNotificationServices =
@@ -262,7 +245,7 @@ export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction
   | NetworkControllerRemoveNetworkAction
-  | NetworkControllerDangerouslySetNetworkConfigurationAction;
+  | NetworkControllerUpdateNetworkAction;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<

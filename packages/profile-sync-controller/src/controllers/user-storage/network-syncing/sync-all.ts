@@ -1,7 +1,8 @@
+import type { NetworkConfiguration } from '@metamask/network-controller';
+
 import { setDifference, setIntersection } from '../utils';
 import {
   toRemoteNetworkConfiguration,
-  type NetworkConfiguration,
   type RemoteNetworkConfiguration,
   toNetworkConfiguration,
 } from './types';

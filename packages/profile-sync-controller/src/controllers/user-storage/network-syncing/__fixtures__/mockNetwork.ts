@@ -1,9 +1,7 @@
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import { RpcEndpointType } from '@metamask/network-controller';
 
-import type {
-  NetworkConfiguration,
-  RemoteNetworkConfiguration,
-} from '../types';
+import type { RemoteNetworkConfiguration } from '../types';
 
 export type RPCEndpoint = NetworkConfiguration['rpcEndpoints'][number];
 

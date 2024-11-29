@@ -1,3 +1,4 @@
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import log from 'loglevel';
 
 import type { UserStorageBaseOptions } from '../services';
@@ -6,7 +7,6 @@ import { getBoundedNetworksToAdd } from './add-network-utils';
 import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
-import type { NetworkConfiguration } from './types';
 import { createUpdateNetworkProps } from './update-network-utils';
 
 type StartNetworkSyncingProps = {

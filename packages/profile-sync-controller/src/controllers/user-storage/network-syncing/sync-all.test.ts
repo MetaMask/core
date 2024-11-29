@@ -1,3 +1,5 @@
+import type { NetworkConfiguration } from '@metamask/network-controller';
+
 import {
   createMockNetworkConfiguration,
   createMockRemoteNetworkConfiguration,
@@ -9,7 +11,7 @@ import {
   getUpdatedNetworkLists,
   findNetworksToUpdate,
 } from './sync-all';
-import type { NetworkConfiguration, RemoteNetworkConfiguration } from './types';
+import type { RemoteNetworkConfiguration } from './types';
 
 /**
  * This is not used externally, but meant to check logic is consistent

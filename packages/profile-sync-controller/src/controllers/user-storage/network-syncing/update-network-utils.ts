@@ -1,10 +1,10 @@
 import {
   RpcEndpointType,
   type UpdateNetworkFields,
+  type NetworkConfiguration,
 } from '@metamask/network-controller';
 
 import { setDifference } from '../utils';
-import type { NetworkConfiguration } from './types';
 
 /**
  * Will map the network configuration we want to update into something valid that `updateNetwork` accepts

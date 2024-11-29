@@ -2,6 +2,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type {
   NetworkState,
   NetworkControllerActions,
+  NetworkConfiguration,
 } from '@metamask/network-controller';
 import {
   NetworkController,
@@ -18,7 +19,6 @@ import {
   createMockNetworkConfiguration,
 } from './__fixtures__/mockNetwork';
 import { dispatchUpdateNetwork } from './controller-integration';
-import type { NetworkConfiguration } from './types';
 
 const createNetworkControllerState = (
   rpcs: RPCEndpoint[] = [createMockInfuraRpcEndpoint()],
@@ -100,15 +100,6 @@ describe('network-syncing/controller-integration - dispatchUpdateNetwork()', () 
       state: networkState,
       infuraProjectId: 'TEST_ID',
     });
-
-    // TODO: Temporary until the messenger is added (#4698)
-    networkControllerMessenger.registerActionHandler(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      'NetworkController:updateNetwork' as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (...args: any[]): Promise<any> =>
-        networkController.updateNetwork(args[0], args[1], args[2]),
-    );
 
     return { networkController, baseMessenger };
   };
