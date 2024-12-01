@@ -23,7 +23,7 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import { BalancesTracker } from './BalancesTracker';
-import { BALANCE_UPDATE_INTERVALS } from './constants';
+import { BALANCE_UPDATE_INTERVALS, NETWORK_ASSETS_MAP } from './constants';
 import { getScopeForAddress } from './utils';
 
 const controllerName = 'MultichainBalancesController';
@@ -137,20 +137,17 @@ export class MultichainBalancesController extends BaseController<
 > {
   readonly #tracker: BalancesTracker;
 
-  // As a temporary solution, we are using a map, provided during the construction
-  // of the controller, to store the assets that are hardcoded in the client.
-  // In the future, this mapping should be dynamic to allow a client to
-  // register and unregister assets
-  readonly #networkAssetsMap: Record<string, string[]>;
+  // As a temporary solution, we are using a map to store the assets
+  // that are hardcoded in the module. In the future, this mapping
+  // should be dynamic to allow a client to register and unregister assets
+  readonly #networkAssetsMap: Record<string, string[]> = NETWORK_ASSETS_MAP;
 
   constructor({
     messenger,
     state,
-    networkAssetsMap,
   }: {
     messenger: MultichainBalancesControllerMessenger;
     state: MultichainBalancesControllerState;
-    networkAssetsMap: Record<string, string[]>;
   }) {
     super({
       messenger,
@@ -165,8 +162,6 @@ export class MultichainBalancesController extends BaseController<
     this.#tracker = new BalancesTracker(
       async (accountId: string) => await this.#updateBalance(accountId),
     );
-
-    this.#networkAssetsMap = networkAssetsMap;
 
     // Register all non-EVM accounts into the tracker
     for (const account of this.#listAccounts()) {
