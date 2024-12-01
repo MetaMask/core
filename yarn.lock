@@ -2393,7 +2393,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^4.1.6"
     "@metamask/json-rpc-engine": "npm:^10.0.1"
     "@metamask/utils": "npm:^10.0.0"
-    "@ts-bridge/cli": "npm:^0.5.1"
+    "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
     "@types/lodash": "npm:^4.14.191"
     "@types/node": "npm:^16.18.54"
@@ -4264,11 +4264,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@ts-bridge/cli@npm:^0.5.1":
-  version: 0.5.1
-  resolution: "@ts-bridge/cli@npm:0.5.1"
+"@ts-bridge/cli@npm:^0.6.1":
+  version: 0.6.1
+  resolution: "@ts-bridge/cli@npm:0.6.1"
   dependencies:
-    "@ts-bridge/resolver": "npm:^0.1.2"
+    "@ts-bridge/resolver": "npm:^0.2.0"
     chalk: "npm:^5.3.0"
     cjs-module-lexer: "npm:^1.3.1"
     yargs: "npm:^17.7.2"
@@ -4277,14 +4277,14 @@ __metadata:
   bin:
     ts-bridge: ./dist/index.js
     tsbridge: ./dist/index.js
-  checksum: 10/691abe737617597c6ec0a296a67eedf47fc93cc2682658970326ad8f5c63376f987ee92502191ed3e81e917515d101bab7ca83f06b3b489449c3b674356cc306
+  checksum: 10/1cbb8fbfc7f58b804553ab9bc06b689b409d4cdd0f1e960a0ea87971ec7885b5ee2a86cb192d955c7d3611afcadb960e7dfee66aeca60f798a70e7f97aa969c3
   languageName: node
   linkType: hard
 
-"@ts-bridge/resolver@npm:^0.1.2":
-  version: 0.1.2
-  resolution: "@ts-bridge/resolver@npm:0.1.2"
-  checksum: 10/4126154e0344f4fdf35612f65d4459e993dcf914fe765ce95d8237a6ccb85e092bd31a6d31765cc24c0280a0e243ed2385f8b355d7fb13ba7c36e95e3caf1613
+"@ts-bridge/resolver@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@ts-bridge/resolver@npm:0.2.0"
+  checksum: 10/d4cfd1f47e9648a5f9c893b1b076adabde3a57cbe81ef823bcbbcc77a122fb6f06d99f40ff48198f8dc766bfc4b3b351d4e87cfcf2db64f7e6db924eb82a5db1
   languageName: node
   linkType: hard
 
