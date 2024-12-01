@@ -61,7 +61,7 @@
     "@metamask/eth-json-rpc-provider": "^4.1.6",
     "@metamask/json-rpc-engine": "^10.0.1",
     "@metamask/utils": "^10.0.0",
-    "@ts-bridge/cli": "^0.5.1",
+    "@ts-bridge/cli": "patch:@ts-bridge/cli@npm%3A0.5.1#~/.yarn/patches/@ts-bridge-cli-npm-0.5.1-86ddc74440.patch",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",

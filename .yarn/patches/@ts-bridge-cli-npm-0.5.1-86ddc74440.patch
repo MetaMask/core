@@ -1,0 +1,66 @@
+diff --git a/dist/generator.js b/dist/generator.js
+index 4d821c5fd9a9d56123eb796e759dda1f7e8a6842..036bb6108422e5774015367aad59b4e5fb3b758f 100644
+--- a/dist/generator.js
++++ b/dist/generator.js
+@@ -73,7 +73,7 @@ export function getImports(packageSpecifier, system, parentUrl, imports) {
+         const name = element.name.text;
+         const propertyName = element.propertyName?.text;
+         const exportName = propertyName ?? name;
+-        if (exports.includes(exportName)) {
++        if (exports.has(exportName)) {
+             return {
+                 ...accumulator,
+                 detected: [...accumulator.detected, { name, propertyName }],
+diff --git a/dist/module-resolver.js b/dist/module-resolver.js
+index 0b4342d693a597e08cd309a328d4dc0b93de44de..e70893bba1dba8c3748bd647cd6b41adc320cb53 100644
+--- a/dist/module-resolver.js
++++ b/dist/module-resolver.js
+@@ -91,11 +91,11 @@ export function resolveRelativePackageSpecifier(packageSpecifier, parentUrl, sys
+  * @param system - The TypeScript system.
+  * @returns The resolved module, or `null` if the module could not be resolved.
+  */
+-function resolveModule(packageSpecifier, parentUrl, system) {
++function resolveModule(packageSpecifier, parentUrl, system, extensions) {
+     if (isRelative(packageSpecifier)) {
+-        return resolveRelativePackageSpecifier(packageSpecifier, parentUrl, system);
++        return resolveRelativePackageSpecifier(packageSpecifier, parentUrl, system, extensions);
+     }
+-    return resolvePackageSpecifier(packageSpecifier, parentUrl, system);
++    return resolvePackageSpecifier(packageSpecifier, parentUrl, system, extensions);
+ }
+ /**
+  * Replace the extension of a path.
+@@ -120,7 +120,8 @@ export function replaceExtension(path, extension) {
+  * could not be resolved.
+  */
+ export function getModulePath({ packageSpecifier, extension, parentUrl, system, verbose, }) {
+-    const resolution = resolveModule(packageSpecifier, parentUrl, system);
++    const relative = isRelative(packageSpecifier);
++    const resolution = resolveModule(packageSpecifier, parentUrl, system, relative ? DEFAULT_EXTENSIONS : undefined,);
+     if (!resolution) {
+         verbose &&
+             warn(`Could not resolve module: ${chalk.bold(`"${packageSpecifier}"`)}. This means that TS Bridge will not update the import path, and the module may not be resolved correctly in some cases.`);
+@@ -205,13 +206,20 @@ export function isCommonJs(packageSpecifier, system, parentUrl) {
+ export function getCommonJsExports(packageSpecifier, system, parentUrl) {
+     const resolution = resolveModule(packageSpecifier, parentUrl, system);
+     if (!resolution || resolution.format !== 'commonjs') {
+-        return [];
++        return new Set();
+     }
+     const { path } = resolution;
+     const code = system.readFile(path);
+     if (!code) {
+-        return [];
++        return new Set();
+     }
+     const { exports, reexports } = parse(code);
+-    return [...exports, ...reexports];
++     // Re-exports are paths to exports that must be resolved themselves
++    const resolvedReexports = reexports.reduce((accumulator, reexport) => {
++        const exportSet = getCommonJsExports(reexport, system, path);
++        exportSet.forEach((exportName) => accumulator.add(exportName));
++        return accumulator;
++    }, new Set());
++
++    return new Set([...exports, ...resolvedReexports]);
+ }
