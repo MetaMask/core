@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
+    - `@babel/runtime` `^7.0.0` (required by `@metamask/ethjs-provider-http`)
+    - `@metamask/eth-block-tracker` `>=9` (required by `@metamask/nonce-tracker`)
+  - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
+  - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+
+## [41.0.0]
+
+### Added
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Add required `networkClientId` argument to `handleMethodData` method.
+
+### Changed
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Require `networkClientId` option in `addTransaction` method.
+  - Require `networkClientId` property in `TransactionMeta` type.
+  - Change `wipeTransactions` method arguments to optional object containing `address` and `chainId` properties.
+  - Require `networkClientId` argument in `estimateGas`, `estimateGasBuffered` and `getNonceLock` methods.
+
+### Removed
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Remove the `blockTracker`, `isMultichainEnabled`, `onNetworkStateChange` and `provider` constructor options.
+  - Remove `filterToCurrentNetwork` option from `getTransactions` method.
+
+## [40.1.0]
+
+### Added
+
+- Add `firstTimeInteraction` to transaction meta ([#4895](https://github.com/MetaMask/core/pull/4895))
+  - This is a boolean value that indicates whether the transaction is the first time the user has interacted with it.
+- Add `isFirstTimeInteractionEnabled` callback constructor option ([#4895](https://github.com/MetaMask/core/pull/4895))
+  - This is a function that returns a boolean value indicating whether the first time interaction check should be enabled.
+
 ## [40.0.0]
 
 ### Changed
@@ -1133,7 +1172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.0.0...HEAD
+[41.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.1.0...@metamask/transaction-controller@41.0.0
+[40.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.0.0...@metamask/transaction-controller@40.1.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@39.1.0...@metamask/transaction-controller@40.0.0
 [39.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@39.0.0...@metamask/transaction-controller@39.1.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.3.0...@metamask/transaction-controller@39.0.0

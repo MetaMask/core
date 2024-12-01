@@ -116,11 +116,6 @@ const setEthAccountsForScopesObject = (
  * Sets the Ethereum (EIP155 namespaced) accounts for the given CAIP-25 caveat value.
  * We set the same accounts for all the scopes that are EIP155 or Wallet namespaced because
  * we do not provide UI/UX flows for selecting different accounts across different chains.
- *
- * Additionally, this function  adds a `wallet:eip155` scope with empty methods, notifications, and accounts
- * to ensure that the `wallet:eip155` scope is always present in the caveat value.
- * This is required for Snaps currently can have account permissions without chain permissions.
- * This added `wallet:eip155` scope should be removed once Snaps are able to have/use chain permissions.
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the Ethereum accounts for.
  * @param accounts - The Ethereum accounts to set.
  * @returns The updated CAIP-25 caveat value with the Ethereum accounts set.
@@ -136,12 +131,7 @@ export const setEthAccounts = (
       accounts,
     ),
     optionalScopes: setEthAccountsForScopesObject(
-      {
-        [KnownWalletScopeString.Eip155]: {
-          accounts: [],
-        },
-        ...caip25CaveatValue.optionalScopes,
-      },
+      caip25CaveatValue.optionalScopes,
       accounts,
     ),
   };

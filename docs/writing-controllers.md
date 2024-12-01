@@ -49,7 +49,7 @@ class FooController extends BaseController</* ... */> {
     state = {},
   }: {
     messenger: FooControllerMessenger;
-    state: Partial<FooControllerState>;
+    state?: Partial<FooControllerState>;
   }) {
     super({
       // ...
@@ -87,7 +87,7 @@ class FooController extends BaseController</* ... */> {
     state = {},
   }: {
     messenger: FooControllerMessenger;
-    state: Partial<FooControllerState>;
+    state?: Partial<FooControllerState>;
   }) {
     super({
       name,
@@ -158,7 +158,7 @@ class FooController extends BaseController</* ... */> {
       state = {},
     }: {
       messenger: FooControllerMessenger;
-      state: Partial<FooControllerState>;
+      state?: Partial<FooControllerState>;
     },
     isEnabled: boolean,
   ) {
@@ -177,7 +177,7 @@ class FooController extends BaseController</* ... */> {
     isEnabled,
   }: {
     messenger: FooControllerMessenger;
-    state: Partial<FooControllerState>;
+    state?: Partial<FooControllerState>;
     isEnabled: boolean;
   }) {
     // ...

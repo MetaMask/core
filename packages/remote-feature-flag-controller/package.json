@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/notification-controller",
-  "version": "7.0.0",
-  "description": "Manages display of notifications within MetaMask",
+  "name": "@metamask/remote-feature-flag-controller",
+  "version": "1.0.0",
+  "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/notification-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/remote-feature-flag-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -14,7 +14,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "license": "(MIT OR Apache-2.0)",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -37,8 +37,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/remote-feature-flag-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/remote-feature-flag-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -49,13 +49,16 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.2",
     "@metamask/utils": "^10.0.0",
-    "nanoid": "^3.1.31"
+    "cockatiel": "^3.1.2"
   },
   "devDependencies": {
+    "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/controller-utils": "^11.4.3",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "nock": "^13.3.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",

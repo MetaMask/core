@@ -254,7 +254,7 @@ describe('EtherscanRemoteTransactionSource', () => {
           [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
         },
       }).fetchTransactions({
-        currentChainId: CHAIN_IDS.MAINNET,
+        chainId: CHAIN_IDS.MAINNET,
       } as unknown as RemoteTransactionSourceRequest);
 
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
@@ -275,7 +275,7 @@ describe('EtherscanRemoteTransactionSource', () => {
           [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
         },
       }).fetchTransactions({
-        currentChainId: CHAIN_IDS.SEPOLIA,
+        chainId: CHAIN_IDS.SEPOLIA,
       } as unknown as RemoteTransactionSourceRequest);
 
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);

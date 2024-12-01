@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "45.0.0",
+  "version": "45.1.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -76,6 +76,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@babel/runtime": "^7.23.9",
     "@metamask/accounts-controller": "^20.0.0",
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
@@ -84,6 +85,7 @@
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/network-controller": "^22.0.2",
     "@metamask/preferences-controller": "^15.0.0",
+    "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.10.0",
     "@metamask/snaps-sdk": "^6.7.0",
     "@types/jest": "^27.4.1",
@@ -97,14 +99,17 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^20.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/network-controller": "^22.0.0",
-    "@metamask/preferences-controller": "^15.0.0"
+    "@metamask/preferences-controller": "^15.0.0",
+    "@metamask/providers": "^18.1.0",
+    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
