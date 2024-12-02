@@ -576,7 +576,7 @@ export class TokensController extends BaseController<
     tokenAddressesToIgnore: string[],
     networkClientId?: NetworkClientId,
   ) {
-    let interactingChainId;
+    let interactingChainId = this.#chainId;
     if (networkClientId) {
       interactingChainId = this.messagingSystem.call(
         'NetworkController:getNetworkClientById',
@@ -624,12 +624,14 @@ export class TokensController extends BaseController<
       });
 
     this.update((state) => {
-      state.ignoredTokens = newIgnoredTokens;
-      state.tokens = newTokens;
       state.detectedTokens = newDetectedTokens;
       state.allIgnoredTokens = newAllIgnoredTokens;
       state.allDetectedTokens = newAllDetectedTokens;
       state.allTokens = newAllTokens;
+      if (interactingChainId === this.#chainId) {
+        state.tokens = newTokens;
+        state.ignoredTokens = newIgnoredTokens;
+      }
     });
   }
 

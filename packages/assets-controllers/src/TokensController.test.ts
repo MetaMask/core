@@ -829,7 +829,7 @@ describe('TokensController', () => {
             decimals: 6,
           });
           controller.ignoreTokens(['0x03'], InfuraNetworkType.goerli);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x03']);
+          expect(controller.state.ignoredTokens).toStrictEqual([]);
 
           // Validate the overall ignored tokens state
           expect(controller.state.allIgnoredTokens).toStrictEqual({
@@ -879,7 +879,7 @@ describe('TokensController', () => {
           // Ignore the token on Sepolia
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
           expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+          expect(controller.state.ignoredTokens).toStrictEqual([]);
 
           // Attempt to ignore a token that was added on Goerli
           await controller.addToken({
