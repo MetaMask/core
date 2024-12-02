@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^7.0.3` ([#5012](https://github.com/MetaMask/core/pull/5012))
 - Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
 - Bump `@metamask/polling-controller` from `^12.0.1` to `^12.0.2` ([#5012](https://github.com/MetaMask/core/pull/5012))
 

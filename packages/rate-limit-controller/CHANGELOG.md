@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.0.2]
 
-### Uncategorized
+### Changed
 
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core/pull/4831))
-- deps: @metamask/rpc-errors@^6.3.1->^7.0.0 ([#4769](https://github.com/MetaMask/core/pull/4769))
+- Bump `@metamask/rpc-errors` from `^6.3.1` to `^7.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
 
 ## [6.0.1]
 
