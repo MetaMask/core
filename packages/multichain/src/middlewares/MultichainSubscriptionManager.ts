@@ -31,7 +31,6 @@ type SubscriptionKey = {
 };
 type SubscriptionEntry = SubscriptionKey & {
   subscriptionManager: SubscriptionManager;
-  middleware: ExtendedJsonRpcMiddleware;
 };
 
 type MultichainSubscriptionManagerOptions = {
@@ -90,11 +89,9 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
   }
 
   subscribe(subscriptionKey: SubscriptionKey) {
-    const existingSubscriptionEntry =
-      this.#getSubscriptionEntry(subscriptionKey);
-    if (existingSubscriptionEntry) {
-      const { subscriptionManager, middleware } = existingSubscriptionEntry;
-      return { subscriptionManager, middleware };
+    const subscriptionEntry = this.#getSubscriptionEntry(subscriptionKey);
+    if (subscriptionEntry) {
+      return subscriptionEntry.subscriptionManager;
     }
 
     const networkClientId = this.#findNetworkClientIdByChainId(
@@ -113,20 +110,16 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
       },
     );
 
-    const middleware: ExtendedJsonRpcMiddleware = (req, res, next, end) => {
-      return subscriptionManager.middleware(req, res, next, end);
-    };
-
-    const newSubscriptionEntry = {
+    const newSubscriptionManagerEntry = {
       ...subscriptionKey,
       subscriptionManager,
-      middleware,
-    };
-    this.#subscriptions.push(newSubscriptionEntry);
+    }
+    subscriptionManager.destroy = subscriptionManager.middleware.destroy
+    subscriptionManager.middleware.destroy = this.#unsubscribe.bind(this,newSubscriptionManagerEntry);
 
-    middleware.destroy = this.#unsubscribe.bind(this, newSubscriptionEntry);
+    this.#subscriptions.push(newSubscriptionManagerEntry);
 
-    return { subscriptionManager, middleware };
+    return subscriptionManager;
   }
 
   #unsubscribe(subscriptionEntry: SubscriptionEntry) {
