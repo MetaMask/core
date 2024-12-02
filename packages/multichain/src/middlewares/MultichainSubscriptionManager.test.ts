@@ -1,6 +1,8 @@
 import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
 
-import { MultichainSubscriptionManager } from './MultichainSubscriptionManager';
+import { MultichainSubscriptionManager, SubscriptionManager } from './MultichainSubscriptionManager';
+import { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
+import { EventEmitter } from 'events';
 
 jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
   jest.fn(),
@@ -54,7 +56,7 @@ const createMultichainSubscriptionManager = () => {
 const createMockSubscriptionManager = () => ({
   events: {
     on: jest.fn(),
-  },
+  } as unknown as jest.Mocked<EventEmitter>,
   destroy: jest.fn(),
   middleware: {
     destroy: jest.fn(),
@@ -124,10 +126,6 @@ describe('MultichainSubscriptionManager', () => {
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByScopeAndOrigin(scope, origin);
 
-    mockSubscriptionManager.events.on.mock.calls[0][1](
-      newHeadsNotificationMock,
-    );
-
     expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });
 
@@ -144,9 +142,6 @@ describe('MultichainSubscriptionManager', () => {
       'other-origin',
       123,
     );
-    mockSubscriptionManager.events.on.mock.calls[0][1](
-      newHeadsNotificationMock,
-    );
 
     expect(mockSubscriptionManager.destroy).not.toHaveBeenCalled();
   });
@@ -156,10 +151,6 @@ describe('MultichainSubscriptionManager', () => {
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByOriginAndTabId(origin, tabId);
-
-    mockSubscriptionManager.events.on.mock.calls[0][1](
-      newHeadsNotificationMock,
-    );
 
     expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });
