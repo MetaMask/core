@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.1.0]
+
 ### Uncategorized
 
 - feat: add NetworkController NetworkConfiguration actions and events ([#4698](https://github.com/MetaMask/core/pull/4698))
@@ -666,7 +668,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.0...HEAD
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.2...@metamask/network-controller@22.1.0
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.1...@metamask/network-controller@22.0.2
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.0...@metamask/network-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.1.0...@metamask/network-controller@22.0.0

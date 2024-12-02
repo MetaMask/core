@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.2]
+
 ### Uncategorized
 
 - Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
@@ -167,7 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.2...HEAD
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.1...@metamask/rate-limit-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.0...@metamask/rate-limit-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@5.0.2...@metamask/rate-limit-controller@6.0.0
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@5.0.1...@metamask/rate-limit-controller@5.0.2

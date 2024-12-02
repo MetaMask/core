@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.2]
+
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
@@ -383,7 +385,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...HEAD
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.1...@metamask/gas-fee-controller@22.0.2
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.0...@metamask/gas-fee-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@21.0.0...@metamask/gas-fee-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@20.0.1...@metamask/gas-fee-controller@21.0.0

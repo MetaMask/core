@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.1]
+
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
@@ -363,7 +365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.1...HEAD
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.0...@metamask/accounts-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@19.0.0...@metamask/accounts-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.3...@metamask/accounts-controller@19.0.0
 [18.2.3]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.2...@metamask/accounts-controller@18.2.3

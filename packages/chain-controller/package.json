@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-controller",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Manages chain-agnostic providers",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.2",
+    "@metamask/base-controller": "^7.0.3",
     "@metamask/chain-api": "^0.1.0",
     "@metamask/keyring-api": "^10.1.0",
     "@metamask/snaps-controllers": "^9.10.0",

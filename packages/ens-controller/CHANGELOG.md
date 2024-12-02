@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.1]
+
 ### Uncategorized
 
 - Release 245.0.0 ([#4915](https://github.com/MetaMask/core/pull/4915))
@@ -261,7 +263,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@15.0.1...HEAD
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@15.0.0...@metamask/ens-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.1...@metamask/ens-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.0...@metamask/ens-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@13.0.1...@metamask/ens-controller@14.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.4.4]
+
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
@@ -432,7 +434,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.4...HEAD
+[11.4.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.3...@metamask/controller-utils@11.4.4
 [11.4.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.2...@metamask/controller-utils@11.4.3
 [11.4.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.1...@metamask/controller-utils@11.4.2
 [11.4.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.0...@metamask/controller-utils@11.4.1

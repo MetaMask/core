@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "11.0.1",
+  "version": "11.0.2",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
@@ -47,8 +47,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.2",
-    "@metamask/controller-utils": "^11.4.3",
+    "@metamask/base-controller": "^7.0.3",
+    "@metamask/controller-utils": "^11.4.4",
     "@metamask/eth-sig-util": "^8.0.0",
     "@metamask/utils": "^10.0.0",
     "@types/uuid": "^8.3.0",

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.2]
+
 ### Uncategorized
 
 - chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core/pull/4831))
@@ -73,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...HEAD
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.0...@metamask/build-utils@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.1...@metamask/build-utils@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.0...@metamask/build-utils@2.0.1
