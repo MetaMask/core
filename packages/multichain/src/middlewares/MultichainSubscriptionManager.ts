@@ -7,8 +7,7 @@ import { parseCaipChainId } from '@metamask/utils';
 import type EventEmitter from 'events';
 
 import type { ExternalScopeString } from '../scope/types';
-import { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
-import { middleware } from 'yargs';
+import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
 
 export type SubscriptionManager = {
   events: EventEmitter;
@@ -95,7 +94,7 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
       this.#getSubscriptionEntry(subscriptionKey);
     if (existingSubscriptionEntry) {
       const { subscriptionManager, middleware } = existingSubscriptionEntry;
-      return { subscriptionManager, middleware }
+      return { subscriptionManager, middleware };
     }
 
     const networkClientId = this.#findNetworkClientIdByChainId(
@@ -115,7 +114,7 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     );
 
     const middleware: ExtendedJsonRpcMiddleware = (req, res, next, end) => {
-      return subscriptionManager.middleware(req,res,next,end)
+      return subscriptionManager.middleware(req, res, next, end);
     };
 
     const newSubscriptionEntry = {
@@ -125,12 +124,9 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     };
     this.#subscriptions.push(newSubscriptionEntry);
 
-    middleware.destroy = this.#unsubscribe.bind(
-      this,
-      newSubscriptionEntry
-    );
+    middleware.destroy = this.#unsubscribe.bind(this, newSubscriptionEntry);
 
-    return { subscriptionManager, middleware }
+    return { subscriptionManager, middleware };
   }
 
   #unsubscribe(subscriptionEntry: SubscriptionEntry) {
