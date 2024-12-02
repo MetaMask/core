@@ -56,4 +56,25 @@ describe('Poller', () => {
     poller.stop();
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it('does not start a new interval if already running', async () => {
+    const poller = new Poller(callback, interval);
+    poller.start();
+    poller.start(); // Attempt to start again
+    jest.advanceTimersByTime(intervalPlus100ms);
+    poller.stop();
+
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it('can stop multiple times without issues', async () => {
+    const poller = new Poller(callback, interval);
+    poller.start();
+    jest.advanceTimersByTime(interval / 2);
+    poller.stop();
+    poller.stop(); // Attempt to stop again
+    jest.advanceTimersByTime(intervalPlus100ms);
+
+    expect(callback).not.toHaveBeenCalled();
+  });
 });
