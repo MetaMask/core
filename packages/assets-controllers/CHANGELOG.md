@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [45.1.1]
 
-### Uncategorized
-
-- fix: prevent non-current network tokens from being hidden incorrectly ([#4967](https://github.com/MetaMask/core/pull/4967))
-
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
@@ -21,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `webextension-polyfill` `^0.10.0 || ^0.11.0 || ^0.12.0` (required by `@metamask/providers`)
   - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
   - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+- Fix `TokensController.ignoreTokens` so that it honors the specified chain when ignoring tokens rather than always using the globally selected chain ([#4967](https://github.com/MetaMask/core/pull/4967))
 
 ## [45.1.0]
 

@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.2]
 
-### Uncategorized
+### Changed
 
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.3` ([#4862](https://github.com/MetaMask/core/pull/4862), [#5012](https://github.com/MetaMask/core/pull/5012))
 
 ## [7.0.1]
 
