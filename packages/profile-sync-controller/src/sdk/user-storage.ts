@@ -280,7 +280,7 @@ export class UserStorage {
 
       // Re-encrypt the entry if it was encrypted with a random salt
       const salt = encryption.getSalt(encryptedData);
-      if (salt.length) {
+      if (salt.toString() !== SHARED_SALT.toString()) {
         await this.#upsertUserStorage(path, decryptedData);
       }
 
