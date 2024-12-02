@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update metadata to declare feature flags as anonymous ([#5004](https://github.com/MetaMask/core/pull/5004))
   - This lets us capture these in debug state snapshots to help diagnose errors
 
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `cockatiel`
+
 ## [1.0.0]
 
 ### Added
