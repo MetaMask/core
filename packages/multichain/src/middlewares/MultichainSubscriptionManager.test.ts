@@ -1,9 +1,7 @@
 import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
-import type { EventEmitter } from 'events';
+import type SafeEventEmitter from '@metamask/safe-event-emitter';
 
-import {
-  MultichainSubscriptionManager,
-} from './MultichainSubscriptionManager';
+import { MultichainSubscriptionManager } from './MultichainSubscriptionManager';
 
 jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
   jest.fn(),
@@ -57,7 +55,7 @@ const createMultichainSubscriptionManager = () => {
 const createMockSubscriptionManager = () => ({
   events: {
     on: jest.fn(),
-  } as unknown as jest.Mocked<EventEmitter>,
+  } as unknown as jest.Mocked<SafeEventEmitter>,
   destroy: jest.fn(),
   middleware: {
     destroy: jest.fn(),

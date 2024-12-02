@@ -4,15 +4,12 @@ import type { NetworkController } from '@metamask/network-controller';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
-// This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import/no-nodejs-modules
-import type { EventEmitter } from 'events';
 
 import type { ExternalScopeString } from '../scope/types';
 import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
 
 export type SubscriptionManager = {
-  events: EventEmitter;
+  events: SafeEventEmitter;
   destroy?: () => void;
   middleware: ExtendedJsonRpcMiddleware;
 };
