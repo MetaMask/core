@@ -9,13 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.2]
 
-### Uncategorized
+### Changed
 
-- Release 245.0.0 ([#4915](https://github.com/MetaMask/core/pull/4915))
-- Release 236.0.0 ([#4870](https://github.com/MetaMask/core/pull/4870))
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core/pull/4831))
-- Release 226.0.0 ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.4` ([#4834](https://github.com/MetaMask/core/pull/4834), [#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870), [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
 
 ## [8.0.1]
 

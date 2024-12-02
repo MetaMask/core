@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.0.2]
-
-### Uncategorized
-
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- Release 220.0.0 ([#4798](https://github.com/MetaMask/core/pull/4798))
-
 ## [9.0.1]
 
 ### Fixed
@@ -206,8 +199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.2...HEAD
-[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...@metamask/composable-controller@9.0.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...HEAD
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@8.0.0...@metamask/composable-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@7.0.0...@metamask/composable-controller@8.0.0

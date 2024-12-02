@@ -9,11 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.1.0]
 
-### Uncategorized
+### Added
 
-- feat: add NetworkController NetworkConfiguration actions and events ([#4698](https://github.com/MetaMask/core/pull/4698))
-- feat: add lastUpdatedAt to NetworkConfiguration ([#4652](https://github.com/MetaMask/core/pull/4652))
-- Only enable Node lint rules for Node files ([#3672](https://github.com/MetaMask/core/pull/3672))
+- The `NetworkController:networkRemoved` messenger event will now be emitted when a network is removed ([#4698](https://github.com/MetaMask/core/pull/4698))
+- Add messenger actions `NetworkController:addNetwork`, `NetworkController:removeNetwork`, and `NetworkController:updateNetwork` which call the respective controller methods ([#4698](https://github.com/MetaMask/core/pull/4698))
+- Add `lastUpdatedAt` property to network configurations which will be set to the current time on addition or update ([#4652](https://github.com/MetaMask/core/pull/4652))
+  - This was added to support the upcoming network syncing feature.
+  - This property is optional and will be `undefined` for existing network configurations that have not yet been updated.
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.6` to `^4.1.7` ([#5012](https://github.com/MetaMask/core/pull/5012))
 
 ## [22.0.2]
 
