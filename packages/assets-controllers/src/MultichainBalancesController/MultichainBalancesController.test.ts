@@ -4,7 +4,7 @@ import type {
   CaipAssetType,
   InternalAccount,
 } from '@metamask/keyring-api';
-import { BtcAccountType, BtcMethod } from '@metamask/keyring-api';
+import { BtcAccountType, BtcMethod, EthAccountType, EthMethod } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -39,6 +39,27 @@ const mockBtcAccount = {
   options: {},
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
+};
+
+const mockEthAccount = {
+  address: '0x807dE1cf8f39E83258904b2f7b473E5C506E4aC1',
+  id: uuidv4(),
+  metadata: {
+    name: 'Ethereum Account 1',
+    importTime: Date.now(),
+    keyring: {
+      type: KeyringTypes.snap,
+    },
+    snap: {
+      id: 'mock-eth-snap',
+      name: 'mock-eth-snap',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+  options: {},
+  methods: [EthMethod.SignTypedDataV4, EthMethod.SignTransaction],
+  type: EthAccountType.Eoa,
 };
 
 const mockBalanceResult = {
@@ -88,7 +109,7 @@ const setupController = ({
   controllerMessenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     mockListMultichainAccounts.mockReturnValue(
-      mocks?.listMultichainAccounts ?? [mockBtcAccount],
+      mocks?.listMultichainAccounts ?? [mockBtcAccount, mockEthAccount],
     ),
   );
 
@@ -172,6 +193,24 @@ describe('BalancesController', () => {
 
     messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
     mockListMultichainAccounts.mockReturnValue([]);
+    await controller.updateBalances();
+
+    expect(controller.state).toStrictEqual({
+      balances: {},
+    });
+  });
+
+  it('does not track balances for EVM accounts', async () => {
+    const { controller, messenger, mockListMultichainAccounts } =
+      setupController({
+        mocks: {
+          listMultichainAccounts: [],
+        },
+      });
+
+    controller.start();
+    mockListMultichainAccounts.mockReturnValue([mockEthAccount]);
+    messenger.publish('AccountsController:accountAdded', mockEthAccount);
     await controller.updateBalances();
 
     expect(controller.state).toStrictEqual({
