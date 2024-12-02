@@ -35,7 +35,8 @@
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
+    { "path": "./packages/user-operation-controller/tsconfig.build.json" },
+    { "path": "./packages/polling-controller/tsconfig.build.json" }
   ],
   "files": [],
   "include": []

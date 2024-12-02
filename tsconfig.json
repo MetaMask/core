@@ -33,7 +33,8 @@
     { "path": "./packages/selected-network-controller" },
     { "path": "./packages/signature-controller" },
     { "path": "./packages/transaction-controller" },
-    { "path": "./packages/user-operation-controller" }
+    { "path": "./packages/user-operation-controller" },
+    { "path": "./packages/polling-controller" }
   ],
   "files": [],
   "include": ["./types"]
