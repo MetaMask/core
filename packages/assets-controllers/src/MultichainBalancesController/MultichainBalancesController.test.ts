@@ -4,7 +4,12 @@ import type {
   CaipAssetType,
   InternalAccount,
 } from '@metamask/keyring-api';
-import { BtcAccountType, BtcMethod, EthAccountType, EthMethod } from '@metamask/keyring-api';
+import {
+  BtcAccountType,
+  BtcMethod,
+  EthAccountType,
+  EthMethod,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { v4 as uuidv4 } from 'uuid';
 

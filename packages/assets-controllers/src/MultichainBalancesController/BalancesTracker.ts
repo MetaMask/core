@@ -17,11 +17,7 @@ export class BalancesTracker {
   constructor(updateBalanceCallback: (accountId: string) => Promise<void>) {
     this.#updateBalance = updateBalanceCallback;
 
-    this.#poller = new Poller(() => {
-      this.updateBalances().catch((error) => {
-        console.error('Error updating balances:', error);
-      });
-    }, BALANCES_TRACKING_INTERVAL);
+    this.#poller = new Poller(this.updateBalances, BALANCES_TRACKING_INTERVAL);
   }
 
   /**

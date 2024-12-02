@@ -6,10 +6,10 @@ const interval = 1000;
 const intervalPlus100ms = interval + 100;
 
 describe('Poller', () => {
-  let callback: jest.Mock;
+  let callback: jest.Mock<Promise<void>, []>;
 
   beforeEach(() => {
-    callback = jest.fn();
+    callback = jest.fn().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -22,6 +22,9 @@ describe('Poller', () => {
     jest.advanceTimersByTime(intervalPlus100ms);
     poller.stop();
 
+    // Wait for all promises to resolve
+    await Promise.resolve();
+
     expect(callback).toHaveBeenCalledTimes(1);
   });
 
@@ -30,6 +33,9 @@ describe('Poller', () => {
     poller.start();
     poller.stop();
     jest.advanceTimersByTime(intervalPlus100ms);
+
+    // Wait for all promises to resolve
+    await Promise.resolve();
 
     expect(callback).not.toHaveBeenCalled();
   });
@@ -44,16 +50,22 @@ describe('Poller', () => {
     jest.advanceTimersByTime(intervalPlus100ms);
     poller.stop();
 
+    // Wait for all promises to resolve
+    await Promise.resolve();
+
     expect(callback).toHaveBeenCalledTimes(2);
   });
 
   it('does not call the callback if the poller is stopped before the interval has passed', async () => {
     const poller = new Poller(callback, interval);
     poller.start();
-    // Wait for some time, but resumes before reaching out
-    // the `interval` timeout
+    // Wait for some time, but stop before reaching the `interval` timeout
     jest.advanceTimersByTime(interval / 2);
     poller.stop();
+
+    // Wait for all promises to resolve
+    await Promise.resolve();
+
     expect(callback).not.toHaveBeenCalled();
   });
 
@@ -63,6 +75,9 @@ describe('Poller', () => {
     poller.start(); // Attempt to start again
     jest.advanceTimersByTime(intervalPlus100ms);
     poller.stop();
+
+    // Wait for all promises to resolve
+    await Promise.resolve();
 
     expect(callback).toHaveBeenCalledTimes(1);
   });
@@ -74,6 +89,9 @@ describe('Poller', () => {
     poller.stop();
     poller.stop(); // Attempt to stop again
     jest.advanceTimersByTime(intervalPlus100ms);
+
+    // Wait for all promises to resolve
+    await Promise.resolve();
 
     expect(callback).not.toHaveBeenCalled();
   });
