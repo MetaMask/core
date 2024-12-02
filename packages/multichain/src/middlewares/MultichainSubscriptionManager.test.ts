@@ -1,4 +1,5 @@
 import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
+import type SafeEventEmitter from '@metamask/safe-event-emitter';
 
 import { MultichainSubscriptionManager } from './MultichainSubscriptionManager';
 
@@ -51,15 +52,21 @@ const createMultichainSubscriptionManager = () => {
   return { multichainSubscriptionManager };
 };
 
-describe('MultichainSubscriptionManager', () => {
-  const mockSubscriptionManager = {
-    events: {
-      on: jest.fn(),
-    },
+const createMockSubscriptionManager = () => ({
+  events: {
+    on: jest.fn(),
+  } as unknown as jest.Mocked<SafeEventEmitter>,
+  destroy: jest.fn(),
+  middleware: {
     destroy: jest.fn(),
-  };
+  },
+});
+
+describe('MultichainSubscriptionManager', () => {
+  let mockSubscriptionManager = createMockSubscriptionManager();
 
   beforeEach(() => {
+    mockSubscriptionManager = createMockSubscriptionManager();
     MockCreateSubscriptionManager.mockReturnValue(mockSubscriptionManager);
   });
 
@@ -118,10 +125,6 @@ describe('MultichainSubscriptionManager', () => {
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByScopeAndOrigin(scope, origin);
 
-    mockSubscriptionManager.events.on.mock.calls[0][1](
-      newHeadsNotificationMock,
-    );
-
     expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });
 
@@ -138,9 +141,6 @@ describe('MultichainSubscriptionManager', () => {
       'other-origin',
       123,
     );
-    mockSubscriptionManager.events.on.mock.calls[0][1](
-      newHeadsNotificationMock,
-    );
 
     expect(mockSubscriptionManager.destroy).not.toHaveBeenCalled();
   });
@@ -151,9 +151,14 @@ describe('MultichainSubscriptionManager', () => {
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByOriginAndTabId(origin, tabId);
 
-    mockSubscriptionManager.events.on.mock.calls[0][1](
-      newHeadsNotificationMock,
-    );
+    expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
+  });
+
+  it('should unsubscribe when the middleware is destroyed', () => {
+    const { multichainSubscriptionManager } =
+      createMultichainSubscriptionManager();
+    multichainSubscriptionManager.subscribe({ scope, origin, tabId });
+    mockSubscriptionManager.middleware.destroy();
 
     expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });

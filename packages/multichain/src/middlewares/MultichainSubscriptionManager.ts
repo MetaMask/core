@@ -4,13 +4,14 @@ import type { NetworkController } from '@metamask/network-controller';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
-import type EventEmitter from 'events';
 
 import type { ExternalScopeString } from '../scope/types';
+import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
 
 export type SubscriptionManager = {
-  events: EventEmitter;
+  events: SafeEventEmitter;
   destroy?: () => void;
+  middleware: ExtendedJsonRpcMiddleware;
 };
 
 type SubscriptionNotificationEvent = {
@@ -108,10 +109,17 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
       },
     );
 
-    this.#subscriptions.push({
+    const newSubscriptionManagerEntry = {
       ...subscriptionKey,
       subscriptionManager,
-    });
+    };
+    subscriptionManager.destroy = subscriptionManager.middleware.destroy;
+    subscriptionManager.middleware.destroy = this.#unsubscribe.bind(
+      this,
+      newSubscriptionManagerEntry,
+    );
+
+    this.#subscriptions.push(newSubscriptionManagerEntry);
 
     return subscriptionManager;
   }
