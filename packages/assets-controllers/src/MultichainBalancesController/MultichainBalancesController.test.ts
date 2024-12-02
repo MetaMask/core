@@ -152,7 +152,7 @@ describe('BalancesController', () => {
     expect(spyTracker).toHaveBeenCalledTimes(1);
   });
 
-  it('update balances when calling updateBalances', async () => {
+  it('updates balances when calling updateBalances', async () => {
     const { controller } = setupController();
 
     await controller.updateBalances();
@@ -164,7 +164,19 @@ describe('BalancesController', () => {
     });
   });
 
-  it('update balances when "AccountsController:accountAdded" is fired', async () => {
+  it('updates the balance for a specific account when calling updateBalance', async () => {
+    const { controller } = setupController();
+
+    await controller.updateBalance(mockBtcAccount.id);
+
+    expect(controller.state).toStrictEqual({
+      balances: {
+        [mockBtcAccount.id]: mockBalanceResult,
+      },
+    });
+  });
+
+  it('updates balances when "AccountsController:accountAdded" is fired', async () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController({
         mocks: {
@@ -184,7 +196,7 @@ describe('BalancesController', () => {
     });
   });
 
-  it('update balances when "AccountsController:accountRemoved" is fired', async () => {
+  it('updates balances when "AccountsController:accountRemoved" is fired', async () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController();
 
