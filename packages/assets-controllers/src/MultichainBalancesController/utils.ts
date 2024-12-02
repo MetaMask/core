@@ -7,7 +7,7 @@ import { MultichainNetworks } from './constants';
 /**
  * Gets the scope for a specific and supported Bitcoin account.
  * Note: This is a temporary method and will be replaced by a more robust solution
- * once the new `account.scopes` is available in the `keyring-api`.
+ * once the new `account.scopes` is available in the `@metamask/keyring-api` module.
  *
  * @param account - Bitcoin account
  * @returns The scope for the given account.
