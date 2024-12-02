@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** The controller messenger must now allow the actions `NetworkController:getState`, `NetworkController:addNetwork`, `NetworkController:removeNetwork`, and `NetworkController:updateNetwork` ([#4701](https://github.com/MetaMask/core/pull/4701))
 - **BREAKING:** The controller messenger must now allow the event `NetworkController:networkRemoved` ([#4701](https://github.com/MetaMask/core/pull/4701))
-- Bump `@metamask/keyring-controller` from `^19.0.1` to `^19.0.1` ([#5012](https://github.com/MetaMask/core/pull/5012))
+- Bump `@metamask/keyring-controller` from `^19.0.0` to `^19.0.1` ([#5012](https://github.com/MetaMask/core/pull/5012))
 - Bump `@metamask/network-controller` from `^22.0.2` to `^22.1.0` ([#5012](https://github.com/MetaMask/core/pull/5012))
 
 ### Fixed
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `webextension-polyfill` `^0.10.0 || ^0.11.0 || ^0.12.0` (required by `@metamask/providers`)
   - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
   - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
-- Fix UserStorageController controller to use the user-storage batch API to upsert remote networks rather than upserting them one at a time ([#4701](https://github.com/MetaMask/core/pull/4701))
+- Fix user storage controller to use the user-storage batch API to upsert remote networks rather than upserting them one at a time ([#4701](https://github.com/MetaMask/core/pull/4701))
 
 ## [2.0.0]
 

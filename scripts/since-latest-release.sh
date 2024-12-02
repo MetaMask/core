@@ -104,7 +104,7 @@ main() {
         fi
         ;;
       *)
-        if [[ $any_options_given -eq 1 ]]; then
+        if [[ $any_options_given -eq 1 && $start_processing_git_command -eq 0 ]]; then
           red "ERROR: Unknown argument '$1'. (Tip: When specifying options to this script and \`git\` at the same time, use \`--\` to divide git options.)" $'\n'
           echo
           print-usage

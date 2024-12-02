@@ -19,8 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Add dependency `fast-deep-equal` ([#4652](https://github.com/MetaMask/core/pull/4652))
 - Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
-- Bump `@metamask/eth-json-rpc-provider` from `^4.1.6` to `^4.1.7` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Remove dependency on Node builtin module `util` to ensure that `@metamask/network-controller` can be used in a strict browser context ([#3672](https://github.com/MetaMask/core/pull/3672))
 
 ## [22.0.2]
 
