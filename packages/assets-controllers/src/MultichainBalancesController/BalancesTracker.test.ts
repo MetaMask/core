@@ -132,4 +132,12 @@ describe('BalancesTracker', () => {
     await tracker.updateBalances();
     expect(mockUpdateBalance).toHaveBeenCalledTimes(2); // Now the balance will update
   });
+
+  it('throws an error if trying to update balance of an untracked account', async () => {
+    const { tracker } = setupTracker();
+
+    await expect(tracker.updateBalance(mockBtcAccount.id)).rejects.toThrow(
+      `Account is not being tracked: ${mockBtcAccount.id}`,
+    );
+  });
 });
