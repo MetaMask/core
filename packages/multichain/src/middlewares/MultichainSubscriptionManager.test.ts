@@ -1,8 +1,11 @@
 import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
+import type { EventEmitter } from 'events';
 
-import { MultichainSubscriptionManager, SubscriptionManager } from './MultichainSubscriptionManager';
 import { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
-import { EventEmitter } from 'events';
+import {
+  MultichainSubscriptionManager,
+  SubscriptionManager,
+} from './MultichainSubscriptionManager';
 
 jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
   jest.fn(),
