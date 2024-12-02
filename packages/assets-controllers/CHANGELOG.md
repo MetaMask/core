@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
   - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
 - Fix `TokensController.ignoreTokens` so that if a network is provided, `allIgnoredTokens`, `allTokens`, and `allDetectedTokens` for that network no longer get corrupted with tokens from the globally selected network ([#4967](https://github.com/MetaMask/core/pull/4967))
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/contract-metadata`
+  - `@metamask/eth-query`
+  - `bn.js`
+  - `lodash`
+  - `single-call-balance-checker-abi`
 
 ## [45.1.0]
 

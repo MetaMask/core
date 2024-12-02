@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
 - Bump `@metamask/json-rpc-engine` from `^9.0.3` to `^10.0.1` ([#4798](https://github.com/MetaMask/core/pull/4798), [#4862](https://github.com/MetaMask/core/pull/4862))
 
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `deep-freeze-strict`
+
 ## [3.0.1]
 
 ### Changed
