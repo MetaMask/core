@@ -222,8 +222,6 @@ export default class AuthenticationController extends BaseController<
   }
 
   public performSignOut(): void {
-    this.#assertLoggedIn();
-
     this.update((state) => {
       state.isSignedIn = false;
       state.sessionData = undefined;
