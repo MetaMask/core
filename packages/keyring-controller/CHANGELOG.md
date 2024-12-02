@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
   - `@metamask/eth-hd-keyring`
   - `@metamask/eth-simple-keyring`
+  - `@ethereumjs/util`
   - `ethereumjs-wallet`
 
 ## [19.0.0]
