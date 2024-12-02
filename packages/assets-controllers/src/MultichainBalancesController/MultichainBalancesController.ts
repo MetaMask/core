@@ -165,9 +165,7 @@ export class MultichainBalancesController extends BaseController<
 
     // Register all non-EVM accounts into the tracker
     for (const account of this.#listAccounts()) {
-      if (this.#isNonEvmAccount(account)) {
-        this.#trackAccount(account.id);
-      }
+      this.#trackAccount(account);
     }
 
     this.messagingSystem.subscribe(
@@ -197,15 +195,20 @@ export class MultichainBalancesController extends BaseController<
   /**
    * Tracks an account to get its balances.
    *
-   * @param accountId - The account ID.
+   * @param account - The account to track.
    */
-  #trackAccount(accountId: string): void {
+  #trackAccount(account: InternalAccount): void {
+    if (!this.#isNonEvmAccount(account)) {
+      // Nothing to do here for EVM accounts
+      return;
+    }
+
     const updateTime =
       // @ts-expect-error - For the moment we are only tracking non-EVM accounts and this is
       // checked with the method `#isNonEvmAccount`. We can ignore this error since
       // eip155:eoa and eip155:erc4337 account type balances are not tracked here.
-      BALANCE_UPDATE_INTERVALS[this.#getAccount(accountId).type];
-    this.#tracker.track(accountId, updateTime);
+      BALANCE_UPDATE_INTERVALS[this.#getAccount(account.id).type];
+    this.#tracker.track(account.id, updateTime);
   }
 
   /**
@@ -323,12 +326,7 @@ export class MultichainBalancesController extends BaseController<
    * @param account - The new account being added.
    */
   async #handleOnAccountAdded(account: InternalAccount) {
-    if (!this.#isNonEvmAccount(account)) {
-      // Nothing to do here for EVM accounts
-      return;
-    }
-
-    this.#trackAccount(account.id);
+    this.#trackAccount(account);
     // NOTE: Unfortunately, we cannot update the balance right away here, because
     // messenger's events are running synchronously and fetching the balance is
     // asynchronous.

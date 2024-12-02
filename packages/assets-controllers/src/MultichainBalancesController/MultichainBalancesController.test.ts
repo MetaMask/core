@@ -21,7 +21,7 @@ import type {
 } from './MultichainBalancesController';
 
 const mockBtcAccount = {
-  address: '',
+  address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
   id: uuidv4(),
   metadata: {
     name: 'Bitcoin Account 1',
