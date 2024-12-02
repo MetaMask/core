@@ -100,7 +100,7 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^7.0.3",
+    "@metamask/base-controller": "^7.0.2",
     "@metamask/controller-utils": "^11.4.4",
     "@metamask/utils": "^10.0.0",
     "bignumber.js": "^9.1.2",

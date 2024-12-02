@@ -47,9 +47,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.3",
+    "@metamask/base-controller": "^7.0.2",
     "@metamask/controller-utils": "^11.4.4",
-    "@metamask/json-rpc-engine": "^10.0.2",
+    "@metamask/json-rpc-engine": "^10.0.1",
     "@metamask/rpc-errors": "^7.0.1",
     "@metamask/utils": "^10.0.0",
     "@types/deep-freeze-strict": "^1.1.0",
@@ -58,7 +58,7 @@
     "nanoid": "^3.1.31"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^7.1.2",
+    "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

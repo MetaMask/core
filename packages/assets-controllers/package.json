@@ -54,7 +54,7 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/abi-utils": "^2.0.3",
-    "@metamask/base-controller": "^7.0.3",
+    "@metamask/base-controller": "^7.0.2",
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^11.4.4",
     "@metamask/eth-query": "^4.0.0",
@@ -76,7 +76,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/accounts-controller": "^20.0.1",
-    "@metamask/approval-controller": "^7.1.2",
+    "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-api": "^10.1.0",
