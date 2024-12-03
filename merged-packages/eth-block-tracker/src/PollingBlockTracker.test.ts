@@ -185,6 +185,112 @@ describe('PollingBlockTracker', () => {
       );
     });
 
+    it('should return a promise that rejects if the request for the block number fails and the block tracker is then stopped', async () => {
+      recordCallsToSetTimeout({ numAutomaticCalls: 1 });
+
+      await withPollingBlockTracker(
+        {
+          provider: {
+            stubs: [
+              {
+                methodName: 'eth_blockNumber',
+                error: 'boom',
+              },
+            ],
+          },
+        },
+        async ({ blockTracker }) => {
+          const latestBlockPromise = blockTracker.getLatestBlock();
+
+          expect(blockTracker.isRunning()).toBe(true);
+          await blockTracker.destroy();
+          await expect(latestBlockPromise).rejects.toThrow(
+            'Block tracker destroyed',
+          );
+          expect(blockTracker.isRunning()).toBe(false);
+        },
+      );
+    });
+
+    it('should not retry failed requests after the block tracker is stopped', async () => {
+      recordCallsToSetTimeout({ numAutomaticCalls: 2 });
+
+      await withPollingBlockTracker(
+        {
+          provider: {
+            stubs: [
+              {
+                methodName: 'eth_blockNumber',
+                error: 'boom',
+              },
+            ],
+          },
+        },
+        async ({ blockTracker, provider }) => {
+          const requestSpy = jest.spyOn(provider, 'request');
+
+          const latestBlockPromise = blockTracker.getLatestBlock();
+          await blockTracker.destroy();
+
+          await expect(latestBlockPromise).rejects.toThrow(
+            'Block tracker destroyed',
+          );
+          expect(requestSpy).toHaveBeenCalledTimes(1);
+          expect(requestSpy).toHaveBeenCalledWith({
+            jsonrpc: '2.0',
+            id: expect.any(Number),
+            method: 'eth_blockNumber',
+            params: [],
+          });
+        },
+      );
+    });
+
+    it('should return a promise that resolves when a new block is available', async () => {
+      recordCallsToSetTimeout();
+
+      await withPollingBlockTracker(
+        {
+          provider: {
+            stubs: [
+              {
+                methodName: 'eth_blockNumber',
+                result: '0x1',
+              },
+            ],
+          },
+        },
+        async ({ blockTracker }) => {
+          expect(await blockTracker.getLatestBlock()).toBe('0x1');
+        },
+      );
+    });
+
+    it('should resolve all returned promises when a new block is available', async () => {
+      recordCallsToSetTimeout();
+
+      await withPollingBlockTracker(
+        {
+          provider: {
+            stubs: [
+              {
+                methodName: 'eth_blockNumber',
+                result: '0x1',
+              },
+            ],
+          },
+        },
+        async ({ blockTracker }) => {
+          const promises = [
+            blockTracker.getLatestBlock(),
+            blockTracker.getLatestBlock(),
+          ];
+
+          expect(await Promise.all(promises)).toStrictEqual(['0x1', '0x1']);
+        },
+      );
+    });
+
     it('request the latest block number with `skipCache: true` if the block tracker was initialized with `setSkipCacheFlag: true`', async () => {
       recordCallsToSetTimeout();
 
@@ -573,6 +679,33 @@ describe('PollingBlockTracker', () => {
         await blockTracker.checkForLatestBlock();
         expect(blockTracker.isRunning()).toBe(false);
       });
+    });
+
+    it('should return the same promise if called multiple times', async () => {
+      await withPollingBlockTracker(
+        {
+          provider: {
+            stubs: [
+              {
+                methodName: 'eth_blockNumber',
+                result: '0x0',
+              },
+              {
+                methodName: 'eth_blockNumber',
+                result: '0x1',
+              },
+            ],
+          },
+        },
+        async ({ blockTracker }) => {
+          const promiseToCheckLatestBlock1 = blockTracker.checkForLatestBlock();
+          const promiseToCheckLatestBlock2 = blockTracker.checkForLatestBlock();
+
+          expect(promiseToCheckLatestBlock1).toStrictEqual(
+            promiseToCheckLatestBlock2,
+          );
+        },
+      );
     });
 
     it('should fetch the latest block number', async () => {

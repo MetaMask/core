@@ -151,6 +151,44 @@ describe('SubscribeBlockTracker', () => {
         });
       });
 
+      it('should resolve all returned promises when a new block is available', async () => {
+        recordCallsToSetTimeout();
+
+        await withSubscribeBlockTracker(
+          {
+            provider: {
+              stubs: [
+                {
+                  methodName: 'eth_blockNumber',
+                  result: '0x1',
+                },
+              ],
+            },
+          },
+          async ({ blockTracker }) => {
+            const promises = [
+              blockTracker.getLatestBlock(),
+              blockTracker.getLatestBlock(),
+            ];
+
+            expect(await Promise.all(promises)).toStrictEqual(['0x1', '0x1']);
+          },
+        );
+      });
+
+      it('should reject the returned promise if the block tracker is destroyed in the meantime', async () => {
+        await withSubscribeBlockTracker(async ({ blockTracker }) => {
+          const promiseToGetLatestBlock =
+            blockTracker[methodToGetLatestBlock]();
+          await blockTracker.destroy();
+
+          await expect(promiseToGetLatestBlock).rejects.toThrow(
+            'Block tracker destroyed',
+          );
+          expect(blockTracker.isRunning()).toBe(false);
+        });
+      });
+
       it('should fetch the latest block number', async () => {
         recordCallsToSetTimeout();
 
@@ -251,7 +289,7 @@ describe('SubscribeBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request for the latest block number, the provider throws an Error`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should reject if, while making the request for the latest block number, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownError = new Error('boom');
 
@@ -269,21 +307,19 @@ describe('SubscribeBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const listener = jest.fn();
+              blockTracker[methodToAddListener]('error', listener);
 
               const promiseForLatestBlock =
                 blockTracker[methodToGetLatestBlock]();
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError).toBe(thrownError);
-              await expect(promiseForLatestBlock).toNeverResolve();
+              await expect(promiseForLatestBlock).rejects.toThrow(thrownError);
+              expect(listener).toHaveBeenCalledWith(thrownError);
             },
           );
         });
 
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request for the latest block number, the provider throws a string`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should reject if, while making the request for the latest block number, the provider throws a string`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownString = 'boom';
 
@@ -301,21 +337,19 @@ describe('SubscribeBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const listener = jest.fn();
+              blockTracker[methodToAddListener]('error', listener);
 
               const promiseForLatestBlock =
                 blockTracker[methodToGetLatestBlock]();
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError).toBe(thrownString);
-              await expect(promiseForLatestBlock).toNeverResolve();
+              await expect(promiseForLatestBlock).rejects.toBe(thrownString);
+              expect(listener).toHaveBeenCalledWith(thrownString);
             },
           );
         });
 
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request for the latest block number, the provider rejects with an error`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should reject if, while making the request for the latest block number, the provider rejects with an error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withSubscribeBlockTracker(
@@ -330,21 +364,19 @@ describe('SubscribeBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const listener = jest.fn();
+              blockTracker[methodToAddListener]('error', listener);
 
               const promiseForLatestBlock =
                 blockTracker[methodToGetLatestBlock]();
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toBe('boom');
-              await expect(promiseForLatestBlock).toNeverResolve();
+              await expect(promiseForLatestBlock).rejects.toThrow('boom');
+              expect(listener).toHaveBeenCalledWith(new Error('boom'));
             },
           );
         });
 
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request to subscribe, the provider throws an Error`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should reject if, while making the request to subscribe, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownError = new Error('boom');
 
@@ -362,21 +394,19 @@ describe('SubscribeBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const listener = jest.fn();
+              blockTracker[methodToAddListener]('error', listener);
 
               const promiseForLatestBlock =
                 blockTracker[methodToGetLatestBlock]();
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError).toBe(thrownError);
-              await expect(promiseForLatestBlock).toNeverResolve();
+              await expect(promiseForLatestBlock).rejects.toThrow(thrownError);
+              expect(listener).toHaveBeenCalledWith(thrownError);
             },
           );
         });
 
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request to subscribe, the provider throws a string`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should reject if, while making the request to subscribe, the provider throws a string`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownString = 'boom';
 
@@ -394,21 +424,19 @@ describe('SubscribeBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const listener = jest.fn();
+              blockTracker[methodToAddListener]('error', listener);
 
               const promiseForLatestBlock =
                 blockTracker[methodToGetLatestBlock]();
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError).toBe(thrownString);
-              await expect(promiseForLatestBlock).toNeverResolve();
+              await expect(promiseForLatestBlock).rejects.toBe(thrownString);
+              expect(listener).toHaveBeenCalledWith(thrownString);
             },
           );
         });
 
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request to subscribe, the provider rejects with an error`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should reject if, while making the request to subscribe, the provider rejects with an error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withSubscribeBlockTracker(
@@ -423,16 +451,14 @@ describe('SubscribeBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const listener = jest.fn();
+              blockTracker[methodToAddListener]('error', listener);
 
               const promiseForLatestBlock =
                 blockTracker[methodToGetLatestBlock]();
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toBe('boom');
-              await expect(promiseForLatestBlock).toNeverResolve();
+              await expect(promiseForLatestBlock).rejects.toThrow('boom');
+              expect(listener).toHaveBeenCalledWith(new Error('boom'));
             },
           );
         });

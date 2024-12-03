@@ -1,6 +1,11 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import type { Json, JsonRpcNotification } from '@metamask/utils';
+import {
+  createDeferredPromise,
+  type DeferredPromise,
+  type Json,
+  type JsonRpcNotification,
+} from '@metamask/utils';
 import getCreateRandomId from 'json-rpc-random-id';
 
 import type { BlockTracker } from './BlockTracker';
@@ -9,8 +14,6 @@ const createRandomId = getCreateRandomId();
 
 const sec = 1000;
 
-const calculateSum = (accumulator: number, currentValue: number) =>
-  accumulator + currentValue;
 const blockTrackerEvents: (string | symbol)[] = ['sync', 'latest'];
 
 export interface SubscribeBlockTrackerOptions {
@@ -24,6 +27,8 @@ interface SubscriptionNotificationParams {
   subscription: string;
   result: { number: string };
 }
+
+type InternalListener = (value: string) => void;
 
 export class SubscribeBlockTracker
   extends SafeEventEmitter
@@ -42,6 +47,10 @@ export class SubscribeBlockTracker
   private readonly _provider: SafeEventEmitterProvider;
 
   private _subscriptionId: string | null;
+
+  readonly #internalEventListeners: InternalListener[] = [];
+
+  #pendingLatestBlock?: Omit<DeferredPromise<string>, 'resolve'>;
 
   constructor(opts: SubscribeBlockTrackerOptions = {}) {
     // parse + validate args
@@ -75,6 +84,7 @@ export class SubscribeBlockTracker
     this._cancelBlockResetTimeout();
     await this._maybeEnd();
     super.removeAllListeners();
+    this.#rejectPendingLatestBlock(new Error('Block tracker destroyed'));
   }
 
   isRunning(): boolean {
@@ -89,13 +99,24 @@ export class SubscribeBlockTracker
     // return if available
     if (this._currentBlock) {
       return this._currentBlock;
+    } else if (this.#pendingLatestBlock) {
+      return await this.#pendingLatestBlock.promise;
     }
+
+    const { resolve, reject, promise } = createDeferredPromise<string>({
+      suppressUnhandledRejection: true,
+    });
+    this.#pendingLatestBlock = { reject, promise };
+
     // wait for a new latest block
-    const latestBlock: string = await new Promise((resolve) =>
-      this.once('latest', resolve),
-    );
-    // return newly set current block
-    return latestBlock;
+    const onLatestBlock = (value: string) => {
+      this.#removeInternalListener(onLatestBlock);
+      resolve(value);
+      this.#pendingLatestBlock = undefined;
+    };
+    this.#addInternalListener(onLatestBlock);
+    this.once('latest', onLatestBlock);
+    return await promise;
   }
 
   // dont allow module consumer to remove our internal event listeners
@@ -162,9 +183,17 @@ export class SubscribeBlockTracker
   }
 
   private _getBlockTrackerEventCount(): number {
-    return blockTrackerEvents
-      .map((eventName) => this.listenerCount(eventName))
-      .reduce(calculateSum);
+    return (
+      blockTrackerEvents
+        .map((eventName) => this.listeners(eventName))
+        .flat()
+        // internal listeners are not included in the count
+        .filter((listener) =>
+          this.#internalEventListeners.every(
+            (internalListener) => !Object.is(internalListener, listener),
+          ),
+        ).length
+    );
   }
 
   private _shouldUseNewBlock(newBlock: string) {
@@ -236,6 +265,7 @@ export class SubscribeBlockTracker
         this._newPotentialLatest(blockNumber);
       } catch (e) {
         this.emit('error', e);
+        this.#rejectPendingLatestBlock(e);
       }
     }
   }
@@ -247,6 +277,7 @@ export class SubscribeBlockTracker
         this._subscriptionId = null;
       } catch (e) {
         this.emit('error', e);
+        this.#rejectPendingLatestBlock(e);
       }
     }
   }
@@ -270,6 +301,22 @@ export class SubscribeBlockTracker
     ) {
       this._newPotentialLatest(response.params.result.number);
     }
+  }
+
+  #addInternalListener(listener: InternalListener) {
+    this.#internalEventListeners.push(listener);
+  }
+
+  #removeInternalListener(listener: InternalListener) {
+    this.#internalEventListeners.splice(
+      this.#internalEventListeners.indexOf(listener),
+      1,
+    );
+  }
+
+  #rejectPendingLatestBlock(error: unknown) {
+    this.#pendingLatestBlock?.reject(error);
+    this.#pendingLatestBlock = undefined;
   }
 }
 
