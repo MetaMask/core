@@ -3,7 +3,6 @@ import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 
 import { JsonRpcEngine } from '../../json-rpc-engine/src';
-import { TestController } from './BaseControllerV1.test';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -196,14 +195,8 @@ describe('isBaseController', () => {
     expect(isBaseController(controller)).toBe(true);
   });
 
-  it('should return false if passed a V1 controller', () => {
-    const controller = new TestController();
-    expect(isBaseController(controller)).toBe(false);
-  });
-
   it('should return false if passed a non-controller', () => {
     const notController = new JsonRpcEngine();
-    // @ts-expect-error Intentionally passing invalid input to test runtime behavior
     expect(isBaseController(notController)).toBe(false);
   });
 });
