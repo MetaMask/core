@@ -79,7 +79,7 @@
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^10.1.0",
+    "@metamask/keyring-api": "^11.1.0",
     "@metamask/keyring-controller": "^19.0.1",
     "@metamask/network-controller": "^22.1.0",
     "@metamask/preferences-controller": "^15.0.1",
