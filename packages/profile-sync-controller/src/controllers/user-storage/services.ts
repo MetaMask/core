@@ -88,26 +88,19 @@ export async function getUserStorage(
       return null;
     }
 
-    try {
-      const decryptedData = await encryption.decryptString(
-        encryptedData,
-        opts.storageKey,
-        nativeScryptCrypto,
-      );
+    const decryptedData = await encryption.decryptString(
+      encryptedData,
+      opts.storageKey,
+      nativeScryptCrypto,
+    );
 
-      // Re-encrypt and re-upload the entry if the salt is random
-      const salt = encryption.getSalt(encryptedData);
-      if (salt.toString() !== SHARED_SALT.toString()) {
-        await upsertUserStorage(decryptedData, opts);
-      }
-
-      return decryptedData;
-    } catch {
-      // If the data cannot be decrypted, delete it from user storage
-      await deleteUserStorage(opts);
-
-      return null;
+    // Re-encrypt and re-upload the entry if the salt is random
+    const salt = encryption.getSalt(encryptedData);
+    if (salt.toString() !== SHARED_SALT.toString()) {
+      await upsertUserStorage(decryptedData, opts);
     }
+
+    return decryptedData;
   } catch (e) {
     log.error('Failed to get user storage', e);
     return null;
@@ -152,7 +145,6 @@ export async function getUserStorageAllFeatureEntries(
 
     const decryptedData: string[] = [];
     const reEncryptedEntries: [string, string][] = [];
-    const entriesToDelete: string[] = [];
 
     for (const entry of userStorage) {
       /* istanbul ignore if - unreachable if statement, but kept as edge case */
@@ -181,8 +173,7 @@ export async function getUserStorageAllFeatureEntries(
           ]);
         }
       } catch {
-        // If the data cannot be decrypted, delete it from user storage
-        entriesToDelete.push(entry.HashedKey);
+        // do nothing
       }
     }
 
@@ -190,14 +181,6 @@ export async function getUserStorageAllFeatureEntries(
     if (reEncryptedEntries.length) {
       await batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
         reEncryptedEntries,
-        opts,
-      );
-    }
-
-    // Delete the entries that cannot be decrypted
-    if (entriesToDelete.length) {
-      await batchDeleteUserStorageWithAlreadyHashedEntries(
-        entriesToDelete,
         opts,
       );
     }
@@ -348,40 +331,6 @@ export async function deleteUserStorage(
 
   if (!userStorageResponse.ok) {
     throw new Error('user-storage - unable to delete data');
-  }
-}
-
-/**
- * User Storage Service - Delete multiple storage entries for one specific feature.
- * You cannot use this method to delete multiple features at once.
- *
- * @param encryptedData - data to delete, in the form of an array hashedKey[]
- * @param opts - storage options
- */
-export async function batchDeleteUserStorageWithAlreadyHashedEntries(
-  encryptedData: string[],
-  opts: UserStorageBatchUpsertOptions,
-): Promise<void> {
-  if (!encryptedData.length) {
-    return;
-  }
-
-  const { bearerToken, path } = opts;
-
-  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
-
-  const res = await fetch(url.toString(), {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${bearerToken}`,
-    },
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    body: JSON.stringify({ batch_delete: encryptedData }),
-  });
-
-  if (!res.ok) {
-    throw new Error('user-storage - unable to batch delete data');
   }
 }
 

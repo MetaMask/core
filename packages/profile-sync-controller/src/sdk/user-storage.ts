@@ -68,9 +68,7 @@ export class UserStorage {
     await this.#batchUpsertUserStorage(path, values);
   }
 
-  async getItem(
-    path: UserStoragePathWithFeatureAndKey,
-  ): Promise<string | null> {
+  async getItem(path: UserStoragePathWithFeatureAndKey): Promise<string> {
     return this.#getUserStorage(path);
   }
 
@@ -246,7 +244,7 @@ export class UserStorage {
 
   async #getUserStorage(
     path: UserStoragePathWithFeatureAndKey,
-  ): Promise<string | null> {
+  ): Promise<string> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
@@ -275,26 +273,18 @@ export class UserStorage {
       }
 
       const { Data: encryptedData } = await response.json();
+      const decryptedData = await encryption.decryptString(
+        encryptedData,
+        storageKey,
+      );
 
-      try {
-        const decryptedData = await encryption.decryptString(
-          encryptedData,
-          storageKey,
-        );
-
-        // Re-encrypt the entry if it was encrypted with a random salt
-        const salt = encryption.getSalt(encryptedData);
-        if (salt.toString() !== SHARED_SALT.toString()) {
-          await this.#upsertUserStorage(path, decryptedData);
-        }
-
-        return decryptedData;
-      } catch {
-        // If the data cannot be decrypted, delete it from user storage
-        await this.#deleteUserStorage(path);
-
-        return null;
+      // Re-encrypt the entry if it was encrypted with a random salt
+      const salt = encryption.getSalt(encryptedData);
+      if (salt.toString() !== SHARED_SALT.toString()) {
+        await this.#upsertUserStorage(path, decryptedData);
       }
+
+      return decryptedData;
     } catch (e) {
       if (e instanceof NotFoundError) {
         throw e;
@@ -346,7 +336,6 @@ export class UserStorage {
 
       const decryptedData: string[] = [];
       const reEncryptedEntries: [string, string][] = [];
-      const entriesToDelete: string[] = [];
 
       for (const entry of userStorage) {
         if (!entry.Data) {
@@ -366,8 +355,7 @@ export class UserStorage {
             ]);
           }
         } catch {
-          // If the data cannot be decrypted, delete it from user storage
-          entriesToDelete.push(entry.HashedKey);
+          // do nothing
         }
       }
 
@@ -376,14 +364,6 @@ export class UserStorage {
         await this.#batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
           path,
           reEncryptedEntries,
-        );
-      }
-
-      // Delete entries that could not be decrypted
-      if (entriesToDelete.length) {
-        await this.#batchDeleteUserStorageWithAlreadyHashedEntries(
-          path,
-          entriesToDelete,
         );
       }
 
@@ -504,48 +484,6 @@ export class UserStorage {
       const encryptedData = await Promise.all(
         data.map(async (d) => this.#createEntryKey(d, storageKey)),
       );
-
-      const url = new URL(STORAGE_URL(this.env, path));
-
-      const response = await fetch(url.toString(), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers,
-        },
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        body: JSON.stringify({ batch_delete: encryptedData }),
-      });
-
-      if (!response.ok) {
-        const responseBody: ErrorMessage = await response.json().catch(() => ({
-          message: 'unknown',
-          error: 'unknown',
-        }));
-        throw new Error(
-          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
-        );
-      }
-    } catch (e) {
-      /* istanbul ignore next */
-      const errorMessage =
-        e instanceof Error ? e.message : JSON.stringify(e ?? '');
-      throw new UserStorageError(
-        `failed to batch delete user storage for path '${path}'. ${errorMessage}`,
-      );
-    }
-  }
-
-  async #batchDeleteUserStorageWithAlreadyHashedEntries(
-    path: UserStoragePathWithFeatureOnly,
-    encryptedData: string[],
-  ): Promise<void> {
-    try {
-      if (!encryptedData.length) {
-        return;
-      }
-
-      const headers = await this.#getAuthorizationHeader();
 
       const url = new URL(STORAGE_URL(this.env, path));
 

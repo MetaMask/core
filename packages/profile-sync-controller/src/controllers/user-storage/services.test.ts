@@ -26,7 +26,6 @@ import {
   deleteUserStorageAllFeatureEntries,
   deleteUserStorage,
   batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries,
-  batchDeleteUserStorageWithAlreadyHashedEntries,
 } from './services';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
@@ -125,30 +124,6 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
     mockUpsertUserStorage.done();
     expect(result).toBe(DECRYPED_DATA);
   });
-
-  it('deletes entry if unable to decrypt data', async () => {
-    const badResponseData: GetUserStorageResponse = {
-      HashedKey: 'MOCK_HASH',
-      Data: 'Bad Encrypted Data',
-    };
-    const mockGetUserStorage = await mockEndpointGetUserStorage(
-      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-      {
-        status: 200,
-        body: badResponseData,
-      },
-    );
-
-    const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
-      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-    );
-
-    const result = await actCallGetUserStorage();
-
-    mockGetUserStorage.done();
-    expect(mockDeleteUserStorage.isDone()).toBe(true);
-    expect(result).toBeNull();
-  });
 });
 
 describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', () => {
@@ -231,61 +206,6 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
     mockGetUserStorageAllFeatureEntries.done();
     mockBatchUpsertUserStorage.done();
     expect(result).toStrictEqual(['data1', 'data2', MOCK_STORAGE_DATA]);
-  });
-
-  it('deletes entries if unable to decrypt data', async () => {
-    // This corresponds to [['entry1', 'data1'], ['entry2', 'data2'], ['HASHED_KEY', 'Bad Encrypted Data']]
-    // Each entry has been encrypted with a random salt, except for the last entry
-    // The last entry is used to test if the function can handle entries with both random salts and the shared salt, mixed with bad data
-    const mockResponse = [
-      {
-        HashedKey: 'entry1',
-        Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
-      },
-      {
-        HashedKey: 'entry2',
-        Data: '{"v":"1","t":"scrypt","d":"3ioo9bxhjDjTmJWIGQMnOlnfa4ysuUNeLYTTmJ+qrq7gwI6hURH3ooUcBldJkHtvuQ==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
-      },
-      {
-        HashedKey: 'HASHED_KEY',
-        Data: 'Bad Encrypted Data',
-      },
-    ];
-
-    const mockGetUserStorageAllFeatureEntries =
-      await mockEndpointGetUserStorageAllFeatureEntries(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-        {
-          status: 200,
-          body: JSON.stringify(mockResponse),
-        },
-      );
-
-    const mockBatchUpsertUserStorage = mockEndpointBatchUpsertUserStorage(
-      USER_STORAGE_FEATURE_NAMES.notifications,
-    );
-
-    const mockBatchDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
-      USER_STORAGE_FEATURE_NAMES.notifications,
-      undefined,
-      async (_uri, requestBody) => {
-        console.log('requestBody', requestBody);
-        if (typeof requestBody === 'string') {
-          return;
-        }
-
-        const expectedBody = ['HASHED_KEY'];
-
-        expect(requestBody.batch_delete).toStrictEqual(expectedBody);
-      },
-    );
-
-    const result = await actCallGetUserStorageAllFeatureEntries();
-
-    mockGetUserStorageAllFeatureEntries.done();
-    expect(mockBatchUpsertUserStorage.isDone()).toBe(true);
-    expect(mockBatchDeleteUserStorage.isDone()).toBe(true);
-    expect(result).toStrictEqual(['data1', 'data2']);
   });
 
   it('returns null if endpoint does not have entry', async () => {
@@ -704,74 +624,12 @@ describe('user-storage/services.ts - batchDeleteUserStorage() tests', () => {
   });
 
   it('does nothing if empty data is provided', async () => {
-    const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
-      USER_STORAGE_FEATURE_NAMES.accounts,
-    );
+    const mockDeleteUserStorage =
+      mockEndpointBatchDeleteUserStorage('accounts_v2');
 
     await batchDeleteUserStorage([], {
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: USER_STORAGE_FEATURE_NAMES.accounts,
-      storageKey: MOCK_STORAGE_KEY,
-    });
-
-    expect(mockDeleteUserStorage.isDone()).toBe(false);
-  });
-});
-
-describe('user-storage/services.ts - batchDeleteUserStorageWithAlreadyHashedEntries() tests', () => {
-  const keysToDelete = [
-    createSHA256Hash(`0x123${MOCK_STORAGE_KEY}`),
-    createSHA256Hash(`0x456${MOCK_STORAGE_KEY}`),
-  ];
-
-  const actCallBatchDeleteUserStorage = async () => {
-    return await batchDeleteUserStorageWithAlreadyHashedEntries(keysToDelete, {
-      bearerToken: 'MOCK_BEARER_TOKEN',
-      path: USER_STORAGE_FEATURE_NAMES.accounts,
-      storageKey: MOCK_STORAGE_KEY,
-    });
-  };
-
-  it('invokes upsert endpoint with no errors', async () => {
-    const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
-      USER_STORAGE_FEATURE_NAMES.accounts,
-      undefined,
-      async (_uri, requestBody) => {
-        if (typeof requestBody === 'string') {
-          return;
-        }
-
-        expect(requestBody.batch_delete).toStrictEqual(keysToDelete);
-      },
-    );
-
-    await actCallBatchDeleteUserStorage();
-
-    expect(mockDeleteUserStorage.isDone()).toBe(true);
-  });
-
-  it('throws error if unable to upsert user storage', async () => {
-    const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
-      USER_STORAGE_FEATURE_NAMES.accounts,
-      {
-        status: 500,
-      },
-    );
-
-    await expect(actCallBatchDeleteUserStorage()).rejects.toThrow(
-      expect.any(Error),
-    );
-    mockDeleteUserStorage.done();
-  });
-
-  it('does nothing if empty data is provided', async () => {
-    const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
-      USER_STORAGE_FEATURE_NAMES.accounts,
-    );
-
-    await batchDeleteUserStorage([], {
-      bearerToken: 'MOCK_BEARER_TOKEN',
-      path: USER_STORAGE_FEATURE_NAMES.accounts,
+      path: 'accounts_v2',
       storageKey: MOCK_STORAGE_KEY,
     });
 
