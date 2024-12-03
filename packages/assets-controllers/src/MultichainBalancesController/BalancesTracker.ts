@@ -64,6 +64,7 @@ export class BalancesTracker {
    * @param blockTime - The block time (used when refreshing the account balances).
    */
   track(accountId: string, blockTime: number) {
+    console.log('track', accountId, blockTime);
     // Do not overwrite current info if already being tracked!
     if (!this.isTracked(accountId)) {
       this.#balances[accountId] = {

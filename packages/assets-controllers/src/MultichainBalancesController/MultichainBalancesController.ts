@@ -159,6 +159,7 @@ export class MultichainBalancesController extends BaseController<
       },
     });
 
+    console.log('Construct MultichainBalancesController');
     this.#tracker = new BalancesTracker(
       async (accountId: string) => await this.#updateBalance(accountId),
     );
@@ -269,6 +270,8 @@ export class MultichainBalancesController extends BaseController<
     const scope = getScopeForAddress(account);
     const assetsList = this.#networkAssetsMap[scope];
 
+    console.log({ account, scope, assetsList });
+
     if (account.metadata.snap) {
       partialState.balances[account.id] = await this.#getBalances(
         account.id,
@@ -276,6 +279,8 @@ export class MultichainBalancesController extends BaseController<
         assetsList,
       );
     }
+
+    console.log({ partialState });
 
     this.update((state: Draft<MultichainBalancesControllerState>) => ({
       ...state,
@@ -295,6 +300,7 @@ export class MultichainBalancesController extends BaseController<
   async updateBalance(accountId: string) {
     // NOTE: No need to track the account here, since we start tracking those when
     // the "AccountsController:accountAdded" is fired.
+    console.log('update balance for account', accountId);
     await this.#tracker.updateBalance(accountId);
   }
 
@@ -303,7 +309,9 @@ export class MultichainBalancesController extends BaseController<
    * anything, but it updates the state of the controller.
    */
   async updateBalances() {
+    console.log('update balances');
     await this.#tracker.updateBalances();
+    console.log('STATE = ', this.state);
   }
 
   /**
@@ -326,6 +334,7 @@ export class MultichainBalancesController extends BaseController<
    * @param account - The new account being added.
    */
   async #handleOnAccountAdded(account: InternalAccount) {
+    console.log('handleOnAccountAdded', account.id);
     this.#trackAccount(account);
     // NOTE: Unfortunately, we cannot update the balance right away here, because
     // messenger's events are running synchronously and fetching the balance is
