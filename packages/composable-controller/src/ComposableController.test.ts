@@ -168,40 +168,40 @@ class BazController extends BaseControllerV1<never, BazControllerState> {
   }
 }
 
-type QuxControllerState = {
+type ControllerWithoutStateChangeEventState = {
   qux: string;
 };
 
-type QuxMessenger = RestrictedControllerMessenger<
-  'QuxController',
+type ControllerWithoutStateChangeEventMessenger = RestrictedControllerMessenger<
+  'ControllerWithoutStateChangeEvent',
   never,
-  never,
+  QuzControllerEvent,
   never,
   QuzControllerEvent['type']
 >;
 
-const quxControllerStateMetadata = {
+const controllerWithoutStateChangeEventStateMetadata = {
   qux: {
     persist: true,
     anonymous: true,
   },
 };
 
-class QuxController extends BaseController<
-  'QuxController',
-  QuxControllerState,
-  QuxMessenger
+class ControllerWithoutStateChangeEvent extends BaseController<
+  'ControllerWithoutStateChangeEvent',
+  ControllerWithoutStateChangeEventState,
+  ControllerWithoutStateChangeEventMessenger
 > {
-  constructor(messagingSystem: QuxMessenger) {
+  constructor(messagingSystem: ControllerWithoutStateChangeEventMessenger) {
     super({
       messenger: messagingSystem,
-      metadata: quxControllerStateMetadata,
-      name: 'QuxController',
+      metadata: controllerWithoutStateChangeEventStateMetadata,
+      name: 'ControllerWithoutStateChangeEvent',
       state: { qux: 'qux' },
     });
   }
 
-  updateQux(qux: string) {
+  updateState(qux: string) {
     super.update((state) => {
       state.qux = qux;
     });
@@ -213,7 +213,7 @@ type ControllersMap = {
   QuzController: QuzController;
   BarController: BarController;
   BazController: BazController;
-  QuxController: QuzController;
+  ControllerWithoutStateChangeEvent: ControllerWithoutStateChangeEvent;
 };
 
 describe('ComposableController', () => {
@@ -621,12 +621,16 @@ describe('ComposableController', () => {
       never,
       FooControllerEvent
     >();
-    const quxControllerMessenger = controllerMessenger.getRestricted({
-      name: 'QuxController',
-      allowedActions: [],
-      allowedEvents: [],
-    });
-    const quxController = new QuxController(quxControllerMessenger);
+    const controllerWithoutStateChangeEventMessenger =
+      controllerMessenger.getRestricted({
+        name: 'ControllerWithoutStateChangeEvent',
+        allowedActions: [],
+        allowedEvents: [],
+      });
+    const controllerWithoutStateChangeEvent =
+      new ControllerWithoutStateChangeEvent(
+        controllerWithoutStateChangeEventMessenger,
+      );
     const fooControllerMessenger = controllerMessenger.getRestricted({
       name: 'FooController',
       allowedActions: [],
@@ -637,7 +641,8 @@ describe('ComposableController', () => {
       () =>
         new ComposableController({
           controllers: {
-            QuxController: quxController,
+            ControllerWithoutStateChangeEvent:
+              controllerWithoutStateChangeEvent,
             FooController: fooController,
           },
           messenger: controllerMessenger.getRestricted({
