@@ -168,11 +168,52 @@ class BazController extends BaseControllerV1<never, BazControllerState> {
   }
 }
 
+type QuxControllerState = {
+  qux: string;
+};
+
+type QuxMessenger = RestrictedControllerMessenger<
+  'QuxController',
+  never,
+  never,
+  never,
+  QuzControllerEvent['type']
+>;
+
+const quxControllerStateMetadata = {
+  qux: {
+    persist: true,
+    anonymous: true,
+  },
+};
+
+class QuxController extends BaseController<
+  'QuxController',
+  QuxControllerState,
+  QuxMessenger
+> {
+  constructor(messagingSystem: QuxMessenger) {
+    super({
+      messenger: messagingSystem,
+      metadata: quxControllerStateMetadata,
+      name: 'QuxController',
+      state: { qux: 'qux' },
+    });
+  }
+
+  updateQux(qux: string) {
+    super.update((state) => {
+      state.qux = qux;
+    });
+  }
+}
+
 type ControllersMap = {
   FooController: FooController;
   QuzController: QuzController;
   BarController: BarController;
   BazController: BazController;
+  QuxController: QuzController;
 };
 
 describe('ComposableController', () => {
@@ -573,5 +614,71 @@ describe('ComposableController', () => {
           }),
       ).toThrow(INVALID_CONTROLLER_ERROR);
     });
+  });
+
+  it('should not throw if composing a controller without a `stateChange` event', () => {
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      FooControllerEvent
+    >();
+    const quxControllerMessenger = controllerMessenger.getRestricted({
+      name: 'QuxController',
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const quxController = new QuxController(quxControllerMessenger);
+    const fooControllerMessenger = controllerMessenger.getRestricted({
+      name: 'FooController',
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const fooController = new FooController(fooControllerMessenger);
+    expect(
+      () =>
+        new ComposableController({
+          controllers: {
+            QuxController: quxController,
+            FooController: fooController,
+          },
+          messenger: controllerMessenger.getRestricted({
+            name: 'ComposableController',
+            allowedActions: [],
+            allowedEvents: ['FooController:stateChange'],
+          }),
+        }),
+    ).not.toThrow();
+  });
+
+  it('should not throw if a child controller `stateChange` event is missing from the messenger events allowlist', () => {
+    const controllerMessenger = new ControllerMessenger<
+      never,
+      FooControllerEvent | QuzControllerEvent
+    >();
+    const QuzControllerMessenger = controllerMessenger.getRestricted({
+      name: 'QuzController',
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const quzController = new QuzController(QuzControllerMessenger);
+    const fooControllerMessenger = controllerMessenger.getRestricted({
+      name: 'FooController',
+      allowedActions: [],
+      allowedEvents: [],
+    });
+    const fooController = new FooController(fooControllerMessenger);
+    expect(
+      () =>
+        new ComposableController({
+          controllers: {
+            QuzController: quzController,
+            FooController: fooController,
+          },
+          messenger: controllerMessenger.getRestricted({
+            name: 'ComposableController',
+            allowedActions: [],
+            allowedEvents: ['FooController:stateChange'],
+          }),
+        }),
+    ).not.toThrow();
   });
 });
