@@ -845,6 +845,57 @@ describe('TokensController', () => {
       );
     });
 
+    it('should add tokens to allIgnoredTokens state only if we are not using current network', async () => {
+      const selectedAddress = '0x0001';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+
+      await withController(
+        {
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
+          // Select the first account
+          triggerSelectedAccountChange(selectedAccount);
+
+          // Add tokens to sepolia
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'Token1',
+            decimals: 18,
+          });
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          // switch to goerli
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
+
+          // Add tokens to goerli
+          await controller.addToken({
+            address: '0x02',
+            symbol: 'Token2',
+            decimals: 8,
+          });
+
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          // ignore token on sepolia
+          controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
+
+          // as we are not on sepolia, tokens, ignoredTokens, and detectedTokens should not be affected
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(controller.state.detectedTokens).toHaveLength(0);
+        },
+      );
+    });
+
     it('should not retain ignored tokens from a different network', async () => {
       const selectedAddress = '0x0001';
       const selectedAccount = createMockInternalAccount({
