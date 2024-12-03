@@ -193,12 +193,11 @@ export class ComposableController<
   #updateChildController(controller: ControllerInstance): void {
     const { name } = controller;
     if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
-      if (name in this.metadata && this.metadata[name]) {
+      try {
         delete this.metadata[name];
-      }
-      if (name in this.state && this.state[name]) {
         delete this.state[name];
-      }
+        // eslint-disable-next-line no-empty
+      } catch (_) {}
       // False negative. `name` is a string type.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
