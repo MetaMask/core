@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1]
+
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
@@ -77,7 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.1...HEAD
+[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.0...@metamask/chain-controller@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.3...@metamask/chain-controller@0.2.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...@metamask/chain-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.1...@metamask/chain-controller@0.1.2

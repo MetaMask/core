@@ -4,7 +4,6 @@
 # Note: Please keep this synchronized with the `teams.json` file in the repository root.
 # That file is used for some automated workflows, and maps controller to owning team(s).
 
-*                                    @MetaMask/engineering
 /.github/                            @MetaMask/wallet-framework-engineers
 
 ## Accounts Team
