@@ -150,6 +150,11 @@ export type {
 export {
   BalancesTracker,
   MultichainBalancesController,
+  // constants
+  BALANCE_UPDATE_INTERVALS,
+  NETWORK_ASSETS_MAP,
+  MultichainNetworks,
+  MultichainNativeAssets,
 } from './MultichainBalancesController';
 export type {
   MultichainBalancesControllerState,
