@@ -160,6 +160,7 @@ export class ComposableController<
 
     super({
       name: controllerName,
+      // This reduce operation intentionally reuses its output object. This provides a significant performance benefit over returning a new object on each iteration.
       metadata: Object.keys(controllers).reduce<
         StateMetadata<ComposableControllerState>
       >((metadata, name) => {
@@ -169,8 +170,10 @@ export class ComposableController<
         };
         return metadata;
       }, {} as never),
+      // This reduce operation intentionally reuses its output object. This provides a significant performance benefit over returning a new object on each iteration.
       state: Object.values(controllers).reduce<ComposableControllerState>(
         (state, controller) => {
+          // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
           (state as ComposableControllerStateConstraint)[controller.name] =
             controller.state;
           return state;
@@ -209,6 +212,7 @@ export class ComposableController<
         `${name}:stateChange`,
         (childState: LegacyControllerStateConstraint) => {
           this.update((state) => {
+            // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
             (state as ComposableControllerStateConstraint)[name] = childState;
           });
         },
@@ -221,6 +225,7 @@ export class ComposableController<
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState: StateConstraintV1) => {
         this.update((state) => {
+          // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
           (state as ComposableControllerStateConstraint)[name] = childState;
         });
       });
