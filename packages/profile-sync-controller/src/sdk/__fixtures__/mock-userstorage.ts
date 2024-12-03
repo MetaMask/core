@@ -41,7 +41,6 @@ export const handleMockUserStorageGet = async (mockReply?: MockReply) => {
     body: await MOCK_STORAGE_RESPONSE(),
   };
   const mockEndpoint = nock(MOCK_STORAGE_URL)
-    .persist()
     .get(/.*/u)
     .reply(reply.status, reply.body);
 
@@ -56,7 +55,6 @@ export const handleMockUserStorageGetAllFeatureEntries = async (
     body: [await MOCK_STORAGE_RESPONSE()],
   };
   const mockEndpoint = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
-    .persist()
     .get('')
     .reply(reply.status, reply.body);
 
@@ -69,7 +67,6 @@ export const handleMockUserStoragePut = (
 ) => {
   const reply = mockReply ?? { status: 204 };
   const mockEndpoint = nock(MOCK_STORAGE_URL)
-    .persist()
     .put(/.*/u)
     .reply(reply.status, async (uri, requestBody) => {
       return await callback?.(uri, requestBody);
@@ -84,7 +81,6 @@ export const handleMockUserStorageBatchDelete = (
 ) => {
   const reply = mockReply ?? { status: 204 };
   const mockEndpoint = nock(MOCK_STORAGE_URL)
-    .persist()
     .put(/.*/u)
     .reply(reply.status, async (uri, requestBody) => {
       return await callback?.(uri, requestBody);
@@ -95,10 +91,7 @@ export const handleMockUserStorageBatchDelete = (
 
 export const handleMockUserStorageDelete = async (mockReply?: MockReply) => {
   const reply = mockReply ?? { status: 204 };
-  const mockEndpoint = nock(MOCK_STORAGE_URL)
-    .persist()
-    .delete(/.*/u)
-    .reply(reply.status);
+  const mockEndpoint = nock(MOCK_STORAGE_URL).delete(/.*/u).reply(reply.status);
 
   return mockEndpoint;
 };
@@ -108,7 +101,6 @@ export const handleMockUserStorageDeleteAllFeatureEntries = async (
 ) => {
   const reply = mockReply ?? { status: 204 };
   const mockEndpoint = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
-    .persist()
     .delete('')
     .reply(reply.status);
 

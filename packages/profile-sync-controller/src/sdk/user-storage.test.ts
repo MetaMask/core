@@ -126,6 +126,28 @@ describe('User Storage', () => {
     expect(mockPut.isDone()).toBe(true);
   });
 
+  it('deletes entry if unable to decrypt data', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockGet = await handleMockUserStorageGet({
+      status: 200,
+      body: JSON.stringify({
+        HashedKey: 'entry1',
+        Data: 'invalid-encrypted-data',
+      }),
+    });
+
+    const mockDelete = await handleMockUserStorageDelete();
+
+    const result = await userStorage.getItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    );
+    expect(mockGet.isDone()).toBe(true);
+    expect(mockDelete.isDone()).toBe(true);
+    expect(result).toBeNull();
+  });
+
   it('gets all feature entries', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
@@ -198,6 +220,56 @@ describe('User Storage', () => {
     );
     expect(mockGetAll.isDone()).toBe(true);
     expect(mockPut.isDone()).toBe(true);
+  });
+
+  it('deletes entries if unable to decrypt data', async () => {
+    // This corresponds to [['entry1', 'data1'], ['entry2', 'invalid-encrypted-data'], ['HASHED_KEY', 'data3']]
+    // Each entry has been encrypted with a random salt, except for the last entry
+    // The last entry is used to test if the function can handle entries with both random salts and the shared salt, mixed with invalid data
+
+    const mockResponse = [
+      {
+        HashedKey: 'entry1',
+        Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+      },
+      {
+        HashedKey: 'entry2',
+        Data: 'invalid-encrypted-data',
+      },
+      await MOCK_STORAGE_RESPONSE('data3'),
+    ];
+
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries({
+      status: 200,
+      body: mockResponse,
+    });
+
+    const mockPut = handleMockUserStoragePut();
+
+    const mockDelete = handleMockUserStorageBatchDelete(
+      undefined,
+      async (_, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const expectedBody = ['entry2'];
+
+        expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+      },
+    );
+
+    const result = await userStorage.getAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+    );
+
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(mockPut.isDone()).toBe(true);
+    expect(mockDelete.isDone()).toBe(true);
+    expect(result).toStrictEqual(['data1', 'data3']);
   });
 
   it('batch set items', async () => {
