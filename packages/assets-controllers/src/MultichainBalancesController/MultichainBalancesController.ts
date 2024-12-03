@@ -22,8 +22,11 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { BalancesTracker } from './BalancesTracker';
-import { BALANCE_UPDATE_INTERVALS, NETWORK_ASSETS_MAP } from './constants';
+import {
+  BalancesTracker,
+  BALANCE_UPDATE_INTERVALS,
+  NETWORK_ASSETS_MAP,
+} from '.';
 import { getScopeForAddress } from './utils';
 
 const controllerName = 'MultichainBalancesController';
