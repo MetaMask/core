@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [3.0.1]
 
 ### Changed
@@ -69,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...HEAD
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.0...@metamask/build-utils@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.1...@metamask/build-utils@3.0.0
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.0...@metamask/build-utils@2.0.1
