@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `ComposableController` constructor option `controllers` and generic type argument `ChildControllers` are re-defined from an array of controller instances to an object that maps controller names to controller instances.
-- **BREAKING:** `ComposableController` class field objects `state` and `metadata` exclude child controllers that do not extend from `BaseController` or `BaseControllerV1`. Any non-controller entries that are passed into the constructor will be removed automatically.
+- **BREAKING:** `ComposableController` constructor option `controllers` and generic type argument `ChildControllers` are re-defined from an array of controller instances to an object that maps controller names to controller instances ([#4968](https://github.com/MetaMask/core/pull/4968))
+- **BREAKING:** `ComposableController` class field objects `state` and `metadata` exclude child controllers that do not extend from `BaseController` or `BaseControllerV1`. Any non-controller entries that are passed into the constructor will be removed automatically ([#4968](https://github.com/MetaMask/core/pull/4968))
 
 ### Fixed
 
-- **BREAKING:** `ComposableController` class field object `metadata` now assigns the `StateMetadataProperty`-type object `{ persist: true, anonymous: true }` to each child controller name.
+- **BREAKING:** `ComposableController` class field object `metadata` now assigns the `StateMetadataProperty`-type object `{ persist: true, anonymous: true }` to each child controller name ([#4968](https://github.com/MetaMask/core/pull/4968))
   - Previously, V2 child controllers were erroneously assigned their own metadata object. This issue was introduced in `@metamask/base-controller@6.0.0`.
 
 ## [9.0.1]
