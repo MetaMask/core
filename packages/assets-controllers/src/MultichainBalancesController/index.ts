@@ -1,3 +1,4 @@
+export { BalancesTracker } from './BalancesTracker';
 export { MultichainBalancesController } from './MultichainBalancesController';
 export type {
   MultichainBalancesControllerState,

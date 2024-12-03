@@ -147,7 +147,10 @@ export type {
   RatesControllerPollingStartedEvent,
   RatesControllerPollingStoppedEvent,
 } from './RatesController';
-export { MultichainBalancesController } from './MultichainBalancesController';
+export {
+  BalancesTracker,
+  MultichainBalancesController,
+} from './MultichainBalancesController';
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
