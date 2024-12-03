@@ -127,11 +127,11 @@ export type ComposableControllerMessenger<
  * Controller that composes multiple child controllers and maintains up-to-date composed state.
  *
  * @template ComposableControllerState - A type object containing the names and state types of the child controllers.
- * @template ChildControllers - A type object that specifies the child controllers which are used to instantiate the {@link ComposableController}.
+ * @template ChildControllersMap - A type object that specifies the child controllers which are used to instantiate the {@link ComposableController}.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
-  ChildControllers extends Record<
+  ChildControllersMap extends Record<
     keyof ComposableControllerState,
     ControllerInstance
   >,
@@ -151,7 +151,7 @@ export class ComposableController<
     controllers,
     messenger,
   }: {
-    controllers: ChildControllers;
+    controllers: ChildControllersMap;
     messenger: ComposableControllerMessenger<ComposableControllerState>;
   }) {
     if (messenger === undefined) {
