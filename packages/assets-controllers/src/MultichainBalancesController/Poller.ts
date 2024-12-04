@@ -16,9 +16,7 @@ export class Poller {
     }
 
     this.#handle = setInterval(() => {
-      this.#callback().catch((_error) => {
-        // Do nothing with the error for now
-      });
+      this.#callback().catch(console.error);
     }, this.#interval);
   }
 
