@@ -55,9 +55,6 @@ const config = createConfig(
       ],
     },
     settings: {
-      'import/resolver': {
-        typescript: {},
-      },
       jsdoc: {
         mode: 'typescript',
       },
