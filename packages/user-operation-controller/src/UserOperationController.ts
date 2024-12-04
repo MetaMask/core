@@ -25,6 +25,8 @@ import {
   type TransactionType,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -302,9 +304,9 @@ export class UserOperationController extends BaseController<
   }
 
   startPollingByNetworkClientId(networkClientId: string): string {
-    return this.#pendingUserOperationTracker.startPollingByNetworkClientId(
+    return this.#pendingUserOperationTracker.startPolling({
       networkClientId,
-    );
+    });
   }
 
   async #addUserOperation(

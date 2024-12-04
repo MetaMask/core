@@ -7,6 +7,7 @@ import type {
 import type { UserStorageController } from '@metamask/profile-sync-controller';
 import { AuthenticationController } from '@metamask/profile-sync-controller';
 
+import { createMockSnapNotification } from './__fixtures__';
 import {
   createMockFeatureAnnouncementAPIResult,
   createMockFeatureAnnouncementRaw,
@@ -25,6 +26,7 @@ import {
   mockMarkNotificationsAsRead,
 } from './__fixtures__/mockServices';
 import { waitFor } from './__fixtures__/test-utils';
+import { TRIGGER_TYPES } from './constants';
 import NotificationServicesController, {
   defaultState,
 } from './NotificationServicesController';
@@ -35,8 +37,11 @@ import type {
   NotificationServicesPushControllerDisablePushNotifications,
   NotificationServicesPushControllerUpdateTriggerPushNotifications,
 } from './NotificationServicesController';
+import { processFeatureAnnouncement } from './processors';
 import { processNotification } from './processors/process-notifications';
+import { processSnapNotification } from './processors/process-snap-notifications';
 import * as OnChainNotifications from './services/onchain-notifications';
+import type { INotification } from './types';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
 
@@ -306,6 +311,29 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
       );
     }
   });
+
+  it('creates new triggers if a user has chosen to reset notifications', async () => {
+    const {
+      messenger,
+      mockInitializeUserStorage,
+      mockEnablePushNotifications,
+      mockCreateOnChainTriggers,
+      mockPerformGetStorage,
+    } = arrangeMocks();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    const result = await controller.createOnChainTriggers({
+      resetNotifications: true,
+    });
+    expect(result).toBeDefined();
+    expect(mockPerformGetStorage).not.toHaveBeenCalled(); // not called as we are resetting notifications
+    expect(mockInitializeUserStorage).toHaveBeenCalled(); // called since no user storage (this is an existing user)
+    expect(mockCreateOnChainTriggers).toHaveBeenCalled();
+    expect(mockEnablePushNotifications).toHaveBeenCalled();
+  });
 });
 
 describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
@@ -449,23 +477,30 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
     };
   };
 
-  it('processes and shows feature announcements and wallet notifications', async () => {
+  it('processes and shows feature announcements, wallet and snap notifications', async () => {
     const {
       messenger,
       mockFeatureAnnouncementAPIResult,
       mockListNotificationsAPIResult,
     } = arrangeMocks();
 
+    const snapNotification = createMockSnapNotification();
+    const processedSnapNotification = processSnapNotification(snapNotification);
+
     const controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
+      state: {
+        ...defaultState,
+        isFeatureAnnouncementsEnabled: true,
+        metamaskNotificationsList: [processedSnapNotification],
+      },
     });
 
     const result = await controller.fetchAndUpdateMetamaskNotifications();
 
     // Should have 1 feature announcement and 1 wallet notification
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(3);
     expect(
       result.find(
         (n) => n.id === mockFeatureAnnouncementAPIResult.items?.[0].fields.id,
@@ -474,9 +509,10 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
     expect(
       result.find((n) => n.id === mockListNotificationsAPIResult[0].id),
     ).toBeDefined();
+    expect(result.find((n) => n.type === TRIGGER_TYPES.SNAP)).toBeDefined();
 
     // State is also updated
-    expect(controller.state.metamaskNotificationsList).toHaveLength(2);
+    expect(controller.state.metamaskNotificationsList).toHaveLength(3);
   });
 
   it('only fetches and processes feature announcements if not authenticated', async () => {
@@ -503,6 +539,148 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     // State is also updated
     expect(controller.state.metamaskNotificationsList).toHaveLength(1);
+  });
+});
+
+describe('metamask-notifications - getNotificationsByType', () => {
+  it('can fetch notifications by their type', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const processedFeatureAnnouncement = processFeatureAnnouncement(
+      createMockFeatureAnnouncementRaw(),
+    );
+
+    await controller.updateMetamaskNotificationsList(processedSnapNotification);
+    await controller.updateMetamaskNotificationsList(
+      processedFeatureAnnouncement,
+    );
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(2);
+
+    const filteredNotifications = controller.getNotificationsByType(
+      TRIGGER_TYPES.SNAP,
+    );
+
+    expect(filteredNotifications).toHaveLength(1);
+    expect(filteredNotifications).toStrictEqual([
+      {
+        type: TRIGGER_TYPES.SNAP,
+        id: expect.any(String),
+        createdAt: expect.any(String),
+        isRead: false,
+        readDate: null,
+        data: {
+          message: 'fooBar',
+          origin: '@metamask/example-snap',
+          detailedView: {
+            title: 'Detailed View',
+            interfaceId: '1',
+            footerLink: {
+              text: 'Go Home',
+              href: 'metamask://client/',
+            },
+          },
+        },
+      },
+    ]);
+  });
+});
+
+describe('metamask-notifications - deleteNotificationsById', () => {
+  it('will delete a notification by its id', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { metamaskNotificationsList: [processedSnapNotification] },
+    });
+
+    await controller.deleteNotificationsById([processedSnapNotification.id]);
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(0);
+  });
+
+  it('will batch delete notifications', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification1 = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const processedSnapNotification2 = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: {
+        metamaskNotificationsList: [
+          processedSnapNotification1,
+          processedSnapNotification2,
+        ],
+      },
+    });
+
+    await controller.deleteNotificationsById([
+      processedSnapNotification1.id,
+      processedSnapNotification2.id,
+    ]);
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(0);
+  });
+
+  it('will throw if a notification is not found', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { metamaskNotificationsList: [processedSnapNotification] },
+    });
+
+    await expect(controller.deleteNotificationsById(['foo'])).rejects.toThrow(
+      'The notification to be deleted does not exist.',
+    );
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(1);
+  });
+
+  it('will throw if the notification to be deleted is not locally persisted', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const processedFeatureAnnouncement = processFeatureAnnouncement(
+      createMockFeatureAnnouncementRaw(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: {
+        metamaskNotificationsList: [
+          processedFeatureAnnouncement,
+          processedSnapNotification,
+        ],
+      },
+    });
+
+    await expect(
+      controller.deleteNotificationsById([processedFeatureAnnouncement.id]),
+    ).rejects.toThrow(
+      'The notification type of "features_announcement" is not locally persisted, only the following types can use this function: snap.',
+    );
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(2);
   });
 });
 
@@ -552,6 +730,38 @@ describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
     // This is because on-chain failed.
     // We can debate & change implementation if it makes sense to mark as read locally if external APIs fail.
     expect(controller.state.metamaskNotificationsReadList).toHaveLength(1);
+  });
+
+  it('updates snap notifications as read', async () => {
+    const { messenger } = arrangeMocks();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: {
+        metamaskNotificationsList: [processedSnapNotification],
+      },
+    });
+
+    await controller.markMetamaskNotificationsAsRead([
+      {
+        type: TRIGGER_TYPES.SNAP,
+        id: processedSnapNotification.id,
+        isRead: false,
+      },
+    ]);
+
+    // Should see 1 item in controller read state
+    expect(controller.state.metamaskNotificationsReadList).toHaveLength(1);
+
+    // The notification should have a read date
+    expect(
+      // @ts-expect-error readDate property is guaranteed to exist
+      // as we're dealing with a snap notification
+      controller.state.metamaskNotificationsList[0].readDate,
+    ).not.toBeNull();
   });
 });
 
@@ -625,7 +835,13 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     const controller = new NotificationServicesController({
       messenger: mocks.messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { isNotificationServicesEnabled: true },
+      state: {
+        isNotificationServicesEnabled: true,
+        metamaskNotificationsList: [
+          createMockFeatureAnnouncementRaw() as INotification,
+          createMockSnapNotification() as INotification,
+        ],
+      },
     });
 
     const promise = controller.disableNotificationServices();
@@ -638,12 +854,51 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     // Act - final state
     expect(controller.state.isUpdatingMetamaskNotifications).toBe(false);
     expect(controller.state.isNotificationServicesEnabled).toBe(false);
+    expect(controller.state.metamaskNotificationsList).toStrictEqual([
+      createMockSnapNotification(),
+    ]);
 
     expect(mocks.mockDisablePushNotifications).toHaveBeenCalled();
 
     // We do not delete triggers when disabling notifications
     // As other devices might be using those triggers to receive notifications
     expect(mocks.mockDeleteOnChainTriggers).not.toHaveBeenCalled();
+  });
+});
+
+describe('metamask-notifications - updateMetamaskNotificationsList', () => {
+  it('can add and process a new notification to the notifications list', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { isNotificationServicesEnabled: true },
+    });
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    await controller.updateMetamaskNotificationsList(processedSnapNotification);
+    expect(controller.state.metamaskNotificationsList).toStrictEqual([
+      {
+        type: TRIGGER_TYPES.SNAP,
+        id: expect.any(String),
+        createdAt: expect.any(String),
+        readDate: null,
+        isRead: false,
+        data: {
+          message: 'fooBar',
+          origin: '@metamask/example-snap',
+          detailedView: {
+            title: 'Detailed View',
+            interfaceId: '1',
+            footerLink: {
+              text: 'Go Home',
+              href: 'metamask://client/',
+            },
+          },
+        },
+      },
+    ]);
   });
 });
 

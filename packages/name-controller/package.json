@@ -1,6 +1,6 @@
 {
   "name": "@metamask/name-controller",
-  "version": "8.0.1",
+  "version": "8.0.2",
   "description": "Stores and suggests names for values such as Ethereum addresses",
   "keywords": [
     "MetaMask",
@@ -48,9 +48,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.1",
-    "@metamask/controller-utils": "^11.3.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/base-controller": "^7.0.2",
+    "@metamask/controller-utils": "^11.4.4",
+    "@metamask/utils": "^10.0.0",
     "async-mutex": "^0.5.0"
   },
   "devDependencies": {

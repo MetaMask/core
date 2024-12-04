@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-controller",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "description": "Manages chain-agnostic providers",
   "keywords": [
     "MetaMask",
@@ -47,17 +47,18 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.1",
+    "@metamask/base-controller": "^7.0.2",
     "@metamask/chain-api": "^0.1.0",
-    "@metamask/keyring-api": "^8.1.2",
-    "@metamask/snaps-controllers": "^9.7.0",
-    "@metamask/snaps-sdk": "^6.5.0",
-    "@metamask/snaps-utils": "^8.1.1",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/keyring-api": "^10.1.0",
+    "@metamask/snaps-controllers": "^9.10.0",
+    "@metamask/snaps-sdk": "^6.7.0",
+    "@metamask/snaps-utils": "^8.3.0",
+    "@metamask/utils": "^10.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/providers": "^18.1.1",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
@@ -65,7 +66,12 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "webextension-polyfill": "^0.12.0"
+  },
+  "peerDependencies": {
+    "@metamask/providers": "^18.1.0",
+    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

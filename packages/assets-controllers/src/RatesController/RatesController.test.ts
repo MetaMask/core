@@ -100,8 +100,14 @@ describe('RatesController', () => {
       const { fiatCurrency, rates, cryptocurrencies } = ratesController.state;
       expect(ratesController).toBeDefined();
       expect(fiatCurrency).toBe('usd');
-      expect(Object.keys(rates)).toStrictEqual([Cryptocurrency.Btc]);
-      expect(cryptocurrencies).toStrictEqual([Cryptocurrency.Btc]);
+      expect(Object.keys(rates)).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
+      expect(cryptocurrencies).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
     });
   });
 
@@ -119,11 +125,16 @@ describe('RatesController', () => {
       const publishActionSpy = jest.spyOn(messenger, 'publish');
 
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const mockRateValue = '57715.42';
+      const mockBtcRateValue = 57715.42;
+      const mockSolRateValue = 200.48;
+
       const fetchExchangeRateStub = jest.fn(() => {
         return Promise.resolve({
           btc: {
-            eur: mockRateValue,
+            eur: mockBtcRateValue,
+          },
+          sol: {
+            eur: mockSolRateValue,
           },
         });
       });
@@ -142,7 +153,11 @@ describe('RatesController', () => {
       expect(ratesPreUpdate).toStrictEqual({
         btc: {
           conversionDate: 0,
-          conversionRate: '0',
+          conversionRate: 0,
+        },
+        sol: {
+          conversionDate: 0,
+          conversionRate: 0,
         },
       });
 
@@ -163,7 +178,11 @@ describe('RatesController', () => {
       expect(ratesPosUpdate).toStrictEqual({
         btc: {
           conversionDate: MOCK_TIMESTAMP,
-          conversionRate: mockRateValue,
+          conversionRate: mockBtcRateValue,
+        },
+        sol: {
+          conversionDate: MOCK_TIMESTAMP,
+          conversionRate: mockSolRateValue,
         },
       });
 
@@ -177,12 +196,12 @@ describe('RatesController', () => {
 
     it('starts the polling process with custom values', async () => {
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const mockBtcUsdRateValue = '62235.48';
-      const mockSolUsdRateValue = '148.41';
-      const mockStrkUsdRateValue = '1.248';
-      const mockBtcEurRateValue = '57715.42';
-      const mockSolEurRateValue = '137.68';
-      const mockStrkEurRateValue = '1.157';
+      const mockBtcUsdRateValue = 62235.48;
+      const mockSolUsdRateValue = 148.41;
+      const mockStrkUsdRateValue = 1.248;
+      const mockBtcEurRateValue = 57715.42;
+      const mockSolEurRateValue = 137.68;
+      const mockStrkEurRateValue = 1.157;
       const fetchExchangeRateStub = jest.fn(() => {
         return Promise.resolve({
           btc: {
@@ -326,7 +345,10 @@ describe('RatesController', () => {
 
       const cryptocurrencyListPreUpdate =
         ratesController.getCryptocurrencyList();
-      expect(cryptocurrencyListPreUpdate).toStrictEqual([Cryptocurrency.Btc]);
+      expect(cryptocurrencyListPreUpdate).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
       // Just to make sure we're updating to something else than the default list
       expect(cryptocurrencyListPreUpdate).not.toStrictEqual(
         mockCryptocurrencyList,

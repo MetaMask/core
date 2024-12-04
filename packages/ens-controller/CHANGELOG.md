@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.4` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870), [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `punycode/punycode.js`
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- Bump `@metamask/controller-utils` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/utils` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [14.0.1]
 
 ### Fixed
@@ -247,7 +267,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@15.0.1...HEAD
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@15.0.0...@metamask/ens-controller@15.0.1
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.1...@metamask/ens-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.0...@metamask/ens-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@13.0.1...@metamask/ens-controller@14.0.0
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@13.0.0...@metamask/ens-controller@13.0.1

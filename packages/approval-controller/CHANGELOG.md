@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [7.1.0]
+
+### Added
+
+- Add `deleteAfterResult` option to accept method to delay removal of approval request from state ([#4715](https://github.com/MetaMask/core/pull/4715))
+
 ## [7.0.4]
 
 ### Fixed
@@ -241,7 +253,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.1...HEAD
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.0...@metamask/approval-controller@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.4...@metamask/approval-controller@7.1.0
 [7.0.4]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.3...@metamask/approval-controller@7.0.4
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.2...@metamask/approval-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.1...@metamask/approval-controller@7.0.2

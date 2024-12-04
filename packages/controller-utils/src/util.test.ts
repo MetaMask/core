@@ -1,4 +1,5 @@
 import EthQuery from '@metamask/eth-query';
+import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
@@ -31,6 +32,7 @@ describe('util', () => {
 
   it('bNToHex', () => {
     expect(util.BNToHex(new BN('1337'))).toBe('0x539');
+    expect(util.BNToHex(new BigNumber('1337'))).toBe('0x539');
   });
 
   it('fractionBN', () => {
@@ -609,5 +611,35 @@ describe('util', () => {
     it('returns true for valid JSON', () => {
       expect(util.isValidJson({ foo: 'bar', test: { num: 5 } })).toBe(true);
     });
+  });
+});
+
+describe('isEqualCaseInsensitive', () => {
+  it('returns false for non-string values', () => {
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(null, null)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(5, 5)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(null, 'test')).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive('test', null)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(5, 'test')).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive('test', 5)).toBe(false);
+  });
+
+  it('returns false for strings that are not equal', () => {
+    expect(util.isEqualCaseInsensitive('test', 'test1')).toBe(false);
+    expect(util.isEqualCaseInsensitive('test1', 'test')).toBe(false);
+  });
+
+  it('returns true for strings that are equal', () => {
+    expect(util.isEqualCaseInsensitive('test', 'TEST')).toBe(true);
+    expect(util.isEqualCaseInsensitive('test', 'test')).toBe(true);
+    expect(util.isEqualCaseInsensitive('TEST', 'TEST')).toBe(true);
+    expect(util.isEqualCaseInsensitive('test', 'Test')).toBe(true);
+    expect(util.isEqualCaseInsensitive('Test', 'test')).toBe(true);
   });
 });

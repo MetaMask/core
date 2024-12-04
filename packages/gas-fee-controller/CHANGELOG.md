@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+- Bump `@metamask/polling-controller` from `^12.0.1` to `^12.0.2` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
+    - `@babel/runtime@^7.0.0` (required by `@metamask/ethjs-unit`)
+  - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
+  - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/eth-query`
+  - `bn.js`
+
+## [22.0.1]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^12.0.0` to `^12.0.1` ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.3` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870), [#4195](https://github.com/MetaMask/core/pull/4195))
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- Bump `@metamask/controller-utils` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/utils` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [21.0.0]
+
+### Changed
+
+- **BREAKING:** `GasFeeController` now uses a new polling interface that accepts the generic parameter `PollingInput` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+
 ## [20.0.1]
 
 ### Fixed
@@ -351,7 +393,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@20.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...HEAD
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.1...@metamask/gas-fee-controller@22.0.2
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.0...@metamask/gas-fee-controller@22.0.1
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@21.0.0...@metamask/gas-fee-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@20.0.1...@metamask/gas-fee-controller@21.0.0
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@20.0.0...@metamask/gas-fee-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@19.0.1...@metamask/gas-fee-controller@20.0.0
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@19.0.0...@metamask/gas-fee-controller@19.0.1

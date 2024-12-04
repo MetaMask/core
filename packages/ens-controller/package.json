@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "14.0.1",
+  "version": "15.0.1",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "MetaMask",
@@ -48,14 +48,14 @@
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^7.0.1",
-    "@metamask/controller-utils": "^11.3.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/base-controller": "^7.0.2",
+    "@metamask/controller-utils": "^11.4.4",
+    "@metamask/utils": "^10.0.0",
     "punycode": "^2.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^21.0.1",
+    "@metamask/network-controller": "^22.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -65,7 +65,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^21.0.0"
+    "@metamask/network-controller": "^22.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

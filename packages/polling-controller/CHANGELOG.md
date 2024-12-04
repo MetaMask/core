@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.4` ([#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `fast-json-stable-stringify`
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.2` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- Bump `@metamask/controller-utils` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/utils` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING**: `AbstractPollingController` now accepts a generic type parameter `PollingInput` which is polymorphic, unlike the previous monomorphic required input of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+
 ## [10.0.1]
 
 ### Fixed
@@ -187,7 +221,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.1...@metamask/polling-controller@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.0...@metamask/polling-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@11.0.0...@metamask/polling-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.1...@metamask/polling-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.0...@metamask/polling-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.1...@metamask/polling-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.0...@metamask/polling-controller@9.0.1

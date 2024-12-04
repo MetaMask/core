@@ -6,6 +6,7 @@ import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow';
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
   chainId: CHAIN_IDS.OPTIMISM,
+  networkClientId: 'testNetworkClientId',
   status: TransactionStatus.unapproved,
   time: 0,
   txParams: {

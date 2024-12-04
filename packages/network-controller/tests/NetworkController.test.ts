@@ -130,6 +130,11 @@ const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
   JSON.stringify({ error: 'oops' }),
 );
 
+/**
+ * We are mocking/faking `Date.now` calls for test consistency
+ */
+const FAKE_DATE_NOW_MS = 1732114339518;
+
 describe('NetworkController', () => {
   let uuidCounter = 0;
 
@@ -139,6 +144,8 @@ describe('NetworkController', () => {
       uuidCounter += 1;
       return uuid;
     });
+
+    jest.spyOn(Date, 'now').mockReturnValue(FAKE_DATE_NOW_MS);
   });
 
   afterEach(() => {
@@ -358,7 +365,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": Array [],
                 "chainId": "0x1",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Mainnet",
+                "name": "Ethereum Mainnet",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
@@ -428,7 +435,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xe708",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Linea Mainnet",
+                "name": "Linea",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
@@ -3475,6 +3482,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3541,6 +3549,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3601,6 +3610,7 @@ describe('NetworkController', () => {
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -3647,7 +3657,7 @@ describe('NetworkController', () => {
               }),
             ).toThrow(
               new Error(
-                "Could not add network with chain ID 0x1337 and Infura RPC endpoint for 'Mainnet' which represents 0x1, as the two conflict",
+                "Could not add network with chain ID 0x1337 and Infura RPC endpoint for 'Ethereum Mainnet' which represents 0x1, as the two conflict",
               ),
             );
           },
@@ -3751,6 +3761,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint/2',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -3796,6 +3807,7 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -3841,6 +3853,57 @@ describe('NetworkController', () => {
                 url: 'https://test.endpoint',
               },
             ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
+          });
+        });
+      });
+
+      it('is callable from the controller messenger', async () => {
+        uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
+
+        await withController(({ messenger }) => {
+          const networkAddedEventListener = jest.fn();
+          messenger.subscribe(
+            'NetworkController:networkAdded',
+            networkAddedEventListener,
+          );
+
+          const newNetworkConfiguration = messenger.call(
+            'NetworkController:addNetwork',
+            {
+              blockExplorerUrls: ['https://block.explorer'],
+              chainId: '0x1337',
+              defaultBlockExplorerUrlIndex: 0,
+              defaultRpcEndpointIndex: 0,
+              name: 'Some Network',
+              nativeCurrency: 'TOKEN',
+              rpcEndpoints: [
+                {
+                  name: 'Test Network',
+                  type: RpcEndpointType.Custom,
+                  url: 'https://test.endpoint',
+                },
+              ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
+            },
+          );
+
+          expect(newNetworkConfiguration).toStrictEqual({
+            blockExplorerUrls: ['https://block.explorer'],
+            chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
+            defaultRpcEndpointIndex: 0,
+            name: 'Some Network',
+            nativeCurrency: 'TOKEN',
+            rpcEndpoints: [
+              {
+                name: 'Test Network',
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                type: RpcEndpointType.Custom,
+                url: 'https://test.endpoint',
+              },
+            ],
+            lastUpdatedAt: FAKE_DATE_NOW_MS,
           });
         });
       });
@@ -4535,6 +4598,59 @@ describe('NetworkController', () => {
       );
     });
 
+    it('is callable from the controller messenger', async () => {
+      const originalNetwork = buildCustomNetworkConfiguration({
+        chainId: '0x1337',
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.network',
+          }),
+        ],
+      });
+
+      const networkToUpdate = buildCustomNetworkConfiguration({
+        chainId: '0x1337',
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            name: 'Custom Name',
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.network',
+          }),
+        ],
+      });
+
+      const controllerState =
+        buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+          networkConfigurationsByChainId: {
+            [originalNetwork.chainId]: originalNetwork,
+          },
+          networksMetadata: {
+            'AAAA-AAAA-AAAA-AAAA': {
+              EIPS: {
+                '1559': true,
+              },
+              status: NetworkStatus.Available,
+            },
+          },
+        });
+
+      await withController(
+        { state: controllerState },
+        async ({ controller, messenger }) => {
+          await messenger.call(
+            'NetworkController:updateNetwork',
+            networkToUpdate.chainId,
+            networkToUpdate,
+          );
+          expect(
+            controller.state.networkConfigurationsByChainId['0x1337']
+              .rpcEndpoints[0].name,
+          ).toBe('Custom Name');
+        },
+      );
+    });
+
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
@@ -4689,6 +4805,7 @@ describe('NetworkController', () => {
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -4750,6 +4867,7 @@ describe('NetworkController', () => {
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -4931,6 +5049,7 @@ describe('NetworkController', () => {
                       url: 'https://rpc.endpoint/3',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5000,6 +5119,7 @@ describe('NetworkController', () => {
                       url: 'https://rpc.endpoint/3',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5098,6 +5218,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5142,6 +5263,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5838,6 +5960,7 @@ describe('NetworkController', () => {
                       url: 'https://some.other.url',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -5907,6 +6030,7 @@ describe('NetworkController', () => {
                       url: 'https://some.other.url',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6225,6 +6349,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6278,6 +6403,7 @@ describe('NetworkController', () => {
                 expect(updatedNetworkConfiguration).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -6531,7 +6657,7 @@ describe('NetworkController', () => {
                 ],
               }),
             ).rejects.toThrow(
-              "Could not update network to point to same RPC endpoint as existing network for chain 0x1 ('Mainnet')",
+              "Could not update network to point to same RPC endpoint as existing network for chain 0x1 ('Ethereum Mainnet')",
             );
           },
         );
@@ -6703,6 +6829,7 @@ describe('NetworkController', () => {
                     url: 'https://rpc.endpoint/3',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6776,6 +6903,7 @@ describe('NetworkController', () => {
                     url: 'https://rpc.endpoint/3',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6872,6 +7000,7 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -6916,6 +7045,7 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -7608,6 +7738,7 @@ describe('NetworkController', () => {
                     url: 'https://some.other.url',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -7677,6 +7808,7 @@ describe('NetworkController', () => {
                     url: 'https://some.other.url',
                   },
                 ],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8001,6 +8133,7 @@ describe('NetworkController', () => {
               ).toStrictEqual({
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8058,6 +8191,7 @@ describe('NetworkController', () => {
               expect(updatedNetworkConfiguration).toStrictEqual({
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
+                lastUpdatedAt: FAKE_DATE_NOW_MS,
               });
             },
           );
@@ -8468,6 +8602,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -8714,6 +8849,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9095,6 +9231,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9382,6 +9519,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -9771,6 +9909,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -10072,6 +10211,7 @@ describe('NetworkController', () => {
                       networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                     },
                   ],
+                  lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
               },
             );
@@ -10459,6 +10599,7 @@ describe('NetworkController', () => {
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 },
               ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
             });
           },
         );
@@ -10741,6 +10882,7 @@ describe('NetworkController', () => {
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
                 },
               ],
+              lastUpdatedAt: FAKE_DATE_NOW_MS,
             });
           },
         );
@@ -11404,6 +11546,56 @@ describe('NetworkController', () => {
             expect(networkClientRegistry).not.toHaveProperty(
               'BBBB-BBBB-BBBB-BBBB',
             );
+          },
+        );
+      });
+
+      it('is callable from the controller messenger', async () => {
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: InfuraNetworkType.goerli,
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration(),
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            messenger.call('NetworkController:removeNetwork', '0x1337');
+            expect(
+              controller.state.networkConfigurationsByChainId,
+            ).not.toHaveProperty('0x1337');
+          },
+        );
+      });
+
+      it('emits the NetworkController:networkRemoved event', async () => {
+        const networkConfig = buildCustomNetworkConfiguration();
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: InfuraNetworkType.goerli,
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfig,
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            const networkRemovedListener = jest.fn();
+            messenger.subscribe(
+              'NetworkController:networkRemoved',
+              networkRemovedListener,
+            );
+
+            controller.removeNetwork('0x1337');
+
+            expect(networkRemovedListener).toHaveBeenCalledWith(networkConfig);
           },
         );
       });

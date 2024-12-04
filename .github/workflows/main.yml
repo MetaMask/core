@@ -35,7 +35,7 @@ jobs:
       - id: is-release
         uses: MetaMask/action-is-release@dc4672b05e3b1d464cdaf783579b04a4e43f8b02
         with:
-          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version]'
+          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version],Release `[version]`'
 
   publish-release:
     name: Publish release
@@ -47,6 +47,14 @@ jobs:
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  create-update-issues:
+    name: Create update issues
+    needs: [is-release, publish-release]
+    if: needs.is-release.outputs.IS_RELEASE == 'true'
+    uses: ./.github/workflows/create-update-issues.yaml
+    secrets:
+      CORE_CREATE_UPDATE_ISSUES_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
 
   all-jobs-complete:
     name: All jobs complete

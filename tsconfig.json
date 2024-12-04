@@ -1,6 +1,7 @@
 {
   "compilerOptions": { "esModuleInterop": true, "noEmit": true },
   "references": [
+    { "path": "./examples/example-controllers" },
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
     { "path": "./packages/announcement-controller" },
@@ -17,9 +18,9 @@
     { "path": "./packages/json-rpc-middleware-stream" },
     { "path": "./packages/keyring-controller" },
     { "path": "./packages/message-manager" },
+    { "path": "./packages/multichain" },
     { "path": "./packages/name-controller" },
     { "path": "./packages/network-controller" },
-    { "path": "./packages/notification-controller" },
     { "path": "./packages/notification-services-controller" },
     { "path": "./packages/permission-controller" },
     { "path": "./packages/permission-log-controller" },
@@ -28,10 +29,12 @@
     { "path": "./packages/profile-sync-controller" },
     { "path": "./packages/queued-request-controller" },
     { "path": "./packages/rate-limit-controller" },
+    { "path": "./packages/remote-feature-flag-controller" },
     { "path": "./packages/selected-network-controller" },
     { "path": "./packages/signature-controller" },
     { "path": "./packages/transaction-controller" },
-    { "path": "./packages/user-operation-controller" }
+    { "path": "./packages/user-operation-controller" },
+    { "path": "./packages/polling-controller" }
   ],
   "files": [],
   "include": ["./types"]

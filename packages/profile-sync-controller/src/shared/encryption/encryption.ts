@@ -5,8 +5,26 @@ import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
 import type { NativeScrypt } from '../types/encryption';
-import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
-import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
+import {
+  getCachedKeyBySalt,
+  getCachedKeyGeneratedWithSharedSalt,
+  setCachedKey,
+} from './cache';
+import {
+  ALGORITHM_KEY_SIZE,
+  ALGORITHM_NONCE_SIZE,
+  SCRYPT_N,
+  SCRYPT_p,
+  SCRYPT_r,
+  SCRYPT_SALT_SIZE,
+  SHARED_SALT,
+} from './constants';
+import {
+  base64ToByteArray,
+  byteArrayToBase64,
+  bytesToUtf8,
+  stringToByteArray,
+} from './utils';
 
 export type EncryptedPayload = {
   // version
@@ -30,19 +48,6 @@ export type EncryptedPayload = {
   // Salt options
   saltLen: number;
 };
-
-// Nonce/Key Sizes
-const ALGORITHM_NONCE_SIZE = 12; // 12 bytes
-const ALGORITHM_KEY_SIZE = 16; // 16 bytes
-
-// Scrypt settings
-// see: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt
-const SCRYPT_SALT_SIZE = 16; // 16 bytes
-const SCRYPT_N = 2 ** 17; // CPU/memory cost parameter (must be a power of 2, > 1)
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const SCRYPT_r = 8; // Block size parameter
-// eslint-disable-next-line @typescript-eslint/naming-convention
-const SCRYPT_p = 1; // Parallelization parameter
 
 class EncryptorDecryptor {
   async encryptString(
@@ -100,7 +105,7 @@ class EncryptorDecryptor {
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
       },
-      randomBytes(SCRYPT_SALT_SIZE),
+      undefined,
       nativeScryptCrypto,
     );
 
@@ -166,6 +171,47 @@ class EncryptorDecryptor {
     return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));
   }
 
+  getSalt(encryptedDataStr: string) {
+    try {
+      const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
+      if (encryptedData.v === '1') {
+        if (encryptedData.t === 'scrypt') {
+          const { d: base64CiphertextAndNonceAndSalt, saltLen } = encryptedData;
+
+          // Decode the base64.
+          const ciphertextAndNonceAndSalt = base64ToByteArray(
+            base64CiphertextAndNonceAndSalt,
+          );
+
+          // Create buffers of salt and ciphertextAndNonce.
+          const salt = ciphertextAndNonceAndSalt.slice(0, saltLen);
+          return salt;
+        }
+      }
+      throw new Error(
+        `Unsupported encrypted data payload - ${encryptedDataStr}`,
+      );
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      throw new Error(`Unable to get salt - ${errorMessage}`);
+    }
+  }
+
+  getIfEntriesHaveDifferentSalts(entries: string[]): boolean {
+    const salts = entries
+      .map((e) => {
+        try {
+          return this.getSalt(e);
+        } catch {
+          return undefined;
+        }
+      })
+      .filter((s): s is Uint8Array => s !== undefined);
+
+    const strSet = new Set(salts.map((arr) => arr.toString()));
+    return strSet.size === salts.length;
+  }
+
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
     const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
 
@@ -196,7 +242,7 @@ class EncryptorDecryptor {
     const hashedPassword = createSHA256Hash(password);
     const cachedKey = salt
       ? getCachedKeyBySalt(hashedPassword, salt)
-      : getAnyCachedKey(hashedPassword);
+      : getCachedKeyGeneratedWithSharedSalt(hashedPassword);
 
     if (cachedKey) {
       return {
@@ -205,13 +251,13 @@ class EncryptorDecryptor {
       };
     }
 
-    const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
+    const newSalt = salt ?? SHARED_SALT;
 
     let newKey: Uint8Array;
 
     if (nativeScryptCrypto) {
       newKey = await nativeScryptCrypto(
-        password,
+        stringToByteArray(password),
         newSalt,
         o.N,
         o.r,
@@ -226,6 +272,7 @@ class EncryptorDecryptor {
         dkLen: o.dkLen,
       });
     }
+
     setCachedKey(hashedPassword, newSalt, newKey);
 
     return {

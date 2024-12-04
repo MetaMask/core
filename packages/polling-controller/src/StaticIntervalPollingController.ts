@@ -1,5 +1,4 @@
 import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 
 import {
@@ -21,12 +20,13 @@ import type {
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
-  Base: TBase,
-) {
+function StaticIntervalPollingControllerMixin<
+  TBase extends Constructor,
+  PollingInput extends Json,
+>(Base: TBase) {
   abstract class StaticIntervalPollingController
-    extends AbstractPollingControllerBaseMixin(Base)
-    implements IPollingController
+    extends AbstractPollingControllerBaseMixin<TBase, PollingInput>(Base)
+    implements IPollingController<PollingInput>
   {
     readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
@@ -40,15 +40,12 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
       return this.#intervalLength;
     }
 
-    _startPollingByNetworkClientId(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ) {
+    _startPolling(input: PollingInput) {
       if (!this.#intervalLength) {
         throw new Error('intervalLength must be defined and greater than 0');
       }
 
-      const key = getKey(networkClientId, options);
+      const key = getKey(input);
       const existingInterval = this.#intervalIds[key];
       this._stopPollingByPollingTokenSetId(key);
 
@@ -58,12 +55,12 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
           try {
-            await this._executePoll(networkClientId, options);
+            await this._executePoll(input);
           } catch (error) {
             console.error(error);
           }
           if (intervalId === this.#intervalIds[key]) {
-            this._startPollingByNetworkClientId(networkClientId, options);
+            this._startPolling(input);
           }
         },
         existingInterval ? this.#intervalLength : 0,
@@ -84,9 +81,18 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
 
 class Empty {}
 
-export const StaticIntervalPollingControllerOnly =
-  StaticIntervalPollingControllerMixin(Empty);
-export const StaticIntervalPollingController =
-  StaticIntervalPollingControllerMixin(BaseController);
-export const StaticIntervalPollingControllerV1 =
-  StaticIntervalPollingControllerMixin(BaseControllerV1);
+export const StaticIntervalPollingControllerOnly = <
+  PollingInput extends Json,
+>() => StaticIntervalPollingControllerMixin<typeof Empty, PollingInput>(Empty);
+
+export const StaticIntervalPollingController = <PollingInput extends Json>() =>
+  StaticIntervalPollingControllerMixin<typeof BaseController, PollingInput>(
+    BaseController,
+  );
+
+export const StaticIntervalPollingControllerV1 = <
+  PollingInput extends Json,
+>() =>
+  StaticIntervalPollingControllerMixin<typeof BaseControllerV1, PollingInput>(
+    BaseControllerV1,
+  );

@@ -256,10 +256,15 @@ const defaultState: GasFeeState = {
   nonRPCGasFeeApisDisabled: false,
 };
 
+/** The input to start polling for the {@link GasFeeController} */
+type GasFeePollingInput = {
+  networkClientId: NetworkClientId;
+};
+
 /**
  * Controller that retrieves gas fee estimate data and polls for updated data on a set interval
  */
-export class GasFeeController extends StaticIntervalPollingController<
+export class GasFeeController extends StaticIntervalPollingController<GasFeePollingInput>()<
   typeof name,
   GasFeeState,
   GasFeeMessenger
@@ -560,10 +565,11 @@ export class GasFeeController extends StaticIntervalPollingController<
    * Fetching token list from the Token Service API.
    *
    * @private
-   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The ID of the network client triggering the fetch.
    * @returns A promise that resolves when this operation completes.
    */
-  async _executePoll(networkClientId: string): Promise<void> {
+  async _executePoll({ networkClientId }: GasFeePollingInput): Promise<void> {
     await this._fetchGasFeeEstimateData({ networkClientId });
   }
 

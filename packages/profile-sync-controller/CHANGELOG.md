@@ -7,6 +7,142 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Added
+
+- Add optional constructor arguments for `config.networkSyncing` to UserStorageController: `maxNumberOfAccountsToAdd`, `onNetworkAdded`, `onNetworkUpdated`, `onNetworkRemoved` ([#4701](https://github.com/MetaMask/core/pull/4701))
+- Add new UserStorageController method `syncNetworks`, which can be used to initiate the main network sync ([#4701](https://github.com/MetaMask/core/pull/4701))
+- Add optional property `hasNetworkSyncingSyncedAtLeastOnce` to UserStorageController state ([#4701](https://github.com/MetaMask/core/pull/4701))
+
+### Changed
+
+- **BREAKING:** The controller messenger must now allow the actions `NetworkController:getState`, `NetworkController:addNetwork`, `NetworkController:removeNetwork`, and `NetworkController:updateNetwork` ([#4701](https://github.com/MetaMask/core/pull/4701))
+- **BREAKING:** The controller messenger must now allow the event `NetworkController:networkRemoved` ([#4701](https://github.com/MetaMask/core/pull/4701))
+- Bump `@metamask/keyring-controller` from `^19.0.0` to `^19.0.1` ([#5012](https://github.com/MetaMask/core/pull/5012))
+- Bump `@metamask/network-controller` from `^22.0.2` to `^22.1.0` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
+    - `@metamask/providers` `^18.1.0` (required by `@metamask/keyring-api`)
+    - `webextension-polyfill` `^0.10.0 || ^0.11.0 || ^0.12.0` (required by `@metamask/providers`)
+  - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
+  - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+- Fix user storage controller to use the user-storage batch API to upsert remote networks rather than upserting them one at a time ([#4701](https://github.com/MetaMask/core/pull/4701))
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/keyring-api`
+  - `loglevel`
+  - `nock`
+  - `siwe`
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+
+## [1.0.2]
+
+### Added
+
+- new analytics callback and various helpers & improvements ([#4944](https://github.com/MetaMask/core/pull/4944))
+  - new `UserStorageController` state keys: `hasAccountSyncingSyncedAtLeastOnce` and `isAccountSyncingReadyToBeDispatched`
+  - new `onAccountSyncErroneousSituation` analytics callback to track how often erroneous situations happen during account syncing
+
+### Changed
+
+- set `hasAccountSyncingSyncedAtLeastOnce` also for a profile id that has never synced accounts before ([#4944](https://github.com/MetaMask/core/pull/4944))
+
+## [1.0.1]
+
+### Added
+
+- add batch delete endpoint support for both UserStorageController & SDK ([#4938](https://github.com/MetaMask/core/pull/4938))
+
+### Changed
+
+- use better type system for user storage ([#4907](https://github.com/MetaMask/core/pull/4907))
+
+### Fixed
+
+- account sync infinite account creation bug ([#4933](https://github.com/MetaMask/core/pull/4933))
+
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.2.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^18.1.1` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [0.9.8]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+
+### Fixed
+
+- prevent multiple parallel account syncs by checking the value of `isAccountSyncingInProgress` before dispatching account syncing ([#4901](https://github.com/MetaMask/core/pull/4901))
+
+## [0.9.7]
+
+### Added
+
+- add support for DELETE ONE endpoint ([#4776](https://github.com/MetaMask/core/pull/4776))
+
+### Fixed
+
+- imported accounts won't be synced anymore by account syncing ([#4777](https://github.com/MetaMask/core/pull/4777))
+
+## [0.9.6]
+
+### Added
+
+- add DELETE endpoint support ([#4758](https://github.com/MetaMask/core/pull/4758))
+
+## [0.9.5]
+
+### Fixed
+
+- **BREAKING** react native scrypt now takes a `UInt8Array` password argument instead of a `string` ([#4755](https://github.com/MetaMask/core/pull/4755))
+
+## [0.9.4]
+
+### Fixed
+
+- Account syncing performance issues and bugs ([#4746](https://github.com/MetaMask/core/pull/4746))
+  - Batch `GET` / `PUT` will now encrypt and decrypt sequentially in order to leverage the in-memory cache
+  - `nameLastUpdatedAt` will stop being saved to user storage if account name is a default name
+  - `waitForExpectedValue` has been removed and will stop waiting for `AccountsController:accountAdded` callback
+  - `randomBytes` leftover from sync -> async encryption migration was removed
+
+## [0.9.3]
+
+### Fixed
+
+- Only fire `onAccountNameUpdated` when account name has changed ([#4735](https://github.com/MetaMask/core/pull/4735))
+
+## [0.9.2]
+
+### Changed
+
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
+## [0.9.1]
+
+### Changed
+
+- improve account syncing performance ([#4726](https://github.com/MetaMask/core/pull/4726))
+  - check if `isEvmAccountType` before saving an account in user storage in account syncing
+  - check for correct `KeyringType` before saving an account in user storage in account syncing
+  - wait for `AccountsController:accountAdded` event to fire before adding another account in account syncing
+- update 'eth-{simple,hd,snap}-keyring' + 'keyring-api' ([#4713](https://github.com/MetaMask/core/pull/4713))
+
 ## [0.9.0]
 
 ### Added
@@ -222,7 +358,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@2.0.0...@metamask/profile-sync-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.2...@metamask/profile-sync-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.1...@metamask/profile-sync-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.0...@metamask/profile-sync-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.8...@metamask/profile-sync-controller@1.0.0
+[0.9.8]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.7...@metamask/profile-sync-controller@0.9.8
+[0.9.7]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.6...@metamask/profile-sync-controller@0.9.7
+[0.9.6]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.5...@metamask/profile-sync-controller@0.9.6
+[0.9.5]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.4...@metamask/profile-sync-controller@0.9.5
+[0.9.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.3...@metamask/profile-sync-controller@0.9.4
+[0.9.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.2...@metamask/profile-sync-controller@0.9.3
+[0.9.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.1...@metamask/profile-sync-controller@0.9.2
+[0.9.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...@metamask/profile-sync-controller@0.9.1
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...@metamask/profile-sync-controller@0.9.0
 [0.8.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.7.0...@metamask/profile-sync-controller@0.8.0

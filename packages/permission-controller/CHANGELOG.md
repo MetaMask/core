@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.4]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.1` to `^11.4.4` ([#4870](https://github.com/MetaMask/core/pull/4870)), [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `deep-freeze-strict`
+
+## [11.0.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [11.0.2]
 
 ### Fixed
@@ -290,7 +307,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...HEAD
+[11.0.4]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4
+[11.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...@metamask/permission-controller@11.0.3
 [11.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.1...@metamask/permission-controller@11.0.2
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.0...@metamask/permission-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.1...@metamask/permission-controller@11.0.0

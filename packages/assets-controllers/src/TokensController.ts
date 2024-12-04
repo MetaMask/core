@@ -30,12 +30,14 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
@@ -150,6 +152,7 @@ export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
 export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
 export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
   | AccountsControllerSelectedEvmAccountChangeEvent;
@@ -247,6 +250,11 @@ export class TokensController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      this.#onNetworkStateChange.bind(this),
+    );
+
+    this.messagingSystem.subscribe(
       'TokenListController:stateChange',
       ({ tokenList }) => {
         const { tokens } = this.state;
@@ -281,6 +289,29 @@ export class TokensController extends BaseController<
       state.detectedTokens =
         allDetectedTokens[chainId]?.[selectedAddress] || [];
     });
+  }
+
+  /**
+   * Handles the event when the network state changes.
+   * @param _ - The network state.
+   * @param patches - An array of patch operations performed on the network state.
+   */
+  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    // Remove state for deleted networks
+    for (const patch of patches) {
+      if (
+        patch.op === 'remove' &&
+        patch.path[0] === 'networkConfigurationsByChainId'
+      ) {
+        const removedChainId = patch.path[1] as Hex;
+
+        this.update((state) => {
+          delete state.allTokens[removedChainId];
+          delete state.allIgnoredTokens[removedChainId];
+          delete state.allDetectedTokens[removedChainId];
+        });
+      }
+    }
   }
 
   /**
@@ -462,11 +493,25 @@ export class TokensController extends BaseController<
    */
   async addTokens(tokensToImport: Token[], networkClientId?: NetworkClientId) {
     const releaseLock = await this.#mutex.acquire();
-    const { tokens, detectedTokens, ignoredTokens } = this.state;
+    const { allTokens, ignoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
+
+    let interactingChainId;
+    if (networkClientId) {
+      interactingChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      ).configuration.chainId;
+    }
+
     // Used later to dedupe imported tokens
-    const newTokensMap = tokens.reduce((output, current) => {
-      output[current.address] = current;
+    const newTokensMap = [
+      ...(allTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAccount().address
+      ] || []),
+      ...tokensToImport,
+    ].reduce((output, token) => {
+      output[token.address] = token;
       return output;
     }, {} as { [address: string]: Token });
     try {
@@ -488,20 +533,17 @@ export class TokensController extends BaseController<
       });
       const newTokens = Object.values(newTokensMap);
 
-      const newDetectedTokens = detectedTokens.filter(
-        (token) => !importedTokensMap[token.address.toLowerCase()],
-      );
       const newIgnoredTokens = ignoredTokens.filter(
         (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
 
-      let interactingChainId;
-      if (networkClientId) {
-        interactingChainId = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          networkClientId,
-        ).configuration.chainId;
-      }
+      const detectedTokensForGivenChain = interactingChainId
+        ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
+        : [];
+
+      const newDetectedTokens = detectedTokensForGivenChain?.filter(
+        (t) => !importedTokensMap[t.address.toLowerCase()],
+      );
 
       const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
         this.#getNewAllTokensState({
@@ -528,11 +570,37 @@ export class TokensController extends BaseController<
    * Ignore a batch of tokens.
    *
    * @param tokenAddressesToIgnore - Array of token addresses to ignore.
+   * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
-  ignoreTokens(tokenAddressesToIgnore: string[]) {
-    const { ignoredTokens, detectedTokens, tokens } = this.state;
+  ignoreTokens(
+    tokenAddressesToIgnore: string[],
+    networkClientId?: NetworkClientId,
+  ) {
+    let interactingChainId;
+    if (networkClientId) {
+      interactingChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      ).configuration.chainId;
+    }
+
+    const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
+    const ignoredTokens =
+      allIgnoredTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAddress()
+      ] || [];
     let newIgnoredTokens: string[] = [...ignoredTokens];
+
+    const tokens =
+      allTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAddress()
+      ] || [];
+
+    const detectedTokens =
+      allDetectedTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAddress()
+      ] || [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -552,6 +620,7 @@ export class TokensController extends BaseController<
         newIgnoredTokens,
         newDetectedTokens,
         newTokens,
+        interactingChainId,
       });
 
     this.update((state) => {
@@ -1076,6 +1145,15 @@ export class TokensController extends BaseController<
       this.#selectedAccountId,
     );
     return account?.address || '';
+  }
+
+  /**
+   * Reset the controller state to the default state.
+   */
+  resetState() {
+    this.update(() => {
+      return getDefaultTokensState();
+    });
   }
 }
 

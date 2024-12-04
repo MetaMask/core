@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.4` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870), [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `punycode/punycode.js`
+
+## [12.3.0]
+
+### Fixed
+
+- Fixed extension performance issues ([#4853](https://github.com/MetaMask/core/pull/4853))
+
+## [12.2.0]
+
+### Changed
+
+- Changed the c2 blocklist fetch interval from 15 minutes to 5 minutes ([#4850](https://github.com/MetaMask/core/pull/4850))
+
+## [12.1.0]
+
+### Fixed
+
+- Update the phishing detector validation to drop invalid configs from detector ([#4820](https://github.com/MetaMask/core/pull/4820))
+
 ## [12.0.3]
 
 ### Fixed
@@ -287,7 +317,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.1...HEAD
+[12.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.0...@metamask/phishing-controller@12.3.1
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.2.0...@metamask/phishing-controller@12.3.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...@metamask/phishing-controller@12.2.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...@metamask/phishing-controller@12.1.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1

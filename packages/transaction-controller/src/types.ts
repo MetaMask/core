@@ -1,4 +1,5 @@
 import type { AccessList } from '@ethereumjs/tx';
+import type { AccountsController } from '@metamask/accounts-controller';
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
@@ -121,6 +122,11 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
+   * The Network ID as per EIP-155 of the destination chain of a bridge transaction.
+   */
+  destinationChainId?: Hex;
+
+  /**
    * The address of the token being received of swap transaction.
    */
   destinationTokenAddress?: string;
@@ -167,6 +173,11 @@ type TransactionMetaBase = {
    */
   firstRetryBlockNumber?: string;
 
+  /**
+   * Whether the transaction is the first time interaction.
+   */
+  isFirstTimeInteraction?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -206,7 +217,7 @@ type TransactionMetaBase = {
   /**
    * The ID of the network client used by the transaction.
    */
-  networkClientId?: NetworkClientId;
+  networkClientId: NetworkClientId;
 
   /**
    * Network code as per EIP-155 for this transaction
@@ -542,15 +553,27 @@ export enum WalletDevice {
   OTHER = 'other_device',
 }
 
+/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * The type of the transaction.
  */
 export enum TransactionType {
   /**
+   * A transaction that bridges tokens to a different chain through Metamask Bridge.
+   */
+  bridge = 'bridge',
+
+  /**
+   * Similar to the approve type, a bridge approval is a special case of ERC20
+   * approve method that requests an allowance of the token to spend on behalf
+   * of the user for the MetaMask Bridge contract. The first bridge for any token
+   * will have an accompanying bridgeApproval transaction.
+   */
+  bridgeApproval = 'bridgeApproval',
+
+  /**
    * A transaction sending a network's native asset to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   cancel = 'cancel',
 
   /**
@@ -558,43 +581,31 @@ export enum TransactionType {
    * have not treated as a special case, such as approve, transfer, and
    * transferfrom.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   contractInteraction = 'contractInteraction',
 
   /**
    * A transaction that deployed a smart contract.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   deployContract = 'contractDeployment',
 
   /**
    * A transaction for Ethereum decryption.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ethDecrypt = 'eth_decrypt',
 
   /**
    * A transaction for getting an encryption public key.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
 
   /**
    * An incoming (deposit) transaction.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   incoming = 'incoming',
 
   /**
    * A transaction for personal sign.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   personalSign = 'personal_sign',
 
   /**
@@ -603,43 +614,46 @@ export enum TransactionType {
    * to speed up pending transactions. This is accomplished by creating a new tx with
    * the same nonce and higher gas fees.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   retry = 'retry',
 
   /**
    * A transaction sending a network's native asset to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   simpleSend = 'simpleSend',
 
   /**
    * A transaction that is signing typed data.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   signTypedData = 'eth_signTypedData',
 
   /**
    * A transaction sending a network's native asset to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   smart = 'smart',
+
+  /**
+   * A transaction that claims staking rewards.
+   */
+  stakingClaim = 'stakingClaim',
+
+  /**
+   * A transaction that deposits tokens into a staking contract.
+   */
+  stakingDeposit = 'stakingDeposit',
+
+  /**
+   * A transaction that unstakes tokens from a staking contract.
+   */
+  stakingUnstake = 'stakingUnstake',
 
   /**
    * A transaction swapping one token for another through MetaMask Swaps.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   swap = 'swap',
 
   /**
    * A transaction swapping one token for another through MetaMask Swaps, then sending the swapped token to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   swapAndSend = 'swapAndSend',
 
   /**
@@ -648,16 +662,12 @@ export enum TransactionType {
    * of the user for the MetaMask Swaps contract. The first swap for any token
    * will have an accompanying swapApproval transaction.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   swapApproval = 'swapApproval',
 
   /**
    * A token transaction requesting an allowance of the token to spend on
    * behalf of the user.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodApprove = 'approve',
 
   /**
@@ -666,16 +676,12 @@ export enum TransactionType {
    * this method the contract checks to ensure that the receiver is an address
    * capable of handling the token being sent.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodSafeTransferFrom = 'safetransferfrom',
 
   /**
    * A token transaction where the user is sending tokens that they own to
    * another address.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodTransfer = 'transfer',
 
   /**
@@ -683,25 +689,20 @@ export enum TransactionType {
    * has an allowance of. For more information on allowances, see the approve
    * type.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodTransferFrom = 'transferfrom',
 
   /**
    * A token transaction requesting an allowance of all of a user's tokens to
    * spend on behalf of the user.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodSetApprovalForAll = 'setapprovalforall',
 
   /**
    * Increase the allowance by a given increment
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
@@ -872,9 +873,9 @@ export interface RemoteTransactionSourceRequest {
   address: string;
 
   /**
-   * The chainId of the current network.
+   * The ID of the chain to query transactions for.
    */
-  currentChainId: Hex;
+  chainId: Hex;
 
   /**
    * Block number to start fetching transactions from.
@@ -1102,7 +1103,7 @@ export type TransactionError = {
 export type SecurityAlertResponse = {
   reason: string;
   features?: string[];
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // This is API specific hence naming convention is not followed.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: string;
   providerRequestsCount?: Record<string, number>;
@@ -1293,6 +1294,9 @@ export type SimulationData = {
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 
+  /** Whether the simulation response changed after a security check triggered a re-simulation. */
+  isUpdatedAfterSecurityCheck?: boolean;
+
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
 
@@ -1351,3 +1355,7 @@ export type SubmitHistoryEntry = {
   /** The transaction parameters that were submitted. */
   transaction: TransactionParams;
 };
+
+export type InternalAccount = ReturnType<
+  AccountsController['getSelectedAccount']
+>;
