@@ -3000,7 +3000,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.0.2"
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/eth-hd-keyring": "npm:^7.0.4"
-    "@metamask/eth-sig-util": "npm:^8.0.0"
+    "@metamask/eth-sig-util": "npm:^8.1.0"
     "@metamask/eth-simple-keyring": "npm:^6.0.5"
     "@metamask/keyring-api": "npm:^10.1.0"
     "@metamask/message-manager": "npm:^11.0.2"
@@ -3052,13 +3052,13 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.2"
     "@metamask/controller-utils": "npm:^11.4.4"
-    "@metamask/eth-sig-util": "npm:^8.0.0"
+    "@metamask/eth-sig-util": "npm:^8.1.0"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
-    jsonschema: "npm:^1.2.4"
+    jsonschema: "npm:^1.4.1"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -9529,7 +9529,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonschema@npm:^1.2.4, jsonschema@npm:^1.4.1":
+"jsonschema@npm:^1.4.1":
   version: 1.4.1
   resolution: "jsonschema@npm:1.4.1"
   checksum: 10/d7a188da7a3100a2caa362b80e98666d46607b7a7153aac405b8e758132961911c6df02d444d4700691330874e21a62639f550e856b21ddd28423690751ca9c6
