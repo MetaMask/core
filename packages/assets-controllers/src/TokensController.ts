@@ -624,11 +624,11 @@ export class TokensController extends BaseController<
       });
 
     this.update((state) => {
-      state.detectedTokens = newDetectedTokens;
       state.allIgnoredTokens = newAllIgnoredTokens;
       state.allDetectedTokens = newAllDetectedTokens;
       state.allTokens = newAllTokens;
       if (interactingChainId === this.#chainId) {
+        state.detectedTokens = newDetectedTokens;
         state.tokens = newTokens;
         state.ignoredTokens = newIgnoredTokens;
       }
