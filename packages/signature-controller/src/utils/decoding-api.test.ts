@@ -1,7 +1,7 @@
 import { EthMethod, type OriginalRequest } from '../types';
 import { decodeSignature } from './decoding-api';
 
-const PERMIT_REQUEST_MOCK_V4 = {
+const PERMIT_REQUEST_MOCK = {
   method: EthMethod.SignTypedDataV4,
   params: [
     '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
@@ -55,7 +55,7 @@ describe('Decoding api', () => {
     mockFetchResponse(MOCK_RESULT);
 
     const result = await decodeSignature(
-      PERMIT_REQUEST_MOCK_V4,
+      PERMIT_REQUEST_MOCK,
       '0x1',
       'https://testdecodingurl.com',
     );
@@ -70,7 +70,7 @@ describe('Decoding api', () => {
     mockFetchResponse(MOCK_ERROR);
 
     const result = await decodeSignature(
-      PERMIT_REQUEST_MOCK_V4,
+      PERMIT_REQUEST_MOCK,
       '0x1',
       'https://testdecodingurl.com',
     );
@@ -80,7 +80,7 @@ describe('Decoding api', () => {
 
   it('return failure error if there is an exception while validating', async () => {
     const result = await decodeSignature(
-      PERMIT_REQUEST_MOCK_V4,
+      PERMIT_REQUEST_MOCK,
       '0x1',
       'https://testdecodingurl.com',
     );
@@ -95,7 +95,7 @@ describe('Decoding api', () => {
     mockFetchResponse(MOCK_RESULT);
     const result = await decodeSignature(
       {
-        ...PERMIT_REQUEST_MOCK_V4,
+        ...PERMIT_REQUEST_MOCK,
         method: 'eth_signTypedData_v3',
       } as OriginalRequest,
       '0x1',
