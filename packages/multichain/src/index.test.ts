@@ -20,8 +20,6 @@ describe('@metamask/multichain', () => {
         "MultichainSubscriptionManager",
         "validateAndNormalizeScopes",
         "bucketScopes",
-        "bucketScopesBySupport",
-        "filterScopesSupported",
         "KnownWalletRpcMethods",
         "KnownRpcMethods",
         "KnownWalletNamespaceRpcMethods",
