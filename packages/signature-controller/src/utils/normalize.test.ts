@@ -2,7 +2,7 @@ import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
 import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
 import {
-  convertNumericValuesToQuotedString,
+  normalizeParam,
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
 } from './normalize';
@@ -42,15 +42,26 @@ describe('Normalize Utils', () => {
     );
   });
 
-  describe('convertNumericValuesToQuotedString', () => {
-    it('wraps numeric value in a json string in quotes', async () => {
-      expect(convertNumericValuesToQuotedString('{temp:123}')).toBe(
-        '{temp:"123"}',
-      );
-      expect(convertNumericValuesToQuotedString('{temp:{test:123}}')).toBe(
-        '{temp:{test:"123"}}',
-      );
-      expect(convertNumericValuesToQuotedString('')).toBe('');
+  describe('normalizeParam', () => {
+    it('convert numeric value in a stringified json to string', async () => {
+      expect(normalizeParam('{"temp":123}')).toMatchObject({ temp: '123' });
+      expect(normalizeParam('{"temp":[123,345,678]}')).toMatchObject({
+        temp: ['123', '345', '678'],
+      });
+      expect(normalizeParam('{"temp":{"test":123}}')).toMatchObject({
+        temp: { test: '123' },
+      });
+      expect(normalizeParam('')).toMatchObject({});
+    });
+    it('convert numeric value in a json to string', async () => {
+      expect(normalizeParam({ temp: 123 })).toMatchObject({ temp: '123' });
+      expect(normalizeParam({ temp: [123, 345, 678] })).toMatchObject({
+        temp: ['123', '345', '678'],
+      });
+      expect(normalizeParam({ temp: { test: 123 } })).toMatchObject({
+        temp: { test: '123' },
+      });
+      expect(normalizeParam({})).toMatchObject({});
     });
   });
 });

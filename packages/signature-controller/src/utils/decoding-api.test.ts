@@ -1,7 +1,7 @@
 import { EthMethod, type OriginalRequest } from '../types';
 import { decodeSignature } from './decoding-api';
 
-const PERMIT_REQUEST_MOCK = {
+const PERMIT_REQUEST_MOCK_V4 = {
   method: EthMethod.SignTypedDataV4,
   params: [
     '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
@@ -55,7 +55,7 @@ describe('Decoding api', () => {
     mockFetchResponse(MOCK_RESULT);
 
     const result = await decodeSignature(
-      PERMIT_REQUEST_MOCK,
+      PERMIT_REQUEST_MOCK_V4,
       '0x1',
       'https://testdecodingurl.com',
     );
@@ -70,7 +70,7 @@ describe('Decoding api', () => {
     mockFetchResponse(MOCK_ERROR);
 
     const result = await decodeSignature(
-      PERMIT_REQUEST_MOCK,
+      PERMIT_REQUEST_MOCK_V4,
       '0x1',
       'https://testdecodingurl.com',
     );
@@ -80,7 +80,7 @@ describe('Decoding api', () => {
 
   it('return failure error if there is an exception while validating', async () => {
     const result = await decodeSignature(
-      PERMIT_REQUEST_MOCK,
+      PERMIT_REQUEST_MOCK_V4,
       '0x1',
       'https://testdecodingurl.com',
     );
@@ -88,9 +88,26 @@ describe('Decoding api', () => {
     expect(result.error.type).toBe('DECODING_FAILED_WITH_ERROR');
   });
 
-  it('return undefined for request not of method eth_signTypedData_v4', async () => {
+  it('return data if method is method eth_signTypedData_v3', async () => {
+    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
+      typeof fetch
+    >;
+    mockFetchResponse(MOCK_RESULT);
     const result = await decodeSignature(
-      { method: 'eth_signTypedData_v3' } as OriginalRequest,
+      {
+        ...PERMIT_REQUEST_MOCK_V4,
+        method: 'eth_signTypedData_v3',
+      } as OriginalRequest,
+      '0x1',
+      'https://testdecodingurl.com',
+    );
+
+    expect(result.stateChanges).toStrictEqual(MOCK_RESULT.stateChanges);
+  });
+
+  it('return undefined for request not of method eth_signTypedData_v1', async () => {
+    const result = await decodeSignature(
+      { method: 'eth_signTypedData_v1' } as OriginalRequest,
       '0x1',
       'https://testdecodingurl.com',
     );
