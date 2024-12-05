@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `startIncomingTransactionPolling`
     - `stopIncomingTransactionPolling`
     - `updateIncomingTransactions`
+- Set `isFirstTimeInteraction` is `undefined` if transaction is an interaction with one of the internal accounts. ([#5024](https://github.com/MetaMask/core/pull/5024))
 
 ### Removed
 
