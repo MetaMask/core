@@ -21,7 +21,6 @@ export { multichainMethodCallValidatorMiddleware } from './middlewares/multichai
 export { MultichainMiddlewareManager } from './middlewares/MultichainMiddlewareManager';
 export { MultichainSubscriptionManager } from './middlewares/MultichainSubscriptionManager';
 
-export { assertScopeSupported, assertScopesSupported } from './scope/assert';
 export type { Caip25Authorization } from './scope/authorization';
 export {
   validateAndNormalizeScopes,

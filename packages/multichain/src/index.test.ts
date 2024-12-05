@@ -18,8 +18,6 @@ describe('@metamask/multichain', () => {
         "multichainMethodCallValidatorMiddleware",
         "MultichainMiddlewareManager",
         "MultichainSubscriptionManager",
-        "assertScopeSupported",
-        "assertScopesSupported",
         "validateAndNormalizeScopes",
         "bucketScopes",
         "bucketScopesBySupport",
