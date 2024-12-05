@@ -54,7 +54,7 @@
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^10.0.0",
     "@open-rpc/schema-utils-js": "^2.0.5",
-    "jsonschema": "^1.2.4",
+    "jsonschema": "^1.4.1",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
