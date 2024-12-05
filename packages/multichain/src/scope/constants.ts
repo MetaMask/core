@@ -26,8 +26,14 @@ export const KnownWalletRpcMethods: string[] = [
   'wallet_scanQRCode',
 ];
 
+/**
+ * Methods that belong to the `wallet:eip155` scope.
+ */
 const WalletEip155Methods = ['wallet_addEthereumChain'];
 
+/**
+ * Methods that are only supported via the EIP-1193 API.
+ */
 export const Eip1193OnlyMethods = [
   'wallet_switchEthereumChain',
   'wallet_getPermissions',

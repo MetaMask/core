@@ -53,6 +53,16 @@ export const validateAndNormalizeScopes = (
   };
 };
 
+/**
+ * Groups a NormalizedScopesObject into three separate
+ * NormalizedScopesObjects for supported scopes,
+ * supportable scopes, and unsupportable scopes.
+ * @param scopes - The NormalizedScopesObject to group.
+ * @param hooks - The hooks.
+ * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
+ * @param hooks.isChainIdSupportable - A helper that returns true if an eth chainId could be supported by the wallet.
+ * @returns an object with three NormalizedScopesObjects separated by support.
+ */
 export const bucketScopes = (
   scopes: NormalizedScopesObject,
   {

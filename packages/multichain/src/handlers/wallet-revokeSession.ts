@@ -12,14 +12,14 @@ import type { JsonRpcSuccess, Json, JsonRpcRequest } from '@metamask/utils';
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
 
 /**
- * Handles the `wallet_revokeSession` RPC method.
+ * Handler for the `wallet_revokeSession` RPC method.
  *
  * @param request - The JSON-RPC request object.
  * @param response - The JSON-RPC response object.
  * @param _next - The next middleware function.
  * @param end - The end callback function.
  * @param hooks - The hooks object.
- * @param hooks.revokePermission - The revokePermission function.
+ * @param hooks.revokePermission - The hook for revoking a permission for an origin function.
  */
 async function walletRevokeSessionHandler(
   request: JsonRpcRequest & { origin: string },
