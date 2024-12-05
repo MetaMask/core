@@ -1,4 +1,4 @@
-import type { JsonRpcRequest } from '@metamask/keyring-api/dist/JsonRpcRequest';
+import type { JsonRpcRequest } from '@metamask/keyring-utils';
 import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -78,7 +78,7 @@ export class SnapHandlerClient {
    */
   constructor({
     handler,
-    // Follow same pattern than for @metamask/keyring-api
+    // Follow same pattern than for @metamask/keyring-snap-client
     snapId,
     origin = 'metamask',
   }: {

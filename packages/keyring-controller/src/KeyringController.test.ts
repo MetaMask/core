@@ -12,7 +12,7 @@ import {
   encrypt,
 } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring/dist/simple-keyring';
-import type { EthKeyring } from '@metamask/keyring-api';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import type { KeyringClass } from '@metamask/utils';
 import {

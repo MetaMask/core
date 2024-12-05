@@ -1,5 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
 
 import type { AllowedActions, ChainControllerActions } from './ChainController';
