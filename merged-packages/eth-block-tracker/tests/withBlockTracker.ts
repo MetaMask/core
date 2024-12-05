@@ -149,6 +149,7 @@ function getFakeProvider({
  * provider.
  * @param callback - A callback which will be called with the built block
  * tracker.
+ * @returns The provider and block tracker.
  */
 async function withPollingBlockTracker(
   options: WithPollingBlockTrackerOptions,
@@ -161,6 +162,7 @@ async function withPollingBlockTracker(
  *
  * @param callback - A callback which will be called with the built block
  * tracker.
+ * @returns The provider and block tracker.
  */
 async function withPollingBlockTracker(
   callback: WithPollingBlockTrackerCallback,
@@ -197,6 +199,7 @@ async function withPollingBlockTracker(
  * provider.
  * @param callback - A callback which will be called with the built block
  * tracker.
+ * @returns The provider and block tracker.
  */
 async function withSubscribeBlockTracker(
   options: WithSubscribeBlockTrackerOptions,
@@ -209,6 +212,7 @@ async function withSubscribeBlockTracker(
  *
  * @param callback - A callback which will be called with the built block
  * tracker.
+ * @returns The provider and block tracker.
  */
 async function withSubscribeBlockTracker(
   callback: WithSubscribeBlockTrackerCallback,

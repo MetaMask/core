@@ -91,10 +91,9 @@ blockTracker.on('error', (err) => console.error(err));
 ### Setup
 
 - Install the current LTS version of [Node.js](https://nodejs.org)
-  - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm use` will automatically choose the right node version for you.
-- Install [Yarn v1](https://yarnpkg.com/en/docs/install)
-- Run `yarn setup` to install dependencies and run any requried post-install scripts
-  - **Warning:** Do not use the `yarn` / `yarn install` command directly. Use `yarn setup` instead. The normal install command will skip required post-install scripts, leaving your development environment in an invalid state.
+  - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm install` will install the latest version and running `nvm use` will automatically choose the right node version for you.
+- Install [Yarn](https://yarnpkg.com) v4 via [Corepack](https://github.com/nodejs/corepack?tab=readme-ov-file#how-to-install)
+- Run `yarn install` to install dependencies and run any required post-install scripts
 
 ### Testing and Linting
 

@@ -1,7 +1,7 @@
 {
   "name": "@metamask/eth-block-tracker",
   "version": "11.0.3",
-  "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
+  "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/eth-block-tracker.git"
@@ -15,12 +15,12 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "build:clean": "rimraf dist && yarn build",
-    "lint": "yarn lint:eslint && yarn lint:misc --check",
+    "lint": "yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check",
+    "lint:constraints": "yarn constraints",
     "lint:eslint": "eslint . --cache --ext js,ts",
-    "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
+    "lint:fix": "yarn lint:eslint --fix && yarn lint:constraints --fix && yarn lint:misc --write",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
-    "prepublishOnly": "yarn build:clean && yarn lint && yarn test",
-    "setup": "yarn install && yarn allow-scripts",
+    "prepack": "./scripts/prepack.sh",
     "test": "jest",
     "test:watch": "jest --watch"
   },
@@ -45,12 +45,13 @@
     "@types/pify": "^5.0.1",
     "@typescript-eslint/eslint-plugin": "^5.61.0",
     "@typescript-eslint/parser": "^5.61.0",
+    "@yarnpkg/types": "^4.0.0",
     "eslint": "^8.21.0",
     "eslint-config-prettier": "^8.1.0",
     "eslint-import-resolver-typescript": "^2.7.1",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-jest": "^27.1.5",
-    "eslint-plugin-jsdoc": "^39.9.1",
+    "eslint-plugin-jsdoc": "^41.0.0",
     "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.1.1",
@@ -62,6 +63,7 @@
     "ts-node": "^10.7.0",
     "typescript": "~4.8.4"
   },
+  "packageManager": "yarn@4.5.3",
   "engines": {
     "node": "^18.16 || ^20 || >=22"
   },

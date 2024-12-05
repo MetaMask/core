@@ -15,13 +15,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # We check out the release pull request's base branch, which will be
-          # used as the base branch for all git operations.
-          ref: ${{ github.event.pull_request.base.ref }}
-      - uses: actions/setup-node@v4
+          ref: ${{ github.sha }}
+      - name: Install Corepack via Node
+        uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
-          cache: yarn
+          node-version-file: '.nvmrc'
+      - name: Install Yarn
+        run: corepack enable
+      - name: Restore Yarn cache
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
       - uses: MetaMask/action-publish-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
