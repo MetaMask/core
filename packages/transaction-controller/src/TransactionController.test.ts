@@ -518,7 +518,13 @@ describe('TransactionController', () => {
    * use in tests.
    *
    * @param args - The arguments to this function.
-   * @param args.options - TransactionController options.
+   * @param args.internalAccounts - Internal accounts to be returned by the `AccountsController:listAccounts` action.
+   * @param args.messengerOptions - Options to build the mock unrestricted
+   * messenger.
+   * @param args.messengerOptions.addTransactionApprovalRequest - Options to
+   * mock the `ApprovalController:addRequest` action call for transactions.
+   * @param args.mockNetworkClientConfigurationsByNetworkClientId - Network
+   * client configurations by network client ID.
    * @param args.network - The mock network to use with the controller.
    * @param args.network.blockTracker - The desired block tracker associated
    * with the network.
@@ -527,30 +533,35 @@ describe('TransactionController', () => {
    * @param args.network.state - The desired NetworkController state.
    * @param args.network.onNetworkStateChange - The function to subscribe to
    * changes in the NetworkController state.
-   * @param args.messengerOptions - Options to build the mock unrestricted
-   * messenger.
-   * @param args.messengerOptions.addTransactionApprovalRequest - Options to
-   * mock the `ApprovalController:addRequest` action call for transactions.
+   * @param args.options - TransactionController options.
    * @param args.selectedAccount - The selected account to use with the controller.
-   * @param args.mockNetworkClientConfigurationsByNetworkClientId - Network
-   * client configurations by network client ID.
    * @param args.updateToInitialState - Whether to apply the controller state after instantiation via the `update` method.
    * This is required if unapproved transactions are included since they are cleared during instantiation.
    * @returns The new TransactionController instance.
    */
   function setupController({
-    options: givenOptions = {},
-    network = {},
+    internalAccounts = [INTERNAL_ACCOUNT_MOCK],
     messengerOptions = {},
-    selectedAccount = INTERNAL_ACCOUNT_MOCK,
     mockNetworkClientConfigurationsByNetworkClientId = {
       [NETWORK_CLIENT_ID_MOCK]: buildCustomNetworkClientConfiguration({
         chainId: CHAIN_ID_MOCK,
       }),
     },
+    network = {},
+    options: givenOptions = {},
+    selectedAccount = INTERNAL_ACCOUNT_MOCK,
     updateToInitialState = false,
   }: {
-    options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
+    internalAccounts?: InternalAccount[];
+    messengerOptions?: {
+      addTransactionApprovalRequest?: Parameters<
+        typeof mockAddTransactionApprovalRequest
+      >[1];
+    };
+    mockNetworkClientConfigurationsByNetworkClientId?: Record<
+      NetworkClientId,
+      NetworkClientConfiguration
+    >;
     network?: {
       blockTracker?: BlockTracker;
       provider?: Provider;
@@ -559,16 +570,8 @@ describe('TransactionController', () => {
         listener: (networkState: NetworkState) => void,
       ) => void;
     };
-    messengerOptions?: {
-      addTransactionApprovalRequest?: Parameters<
-        typeof mockAddTransactionApprovalRequest
-      >[1];
-    };
+    options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
     selectedAccount?: InternalAccount;
-    mockNetworkClientConfigurationsByNetworkClientId?: Record<
-      NetworkClientId,
-      NetworkClientConfiguration
-    >;
     updateToInitialState?: boolean;
   } = {}) {
     let networkState = {
@@ -635,6 +638,7 @@ describe('TransactionController', () => {
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
           'AccountsController:getSelectedAccount',
+          'AccountsController:listAccounts',
         ],
         allowedEvents: [],
       });
@@ -643,6 +647,12 @@ describe('TransactionController', () => {
     unrestrictedMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
       mockGetSelectedAccount,
+    );
+
+    const mockListAccounts = jest.fn().mockReturnValue(internalAccounts);
+    unrestrictedMessenger.registerActionHandler(
+      'AccountsController:listAccounts',
+      mockListAccounts,
     );
 
     const controller = new TransactionController({
@@ -1389,7 +1399,7 @@ describe('TransactionController', () => {
       await controller.addTransaction(
         {
           from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
         },
         {
           deviceConfirmedOn: mockDeviceConfirmedOn,
@@ -1421,64 +1431,93 @@ describe('TransactionController', () => {
       );
     });
 
-    it('does not check account address relationship if a transaction with the same from, to, and chainId exists', async () => {
-      const { controller } = setupController({
-        options: {
-          state: {
-            transactions: [
-              {
-                id: '1',
-                chainId: MOCK_NETWORK.chainId,
-                networkClientId: NETWORK_CLIENT_ID_MOCK,
-                status: TransactionStatus.confirmed as const,
-                time: 123456789,
-                txParams: {
-                  from: ACCOUNT_MOCK,
-                  to: ACCOUNT_MOCK,
-                },
-                isFirstTimeInteraction: false, // Ensure this is set
+    describe('first time interaction', () => {
+      describe('does not check account address relationship', () => {
+        it('if a transaction with the same from, to, and chainId exists', async () => {
+          const { controller } = setupController({
+            options: {
+              state: {
+                transactions: [
+                  {
+                    id: '1',
+                    chainId: MOCK_NETWORK.chainId,
+                    networkClientId: NETWORK_CLIENT_ID_MOCK,
+                    status: TransactionStatus.confirmed as const,
+                    time: 123456789,
+                    txParams: {
+                      from: ACCOUNT_MOCK,
+                      to: ACCOUNT_MOCK,
+                    },
+                    isFirstTimeInteraction: false, // Ensure this is set
+                  },
+                ],
               },
-            ],
+            },
+          });
+
+          // Add second transaction with the same from, to, and chainId
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(getAccountAddressRelationshipMock).toHaveBeenCalledTimes(0);
+          expect(
+            controller.state.transactions[0].isFirstTimeInteraction,
+          ).toBeUndefined();
+        });
+
+        it('if the interaction is with an internal account', async () => {
+          const { controller } = setupController({
+            internalAccounts: [INTERNAL_ACCOUNT_MOCK],
+          });
+
+          // Sending to self included in the internal accounts
+          await controller.addTransaction(
+            {
+              from: ACCOUNT_MOCK,
+              to: ACCOUNT_MOCK,
+            },
+            {
+              networkClientId: NETWORK_CLIENT_ID_MOCK,
+            },
+          );
+
+          await flushPromises();
+
+          expect(getAccountAddressRelationshipMock).toHaveBeenCalledTimes(0);
+          expect(
+            controller.state.transactions[0].isFirstTimeInteraction,
+          ).toBeUndefined();
+        });
+      });
+
+      it('does not update first time interaction property if disabled', async () => {
+        const { controller } = setupController({
+          options: { isFirstTimeInteractionEnabled: () => false },
+        });
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
           },
-        },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getAccountAddressRelationshipMock).not.toHaveBeenCalled();
       });
-
-      // Add second transaction with the same from, to, and chainId
-      await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-        },
-      );
-
-      await flushPromises();
-
-      expect(controller.state.transactions[1].isFirstTimeInteraction).toBe(
-        false,
-      );
-    });
-
-    it('does not update first time interaction properties if disabled', async () => {
-      const { controller } = setupController({
-        options: { isFirstTimeInteractionEnabled: () => false },
-      });
-
-      await controller.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        },
-        {
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-        },
-      );
-
-      await flushPromises();
-
-      expect(getAccountAddressRelationshipMock).not.toHaveBeenCalled();
     });
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {
