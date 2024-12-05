@@ -26,7 +26,6 @@ export {
   validateAndNormalizeScopes,
   bucketScopes,
 } from './scope/authorization';
-export { bucketScopesBySupport, filterScopesSupported } from './scope/filter';
 export {
   KnownWalletRpcMethods,
   KnownRpcMethods,
