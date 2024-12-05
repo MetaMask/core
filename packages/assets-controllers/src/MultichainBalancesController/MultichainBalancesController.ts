@@ -203,6 +203,10 @@ export class MultichainBalancesController extends BaseController<
   #trackAccount(account: InternalAccount): void {
     if (!this.#isNonEvmAccount(account)) {
       // Nothing to do here for EVM accounts
+      console.log(
+        'MultichainBalancesController - early return in #trackAccount',
+        account,
+      );
       return;
     }
 
@@ -280,6 +284,7 @@ export class MultichainBalancesController extends BaseController<
       );
     }
 
+    console.log('MultichainBalancesController update state', { partialState });
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       state.balances = {
         ...state.balances,
@@ -295,6 +300,7 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID.
    */
   async updateBalance(accountId: string) {
+    console.log('MultichainBalancesController updateBalance', { accountId });
     // NOTE: No need to track the account here, since we start tracking those when
     // the "AccountsController:accountAdded" is fired.
     await this.#tracker.updateBalance(accountId);
@@ -305,6 +311,7 @@ export class MultichainBalancesController extends BaseController<
    * anything, but it updates the state of the controller.
    */
   async updateBalances() {
+    console.log('MultichainBalancesController updateBalances');
     await this.#tracker.updateBalances();
   }
 
@@ -328,6 +335,9 @@ export class MultichainBalancesController extends BaseController<
    * @param account - The new account being added.
    */
   async #handleOnAccountAdded(account: InternalAccount) {
+    console.log('MultichainBalancesController handleOnAccountAdded', {
+      account,
+    });
     this.#trackAccount(account);
     // NOTE: Unfortunately, we cannot update the balance right away here, because
     // messenger's events are running synchronously and fetching the balance is
@@ -344,6 +354,9 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string) {
+    console.log('MultichainBalancesController handleOnAccountAdded', {
+      accountId,
+    });
     if (this.#tracker.isTracked(accountId)) {
       this.#tracker.untrack(accountId);
     }
@@ -369,10 +382,9 @@ export class MultichainBalancesController extends BaseController<
     snapId: string,
     assetTypes: CaipAssetType[],
   ): Promise<Record<CaipAssetType, Balance>> {
-    return await this.#getClient(snapId).getAccountBalances(
-      accountId,
-      assetTypes,
-    );
+    const keyringClient = this.#getClient(snapId);
+    console.log('MultichainBalancesController', { keyringClient });
+    return await keyringClient.getAccountBalances(accountId, assetTypes);
   }
 
   /**

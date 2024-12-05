@@ -92,6 +92,10 @@ export class BalancesTracker {
    */
   async updateBalance(accountId: string) {
     this.assertBeingTracked(accountId);
+    console.log(
+      'MultichainBalancesController - BalancesTracker updateBalance',
+      { accountId },
+    );
 
     // We check if the balance is outdated (by comparing to the block time associated
     // with this kind of account).
@@ -112,6 +116,9 @@ export class BalancesTracker {
    * is considered outdated).
    */
   async updateBalances() {
+    console.log(
+      'MultichainBalancesController - BalancesTracker updateBalances',
+    );
     await Promise.allSettled(
       Object.keys(this.#balances).map(async (accountId) => {
         await this.updateBalance(accountId);
