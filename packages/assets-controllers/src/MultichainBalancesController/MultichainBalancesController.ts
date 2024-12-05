@@ -271,10 +271,14 @@ export class MultichainBalancesController extends BaseController<
    */
   async #updateBalance(accountId: string) {
     const account = this.#getAccount(accountId);
+    console.log('MultichainBalancesController updateBalance', { account });
     const partialState: MultichainBalancesControllerState = { balances: {} };
+    console.log('MultichainBalancesController updateBalance', { partialState });
 
     const scope = getScopeForAddress(account);
+    console.log('MultichainBalancesController updateBalance', { scope });
     const assetsList = this.#networkAssetsMap[scope];
+    console.log('MultichainBalancesController updateBalance', { assetsList });
 
     if (account.metadata.snap) {
       partialState.balances[account.id] = await this.#getBalances(
@@ -382,6 +386,11 @@ export class MultichainBalancesController extends BaseController<
     snapId: string,
     assetTypes: CaipAssetType[],
   ): Promise<Record<CaipAssetType, Balance>> {
+    console.log('MultichainBalancesController - getBalances', {
+      accountId,
+      snapId,
+      assetTypes,
+    });
     const keyringClient = this.#getClient(snapId);
     console.log('MultichainBalancesController', { keyringClient });
     return await keyringClient.getAccountBalances(accountId, assetTypes);
