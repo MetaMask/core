@@ -1,11 +1,11 @@
 import log from 'loglevel';
 
 import encryption, { createSHA256Hash } from '../../shared/encryption';
+import { SHARED_SALT } from '../../shared/encryption/constants';
 import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
 import { createEntryPath } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
@@ -83,6 +83,7 @@ export async function getUserStorage(
       await userStorageResponse.json();
     const encryptedData = userStorage?.Data ?? null;
 
+    /* istanbul ignore if - this is an edge case where our endpoint returns invalid JSON payload */
     if (!encryptedData) {
       return null;
     }
@@ -92,6 +93,12 @@ export async function getUserStorage(
       opts.storageKey,
       nativeScryptCrypto,
     );
+
+    // Re-encrypt and re-upload the entry if the salt is random
+    const salt = encryption.getSalt(encryptedData);
+    if (salt.toString() !== SHARED_SALT.toString()) {
+      await upsertUserStorage(decryptedData, opts);
+    }
 
     return decryptedData;
   } catch (e) {
@@ -137,8 +144,10 @@ export async function getUserStorageAllFeatureEntries(
     }
 
     const decryptedData: string[] = [];
+    const reEncryptedEntries: [string, string][] = [];
 
     for (const entry of userStorage) {
+      /* istanbul ignore if - unreachable if statement, but kept as edge case */
       if (!entry.Data) {
         continue;
       }
@@ -150,9 +159,30 @@ export async function getUserStorageAllFeatureEntries(
           nativeScryptCrypto,
         );
         decryptedData.push(data);
+
+        // Re-encrypt the entry if the salt is different from the shared one
+        const salt = encryption.getSalt(entry.Data);
+        if (salt.toString() !== SHARED_SALT.toString()) {
+          reEncryptedEntries.push([
+            entry.HashedKey,
+            await encryption.encryptString(
+              data,
+              opts.storageKey,
+              nativeScryptCrypto,
+            ),
+          ]);
+        }
       } catch {
         // do nothing
       }
+    }
+
+    // Re-upload the re-encrypted entries
+    if (reEncryptedEntries.length) {
+      await batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+        reEncryptedEntries,
+        opts,
+      );
     }
 
     return decryptedData;
@@ -204,7 +234,7 @@ export async function upsertUserStorage(
  * @param opts - storage options
  */
 export async function batchUpsertUserStorage(
-  data: [UserStoragePathWithKeyOnly, string][],
+  data: [string, string][],
   opts: UserStorageBatchUpsertOptions,
 ): Promise<void> {
   if (!data.length) {
@@ -221,6 +251,41 @@ export async function batchUpsertUserStorage(
       await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
     ]);
   }
+
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const formattedData = Object.fromEntries(encryptedData);
+
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify({ data: formattedData }),
+  });
+
+  if (!res.ok) {
+    throw new Error('user-storage - unable to batch upsert data');
+  }
+}
+
+/**
+ * User Storage Service - Set multiple storage entries for one specific feature.
+ * You cannot use this method to set multiple features at once.
+ *
+ * @param encryptedData - data to store, in the form of an array of [hashedKey, encryptedData] pairs
+ * @param opts - storage options
+ */
+export async function batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+  encryptedData: [string, string][],
+  opts: UserStorageBatchUpsertOptions,
+): Promise<void> {
+  if (!encryptedData.length) {
+    return;
+  }
+
+  const { bearerToken, path } = opts;
 
   const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
@@ -266,6 +331,46 @@ export async function deleteUserStorage(
 
   if (!userStorageResponse.ok) {
     throw new Error('user-storage - unable to delete data');
+  }
+}
+
+/**
+ * User Storage Service - Delete multiple storage entries for one specific feature.
+ * You cannot use this method to delete multiple features at once.
+ *
+ * @param data - data to delete, in the form of an array entryKey[]
+ * @param opts - storage options
+ */
+export async function batchDeleteUserStorage(
+  data: string[],
+  opts: UserStorageBatchUpsertOptions,
+): Promise<void> {
+  if (!data.length) {
+    return;
+  }
+
+  const { bearerToken, path, storageKey } = opts;
+
+  const encryptedData: string[] = [];
+
+  for (const d of data) {
+    encryptedData.push(createSHA256Hash(d + storageKey));
+  }
+
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    body: JSON.stringify({ batch_delete: encryptedData }),
+  });
+
+  if (!res.ok) {
+    throw new Error('user-storage - unable to batch delete data');
   }
 }
 
