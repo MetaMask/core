@@ -2,12 +2,7 @@ import { MultiChainOpenRPCDocument } from '@metamask/api-specs';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
-import type {
-  Json,
-  JsonRpcError,
-  JsonRpcParams,
-  JsonRpcRequest,
-} from '@metamask/utils';
+import type { Json, JsonRpcError, JsonRpcParams } from '@metamask/utils';
 import type {
   ContentDescriptorObject,
   MethodObject,
@@ -17,12 +12,6 @@ import dereferenceDocument from '@open-rpc/schema-utils-js/build/dereference-doc
 import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-rpc-document';
 import type { Schema, ValidationError } from 'jsonschema';
 import { Validator } from 'jsonschema';
-
-import type {
-  Caip27Params,
-  Caip285Params,
-  Caip319Params,
-} from '../scope/types';
 
 const transformError = (
   error: ValidationError,
@@ -110,7 +99,7 @@ const multichainMethodCallValidator = async (
 };
 
 export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware<
-  JsonRpcRequest | Caip27Params | Caip319Params | Caip285Params,
+  JsonRpcParams,
   Json
 > = function (request, _response, next, end) {
   // eslint-disable-next-line @typescript-eslint/no-floating-promises

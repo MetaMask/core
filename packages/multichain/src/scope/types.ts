@@ -10,7 +10,6 @@ import type {
   KnownCaipNamespace,
   CaipNamespace,
   Json,
-  JsonRpcParams,
 } from '@metamask/utils';
 
 /**
@@ -120,59 +119,3 @@ export type NonWalletKnownCaipNamespace = Exclude<
   KnownCaipNamespace,
   KnownCaipNamespace.Wallet
 >;
-
-// {
-//   "id": 1,
-//   "jsonrpc": "2.0",
-//   "method": "wallet_invokeMethod",
-//   "params": {
-//     "sessionId": "0xdeadbeef",
-//     "scope": "eip155:1",
-//     "request": {
-//       "method": "eth_sendTransaction",
-//       "params": [
-//         {
-//           "to": "0x4B0897b0513FdBeEc7C469D9aF4fA6C0752aBea7",
-//           "from": "0xDeaDbeefdEAdbeefdEadbEEFdeadbeefDEADbEEF",
-//           "gas": "0x76c0",
-//           "value": "0x8ac7230489e80000",
-//           "data": "0x",
-//           "gasPrice": "0x4a817c800"
-//         }
-//       ]
-//     }
-//   }
-// }
-
-/**
- * Parameters for the `wallet_invokeMethod` method as defined in CAIP-27.
- */
-export type Caip27Params = {
-  scope: string;
-  request: {
-    method: string;
-    params: JsonRpcParams;
-  };
-};
-
-/**
- * Parameters for the `wallet_notify` method as defined in CAIP-319.
- */
-export type Caip319Params = {
-  scope: string;
-  notification: {
-    method: string;
-    params: JsonRpcParams;
-  };
-};
-
-/**
- * Parameters for the `wallet_revokeSession` method as defined in CAIP-285.
- */
-export type Caip285Params = {
-  scope: string;
-  request: {
-    method: string;
-    params: Record<PropertyKey, never>;
-  };
-};
