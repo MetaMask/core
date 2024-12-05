@@ -48,21 +48,12 @@ export type {
   NonWalletKnownCaipNamespace,
 } from './scope/types';
 export { parseScopeString } from './scope/types';
-// Do these need to be exported?
-export {
-  isSupportedScopeString,
-  isSupportedAccount,
-  isSupportedMethod,
-  isSupportedNotification,
-} from './scope/supported';
 export {
   normalizeScope,
   mergeScopeObject,
   mergeScopes,
   normalizeAndMergeScopes,
 } from './scope/transform';
-// does this need to be exported?
-export { isValidScope, getValidScopes } from './scope/validation';
 
 export type { Caip25CaveatValue } from './caip25Permission';
 export {
