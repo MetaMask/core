@@ -2,7 +2,10 @@ import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bufferToHex } from '@ethereumjs/util';
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerListAccountsAction,
+} from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -88,6 +91,7 @@ import type {
   FeeMarketEIP1559Values,
   SubmitHistoryEntry,
   RemoteTransactionSource,
+  InternalAccount,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -342,7 +346,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerListAccountsAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -3599,6 +3604,16 @@ export class TransactionController extends BaseController<
       return;
     }
 
+    const isInteractionWithInternalAccount = this.#getInternalAccounts().some(
+      (account) => account.address === to,
+    );
+
+    // If the interaction is with an internal account, we don't need to check the account address relationship
+    // no warning will be shown
+    if (isInteractionWithInternalAccount) {
+      return;
+    }
+
     try {
       const { count } = await this.#trace(
         { name: 'Account Address Relationship', parentContext: traceContext },
@@ -3793,5 +3808,11 @@ export class TransactionController extends BaseController<
 
       submitHistory.unshift(submitHistoryEntry);
     });
+  }
+
+  #getInternalAccounts(): InternalAccount[] {
+    return this.messagingSystem.call(
+      'AccountsController:listAccounts',
+    ) as InternalAccount[];
   }
 }
