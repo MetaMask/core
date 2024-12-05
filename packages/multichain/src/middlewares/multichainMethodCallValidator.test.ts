@@ -4,11 +4,6 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
-import type {
-  Caip27Params,
-  Caip285Params,
-  Caip319Params,
-} from '../scope/types';
 import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidator';
 
 describe('multichainMethodCallValidatorMiddleware', () => {
@@ -19,7 +14,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
 
   describe('"wallet_invokeMethod" request', () => {
     it('should pass validation and call next when passed a valid "wallet_invokeMethod" request', async () => {
-      const request: JsonRpcRequest<Caip27Params> = {
+      const request: JsonRpcRequest = {
         id: 1,
         jsonrpc: '2.0',
         method: 'wallet_invokeMethod',
@@ -56,11 +51,10 @@ describe('multichainMethodCallValidatorMiddleware', () => {
       });
     });
     it('should throw an error when passed a "wallet_invokeMethod" request with no scope', async () => {
-      const request: JsonRpcRequest<Caip27Params> = {
+      const request: JsonRpcRequest = {
         id: 1,
         jsonrpc: '2.0',
         method: 'wallet_invokeMethod',
-        // @ts-expect-error test
         params: {
           request: {
             method: 'test_method',
@@ -117,11 +111,10 @@ describe('multichainMethodCallValidatorMiddleware', () => {
       });
     });
     it('should throw an error for a "wallet_invokeMethod" request without a nested request object', async () => {
-      const request: JsonRpcRequest<Caip27Params> = {
+      const request: JsonRpcRequest = {
         id: 1,
         jsonrpc: '2.0',
         method: 'wallet_invokeMethod',
-        // @ts-expect-error test
         params: {
           scope: 'test',
         },
@@ -178,11 +171,10 @@ describe('multichainMethodCallValidatorMiddleware', () => {
       });
     });
     it('should throw an error for an invalidly formatted "wallet_invokeMethod" request', async () => {
-      const request: JsonRpcRequest<Caip27Params> = {
+      const request: JsonRpcRequest = {
         id: 1,
         jsonrpc: '2.0',
         method: 'wallet_invokeMethod',
-        // @ts-expect-error test
         params: {
           scope: 'test',
           request: {
@@ -247,7 +239,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
 
   describe('"wallet_notify" request', () => {
     it('should pass validation for a "wallet_notify" request and call next', async () => {
-      const request: JsonRpcRequest<Caip319Params> = {
+      const request: JsonRpcRequest = {
         id: 2,
         jsonrpc: '2.0',
         method: 'wallet_notify',
@@ -287,11 +279,10 @@ describe('multichainMethodCallValidatorMiddleware', () => {
     });
 
     it('should throw an error for a "wallet_notify" request with invalid params', async () => {
-      const request: JsonRpcRequest<Caip319Params> = {
+      const request: JsonRpcRequest = {
         id: 2,
         jsonrpc: '2.0',
         method: 'wallet_notify',
-        // @ts-expect-error test
         params: {
           scope: 'test_scope',
           request: {
@@ -354,7 +345,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
 
   describe('"wallet_revokeSession" request', () => {
     it('should pass validation and call next when passed a valid "wallet_revokeSession" request', async () => {
-      const request: JsonRpcRequest<Caip285Params> = {
+      const request: JsonRpcRequest = {
         id: 3,
         jsonrpc: '2.0',
         method: 'wallet_revokeSession',
@@ -385,11 +376,10 @@ describe('multichainMethodCallValidatorMiddleware', () => {
 
   describe('"wallet_getSession" request', () => {
     it('should pass validation and call next when passed a valid "wallet_getSession" request', async () => {
-      const request: JsonRpcRequest<Caip285Params> = {
+      const request: JsonRpcRequest = {
         id: 5,
         jsonrpc: '2.0',
         method: 'wallet_getSession',
-        // @ts-expect-error TODO figure out why this type is not working
         params: {},
       };
       const response = {} as JsonRpcResponse<typeof request>;
@@ -417,11 +407,10 @@ describe('multichainMethodCallValidatorMiddleware', () => {
   });
 
   it('should throw an error if the top level params are not an object', async () => {
-    const request: JsonRpcRequest<Caip27Params> = {
+    const request: JsonRpcRequest = {
       id: 1,
       jsonrpc: '2.0',
       method: 'wallet_invokeMethod',
-      // @ts-expect-error test
       params: ['test'],
     };
     const response = {} as JsonRpcResponse<typeof request>;
@@ -457,11 +446,10 @@ describe('multichainMethodCallValidatorMiddleware', () => {
   });
 
   it('should throw an error when passed an unknown method at the top level', async () => {
-    const request: JsonRpcRequest<Caip27Params> = {
+    const request: JsonRpcRequest = {
       id: 1,
       jsonrpc: '2.0',
       method: 'unknown_method',
-      // @ts-expect-error test
       params: {
         request: {
           method: 'test_method',
