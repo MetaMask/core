@@ -63,7 +63,7 @@
   "devDependencies": {
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/eth-block-tracker": "^11.0.2",
+    "@metamask/eth-block-tracker": "^11.0.3",
     "@metamask/gas-fee-controller": "^22.0.2",
     "@metamask/keyring-controller": "^19.0.1",
     "@metamask/network-controller": "^22.1.0",
