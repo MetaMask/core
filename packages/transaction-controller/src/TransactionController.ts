@@ -3604,7 +3604,9 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    const isInteractionWithInternalAccount = this.#getInternalAccounts().some(
+    const internalAccounts = await this.#getInternalAccounts();
+
+    const isInteractionWithInternalAccount = internalAccounts.some(
       (account) => account.address === to,
     );
 
@@ -3810,9 +3812,10 @@ export class TransactionController extends BaseController<
     });
   }
 
-  #getInternalAccounts(): InternalAccount[] {
-    return this.messagingSystem.call(
+  async #getInternalAccounts(): Promise<InternalAccount[]> {
+    const internalAccountsList = await this.messagingSystem.call(
       'AccountsController:listAccounts',
-    ) as InternalAccount[];
+    );
+    return internalAccountsList;
   }
 }
