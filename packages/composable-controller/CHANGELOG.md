@@ -9,15 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 
-### Uncategorized
-
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- Release 220.0.0 ([#4798](https://github.com/MetaMask/core/pull/4798))
-
 ### Changed
 
 - **BREAKING:** `ComposableController` constructor option `controllers` and generic type argument `ChildControllers` are re-defined from an array of controller instances to an object that maps controller names to controller instances ([#4968](https://github.com/MetaMask/core/pull/4968))
 - **BREAKING:** `ComposableController` class field objects `state` and `metadata` exclude child controllers that do not extend from `BaseController` or `BaseControllerV1`. Any non-controller entries that are passed into the constructor will be removed automatically ([#4968](https://github.com/MetaMask/core/pull/4968))
+- Bump devDependency `@metamask/json-rpc-engine` from `^9.0.3` to `^10.0.1` ([#4798](https://github.com/MetaMask/core/pull/4798), [#4862](https://github.com/MetaMask/core/pull/4862))
 
 ### Fixed
 
