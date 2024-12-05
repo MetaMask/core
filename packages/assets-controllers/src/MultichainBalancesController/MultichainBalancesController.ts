@@ -280,13 +280,12 @@ export class MultichainBalancesController extends BaseController<
       );
     }
 
-    this.update((state: Draft<MultichainBalancesControllerState>) => ({
-      ...state,
-      balances: {
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      state.balances = {
         ...state.balances,
         ...partialState.balances,
-      },
-    }));
+      };
+    });
   }
 
   /**
