@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Add `INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS` constant.
+
+### Changed
+
+- **BREAKING:** Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Rename `TransactionControllerIncomingTransactionBlockReceivedEvent` to `TransactionControllerIncomingTransactionsReceivedEvent`.
+  - Replace `networkClientIds` argument with `chainIds` in following methods:
+    - `startIncomingTransactionPolling`
+    - `stopIncomingTransactionPolling`
+    - `updateIncomingTransactions`
+
+### Removed
+
+- **BREAKING:** Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Remove `ETHERSCAN_SUPPORTED_NETWORKS` constant.
+  - Remove types:
+    - `EtherscanTransactionMeta`
+    - `RemoteTransactionSource`
+    - `RemoteTransactionSourceRequest`
+
 ## [41.1.0]
 
 ### Added
