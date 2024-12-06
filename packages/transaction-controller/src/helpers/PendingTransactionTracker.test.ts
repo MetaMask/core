@@ -1,19 +1,19 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 import { query } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import { freeze } from 'immer';
 
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
+import { TransactionPoller } from './TransactionPoller';
 
 const ID_MOCK = 'testId';
 const CHAIN_ID_MOCK = '0x1';
 const NONCE_MOCK = '0x2';
 const BLOCK_NUMBER_MOCK = '0x123';
 
-const ETH_QUERY_MOCK = {};
+const ETH_QUERY_MOCK = {} as unknown as EthQuery;
 
 const TRANSACTION_SUBMITTED_MOCK = {
   id: ID_MOCK,
@@ -24,7 +24,7 @@ const TRANSACTION_SUBMITTED_MOCK = {
   txParams: {
     nonce: NONCE_MOCK,
   },
-};
+} as unknown as TransactionMeta;
 
 const RECEIPT_MOCK = {
   blockNumber: BLOCK_NUMBER_MOCK,
@@ -38,6 +38,8 @@ const BLOCK_MOCK = {
   timestamp: 123456,
 };
 
+jest.mock('./TransactionPoller');
+
 jest.mock('@metamask/controller-utils', () => ({
   query: jest.fn(),
   // TODO: Replace `any` with type
@@ -45,25 +47,45 @@ jest.mock('@metamask/controller-utils', () => ({
   safelyExecute: (fn: () => any) => fn(),
 }));
 
+/**
+ * Creates a mock block tracker instance.
+ * @returns The mock block tracker instance.
+ */
 function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
   return {
     on: jest.fn(),
     removeListener: jest.fn(),
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any;
+  } as unknown as jest.Mocked<BlockTracker>;
+}
+
+/**
+ * Creates a mock transaction poller instance.
+ * @returns The mock transaction poller instance.
+ */
+function createTransactionPollerMock(): jest.Mocked<TransactionPoller> {
+  return {
+    start: jest.fn(),
+    stop: jest.fn(),
+    setPendingTransactions: jest.fn(),
+  } as unknown as jest.Mocked<TransactionPoller>;
 }
 
 describe('PendingTransactionTracker', () => {
   const queryMock = jest.mocked(query);
   let blockTracker: jest.Mocked<BlockTracker>;
-  let failTransaction: jest.Mock;
   let pendingTransactionTracker: PendingTransactionTracker;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let options: any;
+  let transactionPoller: jest.Mocked<TransactionPoller>;
 
-  async function onLatestBlock(
+  let options: jest.Mocked<
+    ConstructorParameters<typeof PendingTransactionTracker>[0]
+  >;
+
+  /**
+   * Simulates a poll event.
+   * @param latestBlockNumber - The latest block number.
+   * @param transactionsOnCheck - The current transactions during the check.
+   */
+  async function onPoll(
     latestBlockNumber?: string,
     transactionsOnCheck?: TransactionMeta[],
   ) {
@@ -79,29 +101,27 @@ describe('PendingTransactionTracker', () => {
       );
     }
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/await-thenable
-    await blockTracker.on.mock.calls[0][1](latestBlockNumber);
+    await transactionPoller.start.mock.calls[0][0](latestBlockNumber as string);
   }
 
   beforeEach(() => {
     blockTracker = createBlockTrackerMock();
-    failTransaction = jest.fn();
+    transactionPoller = createTransactionPollerMock();
+
+    jest.mocked(TransactionPoller).mockImplementation(() => transactionPoller);
 
     options = {
-      approveTransaction: jest.fn(),
       blockTracker,
-      failTransaction,
-      getChainId: () => CHAIN_ID_MOCK,
-      getEthQuery: () => ETH_QUERY_MOCK,
+      getChainId: jest.fn(() => CHAIN_ID_MOCK),
+      getEthQuery: jest.fn(() => ETH_QUERY_MOCK),
       getTransactions: jest.fn(),
-      getGlobalLock: () => Promise.resolve(jest.fn()),
+      getGlobalLock: jest.fn(() => Promise.resolve(jest.fn())),
       publishTransaction: jest.fn(),
     };
   });
 
   describe('on state change', () => {
-    it('adds block tracker listener if pending transactions', () => {
+    it('adds listener if pending transactions', () => {
       pendingTransactionTracker = new PendingTransactionTracker(options);
 
       options.getTransactions.mockReturnValue(
@@ -110,14 +130,13 @@ describe('PendingTransactionTracker', () => {
 
       pendingTransactionTracker.startIfPendingTransactions();
 
-      expect(blockTracker.on).toHaveBeenCalledTimes(1);
-      expect(blockTracker.on).toHaveBeenCalledWith(
-        'latest',
+      expect(transactionPoller.start).toHaveBeenCalledTimes(1);
+      expect(transactionPoller.start).toHaveBeenCalledWith(
         expect.any(Function),
       );
     });
 
-    it('does nothing if block tracker listener already added', () => {
+    it('does nothing if listener already added', () => {
       pendingTransactionTracker = new PendingTransactionTracker(options);
 
       options.getTransactions.mockReturnValue(
@@ -127,11 +146,29 @@ describe('PendingTransactionTracker', () => {
       pendingTransactionTracker.startIfPendingTransactions();
       pendingTransactionTracker.startIfPendingTransactions();
 
-      expect(blockTracker.on).toHaveBeenCalledTimes(1);
-      expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
+      expect(transactionPoller.start).toHaveBeenCalledTimes(1);
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(0);
     });
 
-    it('removes block tracker listener if no pending transactions and running', () => {
+    it('removes listener if no pending transactions and running', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
+
+      options.getTransactions.mockReturnValue(
+        freeze([TRANSACTION_SUBMITTED_MOCK], true),
+      );
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(0);
+
+      options.getTransactions.mockReturnValue([]);
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing if listener already removed', () => {
       pendingTransactionTracker = new PendingTransactionTracker(options);
 
       options.getTransactions.mockReturnValue(
@@ -146,33 +183,11 @@ describe('PendingTransactionTracker', () => {
 
       pendingTransactionTracker.startIfPendingTransactions();
 
-      expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
-      expect(blockTracker.removeListener).toHaveBeenCalledWith(
-        'latest',
-        expect.any(Function),
-      );
-    });
-
-    it('does nothing if block tracker listener already removed', () => {
-      pendingTransactionTracker = new PendingTransactionTracker(options);
-
-      options.getTransactions.mockReturnValue(
-        freeze([TRANSACTION_SUBMITTED_MOCK], true),
-      );
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(1);
 
       pendingTransactionTracker.startIfPendingTransactions();
 
-      expect(blockTracker.removeListener).toHaveBeenCalledTimes(0);
-
-      options.getTransactions.mockReturnValue([]);
-
-      pendingTransactionTracker.startIfPendingTransactions();
-
-      expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
-
-      pendingTransactionTracker.startIfPendingTransactions();
-
-      expect(blockTracker.removeListener).toHaveBeenCalledTimes(1);
+      expect(transactionPoller.stop).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -201,7 +216,7 @@ describe('PendingTransactionTracker', () => {
             listener,
           );
 
-          await onLatestBlock(undefined, [
+          await onPoll(undefined, [
             {
               ...TRANSACTION_SUBMITTED_MOCK,
               status: TransactionStatus.dropped,
@@ -248,7 +263,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(0);
         });
@@ -278,7 +293,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: null });
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(0);
         });
@@ -308,7 +323,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: '0x3' });
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(0);
         });
@@ -333,7 +348,7 @@ describe('PendingTransactionTracker', () => {
             listener,
           );
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(
@@ -366,7 +381,7 @@ describe('PendingTransactionTracker', () => {
             listener,
           );
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(0);
         });
@@ -387,7 +402,7 @@ describe('PendingTransactionTracker', () => {
 
           queryMock.mockResolvedValueOnce({ ...RECEIPT_MOCK, status: '0x0' });
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(
@@ -405,7 +420,7 @@ describe('PendingTransactionTracker', () => {
             ...TRANSACTION_SUBMITTED_MOCK,
             id: `${ID_MOCK}2`,
             status: TransactionStatus.confirmed,
-          };
+          } as unknown as TransactionMeta;
 
           const submittedTransactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -425,7 +440,7 @@ describe('PendingTransactionTracker', () => {
             listener,
           );
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(submittedTransactionMetaMock);
@@ -451,7 +466,7 @@ describe('PendingTransactionTracker', () => {
             queryMock.mockResolvedValueOnce(undefined);
             queryMock.mockResolvedValueOnce('0x3');
 
-            await onLatestBlock();
+            await onPoll();
           }
 
           expect(listener).toHaveBeenCalledTimes(1);
@@ -466,7 +481,7 @@ describe('PendingTransactionTracker', () => {
             id: `${ID_MOCK}2`,
             chainId: '0x2',
             status: TransactionStatus.confirmed,
-          };
+          } as unknown as TransactionMeta;
 
           const submittedTransactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -485,7 +500,7 @@ describe('PendingTransactionTracker', () => {
             listener,
           );
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).not.toHaveBeenCalled();
         });
@@ -512,7 +527,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(
@@ -552,7 +567,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(RECEIPT_MOCK);
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
 
-          await onLatestBlock();
+          await onPoll();
 
           expect(listener).toHaveBeenCalledTimes(2);
           expect(listener).toHaveBeenCalledWith(
@@ -591,7 +606,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockRejectedValueOnce(new Error('TestError'));
           queryMock.mockResolvedValueOnce(BLOCK_MOCK);
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
           getTransactions.mockReturnValue(
             freeze(
               [
@@ -625,9 +640,8 @@ describe('PendingTransactionTracker', () => {
         it('if no pending transactions', async () => {
           pendingTransactionTracker = new PendingTransactionTracker(options);
 
-          await onLatestBlock(undefined, []);
+          await onPoll(undefined, []);
 
-          expect(options.approveTransaction).toHaveBeenCalledTimes(0);
           expect(options.publishTransaction).toHaveBeenCalledTimes(0);
         });
       });
@@ -650,7 +664,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
 
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(
@@ -682,7 +696,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
           getTransactions.mockReturnValue(
             freeze(
               [
@@ -694,7 +708,7 @@ describe('PendingTransactionTracker', () => {
               true,
             ),
           );
-          await onLatestBlock('0x124');
+          await onPoll('0x124');
 
           expect(listener).toHaveBeenCalledTimes(2);
           expect(listener).toHaveBeenCalledWith(
@@ -731,7 +745,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
           getTransactions.mockReturnValue(
             freeze(
               [
@@ -743,7 +757,7 @@ describe('PendingTransactionTracker', () => {
               true,
             ),
           );
-          await onLatestBlock('0x124');
+          await onPoll('0x124');
 
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(
@@ -780,7 +794,7 @@ describe('PendingTransactionTracker', () => {
             new Error('TestError'),
           );
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
           getTransactions.mockReturnValue(
             freeze(
               [
@@ -792,7 +806,7 @@ describe('PendingTransactionTracker', () => {
               true,
             ),
           );
-          await onLatestBlock('0x124');
+          await onPoll('0x124');
 
           expect(listener).toHaveBeenCalledTimes(2);
           expect(listener).toHaveBeenCalledWith(
@@ -833,7 +847,7 @@ describe('PendingTransactionTracker', () => {
             new Error('test gas price too low to replace test'),
           );
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
           getTransactions.mockReturnValue(
             freeze(
               [
@@ -845,7 +859,7 @@ describe('PendingTransactionTracker', () => {
               true,
             ),
           );
-          await onLatestBlock('0x124');
+          await onPoll('0x124');
 
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).not.toHaveBeenCalledWith(
@@ -870,7 +884,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
           getTransactions.mockReturnValue(
             freeze(
               [
@@ -882,7 +896,7 @@ describe('PendingTransactionTracker', () => {
               true,
             ),
           );
-          await onLatestBlock('0x124');
+          await onPoll('0x124');
 
           expect(options.publishTransaction).toHaveBeenCalledTimes(1);
           expect(options.publishTransaction).toHaveBeenCalledWith(
@@ -908,7 +922,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
           expect(options.publishTransaction).toHaveBeenCalledTimes(0);
           getTransactions.mockReturnValue(
             freeze(
@@ -922,7 +936,7 @@ describe('PendingTransactionTracker', () => {
             ),
           );
 
-          await onLatestBlock('0x124');
+          await onPoll('0x124');
           expect(options.publishTransaction).toHaveBeenCalledTimes(1);
           getTransactions.mockReturnValue(
             freeze(
@@ -937,7 +951,7 @@ describe('PendingTransactionTracker', () => {
             ),
           );
 
-          await onLatestBlock('0x125');
+          await onPoll('0x125');
           expect(options.publishTransaction).toHaveBeenCalledTimes(2);
           getTransactions.mockReturnValue(
             freeze(
@@ -952,10 +966,10 @@ describe('PendingTransactionTracker', () => {
             ),
           );
 
-          await onLatestBlock('0x126');
+          await onPoll('0x126');
           expect(options.publishTransaction).toHaveBeenCalledTimes(2);
 
-          await onLatestBlock('0x127');
+          await onPoll('0x127');
           expect(options.publishTransaction).toHaveBeenCalledTimes(3);
           getTransactions.mockReturnValue(
             freeze(
@@ -970,10 +984,10 @@ describe('PendingTransactionTracker', () => {
             ),
           );
 
-          await onLatestBlock('0x12A');
+          await onPoll('0x12A');
           expect(options.publishTransaction).toHaveBeenCalledTimes(3);
 
-          await onLatestBlock('0x12B');
+          await onPoll('0x12B');
           expect(options.publishTransaction).toHaveBeenCalledTimes(4);
         });
 
@@ -992,7 +1006,7 @@ describe('PendingTransactionTracker', () => {
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
+          await onPoll(BLOCK_NUMBER_MOCK);
 
           getTransactions.mockReturnValue(
             freeze(
@@ -1006,7 +1020,7 @@ describe('PendingTransactionTracker', () => {
             ),
           );
 
-          await onLatestBlock('0x124');
+          await onPoll('0x124');
 
           expect(options.publishTransaction).toHaveBeenCalledTimes(0);
         });

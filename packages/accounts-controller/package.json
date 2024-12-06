@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "18.2.3",
+  "version": "20.0.1",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -49,10 +49,10 @@
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
     "@metamask/base-controller": "^7.0.2",
-    "@metamask/eth-snap-keyring": "^4.3.6",
-    "@metamask/keyring-api": "^8.1.3",
-    "@metamask/snaps-sdk": "^6.5.0",
-    "@metamask/snaps-utils": "^8.1.1",
+    "@metamask/eth-snap-keyring": "^5.0.1",
+    "@metamask/keyring-api": "^10.1.0",
+    "@metamask/snaps-sdk": "^6.7.0",
+    "@metamask/snaps-utils": "^8.3.0",
     "@metamask/utils": "^10.0.0",
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
@@ -61,19 +61,23 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.3.1",
-    "@metamask/snaps-controllers": "^9.7.0",
+    "@metamask/keyring-controller": "^19.0.1",
+    "@metamask/providers": "^18.1.1",
+    "@metamask/snaps-controllers": "^9.10.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/snaps-controllers": "^9.7.0"
+    "@metamask/keyring-controller": "^19.0.0",
+    "@metamask/providers": "^18.1.0",
+    "@metamask/snaps-controllers": "^9.7.0",
+    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
