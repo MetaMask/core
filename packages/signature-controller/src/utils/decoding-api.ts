@@ -1,5 +1,5 @@
 import { EthMethod, type OriginalRequest } from '../types';
-import { convertNumericValuesToQuotedString } from './normalize';
+import { normalizeParam } from './normalize';
 
 export const DECODING_API_ERRORS = {
   UNSUPPORTED_SIGNATURE: 'UNSUPPORTED_SIGNATURE',
@@ -21,7 +21,10 @@ export async function decodeSignature(
 ) {
   try {
     const { method, origin, params } = request;
-    if (request.method === EthMethod.SignTypedDataV4) {
+    if (
+      request.method === EthMethod.SignTypedDataV3 ||
+      request.method === EthMethod.SignTypedDataV4
+    ) {
       const response = await fetch(
         `${decodingApiUrl}/signature?chainId=${chainId}`,
         {
@@ -29,10 +32,7 @@ export async function decodeSignature(
           body: JSON.stringify({
             method,
             origin,
-            params: [
-              params[0],
-              JSON.parse(convertNumericValuesToQuotedString(params[1])),
-            ],
+            params: [params[0], normalizeParam(params[1])],
           }),
           headers: { 'Content-Type': 'application/json' },
         },

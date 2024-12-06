@@ -60,7 +60,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/json-rpc-engine": "^10.0.1",
-    "@metamask/network-controller": "^22.1.0",
+    "@metamask/network-controller": "^22.1.1",
     "@metamask/permission-controller": "^11.0.4",
     "@open-rpc/meta-schema": "^1.14.6",
     "@types/jest": "^27.4.1",
