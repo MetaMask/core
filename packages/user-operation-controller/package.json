@@ -66,7 +66,7 @@
     "@metamask/eth-block-tracker": "^11.0.3",
     "@metamask/gas-fee-controller": "^22.0.2",
     "@metamask/keyring-controller": "^19.0.1",
-    "@metamask/network-controller": "^22.1.0",
+    "@metamask/network-controller": "^22.1.1",
     "@metamask/transaction-controller": "^42.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
