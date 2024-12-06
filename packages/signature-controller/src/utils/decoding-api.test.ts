@@ -88,7 +88,7 @@ describe('Decoding api', () => {
     expect(result.error.type).toBe('DECODING_FAILED_WITH_ERROR');
   });
 
-  it('return undefined for request not of method eth_signTypedData_v3', async () => {
+  it('return undefined for request not of method eth_signTypedData_v4', async () => {
     const result = await decodeSignature(
       { method: 'eth_signTypedData_v3' } as OriginalRequest,
       '0x1',
