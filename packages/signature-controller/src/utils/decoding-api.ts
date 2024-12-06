@@ -1,5 +1,5 @@
 import { EthMethod, type OriginalRequest } from '../types';
-import { convertNumericValuesToQuotedString } from './normalize';
+import { normalizeParam } from './normalize';
 
 export const DECODING_API_ERRORS = {
   UNSUPPORTED_SIGNATURE: 'UNSUPPORTED_SIGNATURE',
@@ -32,10 +32,7 @@ export async function decodeSignature(
           body: JSON.stringify({
             method,
             origin,
-            params: [
-              params[0],
-              JSON.parse(convertNumericValuesToQuotedString(params[1])),
-            ],
+            params: [params[0], normalizeParam(params[1])],
           }),
           headers: { 'Content-Type': 'application/json' },
         },

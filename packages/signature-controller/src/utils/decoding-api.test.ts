@@ -105,7 +105,7 @@ describe('Decoding api', () => {
     expect(result.stateChanges).toStrictEqual(MOCK_RESULT.stateChanges);
   });
 
-  it('return undefined for request not of method eth_signTypedData_v1', async () => {
+  it('return undefined for request not of method eth_signTypedData_v3 or eth_signTypedData_v4', async () => {
     const result = await decodeSignature(
       { method: 'eth_signTypedData_v1' } as OriginalRequest,
       '0x1',
