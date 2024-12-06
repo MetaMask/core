@@ -50,7 +50,7 @@
     "@ethereumjs/util": "^8.1.0",
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
     "@metamask/base-controller": "^7.0.2",
-    "@metamask/browser-passworder": "^4.3.0",
+    "@metamask/browser-passworder": "^5.0.1",
     "@metamask/eth-hd-keyring": "^7.0.4",
     "@metamask/eth-sig-util": "^8.0.0",
     "@metamask/eth-simple-keyring": "^6.0.5",
