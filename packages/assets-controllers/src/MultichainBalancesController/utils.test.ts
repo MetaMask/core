@@ -12,7 +12,7 @@ import { MultichainNetworks } from './constants';
 import {
   getScopeForBtcAddress,
   getScopeForSolAddress,
-  getScopeForAddress,
+  getScopeForAccount,
 } from './utils';
 
 const mockBtcAccount = {
@@ -141,7 +141,7 @@ describe('getScopeForAddress', () => {
     };
     (validate as jest.Mock).mockReturnValueOnce(true);
 
-    const scope = getScopeForAddress(account);
+    const scope = getScopeForAccount(account);
 
     expect(scope).toBe(MultichainNetworks.Bitcoin);
   });
@@ -152,7 +152,7 @@ describe('getScopeForAddress', () => {
       options: { scope: 'solana-scope' },
     };
 
-    const scope = getScopeForAddress(account);
+    const scope = getScopeForAccount(account);
 
     expect(scope).toBe('solana-scope');
   });
@@ -164,7 +164,7 @@ describe('getScopeForAddress', () => {
     };
 
     // @ts-expect-error - We're testing an error case.
-    expect(() => getScopeForAddress(account)).toThrow(
+    expect(() => getScopeForAccount(account)).toThrow(
       `Unsupported non-EVM account type: ${account.type}`,
     );
   });
