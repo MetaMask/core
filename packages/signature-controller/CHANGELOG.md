@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: Fixes in signature decoding functionality ([#5028](https://github.com/MetaMask/core/pull/5028))
+- fix: signature decoding api should be called for typed sign V3 also ([#5033](https://github.com/MetaMask/core/pull/5033))
+- fix: Revert `eth-sig-util` package ([#5027](https://github.com/MetaMask/core/pull/5027))
+- fix: Update `jsonschema` version & `eth-sig-util` ([#4998](https://github.com/MetaMask/core/pull/4998))
+
 ## [23.0.1]
 
 ### Changed
