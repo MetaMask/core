@@ -1,7 +1,12 @@
-import type { CaipChainId, Hex } from '@metamask/utils';
+import { type Hex } from '@metamask/utils';
 
-import { assertScopeSupported } from './assert';
-import type { NormalizedScopesObject } from './types';
+import { assertIsInternalScopeString, assertScopeSupported } from './assert';
+import { isSupportedMethod, isSupportedNotification } from './supported';
+import type {
+  InternalScopeString,
+  NormalizedScopeObject,
+  NormalizedScopesObject,
+} from './types';
 
 /**
  * Groups a NormalizedScopesObject into two separate
@@ -24,13 +29,14 @@ export const bucketScopesBySupport = (
   const unsupportedScopes: NormalizedScopesObject = {};
 
   for (const [scopeString, scopeObject] of Object.entries(scopes)) {
+    assertIsInternalScopeString(scopeString);
     try {
       assertScopeSupported(scopeString, scopeObject, {
         isChainIdSupported,
       });
-      supportedScopes[scopeString as CaipChainId] = scopeObject;
+      supportedScopes[scopeString] = scopeObject;
     } catch (err) {
-      unsupportedScopes[scopeString as CaipChainId] = scopeObject;
+      unsupportedScopes[scopeString] = scopeObject;
     }
   }
 
@@ -39,8 +45,8 @@ export const bucketScopesBySupport = (
 
 /**
  * Returns a NormalizedScopesObject with only
- * scopes that are supported.
- * @param scopes - The NormalizedScopesObject to convert.
+ * scopes that are supported entirely as is.
+ * @param scopes - The NormalizedScopesObject to filter.
  * @param hooks - The hooks.
  * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
  * @returns a NormalizedScopesObject with only scopes that are currently supported.
@@ -58,4 +64,52 @@ export const filterScopesSupported = (
   });
 
   return supportedScopes;
+};
+
+/**
+ * Returns a NormalizedScopeObject with
+ * unsupported methods and notifications removed.
+ * @param scopeString - The InternalScopeString for the scopeObject.
+ * @param scopeObject - The NormalizedScopeObject to filter.
+ * @returns a NormalizedScopeObject with only methods and notifications that are currently supported.
+ */
+const filterScopeObjectSupported = (
+  scopeString: InternalScopeString,
+  scopeObject: NormalizedScopeObject,
+) => {
+  const { methods, notifications } = scopeObject;
+
+  const supportedMethods = methods.filter((method) =>
+    isSupportedMethod(scopeString, method),
+  );
+
+  const supportedNotifications = notifications.filter((notification) =>
+    isSupportedNotification(scopeString, notification),
+  );
+
+  return {
+    ...scopeObject,
+    methods: supportedMethods,
+    notifications: supportedNotifications,
+  };
+};
+
+/**
+ * Returns a NormalizedScopesObject with
+ * unsupported methods and notifications removed from scopeObjects.
+ * @param scopes - The NormalizedScopesObject to filter.
+ * @returns a NormalizedScopesObject with only methods, and notifications that are currently supported.
+ */
+export const filterScopeObjectsSupported = (scopes: NormalizedScopesObject) => {
+  const filteredScopesObject: NormalizedScopesObject = {};
+
+  for (const [scopeString, scopeObject] of Object.entries(scopes)) {
+    assertIsInternalScopeString(scopeString);
+    filteredScopesObject[scopeString] = filterScopeObjectSupported(
+      scopeString,
+      scopeObject,
+    );
+  }
+
+  return filteredScopesObject;
 };
