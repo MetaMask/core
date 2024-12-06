@@ -103,7 +103,7 @@
     "@metamask/base-controller": "^7.0.2",
     "@metamask/keyring-api": "^10.1.0",
     "@metamask/keyring-controller": "^19.0.1",
-    "@metamask/network-controller": "^22.1.0",
+    "@metamask/network-controller": "^22.1.1",
     "@metamask/snaps-sdk": "^6.7.0",
     "@metamask/snaps-utils": "^8.3.0",
     "@noble/ciphers": "^0.5.2",

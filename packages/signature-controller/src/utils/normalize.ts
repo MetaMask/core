@@ -1,5 +1,5 @@
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import { add0x, bytesToHex, remove0x } from '@metamask/utils';
+import { add0x, bytesToHex, type Json, remove0x } from '@metamask/utils';
 
 import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
 
@@ -61,14 +61,40 @@ function normalizePersonalMessageData(data: string) {
 }
 
 /**
- * Takes a stringified JSON and replaces all numeric values in it with quoted strings.
+ * The method will convery all values in a JSON to string.
+ * Currently decoding api is not able to take numeric values,
+ * once apiis fixed we can get rid of this normalization.
  *
- * @param str - String of JSON to be fixed.
- * @returns String with all numeric values converted to quoted strings.
+ * @param value - JSON to be normalized.
+ * @returns JSON with all values converted to string.
  */
-export function convertNumericValuesToQuotedString(str: string) {
-  if (!str) {
-    return '';
+function convertJSONValuesToString(value: Json | unknown): Json | string {
+  if (Array.isArray(value)) {
+    return value.map((val) => convertJSONValuesToString(val));
   }
-  return str?.replace(/(?<=:\s*)(-?\d+(\.\d+)?)(?=[,\]}])/gu, '"$1"');
+  if (typeof value === 'object' && value !== null) {
+    for (const key in value) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        (value as Record<string, unknown>)[key] = convertJSONValuesToString(
+          (value as Record<string, unknown>)[key],
+        );
+      }
+    }
+    return value as Json;
+  }
+  return value?.toString() ?? '';
+}
+
+/**
+ * Takes a stringified JSON and replaces stringifying all values.
+ *
+ * @param param - of JSON to be fixed.
+ * @returns JSON with all values converted to quoted strings.
+ */
+export function normalizeParam(param: string | Record<string, unknown>) {
+  if (!param) {
+    return {};
+  }
+  const parsedParam = typeof param === 'string' ? JSON.parse(param) : param;
+  return convertJSONValuesToString(parsedParam);
 }
