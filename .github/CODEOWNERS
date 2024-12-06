@@ -12,7 +12,7 @@
 /packages/chain-controller           @MetaMask/accounts-engineers
 
 ## Assets Team
-/packages/assets-controller          @MetaMask/metamask-assets
+/packages/assets-controllers         @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller           @MetaMask/confirmations
