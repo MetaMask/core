@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.2",
     "@metamask/chain-api": "^0.1.0",
-    "@metamask/keyring-api": "^10.1.0",
+    "@metamask/keyring-api": "^11.1.0",
     "@metamask/snaps-controllers": "^9.10.0",
     "@metamask/snaps-sdk": "^6.7.0",
     "@metamask/snaps-utils": "^8.3.0",
