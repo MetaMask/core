@@ -21,10 +21,7 @@ export async function decodeSignature(
 ) {
   try {
     const { method, origin, params } = request;
-    if (
-      request.method === EthMethod.SignTypedDataV4 ||
-      request.method === EthMethod.SignTypedDataV3
-    ) {
+    if (request.method === EthMethod.SignTypedDataV4) {
       const response = await fetch(
         `${decodingApiUrl}/signature?chainId=${chainId}`,
         {

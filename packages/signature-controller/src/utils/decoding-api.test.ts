@@ -88,26 +88,9 @@ describe('Decoding api', () => {
     expect(result.error.type).toBe('DECODING_FAILED_WITH_ERROR');
   });
 
-  it('return data if method is method eth_signTypedData_v3', async () => {
-    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
-    mockFetchResponse(MOCK_RESULT);
+  it('return undefined for request not of method eth_signTypedData_v3', async () => {
     const result = await decodeSignature(
-      {
-        ...PERMIT_REQUEST_MOCK,
-        method: 'eth_signTypedData_v3',
-      } as OriginalRequest,
-      '0x1',
-      'https://testdecodingurl.com',
-    );
-
-    expect(result.stateChanges).toStrictEqual(MOCK_RESULT.stateChanges);
-  });
-
-  it('return undefined for request not of method eth_signTypedData_v1', async () => {
-    const result = await decodeSignature(
-      { method: 'eth_signTypedData_v1' } as OriginalRequest,
+      { method: 'eth_signTypedData_v3' } as OriginalRequest,
       '0x1',
       'https://testdecodingurl.com',
     );
