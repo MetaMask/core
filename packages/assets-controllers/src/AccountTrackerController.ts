@@ -372,12 +372,14 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
         : [toChecksumHexAddress(selectedAccount.address)];
 
       const accountsForChain = { ...accountsByChainId[chainId] };
+      let balanceChanged = false;
       for (const address of accountsToUpdate) {
         const balance = await this.#getBalanceFromChain(address, ethQuery);
-        if (balance) {
+        if (balance && accountsForChain[address]?.balance !== balance) {
           accountsForChain[address] = {
             balance,
           };
+          balanceChanged = true;
         }
         if (this.#includeStakedAssets) {
           const stakedBalance = await this.#getStakedBalanceForChain(
@@ -392,13 +394,14 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
           }
         }
       }
-
-      this.update((state) => {
-        if (chainId === this.#getCurrentChainId()) {
-          state.accounts = accountsForChain;
-        }
-        state.accountsByChainId[chainId] = accountsForChain;
-      });
+      if (balanceChanged) {
+        this.update((state) => {
+          if (chainId === this.#getCurrentChainId()) {
+            state.accounts = accountsForChain;
+          }
+          state.accountsByChainId[chainId] = accountsForChain;
+        });
+      }
     } finally {
       releaseLock();
     }
