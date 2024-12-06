@@ -2526,7 +2526,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-block-tracker@npm:^11.0.1, @metamask/eth-block-tracker@npm:^11.0.3":
+"@metamask/eth-block-tracker@npm:^11.0.3":
   version: 11.0.3
   resolution: "@metamask/eth-block-tracker@npm:11.0.3"
   dependencies:
@@ -2577,11 +2577,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^15.0.0":
-  version: 15.0.0
-  resolution: "@metamask/eth-json-rpc-middleware@npm:15.0.0"
+"@metamask/eth-json-rpc-middleware@npm:^15.0.1":
+  version: 15.0.1
+  resolution: "@metamask/eth-json-rpc-middleware@npm:15.0.1"
   dependencies:
-    "@metamask/eth-block-tracker": "npm:^11.0.1"
+    "@metamask/eth-block-tracker": "npm:^11.0.3"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.5"
     "@metamask/eth-sig-util": "npm:^7.0.3"
     "@metamask/json-rpc-engine": "npm:^10.0.0"
@@ -2592,7 +2592,7 @@ __metadata:
     klona: "npm:^2.0.6"
     pify: "npm:^5.0.0"
     safe-stable-stringify: "npm:^2.4.3"
-  checksum: 10/3c48d34264c695535f2b4e819fb602d835b6ed37309116a06d04d1b706a7335e0205cd4ccdbf1d3e9dc15ebf40d88954a9a2dc18a91f223dcd6d6392e026a5e9
+  checksum: 10/9777fca31440bf0076f5d2c24e2ddb4848ecd9d41b0a5d6114c27339567e60bfcb9057d6bfa81f18f5ca0ffa848ecf9603c765f606b8de206d3e34dba519c501
   languageName: node
   linkType: hard
 
@@ -3115,7 +3115,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.4.4"
     "@metamask/eth-block-tracker": "npm:^11.0.3"
     "@metamask/eth-json-rpc-infura": "npm:^10.0.0"
-    "@metamask/eth-json-rpc-middleware": "npm:^15.0.0"
+    "@metamask/eth-json-rpc-middleware": "npm:^15.0.1"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.6"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.1"
