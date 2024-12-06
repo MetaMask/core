@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): bump `@metamask/eth-block-tracker` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
+
 ### Added
 
 - Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
