@@ -56,7 +56,7 @@
     "@metamask/eth-query": "^4.0.0",
     "@metamask/json-rpc-engine": "^10.0.1",
     "@metamask/rpc-errors": "^7.0.1",
-    "@metamask/swappable-obj-proxy": "^2.2.0",
+    "@metamask/swappable-obj-proxy": "^2.3.0",
     "@metamask/utils": "^10.0.0",
     "async-mutex": "^0.5.0",
     "fast-deep-equal": "^3.1.3",
