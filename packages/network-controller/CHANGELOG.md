@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.1.1]
 
-### Uncategorized
+### Changed
 
-- chore(deps): bump `@metamask/eth-json-rpc-middleware` to `^15.0.1` ([#5037](https://github.com/MetaMask/core/pull/5037))
-- chore(deps): bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
-- chore(deps): bump `@metamask/eth-block-tracker` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
+- Bump `@metamask/eth-json-rpc-middleware` from `^15.0.0` to `^15.0.1` ([#5037](https://github.com/MetaMask/core/pull/5037))
+- Bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
+- Bump `@metamask/eth-block-tracker` from `^11.0.2` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
 
 ## [22.1.0]
 
