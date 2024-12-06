@@ -3,6 +3,7 @@ import type {
   StateConstraint,
   StateConstraintV1,
   StateMetadata,
+  StateMetadataConstraint,
   ControllerStateChangeEvent,
   LegacyControllerStateConstraint,
   ControllerInstance,
@@ -126,11 +127,14 @@ export type ComposableControllerMessenger<
  * Controller that composes multiple child controllers and maintains up-to-date composed state.
  *
  * @template ComposableControllerState - A type object containing the names and state types of the child controllers.
- * @template ChildControllers - A union type of the child controllers being used to instantiate the {@link ComposableController}.
+ * @template ChildControllersMap - A type object that specifies the child controllers which are used to instantiate the {@link ComposableController}.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
-  ChildControllers extends ControllerInstance,
+  ChildControllersMap extends Record<
+    keyof ComposableControllerState,
+    ControllerInstance
+  >,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
@@ -140,15 +144,14 @@ export class ComposableController<
    * Creates a ComposableController instance.
    *
    * @param options - Initial options used to configure this controller
-   * @param options.controllers - List of child controller instances to compose.
+   * @param options.controllers - An object that contains child controllers keyed by their names.
    * @param options.messenger - A restricted controller messenger.
    */
-
   constructor({
     controllers,
     messenger,
   }: {
-    controllers: ChildControllers[];
+    controllers: ChildControllersMap;
     messenger: ComposableControllerMessenger<ComposableControllerState>;
   }) {
     if (messenger === undefined) {
@@ -157,27 +160,32 @@ export class ComposableController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
-        (metadata, controller) => ({
-          ...metadata,
-          [controller.name]: isBaseController(controller)
-            ? controller.metadata
-            : { persist: true, anonymous: true },
-        }),
-        {} as never,
-      ),
-      state: controllers.reduce<ComposableControllerState>(
+      // This reduce operation intentionally reuses its output object. This provides a significant performance benefit over returning a new object on each iteration.
+      metadata: Object.keys(controllers).reduce<
+        StateMetadata<ComposableControllerState>
+      >((metadata, name) => {
+        (metadata as StateMetadataConstraint)[name] = {
+          persist: true,
+          anonymous: true,
+        };
+        return metadata;
+      }, {} as never),
+      // This reduce operation intentionally reuses its output object. This provides a significant performance benefit over returning a new object on each iteration.
+      state: Object.values(controllers).reduce<ComposableControllerState>(
         (state, controller) => {
-          return { ...state, [controller.name]: controller.state };
+          // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
+          (state as ComposableControllerStateConstraint)[controller.name] =
+            controller.state;
+          return state;
         },
         {} as never,
       ),
       messenger,
     });
 
-    controllers.forEach((controller) =>
-      this.#updateChildController(controller),
-    );
+    Object.values(controllers).forEach((controller) => {
+      this.#updateChildController(controller);
+    });
   }
 
   /**
@@ -188,6 +196,11 @@ export class ComposableController<
   #updateChildController(controller: ControllerInstance): void {
     const { name } = controller;
     if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
+      try {
+        delete this.metadata[name];
+        delete this.state[name];
+        // eslint-disable-next-line no-empty
+      } catch (_) {}
       // False negative. `name` is a string type.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
@@ -199,7 +212,8 @@ export class ComposableController<
         `${name}:stateChange`,
         (childState: LegacyControllerStateConstraint) => {
           this.update((state) => {
-            Object.assign(state, { [name]: childState });
+            // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
+            (state as ComposableControllerStateConstraint)[name] = childState;
           });
         },
       );
@@ -211,7 +225,8 @@ export class ComposableController<
     if (isBaseControllerV1(controller)) {
       controller.subscribe((childState: StateConstraintV1) => {
         this.update((state) => {
-          Object.assign(state, { [name]: childState });
+          // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
+          (state as ComposableControllerStateConstraint)[name] = childState;
         });
       });
     }

@@ -64,7 +64,7 @@ export type PetNamesControllerActions = PetNamesControllerGetStateAction;
 /**
  * All actions that {@link PetNamesController} calls internally.
  */
-export type AllowedActions = never;
+type AllowedActions = never;
 
 /**
  * The event that {@link PetNamesController} publishes when updating state.
@@ -83,7 +83,7 @@ export type PetNamesControllerEvents = PetNamesControllerStateChangeEvent;
 /**
  * All events that {@link PetNamesController} subscribes to internally.
  */
-export type AllowedEvents = never;
+type AllowedEvents = never;
 
 /**
  * The messenger which is restricted to actions and events accessed by

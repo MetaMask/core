@@ -4,7 +4,6 @@
 # Note: Please keep this synchronized with the `teams.json` file in the repository root.
 # That file is used for some automated workflows, and maps controller to owning team(s).
 
-*                                    @MetaMask/engineering
 /.github/                            @MetaMask/wallet-framework-engineers
 
 ## Accounts Team
@@ -13,7 +12,7 @@
 /packages/chain-controller           @MetaMask/accounts-engineers
 
 ## Assets Team
-/packages/assets-controller          @MetaMask/metamask-assets
+/packages/assets-controllers         @MetaMask/metamask-assets
 
 ## Confirmations Team
 /packages/address-book-controller           @MetaMask/confirmations
@@ -34,7 +33,6 @@
 /packages/phishing-controller              @MetaMask/product-safety
 
 ## Snaps Team
-/packages/notification-controller          @MetaMask/snaps-devs
 /packages/rate-limit-controller            @MetaMask/snaps-devs
 
 ## Wallet API Platform Team
@@ -86,8 +84,6 @@
 /packages/message-manager/CHANGELOG.md            @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/name-controller/package.json            @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/name-controller/CHANGELOG.md            @MetaMask/confirmations @MetaMask/wallet-framework-engineers
-/packages/notification-controller/package.json    @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
-/packages/notification-controller/CHANGELOG.md    @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/wallet-framework-engineers

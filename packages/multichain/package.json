@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Provides types, helpers, adapters, and wrappers for facilitating CAIP Multichain sessions",
   "keywords": [
     "MetaMask",
@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.10.12",
-    "@metamask/controller-utils": "^11.4.3",
+    "@metamask/controller-utils": "^11.4.4",
     "@metamask/eth-json-rpc-filters": "^7.0.0",
     "@metamask/rpc-errors": "^7.0.1",
     "@metamask/utils": "^10.0.0",
@@ -56,8 +56,8 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^22.0.2",
-    "@metamask/permission-controller": "^11.0.3",
+    "@metamask/network-controller": "^22.1.0",
+    "@metamask/permission-controller": "^11.0.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

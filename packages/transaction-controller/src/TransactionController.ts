@@ -46,6 +46,8 @@ import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x, hexToNumber } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import/no-nodejs-modules
 import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
@@ -59,7 +61,7 @@ import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
-import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
+import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
@@ -85,7 +87,6 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
   SubmitHistoryEntry,
-  RemoteTransactionSource,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -203,12 +204,12 @@ export type MethodData = {
  *
  * @property transactions - A list of TransactionMeta objects
  * @property methodData - Object containing all known method data information
- * @property lastFetchedBlockNumbers - Last fetched block numbers.
+ * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
   transactions: TransactionMeta[];
   methodData: Record<string, MethodData>;
-  lastFetchedBlockNumbers: { [key: string]: number };
+  lastFetchedBlockNumbers: { [key: string]: number | string };
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -356,11 +357,11 @@ export type TransactionControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 /**
- * Represents the `TransactionController:incomingTransactionBlockReceived` event.
+ * Represents the `TransactionController:incomingTransactionsReceived` event.
  */
-export type TransactionControllerIncomingTransactionBlockReceivedEvent = {
-  type: `${typeof controllerName}:incomingTransactionBlockReceived`;
-  payload: [blockNumber: number];
+export type TransactionControllerIncomingTransactionsReceivedEvent = {
+  type: `${typeof controllerName}:incomingTransactionsReceived`;
+  payload: [incomingTransactions: TransactionMeta[]];
 };
 
 /**
@@ -517,7 +518,7 @@ export type TransactionControllerUnapprovedTransactionAddedEvent = {
  * The internal events available to the {@link TransactionController}.
  */
 export type TransactionControllerEvents =
-  | TransactionControllerIncomingTransactionBlockReceivedEvent
+  | TransactionControllerIncomingTransactionsReceivedEvent
   | TransactionControllerPostTransactionBalanceUpdatedEvent
   | TransactionControllerSpeedupTransactionAddedEvent
   | TransactionControllerStateChangeEvent
@@ -615,6 +616,10 @@ export class TransactionController extends BaseController<
     address: string,
     chainId?: string,
   ) => NonceTrackerTransaction[];
+
+  #incomingTransactionChainIds: Set<Hex> = new Set();
+
+  #incomingTransactionHelper: IncomingTransactionHelper;
 
   private readonly layer1GasFeeFlows: Layer1GasFeeFlow[];
 
@@ -838,17 +843,11 @@ export class TransactionController extends BaseController<
         );
       }) as NetworkController['getNetworkClientById'],
       getNetworkClientRegistry,
-      removeIncomingTransactionHelperListeners:
-        this.#removeIncomingTransactionHelperListeners.bind(this),
       removePendingTransactionTrackerListeners:
         this.#removePendingTransactionTrackerListeners.bind(this),
       createNonceTracker: this.#createNonceTracker.bind(this),
-      createIncomingTransactionHelper:
-        this.#createIncomingTransactionHelper.bind(this),
       createPendingTransactionTracker:
         this.#createPendingTransactionTracker.bind(this),
-      createRemoteTransactionSource:
-        this.#createRemoteTransactionSource.bind(this),
       onNetworkStateChange: (listener) => {
         this.messagingSystem.subscribe(
           'NetworkController:stateChange',
@@ -893,6 +892,31 @@ export class TransactionController extends BaseController<
           _state.methodData[fourBytePrefix] = methodData;
         });
       },
+    );
+
+    const updateCache = (fn: (cache: Record<string, unknown>) => void) => {
+      this.update((_state) => {
+        fn(_state.lastFetchedBlockNumbers);
+      });
+    };
+
+    this.#incomingTransactionHelper = new IncomingTransactionHelper({
+      getCache: () => this.state.lastFetchedBlockNumbers,
+      getChainIds: () => [...this.#incomingTransactionChainIds],
+      getCurrentAccount: () => this.#getSelectedAccount(),
+      getLocalTransactions: () => this.state.transactions,
+      includeTokenTransfers:
+        this.#incomingTransactionOptions.includeTokenTransfers,
+      isEnabled: this.#incomingTransactionOptions.isEnabled,
+      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
+      remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
+      trimTransactions: this.trimTransactionsForState.bind(this),
+      updateCache,
+      updateTransactions: this.#incomingTransactionOptions.updateTransactions,
+    });
+
+    this.#addIncomingTransactionHelperListeners(
+      this.#incomingTransactionHelper,
     );
 
     // when transactionsController state changes
@@ -1122,22 +1146,34 @@ export class TransactionController extends BaseController<
     };
   }
 
-  startIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
-    this.#multichainTrackingHelper.startIncomingTransactionPolling(
-      networkClientIds,
+  startIncomingTransactionPolling(chainIds: Hex[]) {
+    chainIds.forEach((chainId) =>
+      this.#incomingTransactionChainIds.add(chainId),
     );
+
+    this.#incomingTransactionHelper.start();
   }
 
-  stopIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
-    this.#multichainTrackingHelper.stopIncomingTransactionPolling(
-      networkClientIds,
+  stopIncomingTransactionPolling(chainIds?: Hex[]) {
+    chainIds?.forEach((chainId) =>
+      this.#incomingTransactionChainIds.delete(chainId),
     );
+
+    if (!chainIds) {
+      this.#incomingTransactionChainIds.clear();
+    }
+
+    if (this.#incomingTransactionChainIds.size === 0) {
+      this.#incomingTransactionHelper.stop();
+    }
   }
 
-  async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
-    await this.#multichainTrackingHelper.updateIncomingTransactions(
-      networkClientIds,
+  async updateIncomingTransactions(chainIds: Hex[]) {
+    chainIds.forEach((chainId) =>
+      this.#incomingTransactionChainIds.add(chainId),
     );
+
+    await this.#incomingTransactionHelper.update();
   }
 
   /**
@@ -2866,51 +2902,39 @@ export class TransactionController extends BaseController<
     return Common.custom(customChainParams);
   }
 
-  private onIncomingTransactions({
-    added,
-    updated,
-  }: {
-    added: TransactionMeta[];
-    updated: TransactionMeta[];
-  }) {
-    this.update((state) => {
-      const { transactions } = state;
+  private onIncomingTransactions(transactions: TransactionMeta[]) {
+    if (!transactions.length) {
+      return;
+    }
 
-      const existingTransactions = transactions.map(
-        (tx) => updated.find(({ hash }) => hash === tx.hash) ?? tx,
-      );
+    const finalTransactions = transactions.map((tx) => {
+      const { chainId } = tx;
+      const networkClientId = this.#getNetworkClientId({ chainId });
 
-      const updatedTransactions = [...added, ...existingTransactions].map(
-        (tx) => {
-          const { chainId } = tx;
-          const networkClientId = this.#getNetworkClientId({ chainId });
-
-          return {
-            ...tx,
-            networkClientId,
-          };
-        },
-      );
-
-      state.transactions = this.trimTransactionsForState(updatedTransactions);
+      return {
+        ...tx,
+        networkClientId,
+      };
     });
-  }
 
-  private onUpdatedLastFetchedBlockNumbers({
-    lastFetchedBlockNumbers,
-    blockNumber,
-  }: {
-    lastFetchedBlockNumbers: {
-      [key: string]: number;
-    };
-    blockNumber: number;
-  }) {
     this.update((state) => {
-      state.lastFetchedBlockNumbers = lastFetchedBlockNumbers;
+      const { transactions: currentTransactions } = state;
+
+      state.transactions = this.trimTransactionsForState([
+        ...finalTransactions,
+        ...currentTransactions,
+      ]);
+
+      log(
+        'Added incoming transactions to state',
+        finalTransactions.length,
+        finalTransactions,
+      );
     });
+
     this.messagingSystem.publish(
-      `${controllerName}:incomingTransactionBlockReceived`,
-      blockNumber,
+      `${controllerName}:incomingTransactionsReceived`,
+      finalTransactions,
     );
   }
 
@@ -3292,42 +3316,6 @@ export class TransactionController extends BaseController<
     });
   }
 
-  #createRemoteTransactionSource(): RemoteTransactionSource {
-    return new EtherscanRemoteTransactionSource({
-      apiKeysByChainId:
-        this.#incomingTransactionOptions.etherscanApiKeysByChainId,
-      includeTokenTransfers:
-        this.#incomingTransactionOptions.includeTokenTransfers,
-    });
-  }
-
-  #createIncomingTransactionHelper({
-    blockTracker,
-    remoteTransactionSource,
-    chainId,
-  }: {
-    blockTracker: BlockTracker;
-    remoteTransactionSource: RemoteTransactionSource;
-    chainId: Hex;
-  }): IncomingTransactionHelper {
-    const incomingTransactionHelper = new IncomingTransactionHelper({
-      blockTracker,
-      getCurrentAccount: () => this.#getSelectedAccount(),
-      getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getLocalTransactions: () => this.state.transactions,
-      getChainId: () => chainId,
-      isEnabled: this.#incomingTransactionOptions.isEnabled,
-      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
-      remoteTransactionSource,
-      transactionLimit: this.#transactionHistoryLimit,
-      updateTransactions: this.#incomingTransactionOptions.updateTransactions,
-    });
-
-    this.#addIncomingTransactionHelperListeners(incomingTransactionHelper);
-
-    return incomingTransactionHelper;
-  }
-
   #createPendingTransactionTracker({
     provider,
     blockTracker,
@@ -3378,7 +3366,7 @@ export class TransactionController extends BaseController<
   ) {
     incomingTransactionHelper.hub.removeAllListeners('transactions');
     incomingTransactionHelper.hub.removeAllListeners(
-      'updatedLastFetchedBlockNumbers',
+      'updated-last-fetched-timestamp',
     );
   }
 
@@ -3388,11 +3376,6 @@ export class TransactionController extends BaseController<
     incomingTransactionHelper.hub.on(
       'transactions',
       this.onIncomingTransactions.bind(this),
-    );
-
-    incomingTransactionHelper.hub.on(
-      'updatedLastFetchedBlockNumbers',
-      this.onUpdatedLastFetchedBlockNumbers.bind(this),
     );
   }
 

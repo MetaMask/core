@@ -96,7 +96,7 @@ export type GasPricesControllerActions =
 /**
  * All actions that {@link GasPricesController} calls internally.
  */
-export type AllowedActions = NetworkControllerGetStateAction;
+type AllowedActions = NetworkControllerGetStateAction;
 
 /**
  * The event that {@link GasPricesController} publishes when updating state.
@@ -115,7 +115,7 @@ export type GasPricesControllerEvents = GasPricesControllerStateChangeEvent;
 /**
  * All events that {@link GasPricesController} subscribes to internally.
  */
-export type AllowedEvents = never;
+type AllowedEvents = never;
 
 /**
  * The messenger which is restricted to actions and events accessed by

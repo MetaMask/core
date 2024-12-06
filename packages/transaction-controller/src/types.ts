@@ -122,6 +122,11 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
+   * The Network ID as per EIP-155 of the destination chain of a bridge transaction.
+   */
+  destinationChainId?: Hex;
+
+  /**
    * The address of the token being received of swap transaction.
    */
   destinationTokenAddress?: string;
@@ -865,22 +870,37 @@ export interface RemoteTransactionSourceRequest {
   /**
    * The address of the account to fetch transactions for.
    */
-  address: string;
+  address: Hex;
 
   /**
-   * The ID of the chain to query transactions for.
+   * Numerical cache to optimize fetching transactions.
    */
-  chainId: Hex;
+  cache: Record<string, unknown>;
 
   /**
-   * Block number to start fetching transactions from.
+   * The IDs of the chains to query.
    */
-  fromBlock?: number;
+  chainIds: Hex[];
 
   /**
-   * Maximum number of transactions to retrieve.
+   * Whether to also include incoming token transfers.
    */
-  limit?: number;
+  includeTokenTransfers: boolean;
+
+  /**
+   * Whether to initially query the entire transaction history.
+   */
+  queryEntireHistory: boolean;
+
+  /**
+   * Callback to update the cache.
+   */
+  updateCache(fn: (cache: Record<string, unknown>) => void): void;
+
+  /**
+   * Whether to also retrieve outgoing transactions.
+   */
+  updateTransactions: boolean;
 }
 
 /**
@@ -892,15 +912,9 @@ export interface RemoteTransactionSourceRequest {
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface RemoteTransactionSource {
   /**
-   * @param chainId - The chainId of the current network.
-   * @returns Whether the remote transaction source supports the specified network.
+   * @returns Array of chain IDs supported by the remote source.
    */
-  isSupportedNetwork: (chainId: Hex) => boolean;
-
-  /**
-   * @returns An array of additional keys to use when caching the last fetched block number.
-   */
-  getLastBlockVariations?: () => string[];
+  getSupportedChains: () => Hex[];
 
   /**
    * @param request - A request object containing data such as the address and chain ID.
