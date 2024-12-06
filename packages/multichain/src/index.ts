@@ -33,9 +33,7 @@ export {
   KnownNotifications,
   KnownWalletScopeString,
 } from './scope/constants';
-export {
-  filterScopeObjectsSupported
-} from './scope/filter';
+export { filterScopeObjectsSupported } from './scope/filter';
 export type {
   ExternalScopeString,
   ExternalScopeObject,
