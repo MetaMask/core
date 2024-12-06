@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.1.0]
+
+### Added
+
+- The `NetworkController:networkRemoved` messenger event will now be emitted when a network is removed ([#4698](https://github.com/MetaMask/core/pull/4698))
+- Add messenger actions `NetworkController:addNetwork`, `NetworkController:removeNetwork`, and `NetworkController:updateNetwork` which call the respective controller methods ([#4698](https://github.com/MetaMask/core/pull/4698))
+- Add `lastUpdatedAt` property to network configurations which will be set to the current time on addition or update ([#4652](https://github.com/MetaMask/core/pull/4652))
+  - This was added to support the upcoming network syncing feature.
+  - This property is optional and will be `undefined` for existing network configurations that have not yet been updated.
+
+### Changed
+
+- Add dependency `fast-deep-equal` ([#4652](https://github.com/MetaMask/core/pull/4652))
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Remove dependency on Node builtin module `util` to ensure that `@metamask/network-controller` can be used in a strict browser context ([#3672](https://github.com/MetaMask/core/pull/3672))
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/eth-block-tracker`
+  - `@metamask/eth-json-rpc-infura`
+  - `@metamask/eth-json-rpc-middleware`
+  - `@metamask/eth-query`
+  - `@metamask/swappable-obj-proxy`
+  - `fast-deep-equal`
+
+## [22.0.2]
+
+### Changed
+
+- `getDefaultNetworkConfigurationsByChainId` returns the updated display names for mainnet and linea. `Ethereum Mainnet` instead of `Mainnet`, and `Linea` instead of `Linea Mainnet`. ([#4865](https://github.com/MetaMask/core/pull/4865))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
 ## [22.0.1]
 
 ### Changed
@@ -653,7 +686,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.0...HEAD
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.2...@metamask/network-controller@22.1.0
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.1...@metamask/network-controller@22.0.2
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.0...@metamask/network-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.1.0...@metamask/network-controller@22.0.0
 [21.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.1...@metamask/network-controller@21.1.0

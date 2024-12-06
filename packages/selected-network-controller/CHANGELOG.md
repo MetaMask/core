@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.1]
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/swappable-obj-proxy`
+
+## [20.0.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/json-rpc-engine` from `^10.0.0` to `^10.0.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+
+### Removed
+
+- **BREAKING:** The `SelectedNetworkController` constructor no longer expects a `useRequestPreference` boolean nor an `onPreferencesStateChange` listener. Removal of these parameters means that `domains` state will always be added for sites that are granted permissions. ([#4941](https://github.com/MetaMask/core/pull/4941))
+
 ## [19.0.0]
 
 ### Changed
@@ -299,7 +317,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.1...HEAD
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.0...@metamask/selected-network-controller@20.0.1
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@19.0.0...@metamask/selected-network-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.2...@metamask/selected-network-controller@19.0.0
 [18.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.1...@metamask/selected-network-controller@18.0.2
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.0...@metamask/selected-network-controller@18.0.1

@@ -331,7 +331,7 @@ export function divideIntoBatches<Value>(
 }
 
 /**
- * Constructs an object from processing batches of the given values
+ * Constructs a result from processing batches of the given values
  * sequentially.
  *
  * @param args - The arguments to this function.
@@ -343,12 +343,9 @@ export function divideIntoBatches<Value>(
  * and the index, and should return an updated version of the object.
  * @param args.initialResult - The initial value of the final data structure,
  * i.e., the value that will be fed into the first call of `eachBatch`.
- * @returns The built object.
+ * @returns The built result.
  */
-export async function reduceInBatchesSerially<
-  Value,
-  Result extends Record<PropertyKey, unknown>,
->({
+export async function reduceInBatchesSerially<Value, Result>({
   values,
   batchSize,
   eachBatch,

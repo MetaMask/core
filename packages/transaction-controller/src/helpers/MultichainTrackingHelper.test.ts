@@ -1,13 +1,10 @@
-/* eslint-disable jsdoc/require-jsdoc */
-import { ChainId } from '@metamask/controller-utils';
+import { ChainId, NetworkType } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import type { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
 
@@ -19,12 +16,22 @@ jest.mock(
     },
 );
 
+/**
+ * Build a mock provider object.
+ * @param networkClientId - The network client ID to use for the mock provider.
+ * @returns The mock provider object.
+ */
 function buildMockProvider(networkClientId: NetworkClientId) {
   return {
     mockProvider: networkClientId,
   };
 }
 
+/**
+ * Build a mock block tracker object.
+ * @param networkClientId - The network client ID to use for the mock block tracker.
+ * @returns The mock block tracker object.
+ */
 function buildMockBlockTracker(networkClientId: NetworkClientId) {
   return {
     mockBlockTracker: networkClientId,
@@ -151,22 +158,6 @@ function newMultichainTrackingHelper(
       return mockNonceTracker;
     });
 
-  const mockIncomingTransactionHelpers: Record<
-    Hex,
-    jest.Mocked<IncomingTransactionHelper>
-  > = {};
-  const mockCreateIncomingTransactionHelper = jest
-    .fn()
-    .mockImplementation(({ chainId }: { chainId: Hex }) => {
-      const mockIncomingTransactionHelper = {
-        start: jest.fn(),
-        stop: jest.fn(),
-        update: jest.fn(),
-      } as unknown as jest.Mocked<IncomingTransactionHelper>;
-      mockIncomingTransactionHelpers[chainId] = mockIncomingTransactionHelper;
-      return mockIncomingTransactionHelper;
-    });
-
   const mockPendingTransactionTrackers: Record<
     Hex,
     jest.Mocked<PendingTransactionTracker>
@@ -188,20 +179,11 @@ function newMultichainTrackingHelper(
     nonceTracker: {
       getNonceLock: jest.fn().mockResolvedValue(mockNonceLock),
     },
-    incomingTransactionOptions: {
-      // make this a comparable reference
-      includeTokenTransfers: true,
-      isEnabled: () => true,
-      queryEntireHistory: true,
-      updateTransactions: true,
-    },
     findNetworkClientIdByChainId: mockFindNetworkClientIdByChainId,
     getNetworkClientById: mockGetNetworkClientById,
     getNetworkClientRegistry: mockGetNetworkClientRegistry,
-    removeIncomingTransactionHelperListeners: jest.fn(),
     removePendingTransactionTrackerListeners: jest.fn(),
     createNonceTracker: mockCreateNonceTracker,
-    createIncomingTransactionHelper: mockCreateIncomingTransactionHelper,
     createPendingTransactionTracker: mockCreatePendingTransactionTracker,
     onNetworkStateChange: jest.fn(),
     ...opts,
@@ -214,7 +196,6 @@ function newMultichainTrackingHelper(
     options,
     mockNonceLock,
     mockNonceTrackers,
-    mockIncomingTransactionHelpers,
     mockPendingTransactionTrackers,
   };
 }
@@ -264,21 +245,6 @@ describe('MultichainTrackingHelper', () => {
       expect(helper.has('sepolia')).toBe(true);
       expect(helper.has('customNetworkClientId-1')).toBe(true);
     });
-
-    it('does not refresh the tracking map when isMultichainEnabled: false', () => {
-      const { options, helper } = newMultichainTrackingHelper({
-        isMultichainEnabled: false,
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (options.onNetworkStateChange as any).mock.calls[0][0]({}, []);
-
-      expect(options.getNetworkClientRegistry).not.toHaveBeenCalled();
-      expect(helper.has('mainnet')).toBe(false);
-      expect(helper.has('goerli')).toBe(false);
-      expect(helper.has('sepolia')).toBe(false);
-      expect(helper.has('customNetworkClientId-1')).toBe(false);
-    });
   });
 
   describe('initialize', () => {
@@ -292,20 +258,6 @@ describe('MultichainTrackingHelper', () => {
       expect(helper.has('goerli')).toBe(true);
       expect(helper.has('sepolia')).toBe(true);
       expect(helper.has('customNetworkClientId-1')).toBe(true);
-    });
-
-    it('does not initialize the tracking map when isMultichainEnabled: false', () => {
-      const { options, helper } = newMultichainTrackingHelper({
-        isMultichainEnabled: false,
-      });
-
-      helper.initialize();
-
-      expect(options.getNetworkClientRegistry).not.toHaveBeenCalled();
-      expect(helper.has('mainnet')).toBe(false);
-      expect(helper.has('goerli')).toBe(false);
-      expect(helper.has('sepolia')).toBe(false);
-      expect(helper.has('customNetworkClientId-1')).toBe(false);
     });
   });
 
@@ -350,15 +302,6 @@ describe('MultichainTrackingHelper', () => {
         chainId: '0x1',
       });
 
-      expect(options.createIncomingTransactionHelper).toHaveBeenCalledTimes(1);
-      expect(options.createIncomingTransactionHelper).toHaveBeenCalledWith({
-        blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
-        etherscanRemoteTransactionSource: expect.any(
-          EtherscanRemoteTransactionSource,
-        ),
-        chainId: '0x1',
-      });
-
       expect(options.createPendingTransactionTracker).toHaveBeenCalledTimes(1);
       expect(options.createPendingTransactionTracker).toHaveBeenCalledWith({
         provider: MOCK_PROVIDERS.mainnet,
@@ -372,20 +315,16 @@ describe('MultichainTrackingHelper', () => {
 
   describe('#stopTrackingByNetworkClientId', () => {
     it('stops trackers and removes them from the tracking map', () => {
-      const {
-        options,
-        mockIncomingTransactionHelpers,
-        mockPendingTransactionTrackers,
-        helper,
-      } = newMultichainTrackingHelper({
-        getNetworkClientRegistry: jest.fn().mockReturnValue({
-          mainnet: {
-            configuration: {
-              chainId: '0x1',
+      const { options, mockPendingTransactionTrackers, helper } =
+        newMultichainTrackingHelper({
+          getNetworkClientRegistry: jest.fn().mockReturnValue({
+            mainnet: {
+              configuration: {
+                chainId: '0x1',
+              },
             },
-          },
-        }),
-      });
+          }),
+        });
 
       helper.initialize();
 
@@ -397,93 +336,7 @@ describe('MultichainTrackingHelper', () => {
       expect(
         options.removePendingTransactionTrackerListeners,
       ).toHaveBeenCalledWith(mockPendingTransactionTrackers['0x1']);
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
-      expect(
-        options.removeIncomingTransactionHelperListeners,
-      ).toHaveBeenCalledWith(mockIncomingTransactionHelpers['0x1']);
       expect(helper.has('mainnet')).toBe(false);
-    });
-  });
-
-  describe('startIncomingTransactionPolling', () => {
-    it('starts polling on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      helper.startIncomingTransactionPolling(['mainnet', 'goerli']);
-      expect(mockIncomingTransactionHelpers['0x1'].start).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].start,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].start,
-      ).not.toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers['0xa'].start,
-      ).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('stopIncomingTransactionPolling', () => {
-    it('stops polling on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      helper.stopIncomingTransactionPolling(['mainnet', 'goerli']);
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].stop,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].stop,
-      ).not.toHaveBeenCalled();
-      expect(mockIncomingTransactionHelpers['0xa'].stop).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('stopAllIncomingTransactionPolling', () => {
-    it('stops polling on all IncomingTransactionHelpers', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      helper.stopAllIncomingTransactionPolling();
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].stop,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].stop,
-      ).toHaveBeenCalled();
-      expect(mockIncomingTransactionHelpers['0xa'].stop).toHaveBeenCalled();
-    });
-  });
-
-  describe('updateIncomingTransactions', () => {
-    it('calls update on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      helper.updateIncomingTransactions(['mainnet', 'goerli']);
-      expect(mockIncomingTransactionHelpers['0x1'].update).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].update,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].update,
-      ).not.toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers['0xa'].update,
-      ).not.toHaveBeenCalled();
     });
   });
 
@@ -552,7 +405,11 @@ describe('MultichainTrackingHelper', () => {
 
         await expect(
           helper.getNonceLock('0xdeadbeef', 'mainnet'),
-        ).rejects.toThrow('missing nonceTracker for networkClientId');
+        ).rejects.toThrow(
+          `Missing nonce tracker for network client ID - ${
+            NetworkType.mainnet as string
+          }`,
+        );
       });
 
       it('throws an error and releases nonce lock by chainId if unable to acquire nonce lock from the NonceTracker', async () => {
@@ -578,106 +435,6 @@ describe('MultichainTrackingHelper', () => {
         }
         expect(error).toBe('failed to acquire lock from nonceTracker');
         expect(releaseLockForChainIdKey).toHaveBeenCalled();
-      });
-    });
-
-    describe('when no networkClientId given', () => {
-      it('does not get the shared nonce lock by chainId', async () => {
-        const { helper } = newMultichainTrackingHelper();
-
-        const mockAcquireNonceLockForChainIdKey = jest
-          .spyOn(helper, 'acquireNonceLockForChainIdKey')
-          .mockResolvedValue(jest.fn());
-
-        helper.initialize();
-
-        await helper.getNonceLock('0xdeadbeef');
-
-        expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled();
-      });
-
-      it('gets the nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({});
-
-        helper.initialize();
-
-        await helper.getNonceLock('0xdeadbeef');
-
-        expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith(
-          '0xdeadbeef',
-        );
-      });
-
-      it('throws an error if unable to acquire nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({});
-
-        helper.initialize();
-
-        options.nonceTracker.getNonceLock.mockRejectedValue(
-          'failed to acquire lock from nonceTracker',
-        );
-
-        // for some reason jest expect().rejects.toThrow doesn't work here
-        let error = '';
-        try {
-          await helper.getNonceLock('0xdeadbeef');
-        } catch (err: unknown) {
-          error = err as string;
-        }
-        expect(error).toBe('failed to acquire lock from nonceTracker');
-      });
-    });
-
-    describe('when passed a networkClientId and isMultichainEnabled: false', () => {
-      it('does not get the shared nonce lock by chainId', async () => {
-        const { helper } = newMultichainTrackingHelper({
-          isMultichainEnabled: false,
-        });
-
-        const mockAcquireNonceLockForChainIdKey = jest
-          .spyOn(helper, 'acquireNonceLockForChainIdKey')
-          .mockResolvedValue(jest.fn());
-
-        helper.initialize();
-
-        await helper.getNonceLock('0xdeadbeef', '0xabc');
-
-        expect(mockAcquireNonceLockForChainIdKey).not.toHaveBeenCalled();
-      });
-
-      it('gets the nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({
-          isMultichainEnabled: false,
-        });
-
-        helper.initialize();
-
-        await helper.getNonceLock('0xdeadbeef', '0xabc');
-
-        expect(options.nonceTracker.getNonceLock).toHaveBeenCalledWith(
-          '0xdeadbeef',
-        );
-      });
-
-      it('throws an error if unable to acquire nonce lock from the global NonceTracker', async () => {
-        const { options, helper } = newMultichainTrackingHelper({
-          isMultichainEnabled: false,
-        });
-
-        helper.initialize();
-
-        options.nonceTracker.getNonceLock.mockRejectedValue(
-          'failed to acquire lock from nonceTracker',
-        );
-
-        // for some reason jest expect().rejects.toThrow doesn't work here
-        let error = '';
-        try {
-          await helper.getNonceLock('0xdeadbeef', '0xabc');
-        } catch (err: unknown) {
-          error = err as string;
-        }
-        expect(error).toBe('failed to acquire lock from nonceTracker');
       });
     });
   });
@@ -742,155 +499,12 @@ describe('MultichainTrackingHelper', () => {
     });
   });
 
-  describe('getEthQuery', () => {
+  describe('getNetworkClient', () => {
     describe('when given networkClientId and chainId', () => {
-      it('returns EthQuery with the networkClientId provider when available', () => {
+      it('returns the network client of the networkClientId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const ethQuery = helper.getEthQuery({
-          networkClientId: 'goerli',
-          chainId: '0xa',
-        });
-        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.goerli);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
-      });
-
-      it('returns EthQuery with a fallback networkClient provider matching the chainId when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({
-          networkClientId: 'missingNetworkClientId',
-          chainId: '0xa',
-        });
-        expect(ethQuery.provider).toBe(
-          MOCK_PROVIDERS['customNetworkClientId-1'],
-        );
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(2);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'missingNetworkClientId',
-        );
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xa',
-        );
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'customNetworkClientId-1',
-        );
-      });
-
-      it('returns EthQuery with the fallback global provider if networkClientId and chainId cannot be satisfied', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({
-          networkClientId: 'missingNetworkClientId',
-          chainId: '0xdeadbeef',
-        });
-        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'missingNetworkClientId',
-        );
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xdeadbeef',
-        );
-      });
-    });
-
-    describe('when given only networkClientId', () => {
-      it('returns EthQuery with the networkClientId provider when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({ networkClientId: 'goerli' });
-        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.goerli);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
-      });
-
-      it('returns EthQuery with the fallback global provider if networkClientId cannot be satisfied', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({
-          networkClientId: 'missingNetworkClientId',
-        });
-        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'missingNetworkClientId',
-        );
-      });
-    });
-
-    describe('when given only chainId', () => {
-      it('returns EthQuery with a fallback networkClient provider matching the chainId when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({ chainId: '0xa' });
-        expect(ethQuery.provider).toBe(
-          MOCK_PROVIDERS['customNetworkClientId-1'],
-        );
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xa',
-        );
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'customNetworkClientId-1',
-        );
-      });
-
-      it('returns EthQuery with the fallback global provider if chainId cannot be satisfied', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({ chainId: '0xdeadbeef' });
-        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xdeadbeef',
-        );
-      });
-    });
-
-    it('returns EthQuery with the global provider when no arguments are provided', () => {
-      const { options, helper } = newMultichainTrackingHelper();
-
-      const ethQuery = helper.getEthQuery();
-      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-
-      expect(options.getNetworkClientById).not.toHaveBeenCalled();
-    });
-
-    it('always returns EthQuery with the global provider when isMultichainEnabled: false', () => {
-      const { options, helper } = newMultichainTrackingHelper({
-        isMultichainEnabled: false,
-      });
-
-      let ethQuery = helper.getEthQuery({
-        networkClientId: 'goerli',
-        chainId: '0x5',
-      });
-      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-      ethQuery = helper.getEthQuery({ networkClientId: 'goerli' });
-      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-      ethQuery = helper.getEthQuery({ chainId: '0x5' });
-      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-      ethQuery = helper.getEthQuery();
-      expect(ethQuery.provider).toBe(MOCK_PROVIDERS.mainnet);
-
-      expect(options.getNetworkClientById).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getProvider', () => {
-    describe('when given networkClientId and chainId', () => {
-      it('returns the provider of the networkClientId when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const provider = helper.getProvider({
+        const { provider } = helper.getNetworkClient({
           networkClientId: 'goerli',
           chainId: '0xa',
         });
@@ -900,10 +514,10 @@ describe('MultichainTrackingHelper', () => {
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
       });
 
-      it('returns a fallback networkClient provider matching the chainId when available', () => {
+      it('returns a fallback network client matching the chainId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const provider = helper.getProvider({
+        const { provider } = helper.getNetworkClient({
           networkClientId: 'missingNetworkClientId',
           chainId: '0xa',
         });
@@ -920,57 +534,27 @@ describe('MultichainTrackingHelper', () => {
           'customNetworkClientId-1',
         );
       });
-
-      it('returns the fallback global provider if networkClientId and chainId cannot be satisfied', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const provider = helper.getProvider({
-          networkClientId: 'missingNetworkClientId',
-          chainId: '0xdeadbeef',
-        });
-        expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'missingNetworkClientId',
-        );
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xdeadbeef',
-        );
-      });
     });
 
     describe('when given only networkClientId', () => {
-      it('returns the provider of the networkClientId when available', () => {
+      it('returns the network client of the networkClientId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const provider = helper.getProvider({ networkClientId: 'goerli' });
+        const { provider } = helper.getNetworkClient({
+          networkClientId: 'goerli',
+        });
         expect(provider).toBe(MOCK_PROVIDERS.goerli);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
       });
-
-      it('returns the fallback global provider if networkClientId cannot be satisfied', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const provider = helper.getProvider({
-          networkClientId: 'missingNetworkClientId',
-        });
-        expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'missingNetworkClientId',
-        );
-      });
     });
 
     describe('when given only chainId', () => {
-      it('returns a fallback networkClient provider matching the chainId when available', () => {
+      it('returns a fallback network client matching the chainId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const provider = helper.getProvider({ chainId: '0xa' });
+        const { provider } = helper.getNetworkClient({ chainId: '0xa' });
         expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
@@ -981,46 +565,6 @@ describe('MultichainTrackingHelper', () => {
           'customNetworkClientId-1',
         );
       });
-
-      it('returns the fallback global provider if chainId cannot be satisfied', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const provider = helper.getProvider({ chainId: '0xdeadbeef' });
-        expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xdeadbeef',
-        );
-      });
-    });
-
-    it('returns the global provider when no arguments are provided', () => {
-      const { options, helper } = newMultichainTrackingHelper();
-
-      const provider = helper.getProvider();
-      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-
-      expect(options.getNetworkClientById).not.toHaveBeenCalled();
-    });
-
-    it('always returns the global provider when isMultichainEnabled: false', () => {
-      const { options, helper } = newMultichainTrackingHelper({
-        isMultichainEnabled: false,
-      });
-
-      let provider = helper.getProvider({
-        networkClientId: 'goerli',
-        chainId: '0x5',
-      });
-      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-      provider = helper.getProvider({ networkClientId: 'goerli' });
-      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-      provider = helper.getProvider({ chainId: '0x5' });
-      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-      provider = helper.getProvider();
-      expect(provider).toBe(MOCK_PROVIDERS.mainnet);
-
-      expect(options.getNetworkClientById).not.toHaveBeenCalled();
     });
   });
 });

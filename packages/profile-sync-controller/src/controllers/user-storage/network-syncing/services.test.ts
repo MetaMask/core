@@ -1,8 +1,10 @@
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import {
   MOCK_STORAGE_KEY,
   createMockAllFeatureEntriesResponse,
 } from '../__fixtures__';
 import {
+  mockEndpointBatchUpsertUserStorage,
   mockEndpointGetUserStorageAllFeatureEntries,
   mockEndpointUpsertUserStorage,
 } from '../__fixtures__/mockServices';
@@ -44,7 +46,7 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
 
     return {
       mockGetAllAPI: await mockEndpointGetUserStorageAllFeatureEntries(
-        'networks',
+        USER_STORAGE_FEATURE_NAMES.networks,
         payload,
       ),
     };
@@ -101,7 +103,9 @@ describe('network-syncing/services - upsertRemoteNetwork()', () => {
     return {
       storageOps: storageOpts,
       mockNetwork,
-      mockUpsertAPI: mockEndpointUpsertUserStorage('networks.0x1337'),
+      mockUpsertAPI: mockEndpointUpsertUserStorage(
+        `${USER_STORAGE_FEATURE_NAMES.networks}.0x1337`,
+      ),
     };
   };
 
@@ -112,10 +116,6 @@ describe('network-syncing/services - upsertRemoteNetwork()', () => {
   });
 });
 
-/**
- * TODO - the batch endpoint has not been made in the backend yet.
- * Mock endpoints will need to be updated in future
- */
 describe('network-syncing/services - batchUpsertRemoteNetworks()', () => {
   const arrangeMocks = () => {
     const mockNetworks = [
@@ -123,21 +123,16 @@ describe('network-syncing/services - batchUpsertRemoteNetworks()', () => {
       createMockRemoteNetworkConfiguration({ chainId: '0x1338' }),
     ];
 
-    const mockAPI = (key: string) =>
-      mockEndpointUpsertUserStorage(`networks.${key}`);
-
     return {
       storageOps: storageOpts,
       mockNetworks,
-      mockUpsertAPI1: mockAPI('0x1337'),
-      mockUpsertAPI2: mockAPI('0x1338'),
+      mockBatchUpsertAPI: mockEndpointBatchUpsertUserStorage('networks'),
     };
   };
 
   it('should call upsert storage API with mock network', async () => {
-    const { mockNetworks, mockUpsertAPI1, mockUpsertAPI2 } = arrangeMocks();
+    const { mockNetworks, mockBatchUpsertAPI } = arrangeMocks();
     await batchUpsertRemoteNetworks(mockNetworks, storageOpts);
-    expect(mockUpsertAPI1.isDone()).toBe(true);
-    expect(mockUpsertAPI2.isDone()).toBe(true);
+    expect(mockBatchUpsertAPI.isDone()).toBe(true);
   });
 });
