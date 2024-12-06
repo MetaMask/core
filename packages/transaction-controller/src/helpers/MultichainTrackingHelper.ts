@@ -11,8 +11,6 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import { createModuleLogger, projectLogger } from '../logger';
-import type { RemoteTransactionSource } from '../types';
-import type { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
 
 /**
@@ -28,9 +26,7 @@ export type MultichainTrackingHelperOptions = {
   findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
   getNetworkClientById: NetworkController['getNetworkClientById'];
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-  removeIncomingTransactionHelperListeners: (
-    IncomingTransactionHelper: IncomingTransactionHelper,
-  ) => void;
+
   removePendingTransactionTrackerListeners: (
     pendingTransactionTracker: PendingTransactionTracker,
   ) => void;
@@ -39,17 +35,11 @@ export type MultichainTrackingHelperOptions = {
     blockTracker: BlockTracker;
     chainId: Hex;
   }) => NonceTracker;
-  createIncomingTransactionHelper: (opts: {
-    blockTracker: BlockTracker;
-    remoteTransactionSource: RemoteTransactionSource;
-    chainId: Hex;
-  }) => IncomingTransactionHelper;
   createPendingTransactionTracker: (opts: {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
   }) => PendingTransactionTracker;
-  createRemoteTransactionSource: () => RemoteTransactionSource;
   onNetworkStateChange: (
     listener: (
       ...payload: NetworkControllerStateChangeEvent['payload']
@@ -64,10 +54,6 @@ export class MultichainTrackingHelper {
 
   readonly #getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
-  readonly #removeIncomingTransactionHelperListeners: (
-    IncomingTransactionHelper: IncomingTransactionHelper,
-  ) => void;
-
   readonly #removePendingTransactionTrackerListeners: (
     pendingTransactionTracker: PendingTransactionTracker,
   ) => void;
@@ -78,19 +64,11 @@ export class MultichainTrackingHelper {
     chainId: Hex;
   }) => NonceTracker;
 
-  readonly #createIncomingTransactionHelper: (opts: {
-    blockTracker: BlockTracker;
-    chainId: Hex;
-    remoteTransactionSource: RemoteTransactionSource;
-  }) => IncomingTransactionHelper;
-
   readonly #createPendingTransactionTracker: (opts: {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
   }) => PendingTransactionTracker;
-
-  readonly #createRemoteTransactionSource: () => RemoteTransactionSource;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
@@ -99,37 +77,26 @@ export class MultichainTrackingHelper {
     {
       nonceTracker: NonceTracker;
       pendingTransactionTracker: PendingTransactionTracker;
-      incomingTransactionHelper: IncomingTransactionHelper;
     }
   > = new Map();
-
-  readonly #remoteTransactionSourcesMap: Map<Hex, RemoteTransactionSource> =
-    new Map();
 
   constructor({
     findNetworkClientIdByChainId,
     getNetworkClientById,
     getNetworkClientRegistry,
-    removeIncomingTransactionHelperListeners,
     removePendingTransactionTrackerListeners,
     createNonceTracker,
-    createIncomingTransactionHelper,
     createPendingTransactionTracker,
-    createRemoteTransactionSource,
     onNetworkStateChange,
   }: MultichainTrackingHelperOptions) {
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#getNetworkClientById = getNetworkClientById;
     this.#getNetworkClientRegistry = getNetworkClientRegistry;
 
-    this.#removeIncomingTransactionHelperListeners =
-      removeIncomingTransactionHelperListeners;
     this.#removePendingTransactionTrackerListeners =
       removePendingTransactionTrackerListeners;
     this.#createNonceTracker = createNonceTracker;
-    this.#createIncomingTransactionHelper = createIncomingTransactionHelper;
     this.#createPendingTransactionTracker = createPendingTransactionTracker;
-    this.#createRemoteTransactionSource = createRemoteTransactionSource;
 
     onNetworkStateChange((_, patches) => {
       const networkClients = this.#getNetworkClientRegistry();
@@ -237,55 +204,6 @@ export class MultichainTrackingHelper {
     }
   }
 
-  startIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
-    const finalNetworkClientIds = networkClientIds ?? [
-      ...this.#trackingMap.keys(),
-    ];
-
-    finalNetworkClientIds.forEach((networkClientId) => {
-      this.#trackingMap.get(networkClientId)?.incomingTransactionHelper.start();
-    });
-  }
-
-  stopIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
-    const finalNetworkClientIds = networkClientIds ?? [
-      ...this.#trackingMap.keys(),
-    ];
-
-    finalNetworkClientIds.forEach((networkClientId) => {
-      this.#trackingMap.get(networkClientId)?.incomingTransactionHelper.stop();
-    });
-  }
-
-  stopAllIncomingTransactionPolling() {
-    for (const [, trackers] of this.#trackingMap) {
-      trackers.incomingTransactionHelper.stop();
-    }
-  }
-
-  async updateIncomingTransactions(networkClientIds?: NetworkClientId[]) {
-    const finalNetworkClientIds = networkClientIds ?? [
-      ...this.#trackingMap.keys(),
-    ];
-
-    const promises = await Promise.allSettled(
-      finalNetworkClientIds.map(async (networkClientId) => {
-        return await this.#trackingMap
-          .get(networkClientId)
-          ?.incomingTransactionHelper.update();
-      }),
-    );
-
-    promises
-      .filter((result) => result.status === 'rejected')
-      .forEach((result) => {
-        log(
-          'Failed to update incoming transactions',
-          (result as PromiseRejectedResult).reason,
-        );
-      });
-  }
-
   checkForPendingTransactionAndStartPolling = () => {
     for (const [, trackers] of this.#trackingMap) {
       trackers.pendingTransactionTracker.startIfPendingTransactions();
@@ -338,8 +256,6 @@ export class MultichainTrackingHelper {
   }
 
   #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
-    this.#refreshRemoteTransactionSources(networkClients);
-
     const networkClientIds = Object.keys(networkClients);
     const existingNetworkClientIds = Array.from(this.#trackingMap.keys());
 
@@ -377,10 +293,6 @@ export class MultichainTrackingHelper {
       this.#removePendingTransactionTrackerListeners(
         trackers.pendingTransactionTracker,
       );
-      trackers.incomingTransactionHelper.stop();
-      this.#removeIncomingTransactionHelperListeners(
-        trackers.incomingTransactionHelper,
-      );
       this.#trackingMap.delete(networkClientId);
     }
   }
@@ -397,25 +309,9 @@ export class MultichainTrackingHelper {
       configuration: { chainId },
     } = this.#getNetworkClientById(networkClientId);
 
-    let remoteTransactionSource =
-      this.#remoteTransactionSourcesMap.get(chainId);
-
-    if (!remoteTransactionSource) {
-      remoteTransactionSource = this.#createRemoteTransactionSource();
-      this.#remoteTransactionSourcesMap.set(chainId, remoteTransactionSource);
-
-      log('Created remote transaction source', chainId);
-    }
-
     const nonceTracker = this.#createNonceTracker({
       provider,
       blockTracker,
-      chainId,
-    });
-
-    const incomingTransactionHelper = this.#createIncomingTransactionHelper({
-      blockTracker,
-      remoteTransactionSource,
       chainId,
     });
 
@@ -427,30 +323,35 @@ export class MultichainTrackingHelper {
 
     this.#trackingMap.set(networkClientId, {
       nonceTracker,
-      incomingTransactionHelper,
       pendingTransactionTracker,
     });
   }
 
-  #refreshRemoteTransactionSources = (
-    networkClients: NetworkClientRegistry,
-  ) => {
-    const chainIdsInRegistry = new Set();
+  #getNetworkClient({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  } = {}): NetworkClient | undefined {
+    let networkClient: NetworkClient | undefined;
 
-    Object.values(networkClients).forEach((networkClient) =>
-      chainIdsInRegistry.add(networkClient.configuration.chainId),
-    );
-
-    const existingChainIds = Array.from(
-      this.#remoteTransactionSourcesMap.keys(),
-    );
-
-    const chainIdsToRemove = existingChainIds.filter(
-      (chainId) => !chainIdsInRegistry.has(chainId),
-    );
-
-    chainIdsToRemove.forEach((chainId) => {
-      this.#remoteTransactionSourcesMap.delete(chainId);
-    });
-  };
+    if (networkClientId) {
+      try {
+        networkClient = this.#getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('failed to get network client by networkClientId');
+      }
+    }
+    if (!networkClient && chainId) {
+      try {
+        const networkClientIdForChainId =
+          this.#findNetworkClientIdByChainId(chainId);
+        networkClient = this.#getNetworkClientById(networkClientIdForChainId);
+      } catch (err) {
+        log('failed to get network client by chainId');
+      }
+    }
+    return networkClient;
+  }
 }
