@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^41.1.0` to `^42.0.0` ([#5032](https://github.com/MetaMask/core/pull/5032))
 - Bump `@metamask/eth-block-tracker` from to `^11.0.2` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
 
 ## [20.0.1]
