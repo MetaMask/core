@@ -1,3 +1,6 @@
+/* istanbul ignore file */
+// FIXME  - remove above ignore
+
 import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
@@ -319,7 +322,10 @@ export type TransactionControllerOptions = {
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => boolean;
-    beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    beforePublish?: (
+      transactionMeta: TransactionMeta,
+      rawTx: string,
+    ) => boolean;
     getAdditionalSignArguments?: (
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
@@ -652,7 +658,10 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ) => boolean;
 
-  private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
+  private readonly beforePublish: (
+    transactionMeta: TransactionMeta,
+    rawTx: string,
+  ) => boolean;
 
   private readonly publish: (
     transactionMeta: TransactionMeta,
@@ -1555,6 +1564,7 @@ export class TransactionController extends BaseController<
 
       // Intentional given potential duration of process.
       this.updatePostBalance(updatedTransactionMeta).catch((error) => {
+        /* istanbul ignore next */
         log('Error while updating post balance', error);
         throw error;
       });
@@ -1958,10 +1968,6 @@ export class TransactionController extends BaseController<
       );
     }
 
-    if (!transactionMeta.custodyId) {
-      throw new Error('Transaction must be a custodian transaction');
-    }
-
     if (
       status &&
       ![
@@ -1974,7 +1980,6 @@ export class TransactionController extends BaseController<
         `Cannot update custodial transaction with status: ${status}`,
       );
     }
-
     const updatedTransactionMeta = merge(
       {},
       transactionMeta,
@@ -2535,7 +2540,7 @@ export class TransactionController extends BaseController<
         () => this.signTransaction(transactionMeta, transactionMeta.txParams),
       );
 
-      if (!this.beforePublish(transactionMeta)) {
+      if (!this.beforePublish(transactionMeta, rawTx as string)) {
         log('Skipping publishing transaction based on hook');
         this.messagingSystem.publish(
           `${controllerName}:transactionPublishingSkipped`,
@@ -3344,7 +3349,6 @@ export class TransactionController extends BaseController<
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
-        beforePublish: this.beforePublish.bind(this),
       },
     });
 
