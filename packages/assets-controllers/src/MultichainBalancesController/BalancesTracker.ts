@@ -41,7 +41,15 @@ export class BalancesTracker {
    * @returns True if the account is being tracker, false otherwise.
    */
   isTracked(accountId: string) {
-    return Object.prototype.hasOwnProperty.call(this.#balances, accountId);
+    console.log('MultichainBalancesController - BalancesTracker isTracked');
+    const result = Object.prototype.hasOwnProperty.call(
+      this.#balances,
+      accountId,
+    );
+    console.log('MultichainBalancesController - BalancesTracker isTracked', {
+      result,
+    });
+    return result;
   }
 
   /**
@@ -51,6 +59,10 @@ export class BalancesTracker {
    * @throws If the account ID is not being tracked.
    */
   assertBeingTracked(accountId: string) {
+    console.log(
+      'MultichainBalancesController - BalancesTracker assertBeingTracked',
+      { accountId },
+    );
     if (!this.isTracked(accountId)) {
       throw new Error(`Account is not being tracked: ${accountId}`);
     }
