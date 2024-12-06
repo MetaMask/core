@@ -61,6 +61,7 @@ describe('Normalize Utils', () => {
       expect(normalizeParam({ temp: { test: 123 } })).toMatchObject({
         temp: { test: '123' },
       });
+      expect(normalizeParam({ temp: null })).toMatchObject({ temp: '' });
       expect(normalizeParam({})).toMatchObject({});
     });
   });

@@ -96,6 +96,5 @@ export function normalizeParam(param: string | Record<string, unknown>) {
     return {};
   }
   const parsedParam = typeof param === 'string' ? JSON.parse(param) : param;
-  console.log('=====', parsedParam);
   return convertJSONValuesToString(parsedParam);
 }
