@@ -219,7 +219,7 @@ function assertIsInternalScopeObject(
  * Asserts that a scope string is a valid InternalScopeString.
  * @param scopeString - The scope string to assert.
  */
-function assertIsInternalScopeString(
+export function assertIsInternalScopeString(
   scopeString: unknown,
 ): asserts scopeString is InternalScopeString {
   if (
