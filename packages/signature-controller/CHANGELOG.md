@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.1.0]
 
-### Uncategorized
+### Changed
 
 - fix: Fixes in signature decoding functionality ([#5028](https://github.com/MetaMask/core/pull/5028))
 - fix: signature decoding api should be called for typed sign V3 also ([#5033](https://github.com/MetaMask/core/pull/5033))
