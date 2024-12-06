@@ -41,15 +41,7 @@ export class BalancesTracker {
    * @returns True if the account is being tracker, false otherwise.
    */
   isTracked(accountId: string) {
-    console.log('MultichainBalancesController - BalancesTracker isTracked');
-    const result = Object.prototype.hasOwnProperty.call(
-      this.#balances,
-      accountId,
-    );
-    console.log('MultichainBalancesController - BalancesTracker isTracked', {
-      result,
-    });
-    return result;
+    return accountId in this.#balances;
   }
 
   /**
@@ -59,10 +51,6 @@ export class BalancesTracker {
    * @throws If the account ID is not being tracked.
    */
   assertBeingTracked(accountId: string) {
-    console.log(
-      'MultichainBalancesController - BalancesTracker assertBeingTracked',
-      { accountId },
-    );
     if (!this.isTracked(accountId)) {
       throw new Error(`Account is not being tracked: ${accountId}`);
     }
@@ -103,14 +91,7 @@ export class BalancesTracker {
    * @throws If the account ID is not being tracked.
    */
   async updateBalance(accountId: string) {
-    console.log(
-      'MultichainBalancesController - BalancesTracker updateBalance start',
-    );
     this.assertBeingTracked(accountId);
-    console.log(
-      'MultichainBalancesController - BalancesTracker updateBalance',
-      { accountId },
-    );
 
     // We check if the balance is outdated (by comparing to the block time associated
     // with this kind of account).
@@ -118,12 +99,8 @@ export class BalancesTracker {
     // This might not be super accurate, but we could probably compute this differently
     // and try to sync with the "real block time"!
     const info = this.#balances[accountId];
-    console.log({ info });
-
     const isOutdated = Date.now() - info.lastUpdated >= info.blockTime;
-    console.log({ isOutdated });
     const hasNoBalanceYet = info.lastUpdated === 0;
-    console.log({ hasNoBalanceYet });
     if (hasNoBalanceYet || isOutdated) {
       await this.#updateBalance(accountId);
       this.#balances[accountId].lastUpdated = Date.now();
@@ -135,10 +112,6 @@ export class BalancesTracker {
    * is considered outdated).
    */
   async updateBalances() {
-    console.log(
-      'MultichainBalancesController - BalancesTracker updateBalances',
-      { balances: this.#balances },
-    );
     await Promise.allSettled(
       Object.keys(this.#balances).map(async (accountId) => {
         await this.updateBalance(accountId);

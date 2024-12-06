@@ -1,11 +1,11 @@
 export class Poller {
   #interval: number;
 
-  #callback: () => Promise<void>;
+  #callback: () => void;
 
   #handle: NodeJS.Timeout | undefined = undefined;
 
-  constructor(callback: () => Promise<void>, interval: number) {
+  constructor(callback: () => void, interval: number) {
     this.#interval = interval;
     this.#callback = callback;
   }
@@ -15,9 +15,7 @@ export class Poller {
       return;
     }
 
-    this.#handle = setInterval(() => {
-      this.#callback().catch(console.error);
-    }, this.#interval);
+    this.#handle = setInterval(this.#callback, this.#interval);
   }
 
   stop() {

@@ -48,7 +48,7 @@ export const getScopeForSolAddress = (account: InternalAccount): string => {
  * @param account - The account to get the scope for.
  * @returns The scope for the given account.
  */
-export const getScopeForAddress = (account: InternalAccount): string => {
+export const getScopeForAccount = (account: InternalAccount): string => {
   switch (account.type) {
     case BtcAccountType.P2wpkh:
       return getScopeForBtcAddress(account);
