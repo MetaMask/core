@@ -88,7 +88,8 @@ export type MultichainBalancesControllerActions =
 /**
  * Events emitted by {@link MultichainBalancesController}.
  */
-export type MultichainBalancesControllerEvents = MultichainBalancesControllerStateChange;
+export type MultichainBalancesControllerEvents =
+  MultichainBalancesControllerStateChange;
 
 /**
  * Actions that this controller is allowed to call.
