@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [21.0.0]
 
-- chore(deps): bump `@metamask/eth-block-tracker` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from to `^11.0.2` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
 
 ## [20.0.1]
 
@@ -304,7 +306,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@20.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@20.0.1...@metamask/user-operation-controller@21.0.0
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@20.0.0...@metamask/user-operation-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@19.0.0...@metamask/user-operation-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@18.0.0...@metamask/user-operation-controller@19.0.0

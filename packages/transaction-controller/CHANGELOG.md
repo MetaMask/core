@@ -7,9 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): bump `@metamask/eth-block-tracker` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
+## [42.0.0]
 
 ### Added
 
@@ -24,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `startIncomingTransactionPolling`
     - `stopIncomingTransactionPolling`
     - `updateIncomingTransactions`
+- Bump `@metamask/eth-block-tracker` from `^11.0.2` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
 
 ### Removed
 
@@ -1216,7 +1215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.1.0...@metamask/transaction-controller@42.0.0
 [41.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.0.0...@metamask/transaction-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.1.0...@metamask/transaction-controller@41.0.0
 [40.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.0.0...@metamask/transaction-controller@40.1.0
