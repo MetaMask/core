@@ -27,7 +27,11 @@ import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
-import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import {
+  GET_LATEST_BLOCK_TIMEOUT,
+  INFURA_BLOCKED_KEY,
+  NetworkStatus,
+} from './constants';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
@@ -1458,7 +1462,7 @@ export class NetworkController extends BaseController<
     const networkClient = this.getNetworkClientById(networkClientId);
     const ethQuery = new EthQuery(networkClient.provider);
 
-    return new Promise((resolve, reject) => {
+    const getBlock = new Promise<Block>((resolve, reject) => {
       ethQuery.sendAsync(
         { method: 'eth_getBlockByNumber', params: ['latest', false] },
         (error: unknown, block?: unknown) => {
@@ -1471,6 +1475,18 @@ export class NetworkController extends BaseController<
         },
       );
     });
+
+    const timeout = new Promise<Block>((_resolve, reject) =>
+      setTimeout(() => {
+        reject(
+          new Error(
+            `Could not get latest block for network: Timed out calling 'eth_getBlockByNumber' on networkClientId '${networkClientId}'`,
+          ),
+        );
+      }, GET_LATEST_BLOCK_TIMEOUT),
+    );
+
+    return Promise.race([getBlock, timeout]);
   }
 
   /**
