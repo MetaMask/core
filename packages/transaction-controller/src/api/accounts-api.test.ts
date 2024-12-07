@@ -25,6 +25,7 @@ const CHAIN_ID_SUPPORTED = 1;
 const CHAIN_ID_UNSUPPORTED = 999;
 const FROM_ADDRESS = '0xSender';
 const TO_ADDRESS = '0xRecipient';
+const SORT_DIRECTION_MOCK = 'ASC';
 
 const ACCOUNT_RESPONSE_MOCK = {
   data: [{}],
@@ -132,13 +133,14 @@ describe('Accounts API', () => {
         cursor: CURSOR_MOCK,
         endTimestamp: END_TIMESTAMP_MOCK,
         startTimestamp: START_TIMESTAMP_MOCK,
+        sortDirection: SORT_DIRECTION_MOCK,
       });
 
       expect(response).toStrictEqual(ACCOUNT_RESPONSE_MOCK);
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledWith(
-        `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions?networks=${CHAIN_IDS_MOCK[0]},${CHAIN_IDS_MOCK[1]}&startTimestamp=${START_TIMESTAMP_MOCK}&endTimestamp=${END_TIMESTAMP_MOCK}&cursor=${CURSOR_MOCK}`,
+        `https://accounts.api.cx.metamask.io/v1/accounts/${ADDRESS_MOCK}/transactions?networks=${CHAIN_IDS_MOCK[0]},${CHAIN_IDS_MOCK[1]}&startTimestamp=${START_TIMESTAMP_MOCK}&endTimestamp=${END_TIMESTAMP_MOCK}&cursor=${CURSOR_MOCK}&sortDirection=${SORT_DIRECTION_MOCK}`,
         expect.any(Object),
       );
     });

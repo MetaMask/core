@@ -83,16 +83,6 @@ type TransactionMetaBase = {
    */
   currentTokenBalance?: string;
 
-  /**
-   * Unique ID for custodian transaction.
-   */
-  custodyId?: string;
-
-  /**
-   * Custodian transaction status.
-   */
-  custodyStatus?: string;
-
   /** The optional custom nonce override as a decimal string. */
   customNonceValue?: string;
 
