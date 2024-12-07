@@ -36,8 +36,8 @@ jobs:
               if [[ $version == *.0.0 ]]; then
                 # Fetch responsible team from file
                 teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$teams"
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$teams"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$teams, client-controller-update"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$teams, client-controller-update"
               fi
             fi
           done
