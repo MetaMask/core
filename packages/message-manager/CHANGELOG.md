@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.3]
 
-### Uncategorized
+### Changed
 
-- fix: Revert `eth-sig-util` package ([#5027](https://github.com/MetaMask/core/pull/5027))
-- fix: Update `jsonschema` version & `eth-sig-util` ([#4998](https://github.com/MetaMask/core/pull/4998))
+- Bump `jsonschema` from `^1.2.4` to `^1.4.1` ([#4998](https://github.com/MetaMask/core/pull/4998), [#5027](https://github.com/MetaMask/core/pull/5027))
 
 ## [11.0.2]
 

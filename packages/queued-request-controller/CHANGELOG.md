@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.2]
 
-### Uncategorized
+### Changed
 
-- Release 266.0.0 ([#5038](https://github.com/MetaMask/core/pull/5038))
-- chore(deps): bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
+- Bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
 
 ## [8.0.1]
 
