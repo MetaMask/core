@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump `@metamask/eth-json-rpc-filters` to `^9.0.0` in the `multichain` package ([#5040](https://github.com/MetaMask/core/pull/5040))
+- Release 266.0.0 ([#5038](https://github.com/MetaMask/core/pull/5038))
+
 ## [1.1.1]
 
 ### Changed
