@@ -3585,8 +3585,9 @@ export class TransactionController extends BaseController<
       return;
     }
 
+    const normalizedTo = to?.toLowerCase();
     const isInteractionWithInternalAccount = this.#getInternalAccounts().some(
-      (account) => account.address === to,
+      (account) => account.address.toLowerCase() === normalizedTo,
     );
 
     // If the interaction is with an internal account, we don't need to check the account address relationship
