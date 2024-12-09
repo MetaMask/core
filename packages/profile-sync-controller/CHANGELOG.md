@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 266.0.0 ([#5038](https://github.com/MetaMask/core/pull/5038))
-- feat: revamp user storage encryption process ([#4981](https://github.com/MetaMask/core/pull/4981))
-- fix: ensure signing out does not error ([#5013](https://github.com/MetaMask/core/pull/5013))
-
 ## [3.0.0]
 
 ### Added
