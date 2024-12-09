@@ -131,18 +131,6 @@ const balancesControllerMetadata = {
   },
 };
 
-const BTC_AVG_BLOCK_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
-const SOLANA_AVG_BLOCK_TIME = 400; // 400 milliseconds
-
-// NOTE: We set an interval of half the average block time to mitigate when our interval
-// is de-synchronized with the actual block time.
-export const BTC_BALANCES_UPDATE_TIME = BTC_AVG_BLOCK_TIME / 2;
-
-const BALANCE_CHECK_INTERVALS = {
-  [BtcAccountType.P2wpkh]: BTC_BALANCES_UPDATE_TIME,
-  [SolAccountType.DataAccount]: SOLANA_AVG_BLOCK_TIME,
-};
-
 /**
  * The MultichainBalancesController is responsible for fetching and caching account
  * balances.
@@ -213,7 +201,7 @@ export class MultichainBalancesController extends BaseController<
    * @returns The block time for the account.
    */
   #getBlockTimeFor(account: InternalAccount): number {
-    if (account.type in BALANCE_CHECK_INTERVALS) {
+    if (account.type in BALANCE_UPDATE_INTERVALS) {
       return BALANCE_UPDATE_INTERVALS[
         account.type as keyof typeof BALANCE_UPDATE_INTERVALS
       ];
