@@ -5,7 +5,7 @@ type BalanceInfo = {
   blockTime: number;
 };
 
-const BALANCES_TRACKING_INTERVAL = 30 * 1000; // Every 30s in milliseconds.
+const BALANCES_TRACKING_INTERVAL = 5000; // Every 30s in milliseconds.
 
 export class BalancesTracker {
   #poller: Poller;
@@ -17,7 +17,10 @@ export class BalancesTracker {
   constructor(updateBalanceCallback: (accountId: string) => Promise<void>) {
     this.#updateBalance = updateBalanceCallback;
 
-    this.#poller = new Poller(this.updateBalances, BALANCES_TRACKING_INTERVAL);
+    this.#poller = new Poller(
+      () => this.updateBalances(),
+      BALANCES_TRACKING_INTERVAL,
+    );
   }
 
   /**
