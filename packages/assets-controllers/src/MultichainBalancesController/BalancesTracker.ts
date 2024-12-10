@@ -44,7 +44,7 @@ export class BalancesTracker {
    * @returns True if the account is being tracked, false otherwise.
    */
   isTracked(accountId: string) {
-    return this.#balances.hasOwnProperty(accountId);
+    return Object.prototype.hasOwnProperty.call(this.#balances, accountId);
   }
 
   /**
