@@ -49,6 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.2",
     "@metamask/utils": "^10.0.0",
+    "@noble/hashes": "^1.4.0",
     "cockatiel": "^3.1.2"
   },
   "devDependencies": {

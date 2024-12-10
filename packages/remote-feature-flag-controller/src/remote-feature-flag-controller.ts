@@ -9,7 +9,13 @@ import type { AbstractClientConfigApiService } from './client-config-api-service
 import type {
   FeatureFlags,
   ServiceResponse,
+  FeatureFlagScopeValue,
 } from './remote-feature-flag-controller-types';
+import {
+  generateDeterministicRandomNumber,
+  isFeatureFlagWithScopeValue,
+  generateFallbackMetaMetricsId,
+} from './utils/user-segmentation-utils';
 
 // === GENERAL ===
 
@@ -97,6 +103,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
+  #metaMetricsId?: string | undefined;
+
   /**
    * Constructs a new RemoteFeatureFlagController instance.
    *
@@ -106,6 +114,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.clientConfigApiService - The service instance to fetch remote feature flags.
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
+   * @param options.metaMetricsId - Determines the threshold value for the feature flag to return
    */
   constructor({
     messenger,
@@ -113,10 +122,12 @@ export class RemoteFeatureFlagController extends BaseController<
     clientConfigApiService,
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
+    metaMetricsId,
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
+    metaMetricsId?: string | undefined;
     fetchInterval?: number;
     disabled?: boolean;
   }) {
@@ -133,6 +144,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
+    this.#metaMetricsId = metaMetricsId;
   }
 
   /**
@@ -182,12 +194,49 @@ export class RemoteFeatureFlagController extends BaseController<
    * @private
    */
   #updateCache(remoteFeatureFlags: FeatureFlags) {
+    const processedRemoteFeatureFlags =
+      this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
-        remoteFeatureFlags,
+        remoteFeatureFlags: processedRemoteFeatureFlags,
         cacheTimestamp: Date.now(),
       };
     });
+  }
+
+  #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): FeatureFlags {
+    const processedRemoteFeatureFlags: FeatureFlags = {};
+    const thresholdValue = generateDeterministicRandomNumber(
+      this.#metaMetricsId || generateFallbackMetaMetricsId(),
+    );
+
+    for (const [
+      remoteFeatureFlagName,
+      remoteFeatureFlagValue,
+    ] of Object.entries(remoteFeatureFlags)) {
+      let processedValue = remoteFeatureFlagValue;
+      if (Array.isArray(remoteFeatureFlagValue) && thresholdValue) {
+        const selectedGroup = remoteFeatureFlagValue.find(
+          (featureFlag): featureFlag is FeatureFlagScopeValue => {
+            if (!isFeatureFlagWithScopeValue(featureFlag)) {
+              return false;
+            }
+
+            return thresholdValue <= featureFlag.scope.value;
+          },
+        );
+        if (selectedGroup) {
+          processedValue = {
+            name: selectedGroup.name,
+            value: selectedGroup.value,
+          };
+        }
+      }
+
+      processedRemoteFeatureFlags[remoteFeatureFlagName] = processedValue;
+    }
+
+    return processedRemoteFeatureFlags;
   }
 
   /**

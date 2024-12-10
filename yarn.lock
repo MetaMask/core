@@ -3512,6 +3512,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.0.2"
     "@metamask/controller-utils": "npm:^11.4.4"
     "@metamask/utils": "npm:^10.0.0"
+    "@noble/hashes": "npm:^1.4.0"
     "@types/jest": "npm:^27.4.1"
     cockatiel: "npm:^3.1.2"
     deepmerge: "npm:^4.2.2"
