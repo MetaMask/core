@@ -459,19 +459,4 @@ export class Messenger<
   }
 }
 
-/**
- * A message broker for "actions" and "events".
- *
- * The messenger allows registering functions as 'actions' that can be called elsewhere,
- * and it allows publishing and subscribing to events. Both actions and events are identified by
- * unique strings.
- *
- * @template Action - A type union of all Action types.
- * @template Event - A type union of all Event types.
- * @deprecated This has been renamed to `Messenger`.
- */
-export const ControllerMessenger = Messenger;
-export type ControllerMessenger<
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
-> = Messenger<Action, Event>;
+export { Messenger as ControllerMessenger };
