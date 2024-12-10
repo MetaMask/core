@@ -239,6 +239,18 @@ describe('json', () => {
         'Expected a value of type `JSON`, but received: `undefined`',
       );
     });
+
+    it('returns a readable error message for a nested JsonStruct', () => {
+      const struct = object({
+        value: JsonStruct,
+      });
+
+      const [error] = validate({ value: undefined }, struct);
+      assert(error !== undefined);
+      expect(error.message).toBe(
+        'At path: value -- Expected a value of type `JSON`, but received: `undefined`',
+      );
+    });
   });
 
   describe('getSafeJson', () => {

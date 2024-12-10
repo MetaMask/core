@@ -16,6 +16,7 @@ import {
   union,
   unknown,
   Struct,
+  refine,
 } from '@metamask/superstruct';
 import type {
   Context,
@@ -215,18 +216,20 @@ export const UnsafeJsonStruct: Struct<Json> = define('JSON', (json) =>
  * This struct sanitizes the value before validating it, so that it is safe to
  * use with untrusted input.
  */
-export const JsonStruct = coerce(UnsafeJsonStruct, any(), (value) => {
-  assertStruct(value, UnsafeJsonStruct);
-  return JSON.parse(
-    JSON.stringify(value, (propKey, propValue) => {
-      // Strip __proto__ and constructor properties to prevent prototype pollution.
-      if (propKey === '__proto__' || propKey === 'constructor') {
-        return undefined;
-      }
-      return propValue;
-    }),
-  );
-});
+export const JsonStruct = coerce(
+  UnsafeJsonStruct,
+  refine(any(), 'JSON', (value) => is(value, UnsafeJsonStruct)),
+  (value) =>
+    JSON.parse(
+      JSON.stringify(value, (propKey, propValue) => {
+        // Strip __proto__ and constructor properties to prevent prototype pollution.
+        if (propKey === '__proto__' || propKey === 'constructor') {
+          return undefined;
+        }
+        return propValue;
+      }),
+    ),
+);
 
 /**
  * Check if the given value is a valid {@link Json} value, i.e., a value that is
