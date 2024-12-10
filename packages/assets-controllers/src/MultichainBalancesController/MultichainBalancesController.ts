@@ -230,11 +230,7 @@ export class MultichainBalancesController extends BaseController<
   #listAccounts(): InternalAccount[] {
     const accounts = this.#listMultichainAccounts();
 
-    return accounts.filter(
-      (account) =>
-        account.type === SolAccountType.DataAccount ||
-        account.type === BtcAccountType.P2wpkh,
-    );
+    return accounts.filter((account) => this.#isNonEvmAccount(account));
   }
 
   /**
