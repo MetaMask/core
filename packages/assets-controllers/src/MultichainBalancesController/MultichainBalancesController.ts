@@ -10,13 +10,11 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
-  BtcAccountType,
   KeyringClient,
   type Balance,
   type CaipAssetType,
   type InternalAccount,
   isEvmAccountType,
-  SolAccountType,
 } from '@metamask/keyring-api';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
