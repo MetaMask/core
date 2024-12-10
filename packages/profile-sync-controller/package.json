@@ -101,7 +101,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.2",
-    "@metamask/keyring-api": "^10.1.0",
+    "@metamask/keyring-api": "^12.0.0",
     "@metamask/keyring-controller": "^19.0.1",
     "@metamask/network-controller": "^22.1.0",
     "@metamask/snaps-sdk": "^6.7.0",
@@ -117,7 +117,7 @@
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/accounts-controller": "^20.0.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-internal-api": "^0.0.1",
+    "@metamask/keyring-internal-api": "^1.0.0",
     "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.10.0",
     "@types/jest": "^27.4.1",

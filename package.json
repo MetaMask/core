@@ -42,19 +42,6 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "@metamask/eth-snap-keyring@npm:^5.0.1": "npm:@metamask-previews/eth-snap-keyring@6.0.0-f78dac4",
-    "@metamask/keyring-api@npm:11.0.0": "npm:@metamask-previews/keyring-api@11.1.0-f78dac4",
-    "@metamask/keyring-api@npm:^10.1.0": "npm:@metamask-previews/keyring-api@11.1.0-f78dac4",
-    "@metamask/keyring-internal-api@^0.0.1": "npm:@metamask-previews/keyring-internal-api@0.0.1-f78dac4",
-    "@metamask/keyring-internal-api@npm:0.0.1": "npm:@metamask-previews/keyring-internal-api@0.0.1-f78dac4",
-    "@metamask/keyring-snap-client@^0.0.1": "npm:@metamask-previews/keyring-snap-client@0.0.1-f78dac4",
-    "@metamask/keyring-snap-client@npm:0.0.1": "npm:@metamask-previews/keyring-snap-client@0.0.1-f78dac4",
-    "@metamask/keyring-snap-internal-client@^0.0.1": "npm:@metamask-previews/keyring-snap-internal-client@0.0.1-f78dac4",
-    "@metamask/keyring-snap-internal-client@npm:0.0.1": "npm:@metamask-previews/keyring-snap-internal-client@0.0.1-f78dac4",
-    "@metamask/keyring-snap-sdk@^0.0.1": "npm:@metamask-previews/keyring-snap-sdk@0.0.1-f78dac4",
-    "@metamask/keyring-snap-sdk@npm:0.0.1": "npm:@metamask-previews/keyring-snap-sdk@0.0.1-f78dac4",
-    "@metamask/keyring-utils@^0.0.1": "npm:@metamask-previews/keyring-utils@0.0.1-f78dac4",
-    "@metamask/keyring-utils@npm:0.0.1": "npm:@metamask-previews/keyring-utils@0.0.1-f78dac4",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"
