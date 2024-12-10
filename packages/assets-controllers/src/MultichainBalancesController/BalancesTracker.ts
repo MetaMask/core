@@ -102,9 +102,7 @@ export class BalancesTracker {
     // This might not be super accurate, but we could probably compute this differently
     // and try to sync with the "real block time"!
     const info = this.#balances[accountId];
-    const isOutdated = Date.now() - info.lastUpdated >= info.blockTime;
-    const hasNoBalanceYet = info.lastUpdated === 0;
-    if (hasNoBalanceYet || isOutdated) {
+    if (this.#isBalanceOutdated(info)) {
       await this.#updateBalance(accountId);
       this.#balances[accountId].lastUpdated = Date.now();
     }
@@ -119,6 +117,15 @@ export class BalancesTracker {
       Object.keys(this.#balances).map(async (accountId) => {
         await this.updateBalance(accountId);
       }),
+    );
+  }
+
+  #isBalanceOutdated({ lastUpdated, blockTime }: BalanceInfo) {
+    return (
+      // Never been updated:
+      lastUpdated === 0 ||
+      // Outdated:
+      Date.now() - lastUpdated >= blockTime
     );
   }
 }
