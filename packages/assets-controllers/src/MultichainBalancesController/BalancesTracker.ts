@@ -5,7 +5,7 @@ type BalanceInfo = {
   blockTime: number;
 };
 
-const BALANCES_TRACKING_INTERVAL = 5000; // Every 30s in milliseconds.
+const BALANCES_TRACKING_INTERVAL = 5000; // Every 5s in milliseconds.
 
 export class BalancesTracker {
   #poller: Poller;
@@ -41,10 +41,10 @@ export class BalancesTracker {
    * Checks if an account ID is being tracked.
    *
    * @param accountId - The account ID.
-   * @returns True if the account is being tracker, false otherwise.
+   * @returns True if the account is being tracked, false otherwise.
    */
   isTracked(accountId: string) {
-    return accountId in this.#balances;
+    return this.#balances.hasOwnProperty(accountId);
   }
 
   /**
