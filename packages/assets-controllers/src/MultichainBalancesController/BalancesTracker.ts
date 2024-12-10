@@ -120,7 +120,15 @@ export class BalancesTracker {
     );
   }
 
-  #isBalanceOutdated({ lastUpdated, blockTime }: BalanceInfo) {
+  /**
+   * Checks if the balance is outdated according to the provided data.
+   *
+   * @param param - The balance info.
+   * @param param.lastUpdated - The last updated timestamp.
+   * @param param.blockTime - The block time.
+   * @returns True if the balance is outdated, false otherwise.
+   */
+  #isBalanceOutdated({ lastUpdated, blockTime }: BalanceInfo): boolean {
     return (
       // Never been updated:
       lastUpdated === 0 ||
