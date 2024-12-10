@@ -21,13 +21,13 @@ export enum MultichainNativeAssets {
   SolanaTestnet = `${MultichainNetworks.SolanaTestnet}/slip44:501`,
 }
 
-const BTC_AVG_BLOCK_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
+const BITCOIN_AVG_BLOCK_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
 const SOLANA_AVG_BLOCK_TIME = 400; // 400 milliseconds
 
 export const BALANCE_UPDATE_INTERVALS = {
   // NOTE: We set an interval of half the average block time fot bitcoin
   // to mitigate when our interval is de-synchronized with the actual block time.
-  [BtcAccountType.P2wpkh]: BTC_AVG_BLOCK_TIME / 2,
+  [BtcAccountType.P2wpkh]: BITCOIN_AVG_BLOCK_TIME / 2,
   [SolAccountType.DataAccount]: SOLANA_AVG_BLOCK_TIME,
 };
 
