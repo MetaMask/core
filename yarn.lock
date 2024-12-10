@@ -2980,7 +2980,6 @@ __metadata:
     "@metamask/keyring-api": "npm:^12.0.0"
     "@metamask/keyring-internal-api": "npm:^1.0.0"
     "@metamask/message-manager": "npm:^11.0.3"
-    "@metamask/providers": "npm:^18.1.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -2996,10 +2995,6 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
     uuid: "npm:^8.3.2"
-    webextension-polyfill: "npm:^0.12.0"
-  peerDependencies:
-    "@metamask/providers": ^18.1.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
 
