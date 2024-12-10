@@ -1,4 +1,3 @@
-import { Caip25CaveatValue } from "src/caip25Permission"
 import { assertIsInternalScopeString } from "./assert"
 import { InternalScopeObject, InternalScopesObject } from "./types"
 
@@ -42,9 +41,7 @@ export const diffInternalScopesObject = (oldScopesObject: InternalScopesObject, 
 
   Object.entries(newScopesObject).forEach(([scope, newScopeObject]) => {
     assertIsInternalScopeString(scope)
-    const oldScopeObject = oldScopesObject[scope]
-
-    if (!oldScopeObject) {
+    if (!oldScopesObject[scope]) {
       added[scope] = newScopeObject
     }
   })
