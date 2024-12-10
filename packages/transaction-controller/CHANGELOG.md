@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.0.0]
+
+### Added
+
+- Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Add `INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS` constant.
+
+### Changed
+
+- **BREAKING:** Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Rename `TransactionControllerIncomingTransactionBlockReceivedEvent` to `TransactionControllerIncomingTransactionsReceivedEvent`.
+  - Replace `networkClientIds` argument with `chainIds` in following methods:
+    - `startIncomingTransactionPolling`
+    - `stopIncomingTransactionPolling`
+    - `updateIncomingTransactions`
+- Bump `@metamask/eth-block-tracker` from `^11.0.2` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
+
+### Removed
+
+- **BREAKING:** Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Remove `ETHERSCAN_SUPPORTED_NETWORKS` constant.
+  - Remove types:
+    - `EtherscanTransactionMeta`
+    - `RemoteTransactionSource`
+    - `RemoteTransactionSourceRequest`
+
 ## [41.1.0]
 
 ### Added
@@ -1189,7 +1215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.1.0...@metamask/transaction-controller@42.0.0
 [41.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.0.0...@metamask/transaction-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.1.0...@metamask/transaction-controller@41.0.0
 [40.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.0.0...@metamask/transaction-controller@40.1.0

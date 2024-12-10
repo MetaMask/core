@@ -58,15 +58,16 @@ export async function createMockGetStorageResponse(
 export async function createMockAllFeatureEntriesResponse(
   dataArr: string[] = [MOCK_STORAGE_DATA],
 ): Promise<GetUserStorageAllFeatureEntriesResponse> {
-  return await Promise.all(
-    dataArr.map(async function (d) {
-      const encryptedData = await MOCK_ENCRYPTED_STORAGE_DATA(d);
-      return {
-        HashedKey: 'HASHED_KEY',
-        Data: encryptedData,
-      };
-    }),
-  );
+  const decryptedData = [];
+
+  for (const data of dataArr) {
+    decryptedData.push({
+      HashedKey: 'HASHED_KEY',
+      Data: await MOCK_ENCRYPTED_STORAGE_DATA(data),
+    });
+  }
+
+  return decryptedData;
 }
 
 /**
