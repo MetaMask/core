@@ -1,3 +1,5 @@
+import { PollerError } from './error';
+
 export class Poller {
   #interval: number;
 
@@ -16,7 +18,9 @@ export class Poller {
     }
 
     this.#handle = setInterval(() => {
-      this.#callback().catch(console.error);
+      this.#callback().catch((err) => {
+        console.error(new PollerError(err.message));
+      });
     }, this.#interval);
   }
 

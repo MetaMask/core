@@ -1,3 +1,4 @@
+import { PollerError } from './error';
 import { Poller } from './Poller';
 
 jest.useFakeTimers();
@@ -94,5 +95,24 @@ describe('Poller', () => {
     await Promise.resolve();
 
     expect(callback).not.toHaveBeenCalled();
+  });
+
+  it('catches and logs a PollerError when callback throws an error', async () => {
+    const mockCallback = jest.fn().mockRejectedValue(new Error('Test error'));
+    const poller = new Poller(mockCallback, 1000);
+    const spyConsoleError = jest.spyOn(console, 'error');
+
+    poller.start();
+
+    // Fast-forward time to trigger the interval
+    jest.advanceTimersByTime(1000);
+
+    // Wait for the promise to be handled
+    await Promise.resolve();
+
+    expect(mockCallback).toHaveBeenCalled();
+    expect(spyConsoleError).toHaveBeenCalledWith(new PollerError('Test error'));
+
+    poller.stop();
   });
 });
