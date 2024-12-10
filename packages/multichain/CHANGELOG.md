@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-filters` from `^7.0.0` to `^9.0.0` ([#5040](https://github.com/MetaMask/core/pull/5040))
+
 ## [1.1.1]
 
 ### Changed
@@ -28,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.2...HEAD
+[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.1...@metamask/multichain@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.0...@metamask/multichain@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.0.0...@metamask/multichain@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/multichain@1.0.0

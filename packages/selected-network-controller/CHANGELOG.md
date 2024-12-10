@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.2]
+
+### Changed
+
+- Bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
+
 ## [20.0.1]
 
 ### Fixed
@@ -317,7 +323,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.2...HEAD
+[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.1...@metamask/selected-network-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.0...@metamask/selected-network-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@19.0.0...@metamask/selected-network-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.2...@metamask/selected-network-controller@19.0.0
