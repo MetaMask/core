@@ -14,6 +14,12 @@ import {
   CLIENT_SIDE_DETECION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
 } from './PhishingController';
+import type { DappScanResponse } from './PhishingDetector';
+import {
+  DAPP_SCAN_API_BASE_URL,
+  DAPP_SCAN_ENDPOINT,
+  RecommendedAction,
+} from './PhishingDetector';
 import { formatHostnameToUrl } from './tests/utils';
 import { PhishingDetectorResultType } from './types';
 import { getHostnameFromUrl } from './utils';
@@ -2368,6 +2374,104 @@ describe('PhishingController', () => {
       // Verify that the whitelist now includes the punycode origin
       expect(controller.state.whitelist).toContain(punycodeOrigin);
       expect(controller.state.whitelist).toHaveLength(1);
+    });
+  });
+  describe('PhishingController - scanDomain', () => {
+    afterEach(() => {
+      nock.cleanAll();
+    });
+
+    it('should return safe if domain is in the allowlist', async () => {
+      const allowlistedDomain = 'example.com';
+
+      const controller = getPhishingController();
+
+      const result = await controller.scanDomain(allowlistedDomain);
+      expect(result).toMatchObject({
+        result: false,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+      });
+    });
+
+    it('should return false if the URL is in the whitelist', async () => {
+      const whitelistedHostname = 'example.com';
+
+      const controller = getPhishingController();
+      controller.bypass(formatHostnameToUrl(whitelistedHostname));
+      const result = await controller.scanDomain(whitelistedHostname);
+      expect(result).toMatchObject({
+        result: false,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+      });
+    });
+
+    it('should return malicious if the dApp scan API recommends BLOCK', async () => {
+      const domainToScan = 'malicious.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${domainToScan}`)
+        .reply(200, {
+          domainName: domainToScan,
+          recommendedAction: RecommendedAction.Block,
+          riskFactors: [
+            {
+              type: 'DRAINER',
+              severity: 'CRITICAL',
+              message: 'Domain identified as a wallet drainer.',
+            },
+          ],
+          verified: false,
+          status: 'COMPLETE',
+        } as DappScanResponse);
+
+      const controller = getPhishingController();
+
+      const result = await controller.scanDomain(domainToScan);
+      expect(result).toStrictEqual({
+        result: true,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+        name: 'DappScan',
+        version: '1',
+        match: domainToScan,
+      });
+    });
+
+    it('should return safe if the dApp scan API recommends NONE', async () => {
+      const domainToScan = 'none.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${domainToScan}`)
+        .reply(200, {
+          domainName: domainToScan,
+          recommendedAction: RecommendedAction.None,
+          riskFactors: [],
+          verified: true,
+          status: 'COMPLETE',
+        } as DappScanResponse);
+
+      const controller = getPhishingController();
+
+      const result = await controller.scanDomain(domainToScan);
+      expect(result).toMatchObject({
+        result: false,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+      });
+    });
+
+    it('should return safe if the dApp scan API request fails', async () => {
+      const domainToScan = 'unreachable.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${domainToScan}`)
+        .replyWithError('Network error');
+
+      const controller = getPhishingController();
+
+      const result = await controller.scanDomain(domainToScan);
+      expect(result).toMatchObject({
+        result: false,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+      });
     });
   });
 });

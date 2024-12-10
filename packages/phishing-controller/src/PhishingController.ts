@@ -490,6 +490,26 @@ export class PhishingController extends BaseController<
   }
 
   /**
+   * Determines if a given origin is unapproved or malicious.
+   *
+   * @param origin - Domain origin of a website.
+   * @returns A promise that resolves to the phishing detection result.
+   */
+  async scanDomain(origin: string): Promise<PhishingDetectorResult> {
+    const punycodeOrigin = toASCII(origin);
+    const hostname = getHostnameFromUrl(punycodeOrigin);
+
+    if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
+      return {
+        result: false,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+      };
+    }
+
+    return this.#detector.scanDomain(punycodeOrigin);
+  }
+
+  /**
    * Temporarily marks a given origin as approved.
    *
    * @param origin - The origin to mark as approved.
