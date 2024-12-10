@@ -23,6 +23,17 @@ export type FeatureFlags = {
   [key: string]: Json;
 };
 
+export type FeatureFlagScope = {
+  type: string;
+  value: number;
+};
+
+export type FeatureFlagScopeValue = {
+  name: string;
+  scope: FeatureFlagScope;
+  value: Json;
+};
+
 export type ApiDataResponse = FeatureFlags[];
 
 export type ServiceResponse = {
