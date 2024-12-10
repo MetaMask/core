@@ -430,31 +430,4 @@ export class RestrictedMessenger<
   }
 }
 
-/**
- * Constructs a restricted messenger
- *
- * The provided allowlists grant the ability to call the listed actions and subscribe to the
- * listed events. The "name" provided grants ownership of any actions and events under that
- * namespace. Ownership allows registering actions and publishing events, as well as
- * unregistering actions and clearing event subscriptions.
- *
- * @param options - Options.
- * @param options.controllerMessenger - The messenger instance that is being wrapped. (deprecated)
- * @param options.messenger - The messenger instance that is being wrapped.
- * @param options.name - The name of the thing this messenger will be handed to (e.g. the
- * controller name). This grants "ownership" of actions and events under this namespace to the
- * restricted messenger returned.
- * @param options.allowedActions - The list of actions that this restricted messenger should be
- * allowed to call.
- * @param options.allowedEvents - The list of events that this restricted messenger should be
- * allowed to subscribe to.
- * @deprecated This has been renamed to `RestrictedMessenger`.
- */
-export const RestrictedControllerMessenger = RestrictedMessenger;
-export type RestrictedControllerMessenger<
-  Namespace extends string,
-  Action extends ActionConstraint,
-  Event extends EventConstraint,
-  AllowedAction extends string,
-  AllowedEvent extends string,
-> = RestrictedMessenger<Namespace, Action, Event, AllowedAction, AllowedEvent>;
+export { RestrictedMessenger as RestrictedControllerMessenger };
