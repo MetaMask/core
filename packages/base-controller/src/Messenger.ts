@@ -1,4 +1,4 @@
-import { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
+import { RestrictedMessenger } from './RestrictedMessenger';
 
 export type ActionHandler<
   Action extends ActionConstraint,
@@ -114,16 +114,16 @@ type NarrowToAllowed<Name, Allowed extends string> = Name extends {
   : never;
 
 /**
- * A messaging system for controllers.
+ * A message broker for "actions" and "events".
  *
- * The controller messenger allows registering functions as 'actions' that can be called elsewhere,
+ * The messenger allows registering functions as 'actions' that can be called elsewhere,
  * and it allows publishing and subscribing to events. Both actions and events are identified by
  * unique strings.
  *
  * @template Action - A type union of all Action types.
  * @template Event - A type union of all Event types.
  */
-export class ControllerMessenger<
+export class Messenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > {
@@ -399,30 +399,30 @@ export class ControllerMessenger<
   }
 
   /**
-   * Get a restricted controller messenger
+   * Get a restricted messenger
    *
-   * Returns a wrapper around the controller messenger instance that restricts access to actions
-   * and events. The provided allowlists grant the ability to call the listed actions and subscribe
-   * to the listed events. The "name" provided grants ownership of any actions and events under
-   * that namespace. Ownership allows registering actions and publishing events, as well as
+   * Returns a wrapper around the messenger instance that restricts access to actions and events.
+   * The provided allowlists grant the ability to call the listed actions and subscribe to the
+   * listed events. The "name" provided grants ownership of any actions and events under that
+   * namespace. Ownership allows registering actions and publishing events, as well as
    * unregistering actions and clearing event subscriptions.
    *
    * @param options - Controller messenger options.
    * @param options.name - The name of the thing this messenger will be handed to (e.g. the
    * controller name). This grants "ownership" of actions and events under this namespace to the
-   * restricted controller messenger returned.
-   * @param options.allowedActions - The list of actions that this restricted controller messenger
-   * should be alowed to call.
-   * @param options.allowedEvents - The list of events that this restricted controller messenger
-   * should be allowed to subscribe to.
-   * @template Namespace - The namespace for this messenger. Typically this is the name of the controller or
+   * restricted messenger returned.
+   * @param options.allowedActions - The list of actions that this restricted messenger should be
+   * allowed to call.
+   * @param options.allowedEvents - The list of events that this restricted messenger should be
+   * allowed to subscribe to.
+   * @template Namespace - The namespace for this messenger. Typically this is the name of the
    * module that this messenger has been created for. The authority to publish events and register
    * actions under this namespace is granted to this restricted messenger instance.
    * @template AllowedAction - A type union of the 'type' string for any allowed actions.
    * This must not include internal actions that are in the messenger's namespace.
    * @template AllowedEvent - A type union of the 'type' string for any allowed events.
    * This must not include internal events that are in the messenger's namespace.
-   * @returns The restricted controller messenger.
+   * @returns The restricted messenger.
    */
   getRestricted<
     Namespace extends string,
@@ -442,7 +442,7 @@ export class ControllerMessenger<
       Namespace,
       Extract<Event['type'], AllowedEvent>
     >[];
-  }): RestrictedControllerMessenger<
+  }): RestrictedMessenger<
     Namespace,
     | NarrowToNamespace<Action, Namespace>
     | NarrowToAllowed<Action, AllowedAction>,
@@ -450,11 +450,28 @@ export class ControllerMessenger<
     AllowedAction,
     AllowedEvent
   > {
-    return new RestrictedControllerMessenger({
-      controllerMessenger: this,
+    return new RestrictedMessenger({
+      messenger: this,
       name,
       allowedActions,
       allowedEvents,
     });
   }
 }
+
+/**
+ * A message broker for "actions" and "events".
+ *
+ * The messenger allows registering functions as 'actions' that can be called elsewhere,
+ * and it allows publishing and subscribing to events. Both actions and events are identified by
+ * unique strings.
+ *
+ * @template Action - A type union of all Action types.
+ * @template Event - A type union of all Event types.
+ * @deprecated This has been renamed to `Messenger`.
+ */
+export const ControllerMessenger = Messenger;
+export type ControllerMessenger<
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
+> = Messenger<Action, Event>;
