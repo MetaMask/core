@@ -2594,16 +2594,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-filters@npm:^7.0.0":
-  version: 7.0.1
-  resolution: "@metamask/eth-json-rpc-filters@npm:7.0.1"
+"@metamask/eth-json-rpc-filters@npm:^9.0.0":
+  version: 9.0.0
+  resolution: "@metamask/eth-json-rpc-filters@npm:9.0.0"
   dependencies:
     "@metamask/eth-query": "npm:^4.0.0"
-    "@metamask/json-rpc-engine": "npm:^8.0.2"
+    "@metamask/json-rpc-engine": "npm:^10.0.0"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
     async-mutex: "npm:^0.5.0"
     pify: "npm:^5.0.0"
-  checksum: 10/5200f75cee48dfd79deba5e4f1b16ff6827e606da617891f5cb7b59c43ae4ac8420cb9a6a9ca31705c47d2c3d32a3754e052b30f61fd293cc37f009c4fe20c12
+  checksum: 10/12095db69902e267d568d67b4241677502558159691d47216f82701f8e2875a051636b8ff483351d17e01d090b7a1eb8d5dec4cc17a9e47c99aa6d2ec0a073b4
   languageName: node
   linkType: hard
 
@@ -2949,17 +2949,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/json-rpc-engine@npm:^8.0.2":
-  version: 8.0.2
-  resolution: "@metamask/json-rpc-engine@npm:8.0.2"
-  dependencies:
-    "@metamask/rpc-errors": "npm:^6.2.1"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^8.3.0"
-  checksum: 10/f088f4b648b9b55875b56e8237853e7282f13302a9db6a1f9bba06314dfd6cd0a23b3d27f8fde05a157b97ebb03b67bc2699ba455c99553dfb2ecccd73ab3474
-  languageName: node
-  linkType: hard
-
 "@metamask/json-rpc-middleware-stream@npm:^8.0.5, @metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream":
   version: 0.0.0-use.local
   resolution: "@metamask/json-rpc-middleware-stream@workspace:packages/json-rpc-middleware-stream"
@@ -3031,7 +3020,7 @@ __metadata:
     "@metamask/eth-sig-util": "npm:^8.0.0"
     "@metamask/eth-simple-keyring": "npm:^6.0.5"
     "@metamask/keyring-api": "npm:^10.1.0"
-    "@metamask/message-manager": "npm:^11.0.2"
+    "@metamask/message-manager": "npm:^11.0.3"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/utils": "npm:^10.0.0"
@@ -3073,7 +3062,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/message-manager@npm:^11.0.2, @metamask/message-manager@workspace:packages/message-manager":
+"@metamask/message-manager@npm:^11.0.3, @metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
@@ -3109,7 +3098,7 @@ __metadata:
     "@metamask/api-specs": "npm:^0.10.12"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/controller-utils": "npm:^11.4.4"
-    "@metamask/eth-json-rpc-filters": "npm:^7.0.0"
+    "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.1"
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/permission-controller": "npm:^11.0.4"
@@ -3469,7 +3458,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^10.0.1"
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/rpc-errors": "npm:^7.0.1"
-    "@metamask/selected-network-controller": "npm:^20.0.1"
+    "@metamask/selected-network-controller": "npm:^20.0.2"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -3528,16 +3517,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/rpc-errors@npm:^6.2.1":
-  version: 6.3.1
-  resolution: "@metamask/rpc-errors@npm:6.3.1"
-  dependencies:
-    "@metamask/utils": "npm:^9.0.0"
-    fast-safe-stringify: "npm:^2.0.6"
-  checksum: 10/f968fb490b13b632c2ad4770a144d67cecdff8d539cb8b489c732b08dab7a62fae65d7a2908ce8c5b77260317aa618948a52463f093fa8d9f84aee1c5f6f5daf
-  languageName: node
-  linkType: hard
-
 "@metamask/rpc-errors@npm:^7.0.0, @metamask/rpc-errors@npm:^7.0.1":
   version: 7.0.1
   resolution: "@metamask/rpc-errors@npm:7.0.1"
@@ -3565,7 +3544,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@npm:^20.0.1, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@npm:^20.0.2, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
@@ -3865,7 +3844,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^8.2.0, @metamask/utils@npm:^8.3.0":
+"@metamask/utils@npm:^8.2.0":
   version: 8.5.0
   resolution: "@metamask/utils@npm:8.5.0"
   dependencies:
