@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1]
+
+### Changed
+
+- Use new `@metamask/keyring-internal-api@^1.0.0`( [#4695](https://github.com/MetaMask/core/pull/4695))
+  - This package has been split out from the Keyring API.
+- Bump `@metamask/keyring-api` from `^10.1.0` to `^12.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
+
 ## [3.1.0]
 
 ### Changed
@@ -370,7 +378,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.1.1...HEAD
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.1.0...@metamask/profile-sync-controller@3.1.1
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.0.0...@metamask/profile-sync-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@2.0.0...@metamask/profile-sync-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.2...@metamask/profile-sync-controller@2.0.0
