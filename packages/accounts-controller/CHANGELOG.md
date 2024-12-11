@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.0.2]
 
-### Uncategorized
+### Changed
 
-- refactor: use new `@metamask/keyring-api` layout (split packages) ([#4695](https://github.com/MetaMask/core/pull/4695))
+- Use new `@metamask/keyring-internal-api@^1.0.0`( [#4695](https://github.com/MetaMask/core/pull/4695))
+  - This package has been split out from the Keyring API.
+- Bump `@metamask/keyring-api` from `^10.1.0` to `^12.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
+- Bump `@metamask/eth-snap-keyring` from `^5.0.1` to `^7.0.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+  - ESM/CommonJS support.
 
 ## [20.0.1]
 
