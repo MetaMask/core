@@ -13,9 +13,9 @@ const diffInternalScopeObject = (oldScopeObject: InternalScopeObject, newScopeOb
   }
 
   return {
-    added,
-    removed,
-    unchanged
+    added: added.accounts.length ? added : null,
+    removed: removed.accounts.length ? removed: null,
+    unchanged: unchanged.accounts.length ? unchanged: null,
   }
 }
 
@@ -34,9 +34,15 @@ export const diffInternalScopesObject = (oldScopesObject: InternalScopesObject, 
     }
 
     const diffScopeObject = diffInternalScopeObject(oldScopeObject, newScopeObject)
-    added[scope] = diffScopeObject.added
-    removed[scope] = diffScopeObject.removed
-    unchanged[scope] = diffScopeObject.unchanged
+    if (diffScopeObject.added) {
+      added[scope] = diffScopeObject.added
+    }
+    if (diffScopeObject.removed) {
+      removed[scope] = diffScopeObject.removed
+    }
+    if (diffScopeObject.unchanged) {
+      unchanged[scope] = diffScopeObject.unchanged
+    }
   })
 
   Object.entries(newScopesObject).forEach(([scope, newScopeObject]) => {
