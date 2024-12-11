@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.1.0]
 
-### Uncategorized
+### Changed
 
-- Release 266.0.0 ([#5038](https://github.com/MetaMask/core/pull/5038))
-- feat: revamp user storage encryption process ([#4981](https://github.com/MetaMask/core/pull/4981))
-- fix: ensure signing out does not error ([#5013](https://github.com/MetaMask/core/pull/5013))
+- Revamp user storage encryption process ([#4981](https://github.com/MetaMask/core/pull/4981))
+  - Stop using a random salt when generating scrypt keys and use a shared one
+  - Re-encrypt data fetched by `getUserStorageAllFeatureEntries` and `getUserStorage` with the shared salt if fetched entries were encrypted with random salts
+
+### Fixed
+
+- Remove `#assertLoggedIn()` assertion when signing out a user, ensuring `performSignOut` does not error when a user is already signed out ([#5013](https://github.com/MetaMask/core/pull/5013))
 
 ## [3.0.0]
 
