@@ -856,12 +856,27 @@ export class KeyringController extends BaseController<
    * Gets the seed phrase of the HD keyring.
    *
    * @param password - Password of the keyring.
+   * @param typeIndex - Hd keyring identifier
    * @returns Promise resolving to the seed phrase.
    */
-  async exportSeedPhrase(password: string): Promise<Uint8Array> {
+  async exportSeedPhrase(
+    password: string,
+    typeIndex: number,
+  ): Promise<Uint8Array> {
     await this.verifyPassword(password);
-    assertHasUint8ArrayMnemonic(this.#keyrings[0]);
-    return this.#keyrings[0].mnemonic;
+
+    const keyring = this.getKeyringsByType(KeyringTypes.hd).find(
+      (innerKeyring) =>
+        (innerKeyring as EthKeyring<Json> & { opts: { typeIndex: number } })
+          .opts.typeIndex === typeIndex,
+    ) as EthKeyring<Json>;
+
+    if (!keyring) {
+      throw new Error(KeyringControllerError.KeyringNotFound);
+    }
+
+    assertHasUint8ArrayMnemonic(keyring);
+    return keyring.mnemonic;
   }
 
   /**
@@ -2247,7 +2262,7 @@ export class KeyringController extends BaseController<
     if (type === KeyringTypes.hd) {
       await keyring.deserialize({
         ...(data ?? {}),
-        typeIndex: lastIndexOfType,
+        typeIndex: lastIndexOfType + 1,
         id: ulid(),
       });
     } else {
