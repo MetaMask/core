@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: use new `@metamask/keyring-api` layout (split packages) ([#4695](https://github.com/MetaMask/core/pull/4695))
+
 ## [20.0.1]
 
 ### Fixed
