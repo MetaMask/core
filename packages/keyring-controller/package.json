@@ -54,8 +54,9 @@
     "@metamask/eth-hd-keyring": "^7.0.4",
     "@metamask/eth-sig-util": "^8.0.0",
     "@metamask/eth-simple-keyring": "^6.0.5",
-    "@metamask/keyring-api": "^10.1.0",
-    "@metamask/message-manager": "^11.0.2",
+    "@metamask/keyring-api": "^12.0.0",
+    "@metamask/keyring-internal-api": "^1.0.0",
+    "@metamask/message-manager": "^11.0.3",
     "@metamask/utils": "^10.0.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
@@ -68,7 +69,6 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/providers": "^18.1.1",
     "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -79,12 +79,7 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2",
-    "uuid": "^8.3.2",
-    "webextension-polyfill": "^0.12.0"
-  },
-  "peerDependencies": {
-    "@metamask/providers": "^18.1.0",
-    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
+    "uuid": "^8.3.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

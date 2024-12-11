@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0]
+
+### Changed
+
+- Revamp user storage encryption process ([#4981](https://github.com/MetaMask/core/pull/4981))
+  - Stop using a random salt when generating scrypt keys and use a shared one
+  - Re-encrypt data fetched by `getUserStorageAllFeatureEntries` and `getUserStorage` with the shared salt if fetched entries were encrypted with random salts
+
+### Fixed
+
+- Remove `#assertLoggedIn()` assertion when signing out a user, ensuring `performSignOut` does not error when a user is already signed out ([#5013](https://github.com/MetaMask/core/pull/5013))
+
 ## [3.0.0]
 
 ### Added
@@ -358,7 +370,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.1.0...HEAD
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.0.0...@metamask/profile-sync-controller@3.1.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@2.0.0...@metamask/profile-sync-controller@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.2...@metamask/profile-sync-controller@2.0.0
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.1...@metamask/profile-sync-controller@1.0.2

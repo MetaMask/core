@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.3]
+
+### Changed
+
+- Bump `jsonschema` from `^1.2.4` to `^1.4.1` ([#4998](https://github.com/MetaMask/core/pull/4998), [#5027](https://github.com/MetaMask/core/pull/5027))
+
 ## [11.0.2]
 
 ### Changed
@@ -340,7 +346,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.3...HEAD
+[11.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.2...@metamask/message-manager@11.0.3
 [11.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.1...@metamask/message-manager@11.0.2
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.0...@metamask/message-manager@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...@metamask/message-manager@11.0.0
