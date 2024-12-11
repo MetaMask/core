@@ -1,5 +1,6 @@
-import { EthAccountType, type InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { LOCALIZED_DEFAULT_ACCOUNT_NAMES } from '../accounts/constants';
 import { mapInternalAccountToUserStorageAccount } from '../accounts/user-storage';

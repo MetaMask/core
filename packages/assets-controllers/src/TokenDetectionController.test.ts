@@ -6,8 +6,8 @@ import {
   convertHexToDecimal,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   getDefaultNetworkControllerState,
   RpcEndpointType,

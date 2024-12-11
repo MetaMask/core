@@ -1,4 +1,4 @@
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
   USER_STORAGE_VERSION_KEY,
