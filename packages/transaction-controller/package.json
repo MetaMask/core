@@ -69,7 +69,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/accounts-controller": "^20.0.1",
+    "@metamask/accounts-controller": "^20.0.2",
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-block-tracker": "^11.0.3",
