@@ -41,7 +41,7 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
   ],
 };
 
-const MOCK_METRICS_ID = '0x1234567890abcdef';
+const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-3210-9876-543210fedcba';
 
 /**
  * Creates a controller instance with default parameters for testing
@@ -72,12 +72,6 @@ function createController(
 }
 
 describe('RemoteFeatureFlagController', () => {
-  beforeEach(() => {
-    jest
-      .spyOn(userSegmentationUtils, 'generateFallbackMetaMetricsId')
-      .mockReturnValue(MOCK_METRICS_ID);
-  });
-
   describe('constructor', () => {
     it('initializes with default state', () => {
       const controller = createController();
@@ -304,6 +298,9 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('uses a fallback metaMetricsId if none is provided', async () => {
+      jest
+        .spyOn(userSegmentationUtils, 'generateFallbackMetaMetricsId')
+        .mockReturnValue(MOCK_METRICS_ID);
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
       });

@@ -1,6 +1,5 @@
 import type { Json } from '@metamask/utils';
-import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex } from '@noble/hashes/utils';
+import { v4 as uuidV4 } from 'uuid';
 
 import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
 
@@ -42,12 +41,9 @@ export const isFeatureFlagWithScopeValue = (
 };
 
 /**
- * Generates a SHA-256 hash to use as a fallback metaMetricsId
- * @returns A 32-byte hex string prefixed with '0x'
+ * Generates UUIDv4 as a fallback metaMetricsId
+ * @returns A UUIDv4 string
  */
 export function generateFallbackMetaMetricsId(): string {
-  const random = new Uint8Array(32);
-  crypto.getRandomValues(random);
-  const hash = sha256(random);
-  return `0x${bytesToHex(hash)}`;
+  return uuidV4();
 }

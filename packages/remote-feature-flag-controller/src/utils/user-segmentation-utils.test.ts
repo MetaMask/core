@@ -1,4 +1,4 @@
-import { webcrypto } from 'crypto';
+import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
 import {
   generateDeterministicRandomNumber,
@@ -7,10 +7,10 @@ import {
 } from './user-segmentation-utils';
 
 const MOCK_METRICS_IDS = [
-  '0x1234567890abcdef',
-  '0xdeadbeefdeadbeef',
-  '0xabcdef0123456789',
-  '0xfedcba9876543210',
+  '123e4567-e89b-12d3-a456-426614174000',
+  '987fcdeb-51a2-3c4b-9876-543210fedcba',
+  'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+  'f9e8d7c6-b5a4-3210-9876-543210fedcba',
 ];
 
 const MOCK_FEATURE_FLAGS = {
@@ -77,27 +77,10 @@ describe('user-segmentation-utils', () => {
   });
 
   describe('generateFallbackMetaMetricsId', () => {
-    beforeAll(() => {
-      // Set up crypto for tests
-      Object.defineProperty(global, 'crypto', {
-        value: webcrypto,
-        writable: true,
-        configurable: true,
-      });
-    });
-
-    it('returns a properly formatted hex string', () => {
+    it('returns a valid uuidv4', () => {
       const result = generateFallbackMetaMetricsId();
-      expect(result.startsWith('0x')).toBe(true);
-      expect(result).toHaveLength(66);
-      expect(result.slice(2)).toMatch(/^[0-9a-f]+$/u);
-    });
-
-    it('generates unique values for each revoke', () => {
-      const result1 = generateFallbackMetaMetricsId();
-      const result2 = generateFallbackMetaMetricsId();
-
-      expect(result1).not.toBe(result2);
+      expect(uuidValidate(result)).toBe(true);
+      expect(uuidVersion(result)).toBe(4);
     });
   });
 });
