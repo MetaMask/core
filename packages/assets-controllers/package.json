@@ -83,6 +83,7 @@
     "@metamask/keyring-internal-api": "^1.0.0",
     "@metamask/network-controller": "^22.1.1",
     "@metamask/preferences-controller": "^15.0.1",
+    "@metamask/providers": "^18.1.1",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
@@ -103,6 +104,7 @@
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/network-controller": "^22.0.0",
     "@metamask/preferences-controller": "^15.0.0",
+    "@metamask/providers": "^18.1.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
