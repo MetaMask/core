@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use new `@metamask/keyring-internal-api@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
   - This package has been split out from the Keyring API. Its types are compatible with the `@metamask/keyring-api` package used previously.
 - Bump `@metamask/message-manager` from `^11.0.2` to `^11.0.3` ([#5048](https://github.com/MetaMask/core/pull/5048))
-- Bump `jsonschema` from `^1.2.4` to `^1.4.1` ([#4998](https://github.com/MetaMask/core/pull/4998)), ([#5027](https://github.com/MetaMask/core/pull/5027))
 
 ## [19.0.1]
 
