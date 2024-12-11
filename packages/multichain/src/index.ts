@@ -33,6 +33,7 @@ export {
   KnownNotifications,
   KnownWalletScopeString,
 } from './scope/constants';
+export { diffInternalScopesObject } from './scope/diff';
 export { filterScopeObjectsSupported } from './scope/filter';
 export type {
   ExternalScopeString,
