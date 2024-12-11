@@ -5,7 +5,6 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
-import type { InternalAccount } from '@metamask/keyring-api';
 import {
   EthAccountType,
   EthMethod,
@@ -19,6 +18,7 @@ import type {
   KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   SnapControllerState,
   SnapStateChange,

@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
