@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Remove use of `@metamask/keyring-api` ([#4695](https://github.com/MetaMask/core/pull/4695))
-  - `@metamask/providers` and `webextension-polyfill` peer depedencies are no longer required.
+  - `@metamask/providers` and `webextension-polyfill` peer dependencies are no longer required.
 - Use new `@metamask/keyring-internal-api@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
   - This package has been split out from the Keyring API. Its types are compatible with the `@metamask/keyring-api` package used previously.
 - Use new `@metamask/keyring-utils@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
