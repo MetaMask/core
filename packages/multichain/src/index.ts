@@ -39,6 +39,7 @@ export {
 
 export type { Caip25CaveatValue } from './caip25Permission';
 export {
+  caip25CaveatBuilder,
   Caip25CaveatType,
   createCaip25Caveat,
   Caip25EndowmentPermissionName,
