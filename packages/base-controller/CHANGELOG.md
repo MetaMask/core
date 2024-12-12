@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Rename `ControllerMessenger` to `Messenger` ([#5050](https://github.com/MetaMask/core/pull/5050))
+  - `ControllerMessenger` has been renamed to `Messenger`
+  - `RestrictedControllerMessengerConstraint` has been renamed to `RestrictedMessengerConstraint`
+  - `RestrictedControllerMessenger` has been renamed to `RestrictedMessenger`
+  - The `RestrictedMessenger` constructor parameter `controllerMessenger` has been renamed to `messenger`, though the old name is still accepted
+  - The old names remain exported as deprecated aliases of the new names, so this is not a breaking change.
+
 ## [7.0.2]
 
 ### Changed
