@@ -165,6 +165,38 @@ C = { foo: 'baz', life: 42 };
 Delta = { foo: 'baz' };
 ```
 
+### Specifying permissions and caveats
+
+Permissions and caveats are specified by constructing _specification objects_,
+which are passed to the `PermissionController` constructor. See the [construction examples](#construction)
+for how to do this.
+
+#### Permission and caveat validators
+
+Permission and caveat specifications optionally include a `validator` function.
+This function is called to validate the permission or caveat when they change.
+If validation fails, the validator function should throw an appropriate JSON-RPC error.
+
+The validators are invoked in the following cases:
+
+- Permission validators
+  - When a permission is granted
+  - When a permission's caveat array is mutated
+- Caveat validators
+  - When a caveat is constructed
+  - When a caveat's value is mutated
+
+Notice that permission validators are only invoked when a permission's caveat array is mutated,
+not when an individual caveat is mutated. This means that permission validators **must not**
+be relied upon to validate caveat values.
+
+This establishes a separation of concerns between permission validators and caveat validators.
+In brief:
+
+- Caveat validators are inherently unaware of the permissions that they are caveats of.
+- Permission validators **should** be unaware of the internal structure of their caveats.
+  - However, they **may** be used to verify the membership of its caveat array.
+
 ### Requesting permissions
 
 The `PermissionController` provides two methods for requesting permissions:
@@ -221,6 +253,15 @@ const caveatSpecifications = {
           caveat.value.includes(resultValue),
         );
       },
+    validator: (caveat: { type: 'filterArrayResponse'; value: Json }) => {
+      // This function is called to validate the value of a caveat.
+      // If the value is invalid, the request will fail. By way of example,
+      // we could check that the value is an array of strings:
+      return (
+        Array.isArray(caveat.value) &&
+        caveat.value.every((v) => typeof v === 'string')
+      );
+    },
     // This function is called if two caveats of this type have to be merged
     // due to an incremental permissions request. The values must be merged
     // in the fashion of a right-biased union.
@@ -238,6 +279,18 @@ const permissionSpecifications = {
     // i.e. the restricted method name
     targetName: 'wallet_getSecretArray',
     allowedCaveats: ['filterArrayResponse'],
+    validator: (permission: PermissionConstraint) => {
+      // This function is called to validate the permission.
+      // If the permission is invalid, the request will fail.
+      // By way of example, we could check that the permission has at least
+      // one caveat of type 'filterArrayResponse'.
+      assert.ok(
+        permission.caveats?.some(
+          (caveat) => caveat.type === CaveatTypes.filterArrayResponse,
+        ),
+        'getSecretArray permission validation failed',
+      );
+    },
     // Every restricted method must specify its implementation in its
     // specification.
     methodImplementation: (
