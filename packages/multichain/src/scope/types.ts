@@ -60,7 +60,8 @@ export type InternalScopesObject = Record<CaipChainId, InternalScopeObject> & {
  * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
  * we resolve the `references` property into a scopeObject per reference and
  * assign an empty array to the `accounts` property if not already defined
- * to more easily read chain specific permissions.
+ * to more easily perform support checks for `wallet_createSession` requests.
+ * Also used as the return type for `wallet_createSession` and `wallet_sessionChanged`.
  */
 export type NormalizedScopeObject = {
   methods: string[];
@@ -74,7 +75,8 @@ export type NormalizedScopeObject = {
  * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
  * we resolve the `references` property into a scopeObject per reference and
  * assign an empty array to the `accounts` property if not already defined
- * to more easily read chain specific permissions.
+ * to more easily perform support checks for `wallet_createSession` requests.
+ * Also used as the return type for `wallet_createSession` and `wallet_sessionChanged`.
  */
 export type NormalizedScopesObject = Record<
   CaipChainId,
