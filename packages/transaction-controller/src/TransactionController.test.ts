@@ -5226,7 +5226,6 @@ describe('TransactionController', () => {
       };
       transactionMeta = {
         ...baseTransaction,
-        custodyId: '123',
         history: [{ ...baseTransaction }],
       };
     });
@@ -5340,28 +5339,6 @@ describe('TransactionController', () => {
       ).toThrow(
         'Cannot update custodial transaction as no transaction metadata found',
       );
-    });
-
-    it('throws if transaction is not a custodial transaction', async () => {
-      const nonCustodialTransaction: TransactionMeta = {
-        ...baseTransaction,
-        history: [{ ...baseTransaction }],
-      };
-      const newStatus = TransactionStatus.approved as const;
-      const { controller } = setupController({
-        options: {
-          state: {
-            transactions: [nonCustodialTransaction],
-          },
-        },
-        updateToInitialState: true,
-      });
-
-      expect(() =>
-        controller.updateCustodialTransaction(nonCustodialTransaction.id, {
-          status: newStatus,
-        }),
-      ).toThrow('Transaction must be a custodian transaction');
     });
 
     it('throws if status is invalid', async () => {
