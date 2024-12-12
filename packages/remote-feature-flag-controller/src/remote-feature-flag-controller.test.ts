@@ -41,7 +41,8 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
   ],
 };
 
-const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-3210-9876-543210fedcba';
+const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+const MOCK_METRICS_ID_2 = '987fcdeb-51a2-4c4b-9876-543210fedcba';
 
 /**
  * Creates a controller instance with default parameters for testing
@@ -277,8 +278,8 @@ describe('RemoteFeatureFlagController', () => {
       expect(
         controller.state.remoteFeatureFlags.testFlagForThreshold,
       ).toStrictEqual({
-        name: 'groupB',
-        value: 'valueB',
+        name: 'groupC',
+        value: 'valueC',
       });
     });
 
@@ -300,7 +301,7 @@ describe('RemoteFeatureFlagController', () => {
     it('uses a fallback metaMetricsId if none is provided', async () => {
       jest
         .spyOn(userSegmentationUtils, 'generateFallbackMetaMetricsId')
-        .mockReturnValue(MOCK_METRICS_ID);
+        .mockReturnValue(MOCK_METRICS_ID_2);
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
       });
@@ -312,8 +313,8 @@ describe('RemoteFeatureFlagController', () => {
       expect(
         controller.state.remoteFeatureFlags.testFlagForThreshold,
       ).toStrictEqual({
-        name: 'groupB',
-        value: 'valueB',
+        name: 'groupA',
+        value: 'valueA',
       });
     });
   });

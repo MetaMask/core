@@ -7,10 +7,10 @@ import {
 } from './user-segmentation-utils';
 
 const MOCK_METRICS_IDS = [
-  '123e4567-e89b-12d3-a456-426614174000',
-  '987fcdeb-51a2-3c4b-9876-543210fedcba',
-  'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-  'f9e8d7c6-b5a4-3210-9876-543210fedcba',
+  '123e4567-e89b-4456-a456-426614174000',
+  '987fcdeb-51a2-4c4b-9876-543210fedcba',
+  'a1b2c3d4-e5f6-4890-abcd-ef1234567890',
+  'f9e8d7c6-b5a4-4210-9876-543210fedcba',
 ];
 
 const MOCK_FEATURE_FLAGS = {
