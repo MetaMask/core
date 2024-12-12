@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Set `isFirstTimeInteraction` as `undefined` if transaction is an interaction with one of the internal accounts. ([#5024](https://github.com/MetaMask/core/pull/5024))
+
 ## [42.0.0]
 
 ### Added
