@@ -96,6 +96,14 @@ import type { GetSubjectMetadata } from './SubjectMetadataController';
 import { collectUniqueAndPairedCaveats, MethodNames } from './utils';
 
 /**
+ * Flags for controlling the validation behavior of certain internal methods.
+ */
+type PermissionValidationFlags = {
+  invokePermissionValidator: boolean;
+  performCaveatValidation: boolean;
+};
+
+/**
  * Metadata associated with {@link PermissionController} subjects.
  */
 export type PermissionSubjectMetadata = {
@@ -1363,6 +1371,7 @@ export class PermissionController<
       };
       this.validateCaveat(caveat, origin, target);
 
+      let addedCaveat = false;
       if (permission.caveats) {
         const caveatIndex = permission.caveats.findIndex(
           (existingCaveat) => existingCaveat.type === caveat.type,
@@ -1370,6 +1379,7 @@ export class PermissionController<
 
         if (caveatIndex === -1) {
           permission.caveats.push(caveat);
+          addedCaveat = true;
         } else {
           permission.caveats.splice(caveatIndex, 1, caveat);
         }
@@ -1380,9 +1390,17 @@ export class PermissionController<
         // the permission validator is also called.
         // @ts-expect-error See above comment
         permission.caveats = [caveat];
+        addedCaveat = true;
       }
 
-      this.validateModifiedPermission(permission, origin);
+      // Mutating a caveat does not warrant permission validation, but mutating
+      // the caveat array does.
+      if (addedCaveat) {
+        this.validateModifiedPermission(permission, origin, {
+          invokePermissionValidator: true,
+          performCaveatValidation: false, // We just validated the caveat
+        });
+      }
     });
   }
 
@@ -1556,12 +1574,15 @@ export class PermissionController<
       permission.caveats.splice(caveatIndex, 1);
     }
 
-    this.validateModifiedPermission(permission, origin);
+    this.validateModifiedPermission(permission, origin, {
+      invokePermissionValidator: true,
+      performCaveatValidation: false, // No caveat object was mutated
+    });
   }
 
   /**
    * Validates the specified modified permission. Should **always** be invoked
-   * on a permission after its caveats have been modified.
+   * on a permission when its caveat array has been mutated.
    *
    * Just like {@link PermissionController.validatePermission}, except that the
    * corresponding target name and specification are retrieved first, and an
@@ -1569,10 +1590,12 @@ export class PermissionController<
    *
    * @param permission - The modified permission to validate.
    * @param origin - The origin associated with the permission.
+   * @param validationFlags - Validation flags. See {@link PermissionController.validatePermission}.
    */
   private validateModifiedPermission(
     permission: Draft<PermissionConstraint>,
     origin: OriginString,
+    validationFlags: PermissionValidationFlags,
   ): void {
     /* istanbul ignore if: this should be impossible */
     if (!this.targetExists(permission.parentCapability)) {
@@ -1585,6 +1608,7 @@ export class PermissionController<
       this.getPermissionSpecification(permission.parentCapability),
       permission as PermissionConstraint,
       origin,
+      validationFlags,
     );
   }
 
@@ -1773,17 +1797,10 @@ export class PermissionController<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification
       >;
-      let performCaveatValidation = true;
-
       if (specification.factory) {
         permission = specification.factory(permissionOptions, requestData);
       } else {
         permission = constructPermission(permissionOptions);
-
-        // We do not need to validate caveats in this case, because the plain
-        // permission constructor function does not modify the caveats, which
-        // were already validated by `constructCaveats` above.
-        performCaveatValidation = false;
       }
 
       if (mergePermissions) {
@@ -1795,7 +1812,7 @@ export class PermissionController<
 
       this.validatePermission(specification, permission, origin, {
         invokePermissionValidator: true,
-        performCaveatValidation,
+        performCaveatValidation: true,
       });
       permissions[targetName] = permission;
     }
@@ -1829,10 +1846,10 @@ export class PermissionController<
     specification: PermissionSpecificationConstraint,
     permission: PermissionConstraint,
     origin: OriginString,
-    { invokePermissionValidator, performCaveatValidation } = {
-      invokePermissionValidator: true,
-      performCaveatValidation: true,
-    },
+    {
+      invokePermissionValidator,
+      performCaveatValidation,
+    }: PermissionValidationFlags,
   ): void {
     const { allowedCaveats, validator, targetName } = specification;
 
