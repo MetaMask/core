@@ -1,6 +1,6 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags",
   "keywords": [
     "MetaMask",
