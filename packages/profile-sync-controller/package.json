@@ -104,7 +104,7 @@
     "@metamask/keyring-api": "^12.0.0",
     "@metamask/keyring-controller": "^19.0.2",
     "@metamask/network-controller": "^22.1.1",
-    "@metamask/snaps-sdk": "^6.7.0",
+    "@metamask/snaps-sdk": "^6.13.0",
     "@metamask/snaps-utils": "^8.3.0",
     "@noble/ciphers": "^0.5.2",
     "@noble/hashes": "^1.4.0",
