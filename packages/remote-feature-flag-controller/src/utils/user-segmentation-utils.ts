@@ -5,7 +5,7 @@ import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-ty
 
 /* eslint-disable no-bitwise */
 /**
- * Generates a deterministic random number between 0 and 1 based on a profile ID.
+ * Generates a deterministic random number between 0 and 1 based on a metaMetricsId.
  * This is useful for A/B testing and feature flag rollouts where we want
  * consistent group assignment for the same user.
  *
