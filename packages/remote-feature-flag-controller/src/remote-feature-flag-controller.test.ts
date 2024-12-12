@@ -59,7 +59,7 @@ function createController(
     state: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
-    metaMetricsId: string;
+    getMetaMetricsId: Promise<string | undefined>;
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
@@ -68,7 +68,7 @@ function createController(
     clientConfigApiService:
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
-    metaMetricsId: options.metaMetricsId,
+    getMetaMetricsId: options.getMetaMetricsId,
   });
 }
 
@@ -271,7 +271,7 @@ describe('RemoteFeatureFlagController', () => {
       });
       const controller = createController({
         clientConfigApiService,
-        metaMetricsId: MOCK_METRICS_ID,
+        getMetaMetricsId: Promise.resolve(MOCK_METRICS_ID),
       });
       await controller.updateRemoteFeatureFlags();
 
@@ -289,7 +289,7 @@ describe('RemoteFeatureFlagController', () => {
       });
       const controller = createController({
         clientConfigApiService,
-        metaMetricsId: MOCK_METRICS_ID,
+        getMetaMetricsId: Promise.resolve(MOCK_METRICS_ID),
       });
       await controller.updateRemoteFeatureFlags();
 
