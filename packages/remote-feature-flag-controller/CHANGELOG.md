@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added support for threshold-based feature flag scoping ([#5051](https://github.com/MetaMask/core/pull/5051))
   - Enables percentage-based feature flag distribution across user base
-  - Uses deterministic random group assignment based on metaMetricsId
+  - Uses deterministic random group assignment based on metaMetricsId from the client
 
 ## [1.1.0]
 
