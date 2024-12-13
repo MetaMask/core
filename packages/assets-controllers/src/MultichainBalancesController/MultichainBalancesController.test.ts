@@ -1,9 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type {
-  Balance,
-  CaipAssetType,
-  InternalAccount,
-} from '@metamask/keyring-api';
+import type { Balance, CaipAssetType } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
@@ -11,6 +7,7 @@ import {
   EthMethod,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuidv4 } from 'uuid';
 
 import { BalancesTracker } from './BalancesTracker';
