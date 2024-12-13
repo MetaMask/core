@@ -1,5 +1,5 @@
-import type { InternalAccount } from '@metamask/keyring-api';
 import { BtcAccountType, SolAccountType } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { validate, Network } from 'bitcoin-address-validation';
 
 import { MultichainNetworks } from './constants';
