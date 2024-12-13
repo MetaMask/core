@@ -1,24 +1,39 @@
 import {
   CAIP_ACCOUNT_ADDRESS_FIXTURES,
   CAIP_ACCOUNT_ID_FIXTURES,
+  CAIP_ASSET_ID_FIXTURES,
+  CAIP_ASSET_NAMESPACE_FIXTURES,
+  CAIP_ASSET_REFERENCE_FIXTURES,
+  CAIP_ASSET_TYPE_FIXTURES,
   CAIP_CHAIN_ID_FIXTURES,
   CAIP_NAMESPACE_FIXTURES,
   CAIP_REFERENCE_FIXTURES,
 } from './__fixtures__';
 import {
+  CAIP_ACCOUNT_ADDRESS_REGEX,
+  CAIP_ASSET_NAMESPACE_REGEX,
+  CAIP_ASSET_REFERENCE_REGEX,
+  CAIP_NAMESPACE_REGEX,
+  CAIP_REFERENCE_REGEX,
+  CAIP_TOKEN_ID_REGEX,
   isCaipAccountAddress,
   isCaipAccountId,
+  isCaipAssetId,
+  isCaipAssetNamespace,
+  isCaipAssetReference,
+  isCaipAssetType,
   isCaipChainId,
   isCaipNamespace,
   isCaipReference,
-  isCaipAssetType,
-  isCaipAssetId,
-  parseCaipAccountId,
-  parseCaipChainId,
-  toCaipChainId,
   KnownCaipNamespace,
-  CAIP_NAMESPACE_REGEX,
-  CAIP_REFERENCE_REGEX,
+  parseCaipAccountId,
+  parseCaipAssetId,
+  parseCaipAssetType,
+  parseCaipChainId,
+  toCaipAccountId,
+  toCaipAssetId,
+  toCaipAssetType,
+  toCaipChainId,
 } from './caip-types';
 
 describe('isCaipChainId', () => {
@@ -151,21 +166,53 @@ describe('isCaipAccountAddress', () => {
   });
 });
 
-describe('isCaipAssetType', () => {
-  // Imported from: https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-19.md#test-cases
+describe('isCaipAssetNamespace', () => {
+  it.each([...CAIP_ASSET_NAMESPACE_FIXTURES])(
+    'returns true for a valid asset namespace %s',
+    (assetNamespace) => {
+      expect(isCaipAssetNamespace(assetNamespace)).toBe(true);
+    },
+  );
+
+  it.each([true, false, null, undefined, 1, {}, [], 'abC', '12', '123456789'])(
+    'returns false for an invalid asset namespace %s',
+    (assetNamespace) => {
+      expect(isCaipAssetNamespace(assetNamespace)).toBe(false);
+    },
+  );
+});
+
+describe('isCaipAssetReference', () => {
+  it.each([...CAIP_ASSET_REFERENCE_FIXTURES])(
+    'returns true for a valid asset reference %s',
+    (assetReference) => {
+      expect(isCaipAssetReference(assetReference)).toBe(true);
+    },
+  );
+
   it.each([
-    'eip155:1/slip44:60',
-    'bip122:000000000019d6689c085ae165831e93/slip44:0',
-    'cosmos:cosmoshub-3/slip44:118',
-    'bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2',
-    'cosmos:Binance-Chain-Tigris/slip44:714',
-    'cosmos:iov-mainnet/slip44:234',
-    'lip9:9ee11e9df416b18b/slip44:134',
-    'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
-    'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-  ])('returns true for a valid asset type %s', (id) => {
-    expect(isCaipAssetType(id)).toBe(true);
+    true,
+    false,
+    null,
+    undefined,
+    1,
+    {},
+    [],
+    '',
+    '!@#$%^&*()',
+    Array(129).fill('0').join(''),
+  ])('returns false for an invalid asset reference %s', (assetReference) => {
+    expect(isCaipAssetReference(assetReference)).toBe(false);
   });
+});
+
+describe('isCaipAssetType', () => {
+  it.each([...CAIP_ASSET_TYPE_FIXTURES])(
+    'returns true for a valid asset type %s',
+    (assetType) => {
+      expect(isCaipAssetType(assetType)).toBe(true);
+    },
+  );
 
   it.each([
     true,
@@ -198,13 +245,12 @@ describe('isCaipAssetType', () => {
 });
 
 describe('isCaipAssetId', () => {
-  // Imported from: https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-19.md#test-cases
-  it.each([
-    'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d/771769',
-    'hedera:mainnet/nft:0.0.55492/12',
-  ])('returns true for a valid asset id %s', (id) => {
-    expect(isCaipAssetId(id)).toBe(true);
-  });
+  it.each([...CAIP_ASSET_ID_FIXTURES])(
+    'returns true for a valid asset id %s',
+    (id) => {
+      expect(isCaipAssetId(id)).toBe(true);
+    },
+  );
 
   it.each([
     true,
@@ -366,6 +412,136 @@ describe('parseCaipAccountId', () => {
   });
 });
 
+describe('parseCaipAssetType', () => {
+  it('parses valid asset types', () => {
+    expect(parseCaipAssetType('eip155:1/slip44:60')).toMatchInlineSnapshot(`
+      {
+        "assetNamespace": "slip44",
+        "assetReference": "60",
+        "chain": {
+          "namespace": "eip155",
+          "reference": "1",
+        },
+        "chainId": "eip155:1",
+      }
+    `);
+
+    expect(
+      parseCaipAssetType('bip122:000000000019d6689c085ae165831e93/slip44:0'),
+    ).toMatchInlineSnapshot(`
+      {
+        "assetNamespace": "slip44",
+        "assetReference": "0",
+        "chain": {
+          "namespace": "bip122",
+          "reference": "000000000019d6689c085ae165831e93",
+        },
+        "chainId": "bip122:000000000019d6689c085ae165831e93",
+      }
+    `);
+
+    expect(parseCaipAssetType('cosmos:cosmoshub-3/slip44:118'))
+      .toMatchInlineSnapshot(`
+      {
+        "assetNamespace": "slip44",
+        "assetReference": "118",
+        "chain": {
+          "namespace": "cosmos",
+          "reference": "cosmoshub-3",
+        },
+        "chainId": "cosmos:cosmoshub-3",
+      }
+    `);
+
+    expect(
+      parseCaipAssetType(
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/nft:Fz6LxeUg5qjesYX3BdmtTwyyzBtMxk644XiTqU5W3w9w',
+      ),
+    ).toMatchInlineSnapshot(`
+      {
+        "assetNamespace": "nft",
+        "assetReference": "Fz6LxeUg5qjesYX3BdmtTwyyzBtMxk644XiTqU5W3w9w",
+        "chain": {
+          "namespace": "solana",
+          "reference": "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+        },
+        "chainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+      }
+    `);
+  });
+
+  it.each([
+    true,
+    false,
+    null,
+    undefined,
+    1,
+    'foo',
+    'foobarbazquz:1',
+    'foo:',
+    'foo:foobarbazquzfoobarbazquzfoobarbazquzfoobarbazquzfoobarbazquzfoobarbazquz',
+    'eip155:1',
+    'eip155:1:',
+  ])('throws for invalid input %s', (input) => {
+    expect(() => parseCaipAssetType(input as any)).toThrow(
+      'Invalid CAIP asset type.',
+    );
+  });
+});
+
+describe('parseCaipAssetId', () => {
+  it('parses valid asset ids', () => {
+    expect(
+      parseCaipAssetId(
+        'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d/771769',
+      ),
+    ).toMatchInlineSnapshot(`
+      {
+        "assetNamespace": "erc721",
+        "assetReference": "0x06012c8cf97BEaD5deAe237070F9587f8E7A266d",
+        "chain": {
+          "namespace": "eip155",
+          "reference": "1",
+        },
+        "chainId": "eip155:1",
+        "tokenId": "771769",
+      }
+    `);
+
+    expect(parseCaipAssetId('hedera:mainnet/nft:0.0.55492/12'))
+      .toMatchInlineSnapshot(`
+      {
+        "assetNamespace": "nft",
+        "assetReference": "0.0.55492",
+        "chain": {
+          "namespace": "hedera",
+          "reference": "mainnet",
+        },
+        "chainId": "hedera:mainnet",
+        "tokenId": "12",
+      }
+    `);
+  });
+
+  it.each([
+    true,
+    false,
+    null,
+    undefined,
+    1,
+    'foo',
+    'foobarbazquz:1',
+    'foo:',
+    'foo:foobarbazquzfoobarbazquzfoobarbazquzfoobarbazquzfoobarbazquzfoobarbazquz',
+    'eip155:1',
+    'eip155:1:',
+  ])('throws for invalid input %s', (input) => {
+    expect(() => parseCaipAssetId(input as any)).toThrow(
+      'Invalid CAIP asset ID.',
+    );
+  });
+});
+
 describe('toCaipChainId', () => {
   // This function relies on @metamask/utils CAIP helpers. Those are being
   // tested with a variety of inputs.
@@ -412,6 +588,295 @@ describe('toCaipChainId', () => {
     const namespace = 'abc';
     expect(() => toCaipChainId(namespace, reference)).toThrow(
       `Invalid "reference", must match: ${CAIP_REFERENCE_REGEX.toString()}`,
+    );
+  });
+});
+
+describe('toCaipAccountId', () => {
+  it('returns a valid CAIP-10 account ID when given a valid namespace, reference, and accountAddress', () => {
+    const namespace = 'eip';
+    const reference = '1';
+    const accountAddress = '0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb';
+    expect(toCaipAccountId(namespace, reference, accountAddress)).toBe(
+      `${namespace}:${reference}:${accountAddress}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 3 chars at least
+    '',
+    'xs',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    'namespacetoolong',
+  ])('throws for invalid namespaces: %s', (namespace) => {
+    const reference = '1';
+    const accountAddress = '0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb';
+    expect(() => toCaipAccountId(namespace, reference, accountAddress)).toThrow(
+      `Invalid "namespace", must match: ${CAIP_NAMESPACE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    '012345678901234567890123456789012', // 33 chars
+  ])('throws for invalid reference: %s', (reference) => {
+    const namespace = 'eip';
+    const accountAddress = '0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb';
+    expect(() => toCaipAccountId(namespace, reference, accountAddress)).toThrow(
+      `Invalid "reference", must match: ${CAIP_REFERENCE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    Array(129).fill('0').join(''),
+  ])('throws for invalid accountAddress: %s', (accountAddress) => {
+    const namespace = 'eip';
+    const reference = '1';
+    expect(() => toCaipAccountId(namespace, reference, accountAddress)).toThrow(
+      `Invalid "accountAddress", must match: ${CAIP_ACCOUNT_ADDRESS_REGEX.toString()}`,
+    );
+  });
+});
+
+describe('toCaipAssetType', () => {
+  it('returns a valid CAIP-19 asset type when given a valid namespace, reference, assetNamespace, and assetReference', () => {
+    const namespace = 'eip';
+    const reference = '1';
+    const assetNamespace = 'erc20';
+    const assetReference = '0x6b175474e89094c44da98b954eedeac495271d0f';
+    expect(
+      toCaipAssetType(namespace, reference, assetNamespace, assetReference),
+    ).toBe(`${namespace}:${reference}/${assetNamespace}:${assetReference}`);
+  });
+
+  it.each([
+    // Too short, must have 3 chars at least
+    '',
+    'xs',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    'namespacetoolong',
+  ])('throws for invalid namespaces: %s', (namespace) => {
+    const reference = '1';
+    const assetNamespace = 'erc20';
+    const assetReference = '0x6b175474e89094c44da98b954eedeac495271d0f';
+    expect(() =>
+      toCaipAssetType(namespace, reference, assetNamespace, assetReference),
+    ).toThrow(
+      `Invalid "namespace", must match: ${CAIP_NAMESPACE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    '012345678901234567890123456789012', // 33 chars
+  ])('throws for invalid reference: %s', (reference) => {
+    const namespace = 'eip';
+    const assetNamespace = 'erc20';
+    const assetReference = '0x6b175474e89094c44da98b954eedeac495271d0f';
+    expect(() =>
+      toCaipAssetType(namespace, reference, assetNamespace, assetReference),
+    ).toThrow(
+      `Invalid "reference", must match: ${CAIP_REFERENCE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*',
+    // Too long
+    '012345789',
+  ])('throws for invalid assetNamespace: %s', (assetNamespace) => {
+    const namespace = 'eip';
+    const reference = '1';
+    const assetReference = '0x6b175474e89094c44da98b954eedeac495271d0f';
+    expect(() =>
+      toCaipAssetType(namespace, reference, assetNamespace, assetReference),
+    ).toThrow(
+      `Invalid "assetNamespace", must match: ${CAIP_ASSET_NAMESPACE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    Array(129).fill('0').join(''),
+  ])('throws for invalid assetReference: %s', (assetReference) => {
+    const namespace = 'eip';
+    const reference = '1';
+    const assetNamespace = 'erc20';
+    expect(() =>
+      toCaipAssetType(namespace, reference, assetNamespace, assetReference),
+    ).toThrow(
+      `Invalid "assetReference", must match: ${CAIP_ASSET_REFERENCE_REGEX.toString()}`,
+    );
+  });
+});
+
+describe('toCaipAssetId', () => {
+  it('returns a valid CAIP-19 asset ID when given a valid namespace, reference, assetNamespace, assetReference, and tokenId', () => {
+    const namespace = 'eip';
+    const reference = '1';
+    const assetNamespace = 'erc721';
+    const assetReference = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+    const tokenId = '771769';
+    expect(
+      toCaipAssetId(
+        namespace,
+        reference,
+        assetNamespace,
+        assetReference,
+        tokenId,
+      ),
+    ).toBe(
+      `${namespace}:${reference}/${assetNamespace}:${assetReference}/${tokenId}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 3 chars at least
+    '',
+    'xs',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    'namespacetoolong',
+  ])('throws for invalid namespaces: %s', (namespace) => {
+    const reference = '1';
+    const assetNamespace = 'erc721';
+    const assetReference = '0x6b175474e89094c44da98b954eedeac495271d0f';
+    const tokenId = '123';
+    expect(() =>
+      toCaipAssetId(
+        namespace,
+        reference,
+        assetNamespace,
+        assetReference,
+        tokenId,
+      ),
+    ).toThrow(
+      `Invalid "namespace", must match: ${CAIP_NAMESPACE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    '012345678901234567890123456789012', // 33 chars
+  ])('throws for invalid reference: %s', (reference) => {
+    const namespace = 'eip';
+    const assetNamespace = 'erc721';
+    const assetReference = '0x6b175474e89094c44da98b954eedeac495271d0f';
+    const tokenId = '123';
+    expect(() =>
+      toCaipAssetId(
+        namespace,
+        reference,
+        assetNamespace,
+        assetReference,
+        tokenId,
+      ),
+    ).toThrow(
+      `Invalid "reference", must match: ${CAIP_REFERENCE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*',
+    // Too long
+    '012345789',
+  ])('throws for invalid assetNamespace: %s', (assetNamespace) => {
+    const namespace = 'eip';
+    const reference = '1';
+    const assetReference = '0x6b175474e89094c44da98b954eedeac495271d0f';
+    const tokenId = '123';
+    expect(() =>
+      toCaipAssetId(
+        namespace,
+        reference,
+        assetNamespace,
+        assetReference,
+        tokenId,
+      ),
+    ).toThrow(
+      `Invalid "assetNamespace", must match: ${CAIP_ASSET_NAMESPACE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    Array(129).fill('0').join(''),
+  ])('throws for invalid assetReference: %s', (assetReference) => {
+    const namespace = 'eip';
+    const reference = '1';
+    const assetNamespace = 'erc721';
+    const tokenId = '123';
+    expect(() =>
+      toCaipAssetId(
+        namespace,
+        reference,
+        assetNamespace,
+        assetReference,
+        tokenId,
+      ),
+    ).toThrow(
+      `Invalid "assetReference", must match: ${CAIP_ASSET_REFERENCE_REGEX.toString()}`,
+    );
+  });
+
+  it.each([
+    // Too short, must have 1 char at least
+    '',
+    // Not matching
+    '!@#$%^&*()',
+    // Too long
+    Array(79).fill('0').join(''),
+  ])('throws for invalid tokenId: %s', (tokenId) => {
+    const namespace = 'eip';
+    const reference = '1';
+    const assetNamespace = 'erc721';
+    const assetReference = '0x06012c8cf97BEaD5deAe237070F9587f8E7A266d';
+    expect(() =>
+      toCaipAssetId(
+        namespace,
+        reference,
+        assetNamespace,
+        assetReference,
+        tokenId,
+      ),
+    ).toThrow(
+      `Invalid "tokenId", must match: ${CAIP_TOKEN_ID_REGEX.toString()}`,
     );
   });
 });

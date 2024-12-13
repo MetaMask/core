@@ -33,3 +33,32 @@ export const CAIP_ACCOUNT_ID_FIXTURES = [
 export const CAIP_ACCOUNT_ADDRESS_FIXTURES = Array.from(
   new Set(CAIP_ACCOUNT_ID_FIXTURES.map((value) => value.split(':')[2])),
 );
+
+export const CAIP_ASSET_TYPE_FIXTURES = [
+  'eip155:1/slip44:60',
+  'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+  'bip122:000000000019d6689c085ae165831e93/slip44:0',
+  'bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2',
+  'cosmos:cosmoshub-3/slip44:118',
+  'cosmos:Binance-Chain-Tigris/slip44:714',
+  'lip9:9ee11e9df416b18b/slip44:134',
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/nft:Fz6LxeUg5qjesYX3BdmtTwyyzBtMxk644XiTqU5W3w9w',
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+] as const;
+
+export const CAIP_ASSET_ID_FIXTURES = [
+  'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d/771769',
+  'hedera:mainnet/nft:0.0.55492/12',
+] as const;
+
+export const CAIP_ASSET_NAMESPACE_FIXTURES = Array.from(
+  new Set(
+    CAIP_ASSET_TYPE_FIXTURES.map((value) => value.split('/')[1]?.split(':')[0]),
+  ),
+);
+
+export const CAIP_ASSET_REFERENCE_FIXTURES = Array.from(
+  new Set(
+    CAIP_ASSET_TYPE_FIXTURES.map((value) => value.split('/')[1]?.split(':')[1]),
+  ),
+);
