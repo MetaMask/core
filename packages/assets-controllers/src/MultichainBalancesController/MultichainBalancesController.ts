@@ -9,13 +9,10 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import {
-  KeyringClient,
-  type Balance,
-  type CaipAssetType,
-  type InternalAccount,
-  isEvmAccountType,
-} from '@metamask/keyring-api';
+import { isEvmAccountType } from '@metamask/keyring-api';
+import type { Balance, CaipAssetType } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
