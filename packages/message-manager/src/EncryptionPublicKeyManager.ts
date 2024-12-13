@@ -1,13 +1,57 @@
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
+  MessageManagerState,
   OriginalRequest,
+  SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { validateEncryptionPublicKeyMessageData } from './utils';
+
+const controllerName = 'EncryptionPublicKeyManager';
+
+export type EncryptionPublicKeyManagerState =
+  MessageManagerState<EncryptionPublicKey>;
+
+export type GetEncryptionPublicKeyState = ControllerGetStateAction<
+  typeof controllerName,
+  EncryptionPublicKeyManagerState
+>;
+
+export type EncryptionPublicKeyManagerStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  EncryptionPublicKeyManagerState
+>;
+
+export type EncryptionPublicKeyManagerActions = GetEncryptionPublicKeyState;
+
+export type EncryptionPublicKeyManagerEvents =
+  EncryptionPublicKeyManagerStateChange;
+
+type AllowedActions = never;
+
+export type EncryptionPublicKeyManagerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  EncryptionPublicKeyManagerActions | AllowedActions,
+  EncryptionPublicKeyManagerEvents,
+  AllowedActions['type'],
+  never
+>;
+
+type EncryptionPublicKeyManagerOptions = {
+  messenger: EncryptionPublicKeyManagerMessenger;
+  state?: MessageManagerState<EncryptionPublicKey>;
+  securityProviderRequest?: SecurityProviderRequest;
+  additionalFinishStatuses?: string[];
+};
 
 /**
  * @type EncryptionPublicKey
@@ -20,12 +64,9 @@ import { validateEncryptionPublicKeyMessageData } from './utils';
  * A 'Message' which always has a 'eth_getEncryptionPublicKey' type
  * @property rawSig - Encryption public key
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface EncryptionPublicKey extends AbstractMessage {
+export type EncryptionPublicKey = AbstractMessage & {
   messageParams: EncryptionPublicKeyParams;
-}
+};
 
 /**
  * @type EncryptionPublicKeyParams
@@ -46,13 +87,10 @@ export type EncryptionPublicKeyParams = AbstractMessageParams;
  * @property from - Address from which to extract the encryption public key
  * @property origin? - Added for request origin identification
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface EncryptionPublicKeyParamsMetamask
-  extends AbstractMessageParamsMetamask {
-  data: string;
-}
+export type EncryptionPublicKeyParamsMetamask =
+  AbstractMessageParamsMetamask & {
+    data: string;
+  };
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
@@ -60,12 +98,24 @@ export interface EncryptionPublicKeyParamsMetamask
 export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
-  EncryptionPublicKeyParamsMetamask
+  EncryptionPublicKeyParamsMetamask,
+  EncryptionPublicKeyManagerActions,
+  EncryptionPublicKeyManagerEvents
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'EncryptionPublicKeyManager' as const;
+  constructor({
+    messenger,
+    state,
+    securityProviderRequest,
+    additionalFinishStatuses,
+  }: EncryptionPublicKeyManagerOptions) {
+    super({
+      messenger,
+      name: controllerName,
+      state,
+      securityProviderRequest,
+      additionalFinishStatuses,
+    });
+  }
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.

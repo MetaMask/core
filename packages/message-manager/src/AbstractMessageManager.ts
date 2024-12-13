@@ -1,11 +1,26 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ActionConstraint,
+  EventConstraint,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import type { ApprovalType } from '@metamask/controller-utils';
-import type { Hex, Json } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import/no-nodejs-modules
 import { EventEmitter } from 'events';
+import type { Draft } from 'immer';
 import { v1 as random } from 'uuid';
+
+const stateMetadata = {
+  unapprovedMessages: { persist: true, anonymous: false },
+  unapprovedMessagesCount: { persist: true, anonymous: false },
+};
+
+const getDefaultState = () => ({
+  unapprovedMessages: {},
+  unapprovedMessagesCount: 0,
+});
 
 /**
  * @type OriginalRequest
@@ -13,17 +28,14 @@ import { v1 as random } from 'uuid';
  * Represents the original request object for adding a message.
  * @property origin? - Is it is specified, represents the origin
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface OriginalRequest {
+export type OriginalRequest = {
   id?: number;
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
-}
+};
 
 /**
- * @type Message
+ * @type AbstractMessage
  *
  * Represents and contains data about a signing type signature request.
  * @property id - An id to track and identify the message object
@@ -33,10 +45,7 @@ export interface OriginalRequest {
  * @property securityProviderResponse - Response from a security provider, whether it is malicious or not
  * @property metadata - Additional data for the message, for example external identifiers
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AbstractMessage {
+export type AbstractMessage = {
   id: string;
   time: number;
   status: string;
@@ -46,7 +55,7 @@ export interface AbstractMessage {
   securityAlertResponse?: Record<string, Json>;
   metadata?: Json;
   error?: string;
-}
+};
 
 /**
  * @type AbstractMessageParams
@@ -57,15 +66,12 @@ export interface AbstractMessage {
  * @property requestId? - Original request id
  * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AbstractMessageParams {
+export type AbstractMessageParams = {
   from: string;
   origin?: string;
   requestId?: number;
   deferSetAsSigned?: boolean;
-}
+};
 
 /**
  * @type MessageParamsMetamask
@@ -76,12 +82,9 @@ export interface AbstractMessageParams {
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
+export type AbstractMessageParamsMetamask = AbstractMessageParams & {
   metamaskId?: string;
-}
+};
 
 /**
  * @type MessageManagerState
@@ -90,15 +93,10 @@ export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
  * @property unapprovedMessages - A collection of all Messages in the 'unapproved' state
  * @property unapprovedMessagesCount - The count of all Messages in this.unapprovedMessages
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/naming-convention
-export interface MessageManagerState<M extends AbstractMessage>
-  extends BaseState {
-  unapprovedMessages: { [key: string]: M };
+export type MessageManagerState<Message extends AbstractMessage> = {
+  unapprovedMessages: Record<string, Message>;
   unapprovedMessagesCount: number;
-}
+};
 
 /**
  * A function for verifying a message, whether it is malicious or not
@@ -108,31 +106,76 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-type getCurrentChainId = () => Hex;
+type AbstractMessageManagerOptions<
+  Message extends AbstractMessage,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
+> = {
+  additionalFinishStatuses?: string[];
+  messenger: RestrictedControllerMessenger<
+    string,
+    Action,
+    Event,
+    string,
+    string
+  >;
+  name: string;
+  securityProviderRequest?: SecurityProviderRequest;
+  state?: MessageManagerState<Message>;
+};
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  M extends AbstractMessage,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  P extends AbstractMessageParams,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  PM extends AbstractMessageParamsMetamask,
-> extends BaseControllerV1<BaseConfig, MessageManagerState<M>> {
-  protected messages: M[];
-
-  protected getCurrentChainId: getCurrentChainId | undefined;
+  Message extends AbstractMessage,
+  Params extends AbstractMessageParams,
+  ParamsMetamask extends AbstractMessageParamsMetamask,
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
+> extends BaseController<
+  string,
+  MessageManagerState<Message>,
+  RestrictedControllerMessenger<string, Action, Event, string, string>
+> {
+  protected messages: Message[];
 
   private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
   private readonly additionalFinishStatuses: string[];
+
+  hub: EventEmitter = new EventEmitter();
+
+  /**
+   * Creates an AbstractMessageManager instance.
+   *
+   * @param options - Options for the AbstractMessageManager.
+   * @param options.additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
+   * @param options.messenger - Controller messaging system.
+   * @param options.name - The name of the manager.
+   * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
+   * @param options.state - Initial state to set on this controller.
+   */
+  constructor({
+    additionalFinishStatuses,
+    messenger,
+    name,
+    securityProviderRequest,
+    state = {} as MessageManagerState<Message>,
+  }: AbstractMessageManagerOptions<Message, Action, Event>) {
+    super({
+      messenger,
+      metadata: stateMetadata,
+      name,
+      state: {
+        ...getDefaultState(),
+        ...state,
+      },
+    });
+    this.messages = [];
+    this.securityProviderRequest = securityProviderRequest;
+    this.additionalFinishStatuses = additionalFinishStatuses ?? [];
+  }
 
   /**
    * Adds request props to the messsage params and returns a new messageParams object.
@@ -183,9 +226,14 @@ export abstract class AbstractMessageManager<
    * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
   protected saveMessageList(emitUpdateBadge = true) {
-    const unapprovedMessages = this.getUnapprovedMessages();
-    const unapprovedMessagesCount = this.getUnapprovedMessagesCount();
-    this.update({ unapprovedMessages, unapprovedMessagesCount });
+    this.update((state) => {
+      state.unapprovedMessages =
+        this.getUnapprovedMessages() as unknown as Record<
+          string,
+          Draft<Message>
+        >;
+      state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
+    });
     if (emitUpdateBadge) {
       this.hub.emit('updateBadge');
     }
@@ -200,10 +248,14 @@ export abstract class AbstractMessageManager<
   protected setMessageStatus(messageId: string, status: string) {
     const message = this.getMessage(messageId);
     if (!message) {
-      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+      throw new Error(
+        `${this.name as string}: Message not found for id: ${messageId}.`,
+      );
     }
-    message.status = status;
-    this.updateMessage(message);
+    this.updateMessage({
+      ...message,
+      status,
+    });
     this.hub.emit(`${messageId}:${status}`, message);
     if (
       status === 'rejected' ||
@@ -222,7 +274,7 @@ export abstract class AbstractMessageManager<
    * @param message - A Message that will replace an existing Message (with the id) in this.messages.
    * @param emitUpdateBadge - Whether to emit the updateBadge event.
    */
-  protected updateMessage(message: M, emitUpdateBadge = true) {
+  protected updateMessage(message: Message, emitUpdateBadge = true) {
     const index = this.messages.findIndex((msg) => message.id === msg.id);
     /* istanbul ignore next */
     if (index !== -1) {
@@ -237,7 +289,7 @@ export abstract class AbstractMessageManager<
    * @param message - The message to verify.
    * @returns A promise that resolves to a secured message with additional security provider response data.
    */
-  private async securityCheck(message: M): Promise<M> {
+  private async securityCheck(message: Message): Promise<Message> {
     if (this.securityProviderRequest) {
       const securityProviderResponse = await this.securityProviderRequest(
         message,
@@ -249,44 +301,6 @@ export abstract class AbstractMessageManager<
       };
     }
     return message;
-  }
-
-  /**
-   * EventEmitter instance used to listen to specific message events
-   */
-  hub: EventEmitter = new EventEmitter();
-
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AbstractMessageManager';
-
-  /**
-   * Creates an AbstractMessageManager instance.
-   *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
-   * @param securityProviderRequest - A function for verifying a message, whether it is malicious or not.
-   * @param additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
-   * @param getCurrentChainId - Optional function to get the current chainId.
-   */
-  constructor(
-    config?: Partial<BaseConfig>,
-    state?: Partial<MessageManagerState<M>>,
-    securityProviderRequest?: SecurityProviderRequest,
-    additionalFinishStatuses?: string[],
-    getCurrentChainId?: getCurrentChainId,
-  ) {
-    super(config, state);
-    this.defaultState = {
-      unapprovedMessages: {},
-      unapprovedMessagesCount: 0,
-    };
-    this.messages = [];
-    this.securityProviderRequest = securityProviderRequest;
-    this.additionalFinishStatuses = additionalFinishStatuses ?? [];
-    this.getCurrentChainId = getCurrentChainId;
-    this.initialize();
   }
 
   /**
@@ -306,10 +320,10 @@ export abstract class AbstractMessageManager<
   getUnapprovedMessages() {
     return this.messages
       .filter((message) => message.status === 'unapproved')
-      .reduce((result: { [key: string]: M }, message: M) => {
+      .reduce((result: Record<string, Message>, message) => {
         result[message.id] = message;
         return result;
-      }, {}) as { [key: string]: M };
+      }, {});
   }
 
   /**
@@ -318,7 +332,7 @@ export abstract class AbstractMessageManager<
    *
    * @param message - The Message to add to this.messages.
    */
-  async addMessage(message: M) {
+  async addMessage(message: Message) {
     const securedMessage = await this.securityCheck(message);
     this.messages.push(securedMessage);
     this.saveMessageList();
@@ -352,7 +366,7 @@ export abstract class AbstractMessageManager<
    * plus data added by MetaMask.
    * @returns Promise resolving to the messageParams with the metamaskId property removed.
    */
-  approveMessage(messageParams: PM): Promise<P> {
+  approveMessage(messageParams: ParamsMetamask): Promise<Params> {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     this.setMessageStatusApproved(messageParams.metamaskId);
@@ -414,8 +428,13 @@ export abstract class AbstractMessageManager<
     if (!message) {
       return;
     }
-    message.rawSig = result;
-    this.updateMessage(message, false);
+    this.updateMessage(
+      {
+        ...message,
+        rawSig: result,
+      },
+      false,
+    );
   }
 
   /**
@@ -424,14 +443,20 @@ export abstract class AbstractMessageManager<
    * @param messageId - The id of the Message to update
    * @param metadata - The data with which to replace the metadata property in the message
    */
-
   setMetadata(messageId: string, metadata: Json) {
     const message = this.getMessage(messageId);
     if (!message) {
-      throw new Error(`${this.name}: Message not found for id: ${messageId}.`);
+      throw new Error(
+        `${this.name as string}: Message not found for id: ${messageId}.`,
+      );
     }
-    message.metadata = metadata;
-    this.updateMessage(message, false);
+    this.updateMessage(
+      {
+        ...message,
+        metadata,
+      },
+      false,
+    );
   }
 
   /**
@@ -441,7 +466,9 @@ export abstract class AbstractMessageManager<
    * @param messageParams - The messageParams to modify
    * @returns Promise resolving to the messageParams with the metamaskId property removed
    */
-  abstract prepMessageForSigning(messageParams: PM): Promise<P>;
+  abstract prepMessageForSigning(
+    messageParams: ParamsMetamask,
+  ): Promise<Params>;
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -454,7 +481,7 @@ export abstract class AbstractMessageManager<
    * @returns The id of the newly created message.
    */
   abstract addUnapprovedMessage(
-    messageParams: PM,
+    messageParams: ParamsMetamask,
     request: OriginalRequest,
     version?: string,
   ): Promise<string>;
@@ -481,34 +508,35 @@ export abstract class AbstractMessageManager<
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
-        switch (data.status) {
-          case 'signed':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                `MetaMask ${messageName} Signature: User denied message signature.`,
-              ),
-            );
-          case 'errored':
-            return reject(
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              new Error(`MetaMask ${messageName} Signature: ${data.error}`),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
+      this.hub.once(
+        `${messageId as string}:finished`,
+        (data: AbstractMessage) => {
+          switch (data.status) {
+            case 'signed':
+              return resolve(data.rawSig as string);
+            case 'rejected':
+              return reject(
+                new Error(
+                  `MetaMask ${messageName} Signature: User denied message signature.`,
+                ),
+              );
+            case 'errored':
+              return reject(
+                new Error(
+                  `MetaMask ${messageName} Signature: ${data.error as string}`,
+                ),
+              );
+            default:
+              return reject(
+                new Error(
+                  `MetaMask ${messageName} Signature: Unknown problem: ${JSON.stringify(
+                    messageParams,
+                  )}`,
+                ),
+              );
+          }
+        },
+      );
     });
   }
 }

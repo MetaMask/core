@@ -1,13 +1,55 @@
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
+  MessageManagerState,
   OriginalRequest,
+  SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { normalizeMessageData, validateDecryptedMessageData } from './utils';
+
+const controllerName = 'DecryptMessageManager';
+
+export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
+
+export type GetDecryptMessageState = ControllerGetStateAction<
+  typeof controllerName,
+  DecryptMessageManagerState
+>;
+
+export type DecryptMessageManagerStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  DecryptMessageManagerState
+>;
+
+export type DecryptMessageManagerActions = GetDecryptMessageState;
+
+export type DecryptMessageManagerEvents = DecryptMessageManagerStateChange;
+
+type AllowedActions = never;
+
+export type DecryptMessageManagerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  DecryptMessageManagerActions | AllowedActions,
+  DecryptMessageManagerEvents,
+  AllowedActions['type'],
+  never
+>;
+
+export type DecryptMessageManagerOptions = {
+  messenger: DecryptMessageManagerMessenger;
+  state?: MessageManagerState<DecryptMessage>;
+  securityProviderRequest?: SecurityProviderRequest;
+  additionalFinishStatuses?: string[];
+};
 
 /**
  * @type DecryptMessage
@@ -19,12 +61,9 @@ import { normalizeMessageData, validateDecryptedMessageData } from './utils';
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'DecryptMessage' which always has a 'eth_decrypt' type
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessage extends AbstractMessage {
+export type DecryptMessage = AbstractMessage & {
   messageParams: DecryptMessageParams;
-}
+};
 
 /**
  * @type DecryptMessageParams
@@ -32,12 +71,9 @@ export interface DecryptMessage extends AbstractMessage {
  * Represents the parameters to pass to the eth_decrypt method once the request is approved.
  * @property data - A hex string conversion of the raw buffer data of the signature request
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessageParams extends AbstractMessageParams {
+export type DecryptMessageParams = AbstractMessageParams & {
   data: string;
-}
+};
 
 /**
  * @type DecryptMessageParamsMetamask
@@ -63,12 +99,24 @@ export interface DecryptMessageParamsMetamask
 export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessage,
   DecryptMessageParams,
-  DecryptMessageParamsMetamask
+  DecryptMessageParamsMetamask,
+  DecryptMessageManagerActions,
+  DecryptMessageManagerEvents
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'DecryptMessageManager' as const;
+  constructor({
+    messenger,
+    state,
+    securityProviderRequest,
+    additionalFinishStatuses,
+  }: DecryptMessageManagerOptions) {
+    super({
+      messenger,
+      name: controllerName,
+      state,
+      securityProviderRequest,
+      additionalFinishStatuses,
+    });
+  }
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.

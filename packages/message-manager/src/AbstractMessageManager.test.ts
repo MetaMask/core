@@ -1,3 +1,4 @@
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
@@ -20,10 +21,15 @@ type ConcreteMessageParamsMetamask = ConcreteMessageParams & {
   metamaskId?: string;
 };
 
+type ConcreteMessageManagerActions = never;
+type ConcreteMessageManagerEvents = never;
+
 class AbstractTestManager extends AbstractMessageManager<
   ConcreteMessage,
   ConcreteMessageParams,
-  ConcreteMessageParamsMetamask
+  ConcreteMessageParamsMetamask,
+  ConcreteMessageManagerActions,
+  ConcreteMessageManagerEvents
 > {
   addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
@@ -56,6 +62,26 @@ class AbstractTestManager extends AbstractMessageManager<
   }
 }
 
+const mockMessenger = {
+  clearEventSubscriptions: jest.fn(),
+  publish: jest.fn(),
+  registerActionHandler: jest.fn(),
+  registerInitialEventPayload: jest.fn(),
+} as unknown as RestrictedControllerMessenger<
+  'AbstractMessageManager',
+  never,
+  never,
+  string,
+  string
+>;
+
+const mockInitialOptions = {
+  additionalFinishStatuses: undefined,
+  messenger: mockMessenger,
+  name: 'AbstractMessageManager' as const,
+  securityProviderRequest: undefined,
+};
+
 const messageId = '1';
 const messageId2 = '2';
 const from = '0x0123';
@@ -78,20 +104,15 @@ const mockMessageParams = { from, test: testData };
 
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
-    const controller = new AbstractTestManager();
+    const controller = new AbstractTestManager(mockInitialOptions);
     expect(controller.state).toStrictEqual({
       unapprovedMessages: {},
       unapprovedMessagesCount: 0,
     });
   });
 
-  it('should set default config', () => {
-    const controller = new AbstractTestManager();
-    expect(controller.config).toStrictEqual({});
-  });
-
   it('should add a valid message', async () => {
-    const controller = new AbstractTestManager();
+    const controller = new AbstractTestManager(mockInitialOptions);
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -115,7 +136,7 @@ describe('AbstractTestManager', () => {
   });
 
   it('should get all messages', async () => {
-    const controller = new AbstractTestManager();
+    const controller = new AbstractTestManager(mockInitialOptions);
     const message = {
       id: messageId,
       messageParams: {
@@ -148,11 +169,10 @@ describe('AbstractTestManager', () => {
     const securityProviderRequestMock: SecurityProviderRequest = jest
       .fn()
       .mockResolvedValue(securityProviderResponseMock);
-    const controller = new AbstractTestManager(
-      undefined,
-      undefined,
-      securityProviderRequestMock,
-    );
+    const controller = new AbstractTestManager({
+      ...mockInitialOptions,
+      securityProviderRequest: securityProviderRequestMock,
+    });
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -180,7 +200,7 @@ describe('AbstractTestManager', () => {
   });
 
   it('should reject a message', async () => {
-    const controller = new AbstractTestManager();
+    const controller = new AbstractTestManager(mockInitialOptions);
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -200,7 +220,7 @@ describe('AbstractTestManager', () => {
   });
 
   it('should sign a message', async () => {
-    const controller = new AbstractTestManager();
+    const controller = new AbstractTestManager(mockInitialOptions);
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -221,12 +241,10 @@ describe('AbstractTestManager', () => {
   });
 
   it('sets message to one of the allowed statuses', async () => {
-    const controller = new AbstractTestManager(
-      undefined,
-      undefined,
-      undefined,
-      ['test-status'],
-    );
+    const controller = new AbstractTestManager({
+      ...mockInitialOptions,
+      additionalFinishStatuses: ['test-status'],
+    });
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -246,12 +264,10 @@ describe('AbstractTestManager', () => {
   });
 
   it('should set a status to inProgress', async () => {
-    const controller = new AbstractTestManager(
-      undefined,
-      undefined,
-      undefined,
-      ['test-status'],
-    );
+    const controller = new AbstractTestManager({
+      ...mockInitialOptions,
+      additionalFinishStatuses: ['test-status'],
+    });
     await controller.addMessage({
       id: messageId,
       messageParams: {
@@ -285,7 +301,7 @@ describe('AbstractTestManager', () => {
       time: 123,
       type: 'eth_signTypedData',
     };
-    const controller = new AbstractTestManager();
+    const controller = new AbstractTestManager(mockInitialOptions);
     await controller.addMessage(firstMessage);
     await controller.addMessage(secondMessage);
     expect(controller.getUnapprovedMessagesCount()).toBe(2);
@@ -296,7 +312,7 @@ describe('AbstractTestManager', () => {
   });
 
   it('should approve message', async () => {
-    const controller = new AbstractTestManager();
+    const controller = new AbstractTestManager(mockInitialOptions);
     const firstMessage = { from: '0xfoO', test: testData };
     await controller.addMessage({
       id: messageId,
@@ -319,7 +335,7 @@ describe('AbstractTestManager', () => {
 
   describe('addRequestToMessageParams', () => {
     it('adds original request id and origin to messageParams', () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
 
       const result = controller.addRequestToMessageParams(
         mockMessageParams,
@@ -336,7 +352,7 @@ describe('AbstractTestManager', () => {
 
   describe('createUnapprovedMessage', () => {
     it('creates a Message object with an unapproved status', () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
 
       const result = controller.createUnapprovedMessage(
         mockMessageParams,
@@ -361,7 +377,7 @@ describe('AbstractTestManager', () => {
         emit: jest.fn(),
       }));
 
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
       await controller.addMessage({
         id: messageId,
         messageParams: { ...mockMessageParams },
@@ -379,7 +395,7 @@ describe('AbstractTestManager', () => {
     });
 
     it('throws an error if the message is not found', async () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
 
       expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
         'AbstractMessageManager: Message not found for id: 1.',
@@ -393,7 +409,7 @@ describe('AbstractTestManager', () => {
         emit: jest.fn(),
       }));
 
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
       await controller.addMessage({
         id: messageId,
         messageParams: { ...mockMessageParams },
@@ -414,7 +430,7 @@ describe('AbstractTestManager', () => {
 
   describe('setMetadata', () => {
     it('should set the given message metadata', async () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
       await controller.addMessage({
         id: messageId,
         messageParams: { ...mockMessageParams },
@@ -432,7 +448,7 @@ describe('AbstractTestManager', () => {
     });
 
     it('should throw an error if message is not found', () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
 
       expect(() => controller.setMetadata(messageId, { foo: 'bar' })).toThrow(
         'AbstractMessageManager: Message not found for id: 1.',
@@ -442,7 +458,7 @@ describe('AbstractTestManager', () => {
 
   describe('waitForFinishStatus', () => {
     it('signs the message when status is "signed"', async () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
       const promise = controller.waitForFinishStatus(
         {
           from: fromMock,
@@ -462,7 +478,7 @@ describe('AbstractTestManager', () => {
     });
 
     it('rejects with an error when status is "rejected"', async () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
       const promise = controller.waitForFinishStatus(
         {
           from: fromMock,
@@ -483,7 +499,7 @@ describe('AbstractTestManager', () => {
     });
 
     it('rejects with an error when finishes with unknown status', async () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
       const promise = controller.waitForFinishStatus(
         {
           from: fromMock,
@@ -508,7 +524,7 @@ describe('AbstractTestManager', () => {
     });
 
     it('rejects with an error when finishes with errored status', async () => {
-      const controller = new AbstractTestManager();
+      const controller = new AbstractTestManager(mockInitialOptions);
       const promise = controller.waitForFinishStatus(
         {
           from: fromMock,
