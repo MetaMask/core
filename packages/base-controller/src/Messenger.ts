@@ -127,9 +127,19 @@ export class Messenger<
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > {
-  readonly #actions = new Map<Action['type'], unknown>();
+  readonly #actions = new Map<Action['type'], Action['handler']>();
 
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
+
+  readonly #delegatedEventSubscriptions = new Map<
+    Messenger<Action, Event>,
+    Map<Event['type'], ExtractEventHandler<Event, Event['type']>>
+  >();
+
+  readonly #delegatedActionHandlers = new Map<
+    Action['type'],
+    Set<Messenger<Action, Event>>
+  >();
 
   /**
    * A map of functions for getting the initial event payload.
@@ -184,6 +194,14 @@ export class Messenger<
     actionType: ActionType,
   ) {
     this.#actions.delete(actionType);
+    const delegatedMessengers = this.#delegatedActionHandlers.get(actionType);
+    if (!delegatedMessengers) {
+      return;
+    }
+    for (const messenger of delegatedMessengers) {
+      messenger.unregisterActionHandler(actionType);
+    }
+    this.#delegatedActionHandlers.delete(actionType);
   }
 
   /**
@@ -456,6 +474,116 @@ export class Messenger<
       allowedActions,
       allowedEvents,
     });
+  }
+
+  /**
+   * Delegate actions and/or events to another messenger.
+   *
+   * @param args - Arguments.
+   * @param args.actions - The action types to delegate.
+   * @param args.events - The event types to delegate.
+   * @param args.messenger - The messenger to delegate to.
+   */
+  delegate<DelegatedAction extends Action, DelegatedEvent extends Event>({
+    actions = [],
+    events = [],
+    messenger,
+  }: {
+    actions?: DelegatedAction['type'][];
+    events?: DelegatedEvent['type'][];
+    messenger: Messenger<DelegatedAction, DelegatedEvent>;
+  }) {
+    for (const actionType of actions) {
+      const delegatedActionHandler = (
+        ...args: ExtractActionParameters<DelegatedAction, typeof actionType>
+      ) => {
+        // We use a cast to convince TypeScript that this handler corresponds to the given type.
+        const actionHandler = this.#actions.get(actionType) as
+          | ActionHandler<DelegatedAction, typeof actionType>
+          | undefined;
+        if (!actionHandler) {
+          throw new Error(
+            `Cannot call '${actionType}', action not registered.`,
+          );
+        }
+        return actionHandler(...args);
+      };
+      let actionHandlers = this.#delegatedActionHandlers.get(actionType);
+      if (!actionHandlers) {
+        actionHandlers = new Set<Messenger<Action, Event>>();
+        this.#delegatedActionHandlers.set(actionType, actionHandlers);
+      }
+      actionHandlers.add(messenger);
+
+      messenger.registerActionHandler(actionType, delegatedActionHandler);
+    }
+    for (const eventType of events) {
+      const untypedSubscriber = (
+        ...payload: ExtractEventPayload<DelegatedEvent, typeof eventType>
+      ) => {
+        messenger.publish(eventType, ...payload);
+      };
+      // Cast required to convince TypeScript that this is the correct subscriber type for this
+      // specific event.
+      const subscriber = untypedSubscriber as ExtractEventHandler<
+        DelegatedEvent,
+        typeof eventType
+      >;
+      let delegatedEventSubscriptions =
+        this.#delegatedEventSubscriptions.get(messenger);
+      if (!delegatedEventSubscriptions) {
+        delegatedEventSubscriptions = new Map();
+        this.#delegatedEventSubscriptions.set(
+          messenger,
+          delegatedEventSubscriptions,
+        );
+      }
+      delegatedEventSubscriptions.set(eventType, subscriber);
+      this.subscribe(eventType, subscriber);
+    }
+  }
+
+  /**
+   * Revoke delegated actions and/or events from another messenger.
+   *
+   * @param args - Arguments.
+   * @param args.actions - The action types to revoke.
+   * @param args.events - The event types to revoke.
+   * @param args.messenger - The messenger these actions/events were delegated to.
+   */
+  revoke<DelegatedAction extends Action, DelegatedEvent extends Event>({
+    actions = [],
+    events = [],
+    messenger,
+  }: {
+    actions?: DelegatedAction['type'][];
+    events?: DelegatedEvent['type'][];
+    messenger: Messenger<DelegatedAction, DelegatedEvent>;
+  }) {
+    for (const actionType of actions) {
+      messenger.unregisterActionHandler(actionType);
+      const delegatedMessengers = this.#delegatedActionHandlers.get(actionType);
+      if (!delegatedMessengers) {
+        continue;
+      }
+      delegatedMessengers.delete(messenger);
+    }
+    for (const eventType of events) {
+      const messengerDelegatedEventSubscriptions =
+        this.#delegatedEventSubscriptions.get(messenger);
+      if (!messengerDelegatedEventSubscriptions) {
+        continue;
+      }
+      const subscriber = messengerDelegatedEventSubscriptions.get(eventType);
+      if (!subscriber) {
+        continue;
+      }
+      this.unsubscribe(eventType, subscriber);
+      messengerDelegatedEventSubscriptions.delete(eventType);
+      if (messengerDelegatedEventSubscriptions.size === 0) {
+        this.#delegatedEventSubscriptions.delete(messenger);
+      }
+    }
   }
 }
 
