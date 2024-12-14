@@ -556,4 +556,45 @@ describe('Messenger', () => {
 
     expect(handler.callCount).toBe(0);
   });
+
+  describe('delegate', () => {
+    it('allows subscribing to delegated event', () => {
+      type ExampleEvent = {
+        type: 'Source:Example';
+        payload: ['test'];
+      };
+      const sourceMessenger = new Messenger<never, ExampleEvent>();
+      const delegatedMessenger = new Messenger<never, ExampleEvent>();
+      const subscriber = jest.fn();
+
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        events: ['Source:Example'],
+      });
+      delegatedMessenger.subscribe('Source:Example', subscriber);
+      sourceMessenger.publish('Source:Example', 'test');
+
+      expect(subscriber).toHaveBeenCalledWith('test');
+    });
+
+    it('allows calling delegated action', () => {
+      type ExampleAction = {
+        type: 'Source:Length';
+        handler: (input: string) => string;
+      };
+      const sourceMessenger = new Messenger<ExampleAction, never>();
+      const delegatedMessenger = new Messenger<ExampleAction, never>();
+      const handler = jest.fn((input) => input.length);
+
+      sourceMessenger.delegate({
+        messenger: delegatedMessenger,
+        actions: ['Source:Length'],
+      });
+      sourceMessenger.registerActionHandler('Source:Length', handler);
+      const result = delegatedMessenger.call('Source:Length', 'test');
+
+      expect(result).toBe(4);
+      expect(handler).toHaveBeenCalledWith('test');
+    });
+  });
 });
