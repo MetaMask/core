@@ -14,8 +14,7 @@ import {
   getPersistentState,
   isBaseController,
 } from './BaseControllerV2';
-import { ControllerMessenger } from './Messenger';
-import type { RestrictedControllerMessenger } from './RestrictedMessenger';
+import { Messenger } from './Messenger';
 
 export const countControllerName = 'CountController';
 
@@ -40,37 +39,23 @@ export const countControllerStateMetadata = {
   },
 };
 
-type CountMessenger = RestrictedControllerMessenger<
-  typeof countControllerName,
+type CountMessenger = Messenger<
   CountControllerAction,
   CountControllerEvent,
-  never,
-  never
+  typeof countControllerName
 >;
 
 /**
  * Constructs a restricted controller messenger for the Count controller.
  *
- * @param controllerMessenger - The controller messenger.
  * @returns A restricted controller messenger for the Count controller.
  */
-export function getCountMessenger(
-  controllerMessenger?: ControllerMessenger<
+export function getCountMessenger(): CountMessenger {
+  return new Messenger<
     CountControllerAction,
-    CountControllerEvent
-  >,
-): CountMessenger {
-  if (!controllerMessenger) {
-    controllerMessenger = new ControllerMessenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
-  }
-  return controllerMessenger.getRestricted({
-    name: countControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+    CountControllerEvent,
+    typeof countControllerName
+  >(countControllerName);
 }
 
 export class CountController extends BaseController<
@@ -125,37 +110,23 @@ const messagesControllerStateMetadata = {
   },
 };
 
-type MessagesMessenger = RestrictedControllerMessenger<
-  typeof messagesControllerName,
+type MessagesMessenger = Messenger<
   MessagesControllerAction,
   MessagesControllerEvent,
-  never,
-  never
+  typeof messagesControllerName
 >;
 
 /**
  * Constructs a restricted controller messenger for the Messages controller.
  *
- * @param controllerMessenger - The controller messenger.
  * @returns A restricted controller messenger for the Messages controller.
  */
-function getMessagesMessenger(
-  controllerMessenger?: ControllerMessenger<
+function getMessagesMessenger(): MessagesMessenger {
+  return new Messenger<
     MessagesControllerAction,
-    MessagesControllerEvent
-  >,
-): MessagesMessenger {
-  if (!controllerMessenger) {
-    controllerMessenger = new ControllerMessenger<
-      MessagesControllerAction,
-      MessagesControllerEvent
-    >();
-  }
-  return controllerMessenger.getRestricted({
-    name: messagesControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+    MessagesControllerEvent,
+    typeof messagesControllerName
+  >(messagesControllerName);
 }
 
 class MessagesController extends BaseController<
@@ -183,12 +154,8 @@ class MessagesController extends BaseController<
 
 describe('isBaseController', () => {
   it('should return true if passed a V2 controller', () => {
-    const controllerMessenger = new ControllerMessenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: getCountMessenger(),
       name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -225,18 +192,15 @@ describe('BaseController', () => {
   });
 
   it('should allow getting state via the getState action', () => {
-    const controllerMessenger = new ControllerMessenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
 
-    expect(controllerMessenger.call('CountController:getState')).toStrictEqual({
+    expect(countMessenger.call('CountController:getState')).toStrictEqual({
       count: 0,
     });
   });
@@ -406,19 +370,16 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes as a result of applying patches', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener1);
     const { inversePatches } = controller.update(() => {
       return { count: 1 };
     });
@@ -438,12 +399,9 @@ describe('BaseController', () => {
   });
 
   it('should inform subscribers of state changes', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -451,8 +409,8 @@ describe('BaseController', () => {
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
-    controllerMessenger.subscribe('CountController:stateChange', listener2);
+    countMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener2);
     controller.update(() => {
       return { count: 1 };
     });
@@ -470,18 +428,15 @@ describe('BaseController', () => {
   });
 
   it('should notify a subscriber with a selector of state changes', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
     const listener = sinon.stub();
-    controllerMessenger.subscribe(
+    countMessenger.subscribe(
       'CountController:stateChange',
       listener,
       ({ count }) => {
@@ -499,18 +454,15 @@ describe('BaseController', () => {
   });
 
   it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
     const listener = sinon.stub();
-    controllerMessenger.subscribe(
+    countMessenger.subscribe(
       'CountController:stateChange',
       listener,
       ({ count }) => {
@@ -528,20 +480,17 @@ describe('BaseController', () => {
   });
 
   it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener1);
 
     controller.update(() => {
       return { count: 1 };
@@ -555,20 +504,17 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
-    controllerMessenger.unsubscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.unsubscribe('CountController:stateChange', listener1);
     controller.update(() => {
       return { count: 1 };
     });
@@ -577,21 +523,18 @@ describe('BaseController', () => {
   });
 
   it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
     const listener1 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
-    controllerMessenger.unsubscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.unsubscribe('CountController:stateChange', listener1);
     controller.update(() => {
       return { count: 1 };
     });
@@ -600,12 +543,9 @@ describe('BaseController', () => {
   });
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -613,17 +553,14 @@ describe('BaseController', () => {
     const listener1 = sinon.stub();
 
     expect(() => {
-      controllerMessenger.unsubscribe('CountController:stateChange', listener1);
+      countMessenger.unsubscribe('CountController:stateChange', listener1);
     }).toThrow('Subscription not found for event: CountController:stateChange');
   });
 
   it('should no longer update subscribers after being destroyed', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -631,8 +568,8 @@ describe('BaseController', () => {
     const listener1 = sinon.stub();
     const listener2 = sinon.stub();
 
-    controllerMessenger.subscribe('CountController:stateChange', listener1);
-    controllerMessenger.subscribe('CountController:stateChange', listener2);
+    countMessenger.subscribe('CountController:stateChange', listener1);
+    countMessenger.subscribe('CountController:stateChange', listener2);
     controller.destroy();
     controller.update(() => {
       return { count: 1 };
@@ -1025,12 +962,10 @@ describe('getPersistentState', () => {
       },
     };
 
-    type VisitorMessenger = RestrictedControllerMessenger<
-      typeof visitorName,
-      VisitorControllerAction | VisitorOverflowControllerAction,
-      VisitorControllerEvent | VisitorOverflowControllerEvent,
-      never,
-      never
+    type VisitorMessenger = Messenger<
+      VisitorControllerAction,
+      VisitorControllerEvent,
+      typeof visitorName
     >;
     class VisitorController extends BaseController<
       typeof visitorName,
@@ -1089,12 +1024,10 @@ describe('getPersistentState', () => {
       },
     };
 
-    type VisitorOverflowMessenger = RestrictedControllerMessenger<
-      typeof visitorOverflowName,
+    type VisitorOverflowMessenger = Messenger<
       VisitorControllerAction | VisitorOverflowControllerAction,
       VisitorControllerEvent | VisitorOverflowControllerEvent,
-      `${typeof visitorName}:clear`,
-      `${typeof visitorName}:stateChange`
+      typeof visitorOverflowName
     >;
 
     class VisitorOverflowController extends BaseController<
@@ -1139,29 +1072,39 @@ describe('getPersistentState', () => {
     }
 
     it('should allow messaging between controllers', () => {
-      const controllerMessenger = new ControllerMessenger<
+      const globalMessenger = new Messenger<
         VisitorControllerAction | VisitorOverflowControllerAction,
-        VisitorControllerEvent | VisitorOverflowControllerEvent
-      >();
-      const visitorControllerMessenger = controllerMessenger.getRestricted({
-        name: visitorName,
-        allowedActions: [],
-        allowedEvents: [],
+        VisitorControllerEvent | VisitorOverflowControllerEvent,
+        'Global'
+      >('Global');
+      const visitorControllerMessenger: VisitorMessenger = new Messenger(
+        visitorName,
+      );
+      visitorControllerMessenger.delegate({
+        actions: ['VisitorController:clear'],
+        events: ['VisitorController:stateChange'],
+        messenger: globalMessenger,
       });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
-      const visitorOverflowControllerMessenger =
-        controllerMessenger.getRestricted({
-          name: visitorOverflowName,
-          allowedActions: ['VisitorController:clear'],
-          allowedEvents: ['VisitorController:stateChange'],
-        });
+      const visitorOverflowControllerMessenger: VisitorOverflowMessenger =
+        new Messenger(visitorOverflowName);
+      visitorOverflowControllerMessenger.delegate({
+        actions: ['VisitorOverflowController:updateMax'],
+        events: ['VisitorOverflowController:stateChange'],
+        messenger: globalMessenger,
+      });
+      globalMessenger.delegate({
+        actions: ['VisitorController:clear'],
+        events: ['VisitorController:stateChange'],
+        messenger: visitorOverflowControllerMessenger,
+      });
       const visitorOverflowController = new VisitorOverflowController(
         visitorOverflowControllerMessenger,
       );
 
-      controllerMessenger.call('VisitorOverflowController:updateMax', 2);
+      globalMessenger.call('VisitorOverflowController:updateMax', 2);
       visitorController.addVisitor('A');
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow

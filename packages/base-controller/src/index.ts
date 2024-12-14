@@ -42,12 +42,4 @@ export type {
   NotNamespacedBy,
   NamespacedName,
 } from './Messenger';
-export { ControllerMessenger, Messenger } from './Messenger';
-export type {
-  RestrictedControllerMessengerConstraint,
-  RestrictedMessengerConstraint,
-} from './RestrictedMessenger';
-export {
-  RestrictedControllerMessenger,
-  RestrictedMessenger,
-} from './RestrictedMessenger';
+export { Messenger } from './Messenger';

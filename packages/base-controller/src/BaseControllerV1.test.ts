@@ -6,17 +6,12 @@ import {
   BaseControllerV1 as BaseController,
   isBaseControllerV1,
 } from './BaseControllerV1';
-import type {
-  CountControllerAction,
-  CountControllerEvent,
-} from './BaseControllerV2.test';
 import {
   CountController,
   countControllerName,
   countControllerStateMetadata,
   getCountMessenger,
 } from './BaseControllerV2.test';
-import { ControllerMessenger } from './Messenger';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };
@@ -36,12 +31,9 @@ describe('isBaseControllerV1', () => {
   });
 
   it('should return false if passed a V2 controller', () => {
-    const controllerMessenger = new ControllerMessenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
+    const countMessenger = getCountMessenger();
     const controller = new CountController({
-      messenger: getCountMessenger(controllerMessenger),
+      messenger: countMessenger,
       name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
