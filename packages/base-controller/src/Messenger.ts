@@ -78,24 +78,6 @@ type EventSubscriptionMap<
   SelectorFunction<Event, Event['type'], ReturnValue> | undefined
 >;
 
-/**
- * A namespaced string
- *
- * This type verifies that the string Name is prefixed by the string Name followed by a colon.
- *
- * @template Namespace - The namespace we're checking for.
- * @template Name - The full string, including the namespace.
- */
-export type NamespacedBy<
-  Namespace extends string,
-  Name extends string,
-> = Name extends `${Namespace}:${string}` ? Name : never;
-
-export type NotNamespacedBy<
-  Namespace extends string,
-  Name extends string,
-> = Name extends `${Namespace}:${string}` ? never : Name;
-
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
 

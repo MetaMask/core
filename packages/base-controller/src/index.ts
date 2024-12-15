@@ -38,8 +38,6 @@ export type {
   SelectorFunction,
   ActionConstraint,
   EventConstraint,
-  NamespacedBy,
-  NotNamespacedBy,
   NamespacedName,
 } from './Messenger';
 export { Messenger } from './Messenger';
