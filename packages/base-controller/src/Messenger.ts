@@ -196,9 +196,12 @@ export class Messenger<
    * @throws Will throw when a handler has been registered for this action type already.
    * @template ActionType - A type union of Action type strings.
    */
-  registerDelegatedActionHandler<ActionType extends Action['type']>(
+  registerDelegatedActionHandler<
+    ActionType extends Action['type'],
+    DelegatedAction extends Action,
+  >(
     actionType: ActionType,
-    handler: ActionHandler<Action, ActionType>,
+    handler: ActionHandler<DelegatedAction, ActionType>,
   ) {
     this.#registerActionHandler(actionType, handler);
   }
@@ -345,12 +348,15 @@ export class Messenger<
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
    */
-  registerDelegatedInitialEventPayload<EventType extends Event['type']>({
+  registerDelegatedInitialEventPayload<
+    EventType extends Event['type'],
+    DelegatedEvent extends Event,
+  >({
     eventType,
     getPayload,
   }: {
     eventType: EventType;
-    getPayload: () => ExtractEventPayload<Event, EventType>;
+    getPayload: () => ExtractEventPayload<DelegatedEvent, EventType>;
   }) {
     this.#registerInitialEventPayload({ eventType, getPayload });
   }
@@ -414,9 +420,12 @@ export class Messenger<
    * match the type of this payload.
    * @template EventType - A type union of Event type strings.
    */
-  publishDelegated<EventType extends Event['type']>(
+  publishDelegated<
+    EventType extends Event['type'],
+    DelegatedEvent extends Event,
+  >(
     eventType: EventType,
-    ...payload: ExtractEventPayload<Event, EventType>
+    ...payload: ExtractEventPayload<DelegatedEvent, EventType>
   ) {
     this.#publish(eventType, ...payload);
   }
