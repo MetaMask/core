@@ -1077,34 +1077,74 @@ describe('getPersistentState', () => {
         VisitorControllerEvent | VisitorOverflowControllerEvent,
         'Global'
       >('Global');
-      const visitorControllerMessenger: VisitorMessenger = new Messenger(
-        visitorName,
-      );
-      visitorControllerMessenger.delegate({
-        actions: ['VisitorController:clear'],
-        events: ['VisitorController:stateChange'],
-        messenger: globalMessenger,
-      });
+      const visitorControllerMessenger: VisitorMessenger =
+        globalMessenger.buildChild({
+          namespace: visitorName,
+          actions: ['VisitorController:clear'],
+          events: ['VisitorController:stateChange'],
+        });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
       );
       const visitorOverflowControllerMessenger: VisitorOverflowMessenger =
-        new Messenger(visitorOverflowName);
-      visitorOverflowControllerMessenger.delegate({
-        actions: ['VisitorOverflowController:updateMax'],
-        events: ['VisitorOverflowController:stateChange'],
-        messenger: globalMessenger,
-      });
-      globalMessenger.delegate({
-        actions: ['VisitorController:clear'],
-        events: ['VisitorController:stateChange'],
-        messenger: visitorOverflowControllerMessenger,
-      });
+        globalMessenger.buildChild({
+          namespace: visitorOverflowName,
+          actions: ['VisitorOverflowController:updateMax'],
+          events: ['VisitorOverflowController:stateChange'],
+          delegatedActions: ['VisitorController:clear'],
+          delegatedEvents: ['VisitorController:stateChange'],
+        });
       const visitorOverflowController = new VisitorOverflowController(
         visitorOverflowControllerMessenger,
       );
 
       globalMessenger.call('VisitorOverflowController:updateMax', 2);
+      visitorController.addVisitor('A');
+      visitorController.addVisitor('B');
+      visitorController.addVisitor('C'); // this should trigger an overflow
+
+      expect(visitorOverflowController.state.maxVisitors).toBe(2);
+      expect(visitorController.state.visitors).toHaveLength(0);
+    });
+
+    it('should allow multi-hop delegated messaging between controllers', () => {
+      const processAMessenger = new Messenger<
+        VisitorControllerAction,
+        VisitorControllerEvent,
+        'ProcessA'
+      >('ProcessA');
+      const visitorControllerMessenger: VisitorMessenger =
+        processAMessenger.buildChild({
+          namespace: visitorName,
+          actions: ['VisitorController:clear'],
+          events: ['VisitorController:stateChange'],
+        });
+      const visitorController = new VisitorController(
+        visitorControllerMessenger,
+      );
+      const processBMessenger = new Messenger<
+        VisitorControllerAction | VisitorOverflowControllerAction,
+        VisitorControllerEvent | VisitorOverflowControllerEvent,
+        'ProcessB'
+      >('ProcessB');
+      const visitorOverflowControllerMessenger: VisitorOverflowMessenger =
+        processBMessenger.buildChild({
+          namespace: visitorOverflowName,
+          actions: ['VisitorOverflowController:updateMax'],
+          events: ['VisitorOverflowController:stateChange'],
+          delegatedActions: ['VisitorController:clear'],
+          delegatedEvents: ['VisitorController:stateChange'],
+        });
+      const visitorOverflowController = new VisitorOverflowController(
+        visitorOverflowControllerMessenger,
+      );
+      processAMessenger.delegate({
+        actions: ['VisitorController:clear'],
+        events: ['VisitorController:stateChange'],
+        messenger: processBMessenger,
+      });
+
+      processBMessenger.call('VisitorOverflowController:updateMax', 2);
       visitorController.addVisitor('A');
       visitorController.addVisitor('B');
       visitorController.addVisitor('C'); // this should trigger an overflow

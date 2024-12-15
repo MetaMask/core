@@ -693,6 +693,53 @@ export class Messenger<
   }
 
   /**
+   * Create a new messenger that delegates all actions/events to this messenger.
+   *
+   * Optionally, actions/events can be delegated to the child messenger as well.
+   * @param args - Arguments.
+   * @param args.namespace - The child messenger namespace.
+   * @param args.actions - A list of all child messenger action types.
+   * @param args.events - A list of all child messenger event types.
+   * @param args.delegatedActions - A list of action types to delegate to the child messenger.
+   * @param args.delegatedEvents - A list of event types to delegate to the child messenger.
+   * @returns The child messenger.
+   */
+  buildChild<
+    ChildNamespace extends string,
+    ChildAction extends Action,
+    ChildEvent extends Event,
+  >({
+    namespace,
+    actions,
+    events,
+    delegatedActions,
+    delegatedEvents,
+  }: {
+    namespace: ChildNamespace;
+    actions: ChildAction['type'][];
+    events: ChildEvent['type'][];
+    delegatedActions?: ChildAction['type'][];
+    delegatedEvents?: ChildEvent['type'][];
+  }): Messenger<ChildAction, ChildEvent, ChildNamespace> {
+    const messenger = new Messenger<ChildAction, ChildEvent, ChildNamespace>(
+      namespace,
+    );
+    messenger.delegate({
+      actions,
+      events,
+      messenger: this,
+    });
+    if (delegatedActions || delegatedEvents) {
+      this.delegate({
+        actions: delegatedActions,
+        events: delegatedEvents,
+        messenger,
+      });
+    }
+    return messenger;
+  }
+
+  /**
    * Determine whether the given name is within the current namespace.
    *
    * @param name - The name to check
