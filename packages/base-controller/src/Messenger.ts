@@ -169,6 +169,14 @@ export class Messenger<
   registerActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
   >(actionType: ActionType, handler: ActionHandler<Action, ActionType>) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(actionType)) {
+      throw new Error(
+        `Only allowed registering action handlers prefixed by '${
+          this.#namespace
+        }:'`,
+      );
+    }
     this.#registerActionHandler(actionType, handler);
   }
 
@@ -214,6 +222,14 @@ export class Messenger<
   unregisterActionHandler<
     ActionType extends Action['type'] & NamespacedName<Namespace>,
   >(actionType: ActionType) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(actionType)) {
+      throw new Error(
+        `Only allowed unregistering action handlers prefixed by '${
+          this.#namespace
+        }:'`,
+      );
+    }
     this.#unregisterActionHandler(actionType);
   }
 
@@ -293,14 +309,24 @@ export class Messenger<
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
    */
-  registerInitialEventPayload<EventType extends Event['type']>({
+  registerInitialEventPayload<
+    EventType extends Event['type'] & NamespacedName<Namespace>,
+  >({
     eventType,
     getPayload,
   }: {
     eventType: EventType;
     getPayload: () => ExtractEventPayload<Event, EventType>;
   }) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(eventType)) {
+      throw new Error(
+        `Only allowed publishing events prefixed by '${this.#namespace}:'`,
+      );
+    }
     this.#initialEventPayloadGetters.set(eventType, getPayload);
+    // TODO: set on delegated subscribers
+    // TODO: conisder case where this is called before delegating
   }
 
   /**
@@ -320,6 +346,12 @@ export class Messenger<
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(eventType)) {
+      throw new Error(
+        `Only allowed publishing events prefixed by '${this.#namespace}:'`,
+      );
+    }
     this.#publish(eventType, ...payload);
   }
 
@@ -597,5 +629,15 @@ export class Messenger<
         this.#delegatedEventSubscriptions.delete(messenger);
       }
     }
+  }
+
+  /**
+   * Determine whether the given name is within the current namespace.
+   *
+   * @param name - The name to check
+   * @returns Whether the name is within the current namespace
+   */
+  #isInCurrentNamespace(name: string): name is NamespacedName<Namespace> {
+    return name.startsWith(`${this.#namespace}:`);
   }
 }
