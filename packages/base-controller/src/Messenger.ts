@@ -94,6 +94,7 @@ type DelegatedMessenger<
   Messenger<Action, Event, Namespace>,
   | 'publishDelegated'
   | 'registerDelegatedActionHandler'
+  | 'registerDelegatedInitialEventPayload'
   | 'unregisterDelegatedActionHandler'
 >;
 
@@ -119,8 +120,11 @@ export class Messenger<
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
 
   readonly #delegatedEventSubscriptions = new Map<
-    DelegatedMessenger<Action, Event>,
-    Map<Event['type'], ExtractEventHandler<Event, Event['type']>>
+    Event['type'],
+    Map<
+      DelegatedMessenger<Action, Event>,
+      ExtractEventHandler<Event, Event['type']>
+    >
   >();
 
   readonly #delegatedActionHandlers = new Map<
@@ -149,7 +153,7 @@ export class Messenger<
   /**
    * Construct a messenger.
    *
-   * @param namespace - The messenger namepsace.
+   * @param namespace - The messenger namespace.
    */
   constructor(namespace: Namespace) {
     this.#namespace = namespace;
@@ -321,12 +325,53 @@ export class Messenger<
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
-        `Only allowed publishing events prefixed by '${this.#namespace}:'`,
+        `Only allowed registering initial payloads for events prefixed by '${
+          this.#namespace
+        }:'`,
       );
     }
+    this.#registerInitialEventPayload({ eventType, getPayload });
+  }
+
+  /**
+   * Register a function for getting the initial payload for a delegated event.
+   *
+   * This is used for events that represent a state change, where the payload is the state.
+   * Registering a function for getting the payload allows event selectors to have a point of
+   * comparison the first time state changes.
+   *
+   * @deprecated Do not call this directly, instead use the `delegate` method.
+   * @param args - The arguments to this function
+   * @param args.eventType - The event type to register a payload for.
+   * @param args.getPayload - A function for retrieving the event payload.
+   */
+  registerDelegatedInitialEventPayload<EventType extends Event['type']>({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
+    this.#registerInitialEventPayload({ eventType, getPayload });
+  }
+
+  #registerInitialEventPayload<EventType extends Event['type']>({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
     this.#initialEventPayloadGetters.set(eventType, getPayload);
-    // TODO: set on delegated subscribers
-    // TODO: conisder case where this is called before delegating
+    const delegatedSubscribers =
+      this.#delegatedEventSubscriptions.get(eventType);
+    if (!delegatedSubscribers) {
+      return;
+    }
+    const delegatedMessengers = delegatedSubscribers.keys();
+    for (const messenger of delegatedMessengers) {
+      messenger.registerDelegatedInitialEventPayload({ eventType, getPayload });
+    }
   }
 
   /**
@@ -575,15 +620,22 @@ export class Messenger<
         typeof eventType
       >;
       let delegatedEventSubscriptions =
-        this.#delegatedEventSubscriptions.get(messenger);
+        this.#delegatedEventSubscriptions.get(eventType);
       if (!delegatedEventSubscriptions) {
         delegatedEventSubscriptions = new Map();
         this.#delegatedEventSubscriptions.set(
-          messenger,
+          eventType,
           delegatedEventSubscriptions,
         );
       }
-      delegatedEventSubscriptions.set(eventType, subscriber);
+      delegatedEventSubscriptions.set(messenger, subscriber);
+      const getPayload = this.#initialEventPayloadGetters.get(eventType);
+      if (getPayload) {
+        messenger.registerDelegatedInitialEventPayload({
+          eventType,
+          getPayload,
+        });
+      }
       this.subscribe(eventType, subscriber);
     }
   }
@@ -615,18 +667,18 @@ export class Messenger<
     }
     for (const eventType of events) {
       const messengerDelegatedEventSubscriptions =
-        this.#delegatedEventSubscriptions.get(messenger);
+        this.#delegatedEventSubscriptions.get(eventType);
       if (!messengerDelegatedEventSubscriptions) {
         continue;
       }
-      const subscriber = messengerDelegatedEventSubscriptions.get(eventType);
+      const subscriber = messengerDelegatedEventSubscriptions.get(messenger);
       if (!subscriber) {
         continue;
       }
       this.unsubscribe(eventType, subscriber);
-      messengerDelegatedEventSubscriptions.delete(eventType);
+      messengerDelegatedEventSubscriptions.delete(messenger);
       if (messengerDelegatedEventSubscriptions.size === 0) {
-        this.#delegatedEventSubscriptions.delete(messenger);
+        this.#delegatedEventSubscriptions.delete(eventType);
       }
     }
   }
