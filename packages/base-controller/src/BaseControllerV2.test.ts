@@ -1080,8 +1080,8 @@ describe('getPersistentState', () => {
       const visitorControllerMessenger: VisitorMessenger =
         globalMessenger.buildChild({
           namespace: visitorName,
-          actions: ['VisitorController:clear'],
-          events: ['VisitorController:stateChange'],
+          childActions: ['VisitorController:clear'],
+          childEvents: ['VisitorController:stateChange'],
         });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
@@ -1089,8 +1089,8 @@ describe('getPersistentState', () => {
       const visitorOverflowControllerMessenger: VisitorOverflowMessenger =
         globalMessenger.buildChild({
           namespace: visitorOverflowName,
-          actions: ['VisitorOverflowController:updateMax'],
-          events: ['VisitorOverflowController:stateChange'],
+          childActions: ['VisitorOverflowController:updateMax'],
+          childEvents: ['VisitorOverflowController:stateChange'],
           delegatedActions: ['VisitorController:clear'],
           delegatedEvents: ['VisitorController:stateChange'],
         });
@@ -1116,8 +1116,8 @@ describe('getPersistentState', () => {
       const visitorControllerMessenger: VisitorMessenger =
         processAMessenger.buildChild({
           namespace: visitorName,
-          actions: ['VisitorController:clear'],
-          events: ['VisitorController:stateChange'],
+          childActions: ['VisitorController:clear'],
+          childEvents: ['VisitorController:stateChange'],
         });
       const visitorController = new VisitorController(
         visitorControllerMessenger,
@@ -1130,8 +1130,8 @@ describe('getPersistentState', () => {
       const visitorOverflowControllerMessenger: VisitorOverflowMessenger =
         processBMessenger.buildChild({
           namespace: visitorOverflowName,
-          actions: ['VisitorOverflowController:updateMax'],
-          events: ['VisitorOverflowController:stateChange'],
+          childActions: ['VisitorOverflowController:updateMax'],
+          childEvents: ['VisitorOverflowController:stateChange'],
           delegatedActions: ['VisitorController:clear'],
           delegatedEvents: ['VisitorController:stateChange'],
         });

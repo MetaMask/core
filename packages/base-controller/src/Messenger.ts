@@ -698,8 +698,8 @@ export class Messenger<
    * Optionally, actions/events can be delegated to the child messenger as well.
    * @param args - Arguments.
    * @param args.namespace - The child messenger namespace.
-   * @param args.actions - A list of all child messenger action types.
-   * @param args.events - A list of all child messenger event types.
+   * @param args.childActions - A list of all child messenger action types.
+   * @param args.childEvents - A list of all child messenger event types.
    * @param args.delegatedActions - A list of action types to delegate to the child messenger.
    * @param args.delegatedEvents - A list of event types to delegate to the child messenger.
    * @returns The child messenger.
@@ -708,16 +708,32 @@ export class Messenger<
     ChildNamespace extends string,
     ChildAction extends Action,
     ChildEvent extends Event,
+    ChildNamespacedActions extends (ChildAction['type'] &
+      NamespacedName<ChildNamespace>)[] = (ChildAction['type'] &
+      NamespacedName<ChildNamespace>)[],
+    ChildNamespacedEvents extends (ChildEvent['type'] &
+      NamespacedName<ChildNamespace>)[] = (ChildEvent['type'] &
+      NamespacedName<ChildNamespace>)[],
   >({
     namespace,
-    actions,
-    events,
+    childActions,
+    childEvents,
     delegatedActions,
     delegatedEvents,
   }: {
     namespace: ChildNamespace;
-    actions: ChildAction['type'][];
-    events: ChildEvent['type'][];
+    childActions: ChildNamespacedActions &
+      ([
+        ChildAction['type'] & NamespacedName<ChildNamespace>,
+      ] extends ChildNamespacedActions
+        ? unknown
+        : never);
+    childEvents: ChildNamespacedEvents &
+      ([
+        ChildEvent['type'] & NamespacedName<ChildNamespace>,
+      ] extends ChildNamespacedEvents
+        ? unknown
+        : never);
     delegatedActions?: ChildAction['type'][];
     delegatedEvents?: ChildEvent['type'][];
   }): Messenger<ChildAction, ChildEvent, ChildNamespace> {
@@ -725,8 +741,8 @@ export class Messenger<
       namespace,
     );
     messenger.delegate({
-      actions,
-      events,
+      actions: childActions,
+      events: childEvents,
       messenger: this,
     });
     if (delegatedActions || delegatedEvents) {
