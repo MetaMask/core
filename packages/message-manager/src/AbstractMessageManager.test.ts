@@ -545,4 +545,12 @@ describe('AbstractTestManager', () => {
       );
     });
   });
+  
+  describe('clearUnapprovedMessages', () => {
+    it('clears the unapproved messages', () => {
+      const controller = new AbstractTestManager(mockInitialOptions);
+      controller.clearUnapprovedMessages();
+      expect(controller.getUnapprovedMessagesCount()).toBe(0);
+    });
+  });
 });

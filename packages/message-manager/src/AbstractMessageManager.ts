@@ -303,7 +303,7 @@ export abstract class AbstractMessageManager<
     return message;
   }
 
-  protected clearUnapprovedMessages() {
+  clearUnapprovedMessages() {
     this.update((state) => {
       state.unapprovedMessages = {};
       state.unapprovedMessagesCount = 0;
