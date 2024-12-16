@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0]
 
-### Uncategorized
+### Added
 
-- feat: Add `caip25CaveatBuilder` to `@metamask/multichain` ([#5064](https://github.com/MetaMask/core/pull/5064))
+- Adds `caip25CaveatBuilder` helper that builds a specification for the CAIP-25 caveat that can be passed to the relevant `PermissionController` constructor param([#5064](https://github.com/MetaMask/core/pull/5064)).
+
+### Changed
+
+- **BREAKING:** The validator returned by `caip25EndowmentBuilder` now only verifies that there is single CAIP-25 caveat and nothing else([#5064](https://github.com/MetaMask/core/pull/5064)).
 
 ## [1.1.2]
 
