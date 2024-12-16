@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: Add `caip25CaveatBuilder` to `@metamask/multichain` ([#5064](https://github.com/MetaMask/core/pull/5064))
+
 ## [1.1.2]
 
 ### Changed
