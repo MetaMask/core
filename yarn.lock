@@ -2133,7 +2133,7 @@ __metadata:
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
-    nanoid: "npm:^3.1.31"
+    nanoid: "npm:^3.3.8"
     sinon: "npm:^9.2.4"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
@@ -3280,7 +3280,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^27.5.1"
-    nanoid: "npm:^3.1.31"
+    nanoid: "npm:^3.3.8"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -3303,7 +3303,7 @@ __metadata:
     deep-freeze-strict: "npm:^1.1.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
-    nanoid: "npm:^3.1.31"
+    nanoid: "npm:^3.3.8"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
@@ -10098,6 +10098,15 @@ __metadata:
   bin:
     nanoid: bin/nanoid.cjs
   checksum: 10/ac1eb60f615b272bccb0e2b9cd933720dad30bf9708424f691b8113826bb91aca7e9d14ef5d9415a6ba15c266b37817256f58d8ce980c82b0ba3185352565679
+  languageName: node
+  linkType: hard
+
+"nanoid@npm:^3.3.8":
+  version: 3.3.8
+  resolution: "nanoid@npm:3.3.8"
+  bin:
+    nanoid: bin/nanoid.cjs
+  checksum: 10/2d1766606cf0d6f47b6f0fdab91761bb81609b2e3d367027aff45e6ee7006f660fb7e7781f4a34799fe6734f1268eeed2e37a5fdee809ade0c2d4eb11b0f9c40
   languageName: node
   linkType: hard
 
