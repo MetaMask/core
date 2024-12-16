@@ -1,15 +1,15 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type {
-  InternalAccount,
-  InternalAccountType,
-} from '@metamask/keyring-api';
 import {
   BtcAccountType,
-  BtcMethod,
   EthAccountType,
+  BtcMethod,
   EthMethod,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type {
+  InternalAccount,
+  InternalAccountType,
+} from '@metamask/keyring-internal-api';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';

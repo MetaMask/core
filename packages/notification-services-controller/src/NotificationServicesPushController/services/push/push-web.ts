@@ -4,7 +4,11 @@
 import type { FirebaseApp } from 'firebase/app';
 import { getApp, initializeApp } from 'firebase/app';
 import { getToken, deleteToken } from 'firebase/messaging';
-import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
+import {
+  getMessaging,
+  onBackgroundMessage,
+  isSupported,
+} from 'firebase/messaging/sw';
 import type { Messaging, MessagePayload } from 'firebase/messaging/sw';
 import log from 'loglevel';
 
@@ -14,6 +18,15 @@ import { toRawOnChainNotification } from '../../../shared/to-raw-notification';
 import type { PushNotificationEnv } from '../../types/firebase';
 
 declare const self: ServiceWorkerGlobalScope;
+
+// Exported to help testing
+// eslint-disable-next-line import/no-mutable-exports
+export let supportedCache: boolean | null = null;
+
+const getPushAvailability = async () => {
+  supportedCache ??= await isSupported();
+  return supportedCache;
+};
 
 const createFirebaseApp = async (
   env: PushNotificationEnv,
@@ -36,7 +49,12 @@ const createFirebaseApp = async (
 
 const getFirebaseMessaging = async (
   env: PushNotificationEnv,
-): Promise<Messaging> => {
+): Promise<Messaging | null> => {
+  const supported = await getPushAvailability();
+  if (!supported) {
+    return null;
+  }
+
   const app = await createFirebaseApp(env);
   return getMessaging(app);
 };
@@ -52,6 +70,10 @@ export async function createRegToken(
 ): Promise<string | null> {
   try {
     const messaging = await getFirebaseMessaging(env);
+    if (!messaging) {
+      return null;
+    }
+
     const token = await getToken(messaging, {
       serviceWorkerRegistration: self.registration,
       vapidKey: env.vapidKey,
@@ -73,6 +95,10 @@ export async function deleteRegToken(
 ): Promise<boolean> {
   try {
     const messaging = await getFirebaseMessaging(env);
+    if (!messaging) {
+      return true;
+    }
+
     await deleteToken(messaging);
     return true;
   } catch (error) {
@@ -89,8 +115,12 @@ export async function deleteRegToken(
 export async function listenToPushNotificationsReceived(
   env: PushNotificationEnv,
   handler: (notification: Types.INotification) => void | Promise<void>,
-) {
+): Promise<(() => void) | null> {
   const messaging = await getFirebaseMessaging(env);
+  if (!messaging) {
+    return null;
+  }
+
   const unsubscribePushNotifications = onBackgroundMessage(
     messaging,
     // eslint-disable-next-line @typescript-eslint/no-misused-promises

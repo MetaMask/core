@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.2]
+
+### Changed
+
+- Remove use of `@metamask/keyring-api` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - `@metamask/providers` and `webextension-polyfill` peer depedencies are no longer required.
+- Use new `@metamask/keyring-internal-api@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - This package has been split out from the Keyring API. Its types are compatible with the `@metamask/keyring-api` package used previously.
+- Bump `@metamask/message-manager` from `^11.0.2` to `^11.0.3` ([#5048](https://github.com/MetaMask/core/pull/5048))
+
 ## [19.0.1]
 
 ### Changed
@@ -608,7 +618,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.2...HEAD
+[19.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.1...@metamask/keyring-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.0...@metamask/keyring-controller@19.0.1
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@18.0.0...@metamask/keyring-controller@19.0.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.1...@metamask/keyring-controller@18.0.0
