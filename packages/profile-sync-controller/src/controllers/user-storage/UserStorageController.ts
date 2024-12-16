@@ -11,7 +11,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { type InternalAccount, isEvmAccountType } from '@metamask/keyring-api';
+import { isEvmAccountType } from '@metamask/keyring-api';
 import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
@@ -19,6 +19,7 @@ import {
   type KeyringControllerAddNewAccountAction,
   KeyringTypes,
 } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerAddNetworkAction,
   NetworkControllerGetStateAction,
