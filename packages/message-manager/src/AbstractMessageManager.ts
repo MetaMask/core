@@ -13,8 +13,8 @@ import type { Draft } from 'immer';
 import { v1 as random } from 'uuid';
 
 const stateMetadata = {
-  unapprovedMessages: { persist: true, anonymous: false },
-  unapprovedMessagesCount: { persist: true, anonymous: false },
+  unapprovedMessages: { persist: false, anonymous: false },
+  unapprovedMessagesCount: { persist: false, anonymous: false },
 };
 
 const getDefaultState = () => ({
@@ -301,6 +301,13 @@ export abstract class AbstractMessageManager<
       };
     }
     return message;
+  }
+
+  protected clearUnapprovedMessages() {
+    this.update((state) => {
+      state.unapprovedMessages = {};
+      state.unapprovedMessagesCount = 0;
+    });
   }
 
   /**

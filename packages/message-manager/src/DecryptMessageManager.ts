@@ -20,7 +20,7 @@ const controllerName = 'DecryptMessageManager';
 
 export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
 
-export type GetDecryptMessageState = ControllerGetStateAction<
+export type GetDecryptMessageManagerState = ControllerGetStateAction<
   typeof controllerName,
   DecryptMessageManagerState
 >;
@@ -30,7 +30,7 @@ export type DecryptMessageManagerStateChange = ControllerStateChangeEvent<
   DecryptMessageManagerState
 >;
 
-export type DecryptMessageManagerActions = GetDecryptMessageState;
+export type DecryptMessageManagerActions = GetDecryptMessageManagerState;
 
 export type DecryptMessageManagerEvents = DecryptMessageManagerStateChange;
 
