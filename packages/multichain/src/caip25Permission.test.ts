@@ -395,7 +395,7 @@ describe('caip25EndowmentBuilder', () => {
   });
 
   describe('permission validator', () => {
-    const { validator } = caip25EndowmentBuilder.specificationBuilder();
+    const { validator } = caip25EndowmentBuilder.specificationBuilder({});
 
     it('throws an error if there is not exactly one caveat', () => {
       expect(() => {
