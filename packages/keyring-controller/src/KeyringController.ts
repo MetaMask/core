@@ -43,6 +43,7 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
+import { ulid } from 'ulid';
 
 import { KeyringControllerError } from './constants';
 
@@ -256,10 +257,14 @@ export type KeyringControllerOptions = {
  * Keyring object to return in fullUpdate
  * @property type - Keyring type
  * @property accounts - Associated accounts
+ * @property typeIndex - The index of the keyring in the array of keyrings of the same type
+ * @property id - The id of the keyring
  */
 export type KeyringObject = {
   accounts: string[];
   type: string;
+  typeIndex: number;
+  id: string;
 };
 
 /**
@@ -396,6 +401,9 @@ export type KeyringSelector =
     }
   | {
       address: Hex;
+    }
+  | {
+      id: string;
     };
 
 /**
@@ -523,16 +531,24 @@ function isSerializedKeyringsArray(
  * @param keyring - The keyring to display.
  * @returns A keyring display object, with type and accounts properties.
  */
-async function displayForKeyring(
-  keyring: EthKeyring<Json>,
-): Promise<{ type: string; accounts: string[] }> {
+async function displayForKeyring(keyring: EthKeyring<Json>): Promise<{
+  type: string;
+  accounts: string[];
+  typeIndex: number;
+  id: string;
+}> {
   const accounts = await keyring.getAccounts();
+  const { opts } = keyring as EthKeyring<Json> & {
+    opts: { typeIndex: number; id: string };
+  };
 
   return {
     type: keyring.type,
     // Cast to `string[]` here is safe here because `accounts` has no nullish
     // values, and `normalize` returns `string` unless given a nullish value
     accounts: accounts.map(normalize) as string[],
+    typeIndex: opts?.typeIndex,
+    id: opts?.id,
   };
 }
 
@@ -658,18 +674,27 @@ export class KeyringController extends BaseController<
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
    * @param accountCount - Number of accounts before adding a new one, used to
+   * @param keyringId - The id of the keyring to add the account to.
    * make the method idempotent.
    * @returns Promise resolving to the added account address.
    */
-  async addNewAccount(accountCount?: number): Promise<string> {
+  async addNewAccount(
+    accountCount?: number,
+    keyringId?: string,
+  ): Promise<string> {
     return this.#persistOrRollback(async () => {
-      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-        | EthKeyring<Json>
-        | undefined;
-      if (!primaryKeyring) {
+      let selectedKeyring: EthKeyring<Json> | undefined;
+      if (keyringId) {
+        selectedKeyring = this.getKeyringById(keyringId) as EthKeyring<Json>;
+      } else {
+        selectedKeyring = this.getKeyringsByType(
+          'HD Key Tree',
+        )[0] as EthKeyring<Json>;
+      }
+      if (!selectedKeyring) {
         throw new Error('No HD keyring found');
       }
-      const oldAccounts = await primaryKeyring.getAccounts();
+      const oldAccounts = await selectedKeyring.getAccounts();
 
       if (accountCount && oldAccounts.length !== accountCount) {
         if (accountCount > oldAccounts.length) {
@@ -685,7 +710,7 @@ export class KeyringController extends BaseController<
         return existingAccount;
       }
 
-      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
+      const [addedAccountAddress] = await selectedKeyring.addAccounts(1);
       await this.verifySeedPhrase();
 
       return addedAccountAddress;
@@ -754,6 +779,15 @@ export class KeyringController extends BaseController<
           mnemonic: seed,
           numberOfAccounts: 1,
         },
+      });
+    });
+  }
+
+  async createKeyringFromMnemonic(mnemonic: string): Promise<string> {
+    return this.#persistOrRollback(async () => {
+      return await this.#createKeyringWithFirstAccount(KeyringTypes.hd, {
+        mnemonic,
+        numberOfAccounts: 1,
       });
     });
   }
@@ -853,13 +887,16 @@ export class KeyringController extends BaseController<
   /**
    * Returns the public addresses of all accounts from every keyring.
    *
+   * @param keyringId - The id of the keyring to get the accounts from.
    * @returns A promise resolving to an array of addresses.
    */
-  async getAccounts(): Promise<string[]> {
-    return this.state.keyrings.reduce<string[]>(
-      (accounts, keyring) => accounts.concat(keyring.accounts),
-      [],
-    );
+  async getAccounts(keyringId?: string): Promise<string[]> {
+    return this.state.keyrings
+      .filter((keyring) => (keyringId ? keyring.id === keyringId : true))
+      .reduce<string[]>(
+        (accounts, keyring) => accounts.concat(keyring.accounts),
+        [],
+      );
   }
 
   /**
@@ -906,6 +943,24 @@ export class KeyringController extends BaseController<
     }
 
     return keyring.decryptMessage(address, messageParams.data);
+  }
+
+  /**
+   * Returns the keyring with the given id.
+   *
+   * @param id - The id of the keyring to return.
+   * @returns The keyring with the given id.
+   */
+  getKeyringById(id: string): unknown {
+    const keyring = this.#keyrings.find(
+      (item) =>
+        (item as EthKeyring<Json> & { opts: { id: string } }).opts.id === id,
+    );
+    if (!keyring) {
+      throw new Error(KeyringControllerError.KeyringNotFound);
+    }
+
+    return keyring;
   }
 
   /**
@@ -1472,7 +1527,7 @@ export class KeyringController extends BaseController<
         keyring = (await this.getKeyringForAccount(selector.address)) as
           | SelectedKeyring
           | undefined;
-      } else {
+      } else if ('type' in selector) {
         keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
           | SelectedKeyring
           | undefined;
@@ -1483,6 +1538,8 @@ export class KeyringController extends BaseController<
             options.createWithData,
           )) as SelectedKeyring;
         }
+      } else if ('id' in selector) {
+        keyring = this.getKeyringById(selector.id) as SelectedKeyring;
       }
 
       if (!keyring) {
@@ -2148,6 +2205,7 @@ export class KeyringController extends BaseController<
     if (!firstAccount) {
       throw new Error(KeyringControllerError.NoFirstAccount);
     }
+    return firstAccount;
   }
 
   /**
@@ -2174,8 +2232,28 @@ export class KeyringController extends BaseController<
 
     const keyring = keyringBuilder();
 
-    // @ts-expect-error Enforce data type after updating clients
-    await keyring.deserialize(data);
+    // find the last index of the type
+    const lastIndexOfType: number = this.#keyrings.reduce((maxIndex, item) => {
+      if (item.type === type) {
+        return Math.max(
+          maxIndex,
+          (item as EthKeyring<Json> & { opts: { typeIndex: number } }).opts
+            ?.typeIndex ?? 0,
+        );
+      }
+      return maxIndex;
+    }, 0);
+
+    if (type === KeyringTypes.hd) {
+      await keyring.deserialize({
+        ...(data ?? {}),
+        typeIndex: lastIndexOfType + 1,
+        id: ulid(),
+      });
+    } else {
+      // @ts-expect-error Enforce data type after updating clients
+      await keyring.deserialize(data);
+    }
 
     if (keyring.init) {
       await keyring.init();
