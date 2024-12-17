@@ -19,7 +19,7 @@ import { getSessionScopes } from './caip-permission-adapter-session-scopes';
  * Middleware to handle CAIP-25 permission requests.
  *
  * @param request - The request object.
- * @param _response - The response object.
+ * @param _response - The response object. Unused.
  * @param next - The next middleware function.
  * @param end - The end function.
  * @param hooks - The hooks object.
