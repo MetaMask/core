@@ -51,7 +51,7 @@ export const bucketScopesBySupport = (
  * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
  * @returns a NormalizedScopesObject with only scopes that are currently supported.
  */
-export const filterScopesSupported = (
+export const getSupportedScopes = (
   scopes: NormalizedScopesObject,
   {
     isChainIdSupported,
@@ -73,7 +73,7 @@ export const filterScopesSupported = (
  * @param scopeObject - The NormalizedScopeObject to filter.
  * @returns a NormalizedScopeObject with only methods and notifications that are currently supported.
  */
-const filterScopeObjectSupported = (
+const getSupportedScopeObject = (
   scopeString: InternalScopeString,
   scopeObject: NormalizedScopeObject,
 ) => {
@@ -100,12 +100,12 @@ const filterScopeObjectSupported = (
  * @param scopes - The NormalizedScopesObject to filter.
  * @returns a NormalizedScopesObject with only methods, and notifications that are currently supported.
  */
-export const filterScopeObjectsSupported = (scopes: NormalizedScopesObject) => {
+export const getSupportedScopeObjects = (scopes: NormalizedScopesObject) => {
   const filteredScopesObject: NormalizedScopesObject = {};
 
   for (const [scopeString, scopeObject] of Object.entries(scopes)) {
     assertIsInternalScopeString(scopeString);
-    filteredScopesObject[scopeString] = filterScopeObjectSupported(
+    filteredScopesObject[scopeString] = getSupportedScopeObject(
       scopeString,
       scopeObject,
     );

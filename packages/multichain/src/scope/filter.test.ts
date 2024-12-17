@@ -1,8 +1,8 @@
 import * as Assert from './assert';
 import {
-  filterScopesSupported,
+  getSupportedScopes,
   bucketScopesBySupport,
-  filterScopeObjectsSupported,
+  getSupportedScopeObjects,
 } from './filter';
 import * as Supported from './supported';
 
@@ -20,11 +20,11 @@ jest.mock('./supported', () => ({
 const MockSupported = jest.mocked(Supported);
 
 describe('filter', () => {
-  describe('filterScopesSupported', () => {
+  describe('getSupportedScopes', () => {
     const isChainIdSupported = jest.fn();
 
     it('checks if each scope is supported', () => {
-      filterScopesSupported(
+      getSupportedScopes(
         {
           'eip155:1': {
             methods: ['a'],
@@ -68,7 +68,7 @@ describe('filter', () => {
       });
 
       expect(
-        filterScopesSupported(
+        getSupportedScopes(
           {
             'eip155:1': {
               methods: ['a'],
@@ -175,9 +175,9 @@ describe('filter', () => {
     });
   });
 
-  describe('filterScopeObjectsSupported', () => {
+  describe('getSupportedScopeObjects', () => {
     it('checks if each scopeObject method is supported', () => {
-      filterScopeObjectsSupported({
+      getSupportedScopeObjects({
         'eip155:1': {
           methods: ['method1', 'method2'],
           notifications: [],
@@ -222,7 +222,7 @@ describe('filter', () => {
         },
       );
 
-      const result = filterScopeObjectsSupported({
+      const result = getSupportedScopeObjects({
         'eip155:1': {
           methods: ['method1', 'method2'],
           notifications: [],
@@ -250,7 +250,7 @@ describe('filter', () => {
     });
 
     it('checks if each scopeObject notification is supported', () => {
-      filterScopeObjectsSupported({
+      getSupportedScopeObjects({
         'eip155:1': {
           methods: [],
           notifications: ['notification1', 'notification2'],
@@ -295,7 +295,7 @@ describe('filter', () => {
         },
       );
 
-      const result = filterScopeObjectsSupported({
+      const result = getSupportedScopeObjects({
         'eip155:1': {
           methods: [],
           notifications: ['notification1', 'notification2'],
@@ -323,7 +323,7 @@ describe('filter', () => {
     });
 
     it('does not modify accounts', () => {
-      const result = filterScopeObjectsSupported({
+      const result = getSupportedScopeObjects({
         'eip155:1': {
           methods: [],
           notifications: [],
