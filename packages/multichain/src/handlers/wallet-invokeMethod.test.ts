@@ -6,7 +6,7 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { walletInvokeMethod } from './wallet-invokeMethod';
+import { walletInvokeMethod, WalletInvokeMethodRequest } from './wallet-invokeMethod';
 
 jest.mock('../adapters/caip-permission-adapter-session-scopes', () => ({
   getSessionScopes: jest.fn(),
@@ -59,7 +59,7 @@ const createMockedHandler = () => {
   const getSelectedNetworkClientId = jest
     .fn()
     .mockReturnValue('selectedNetworkClientId');
-  const handler = (request: JsonRpcRequest & { origin: string }) =>
+  const handler = (request: WalletInvokeMethodRequest) =>
     walletInvokeMethod.implementation(
       request,
       { jsonrpc: '2.0', id: 1 },

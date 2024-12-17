@@ -19,6 +19,14 @@ import { assertIsInternalScopeString } from '../scope/assert';
 import type { ExternalScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
+export type WalletInvokeMethodRequest = JsonRpcRequest & {
+  origin: string;
+  params: {
+    scope: ExternalScopeString;
+    request: Pick<JsonRpcRequest, 'method' | 'params'>;
+  };
+}
+
 /**
  * Handler for the `wallet_invokeMethod` RPC method as specified by [CAIP-27](https://chainagnostic.org/CAIPs/caip-27).
  * The implementation below deviates from the linked spec in that it ignores the `sessionId` param
@@ -34,13 +42,7 @@ import { parseScopeString } from '../scope/types';
  * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
  */
 async function walletInvokeMethodHandler(
-  request: JsonRpcRequest & {
-    origin: string;
-    params: {
-      scope: ExternalScopeString;
-      request: Pick<JsonRpcRequest, 'method' | 'params'>;
-    };
-  },
+  request: WalletInvokeMethodRequest,
   _response: PendingJsonRpcResponse<Json>,
   next: () => void,
   end: (error: Error) => void,
