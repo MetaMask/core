@@ -48,8 +48,8 @@ async function walletInvokeMethodHandler(
       endowmentPermissionName: string,
       caveatType: string,
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
-    findNetworkClientIdByChainId: (chainId: string) => string | undefined;
-    getSelectedNetworkClientId: () => string;
+    findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
+    getSelectedNetworkClientId: () => NetworkClientId;
   },
 ) {
   const { scope, request: wrappedRequest } = request.params;
