@@ -79,7 +79,7 @@ describe('MultichainMiddlewareManager', () => {
     jest
       .spyOn(middlewareSpy, 'destroy')
       .mockImplementation()
-      .mockResolvedValue({});
+      .mockResolvedValue();
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
