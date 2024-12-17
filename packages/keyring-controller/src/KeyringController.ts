@@ -687,7 +687,7 @@ export class KeyringController extends BaseController<
       }
 
       const [addedAccountAddress] = await selectedKeyring.addAccounts(1);
-      await this.verifySeedPhrase(typeIndex ?? 0);
+      await this.#verifySeedPhrase();
 
       return addedAccountAddress;
     });
