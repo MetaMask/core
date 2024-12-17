@@ -1,6 +1,8 @@
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type {
+  Hex,
   Json,
   JsonRpcRequest,
   PendingJsonRpcResponse,

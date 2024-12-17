@@ -29,6 +29,11 @@ type MiddlewareEntry = MiddlewareKey & {
   middleware: ExtendedJsonRpcMiddleware;
 };
 
+/**
+ * A helper that facilates registering and calling of provided middleware instances
+ * in the RPC pipeline based on the incoming request's scope, origin, and tabId.
+ * Note that only one middleware instance can be registered per scope, origin, tabId key.
+ */
 export class MultichainMiddlewareManager {
   #middlewares: MiddlewareEntry[] = [];
 
