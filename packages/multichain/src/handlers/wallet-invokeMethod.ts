@@ -25,7 +25,7 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
     scope: ExternalScopeString;
     request: Pick<JsonRpcRequest, 'method' | 'params'>;
   };
-}
+};
 
 /**
  * Handler for the `wallet_invokeMethod` RPC method as specified by [CAIP-27](https://chainagnostic.org/CAIPs/caip-27).

@@ -1,12 +1,12 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcRequest } from '@metamask/utils';
 
 import * as PermissionAdapterSessionScopes from '../adapters/caip-permission-adapter-session-scopes';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { walletInvokeMethod, WalletInvokeMethodRequest } from './wallet-invokeMethod';
+import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
+import { walletInvokeMethod } from './wallet-invokeMethod';
 
 jest.mock('../adapters/caip-permission-adapter-session-scopes', () => ({
   getSessionScopes: jest.fn(),

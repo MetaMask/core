@@ -41,7 +41,7 @@ describe('MultichainMiddlewareManager', () => {
     expect(endSpy).not.toHaveBeenCalled();
   });
 
-  it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed', async () => {
+  it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware has no destroy function', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
@@ -58,6 +58,84 @@ describe('MultichainMiddlewareManager', () => {
       );
 
     await middleware.destroy?.();
+
+    const nextSpy = jest.fn();
+    const endSpy = jest.fn();
+
+    middleware(
+      { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(middlewareSpy).not.toHaveBeenCalled();
+    expect(nextSpy).toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function resolves', async () => {
+    const multichainMiddlewareManager = new MultichainMiddlewareManager();
+    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    jest
+      .spyOn(middlewareSpy, 'destroy')
+      .mockImplementation()
+      .mockResolvedValue({});
+    multichainMiddlewareManager.addMiddleware({
+      scope,
+      origin,
+      tabId,
+      middleware: middlewareSpy,
+    });
+
+    const middleware =
+      multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
+        origin,
+        123,
+      );
+
+    await middleware.destroy?.();
+
+    expect(middlewareSpy.destroy).toHaveBeenCalled();
+
+    const nextSpy = jest.fn();
+    const endSpy = jest.fn();
+
+    middleware(
+      { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(middlewareSpy).not.toHaveBeenCalled();
+    expect(nextSpy).toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function rejects', async () => {
+    const multichainMiddlewareManager = new MultichainMiddlewareManager();
+    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    jest
+      .spyOn(middlewareSpy, 'destroy')
+      .mockImplementation()
+      .mockRejectedValue(
+        new Error('failed to destroy the actual underlying middleware'),
+      );
+    multichainMiddlewareManager.addMiddleware({
+      scope,
+      origin,
+      tabId,
+      middleware: middlewareSpy,
+    });
+
+    const middleware =
+      multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
+        origin,
+        123,
+      );
+
+    await middleware.destroy?.();
+
+    expect(middlewareSpy.destroy).toHaveBeenCalled();
 
     const nextSpy = jest.fn();
     const endSpy = jest.fn();
