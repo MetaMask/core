@@ -8,9 +8,6 @@ import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallV
 
 describe('multichainMethodCallValidatorMiddleware', () => {
   const mockNext = jest.fn();
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
 
   describe('"wallet_invokeMethod" request', () => {
     it('should pass validation and call next when passed a valid "wallet_invokeMethod" request', async () => {

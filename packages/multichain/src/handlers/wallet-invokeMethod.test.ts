@@ -108,10 +108,6 @@ describe('wallet_invokeMethod', () => {
     });
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
     const request = createMockedRequest();
     const { handler, getCaveat } = createMockedHandler();

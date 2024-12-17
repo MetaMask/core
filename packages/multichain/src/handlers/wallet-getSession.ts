@@ -14,7 +14,7 @@ import {
  *
  * @param request - The request object.
  * @param response - The response object.
- * @param _next - The next middleware function.
+ * @param _next - The next middleware function. Unused.
  * @param end - The end function.
  * @param hooks - The hooks object.
  * @param hooks.getCaveat - Function to retrieve a caveat.

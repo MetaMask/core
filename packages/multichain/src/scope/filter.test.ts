@@ -20,10 +20,6 @@ jest.mock('./supported', () => ({
 const MockSupported = jest.mocked(Supported);
 
 describe('filter', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('filterScopesSupported', () => {
     const isChainIdSupported = jest.fn();
 

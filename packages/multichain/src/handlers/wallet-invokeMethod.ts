@@ -21,7 +21,7 @@ import { parseScopeString } from '../scope/types';
  * Handler for the `wallet_invokeMethod` RPC method.
  *
  * @param request - The request object.
- * @param _response - The response object.
+ * @param _response - The response object. Unused.
  * @param next - The next middleware function.
  * @param end - The end function.
  * @param hooks - The hooks object.
