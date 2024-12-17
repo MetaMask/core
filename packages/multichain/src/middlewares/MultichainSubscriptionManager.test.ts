@@ -94,14 +94,14 @@ describe('MultichainSubscriptionManager', () => {
     const { multichainSubscriptionManager } =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
-    const onNotificationSpy = jest.fn();
-    multichainSubscriptionManager.on('notification', onNotificationSpy);
+    const notifySpy = jest.fn();
+    multichainSubscriptionManager.on('notification', notifySpy);
 
     mockSubscriptionManager.events.on.mock.calls[0][1](
       newHeadsNotificationMock,
     );
 
-    expect(onNotificationSpy).toHaveBeenCalledWith(origin, tabId, {
+    expect(notifySpy).toHaveBeenCalledWith(origin, tabId, {
       method: 'wallet_notify',
       params: {
         scope,

@@ -61,7 +61,7 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     this.#getNetworkClientById = options.getNetworkClientById;
   }
 
-  onNotification(
+  notify(
     { scope, origin, tabId }: SubscriptionKey,
     { method, params }: SubscriptionNotificationEvent,
   ) {
@@ -116,7 +116,7 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     subscriptionManager.events.on(
       'notification',
       (message: SubscriptionNotificationEvent) => {
-        this.onNotification(subscriptionKey, message);
+        this.notify(subscriptionKey, message);
       },
     );
 
