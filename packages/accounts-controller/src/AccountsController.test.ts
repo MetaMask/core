@@ -477,6 +477,8 @@ describe('AccountsController', () => {
           {
             type: KeyringTypes.hd,
             accounts: [mockAccount.address],
+            typeIndex: 0,
+            id: '123',
           },
         ],
       };
@@ -521,6 +523,8 @@ describe('AccountsController', () => {
           {
             accounts: [mockAccount.address, mockAccount2.address],
             type: KeyringTypes.hd,
+            typeIndex: 0,
+            id: '123',
           },
         ],
       };
@@ -559,6 +563,8 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -612,10 +618,14 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address],
+              typeIndex: 0,
+              id: '123',
             },
             {
               type: KeyringTypes.snap,
               accounts: [mockAccount3.address, mockAccount4.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -678,10 +688,14 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address],
+              typeIndex: 0,
+              id: '123',
             },
             {
               type: KeyringTypes.snap,
               accounts: [mockAccount3.address, mockAccount4.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -731,6 +745,8 @@ describe('AccountsController', () => {
                 mockAccount2.address,
                 mockAccount3.address,
               ],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -796,6 +812,8 @@ describe('AccountsController', () => {
                 mockAccount2.address,
                 mockAccount3.address,
               ],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -852,10 +870,14 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [],
+              typeIndex: 0,
+              id: '123',
             },
             {
               type: KeyringTypes.snap,
               accounts: [mockAccount3.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -894,6 +916,8 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -951,6 +975,8 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -981,6 +1007,8 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount2.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -1025,6 +1053,8 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -1088,6 +1118,8 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -1160,6 +1192,8 @@ describe('AccountsController', () => {
                 mockAccountWithoutLastSelected.address,
                 mockAccount2.address,
               ],
+              typeIndex: 0,
+              id: '123',
             },
           ],
         };
@@ -1230,6 +1264,8 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
+              typeIndex: 0,
+              id: '123',
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
             },
@@ -1272,6 +1308,8 @@ describe('AccountsController', () => {
         isUnlocked: true,
         keyrings: [
           {
+            typeIndex: 0,
+            id: '123',
             type: KeyringTypes.hd,
             accounts: [mockReinitialisedAccount.address],
           },
@@ -1367,6 +1405,8 @@ describe('AccountsController', () => {
           isUnlocked: true,
           keyrings: [
             {
+              typeIndex: 0,
+              id: '123',
               type: KeyringTypes.hd,
               accounts: [
                 mockExistingAccount1.address,
@@ -2519,10 +2559,14 @@ describe('AccountsController', () => {
           {
             type: 'HD Key Tree',
             accounts: [mockAccount.address],
+            typeIndex: 0,
+            id: '123',
           },
           {
             type: 'Simple Key Pair',
             accounts: simpleAddressess,
+            typeIndex: 0,
+            id: '123',
           },
         ],
       };
