@@ -11,13 +11,13 @@ import HDKeyring from '@metamask/eth-hd-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type {
+  KeyringExecutionContext,
   EthBaseTransaction,
   EthBaseUserOperation,
-  EthKeyring,
   EthUserOperation,
   EthUserOperationPatch,
-  KeyringExecutionContext,
 } from '@metamask/keyring-api';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
@@ -686,7 +686,7 @@ export class KeyringController extends BaseController<
       }
 
       const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
-      await this.verifySeedPhrase();
+      await this.#verifySeedPhrase();
 
       return addedAccountAddress;
     });
@@ -1356,47 +1356,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase as Uint8Array.
    */
   async verifySeedPhrase(): Promise<Uint8Array> {
-    const primaryKeyring = this.getKeyringsByType(KeyringTypes.hd)[0] as
-      | EthKeyring<Json>
-      | undefined;
-    if (!primaryKeyring) {
-      throw new Error('No HD keyring found.');
-    }
-
-    assertHasUint8ArrayMnemonic(primaryKeyring);
-
-    const seedWords = primaryKeyring.mnemonic;
-    const accounts = await primaryKeyring.getAccounts();
-    /* istanbul ignore if */
-    if (accounts.length === 0) {
-      throw new Error('Cannot verify an empty keyring.');
-    }
-
-    // The HD Keyring Builder is a default keyring builder
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const hdKeyringBuilder = this.#getKeyringBuilderForType(KeyringTypes.hd)!;
-
-    const hdKeyring = hdKeyringBuilder();
-    // @ts-expect-error @metamask/eth-hd-keyring correctly handles
-    // Uint8Array seed phrases in the `deserialize` method.
-    await hdKeyring.deserialize({
-      mnemonic: seedWords,
-      numberOfAccounts: accounts.length,
-    });
-    const testAccounts = await hdKeyring.getAccounts();
-    /* istanbul ignore if */
-    if (testAccounts.length !== accounts.length) {
-      throw new Error('Seed phrase imported incorrect number of accounts.');
-    }
-
-    testAccounts.forEach((account: string, i: number) => {
-      /* istanbul ignore if */
-      if (account.toLowerCase() !== accounts[i].toLowerCase()) {
-        throw new Error('Seed phrase imported different accounts.');
-      }
-    });
-
-    return seedWords;
+    return this.#withControllerLock(async () => this.#verifySeedPhrase());
   }
 
   /**
@@ -1881,6 +1841,57 @@ export class KeyringController extends BaseController<
     await this.#clearKeyrings();
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
     this.#setUnlocked();
+  }
+
+  /**
+   * Internal non-exclusive method to verify the seed phrase.
+   *
+   * @returns A promise resolving to the seed phrase as Uint8Array.
+   */
+  async #verifySeedPhrase(): Promise<Uint8Array> {
+    this.#assertControllerMutexIsLocked();
+
+    const primaryKeyring = this.getKeyringsByType(KeyringTypes.hd)[0] as
+      | EthKeyring<Json>
+      | undefined;
+    if (!primaryKeyring) {
+      throw new Error('No HD keyring found.');
+    }
+
+    assertHasUint8ArrayMnemonic(primaryKeyring);
+
+    const seedWords = primaryKeyring.mnemonic;
+    const accounts = await primaryKeyring.getAccounts();
+    /* istanbul ignore if */
+    if (accounts.length === 0) {
+      throw new Error('Cannot verify an empty keyring.');
+    }
+
+    // The HD Keyring Builder is a default keyring builder
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const hdKeyringBuilder = this.#getKeyringBuilderForType(KeyringTypes.hd)!;
+
+    const hdKeyring = hdKeyringBuilder();
+    // @ts-expect-error @metamask/eth-hd-keyring correctly handles
+    // Uint8Array seed phrases in the `deserialize` method.
+    await hdKeyring.deserialize({
+      mnemonic: seedWords,
+      numberOfAccounts: accounts.length,
+    });
+    const testAccounts = await hdKeyring.getAccounts();
+    /* istanbul ignore if */
+    if (testAccounts.length !== accounts.length) {
+      throw new Error('Seed phrase imported incorrect number of accounts.');
+    }
+
+    testAccounts.forEach((account: string, i: number) => {
+      /* istanbul ignore if */
+      if (account.toLowerCase() !== accounts[i].toLowerCase()) {
+        throw new Error('Seed phrase imported different accounts.');
+      }
+    });
+
+    return seedWords;
   }
 
   /**

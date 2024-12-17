@@ -50,7 +50,7 @@
     "@metamask/base-controller": "^7.0.2",
     "@metamask/rpc-errors": "^7.0.1",
     "@metamask/utils": "^10.0.0",
-    "nanoid": "^3.1.31"
+    "nanoid": "^3.3.8"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

@@ -13,7 +13,7 @@ import {
   convertHexToDecimal,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
@@ -829,7 +829,7 @@ describe('TokensController', () => {
             decimals: 6,
           });
           controller.ignoreTokens(['0x03'], InfuraNetworkType.goerli);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x03']);
+          expect(controller.state.ignoredTokens).toStrictEqual([]);
 
           // Validate the overall ignored tokens state
           expect(controller.state.allIgnoredTokens).toStrictEqual({
@@ -841,6 +841,106 @@ describe('TokensController', () => {
               [otherAddress]: ['0x03'],
             },
           });
+        },
+      );
+    });
+
+    it('should not update detectedTokens, tokens, and ignoredTokens state given a network that is different from the globally selected network', async () => {
+      const selectedAddress = '0x0001';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+
+      await withController(
+        {
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
+          // Select the first account
+          triggerSelectedAccountChange(selectedAccount);
+
+          // Add tokens to sepolia
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'Token1',
+            decimals: 18,
+          });
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          // switch to goerli
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
+
+          // Add tokens to goerli
+          await controller.addToken({
+            address: '0x02',
+            symbol: 'Token2',
+            decimals: 8,
+          });
+
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          // ignore token on sepolia
+          controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
+
+          // as we are not on sepolia, tokens, ignoredTokens, and detectedTokens should not be affected
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(controller.state.detectedTokens).toHaveLength(0);
+        },
+      );
+    });
+
+    it('should update tokens, and ignoredTokens and detectedTokens state for the globally selected network', async () => {
+      const selectedAddress = '0x0001';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+
+      await withController(
+        {
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
+          // Select the first account
+          triggerSelectedAccountChange(selectedAccount);
+
+          // Set globally selected network to sepolia
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+
+          // Add a token to sepolia
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'Token1',
+            decimals: 18,
+          });
+          // Add a detected token to sepolia
+          await controller.addDetectedTokens([
+            {
+              address: '0x03',
+              symbol: 'Token3',
+              decimals: 18,
+            },
+          ]);
+
+          expect(controller.state.tokens).toHaveLength(1);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          // Ignore the token on sepolia
+          controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
+
+          // Ensure the tokens and ignoredTokens are updated for sepolia (globally selected network)
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.ignoredTokens).toHaveLength(1);
+          expect(controller.state.detectedTokens).toHaveLength(1);
         },
       );
     });
@@ -879,7 +979,7 @@ describe('TokensController', () => {
           // Ignore the token on Sepolia
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
           expect(controller.state.tokens).toHaveLength(0);
-          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+          expect(controller.state.ignoredTokens).toStrictEqual([]);
 
           // Attempt to ignore a token that was added on Goerli
           await controller.addToken({
