@@ -64,12 +64,12 @@ export async function caipPermissionAdapterMiddleware(
 
   const scope: InternalScopeString = `eip155:${parseInt(chainId, 16)}`;
 
-  const sesionScopes = getSessionScopes(caveat.value);
+  const sessionScopes = getSessionScopes(caveat.value);
 
   if (
-    !sesionScopes[scope]?.methods?.includes(method) &&
-    !sesionScopes[KnownWalletScopeString.Eip155]?.methods?.includes(method) &&
-    !sesionScopes.wallet?.methods?.includes(method) &&
+    !sessionScopes[scope]?.methods?.includes(method) &&
+    !sessionScopes[KnownWalletScopeString.Eip155]?.methods?.includes(method) &&
+    !sessionScopes.wallet?.methods?.includes(method) &&
     !Eip1193OnlyMethods.includes(method)
   ) {
     return end(providerErrors.unauthorized());
