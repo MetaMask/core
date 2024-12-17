@@ -10,6 +10,7 @@ import {
   Caip25EndowmentPermissionName,
   Caip25CaveatMutators,
   createCaip25Caveat,
+  caip25CaveatBuilder,
 } from './caip25Permission';
 import * as ScopeSupported from './scope/supported';
 
@@ -394,14 +395,7 @@ describe('caip25EndowmentBuilder', () => {
   });
 
   describe('permission validator', () => {
-    const findNetworkClientIdByChainId = jest.fn();
-    const listAccounts = jest.fn();
-    const { validator } = caip25EndowmentBuilder.specificationBuilder({
-      methodHooks: {
-        findNetworkClientIdByChainId,
-        listAccounts,
-      },
-    });
+    const { validator } = caip25EndowmentBuilder.specificationBuilder({});
 
     it('throws an error if there is not exactly one caveat', () => {
       expect(() => {
@@ -463,296 +457,233 @@ describe('caip25EndowmentBuilder', () => {
         ),
       );
     });
+  });
+});
 
-    it('throws an error if the CAIP-25 caveat is malformed', () => {
-      expect(() => {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                missingRequiredScopes: {},
-                optionalScopes: {},
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      }).toThrow(
-        new Error(
-          `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
-        ),
-      );
+describe('caip25CaveatBuilder', () => {
+  const findNetworkClientIdByChainId = jest.fn();
+  const listAccounts = jest.fn();
+  const { validator } = caip25CaveatBuilder({
+    findNetworkClientIdByChainId,
+    listAccounts,
+  });
 
-      expect(() => {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {},
-                missingOptionalScopes: {},
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      }).toThrow(
-        new Error(
-          `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
-        ),
-      );
-
-      expect(() => {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {},
-                optionalScopes: {},
-                isMultichainOrigin: 'NotABoolean',
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      }).toThrow(
-        new Error(
-          `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
-        ),
-      );
-    });
-
-    it('asserts the internal required scopeStrings are supported', () => {
-      try {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      } catch (err) {
-        // noop
-      }
-      expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
-        'eip155:1',
-        expect.any(Function),
-      );
-
-      MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1');
-      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
-    });
-
-    it('asserts the internal optional scopeStrings are supported', () => {
-      try {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      } catch (err) {
-        // noop
-      }
-
-      expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
-        'eip155:5',
-        expect.any(Function),
-      );
-
-      MockScopeSupported.isSupportedScopeString.mock.calls[1][1]('0x5');
-      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x5');
-    });
-
-    it('does not throw if unable to find a network client for the chainId', () => {
-      findNetworkClientIdByChainId.mockImplementation(() => {
-        throw new Error('unable to find network client');
+  it('throws an error if the CAIP-25 caveat is malformed', () => {
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          missingRequiredScopes: {},
+          optionalScopes: {},
+          isMultichainOrigin: true,
+        },
       });
-      try {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
+      ),
+    );
+
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {},
+          missingOptionalScopes: {},
+          isMultichainOrigin: true,
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
+      ),
+    );
+
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {},
+          optionalScopes: {},
+          isMultichainOrigin: 'NotABoolean',
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
+      ),
+    );
+  });
+
+  it('asserts the internal required scopeStrings are supported', () => {
+    try {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
             },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      } catch (err) {
-        // noop
-      }
-
-      expect(
-        MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1'),
-      ).toBe(false);
-      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
-    });
-
-    it('throws if not all scopeStrings are supported', () => {
-      expect(() => {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
             },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      }).toThrow(
-        new Error(
-          `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
-        ),
-      );
-    });
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    } catch (err) {
+      // noop
+    }
+    expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
+      'eip155:1',
+      expect.any(Function),
+    );
 
-    it('throws if the eth accounts specified in the internal scopeObjects are not found in the wallet keyring', () => {
-      MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
-      listAccounts.mockReturnValue([{ address: '0xdead' }]); // missing '0xbeef'
+    MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1');
+    expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
+  });
 
-      expect(() => {
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
+  it('asserts the internal optional scopeStrings are supported', () => {
+    try {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
             },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        });
-      }).toThrow(
-        new Error(
-          `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
-        ),
-      );
-    });
-
-    it('does not throw if the CAIP-25 caveat value is valid', () => {
-      MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
-      listAccounts.mockReturnValue([
-        { address: '0xdead' },
-        { address: '0xbeef' },
-      ]);
-
-      expect(
-        validator({
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {
-                  'eip155:1': {
-                    accounts: ['eip155:1:0xdead'],
-                  },
-                },
-                optionalScopes: {
-                  'eip155:5': {
-                    accounts: ['eip155:5:0xbeef'],
-                  },
-                },
-                isMultichainOrigin: true,
-              },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
             },
-          ],
-          date: 1234,
-          id: '1',
-          invoker: 'test.com',
-          parentCapability: Caip25EndowmentPermissionName,
-        }),
-      ).toBeUndefined();
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    } catch (err) {
+      // noop
+    }
+
+    expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
+      'eip155:5',
+      expect.any(Function),
+    );
+
+    MockScopeSupported.isSupportedScopeString.mock.calls[1][1]('0x5');
+    expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x5');
+  });
+
+  it('does not throw if unable to find a network client for the chainId', () => {
+    findNetworkClientIdByChainId.mockImplementation(() => {
+      throw new Error('unable to find network client');
     });
+    try {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
+            },
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    } catch (err) {
+      // noop
+    }
+
+    expect(
+      MockScopeSupported.isSupportedScopeString.mock.calls[0][1]('0x1'),
+    ).toBe(false);
+    expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
+  });
+
+  it('throws if not all scopeStrings are supported', () => {
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
+            },
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received scopeString value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
+      ),
+    );
+  });
+
+  it('throws if the eth accounts specified in the internal scopeObjects are not found in the wallet keyring', () => {
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
+    listAccounts.mockReturnValue([{ address: '0xdead' }]); // missing '0xbeef'
+
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
+            },
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
+      ),
+    );
+  });
+
+  it('does not throw if the CAIP-25 caveat value is valid', () => {
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
+    listAccounts.mockReturnValue([
+      { address: '0xdead' },
+      { address: '0xbeef' },
+    ]);
+
+    expect(
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {
+            'eip155:5': {
+              accounts: ['eip155:5:0xbeef'],
+            },
+          },
+          isMultichainOrigin: true,
+        },
+      }),
+    ).toBeUndefined();
   });
 });

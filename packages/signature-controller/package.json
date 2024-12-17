@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "23.0.1",
+  "version": "23.1.0",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -58,9 +58,9 @@
   "devDependencies": {
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.0.1",
+    "@metamask/keyring-controller": "^19.0.2",
     "@metamask/logging-controller": "^6.0.3",
-    "@metamask/network-controller": "^22.1.0",
+    "@metamask/network-controller": "^22.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
