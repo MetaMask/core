@@ -16,7 +16,7 @@ import { Caip25EndowmentPermissionName } from '../caip25Permission';
  *
  * @param request - The JSON-RPC request object.
  * @param response - The JSON-RPC response object.
- * @param _next - The next middleware function.
+ * @param _next - The next middleware function. Unused.
  * @param end - The end callback function.
  * @param hooks - The hooks object.
  * @param hooks.revokePermission - The hook for revoking a permission for an origin function.
