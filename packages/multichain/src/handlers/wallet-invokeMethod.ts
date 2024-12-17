@@ -36,7 +36,7 @@ async function walletInvokeMethodHandler(
     origin: string;
     params: {
       scope: ExternalScopeString;
-      request: Pick<JsonRpcRequest, 'method' | 'params>;
+      request: Pick<JsonRpcRequest, 'method' | 'params'>;
     };
   },
   _response: PendingJsonRpcResponse<Json>,
@@ -52,10 +52,7 @@ async function walletInvokeMethodHandler(
     getSelectedNetworkClientId: () => string;
   },
 ) {
-  const { scope, request: wrappedRequest } = request.params as {
-    scope: ExternalScopeString;
-    request: JsonRpcRequest;
-  };
+  const { scope, request: wrappedRequest } = request.params;
 
   assertIsInternalScopeString(scope);
 
