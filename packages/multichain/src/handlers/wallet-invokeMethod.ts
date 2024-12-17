@@ -32,7 +32,13 @@ import { parseScopeString } from '../scope/types';
  * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
  */
 async function walletInvokeMethodHandler(
-  request: JsonRpcRequest & { origin: string },
+  request: JsonRpcRequest & {
+    origin: string;
+    params: {
+      scope: ExternalScopeString;
+      request: Pick<JsonRpcRequest, 'method' | 'params>;
+    };
+  },
   _response: PendingJsonRpcResponse<Json>,
   next: () => void,
   end: (error: Error) => void,
