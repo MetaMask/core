@@ -76,10 +76,8 @@ describe('MultichainMiddlewareManager', () => {
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function resolves', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
-    jest
-      .spyOn(middlewareSpy, 'destroy')
-      .mockImplementation()
-      .mockResolvedValue();
+    // eslint-disable-next-line jest/prefer-spy-on
+    middlewareSpy.destroy = jest.fn().mockResolvedValue(undefined);
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -114,9 +112,9 @@ describe('MultichainMiddlewareManager', () => {
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function rejects', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
-    jest
-      .spyOn(middlewareSpy, 'destroy')
-      .mockImplementation()
+    // eslint-disable-next-line jest/prefer-spy-on
+    middlewareSpy.destroy = jest
+      .fn()
       .mockRejectedValue(
         new Error('failed to destroy the actual underlying middleware'),
       );
