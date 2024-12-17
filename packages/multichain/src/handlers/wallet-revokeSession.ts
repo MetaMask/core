@@ -12,7 +12,11 @@ import type { JsonRpcSuccess, Json, JsonRpcRequest } from '@metamask/utils';
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
 
 /**
- * Handler for the `wallet_revokeSession` RPC method.
+ * Handler for the `wallet_revokeSession` RPC method as specified by [CAIP-285](https://chainagnostic.org/CAIPs/caip-285).
+ * The implementation below deviates from the linked spec in that it ignores the `sessionId` param
+ * and instead revokes the singular session for the origin if available. Additionally,
+ * the handler also does not return an error if there is currently no active session and instead
+ * returns true which is the same result returned if an active session was actually revoked.
  *
  * @param request - The JSON-RPC request object.
  * @param response - The JSON-RPC response object.

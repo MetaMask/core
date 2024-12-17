@@ -18,7 +18,9 @@ import type { ExternalScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
- * Handler for the `wallet_invokeMethod` RPC method.
+ * Handler for the `wallet_invokeMethod` RPC method as specified by [CAIP-27](https://chainagnostic.org/CAIPs/caip-27).
+ * The implementation below deviates from the linked spec in that it ignores the `sessionId` param
+ * and instead uses the singular session for the origin if available.
  *
  * @param request - The request object.
  * @param _response - The response object. Unused.

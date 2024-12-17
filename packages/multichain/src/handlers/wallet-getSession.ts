@@ -10,7 +10,10 @@ import {
 } from '../caip25Permission';
 
 /**
- * Handler for the `wallet_getSession` RPC method.
+ * Handler for the `wallet_getSession` RPC method as specified by [CAIP-312](https://chainagnostic.org/CAIPs/caip-312).
+ * The implementation below deviates from the linked spec in that it ignores the `sessionId` param entirely,
+ * and that an empty object is returned for the `sessionScopes` result rather than throwing an error if there
+ * is no active session for the origin.
  *
  * @param request - The request object.
  * @param response - The response object.
