@@ -98,17 +98,15 @@ const multichainMethodCallValidator = async (
   return false;
 };
 
-export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware<
-  JsonRpcParams,
-  Json
-> = function (request, _response, next, end) {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  multichainMethodCallValidator(request.method, request.params).then(
-    (errors) => {
-      if (errors) {
-        return end(rpcErrors.invalidParams<JsonRpcError[]>({ data: errors }));
-      }
-      return next();
-    },
-  );
-};
+export const multichainMethodCallValidatorMiddleware = createAsyncMiddleware(
+  async (request, _response, next) => {
+    const errors = await multichainMethodCallValidator(
+      request.method,
+      request.params,
+    );
+    if (errors) {
+      throw rpcErrors.invalidParams<JsonRpcError[]>({ data: errors });
+    }
+    return await next();
+  },
+);
