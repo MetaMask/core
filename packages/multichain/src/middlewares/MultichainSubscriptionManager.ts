@@ -37,6 +37,10 @@ type MultichainSubscriptionManagerOptions = {
   getNetworkClientById: NetworkController['getNetworkClientById'];
 };
 
+/**
+ * A helper that facilates the lifecycle of a SubscriptionManager instance that
+ * is meant to handle subscriptons for only one specific scope, origin, and tabId combination.
+ */
 export class MultichainSubscriptionManager extends SafeEventEmitter {
   #findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
 
@@ -44,6 +48,13 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
 
   #subscriptions: SubscriptionEntry[] = [];
 
+  /**
+   * Construct a MultichainSubscriptionManager.
+   *
+   * @param options - The controller options.
+   * @param options.findNetworkClientIdByChainId - The hook to get the networkClientId from a chainId.
+   * @param options.getNetworkClientById - The hook to get the network client instance by its networkClientId.
+   */
   constructor(options: MultichainSubscriptionManagerOptions) {
     super();
     this.#findNetworkClientIdByChainId = options.findNetworkClientIdByChainId;
