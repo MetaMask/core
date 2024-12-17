@@ -66,8 +66,9 @@ export class MultichainMiddlewareManager {
   #removeMiddleware(middlewareEntry: MiddlewareEntry) {
     // When the destroy function on the middleware is async,
     // we don't need to wait for it complete
-    // eslint-disable-next-line no-void
-    void middlewareEntry.middleware.destroy?.();
+    Promise.resolve(middlewareEntry.middleware.destroy?.()).catch(() => {
+      // do nothing
+    });
 
     this.#removeMiddlewareEntry(middlewareEntry);
   }
