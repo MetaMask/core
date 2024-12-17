@@ -1,12 +1,13 @@
 import { MultiChainOpenRPCDocument } from '@metamask/api-specs';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
-import type { Json, JsonRpcError, JsonRpcParams } from '@metamask/utils';
+import type { JsonRpcError, JsonRpcParams } from '@metamask/utils';
 import type {
   ContentDescriptorObject,
   MethodObject,
   OpenrpcDocument,
+  ReferenceObject,
 } from '@open-rpc/meta-schema';
 import dereferenceDocument from '@open-rpc/schema-utils-js/build/dereference-document';
 import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-rpc-document';
@@ -41,6 +42,15 @@ const dereffedPromise = dereferenceDocument(
   MultiChainOpenRPCDocument as unknown as OpenrpcDocument,
   makeCustomResolver({}),
 );
+
+/**
+ * Helper that utilizes the Multichain method specifications from `@metamask/api-specs`
+ * to validate the params of a Multichain request.
+ *
+ * @param method - The request's method.
+ * @param params - The request's optional JsonRpcParams object.
+ * @returns an array of error objects for each validation error or an empty array if no errors.
+ */
 const multichainMethodCallValidator = async (
   method: string,
   params: JsonRpcParams | undefined,
@@ -48,10 +58,9 @@ const multichainMethodCallValidator = async (
   const dereffed = await dereffedPromise;
 
   const methodToCheck = dereffed.methods.find(
-    (m) => (m as unknown as ContentDescriptorObject).name === method,
-  );
+    (m: MethodObject | ReferenceObject) => (m as MethodObject).name === method,
+  ) as MethodObject | undefined;
 
-  const errors: JsonRpcError[] = [];
   if (
     !methodToCheck ||
     !isObject(methodToCheck) ||
@@ -67,16 +76,18 @@ const multichainMethodCallValidator = async (
       },
     ];
   }
-  // check each param and aggregate errors
-  (methodToCheck as unknown as MethodObject).params.forEach((param) => {
-    const p = param as ContentDescriptorObject;
+
+  const errors: JsonRpcError[] = [];
+  for (const param of methodToCheck.params) {
     if (!isObject(params)) {
-      errors.push({
-        code: -32602,
-        message: 'Invalid method parameter(s).',
-      });
-      return;
+      return [
+        {
+          code: -32602,
+          message: 'Invalid method parameter(s).',
+        },
+      ];
     }
+    const p = param as ContentDescriptorObject;
     const paramToCheck = params[p.name];
 
     const result = v.validate(paramToCheck, p.schema as unknown as Schema, {
@@ -89,26 +100,23 @@ const multichainMethodCallValidator = async (
         }),
       );
     }
-  });
-  if (errors.length > 0) {
-    return errors;
   }
-  // feels like this should return true to indicate that its valid but i'd rather check the falsy value since errors
-  // would be an array and return true if it's empty
-  return false;
+  return errors;
 };
 
-export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware<
-  JsonRpcParams,
-  Json
-> = function (request, _response, next, end) {
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  multichainMethodCallValidator(request.method, request.params).then(
-    (errors) => {
-      if (errors) {
-        return end(rpcErrors.invalidParams<JsonRpcError[]>({ data: errors }));
-      }
-      return next();
-    },
-  );
-};
+/**
+ * Middleware that validates the params of a Multichain method request
+ * using the specifications from `@metamask/api-specs`.
+ */
+export const multichainMethodCallValidatorMiddleware = createAsyncMiddleware(
+  async (request, _response, next) => {
+    const errors = await multichainMethodCallValidator(
+      request.method,
+      request.params,
+    );
+    if (errors.length > 0) {
+      throw rpcErrors.invalidParams<JsonRpcError[]>({ data: errors });
+    }
+    return await next();
+  },
+);
