@@ -12,9 +12,8 @@ export function setupAccountSyncingSubscriptions(
   options: AccountSyncingOptions,
 ) {
   const { getMessenger, getUserStorageControllerInstance } = options;
-  const messenger = getMessenger();
 
-  messenger.subscribe(
+  getMessenger().subscribe(
     'AccountsController:accountAdded',
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (account) => {
@@ -30,7 +29,7 @@ export function setupAccountSyncingSubscriptions(
     },
   );
 
-  messenger.subscribe(
+  getMessenger().subscribe(
     'AccountsController:accountRenamed',
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (account) => {

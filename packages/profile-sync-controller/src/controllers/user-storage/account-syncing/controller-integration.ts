@@ -15,51 +15,6 @@ import {
 } from './utils';
 
 /**
- * Initialize and setup events to listen to for account syncing
- * @param config - configuration parameters
- * @param options - parameters used for initializing and enabling account syncing
- */
-export function setupAccountSyncingSubscriptions(
-  config: AccountSyncingConfig,
-  options: AccountSyncingOptions,
-) {
-  const { getMessenger, getUserStorageControllerInstance } = options;
-  const messenger = getMessenger();
-
-  messenger.subscribe(
-    'AccountsController:accountAdded',
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    async (account) => {
-      if (
-        !canPerformAccountSyncing(config, options) ||
-        !getUserStorageControllerInstance().state
-          .hasAccountSyncingSyncedAtLeastOnce
-      ) {
-        return;
-      }
-
-      await saveInternalAccountToUserStorage(account, config, options);
-    },
-  );
-
-  messenger.subscribe(
-    'AccountsController:accountRenamed',
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    async (account) => {
-      if (
-        !canPerformAccountSyncing(config, options) ||
-        !getUserStorageControllerInstance().state
-          .hasAccountSyncingSyncedAtLeastOnce
-      ) {
-        return;
-      }
-
-      await saveInternalAccountToUserStorage(account, config, options);
-    },
-  );
-}
-
-/**
  * Saves an individual internal account to the user storage.
  * @param internalAccount - The internal account to save
  * @param config - parameters used for saving the internal account
@@ -74,7 +29,6 @@ export async function saveInternalAccountToUserStorage(
 
   const { isAccountSyncingEnabled } = config;
   const { getUserStorageControllerInstance } = options;
-  const userStorageControllerInstance = getUserStorageControllerInstance();
 
   if (
     !isAccountSyncingEnabled ||
@@ -90,7 +44,7 @@ export async function saveInternalAccountToUserStorage(
     const mappedAccount =
       mapInternalAccountToUserStorageAccount(internalAccount);
 
-    await userStorageControllerInstance.performSetStorage(
+    await getUserStorageControllerInstance().performSetStorage(
       // ESLint is confused here.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
@@ -99,7 +53,9 @@ export async function saveInternalAccountToUserStorage(
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
     throw new Error(
-      `${userStorageControllerInstance.name} - failed to save account to user storage - ${errorMessage}`,
+      `${
+        getUserStorageControllerInstance().name
+      } - failed to save account to user storage - ${errorMessage}`,
     );
   }
 }
@@ -115,7 +71,6 @@ export async function saveInternalAccountsListToUserStorage(
 ): Promise<void> {
   const { isAccountSyncingEnabled } = config;
   const { getUserStorageControllerInstance } = options;
-  const userStorageControllerInstance = getUserStorageControllerInstance();
 
   if (!isAccountSyncingEnabled) {
     return;
@@ -131,7 +86,7 @@ export async function saveInternalAccountsListToUserStorage(
     mapInternalAccountToUserStorageAccount,
   );
 
-  await userStorageControllerInstance.performBatchSetStorage(
+  await getUserStorageControllerInstance().performBatchSetStorage(
     USER_STORAGE_FEATURE_NAMES.accounts,
     internalAccountsListFormattedForUserStorage.map((account) => [
       account.a,
@@ -171,11 +126,11 @@ export async function syncInternalAccountsWithUserStorage(
     onAccountSyncErroneousSituation,
   } = config;
   const { getMessenger, getUserStorageControllerInstance } = options;
-  const messenger = getMessenger();
-  const userStorageControllerInstance = getUserStorageControllerInstance();
 
   try {
-    await userStorageControllerInstance.setIsAccountSyncingInProgress(true);
+    await getUserStorageControllerInstance().setIsAccountSyncingInProgress(
+      true,
+    );
 
     const userStorageAccountsList = await getUserStorageAccountsList(options);
 
@@ -184,7 +139,7 @@ export async function syncInternalAccountsWithUserStorage(
         { isAccountSyncingEnabled },
         options,
       );
-      await userStorageControllerInstance.setHasAccountSyncingSyncedAtLeastOnce(
+      await getUserStorageControllerInstance().setHasAccountSyncingSyncedAtLeastOnce(
         true,
       );
       return;
@@ -213,7 +168,7 @@ export async function syncInternalAccountsWithUserStorage(
 
       // Create new accounts to match the user storage accounts list
       for (let i = 0; i < numberOfAccountsToAdd; i++) {
-        await messenger.call('KeyringController:addNewAccount');
+        await getMessenger().call('KeyringController:addNewAccount');
         onAccountAdded?.();
       }
     }
@@ -262,7 +217,7 @@ export async function syncInternalAccountsWithUserStorage(
       // Internal account has default name
       if (isInternalAccountNameDefault) {
         if (!isUserStorageAccountNameDefault) {
-          messenger.call(
+          getMessenger().call(
             'AccountsController:updateAccountMetadata',
             internalAccount.id,
             {
@@ -296,7 +251,7 @@ export async function syncInternalAccountsWithUserStorage(
           }
         }
 
-        messenger.call(
+        getMessenger().call(
           'AccountsController:updateAccountMetadata',
           internalAccount.id,
           {
@@ -321,7 +276,7 @@ export async function syncInternalAccountsWithUserStorage(
 
     // Save the internal accounts list to the user storage
     if (internalAccountsToBeSavedToUserStorage.length) {
-      await userStorageControllerInstance.performBatchSetStorage(
+      await getUserStorageControllerInstance().performBatchSetStorage(
         USER_STORAGE_FEATURE_NAMES.accounts,
         internalAccountsToBeSavedToUserStorage.map((account) => [
           account.address,
@@ -338,7 +293,7 @@ export async function syncInternalAccountsWithUserStorage(
     );
 
     if (userStorageAccountsToBeDeleted.length) {
-      await userStorageControllerInstance.performBatchDeleteStorage(
+      await getUserStorageControllerInstance().performBatchDeleteStorage(
         USER_STORAGE_FEATURE_NAMES.accounts,
         userStorageAccountsToBeDeleted.map((account) => account.a),
       );
@@ -349,15 +304,19 @@ export async function syncInternalAccountsWithUserStorage(
 
     // We do this here and not in the finally statement because we want to make sure that
     // the accounts are saved / updated / deleted at least once before we set this flag
-    await userStorageControllerInstance.setHasAccountSyncingSyncedAtLeastOnce(
+    await getUserStorageControllerInstance().setHasAccountSyncingSyncedAtLeastOnce(
       true,
     );
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
     throw new Error(
-      `${userStorageControllerInstance.name} - failed to sync user storage accounts list - ${errorMessage}`,
+      `${
+        getUserStorageControllerInstance().name
+      } - failed to sync user storage accounts list - ${errorMessage}`,
     );
   } finally {
-    await userStorageControllerInstance.setIsAccountSyncingInProgress(false);
+    await getUserStorageControllerInstance().setIsAccountSyncingInProgress(
+      false,
+    );
   }
 }

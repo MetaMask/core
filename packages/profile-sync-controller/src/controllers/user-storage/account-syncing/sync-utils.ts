@@ -21,12 +21,11 @@ export function canPerformAccountSyncing(
   const { isAccountSyncingEnabled } = config;
   const { getMessenger, getUserStorageControllerInstance } = options;
 
-  const messenger = getMessenger();
-  const userStorageControllerInstance = getUserStorageControllerInstance();
-
   const { isProfileSyncingEnabled, isAccountSyncingInProgress } =
-    userStorageControllerInstance.state;
-  const isAuthEnabled = messenger.call('AuthenticationController:isSignedIn');
+    getUserStorageControllerInstance().state;
+  const isAuthEnabled = getMessenger().call(
+    'AuthenticationController:isSignedIn',
+  );
 
   try {
     if (
@@ -54,10 +53,9 @@ export async function getInternalAccountsList(
   options: AccountSyncingOptions,
 ): Promise<InternalAccount[]> {
   const { getMessenger } = options;
-  const messenger = getMessenger();
 
   // eslint-disable-next-line @typescript-eslint/await-thenable
-  const internalAccountsList = await messenger.call(
+  const internalAccountsList = await getMessenger().call(
     'AccountsController:listAccounts',
   );
 
@@ -74,10 +72,9 @@ export async function getUserStorageAccountsList(
   options: AccountSyncingOptions,
 ): Promise<UserStorageAccount[] | null> {
   const { getUserStorageControllerInstance } = options;
-  const userStorageControllerInstance = getUserStorageControllerInstance();
 
   const rawAccountsListResponse =
-    await userStorageControllerInstance.performGetStorageAllFeatureEntries(
+    await getUserStorageControllerInstance().performGetStorageAllFeatureEntries(
       USER_STORAGE_FEATURE_NAMES.accounts,
     );
 
