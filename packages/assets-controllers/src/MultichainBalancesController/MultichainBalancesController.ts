@@ -43,9 +43,16 @@ export type MultichainBalancesControllerState = {
 };
 
 /**
- * Default state of the {@link MultichainBalancesController}.
+ * Constructs the default {@link MultichainBalancesController} state. This allows
+ * consumers to provide a partial state object when initializing the controller
+ * and also helps in constructing complete state objects for this controller in
+ * tests.
+ *
+ * @returns The default {@link MultichainBalancesController} state.
  */
-export const defaultState: MultichainBalancesControllerState = { balances: {} };
+export function getDefaultMultichainBalancesControllerState(): MultichainBalancesControllerState {
+  return { balances: {} };
+}
 
 /**
  * Returns the state of the {@link MultichainBalancesController}.
@@ -89,14 +96,14 @@ export type MultichainBalancesControllerEvents =
 /**
  * Actions that this controller is allowed to call.
  */
-export type AllowedActions =
+type AllowedActions =
   | HandleSnapRequest
   | AccountsControllerListMultichainAccountsAction;
 
 /**
  * Events that this controller is allowed to subscribe.
  */
-export type AllowedEvents =
+type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent;
 
@@ -139,17 +146,17 @@ export class MultichainBalancesController extends BaseController<
 
   constructor({
     messenger,
-    state,
+    state = {},
   }: {
     messenger: MultichainBalancesControllerMessenger;
-    state: MultichainBalancesControllerState;
+    state?: Partial<MultichainBalancesControllerState>;
   }) {
     super({
       messenger,
       name: controllerName,
       metadata: balancesControllerMetadata,
       state: {
-        ...defaultState,
+        ...getDefaultMultichainBalancesControllerState(),
         ...state,
       },
     });
@@ -255,27 +262,24 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param accountId - The account ID.
    */
+
   async #updateBalance(accountId: string) {
     const account = this.#getAccount(accountId);
-    const partialState: MultichainBalancesControllerState = { balances: {} };
 
     if (account.metadata.snap) {
       const scope = getScopeForAccount(account);
       const assetTypes = NETWORK_ASSETS_MAP[scope];
 
-      partialState.balances[account.id] = await this.#getBalances(
+      const accountBalance = await this.#getBalances(
         account.id,
         account.metadata.snap.id,
         assetTypes,
       );
-    }
 
-    this.update((state: Draft<MultichainBalancesControllerState>) => {
-      state.balances = {
-        ...state.balances,
-        ...partialState.balances,
-      };
-    });
+      this.update((state: Draft<MultichainBalancesControllerState>) => {
+        state.balances[accountId] = accountBalance;
+      });
+    }
   }
 
   /**
@@ -284,7 +288,7 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param accountId - The account ID.
    */
-  async updateBalance(accountId: string) {
+  async updateBalance(accountId: string): Promise<void> {
     // NOTE: No need to track the account here, since we start tracking those when
     // the "AccountsController:accountAdded" is fired.
     await this.#tracker.updateBalance(accountId);
@@ -294,7 +298,7 @@ export class MultichainBalancesController extends BaseController<
    * Updates the balances of all supported accounts. This method doesn't return
    * anything, but it updates the state of the controller.
    */
-  async updateBalances() {
+  async updateBalances(): Promise<void> {
     await this.#tracker.updateBalances();
   }
 
@@ -317,7 +321,7 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param account - The new account being added.
    */
-  async #handleOnAccountAdded(account: InternalAccount) {
+  async #handleOnAccountAdded(account: InternalAccount): Promise<void> {
     if (!this.#isNonEvmAccount(account)) {
       // Nothing to do here for EVM accounts
       return;
@@ -338,7 +342,7 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param accountId - The account ID being removed.
    */
-  async #handleOnAccountRemoved(accountId: string) {
+  async #handleOnAccountRemoved(accountId: string): Promise<void> {
     if (this.#tracker.isTracked(accountId)) {
       this.#tracker.untrack(accountId);
     }
@@ -346,7 +350,6 @@ export class MultichainBalancesController extends BaseController<
     if (accountId in this.state.balances) {
       this.update((state: Draft<MultichainBalancesControllerState>) => {
         delete state.balances[accountId];
-        return state;
       });
     }
   }
