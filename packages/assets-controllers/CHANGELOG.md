@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: Prevent State Changes for ignoreTokens on Non-Current Network ([#5014](https://github.com/MetaMask/core/pull/5014))
+
 ## [45.1.2]
 
 ### Changed

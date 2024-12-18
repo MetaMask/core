@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump nanoid dependency ([#5073](https://github.com/MetaMask/core/pull/5073))
+
 ## [7.1.1]
 
 ### Changed
