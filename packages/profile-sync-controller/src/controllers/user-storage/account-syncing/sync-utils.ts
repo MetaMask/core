@@ -27,22 +27,16 @@ export function canPerformAccountSyncing(
     'AuthenticationController:isSignedIn',
   );
 
-  try {
-    if (
-      !isProfileSyncingEnabled ||
-      !isAuthEnabled ||
-      !isAccountSyncingEnabled
-    ) {
-      return false;
-    }
-    if (isAccountSyncingInProgress) {
-      return false;
-    }
-
-    return true;
-  } catch {
+  if (
+    !isProfileSyncingEnabled ||
+    !isAuthEnabled ||
+    !isAccountSyncingEnabled ||
+    isAccountSyncingInProgress
+  ) {
     return false;
   }
+
+  return true;
 }
 
 /**

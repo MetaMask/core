@@ -51,6 +51,7 @@ export async function saveInternalAccountToUserStorage(
       JSON.stringify(mappedAccount),
     );
   } catch (e) {
+    // istanbul ignore next
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
     throw new Error(
       `${
@@ -78,7 +79,7 @@ export async function saveInternalAccountsListToUserStorage(
 
   const internalAccountsList = await getInternalAccountsList(options);
 
-  if (!internalAccountsList) {
+  if (!internalAccountsList?.length) {
     return;
   }
 
@@ -190,6 +191,7 @@ export async function syncInternalAccountsWithUserStorage(
       );
 
       // If the account is not present in user storage
+      // istanbul ignore next
       if (!userStorageAccount) {
         // If the account was just added in the previous step, skip saving it, it's likely to be a bogus account
         if (newlyAddedAccounts.includes(internalAccount)) {
@@ -308,6 +310,7 @@ export async function syncInternalAccountsWithUserStorage(
       true,
     );
   } catch (e) {
+    // istanbul ignore next
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
     throw new Error(
       `${

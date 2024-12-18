@@ -11,87 +11,57 @@ import * as utils from './utils';
 
 describe('user-storage/account-syncing/sync-utils', () => {
   describe('canPerformAccountSyncing', () => {
-    it('returns false if profile syncing is not enabled', () => {
-      const config: AccountSyncingConfig = { isAccountSyncingEnabled: true };
+    const arrangeMocks = ({
+      isAccountSyncingEnabled = true,
+      isProfileSyncingEnabled = true,
+      isAccountSyncingInProgress = false,
+      messengerCallControllerAndAction = 'AuthenticationController:isSignedIn',
+      messengerCallCallback = () => true,
+    }) => {
+      const config: AccountSyncingConfig = { isAccountSyncingEnabled };
       const options: AccountSyncingOptions = {
         getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockReturnValue(true),
+          call: jest
+            .fn()
+            .mockImplementation((controllerAndActionName) =>
+              controllerAndActionName === messengerCallControllerAndAction
+                ? messengerCallCallback()
+                : null,
+            ),
         }),
         getUserStorageControllerInstance: jest.fn().mockReturnValue({
           state: {
-            isProfileSyncingEnabled: false,
-            isAccountSyncingInProgress: false,
+            isProfileSyncingEnabled,
+            isAccountSyncingInProgress,
           },
         }),
       };
 
-      expect(canPerformAccountSyncing(config, options)).toBe(false);
-    });
+      return { config, options };
+    };
 
-    it('returns false if authentication is not enabled', () => {
-      const config: AccountSyncingConfig = { isAccountSyncingEnabled: true };
-      const options: AccountSyncingOptions = {
-        getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockReturnValue(false),
-        }),
-        getUserStorageControllerInstance: jest.fn().mockReturnValue({
-          state: {
-            isProfileSyncingEnabled: true,
-            isAccountSyncingInProgress: false,
-          },
-        }),
-      };
+    const failureCases = [
+      ['profile syncing is not enabled', { isProfileSyncingEnabled: false }],
+      [
+        'authentication is not enabled',
+        {
+          messengerCallControllerAndAction:
+            'AuthenticationController:isSignedIn',
+          messengerCallCallback: () => false,
+        },
+      ],
+      ['account syncing is not enabled', { isAccountSyncingEnabled: false }],
+      ['account syncing is in progress', { isAccountSyncingInProgress: true }],
+    ] as const;
 
-      expect(canPerformAccountSyncing(config, options)).toBe(false);
-    });
-
-    it('returns false if account syncing is not enabled', () => {
-      const config: AccountSyncingConfig = { isAccountSyncingEnabled: false };
-      const options: AccountSyncingOptions = {
-        getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockReturnValue(true),
-        }),
-        getUserStorageControllerInstance: jest.fn().mockReturnValue({
-          state: {
-            isProfileSyncingEnabled: true,
-            isAccountSyncingInProgress: false,
-          },
-        }),
-      };
-
-      expect(canPerformAccountSyncing(config, options)).toBe(false);
-    });
-
-    it('returns false if account syncing is in progress', () => {
-      const config: AccountSyncingConfig = { isAccountSyncingEnabled: true };
-      const options: AccountSyncingOptions = {
-        getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockReturnValue(true),
-        }),
-        getUserStorageControllerInstance: jest.fn().mockReturnValue({
-          state: {
-            isProfileSyncingEnabled: true,
-            isAccountSyncingInProgress: true,
-          },
-        }),
-      };
+    it.each(failureCases)('returns false if %s', (_message, mocks) => {
+      const { config, options } = arrangeMocks(mocks);
 
       expect(canPerformAccountSyncing(config, options)).toBe(false);
     });
 
     it('returns true if all conditions are met', () => {
-      const config: AccountSyncingConfig = { isAccountSyncingEnabled: true };
-      const options: AccountSyncingOptions = {
-        getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockReturnValue(true),
-        }),
-        getUserStorageControllerInstance: jest.fn().mockReturnValue({
-          state: {
-            isProfileSyncingEnabled: true,
-            isAccountSyncingInProgress: false,
-          },
-        }),
-      };
+      const { config, options } = arrangeMocks({});
 
       expect(canPerformAccountSyncing(config, options)).toBe(true);
     });
@@ -106,7 +76,13 @@ describe('user-storage/account-syncing/sync-utils', () => {
 
       const options: AccountSyncingOptions = {
         getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockResolvedValue(internalAccounts),
+          call: jest
+            .fn()
+            .mockImplementation((controllerAndActionName) =>
+              controllerAndActionName === 'AccountsController:listAccounts'
+                ? internalAccounts
+                : null,
+            ),
         }),
         getUserStorageControllerInstance: jest.fn(),
       };
@@ -125,6 +101,7 @@ describe('user-storage/account-syncing/sync-utils', () => {
   describe('getUserStorageAccountsList', () => {
     it('returns parsed user storage accounts list', async () => {
       const rawAccounts = ['{"id":"1"}', '{"id":"2"}'];
+
       const options: AccountSyncingOptions = {
         getUserStorageControllerInstance: jest.fn().mockReturnValue({
           performGetStorageAllFeatureEntries: jest

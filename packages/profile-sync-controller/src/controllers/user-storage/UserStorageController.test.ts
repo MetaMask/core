@@ -845,9 +845,14 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       AccountSyncControllerIntegrationModule,
       'syncInternalAccountsWithUserStorage',
     );
+    const mockSaveInternalAccountToUserStorage = jest.spyOn(
+      AccountSyncControllerIntegrationModule,
+      'saveInternalAccountToUserStorage',
+    );
     return {
       messenger: messengerMocks.messenger,
       mockSyncInternalAccountsWithUserStorage,
+      mockSaveInternalAccountToUserStorage,
     };
   };
 
@@ -865,11 +870,35 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         // This is done to prevent creating unnecessary nock instances in this test
         isAccountSyncingEnabled: false,
       },
+      config: {
+        accountSyncing: {
+          onAccountAdded: jest.fn(),
+          onAccountNameUpdated: jest.fn(),
+          onAccountSyncErroneousSituation: jest.fn(),
+        },
+      },
     });
 
-    mockSyncInternalAccountsWithUserStorage.mockImplementation(async () => {
-      return undefined;
-    });
+    mockSyncInternalAccountsWithUserStorage.mockImplementation(
+      async (
+        {
+          onAccountAdded,
+          onAccountNameUpdated,
+          onAccountSyncErroneousSituation,
+        },
+        {
+          getMessenger = jest.fn(),
+          getUserStorageControllerInstance = jest.fn(),
+        },
+      ) => {
+        onAccountAdded?.();
+        onAccountNameUpdated?.();
+        onAccountSyncErroneousSituation?.('error message');
+        getMessenger();
+        getUserStorageControllerInstance();
+        return undefined;
+      },
+    );
 
     await controller.syncInternalAccountsWithUserStorage();
 
@@ -905,9 +934,20 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       },
     });
 
-    mockSaveInternalAccountToUserStorage.mockImplementation(async () => {
-      return undefined;
-    });
+    mockSaveInternalAccountToUserStorage.mockImplementation(
+      async (
+        _internalAccount,
+        _config,
+        {
+          getMessenger = jest.fn(),
+          getUserStorageControllerInstance = jest.fn(),
+        },
+      ) => {
+        getMessenger();
+        getUserStorageControllerInstance();
+        return undefined;
+      },
+    );
 
     await controller.saveInternalAccountToUserStorage({
       id: '1',

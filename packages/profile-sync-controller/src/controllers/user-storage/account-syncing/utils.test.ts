@@ -29,19 +29,19 @@ describe('user-storage/account-syncing/utils', () => {
     });
   });
   describe('mapInternalAccountToUserStorageAccount', () => {
-    it('should map an internal account to a user storage account with default account name', () => {
-      const internalAccount = {
-        address: '0x123',
-        id: '1',
-        metadata: {
-          name: `${getMockRandomDefaultAccountName()} 1`,
-          nameLastUpdatedAt: 1620000000000,
-          keyring: {
-            type: KeyringTypes.hd,
-          },
+    const internalAccount = {
+      address: '0x123',
+      id: '1',
+      metadata: {
+        name: `${getMockRandomDefaultAccountName()} 1`,
+        nameLastUpdatedAt: 1620000000000,
+        keyring: {
+          type: KeyringTypes.hd,
         },
-      } as InternalAccount;
+      },
+    } as InternalAccount;
 
+    it('should map an internal account to a user storage account with default account name', () => {
       const userStorageAccount =
         mapInternalAccountToUserStorageAccount(internalAccount);
 
@@ -54,27 +54,24 @@ describe('user-storage/account-syncing/utils', () => {
     });
 
     it('should map an internal account to a user storage account with non-default account name', () => {
-      const internalAccount = {
-        address: '0x123',
-        id: '1',
+      const internalAccountWithCustomName = {
+        ...internalAccount,
         metadata: {
+          ...internalAccount.metadata,
           name: 'My Account',
-          nameLastUpdatedAt: 1620000000000,
-          keyring: {
-            type: KeyringTypes.hd,
-          },
         },
       } as InternalAccount;
 
-      const userStorageAccount =
-        mapInternalAccountToUserStorageAccount(internalAccount);
+      const userStorageAccount = mapInternalAccountToUserStorageAccount(
+        internalAccountWithCustomName,
+      );
 
       expect(userStorageAccount).toStrictEqual({
         [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
-        a: internalAccount.address,
-        i: internalAccount.id,
-        n: internalAccount.metadata.name,
-        nlu: internalAccount.metadata.nameLastUpdatedAt,
+        a: internalAccountWithCustomName.address,
+        i: internalAccountWithCustomName.id,
+        n: internalAccountWithCustomName.metadata.name,
+        nlu: internalAccountWithCustomName.metadata.nameLastUpdatedAt,
       });
     });
   });

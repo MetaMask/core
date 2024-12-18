@@ -23,7 +23,80 @@ import {
   mockUserStorageMessengerForAccountSyncing,
 } from './__fixtures__/test-utils';
 import * as AccountSyncingControllerIntegrationModule from './controller-integration';
+import * as AccountSyncingUtils from './sync-utils';
 import * as AccountsUserStorageModule from './utils';
+
+describe('user-storage/account-syncing/controller-integration - saveInternalAccountsListToUserStorage() tests', () => {
+  it('returns void if account syncing is not enabled', async () => {
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessengerForAccountSyncing(),
+      };
+    };
+
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: false,
+      },
+      getMetaMetricsState: () => true,
+    });
+
+    const mockPerformBatchSetStorage = jest
+      .spyOn(controller, 'performBatchSetStorage')
+      .mockImplementation(() => Promise.resolve());
+
+    await AccountSyncingControllerIntegrationModule.saveInternalAccountsListToUserStorage(
+      {
+        isAccountSyncingEnabled: false,
+      },
+      {
+        getMessenger: () => messengerMocks.messenger,
+        getUserStorageControllerInstance: () => controller,
+      },
+    );
+
+    expect(mockPerformBatchSetStorage).not.toHaveBeenCalled();
+  });
+
+  it('returns void if account syncing is enabled but the internal accounts list is empty', async () => {
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessengerForAccountSyncing(),
+      };
+    };
+
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
+      getMetaMetricsState: () => true,
+    });
+
+    jest
+      .spyOn(AccountSyncingUtils, 'getInternalAccountsList')
+      .mockResolvedValue([]);
+
+    const mockPerformBatchSetStorage = jest
+      .spyOn(controller, 'performBatchSetStorage')
+      .mockImplementation(() => Promise.resolve());
+
+    await AccountSyncingControllerIntegrationModule.saveInternalAccountsListToUserStorage(
+      {
+        isAccountSyncingEnabled: true,
+      },
+      {
+        getMessenger: () => messengerMocks.messenger,
+        getUserStorageControllerInstance: () => controller,
+      },
+    );
+
+    expect(mockPerformBatchSetStorage).not.toHaveBeenCalled();
+  });
+});
 
 describe('user-storage/account-syncing/controller-integration - syncInternalAccountsWithUserStorage() tests', () => {
   it('returns void if UserStorage is not enabled', async () => {
@@ -49,6 +122,8 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         isAccountSyncingInProgress: false,
       },
     });
+
+    await controller.setIsAccountSyncingReadyToBeDispatched(true);
 
     await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
       {
@@ -1339,6 +1414,33 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
         expect.anything(),
         expect.anything(),
       );
+    });
+
+    it('does not save an internal account to user storage when the AccountsController:accountRenamed event is fired and account syncing has never been dispatched at least once', async () => {
+      const { messengerMocks } = await arrangeMocksForAccounts();
+      const { baseMessenger, messenger } = messengerMocks;
+
+      new UserStorageController({
+        messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      const mockSaveInternalAccountToUserStorage = jest
+        .spyOn(
+          AccountSyncingControllerIntegrationModule,
+          'saveInternalAccountToUserStorage',
+        )
+        .mockImplementation();
+
+      baseMessenger.publish(
+        'AccountsController:accountRenamed',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+      );
+
+      expect(mockSaveInternalAccountToUserStorage).not.toHaveBeenCalled();
     });
 
     it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
