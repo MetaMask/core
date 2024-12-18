@@ -51,6 +51,8 @@ export async function saveInternalAccountToUserStorage(
   } catch (e) {
     // istanbul ignore next
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+    // ESLint is confused here.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(
       `${
         getUserStorageControllerInstance().name
@@ -310,6 +312,8 @@ export async function syncInternalAccountsWithUserStorage(
   } catch (e) {
     // istanbul ignore next
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+    // ESLint is confused here.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(
       `${
         getUserStorageControllerInstance().name
