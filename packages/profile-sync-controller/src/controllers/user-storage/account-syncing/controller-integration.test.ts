@@ -26,9 +26,8 @@ import * as AccountSyncingControllerIntegrationModule from './controller-integra
 import * as AccountSyncingUtils from './sync-utils';
 import * as AccountsUserStorageModule from './utils';
 
-// By default, everything is disabled
 const baseState = {
-  isProfileSyncingEnabled: false,
+  isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
@@ -36,7 +35,7 @@ const baseState = {
 };
 
 const arrangeMocks = async ({
-  isAccountSyncingEnabled = false,
+  isAccountSyncingEnabled = true,
   stateOverrides = baseState as Partial<typeof baseState>,
   messengerMockOptions = undefined as Parameters<
     typeof mockUserStorageMessengerForAccountSyncing
@@ -92,9 +91,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
   });
 
   it('returns void if account syncing is enabled but the internal accounts list is empty', async () => {
-    const { controller, config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-    });
+    const { controller, config, options } = await arrangeMocks({});
 
     const mockPerformBatchSetStorage = jest
       .spyOn(controller, 'performBatchSetStorage')
@@ -115,9 +112,11 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
 
 describe('user-storage/account-syncing/controller-integration - syncInternalAccountsWithUserStorage() tests', () => {
   it('returns void if UserStorage is not enabled', async () => {
-    const { config, controller, messengerMocks, options } = await arrangeMocks(
-      {},
-    );
+    const { config, controller, messengerMocks, options } = await arrangeMocks({
+      stateOverrides: {
+        isProfileSyncingEnabled: false,
+      },
+    });
 
     await mockEndpointGetUserStorage();
 
@@ -152,10 +151,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   it('throws if AccountsController:listAccounts fails or returns an empty list', async () => {
     const { config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-      stateOverrides: {
-        isProfileSyncingEnabled: true,
-      },
       messengerMockOptions: {
         accounts: {
           accountsList: [],
@@ -188,10 +183,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   it('uploads accounts list to user storage if user storage is empty', async () => {
     const { config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-      stateOverrides: {
-        isProfileSyncingEnabled: true,
-      },
       messengerMockOptions: {
         accounts: {
           accountsList: MOCK_INTERNAL_ACCOUNTS.ALL.slice(
@@ -245,10 +236,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   it('creates internal accounts if user storage has more accounts. it also updates hasAccountSyncingSyncedAtLeastOnce accordingly', async () => {
     const { messengerMocks, controller, config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-      stateOverrides: {
-        isProfileSyncingEnabled: true,
-      },
       messengerMockOptions: {
         accounts: {
           accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
@@ -312,10 +299,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   describe('handles corrupted user storage gracefully', () => {
     const arrangeMocksForBogusAccounts = async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -399,10 +382,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   it('fires the onAccountAdded callback when adding an account', async () => {
     const { config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-      stateOverrides: {
-        isProfileSyncingEnabled: true,
-      },
       messengerMockOptions: {
         accounts: {
           accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
@@ -466,10 +445,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   it('does not create internal accounts if user storage has less accounts', async () => {
     const { messengerMocks, config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-      stateOverrides: {
-        isProfileSyncingEnabled: true,
-      },
       messengerMockOptions: {
         accounts: {
           accountsList: MOCK_INTERNAL_ACCOUNTS.ALL.slice(
@@ -513,10 +488,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   describe('User storage name is a default name', () => {
     it('does not update the internal account name if both user storage and internal accounts have default names', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -552,10 +523,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('does not update the internal account name if the internal account name is custom without last updated', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -595,10 +562,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('does not update the internal account name if the internal account name is custom with last updated', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -640,10 +603,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   describe('User storage name is a custom name without last updated', () => {
     it('updates the internal account name if the internal account name is a default name', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -685,10 +644,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('does not update internal account name if both user storage and internal accounts have custom names without last updated', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -724,10 +679,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('does not update the internal account name if the internal account name is custom with last updated', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -767,10 +718,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('fires the onAccountNameUpdated callback when renaming an internal account', async () => {
       const { config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -811,10 +758,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   describe('User storage name is a custom name with last updated', () => {
     it('updates the internal account name if the internal account name is a default name', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -856,10 +799,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('updates the internal account name and last updated if the internal account name is a custom name without last updated', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -903,10 +842,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('updates the internal account name and last updated if the user storage account is more recent', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -950,10 +885,6 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     it('does not update the internal account if the user storage account is less recent', async () => {
       const { messengerMocks, config, options } = await arrangeMocks({
-        isAccountSyncingEnabled: true,
-        stateOverrides: {
-          isProfileSyncingEnabled: true,
-        },
         messengerMockOptions: {
           accounts: {
             accountsList:
@@ -996,7 +927,9 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 describe('user-storage/account-syncing/controller-integration - saveInternalAccountToUserStorage() tests', () => {
   it('returns void if UserStorage is not enabled', async () => {
     const { config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
+      stateOverrides: {
+        isProfileSyncingEnabled: false,
+      },
     });
 
     const mapInternalAccountToUserStorageAccountMock = jest.spyOn(
@@ -1034,12 +967,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
   });
 
   it('saves an internal account to user storage', async () => {
-    const { config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-      stateOverrides: {
-        isProfileSyncingEnabled: true,
-      },
-    });
+    const { config, options } = await arrangeMocks({});
     const mockAPI = {
       mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
         `${USER_STORAGE_FEATURE_NAMES.accounts}.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
@@ -1056,12 +984,7 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
   });
 
   it('rejects if api call fails', async () => {
-    const { config, options } = await arrangeMocks({
-      isAccountSyncingEnabled: true,
-      stateOverrides: {
-        isProfileSyncingEnabled: true,
-      },
-    });
+    const { config, options } = await arrangeMocks({});
 
     mockEndpointUpsertUserStorage(
       `${USER_STORAGE_FEATURE_NAMES.accounts}.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
@@ -1081,10 +1004,6 @@ describe('user-storage/account-syncing/controller-integration - saveInternalAcco
     const arrangeMocksForAccounts = async () => {
       const { messengerMocks, controller, config, options } =
         await arrangeMocks({
-          isAccountSyncingEnabled: true,
-          stateOverrides: {
-            isProfileSyncingEnabled: true,
-          },
           messengerMockOptions: {
             accounts: {
               accountsList:
