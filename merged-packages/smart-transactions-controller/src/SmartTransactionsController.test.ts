@@ -5,6 +5,9 @@ import {
   ChainId,
 } from '@metamask/controller-utils';
 import {
+  type NetworkControllerGetNetworkClientByIdAction,
+  type NetworkControllerGetStateAction,
+  type NetworkControllerStateChangeEvent,
   NetworkStatus,
   RpcEndpointType,
   type NetworkState,
@@ -25,8 +28,6 @@ import SmartTransactionsController, {
   getDefaultSmartTransactionsControllerState,
 } from './SmartTransactionsController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   SmartTransactionsControllerActions,
   SmartTransactionsControllerEvents,
 } from './SmartTransactionsController';
@@ -1237,6 +1238,7 @@ describe('SmartTransactionsController', () => {
                 txParams: {
                   from: '0x123',
                 },
+                networkClientId: NetworkType.mainnet,
               },
             ],
             state: {
@@ -1267,6 +1269,7 @@ describe('SmartTransactionsController', () => {
               txParams: {
                 from: '0x123',
               },
+              networkClientId: NetworkType.mainnet,
             },
             'Smart transaction cancelled',
           );
@@ -1294,6 +1297,7 @@ describe('SmartTransactionsController', () => {
                 txParams: {
                   from: '0x123',
                 },
+                networkClientId: NetworkType.mainnet,
               },
             ],
           },
@@ -1361,6 +1365,7 @@ describe('SmartTransactionsController', () => {
                 txParams: {
                   from: '0x123',
                 },
+                networkClientId: NetworkType.mainnet,
               },
             ],
           },
@@ -1942,8 +1947,10 @@ async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const { options } = rest;
   const controllerMessenger = new ControllerMessenger<
-    SmartTransactionsControllerActions | AllowedActions,
-    SmartTransactionsControllerEvents | AllowedEvents
+    | SmartTransactionsControllerActions
+    | NetworkControllerGetNetworkClientByIdAction
+    | NetworkControllerGetStateAction,
+    SmartTransactionsControllerEvents | NetworkControllerStateChangeEvent
   >();
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
@@ -1969,9 +1976,19 @@ async function withController<ReturnValue>(
     }),
   );
 
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getState',
+    jest.fn().mockReturnValue({
+      selectedNetworkClientId: NetworkType.mainnet,
+    }),
+  );
+
   const messenger = controllerMessenger.getRestricted({
     name: 'SmartTransactionsController',
-    allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedActions: [
+      'NetworkController:getNetworkClientById',
+      'NetworkController:getState',
+    ],
     allowedEvents: ['NetworkController:stateChange'],
   });
 

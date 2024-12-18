@@ -1,3 +1,4 @@
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
 /** API */
@@ -103,6 +104,7 @@ export type SmartTransaction = {
   accountType?: string;
   deviceModel?: string;
   transactionId?: string; // It's an ID for a regular transaction from the TransactionController.
+  networkClientId?: NetworkClientId;
 };
 
 export type Fee = {

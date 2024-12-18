@@ -14,6 +14,7 @@ import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -138,7 +139,9 @@ export type SmartTransactionsControllerGetStateAction =
 export type SmartTransactionsControllerActions =
   SmartTransactionsControllerGetStateAction;
 
-export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction;
 
 export type SmartTransactionsControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -164,7 +167,7 @@ export type SmartTransactionsControllerEvents =
   | SmartTransactionsControllerSmartTransactionEvent
   | SmartTransactionsControllerSmartTransactionConfirmationDoneEvent;
 
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+type AllowedEvents = NetworkControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link SmartTransactionsController}.
@@ -763,6 +766,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         status: calculateStatus(stxStatus),
         cancellable: isSmartTransactionCancellable(stxStatus),
         uuid,
+        networkClientId,
       };
       await this.#createOrUpdateSmartTransaction(smartTransaction, {
         chainId,
@@ -773,10 +777,14 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     return data;
   }
 
-  async addNonceToTransaction(
+  async #addNonceToTransaction(
     transaction: UnsignedTransaction,
+    networkClientId: NetworkClientId,
   ): Promise<UnsignedTransaction> {
-    const nonceLock = await this.#getNonceLock(transaction.from);
+    const nonceLock = await this.#getNonceLock(
+      transaction.from,
+      networkClientId,
+    );
     const nonce = nonceLock.nextNonce;
     nonceLock.releaseLock();
     return {
@@ -802,12 +810,18 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     approvalTx?: UnsignedTransaction,
     { networkClientId }: { networkClientId?: NetworkClientId } = {},
   ): Promise<Fees> {
-    const chainId = this.#getChainId({ networkClientId });
+    const selectedNetworkClientId =
+      networkClientId ??
+      this.messagingSystem.call('NetworkController:getState')
+        .selectedNetworkClientId;
+    const chainId = this.#getChainId({
+      networkClientId: selectedNetworkClientId,
+    });
     const transactions = [];
     let unsignedTradeTransactionWithNonce;
     if (approvalTx) {
       const unsignedApprovalTransactionWithNonce =
-        await this.addNonceToTransaction(approvalTx);
+        await this.#addNonceToTransaction(approvalTx, selectedNetworkClientId);
       transactions.push(unsignedApprovalTransactionWithNonce);
       unsignedTradeTransactionWithNonce = {
         ...tradeTx,
@@ -817,8 +831,9 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     } else if (tradeTx.nonce) {
       unsignedTradeTransactionWithNonce = tradeTx;
     } else {
-      unsignedTradeTransactionWithNonce = await this.addNonceToTransaction(
+      unsignedTradeTransactionWithNonce = await this.#addNonceToTransaction(
         tradeTx,
+        selectedNetworkClientId,
       );
     }
     transactions.push(unsignedTradeTransactionWithNonce);
@@ -875,8 +890,16 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     txParams?: TransactionParams;
     networkClientId?: NetworkClientId;
   }) {
-    const chainId = this.#getChainId({ networkClientId });
-    const ethQuery = this.#getEthQuery({ networkClientId });
+    const selectedNetworkClientId =
+      networkClientId ??
+      this.messagingSystem.call('NetworkController:getState')
+        .selectedNetworkClientId;
+    const chainId = this.#getChainId({
+      networkClientId: selectedNetworkClientId,
+    });
+    const ethQuery = this.#getEthQuery({
+      networkClientId: selectedNetworkClientId,
+    });
     const data = await this.#fetch(
       getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, chainId),
       {
@@ -904,7 +927,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     let nonceDetails = {};
 
     if (requiresNonce) {
-      nonceLock = await this.#getNonceLock(txParams.from);
+      nonceLock = await this.#getNonceLock(
+        txParams.from,
+        selectedNetworkClientId,
+      );
       nonce = hexlify(nonceLock.nextNonce);
       nonceDetails = nonceLock.nonceDetails;
       txParams.nonce ??= nonce;
@@ -928,6 +954,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           cancellable: true,
           type: transactionMeta?.type ?? 'swap',
           transactionId: transactionMeta?.id,
+          networkClientId: selectedNetworkClientId,
         },
         { chainId, ethQuery },
       );

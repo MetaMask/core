@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- **BREAKING** Update `@metamask/transaction-controller` peer dependency from `^38.0.0` to `^42.0.0` ([#482](https://github.com/MetaMask/smart-transactions-controller/pull/482))
+
+### Removed
+- **BREAKING** Remove exports for `AllowedActions` and `AllowedEvents` types ([#482](https://github.com/MetaMask/smart-transactions-controller/pull/482))
 
 ## [15.1.0]
 ### Changed
