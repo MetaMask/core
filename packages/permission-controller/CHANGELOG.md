@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: bump nanoid dependency ([#5073](https://github.com/MetaMask/core/pull/5073))
-- refactor(permission-controller): Rationalize permission and caveat validation ([#5062](https://github.com/MetaMask/core/pull/5062))
-
 ## [11.0.4]
 
 ### Changed
