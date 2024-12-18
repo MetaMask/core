@@ -13,6 +13,7 @@ import {
 } from '@metamask/utils';
 
 import type { Block } from './types';
+import { stripArrayTypeIfPresent } from './utils/common';
 import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 
 /*
@@ -243,6 +244,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
 
     const address = await validateAndNormalizeKeyholder(params[0], req);
     const message = normalizeTypedMessage(params[1]);
+    validatePrimaryType(message);
     validateVerifyingContract(message);
     const version = 'V3';
     const msgParams: TypedMessageParams = {
@@ -274,6 +276,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
 
     const address = await validateAndNormalizeKeyholder(params[0], req);
     const message = normalizeTypedMessage(params[1]);
+    validatePrimaryType(message);
     validateVerifyingContract(message);
     const version = 'V4';
     const msgParams: TypedMessageParams = {
@@ -454,6 +457,27 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     throw rpcErrors.invalidParams({
       message: `Invalid parameters: must provide an Ethereum address.`,
     });
+  }
+}
+
+/**
+ * Validates primary of typedSignMessage, to ensure that it's type definition is present in message.
+ *
+ * @param data - The data passed in typedSign request.
+ */
+function validatePrimaryType(data: string) {
+  const { primaryType, types } = parseTypedMessage(data);
+  if (!types) {
+    throw rpcErrors.invalidInput();
+  }
+
+  // Primary type can be an array.
+  const baseType = stripArrayTypeIfPresent(primaryType);
+
+  // Return if the base type is not defined in the types
+  const baseTypeDefinitions = types[baseType];
+  if (!baseTypeDefinitions) {
+    throw rpcErrors.invalidInput();
   }
 }
 

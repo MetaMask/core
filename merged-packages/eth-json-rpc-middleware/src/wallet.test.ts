@@ -626,6 +626,63 @@ describe('wallet', () => {
           '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
       });
     });
+
+    it('should throw if message does not have types defined', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+      );
+
+      const messageParams = getMsgParams();
+      const payload = {
+        method: 'eth_signTypedData_v4',
+        params: [
+          testAddresses[0],
+          JSON.stringify({ ...messageParams, types: undefined }),
+        ],
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      await expect(promise).rejects.toThrow('Invalid input.');
+    });
+
+    it('should throw if type of primaryType is not defined', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+      );
+
+      const messageParams = getMsgParams();
+      const payload = {
+        method: 'eth_signTypedData_v4',
+        params: [
+          testAddresses[0],
+          JSON.stringify({
+            ...messageParams,
+            types: { ...messageParams.types, Permit: undefined },
+          }),
+        ],
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      await expect(promise).rejects.toThrow('Invalid input.');
+    });
   });
 
   describe('sign', () => {
