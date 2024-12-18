@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-json-rpc-middleware",
-  "version": "15.0.1",
+  "version": "15.1.0",
   "description": "Ethereum-related json-rpc-engine middleware.",
   "repository": {
     "type": "git",
