@@ -1,7 +1,7 @@
 import type {
   ActionConstraint,
   ActionHandler,
-  ControllerMessenger,
+  Messenger,
   EventConstraint,
   ExtractActionParameters,
   ExtractActionResponse,
@@ -11,29 +11,40 @@ import type {
   NotNamespacedBy,
   SelectorEventHandler,
   SelectorFunction,
-} from './ControllerMessenger';
+} from './Messenger';
 
 /**
- * A universal supertype of all `RestrictedControllerMessenger` instances.
- * This type can be assigned to any `RestrictedControllerMessenger` type.
+ * A universal supertype of all `RestrictedMessenger` instances. This type can be assigned to any
+ * `RestrictedMessenger` type.
  *
- * @template ControllerName - Name of the controller. Optionally can be used to
- * narrow this type to a constraint for the messenger of a specific controller.
+ * @template Namespace - Name of the module this messenger is for. Optionally can be used to
+ * narrow this type to a constraint for the messenger of a specific module.
+ */
+export type RestrictedMessengerConstraint<Namespace extends string = string> =
+  RestrictedMessenger<
+    Namespace,
+    ActionConstraint,
+    EventConstraint,
+    string,
+    string
+  >;
+
+/**
+ * A universal supertype of all `RestrictedMessenger` instances. This type can be assigned to any
+ * `RestrictedMessenger` type.
+ *
+ * @template Namespace - Name of the module this messenger is for. Optionally can be used to
+ * narrow this type to a constraint for the messenger of a specific module.
+ * @deprecated This has been renamed to `RestrictedMessengerConstraint`.
  */
 export type RestrictedControllerMessengerConstraint<
-  ControllerName extends string = string,
-> = RestrictedControllerMessenger<
-  ControllerName,
-  ActionConstraint,
-  EventConstraint,
-  string,
-  string
->;
+  Namespace extends string = string,
+> = RestrictedMessengerConstraint<Namespace>;
 
 /**
- * A restricted controller messenger.
+ * A restricted messenger.
  *
- * This acts as a wrapper around the controller messenger instance that restricts access to actions
+ * This acts as a wrapper around the messenger instance that restricts access to actions
  * and events.
  *
  * @template Namespace - The namespace for this messenger. Typically this is the name of the controller or
@@ -46,55 +57,64 @@ export type RestrictedControllerMessengerConstraint<
  * @template AllowedEvent - A type union of the 'type' string for any allowed events.
  * This must not include internal events that are in the messenger's namespace.
  */
-export class RestrictedControllerMessenger<
+export class RestrictedMessenger<
   Namespace extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
   AllowedAction extends string,
   AllowedEvent extends string,
 > {
-  readonly #controllerMessenger: ControllerMessenger<
-    ActionConstraint,
-    EventConstraint
-  >;
+  readonly #messenger: Messenger<ActionConstraint, EventConstraint>;
 
-  readonly #controllerName: Namespace;
+  readonly #namespace: Namespace;
 
   readonly #allowedActions: NotNamespacedBy<Namespace, AllowedAction>[];
 
   readonly #allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[];
 
   /**
-   * Constructs a restricted controller messenger
+   * Constructs a restricted messenger
    *
    * The provided allowlists grant the ability to call the listed actions and subscribe to the
    * listed events. The "name" provided grants ownership of any actions and events under that
    * namespace. Ownership allows registering actions and publishing events, as well as
    * unregistering actions and clearing event subscriptions.
    *
-   * @param options - The controller options.
-   * @param options.controllerMessenger - The controller messenger instance that is being wrapped.
+   * @param options - Options.
+   * @param options.controllerMessenger - The messenger instance that is being wrapped. (deprecated)
+   * @param options.messenger - The messenger instance that is being wrapped.
    * @param options.name - The name of the thing this messenger will be handed to (e.g. the
    * controller name). This grants "ownership" of actions and events under this namespace to the
-   * restricted controller messenger returned.
-   * @param options.allowedActions - The list of actions that this restricted controller messenger
-   * should be alowed to call.
-   * @param options.allowedEvents - The list of events that this restricted controller messenger
-   * should be allowed to subscribe to.
+   * restricted messenger returned.
+   * @param options.allowedActions - The list of actions that this restricted messenger should be
+   * allowed to call.
+   * @param options.allowedEvents - The list of events that this restricted messenger should be
+   * allowed to subscribe to.
    */
   constructor({
     controllerMessenger,
+    messenger,
     name,
     allowedActions,
     allowedEvents,
   }: {
-    controllerMessenger: ControllerMessenger<ActionConstraint, EventConstraint>;
+    controllerMessenger?: Messenger<ActionConstraint, EventConstraint>;
+    messenger?: Messenger<ActionConstraint, EventConstraint>;
     name: Namespace;
     allowedActions: NotNamespacedBy<Namespace, AllowedAction>[];
     allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[];
   }) {
-    this.#controllerMessenger = controllerMessenger;
-    this.#controllerName = name;
+    if (messenger && controllerMessenger) {
+      throw new Error(
+        `Both messenger properties provided. Provide message using only 'messenger' option, 'controllerMessenger' is deprecated`,
+      );
+    } else if (!messenger && !controllerMessenger) {
+      throw new Error('Messenger not provided');
+    }
+    // The above condition guarantees that one of these options is defined.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    this.#messenger = (messenger ?? controllerMessenger)!;
+    this.#namespace = name;
     this.#allowedActions = allowedActions;
     this.#allowedEvents = allowedEvents;
   }
@@ -119,11 +139,11 @@ export class RestrictedControllerMessenger<
     if (!this.#isInCurrentNamespace(action)) {
       throw new Error(
         `Only allowed registering action handlers prefixed by '${
-          this.#controllerName
+          this.#namespace
         }:'`,
       );
     }
-    this.#controllerMessenger.registerActionHandler(action, handler);
+    this.#messenger.registerActionHandler(action, handler);
   }
 
   /**
@@ -144,11 +164,11 @@ export class RestrictedControllerMessenger<
     if (!this.#isInCurrentNamespace(action)) {
       throw new Error(
         `Only allowed unregistering action handlers prefixed by '${
-          this.#controllerName
+          this.#namespace
         }:'`,
       );
     }
-    this.#controllerMessenger.unregisterActionHandler(action);
+    this.#messenger.unregisterActionHandler(action);
   }
 
   /**
@@ -177,10 +197,7 @@ export class RestrictedControllerMessenger<
     if (!this.#isAllowedAction(actionType)) {
       throw new Error(`Action missing from allow list: ${actionType}`);
     }
-    const response = this.#controllerMessenger.call<ActionType>(
-      actionType,
-      ...params,
-    );
+    const response = this.#messenger.call<ActionType>(actionType, ...params);
 
     return response;
   }
@@ -210,10 +227,10 @@ export class RestrictedControllerMessenger<
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(eventType)) {
       throw new Error(
-        `Only allowed publishing events prefixed by '${this.#controllerName}:'`,
+        `Only allowed publishing events prefixed by '${this.#namespace}:'`,
       );
     }
-    this.#controllerMessenger.registerInitialEventPayload({
+    this.#messenger.registerInitialEventPayload({
       eventType,
       getPayload,
     });
@@ -239,10 +256,10 @@ export class RestrictedControllerMessenger<
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(event)) {
       throw new Error(
-        `Only allowed publishing events prefixed by '${this.#controllerName}:'`,
+        `Only allowed publishing events prefixed by '${this.#namespace}:'`,
       );
     }
-    this.#controllerMessenger.publish(event, ...payload);
+    this.#messenger.publish(event, ...payload);
   }
 
   /**
@@ -255,7 +272,7 @@ export class RestrictedControllerMessenger<
    * @param eventType - The event type. This is a unique identifier for this event.
    * @param handler - The event handler. The type of the parameters for this event handler must
    * match the type of the payload for this event type.
-   * @throws Will throw if the given event is not an allowed event for this controller messenger.
+   * @throws Will throw if the given event is not an allowed event for this messenger.
    * @template EventType - A type union of Event type strings.
    */
   subscribe<
@@ -280,7 +297,7 @@ export class RestrictedControllerMessenger<
    * @param selector - The selector function used to select relevant data from
    * the event payload. The type of the parameters for this selector must match
    * the type of the payload for this event type.
-   * @throws Will throw if the given event is not an allowed event for this controller messenger.
+   * @throws Will throw if the given event is not an allowed event for this messenger.
    * @template EventType - A type union of Event type strings.
    * @template SelectorReturnValue - The selector return value.
    */
@@ -310,9 +327,9 @@ export class RestrictedControllerMessenger<
     }
 
     if (selector) {
-      return this.#controllerMessenger.subscribe(event, handler, selector);
+      return this.#messenger.subscribe(event, handler, selector);
     }
-    return this.#controllerMessenger.subscribe(event, handler);
+    return this.#messenger.subscribe(event, handler);
   }
 
   /**
@@ -324,7 +341,7 @@ export class RestrictedControllerMessenger<
    *
    * @param event - The event type. This is a unique identifier for this event.
    * @param handler - The event handler to unregister.
-   * @throws Will throw if the given event is not an allowed event for this controller messenger.
+   * @throws Will throw if the given event is not an allowed event for this messenger.
    * @template EventType - A type union of allowed Event type strings.
    */
   unsubscribe<
@@ -335,7 +352,7 @@ export class RestrictedControllerMessenger<
     if (!this.#isAllowedEvent(event)) {
       throw new Error(`Event missing from allow list: ${event}`);
     }
-    this.#controllerMessenger.unsubscribe(event, handler);
+    this.#messenger.unsubscribe(event, handler);
   }
 
   /**
@@ -354,10 +371,10 @@ export class RestrictedControllerMessenger<
   >(event: EventType) {
     if (!this.#isInCurrentNamespace(event)) {
       throw new Error(
-        `Only allowed clearing events prefixed by '${this.#controllerName}:'`,
+        `Only allowed clearing events prefixed by '${this.#namespace}:'`,
       );
     }
-    this.#controllerMessenger.clearEventSubscriptions(event);
+    this.#messenger.clearEventSubscriptions(event);
   }
 
   /**
@@ -409,6 +426,8 @@ export class RestrictedControllerMessenger<
    * @returns Whether the name is within the current namespace
    */
   #isInCurrentNamespace(name: string): name is NamespacedName<Namespace> {
-    return name.startsWith(`${this.#controllerName}:`);
+    return name.startsWith(`${this.#namespace}:`);
   }
 }
+
+export { RestrictedMessenger as RestrictedControllerMessenger };
