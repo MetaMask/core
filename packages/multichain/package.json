@@ -51,7 +51,7 @@
     "@metamask/controller-utils": "^11.4.4",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
     "@metamask/rpc-errors": "^7.0.1",
-    "@metamask/utils": "^10.0.0",
+    "@metamask/utils": "^11.0.1",
     "lodash": "^4.17.21"
   },
   "devDependencies": {

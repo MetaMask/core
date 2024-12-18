@@ -51,7 +51,7 @@
     "@metamask/controller-utils": "^11.4.4",
     "@metamask/json-rpc-engine": "^10.0.1",
     "@metamask/rpc-errors": "^7.0.1",
-    "@metamask/utils": "^10.0.0",
+    "@metamask/utils": "^11.0.1",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
     "immer": "^9.0.6",

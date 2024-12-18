@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.1.0",
-    "@metamask/utils": "^10.0.0",
+    "@metamask/utils": "^11.0.1",
     "cockatiel": "^3.1.2",
     "uuid": "^8.3.2"
   },
