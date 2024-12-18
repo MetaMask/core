@@ -70,4 +70,9 @@ export enum PhishingDetectorResultType {
    * "c2DomainBlocklist" means that the domain was found in the C2 domain blocklist.
    */
   C2DomainBlocklist = 'c2DomainBlocklist',
+
+  /*
+   * "realTimeDappScan" means that the domain was found in the realTimeDappScan list.
+   */
+  RealTimeDappScan = 'realTimeDappScan',
 }
