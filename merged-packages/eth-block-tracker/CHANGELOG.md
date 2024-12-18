@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.4]
+### Changed
+- Bump `@metamask/utils` from `^9.1.0` to `^11.0.1` ([#297](https://github.com/MetaMask/eth-block-tracker/pull/297))
+
 ## [11.0.3]
 ### Fixed
 - Avoid risk of infinite retry loops when fetching new blocks ([#284](https://github.com/MetaMask/eth-block-tracker/pull/284))
@@ -196,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.4...HEAD
+[11.0.4]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.3...v11.0.4
 [11.0.3]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.2...v11.0.3
 [11.0.2]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.1...v11.0.2
 [11.0.1]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.0...v11.0.1
