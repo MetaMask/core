@@ -1,6 +1,6 @@
 import { setupAccountSyncingSubscriptions } from './setup-subscriptions';
 
-describe('setupAccountSyncing', () => {
+describe('user-storage/account-syncing/setup-subscriptions - setupAccountSyncingSubscriptions', () => {
   it('should subscribe to accountAdded and accountRenamed events', () => {
     const config = { isAccountSyncingEnabled: true };
     const options = {
