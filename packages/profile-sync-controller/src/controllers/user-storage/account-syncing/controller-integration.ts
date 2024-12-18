@@ -51,12 +51,8 @@ export async function saveInternalAccountToUserStorage(
   } catch (e) {
     // istanbul ignore next
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-    // ESLint is confused here.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(
-      `${
-        getUserStorageControllerInstance().name
-      } - failed to save account to user storage - ${errorMessage}`,
+      `UserStorageController - failed to save account to user storage - ${errorMessage}`,
     );
   }
 }
@@ -312,12 +308,8 @@ export async function syncInternalAccountsWithUserStorage(
   } catch (e) {
     // istanbul ignore next
     const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-    // ESLint is confused here.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(
-      `${
-        getUserStorageControllerInstance().name
-      } - failed to sync user storage accounts list - ${errorMessage}`,
+      `UserStorageController - failed to sync user storage accounts list - ${errorMessage}`,
     );
   } finally {
     await getUserStorageControllerInstance().setIsAccountSyncingInProgress(
