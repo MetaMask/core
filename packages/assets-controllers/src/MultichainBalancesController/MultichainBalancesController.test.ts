@@ -10,14 +10,16 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuidv4 } from 'uuid';
 
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../../base-controller/tests/helpers';
 import { BalancesTracker } from './BalancesTracker';
 import {
   MultichainBalancesController,
-  defaultState,
+  getDefaultMultichainBalancesControllerState,
 } from './MultichainBalancesController';
 import type {
-  AllowedActions,
-  AllowedEvents,
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
 } from './MultichainBalancesController';
@@ -71,8 +73,31 @@ const mockBalanceResult = {
   },
 };
 
+/**
+ * The union of actions that the root messenger allows.
+ */
+type RootAction = ExtractAvailableAction<MultichainBalancesControllerMessenger>;
+
+/**
+ * The union of events that the root messenger allows.
+ */
+type RootEvent = ExtractAvailableEvent<MultichainBalancesControllerMessenger>;
+
+/**
+ * Constructs the unrestricted messenger. This can be used to call actions and
+ * publish events within the tests for this controller.
+ *
+ * @returns The unrestricted messenger suited for PetNamesController.
+ */
+function getRootControllerMessenger(): ControllerMessenger<
+  RootAction,
+  RootEvent
+> {
+  return new ControllerMessenger<RootAction, RootEvent>();
+}
+
 const setupController = ({
-  state = defaultState,
+  state = getDefaultMultichainBalancesControllerState(),
   mocks,
 }: {
   state?: MultichainBalancesControllerState;
@@ -81,10 +106,7 @@ const setupController = ({
     handleRequestReturnValue?: Record<CaipAssetType, Balance>;
   };
 } = {}) => {
-  const controllerMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
+  const controllerMessenger = getRootControllerMessenger();
 
   const multichainBalancesControllerMessenger: MultichainBalancesControllerMessenger =
     controllerMessenger.getRestricted({
