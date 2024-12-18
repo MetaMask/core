@@ -25,8 +25,6 @@ export async function saveInternalAccountToUserStorage(
   config: AccountSyncingConfig,
   options: AccountSyncingOptions,
 ): Promise<void> {
-  console.log('saveInternalAccountToUserStorage');
-
   const { isAccountSyncingEnabled } = config;
   const { getUserStorageControllerInstance } = options;
 
