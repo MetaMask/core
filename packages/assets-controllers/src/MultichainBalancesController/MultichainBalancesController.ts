@@ -19,12 +19,8 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import {
-  BalancesTracker,
-  BALANCE_UPDATE_INTERVALS,
-  NETWORK_ASSETS_MAP,
-} from '.';
-import { getScopeForAccount } from './utils';
+import { BalancesTracker, NETWORK_ASSETS_MAP } from '.';
+import { getScopeForAccount, getBlockTimeForAccount } from './utils';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -168,7 +164,7 @@ export class MultichainBalancesController extends BaseController<
     // Register all non-EVM accounts into the tracker
     for (const account of this.#listAccounts()) {
       if (this.#isNonEvmAccount(account)) {
-        this.#tracker.track(account.id, this.#getBlockTimeFor(account));
+        this.#tracker.track(account.id, getBlockTimeForAccount(account.type));
       }
     }
 
@@ -197,20 +193,23 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
-   * Gets the block time for a given account.
+   * Updates the balances of one account. This method doesn't return
+   * anything, but it updates the state of the controller.
    *
-   * @param account - The account to get the block time for.
-   * @returns The block time for the account.
+   * @param accountId - The account ID.
    */
-  #getBlockTimeFor(account: InternalAccount): number {
-    if (account.type in BALANCE_UPDATE_INTERVALS) {
-      return BALANCE_UPDATE_INTERVALS[
-        account.type as keyof typeof BALANCE_UPDATE_INTERVALS
-      ];
-    }
-    throw new Error(
-      `Unsupported account type for balance tracking: ${account.type}`,
-    );
+  async updateBalance(accountId: string): Promise<void> {
+    // NOTE: No need to track the account here, since we start tracking those when
+    // the "AccountsController:accountAdded" is fired.
+    await this.#tracker.updateBalance(accountId);
+  }
+
+  /**
+   * Updates the balances of all supported accounts. This method doesn't return
+   * anything, but it updates the state of the controller.
+   */
+  async updateBalances(): Promise<void> {
+    await this.#tracker.updateBalances();
   }
 
   /**
@@ -242,17 +241,14 @@ export class MultichainBalancesController extends BaseController<
    * @returns The non-EVM account.
    */
   #getAccount(accountId: string): InternalAccount {
-    const account: InternalAccount | undefined =
-      this.#listMultichainAccounts().find(
-        (multichainAccount) => multichainAccount.id === accountId,
-      );
+    const account: InternalAccount | undefined = this.#listAccounts().find(
+      (multichainAccount) => multichainAccount.id === accountId,
+    );
 
     if (!account) {
       throw new Error(`Unknown account: ${accountId}`);
     }
-    if (!this.#isNonEvmAccount(account)) {
-      throw new Error(`Account is not a non-EVM account: ${accountId}`);
-    }
+
     return account;
   }
 
@@ -283,26 +279,6 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
-   * Updates the balances of one account. This method doesn't return
-   * anything, but it updates the state of the controller.
-   *
-   * @param accountId - The account ID.
-   */
-  async updateBalance(accountId: string): Promise<void> {
-    // NOTE: No need to track the account here, since we start tracking those when
-    // the "AccountsController:accountAdded" is fired.
-    await this.#tracker.updateBalance(accountId);
-  }
-
-  /**
-   * Updates the balances of all supported accounts. This method doesn't return
-   * anything, but it updates the state of the controller.
-   */
-  async updateBalances(): Promise<void> {
-    await this.#tracker.updateBalances();
-  }
-
-  /**
    * Checks for non-EVM accounts.
    *
    * @param account - The new account to be checked.
@@ -327,7 +303,7 @@ export class MultichainBalancesController extends BaseController<
       return;
     }
 
-    this.#tracker.track(account.id, this.#getBlockTimeFor(account));
+    this.#tracker.track(account.id, getBlockTimeForAccount(account.type));
     // NOTE: Unfortunately, we cannot update the balance right away here, because
     // messenger's events are running synchronously and fetching the balance is
     // asynchronous.

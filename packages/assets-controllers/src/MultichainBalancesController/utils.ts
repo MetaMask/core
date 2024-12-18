@@ -2,7 +2,7 @@ import { BtcAccountType, SolAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { validate, Network } from 'bitcoin-address-validation';
 
-import { MultichainNetworks } from './constants';
+import { MultichainNetworks, BALANCE_UPDATE_INTERVALS } from './constants';
 
 /**
  * Gets the scope for a specific and supported Bitcoin account.
@@ -57,4 +57,21 @@ export const getScopeForAccount = (account: InternalAccount): string => {
     default:
       throw new Error(`Unsupported non-EVM account type: ${account.type}`);
   }
+};
+
+/**
+ * Gets the block time for a given account.
+ *
+ * @param accountType - The account type to get the block time for.
+ * @returns The block time for the account.
+ */
+export const getBlockTimeForAccount = (accountType: string): number => {
+  if (accountType in BALANCE_UPDATE_INTERVALS) {
+    return BALANCE_UPDATE_INTERVALS[
+      accountType as keyof typeof BALANCE_UPDATE_INTERVALS
+    ];
+  }
+  throw new Error(
+    `Unsupported account type for balance tracking: ${accountType}`,
+  );
 };
