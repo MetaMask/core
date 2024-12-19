@@ -5,7 +5,7 @@
  * @returns Parameter string with array brackets [] removed.
  */
 export const stripArrayTypeIfPresent = (typeString: string) => {
-  if (typeString?.match(/\S\[\d*\]$/u) !== null) {
+  if (typeString?.match(/\S\[\d*\]$/u)) {
     return typeString.replace(/\[\d*\]$/gu, '').trim();
   }
   return typeString;
