@@ -56,9 +56,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/rpc-errors": "^7.0.1",
+    "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^10.0.0"
+    "@metamask/utils": "^11.0.1"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
