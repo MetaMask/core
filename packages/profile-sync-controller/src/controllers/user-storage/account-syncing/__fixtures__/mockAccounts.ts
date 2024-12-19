@@ -2,8 +2,8 @@ import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { LOCALIZED_DEFAULT_ACCOUNT_NAMES } from '../accounts/constants';
-import { mapInternalAccountToUserStorageAccount } from '../accounts/user-storage';
+import { LOCALIZED_DEFAULT_ACCOUNT_NAMES } from '../constants';
+import { mapInternalAccountToUserStorageAccount } from '../utils';
 
 /**
  * Map an array of internal accounts to an array of user storage accounts

@@ -1,3 +1,4 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
@@ -5,22 +6,7 @@ import {
   USER_STORAGE_VERSION,
   LOCALIZED_DEFAULT_ACCOUNT_NAMES,
 } from './constants';
-
-export type UserStorageAccount = {
-  /**
-   * The Version 'v' of the User Storage.
-   * NOTE - will allow us to support upgrade/downgrades in the future
-   */
-  [USER_STORAGE_VERSION_KEY]: typeof USER_STORAGE_VERSION;
-  /** the id 'i' of the account */
-  i: string;
-  /** the address 'a' of the account */
-  a: string;
-  /** the name 'n' of the account */
-  n: string;
-  /** the nameLastUpdatedAt timestamp 'nlu' of the account */
-  nlu?: number;
-};
+import type { UserStorageAccount } from './types';
 
 /**
  * Tells if the given name is a default account name.
@@ -55,3 +41,14 @@ export const mapInternalAccountToUserStorageAccount = (
     ...(isNameDefaultAccountName(name) ? {} : { nlu: nameLastUpdatedAt }),
   };
 };
+
+/**
+ * Checks if the given internal account has the correct keyring type.
+ * @param account - The internal account to check
+ * @returns Returns true if the internal account has the correct keyring type, false otherwise.
+ */
+export function doesInternalAccountHaveCorrectKeyringType(
+  account: InternalAccount,
+) {
+  return account.metadata.keyring.type === KeyringTypes.hd;
+}
