@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
+### Fixed
+
+- Fix `fetchGasFeeEstimates` so that it no longer throws an error if given a reference to a network that does not exist ([#5084](https://github.com/MetaMask/core/pull/5084))
+
 ## [22.0.2]
 
 ### Changed
