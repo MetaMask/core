@@ -2047,7 +2047,7 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^1.0.0"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/snaps-controllers": "npm:^9.10.0"
-    "@metamask/snaps-sdk": "npm:^6.7.0"
+    "@metamask/snaps-sdk": "npm:^6.14.0"
     "@metamask/snaps-utils": "npm:^8.3.0"
     "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
@@ -2303,7 +2303,7 @@ __metadata:
     "@metamask/keyring-utils": "npm:^1.0.0"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/snaps-controllers": "npm:^9.10.0"
-    "@metamask/snaps-sdk": "npm:^6.7.0"
+    "@metamask/snaps-sdk": "npm:^6.14.0"
     "@metamask/snaps-utils": "npm:^8.3.0"
     "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
@@ -2937,6 +2937,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/key-tree@npm:^10.0.1":
+  version: 10.0.2
+  resolution: "@metamask/key-tree@npm:10.0.2"
+  dependencies:
+    "@metamask/scure-bip39": "npm:^2.1.1"
+    "@metamask/utils": "npm:^11.0.1"
+    "@noble/curves": "npm:^1.2.0"
+    "@noble/hashes": "npm:^1.3.2"
+    "@scure/base": "npm:^1.0.0"
+  checksum: 10/fd2e445c75dc3cd3976fdc38a5029ee71a6f4afcbbf5c9a17152bba70cf35df8095caa853ae62eef90a51b43f23eeb9546fc6eb7d93a099d82effe8dc7592259
+  languageName: node
+  linkType: hard
+
 "@metamask/key-tree@npm:^9.1.2":
   version: 9.1.2
   resolution: "@metamask/key-tree@npm:9.1.2"
@@ -3406,7 +3419,7 @@ __metadata:
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/snaps-controllers": "npm:^9.10.0"
-    "@metamask/snaps-sdk": "npm:^6.7.0"
+    "@metamask/snaps-sdk": "npm:^6.14.0"
     "@metamask/snaps-utils": "npm:^8.3.0"
     "@noble/ciphers": "npm:^0.5.2"
     "@noble/hashes": "npm:^1.4.0"
@@ -3694,6 +3707,19 @@ __metadata:
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^10.0.0"
   checksum: 10/02f04536328a64ff1e9e48fb6b109698d6d83f42af5666a9758ccb1e7a1e67c0c2e296ef2fef419dd3d1c8f26bbf30b9f31911a1baa66f044f21cd0ecb7a11a7
+  languageName: node
+  linkType: hard
+
+"@metamask/snaps-sdk@npm:^6.14.0":
+  version: 6.14.0
+  resolution: "@metamask/snaps-sdk@npm:6.14.0"
+  dependencies:
+    "@metamask/key-tree": "npm:^10.0.1"
+    "@metamask/providers": "npm:^18.1.1"
+    "@metamask/rpc-errors": "npm:^7.0.1"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^10.0.0"
+  checksum: 10/dafe8618418c607c5d962bbcf675324651254631791a257898f4a939c58a8b2f56a743dcff534aa7889662d5fb1a4dd1048558f4b025404e0dcd507ff5a5e89a
   languageName: node
   linkType: hard
 
