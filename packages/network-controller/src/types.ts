@@ -46,3 +46,18 @@ export type InfuraNetworkClientConfiguration = {
 export type NetworkClientConfiguration =
   | CustomNetworkClientConfiguration
   | InfuraNetworkClientConfiguration;
+
+/**
+ * The string that uniquely identifies an Infura network client.
+ */
+export type BuiltInNetworkClientId = InfuraNetworkType;
+
+/**
+ * The string that uniquely identifies a custom network client.
+ */
+export type CustomNetworkClientId = string;
+
+/**
+ * The string that uniquely identifies a network client.
+ */
+export type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;

@@ -3,9 +3,6 @@ export type {
   Block,
   NetworkMetadata,
   NetworkConfiguration,
-  BuiltInNetworkClientId,
-  CustomNetworkClientId,
-  NetworkClientId,
   NetworksMetadata,
   NetworkState,
   BlockTrackerProxy,
@@ -44,11 +41,16 @@ export {
   RpcEndpointType,
 } from './NetworkController';
 export * from './constants';
-export type { BlockTracker, Provider } from './types';
 export type {
+  BlockTracker,
+  Provider,
   NetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   CustomNetworkClientConfiguration,
+  BuiltInNetworkClientId,
+  CustomNetworkClientId,
+  NetworkClientId,
 } from './types';
 export { NetworkClientType } from './types';
 export type { NetworkClient } from './create-network-client';
+export { NoNetworkClientFoundError } from './errors';

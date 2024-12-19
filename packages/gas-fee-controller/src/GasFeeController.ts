@@ -9,14 +9,15 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type {
-  NetworkClientId,
-  NetworkControllerGetEIP1559CompatibilityAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerNetworkDidChangeEvent,
-  NetworkState,
-  ProviderProxy,
+import {
+  NoNetworkClientFoundError,
+  type NetworkClientId,
+  type NetworkControllerGetEIP1559CompatibilityAction,
+  type NetworkControllerGetNetworkClientByIdAction,
+  type NetworkControllerGetStateAction,
+  type NetworkControllerNetworkDidChangeEvent,
+  type NetworkState,
+  type ProviderProxy,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
@@ -29,6 +30,9 @@ import {
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
+import { createModuleLogger, projectLogger } from './logger';
+
+const log = createModuleLogger(projectLogger, 'GasFeeController');
 
 export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
@@ -443,10 +447,23 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
       decimalChainId: number;
 
     if (networkClientId !== undefined) {
-      const networkClient = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
+      let networkClient;
+      try {
+        networkClient = this.messagingSystem.call(
+          'NetworkController:getNetworkClientById',
+          networkClientId,
+        );
+      } catch (error) {
+        if (error instanceof NoNetworkClientFoundError) {
+          log(error.message);
+          return {
+            gasFeeEstimates: {},
+            estimatedGasFeeTimeBounds: {},
+            gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+          };
+        }
+        throw error;
+      }
       isLegacyGasAPICompatible = networkClient.configuration.chainId === '0x38';
 
       decimalChainId = convertHexToDecimal(networkClient.configuration.chainId);

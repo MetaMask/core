@@ -28,7 +28,6 @@ import { createNetworkClient } from '../src/create-network-client';
 import type {
   AutoManagedBuiltInNetworkClientRegistry,
   AutoManagedCustomNetworkClientRegistry,
-  NetworkClientId,
   NetworkConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
@@ -44,7 +43,11 @@ import {
   RpcEndpointType,
   selectAvailableNetworkClientIds,
 } from '../src/NetworkController';
-import type { NetworkClientConfiguration, Provider } from '../src/types';
+import type {
+  NetworkClientConfiguration,
+  NetworkClientId,
+  Provider,
+} from '../src/types';
 import { NetworkClientType } from '../src/types';
 import {
   buildAddNetworkCustomRpcEndpointFields,
@@ -1016,9 +1019,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               expect(() =>
                 controller.getNetworkClientById(NetworkType.mainnet),
-              ).toThrow(
-                'No Infura network client was found with the ID "mainnet".',
-              );
+              ).toThrow('No network client found with ID "mainnet"');
             },
           );
         });
@@ -1078,7 +1079,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               expect(() => controller.getNetworkClientById('0x1337')).toThrow(
-                'No custom network client was found with the ID "0x1337".',
+                'No network client found with ID "0x1337"',
               );
             },
           );
@@ -1265,7 +1266,7 @@ describe('NetworkController', () => {
             await expect(() =>
               controller.lookupNetwork('non-existent-network-id'),
             ).rejects.toThrow(
-              'No custom network client was found with the ID "non-existent-network-id".',
+              'No network client found with ID "non-existent-network-id"',
             );
           },
         );
@@ -2055,7 +2056,7 @@ describe('NetworkController', () => {
             controller.setActiveNetwork('invalid-network-client-id'),
           ).rejects.toThrow(
             new Error(
-              "No network client found with ID 'invalid-network-client-id'",
+              'No network client found with ID "invalid-network-client-id"',
             ),
           );
         });
