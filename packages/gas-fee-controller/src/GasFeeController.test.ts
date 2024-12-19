@@ -999,6 +999,7 @@ describe('GasFeeController', () => {
         );
       });
     });
+
     describe('when passed a networkClientId in options object', () => {
       const getDefaultOptions = () => ({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
@@ -1031,6 +1032,35 @@ describe('GasFeeController', () => {
         mockedDetermineGasFeeCalculations.mockResolvedValue(
           mockDetermineGasFeeCalculations,
         );
+      });
+
+      it("should not update state if the network client doesn't exist", async () => {
+        await setupGasFeeController({
+          ...getDefaultOptions(),
+        });
+        const initialState = gasFeeController.state;
+
+        await gasFeeController.fetchGasFeeEstimates({
+          networkClientId: 'nonexistent',
+        });
+
+        expect(gasFeeController.state).toBe(initialState);
+      });
+
+      it("should return an empty set of estimates if the network client doesn't exist", async () => {
+        await setupGasFeeController({
+          ...getDefaultOptions(),
+        });
+
+        const estimates = await gasFeeController.fetchGasFeeEstimates({
+          networkClientId: 'nonexistent',
+        });
+
+        expect(estimates).toStrictEqual({
+          gasFeeEstimates: {},
+          estimatedGasFeeTimeBounds: {},
+          gasEstimateType: 'none',
+        });
       });
 
       it('should call determineGasFeeCalculations correctly', async () => {

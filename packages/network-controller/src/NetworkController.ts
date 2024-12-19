@@ -33,6 +33,7 @@ import type {
   ProxyWithAccessibleTarget,
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
+import { NoNetworkClientFoundError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import { NetworkClientType } from './types';
 import type {
@@ -41,6 +42,9 @@ import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
+  NetworkClientId,
+  BuiltInNetworkClientId,
+  CustomNetworkClientId,
 } from './types';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
@@ -293,21 +297,6 @@ export function knownKeysOf<K extends PropertyKey>(
 function isErrorWithCode(error: unknown): error is { code: string | number } {
   return typeof error === 'object' && error !== null && 'code' in error;
 }
-
-/**
- * The string that uniquely identifies an Infura network client.
- */
-export type BuiltInNetworkClientId = InfuraNetworkType;
-
-/**
- * The string that uniquely identifies a custom network client.
- */
-export type CustomNetworkClientId = string;
-
-/**
- * The string that uniquely identifies a network client.
- */
-export type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
 
 /**
  * Extra information about each network, such as whether it is accessible or
@@ -1107,11 +1096,7 @@ export class NetworkController extends BaseController<
       // This is impossible to reach
       /* istanbul ignore if */
       if (!infuraNetworkClient) {
-        throw new Error(
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          `No Infura network client was found with the ID "${networkClientId}".`,
-        );
+        throw NoNetworkClientFoundError.create(networkClientId);
       }
       return infuraNetworkClient;
     }
@@ -1121,11 +1106,7 @@ export class NetworkController extends BaseController<
         networkClientId
       ];
     if (!customNetworkClient) {
-      throw new Error(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        `No custom network client was found with the ID "${networkClientId}".`,
-      );
+      throw NoNetworkClientFoundError.create(networkClientId);
     }
     return customNetworkClient;
   }
