@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@metamask/json-rpc-engine": "^10.0.1",
-    "@metamask/rpc-errors": "^7.0.1",
+    "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^11.0.1",
     "uuid": "^8.3.2"
