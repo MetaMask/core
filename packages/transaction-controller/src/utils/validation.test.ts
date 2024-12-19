@@ -362,6 +362,60 @@ describe('validation', () => {
           } as any),
         ).not.toThrow();
       });
+
+      it('throws if gasLimit is defined but not a valid hexadecimal', () => {
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxFeePerGas: '0x01',
+            gasLimit: 'zzzzz',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: gasLimit is not a valid hexadecimal. got: (zzzzz)',
+          ),
+        );
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxFeePerGas: '0x01',
+            gasLimit: '0x0',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any),
+        ).not.toThrow();
+      });
+
+      it('throws if gas is defined but not a valid hexadecimal', () => {
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxFeePerGas: '0x01',
+            gas: 'zzzzz',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: gas is not a valid hexadecimal. got: (zzzzz)',
+          ),
+        );
+        expect(() =>
+          validateTxParams({
+            from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
+            to: '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a',
+            maxFeePerGas: '0x01',
+            gas: '0x0',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any),
+        ).not.toThrow();
+      });
     });
   });
 });
