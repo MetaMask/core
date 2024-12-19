@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^7.1.0",
     "@metamask/controller-utils": "^11.4.4",
-    "@metamask/utils": "^10.0.0"
+    "@metamask/utils": "^11.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
