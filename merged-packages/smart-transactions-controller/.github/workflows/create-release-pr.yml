@@ -21,7 +21,7 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           # This is to guarantee that the most recent tag is fetched.
           # This can be configured to a more reasonable value by consumers.
@@ -30,10 +30,10 @@ jobs:
           # branch for all git operations and the release PR.
           ref: ${{ github.event.inputs.base-branch }}
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-      - uses: MetaMask/action-create-release-pr@v2
+      - uses: MetaMask/action-create-release-pr@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
