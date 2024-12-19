@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.2]
+### Changed
+- Fix validation of primary type for signTypedDataV3 and signTypedDataV4 ([#353](https://github.com/MetaMask/eth-json-rpc-middleware/pull/353))
+  - It was updated to handle `undefined` input
+
 ## [15.1.1]
 ### Changed
 - Bump `@metamask/eth-block-tracker` from `^11.0.3` to `^11.0.4` ([#351](https://github.com/MetaMask/eth-json-rpc-middleware/pull/351))
@@ -238,7 +243,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.2...HEAD
+[15.1.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.1...v15.1.2
 [15.1.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.0...v15.1.1
 [15.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.0.1...v15.1.0
 [15.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.0.0...v15.0.1
