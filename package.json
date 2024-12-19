@@ -36,6 +36,7 @@
     "test:scripts": "yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "update-readme-content": "ts-node scripts/update-readme-content.ts",
+    "workspaces:list-peer-deps": "ts-node --project tsconfig.scripts.json scripts/list-workspace-peer-dependencies.ts",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "simple-git-hooks": {
@@ -68,6 +69,9 @@
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "@yarnpkg/cli": "^4.5.1",
+    "@yarnpkg/core": "^4.1.4",
+    "@yarnpkg/fslib": "^3.1.0",
     "@yarnpkg/types": "^4.0.0",
     "babel-jest": "^27.5.1",
     "depcheck": "^1.4.7",
