@@ -62,20 +62,20 @@ Built files show up in the `dist/` directory in each package. These are the file
 - Run `yarn build` to build all packages in the monorepo.
 - Run `yarn workspace <workspaceName> run build` to build a single package.
 
+## Updating changelogs
+
+Each package in this repo has a file called `CHANGELOG.md` which is used to record consumer-facing changes that have been published over time. This file is useful for other engineers who are upgrading to new versions of packages so that they know how to use new features they are expecting, they know when bugs have been addressed, and they understand how to adapt to breaking changes (if any).
+
+As you make changes to packages, make sure to update their changelogs in the same branch, placing new entries in the "Unreleased" section. If you need help, read the [Guide to Maintaining Changelogs](https://github.com/MetaMask/contributor-docs/tree/main/docs/changelogs.md).
+
 ## Creating pull requests
 
-When submitting a pull request for this repo, take some a bit of extra time to fill out its description. Use the provided template as a guide, paying particular attention to two sections:
+When submitting a pull request for this repo, take some a bit of extra time to fill out its description. Use the provided template as a guide, paying particular attention to the **Explanation** section. This section is intended for you to explain the purpose and scope of your changes and share knowledge that other engineers might not be able to see from reading the PR alone. Some questions you should seek to answer are:
 
-- **Explanation**: This section is targeted toward maintainers and is intended for you to explain the purpose and scope of your changes and share knowledge that they might not be able to see from reading the PR alone. Some questions you should seek to answer are:
-  - What is the motivator for these changes? What need are the changes satisfying? Is there a ticket you can share or can you provide some more context for people who might not be familiar with the domain?
-  - Are there any changes in particular whose purpose might not be obvious or whose implementation might be difficult to decipher? How do they work?
-  - If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
-  - If you had to upgrade a dependency, why did you do so?
-- **Changelog:** This section is targeted toward consumers — internal developers of the extension or mobile app in addition to external dapp developers — and is intended to be a list of your changes from the perspective of each package in the monorepo. Questions you should seek to answer are:
-  - Which packages are being updated?
-  - What are the _exact_ changes to the API (types, interfaces, functions, methods) that are being changed?
-  - What are the anticipated effects to whichever platform might want to make use of these changes?
-  - If there are breaking changes to the API, what do consumers need to do in order to adapt to those changes upon upgrading to them?
+- What is the motivator for these changes? What need are the changes satisfying? Is there a ticket you can share or can you provide some more context for people who might not be familiar with the domain?
+- Are there any changes in particular whose purpose might not be obvious or whose implementation might be difficult to decipher? How do they work?
+- If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
+- If you had to upgrade a dependency, why did you do so?
 
 ## Testing changes to packages in another project
 
