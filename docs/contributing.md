@@ -70,20 +70,33 @@ Built files show up in the `dist/` directory in each package. These are the file
 - Run `yarn build` to build all packages in the monorepo.
 - Run `yarn workspace <workspaceName> run build` to build a single package.
 
+## Updating changelogs
+
+Each package in this repo has a file called `CHANGELOG.md` which is used to record consumer-facing changes that have been published over time. This file is useful for other engineers who are upgrading to new versions of packages so that they know how to use new features they are expecting, they know when bugs have been addressed, and they understand how to adapt to breaking changes (if any). All changelogs follow the ["Keep a Changelog"](https://keepachangelog.com/) specification (enforced by `@metamask/auto-changelog`).
+
+As you make changes to packages, make sure to update their changelogs in the same branch.
+
+We will offer more guidance here in the future, but in general:
+
+- Place new entries under the "Unreleased" section.
+- Place changes into categories. Consult the ["Keep a Changelog"](https://keepachangelog.com/en/1.1.0/#how) specification for the list.
+- Highlight breaking changes by prefixing them with `**BREAKING:**`.
+- Omit non-consumer facing changes from the changelog.
+- Do not simply reuse the commit message, but describe exact changes to the API or usable surface area of the project.
+- Use a list nested under a changelog entry to enumerate more details about a change if need be.
+- Include links to pull request(s) that introduced each change. (Most likely, this is the very same pull request in which you are updating the changelog.)
+- Combine like changes from multiple pull requests into a single changelog entry if necessary.
+- Split disparate changes from the same pull request into multiple entries if necessary.
+- Omit reverted changes from the changelog.
+
 ## Creating pull requests
 
-When submitting a pull request for this repo, take some a bit of extra time to fill out its description. Use the provided template as a guide, paying particular attention to two sections:
+When submitting a pull request for this repo, take some a bit of extra time to fill out its description. Use the provided template as a guide, paying particular attention to the **Explanation** section. This section is intended for you to explain the purpose and scope of your changes and share knowledge that other engineers might not be able to see from reading the PR alone. Some questions you should seek to answer are:
 
-- **Explanation**: This section is targeted toward maintainers and is intended for you to explain the purpose and scope of your changes and share knowledge that they might not be able to see from reading the PR alone. Some questions you should seek to answer are:
-  - What is the motivator for these changes? What need are the changes satisfying? Is there a ticket you can share or can you provide some more context for people who might not be familiar with the domain?
-  - Are there any changes in particular whose purpose might not be obvious or whose implementation might be difficult to decipher? How do they work?
-  - If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
-  - If you had to upgrade a dependency, why did you do so?
-- **Changelog:** This section is targeted toward consumers — internal developers of the extension or mobile app in addition to external dapp developers — and is intended to be a list of your changes from the perspective of each package in the monorepo. Questions you should seek to answer are:
-  - Which packages are being updated?
-  - What are the _exact_ changes to the API (types, interfaces, functions, methods) that are being changed?
-  - What are the anticipated effects to whichever platform might want to make use of these changes?
-  - If there are breaking changes to the API, what do consumers need to do in order to adapt to those changes upon upgrading to them?
+- What is the motivator for these changes? What need are the changes satisfying? Is there a ticket you can share or can you provide some more context for people who might not be familiar with the domain?
+- Are there any changes in particular whose purpose might not be obvious or whose implementation might be difficult to decipher? How do they work?
+- If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
+- If you had to upgrade a dependency, why did you do so?
 
 ## Testing changes to packages in another project
 

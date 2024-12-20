@@ -26,30 +26,14 @@ For example:
 ## Changelog
 
 <!--
-If you're making any consumer-facing changes, list those changes here as if you were updating a changelog, using the template below as a guide.
+THIS SECTION IS NO LONGER NEEDED.
 
-(CATEGORY is one of BREAKING, ADDED, CHANGED, DEPRECATED, REMOVED, or FIXED. For security-related issues, follow the Security Advisory process.)
-
-Please take care to name the exact pieces of the API you've added or changed (e.g. types, interfaces, functions, or methods).
-
-If there are any breaking changes, make sure to offer a solution for consumers to follow once they upgrade to the changes.
-
-Finally, if you're only making changes to development scripts or tests, you may replace the template below with "None".
+The process for updating changelogs has changed. Please consult the "Updating changelogs" section of the Contributing doc for more.
 -->
-
-### `@metamask/package-a`
-
-- **<CATEGORY>**: Your change here
-- **<CATEGORY>**: Your change here
-
-### `@metamask/package-b`
-
-- **<CATEGORY>**: Your change here
-- **<CATEGORY>**: Your change here
 
 ## Checklist
 
 - [ ] I've updated the test suite for new or updated code as appropriate
 - [ ] I've updated documentation (JSDoc, Markdown, etc.) for new or updated code as appropriate
-- [ ] I've highlighted breaking changes using the "BREAKING" category above as appropriate
+- [ ] I've communicated my changes to consumers by [updating changelogs for packages I've changed](https://github.com/MetaMask/core/tree/main/docs/contributing.md#updating-changelogs), highlighting breaking changes as necessary
 - [ ] I've prepared draft pull requests for clients and consumer packages to resolve any breaking changes
