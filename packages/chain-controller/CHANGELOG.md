@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core.git/pull/5080))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
@@ -93,11 +97,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.2...HEAD
-[0.2.2]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.1...@metamask/chain-controller@0.2.2
-[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.0...@metamask/chain-controller@0.2.1
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.3...@metamask/chain-controller@0.2.0
-[0.1.3]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...@metamask/chain-controller@0.1.3
-[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.1...@metamask/chain-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.0...@metamask/chain-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chain-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.2.2...HEAD
+[0.2.2]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.2.1...@metamask/chain-controller@0.2.2
+[0.2.1]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.2.0...@metamask/chain-controller@0.2.1
+[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.1.3...@metamask/chain-controller@0.2.0
+[0.1.3]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.1.2...@metamask/chain-controller@0.1.3
+[0.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.1.1...@metamask/chain-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.1.0...@metamask/chain-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/chain-controller@0.1.0
