@@ -7,7 +7,12 @@ import { isStrictHexString } from '@metamask/utils';
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
 
-type GasFieldsToValidate = 'gasPrice' | 'maxFeePerGas' | 'maxPriorityFeePerGas';
+type GasFieldsToValidate =
+  | 'gasPrice'
+  | 'maxFeePerGas'
+  | 'maxPriorityFeePerGas'
+  | 'gas'
+  | 'gasLimit';
 
 /**
  * Validates whether a transaction initiated by a specific 'from' address is permitted by the origin.
@@ -280,6 +285,14 @@ function validateGasFeeParams(txParams: TransactionParams) {
       'gasPrice',
     );
     ensureFieldIsValidHex(txParams, 'maxPriorityFeePerGas');
+  }
+
+  if (txParams.gasLimit) {
+    ensureFieldIsValidHex(txParams, 'gasLimit');
+  }
+
+  if (txParams.gas) {
+    ensureFieldIsValidHex(txParams, 'gas');
   }
 }
 
