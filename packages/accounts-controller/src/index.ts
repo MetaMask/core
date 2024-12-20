@@ -20,7 +20,8 @@ export type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerAccountRenamedEvent,
   AccountsControllerEvents,
-  AccountsControllerMessenger,
+  AccountsMessenger,
+  AccountsMessenger as AccountsControllerMessenger,
 } from './AccountsController';
 export { AccountsController } from './AccountsController';
 export { keyringTypeToName, getUUIDFromAddressOfNormalAccount } from './utils';

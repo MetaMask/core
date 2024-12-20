@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   BtcAccountType,
   EthAccountType,
@@ -267,12 +267,12 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
 }
 
 /**
- * Builds a new instance of the ControllerMessenger class for the AccountsController.
+ * Builds a new instance of the Messenger class for the AccountsController.
  *
- * @returns A new instance of the ControllerMessenger class for the AccountsController.
+ * @returns A new instance of the Messenger class for the AccountsController.
  */
 function buildMessenger() {
-  return new ControllerMessenger<
+  return new Messenger<
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >();
@@ -284,7 +284,7 @@ function buildMessenger() {
  * @param messenger - The messenger to restrict.
  * @returns The restricted messenger.
  */
-function buildAccountsControllerMessenger(messenger = buildMessenger()) {
+function buildAccountsMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'AccountsController',
     allowedEvents: [
@@ -312,22 +312,21 @@ function setupAccountsController({
   messenger = buildMessenger(),
 }: {
   initialState?: Partial<AccountsControllerState>;
-  messenger?: ControllerMessenger<
+  messenger?: Messenger<
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;
 }): {
   accountsController: AccountsController;
-  messenger: ControllerMessenger<
+  messenger: Messenger<
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;
 } {
-  const accountsControllerMessenger =
-    buildAccountsControllerMessenger(messenger);
+  const accountsMessenger = buildAccountsMessenger(messenger);
 
   const accountsController = new AccountsController({
-    messenger: accountsControllerMessenger,
+    messenger: accountsMessenger,
     state: { ...defaultState, ...initialState },
   });
   return { accountsController, messenger };
