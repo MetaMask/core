@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.1.0]
+
 ### Uncategorized
 
 - Release 274.0.0 ([#5082](https://github.com/MetaMask/core.git/pull/5082))
@@ -1230,7 +1232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@42.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@42.1.0...HEAD
+[42.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@42.0.0...@metamask/transaction-controller@42.1.0
 [42.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@41.1.0...@metamask/transaction-controller@42.0.0
 [41.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@41.0.0...@metamask/transaction-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/transaction-controller@40.1.0...@metamask/transaction-controller@41.0.0

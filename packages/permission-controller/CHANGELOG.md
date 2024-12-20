@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 274.0.0 ([#5082](https://github.com/MetaMask/core.git/pull/5082))
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core.git/pull/5080))
-- chore: bump nanoid dependency ([#5073](https://github.com/MetaMask/core.git/pull/5073))
-- refactor(permission-controller): Rationalize permission and caveat validation ([#5062](https://github.com/MetaMask/core.git/pull/5062))
-
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
@@ -318,35 +311,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@11.0.4...HEAD
-[11.0.4]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4
-[11.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@11.0.2...@metamask/permission-controller@11.0.3
-[11.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@11.0.1...@metamask/permission-controller@11.0.2
-[11.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@11.0.0...@metamask/permission-controller@11.0.1
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@10.0.1...@metamask/permission-controller@11.0.0
-[10.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@10.0.0...@metamask/permission-controller@10.0.1
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@9.1.1...@metamask/permission-controller@10.0.0
-[9.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@9.1.0...@metamask/permission-controller@9.1.1
-[9.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@9.0.2...@metamask/permission-controller@9.1.0
-[9.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@9.0.1...@metamask/permission-controller@9.0.2
-[9.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@9.0.0...@metamask/permission-controller@9.0.1
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@8.0.1...@metamask/permission-controller@9.0.0
-[8.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@8.0.0...@metamask/permission-controller@8.0.1
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@7.1.0...@metamask/permission-controller@8.0.0
-[7.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@7.0.0...@metamask/permission-controller@7.1.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@6.0.0...@metamask/permission-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@5.0.1...@metamask/permission-controller@6.0.0
-[5.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@5.0.0...@metamask/permission-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@4.1.2...@metamask/permission-controller@5.0.0
-[4.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@4.1.1...@metamask/permission-controller@4.1.2
-[4.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@4.1.0...@metamask/permission-controller@4.1.1
-[4.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@4.0.1...@metamask/permission-controller@4.1.0
-[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@4.0.0...@metamask/permission-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@3.2.0...@metamask/permission-controller@4.0.0
-[3.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@3.1.0...@metamask/permission-controller@3.2.0
-[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@3.0.0...@metamask/permission-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@2.0.0...@metamask/permission-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@1.0.2...@metamask/permission-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@1.0.1...@metamask/permission-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/permission-controller@1.0.0...@metamask/permission-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/permission-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...HEAD
+[11.0.4]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4
+[11.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...@metamask/permission-controller@11.0.3
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.1...@metamask/permission-controller@11.0.2
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.0...@metamask/permission-controller@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.1...@metamask/permission-controller@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.0...@metamask/permission-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.1...@metamask/permission-controller@10.0.0
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.0...@metamask/permission-controller@9.1.1
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.2...@metamask/permission-controller@9.1.0
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.1...@metamask/permission-controller@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.0...@metamask/permission-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.1...@metamask/permission-controller@9.0.0
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.0...@metamask/permission-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...@metamask/permission-controller@8.0.0
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.0.0...@metamask/permission-controller@7.1.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@6.0.0...@metamask/permission-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@5.0.1...@metamask/permission-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@5.0.0...@metamask/permission-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.2...@metamask/permission-controller@5.0.0
+[4.1.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.1...@metamask/permission-controller@4.1.2
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.1.0...@metamask/permission-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.1...@metamask/permission-controller@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@4.0.0...@metamask/permission-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.2.0...@metamask/permission-controller@4.0.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.1.0...@metamask/permission-controller@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@3.0.0...@metamask/permission-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@2.0.0...@metamask/permission-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.2...@metamask/permission-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.1...@metamask/permission-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@1.0.0...@metamask/permission-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/permission-controller@1.0.0
