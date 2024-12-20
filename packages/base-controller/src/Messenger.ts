@@ -58,9 +58,12 @@ export type SelectorFunction<
   EventType extends Event['type'],
   ReturnValue,
 > = (...args: ExtractEventPayload<Event, EventType>) => ReturnValue;
-export type SelectorEventHandler<SelectorReturnValue> = (
-  newValue: SelectorReturnValue,
-  previousValue: SelectorReturnValue | undefined,
+export type SelectorEventHandler<SelectorReturnValue> = <
+  // Deferring value as implicit types do not get used correctly
+  DeferredVal = SelectorReturnValue,
+>(
+  newValue: DeferredVal,
+  previousValue: DeferredVal | undefined,
 ) => void;
 
 export type ActionConstraint = {
