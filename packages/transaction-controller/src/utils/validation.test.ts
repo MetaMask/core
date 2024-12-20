@@ -1,6 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
 import { TransactionEnvelopeType } from '../types';
+import type { TransactionParams } from '../types';
 import { validateTxParams } from './validation';
 
 describe('validation', () => {
@@ -399,7 +400,7 @@ describe('validation', () => {
             gas: 'zzzzz',
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as unknown as TransactionParams),
         ).toThrow(
           rpcErrors.invalidParams(
             'Invalid transaction params: gas is not a valid hexadecimal. got: (zzzzz)',
@@ -413,7 +414,7 @@ describe('validation', () => {
             gas: '0x0',
             // TODO: Replace `any` with type
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } as any),
+          } as unknown as TransactionParams),
         ).not.toThrow();
       });
     });
