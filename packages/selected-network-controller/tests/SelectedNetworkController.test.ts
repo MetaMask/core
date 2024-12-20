@@ -415,7 +415,7 @@ describe('SelectedNetworkController', () => {
       it('redirects domains when the default rpc endpoint is switched', () => {
         const initialDomains = {
           'different-chain.com': 'mainnet',
-          'chain-with-new-default.com': 'goerli',
+          'chain-with-new-default.com': 'sepolia',
         };
 
         const { controller, messenger, mockNetworkControllerGetState } = setup({
@@ -424,11 +424,11 @@ describe('SelectedNetworkController', () => {
         });
 
         const networkControllerState = getDefaultNetworkControllerState();
-        const goerliNetwork =
-          networkControllerState.networkConfigurationsByChainId['0x5'];
+        const sepoliaNetwork =
+          networkControllerState.networkConfigurationsByChainId['0xaa36a7'];
 
-        goerliNetwork.defaultRpcEndpointIndex =
-          goerliNetwork.rpcEndpoints.push({
+        sepoliaNetwork.defaultRpcEndpointIndex =
+          sepoliaNetwork.rpcEndpoints.push({
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
             networkClientId: 'new-default-network-client-id',
@@ -444,7 +444,7 @@ describe('SelectedNetworkController', () => {
           [
             {
               op: 'replace',
-              path: ['networkConfigurationsByChainId', '0x5'],
+              path: ['networkConfigurationsByChainId', '0xaa36a7'],
             },
           ],
         );
@@ -458,7 +458,7 @@ describe('SelectedNetworkController', () => {
       it('redirects domains when the default rpc endpoint is deleted and replaced', () => {
         const initialDomains = {
           'different-chain.com': 'mainnet',
-          'chain-with-new-default.com': 'goerli',
+          'chain-with-new-default.com': 'sepolia',
         };
 
         const { controller, messenger, mockNetworkControllerGetState } = setup({
@@ -467,10 +467,10 @@ describe('SelectedNetworkController', () => {
         });
 
         const networkControllerState = getDefaultNetworkControllerState();
-        const goerliNetwork =
-          networkControllerState.networkConfigurationsByChainId['0x5'];
+        const sepoliaNetwork =
+          networkControllerState.networkConfigurationsByChainId['0xaa36a7'];
 
-        goerliNetwork.rpcEndpoints = [
+        sepoliaNetwork.rpcEndpoints = [
           {
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
@@ -488,7 +488,7 @@ describe('SelectedNetworkController', () => {
           [
             {
               op: 'replace',
-              path: ['networkConfigurationsByChainId', '0x5'],
+              path: ['networkConfigurationsByChainId', '0xaa36a7'],
             },
           ],
         );
