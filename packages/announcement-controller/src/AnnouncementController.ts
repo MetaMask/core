@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
@@ -66,7 +66,7 @@ const metadata = {
   },
 };
 
-export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
+export type AnnouncementMessenger = RestrictedMessenger<
   typeof controllerName,
   AnnouncementControllerActions,
   AnnouncementControllerEvents,
@@ -80,7 +80,7 @@ export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
 export class AnnouncementController extends BaseController<
   typeof controllerName,
   AnnouncementControllerState,
-  AnnouncementControllerMessenger
+  AnnouncementMessenger
 > {
   /**
    * Creates a AnnouncementController instance.
@@ -95,7 +95,7 @@ export class AnnouncementController extends BaseController<
     state,
     allAnnouncements,
   }: {
-    messenger: AnnouncementControllerMessenger;
+    messenger: AnnouncementMessenger;
     state?: AnnouncementControllerState;
     allAnnouncements: AnnouncementMap;
   }) {
