@@ -1,11 +1,11 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../packages/base-controller/tests/helpers';
 import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../../packages/controller-utils/src/util';
-import type { PetNamesControllerMessenger } from './pet-names-controller';
+import type { PetNamesMessenger } from './pet-names-controller';
 import { PetNamesController } from './pet-names-controller';
 
 describe('PetNamesController', () => {
@@ -20,7 +20,7 @@ describe('PetNamesController', () => {
         },
       };
       const controller = new PetNamesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
         state: givenState,
       });
 
@@ -29,7 +29,7 @@ describe('PetNamesController', () => {
 
     it('fills in missing state properties with default values', () => {
       const controller = new PetNamesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
       });
 
       expect(controller.state).toMatchInlineSnapshot(`
@@ -44,7 +44,7 @@ describe('PetNamesController', () => {
     for (const blockedKey of PROTOTYPE_POLLUTION_BLOCKLIST) {
       it(`throws if given a chainId of "${blockedKey}"`, () => {
         const controller = new PetNamesController({
-          messenger: getControllerMessenger(),
+          messenger: getMessenger(),
         });
 
         expect(() =>
@@ -56,7 +56,7 @@ describe('PetNamesController', () => {
 
     it('registers the given pet name in state with the given chain ID and address', () => {
       const controller = new PetNamesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
         state: {
           namesByChainIdAndAddress: {
             '0x1': {
@@ -80,7 +80,7 @@ describe('PetNamesController', () => {
 
     it("creates a new group for the chain if it doesn't already exist", () => {
       const controller = new PetNamesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
       });
 
       controller.assignPetName('0x1', '0xaaaaaa', 'My Account');
@@ -96,7 +96,7 @@ describe('PetNamesController', () => {
 
     it('overwrites any existing pet name for the address', () => {
       const controller = new PetNamesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
         state: {
           namesByChainIdAndAddress: {
             '0x1': {
@@ -119,7 +119,7 @@ describe('PetNamesController', () => {
 
     it('lowercases the given address before registering it to avoid duplicate entries', () => {
       const controller = new PetNamesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
         state: {
           namesByChainIdAndAddress: {
             '0x1': {
@@ -145,12 +145,12 @@ describe('PetNamesController', () => {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<PetNamesControllerMessenger>;
+type RootAction = ExtractAvailableAction<PetNamesMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<PetNamesControllerMessenger>;
+type RootEvent = ExtractAvailableEvent<PetNamesMessenger>;
 
 /**
  * Constructs the unrestricted messenger. This can be used to call actions and
@@ -158,11 +158,8 @@ type RootEvent = ExtractAvailableEvent<PetNamesControllerMessenger>;
  *
  * @returns The unrestricted messenger suited for PetNamesController.
  */
-function getRootControllerMessenger(): ControllerMessenger<
-  RootAction,
-  RootEvent
-> {
-  return new ControllerMessenger<RootAction, RootEvent>();
+function getRootMessenger(): Messenger<RootAction, RootEvent> {
+  return new Messenger<RootAction, RootEvent>();
 }
 
 /**
@@ -172,9 +169,7 @@ function getRootControllerMessenger(): ControllerMessenger<
  * @param rootMessenger - The root messenger to restrict.
  * @returns The restricted messenger.
  */
-function getControllerMessenger(
-  rootMessenger = getRootControllerMessenger(),
-): PetNamesControllerMessenger {
+function getMessenger(rootMessenger = getRootMessenger()): PetNamesMessenger {
   return rootMessenger.getRestricted({
     name: 'PetNamesController',
     allowedActions: [],

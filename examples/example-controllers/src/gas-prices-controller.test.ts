@@ -1,6 +1,6 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { GasPricesController } from '@metamask/example-controllers';
-import type { GasPricesControllerMessenger } from '@metamask/example-controllers';
+import type { GasPricesMessenger } from '@metamask/example-controllers';
 
 import type {
   ExtractAvailableAction,
@@ -27,7 +27,7 @@ describe('GasPricesController', () => {
         },
       };
       const controller = new GasPricesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
         state: givenState,
         gasPricesService,
       });
@@ -38,7 +38,7 @@ describe('GasPricesController', () => {
     it('fills in missing state properties with default values', () => {
       const gasPricesService = buildGasPricesService();
       const controller = new GasPricesController({
-        messenger: getControllerMessenger(),
+        messenger: getMessenger(),
         gasPricesService,
       });
 
@@ -66,14 +66,14 @@ describe('GasPricesController', () => {
         average: 10,
         high: 15,
       });
-      const rootMessenger = getRootControllerMessenger({
+      const rootMessenger = getRootMessenger({
         networkControllerGetStateActionHandler: () => ({
           ...getDefaultNetworkControllerState(),
           chainId: '0x42',
         }),
       });
       const controller = new GasPricesController({
-        messenger: getControllerMessenger(rootMessenger),
+        messenger: getMessenger(rootMessenger),
         gasPricesService,
       });
 
@@ -96,12 +96,12 @@ describe('GasPricesController', () => {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<GasPricesControllerMessenger>;
+type RootAction = ExtractAvailableAction<GasPricesMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<GasPricesControllerMessenger>;
+type RootEvent = ExtractAvailableEvent<GasPricesMessenger>;
 
 /**
  * Constructs the unrestricted messenger. This can be used to call actions and
@@ -112,7 +112,7 @@ type RootEvent = ExtractAvailableEvent<GasPricesControllerMessenger>;
  * `NetworkController:getState` action on the messenger.
  * @returns The unrestricted messenger suited for GasPricesController.
  */
-function getRootControllerMessenger({
+function getRootMessenger({
   networkControllerGetStateActionHandler = jest
     .fn<
       ReturnType<NetworkControllerGetStateAction['handler']>,
@@ -121,8 +121,8 @@ function getRootControllerMessenger({
     .mockReturnValue(getDefaultNetworkControllerState()),
 }: {
   networkControllerGetStateActionHandler?: NetworkControllerGetStateAction['handler'];
-} = {}): ControllerMessenger<RootAction, RootEvent> {
-  const rootMessenger = new ControllerMessenger<RootAction, RootEvent>();
+} = {}): Messenger<RootAction, RootEvent> {
+  const rootMessenger = new Messenger<RootAction, RootEvent>();
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
     networkControllerGetStateActionHandler,
@@ -137,9 +137,7 @@ function getRootControllerMessenger({
  * @param rootMessenger - The root messenger to restrict.
  * @returns The restricted messenger.
  */
-function getControllerMessenger(
-  rootMessenger = getRootControllerMessenger(),
-): GasPricesControllerMessenger {
+function getMessenger(rootMessenger = getRootMessenger()): GasPricesMessenger {
   return rootMessenger.getRestricted({
     name: 'GasPricesController',
     allowedActions: ['NetworkController:getState'],

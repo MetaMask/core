@@ -2,7 +2,7 @@ export type {
   GasPricesControllerActions,
   GasPricesControllerEvents,
   GasPricesControllerGetStateAction,
-  GasPricesControllerMessenger,
+  GasPricesMessenger,
   GasPricesControllerState,
   GasPricesControllerStateChangeEvent,
 } from './gas-prices-controller';
@@ -14,7 +14,7 @@ export type {
   PetNamesControllerActions,
   PetNamesControllerEvents,
   PetNamesControllerGetStateAction,
-  PetNamesControllerMessenger,
+  PetNamesMessenger,
   PetNamesControllerState,
   PetNamesControllerStateChangeEvent,
 } from './pet-names-controller';
