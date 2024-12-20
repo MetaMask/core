@@ -312,7 +312,7 @@ function waitForTransactionFinished(
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = 'testinfuraid';
 const HTTP_PROVIDERS = {
-  goerli: new HttpProvider('https://goerli.infura.io/v3/goerli-pid'),
+  sepolia: new HttpProvider('https://sepolia.infura.io/v3/sepolia-pid'),
   // TODO: Investigate and address why tests break when mainet has a different INFURA_PROJECT_ID
   mainnet: new HttpProvider(
     `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
@@ -332,13 +332,13 @@ type MockNetwork = {
 };
 
 const MOCK_NETWORK: MockNetwork = {
-  chainId: ChainId.goerli,
-  provider: HTTP_PROVIDERS.goerli,
-  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.goerli),
+  chainId: ChainId.sepolia,
+  provider: HTTP_PROVIDERS.sepolia,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.sepolia),
   state: {
-    selectedNetworkClientId: NetworkType.goerli,
+    selectedNetworkClientId: NetworkType.sepolia,
     networksMetadata: {
-      [NetworkType.goerli]: {
+      [NetworkType.sepolia]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
@@ -366,13 +366,13 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 };
 
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
-  chainId: ChainId['linea-goerli'],
+  chainId: ChainId['linea-sepolia'],
   provider: HTTP_PROVIDERS.lineaGoerli,
   blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaGoerli),
   state: {
-    selectedNetworkClientId: NetworkType['linea-goerli'],
+    selectedNetworkClientId: NetworkType['linea-sepolia'],
     networksMetadata: {
-      [NetworkType['linea-goerli']]: {
+      [NetworkType['linea-sepolia']]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
@@ -1643,7 +1643,7 @@ describe('TransactionController', () => {
       const { controller, changeNetwork } = setupController({
         network: {
           state: {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
           },
         },
       });
@@ -1670,7 +1670,7 @@ describe('TransactionController', () => {
       const { controller, changeNetwork } = setupController({
         network: {
           state: {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
           },
         },
         mockNetworkClientConfigurationsByNetworkClientId: {
@@ -4831,7 +4831,7 @@ describe('TransactionController', () => {
       const { controller, messenger } = setupController();
       messenger.registerActionHandler(
         'NetworkController:findNetworkClientIdByChainId',
-        () => 'goerli',
+        () => 'sepolia',
       );
 
       const mockTransactionParam = {
