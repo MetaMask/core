@@ -545,6 +545,13 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
   return Object.values(InfuraNetworkType).reduce<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
+    if (
+      infuraNetworkType === InfuraNetworkType.goerli ||
+      infuraNetworkType === InfuraNetworkType['linea-goerli']
+    ) {
+      return obj;
+    }
+
     const chainId = ChainId[infuraNetworkType];
     const rpcEndpointUrl =
       // This ESLint rule mistakenly produces an error.
