@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 
 import type {
@@ -17,11 +17,11 @@ import {
  * @returns A restricted controller messenger.
  */
 function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     AddressBookControllerActions,
     AddressBookControllerEvents
   >();
-  return controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name: controllerName,
     allowedActions: [],
     allowedEvents: [],

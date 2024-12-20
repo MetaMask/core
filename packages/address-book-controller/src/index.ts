@@ -6,7 +6,8 @@ export type {
   AddressBookControllerActions,
   AddressBookControllerStateChangeEvent,
   AddressBookControllerEvents,
-  AddressBookControllerMessenger,
+  AddressBookMessenger,
+  AddressBookMessenger as AddressBookControllerMessenger,
   ContactEntry,
 } from './AddressBookController';
 export {

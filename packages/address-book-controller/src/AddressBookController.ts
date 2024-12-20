@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -122,7 +122,7 @@ export const getDefaultAddressBookControllerState =
 /**
  * The messenger of the {@link AddressBookController} for communication.
  */
-export type AddressBookControllerMessenger = RestrictedControllerMessenger<
+export type AddressBookMessenger = RestrictedMessenger<
   typeof controllerName,
   AddressBookControllerActions,
   AddressBookControllerEvents,
@@ -136,7 +136,7 @@ export type AddressBookControllerMessenger = RestrictedControllerMessenger<
 export class AddressBookController extends BaseController<
   typeof controllerName,
   AddressBookControllerState,
-  AddressBookControllerMessenger
+  AddressBookMessenger
 > {
   /**
    * Creates an AddressBookController instance.
@@ -149,7 +149,7 @@ export class AddressBookController extends BaseController<
     messenger,
     state,
   }: {
-    messenger: AddressBookControllerMessenger;
+    messenger: AddressBookMessenger;
     state?: Partial<AddressBookControllerState>;
   }) {
     const mergedState = { ...getDefaultAddressBookControllerState(), ...state };
