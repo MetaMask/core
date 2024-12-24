@@ -149,6 +149,14 @@ export class ClientConfigApiService {
   }
 
   /**
+   * Gets the client type configured for this service.
+   * @returns The configured ClientType
+   */
+  public getClient(): ClientType {
+    return this.#client;
+  }
+
+  /**
    * Flattens an array of feature flag objects into a single feature flags object.
    * @param responseData - Array of objects containing feature flag key-value pairs
    * @returns A single object containing all feature flags merged together

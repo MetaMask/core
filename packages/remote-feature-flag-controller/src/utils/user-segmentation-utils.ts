@@ -1,26 +1,38 @@
 import type { Json } from '@metamask/utils';
-import { v4 as uuidV4 } from 'uuid';
 
 import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
+import { ClientType } from '../remote-feature-flag-controller-types';
+
+const BITS_PER_CHAR = 5;
+const MAX_SAFE_BITS = 30; // Use 30 bits to stay well within 32-bit integer limits
 
 /* eslint-disable no-bitwise */
 /**
  * Generates a deterministic random number between 0 and 1 based on a metaMetricsId.
- * This is useful for A/B testing and feature flag rollouts where we want
- * consistent group assignment for the same user.
+ * Handles both mobile (uuidv4) and extension (hex) formats.
  *
- * @param metaMetricsId - The unique identifier used to generate the deterministic random number
- * @returns A number between 0 and 1 that is deterministic for the given metaMetricsId
+ * @param client - The client type (Mobile or Extension)
+ * @param id - The unique identifier (uuidv4 for mobile, hex for extension)
+ * @returns A number between 0 and 1
  */
 export function generateDeterministicRandomNumber(
-  metaMetricsId: string,
+  client: ClientType,
+  id: string,
 ): number {
-  const hash = [...metaMetricsId].reduce((acc, char) => {
-    const chr = char.charCodeAt(0);
-    return ((acc << 5) - acc + chr) | 0;
-  }, 0);
+  if (client === ClientType.Mobile) {
+    const maxValue = (1 << MAX_SAFE_BITS) - 1;
+    const hash = [...id].reduce((acc, char) => {
+      const chr = char.charCodeAt(0);
+      return ((acc << BITS_PER_CHAR) - acc + chr) & maxValue;
+    }, 0);
+    return hash / maxValue;
+  }
 
-  return (hash >>> 0) / 0xffffffff;
+  // Default to Extension handling for all other cases
+  const cleanHex = id.slice(2);
+  const value = BigInt(`0x${cleanHex}`);
+  const maxValue = BigInt(`0x${'f'.repeat(cleanHex.length)}`);
+  return Number(value) / Number(maxValue);
 }
 
 /**
@@ -39,11 +51,3 @@ export const isFeatureFlagWithScopeValue = (
     'scope' in featureFlag
   );
 };
-
-/**
- * Generates UUIDv4 as a fallback metaMetricsId
- * @returns A UUIDv4 string
- */
-export function generateFallbackMetaMetricsId(): string {
-  return uuidV4();
-}

@@ -14,7 +14,6 @@ import type {
 import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
-  generateFallbackMetaMetricsId,
 } from './utils/user-segmentation-utils';
 
 // === GENERAL ===
@@ -103,7 +102,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
-  #getMetaMetricsId?: Promise<string | undefined>;
+  #getMetaMetricsId: () => string | Promise<string>;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -127,7 +126,7 @@ export class RemoteFeatureFlagController extends BaseController<
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
-    getMetaMetricsId?: Promise<string | undefined>;
+    getMetaMetricsId: () => string | Promise<string>;
     fetchInterval?: number;
     disabled?: boolean;
   }) {
@@ -209,9 +208,17 @@ export class RemoteFeatureFlagController extends BaseController<
     remoteFeatureFlags: FeatureFlags,
   ): Promise<FeatureFlags> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
+    const metaMetricsIdResult = this.#getMetaMetricsId();
     const metaMetricsId =
-      (await this.#getMetaMetricsId) || generateFallbackMetaMetricsId();
-    const thresholdValue = generateDeterministicRandomNumber(metaMetricsId);
+      metaMetricsIdResult instanceof Promise
+        ? await metaMetricsIdResult
+        : metaMetricsIdResult;
+
+    const clientType = this.#clientConfigApiService.getClient();
+    const thresholdValue = generateDeterministicRandomNumber(
+      clientType,
+      metaMetricsId,
+    );
 
     for (const [
       remoteFeatureFlagName,

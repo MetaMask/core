@@ -14,7 +14,7 @@ import type {
   RemoteFeatureFlagControllerStateChangeEvent,
 } from './remote-feature-flag-controller';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
-import * as userSegmentationUtils from './utils/user-segmentation-utils';
+import { ClientType } from './remote-feature-flag-controller-types';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -42,7 +42,6 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
 };
 
 const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
-const MOCK_METRICS_ID_2 = '987fcdeb-51a2-4c4b-9876-543210fedcba';
 
 /**
  * Creates a controller instance with default parameters for testing
@@ -51,6 +50,7 @@ const MOCK_METRICS_ID_2 = '987fcdeb-51a2-4c4b-9876-543210fedcba';
  * @param options.state - The initial controller state
  * @param options.clientConfigApiService - The client config API service instance
  * @param options.disabled - Whether the controller should start disabled
+ * @param options.getMetaMetricsId - The function to get the metaMetricsId
  * @returns A configured RemoteFeatureFlagController instance
  */
 function createController(
@@ -59,7 +59,7 @@ function createController(
     state: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
-    getMetaMetricsId: Promise<string | undefined>;
+    getMetaMetricsId: () => Promise<string> | string;
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
@@ -68,7 +68,8 @@ function createController(
     clientConfigApiService:
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
-    getMetaMetricsId: options.getMetaMetricsId,
+    getMetaMetricsId:
+      options.getMetaMetricsId ?? (() => Promise.resolve(MOCK_METRICS_ID)),
   });
 }
 
@@ -219,6 +220,7 @@ describe('RemoteFeatureFlagController', () => {
         });
 
       const clientConfigApiService = {
+        getClient: () => ClientType.Mobile,
         fetchRemoteFeatureFlags: fetchSpy,
       } as AbstractClientConfigApiService;
 
@@ -271,7 +273,7 @@ describe('RemoteFeatureFlagController', () => {
       });
       const controller = createController({
         clientConfigApiService,
-        getMetaMetricsId: Promise.resolve(MOCK_METRICS_ID),
+        getMetaMetricsId: () => Promise.resolve(MOCK_METRICS_ID),
       });
       await controller.updateRemoteFeatureFlags();
 
@@ -289,7 +291,7 @@ describe('RemoteFeatureFlagController', () => {
       });
       const controller = createController({
         clientConfigApiService,
-        getMetaMetricsId: Promise.resolve(MOCK_METRICS_ID),
+        getMetaMetricsId: () => Promise.resolve(MOCK_METRICS_ID),
       });
       await controller.updateRemoteFeatureFlags();
 
@@ -298,23 +300,22 @@ describe('RemoteFeatureFlagController', () => {
       expect(nonThresholdFlags).toStrictEqual(MOCK_FLAGS);
     });
 
-    it('uses a fallback metaMetricsId if none is provided', async () => {
-      jest
-        .spyOn(userSegmentationUtils, 'generateFallbackMetaMetricsId')
-        .mockReturnValue(MOCK_METRICS_ID_2);
+    it('handles synchronous metaMetricsId', async () => {
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
       });
       const controller = createController({
         clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
       });
+
       await controller.updateRemoteFeatureFlags();
 
       expect(
         controller.state.remoteFeatureFlags.testFlagForThreshold,
       ).toStrictEqual({
-        name: 'groupA',
-        value: 'valueA',
+        name: 'groupC',
+        value: 'valueC',
       });
     });
   });
@@ -399,18 +400,22 @@ function getControllerMessenger(
  * @param options.remoteFeatureFlags - Optional feature flags data to return
  * @param options.cacheTimestamp - Optional timestamp to use for the cache
  * @param options.error - Optional error to simulate API failure
+ * @param options.client - The client type to return from getClient
  * @returns A mock client config API service
  */
 function buildClientConfigApiService({
   remoteFeatureFlags,
   cacheTimestamp,
   error,
+  client,
 }: {
   remoteFeatureFlags?: FeatureFlags;
   cacheTimestamp?: number;
   error?: Error;
+  client?: ClientType;
 } = {}): AbstractClientConfigApiService {
   return {
+    getClient: jest.fn().mockReturnValue(client ?? ClientType.Mobile),
     fetchRemoteFeatureFlags: jest.fn().mockImplementation(() => {
       if (error) {
         return Promise.reject(error);

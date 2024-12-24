@@ -134,6 +134,23 @@ describe('ClientConfigApiService', () => {
     });
   });
 
+  describe('getClient', () => {
+    it('returns configured client type', () => {
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: createMockFetch({}),
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+
+      expect(clientConfigApiService.getClient()).toStrictEqual(
+        ClientType.Extension,
+      );
+    });
+  });
+
   describe('circuit breaker', () => {
     it('opens the circuit breaker after consecutive failures', async () => {
       const mockFetch = createMockFetch({ error: networkError });
