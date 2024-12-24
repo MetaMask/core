@@ -1,5 +1,6 @@
 import type { TxData, TypedTransaction } from '@ethereumjs/tx';
 import { isValidPrivate, toBuffer, getBinarySize } from '@ethereumjs/util';
+import { Wallet, thirdparty as importers } from '@ethereumjs/wallet';
 import type {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
@@ -41,7 +42,6 @@ import {
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
-import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 
 import { KeyringControllerError } from './constants';
@@ -1013,16 +1013,25 @@ export class KeyringController extends BaseController<
 
           privateKey = remove0x(prefixed);
           break;
-        case 'json':
-          let wallet;
-          const [input, password] = args;
+        case 'json': {
           try {
-            wallet = importers.fromEtherWallet(input, password);
+            const getWallet = async (): Promise<Wallet> => {
+              const [input, password] = args;
+              try {
+                return await importers.fromEtherWallet(input, password);
+              } catch (e) {
+                return await Wallet.fromV3(input, password, true);
+              }
+            };
+            const wallet = await getWallet();
+            privateKey = bytesToHex(wallet.getPrivateKey());
+            break;
           } catch (e) {
-            wallet = wallet || (await Wallet.fromV3(input, password, true));
+            throw new Error(
+              'Key derivation failed - possibly wrong passphrase',
+            );
           }
-          privateKey = bytesToHex(wallet.getPrivateKey());
-          break;
+        }
         default:
           throw new Error(`Unexpected import strategy: '${strategy}'`);
       }
