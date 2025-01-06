@@ -252,11 +252,12 @@ export abstract class AbstractMessageManager<
         `${this.name as string}: Message not found for id: ${messageId}.`,
       );
     }
-    this.updateMessage({
+    const updatedMessage = {
       ...message,
       status,
-    });
-    this.hub.emit(`${messageId}:${status}`, message);
+    };
+    this.updateMessage(updatedMessage);
+    this.hub.emit(`${messageId}:${status}`, updatedMessage);
     if (
       status === 'rejected' ||
       status === 'signed' ||
