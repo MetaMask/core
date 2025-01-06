@@ -288,7 +288,7 @@ export async function listenToPushNotifications(
     listenToPushNotificationsClicked(listenToPushClicked);
 
   const unsubscribe = () => {
-    unsubscribePushNotifications();
+    unsubscribePushNotifications?.();
     unsubscribeNotificationClicks();
   };
 

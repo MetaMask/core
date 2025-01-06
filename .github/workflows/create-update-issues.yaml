@@ -34,10 +34,14 @@ jobs:
 
               # Check if version number ends with .0.0
               if [[ $version == *.0.0 ]]; then
-                # Fetch responsible team from file
+                # Fetch responsible teams from file
                 teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$teams, client-controller-update"
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$teams, client-controller-update"
+                labels="client-controller-update"
+                if [[ $teams != "null" ]]; then
+                  labels+=",$teams"
+                fi
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$labels"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$labels"
               fi
             fi
           done

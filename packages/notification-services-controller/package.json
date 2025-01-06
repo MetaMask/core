@@ -100,9 +100,9 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^7.0.2",
+    "@metamask/base-controller": "^7.1.0",
     "@metamask/controller-utils": "^11.4.4",
-    "@metamask/utils": "^10.0.0",
+    "@metamask/utils": "^11.0.1",
     "bignumber.js": "^9.1.2",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
