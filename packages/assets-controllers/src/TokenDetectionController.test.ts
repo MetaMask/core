@@ -1148,14 +1148,7 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(mockTokens).toHaveBeenNthCalledWith(1, {
-              chainIds: [
-                '0x1',
-                '0x5',
-                '0xaa36a7',
-                '0xe704',
-                '0xe705',
-                '0xe708',
-              ],
+              chainIds: ['0x1', '0xaa36a7', '0xe705', '0xe708'],
               selectedAddress: secondSelectedAccount.address,
             });
           },
@@ -2417,14 +2410,14 @@ describe('TokenDetectionController', () => {
           mockMultiChainAccountsService();
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: NetworkType.goerli,
+            selectedNetworkClientId: NetworkType.sepolia,
           });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            chainIds: ['0x5'],
+            chainIds: ['0xaa36a7'],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -2734,7 +2727,7 @@ describe('TokenDetectionController', () => {
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            chainIds: ['0x5'],
+            chainIds: ['0xaa36a7'],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(

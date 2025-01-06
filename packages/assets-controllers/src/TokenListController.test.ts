@@ -953,7 +953,7 @@ describe('TokenListController', () => {
     nock(tokenService.TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
-      .get(getTokensPath(ChainId.goerli))
+      .get(getTokensPath(ChainId.sepolia))
       .reply(200, { error: 'ChainId 5 is not supported' })
       .get(getTokensPath(toHex(56)))
       .reply(200, sampleBinanceTokenList)
@@ -961,8 +961,8 @@ describe('TokenListController', () => {
     const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
     const controllerMessenger = getControllerMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById({
-      [InfuraNetworkType.goerli]: buildInfuraNetworkClientConfiguration(
-        InfuraNetworkType.goerli,
+      [InfuraNetworkType.sepolia]: buildInfuraNetworkClientConfiguration(
+        InfuraNetworkType.sepolia,
       ),
       [selectedCustomNetworkClientId]: buildCustomNetworkClientConfiguration({
         chainId: toHex(56),
@@ -995,7 +995,7 @@ describe('TokenListController', () => {
     controllerMessenger.publish(
       'NetworkController:stateChange',
       {
-        selectedNetworkClientId: InfuraNetworkType.goerli,
+        selectedNetworkClientId: InfuraNetworkType.sepolia,
         networkConfigurationsByChainId: {},
         networksMetadata: {},
         // @ts-expect-error This property isn't used and will get removed later.
@@ -1065,8 +1065,8 @@ describe('TokenListController', () => {
     nock(tokenService.TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
-      .get(getTokensPath(ChainId.goerli))
-      .reply(200, { error: 'ChainId 5 is not supported' })
+      .get(getTokensPath(ChainId.sepolia))
+      .reply(200, { error: 'ChainId 11155111 is not supported' })
       .get(getTokensPath(toHex(56)))
       .reply(200, sampleBinanceTokenList)
       .persist();
@@ -1087,7 +1087,7 @@ describe('TokenListController', () => {
     );
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
-      chainId: ChainId.goerli,
+      chainId: ChainId.sepolia,
       preventPollingOnNetworkRestart: true,
       messenger,
       interval: 100,
