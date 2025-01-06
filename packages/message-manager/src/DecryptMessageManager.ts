@@ -1,6 +1,6 @@
 import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ActionConstraint,
+  EventConstraint,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
@@ -16,38 +16,21 @@ import type {
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { normalizeMessageData, validateDecryptedMessageData } from './utils';
 
-const controllerName = 'DecryptMessageManager';
-
 export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
 
-export type GetDecryptMessageManagerState = ControllerGetStateAction<
-  typeof controllerName,
-  DecryptMessageManagerState
->;
-
-export type DecryptMessageManagerStateChange = ControllerStateChangeEvent<
-  typeof controllerName,
-  DecryptMessageManagerState
->;
-
-export type DecryptMessageManagerActions = GetDecryptMessageManagerState;
-
-export type DecryptMessageManagerEvents = DecryptMessageManagerStateChange;
-
-type AllowedActions = never;
-
 export type DecryptMessageManagerMessenger = RestrictedControllerMessenger<
-  typeof controllerName,
-  DecryptMessageManagerActions | AllowedActions,
-  DecryptMessageManagerEvents,
-  AllowedActions['type'],
-  never
+  string,
+  ActionConstraint,
+  EventConstraint,
+  string,
+  string
 >;
 
-export type DecryptMessageManagerOptions = {
+type DecryptMessageManagerOptions = {
   messenger: DecryptMessageManagerMessenger;
-  state?: MessageManagerState<DecryptMessage>;
+  name: string;
   securityProviderRequest?: SecurityProviderRequest;
+  state?: MessageManagerState<DecryptMessage>;
   additionalFinishStatuses?: string[];
 };
 
@@ -100,21 +83,22 @@ export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessage,
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
-  DecryptMessageManagerActions,
-  DecryptMessageManagerEvents
+  ActionConstraint,
+  EventConstraint
 > {
   constructor({
-    messenger,
-    state,
-    securityProviderRequest,
     additionalFinishStatuses,
+    messenger,
+    name,
+    securityProviderRequest,
+    state,
   }: DecryptMessageManagerOptions) {
     super({
-      messenger,
-      name: controllerName,
-      state,
-      securityProviderRequest,
       additionalFinishStatuses,
+      messenger,
+      name,
+      securityProviderRequest,
+      state,
     });
   }
 

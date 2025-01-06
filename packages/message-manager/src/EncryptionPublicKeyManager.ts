@@ -1,6 +1,6 @@
 import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
+  ActionConstraint,
+  EventConstraint,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
@@ -16,40 +16,22 @@ import type {
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { validateEncryptionPublicKeyMessageData } from './utils';
 
-const controllerName = 'EncryptionPublicKeyManager';
-
 export type EncryptionPublicKeyManagerState =
   MessageManagerState<EncryptionPublicKey>;
 
-export type GetEncryptionPublicKeyState = ControllerGetStateAction<
-  typeof controllerName,
-  EncryptionPublicKeyManagerState
->;
-
-export type EncryptionPublicKeyManagerStateChange = ControllerStateChangeEvent<
-  typeof controllerName,
-  EncryptionPublicKeyManagerState
->;
-
-export type EncryptionPublicKeyManagerActions = GetEncryptionPublicKeyState;
-
-export type EncryptionPublicKeyManagerEvents =
-  EncryptionPublicKeyManagerStateChange;
-
-type AllowedActions = never;
-
 export type EncryptionPublicKeyManagerMessenger = RestrictedControllerMessenger<
-  typeof controllerName,
-  EncryptionPublicKeyManagerActions | AllowedActions,
-  EncryptionPublicKeyManagerEvents,
-  AllowedActions['type'],
-  never
+  string,
+  ActionConstraint,
+  EventConstraint,
+  string,
+  string
 >;
 
 type EncryptionPublicKeyManagerOptions = {
   messenger: EncryptionPublicKeyManagerMessenger;
-  state?: MessageManagerState<EncryptionPublicKey>;
+  name: string;
   securityProviderRequest?: SecurityProviderRequest;
+  state?: MessageManagerState<EncryptionPublicKey>;
   additionalFinishStatuses?: string[];
 };
 
@@ -99,21 +81,22 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
-  EncryptionPublicKeyManagerActions,
-  EncryptionPublicKeyManagerEvents
+  ActionConstraint,
+  EventConstraint
 > {
   constructor({
-    messenger,
-    state,
-    securityProviderRequest,
     additionalFinishStatuses,
+    messenger,
+    name,
+    securityProviderRequest,
+    state,
   }: EncryptionPublicKeyManagerOptions) {
     super({
-      messenger,
-      name: controllerName,
-      state,
-      securityProviderRequest,
       additionalFinishStatuses,
+      messenger,
+      name,
+      securityProviderRequest,
+      state,
     });
   }
 
