@@ -10,8 +10,8 @@ const MOCK_METRICS_IDS = {
   MOBILE_VALID: '123e4567-e89b-4456-a456-426614174000',
   EXTENSION_VALID:
     '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420',
-  MOBILE_MIN: '00000000-0000-0000-0000-000000000000',
-  MOBILE_MAX: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+  MOBILE_MIN: '00000000-4000-0000-0000-000000000000',
+  MOBILE_MAX: 'ffffffff-4fff-ffff-ffff-ffffffffffff',
   EXTENSION_MIN: `0x${'0'.repeat(64)}`,
   EXTENSION_MAX: `0x${'f'.repeat(64)}`,
 };
