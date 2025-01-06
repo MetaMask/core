@@ -50,9 +50,9 @@
     "@metamask/api-specs": "^0.10.12",
     "@metamask/controller-utils": "^11.4.4",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
-    "@metamask/rpc-errors": "^7.0.1",
+    "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^10.0.0",
+    "@metamask/utils": "^11.0.1",
     "@open-rpc/schema-utils-js": "^2.0.5",
     "jsonschema": "^1.4.1",
     "lodash": "^4.17.21"

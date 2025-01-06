@@ -16,6 +16,7 @@ export const CaipReferenceRegexes: Record<NonWalletKnownCaipNamespace, RegExp> =
   {
     eip155: /^(0|[1-9][0-9]*)$/u,
     bip122: /.*/u,
+    solana: /.*/u,
   };
 
 /**
@@ -64,6 +65,7 @@ const Eip155Methods = MetaMaskOpenRPCDocument.methods
 export const KnownRpcMethods: Record<NonWalletKnownCaipNamespace, string[]> = {
   eip155: Eip155Methods,
   bip122: [],
+  solana: [],
 };
 
 /**
@@ -75,6 +77,7 @@ export const KnownWalletNamespaceRpcMethods: Record<
 > = {
   eip155: WalletEip155Methods,
   bip122: [],
+  solana: [],
 };
 
 /**
@@ -84,4 +87,5 @@ export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
   {
     eip155: ['eth_subscription'],
     bip122: [],
+    solana: [],
   };
