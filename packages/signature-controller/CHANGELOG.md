@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.2.0]
+
 ### Changed
 
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/keyring-controller` from `19.0.1` to `19.0.2` ([#5058](https://github.com/MetaMask/core/pull/5058))
+- Bump `@metamask/network-controller` from `22.1.0` to `^22.1.1` ([#5038](https://github.com/MetaMask/core/pull/5038))
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+### Fixed
+
+- Align signature request and message params ID ([#5102](https://github.com/MetaMask/core/pull/5102))
 
 ## [23.1.0]
 
@@ -444,7 +453,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.0...HEAD
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.1.0...@metamask/signature-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.1...@metamask/signature-controller@23.1.0
 [23.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.0...@metamask/signature-controller@23.0.1
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@22.0.0...@metamask/signature-controller@23.0.0
