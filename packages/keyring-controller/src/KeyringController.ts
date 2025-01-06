@@ -2199,7 +2199,10 @@ export class KeyringController extends BaseController<
         );
       }
 
-      keyring.generateRandomMnemonic();
+      // NOTE: Not all keyrings implement this method in a asynchronous-way. Using `await` for
+      // non-thenable will still be valid (despite not being really useful). It allows us to cover both
+      // cases and allow retro-compatibility too.
+      await keyring.generateRandomMnemonic();
       await keyring.addAccounts(1);
     }
 
