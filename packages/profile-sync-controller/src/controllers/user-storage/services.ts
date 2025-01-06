@@ -76,7 +76,9 @@ export async function getUserStorage(
     }
 
     if (userStorageResponse.status !== 200) {
-      throw new Error('Unable to get User Storage');
+      throw new Error(
+        `Unable to get User Storage - HTTP ${userStorageResponse.status}`,
+      );
     }
 
     const userStorage: GetUserStorageResponse | null =
@@ -133,7 +135,9 @@ export async function getUserStorageAllFeatureEntries(
     }
 
     if (userStorageResponse.status !== 200) {
-      throw new Error('Unable to get User Storage');
+      throw new Error(
+        `Unable to get User Storage - HTTP ${userStorageResponse.status}`,
+      );
     }
 
     const userStorage: GetUserStorageAllFeatureEntriesResponse | null =
@@ -222,7 +226,9 @@ export async function upsertUserStorage(
   });
 
   if (!res.ok) {
-    throw new Error('user-storage - unable to upsert data');
+    throw new Error(
+      `user-storage - unable to upsert data - HTTP ${res.status}`,
+    );
   }
 }
 
@@ -266,7 +272,9 @@ export async function batchUpsertUserStorage(
   });
 
   if (!res.ok) {
-    throw new Error('user-storage - unable to batch upsert data');
+    throw new Error(
+      `user-storage - unable to batch upsert data - HTTP ${res.status}`,
+    );
   }
 }
 
@@ -301,7 +309,9 @@ export async function batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries
   });
 
   if (!res.ok) {
-    throw new Error('user-storage - unable to batch upsert data');
+    throw new Error(
+      `user-storage - unable to batch upsert data - HTTP ${res.status}`,
+    );
   }
 }
 
@@ -326,11 +336,15 @@ export async function deleteUserStorage(
   });
 
   if (userStorageResponse.status === 404) {
-    throw new Error('user-storage - feature/entry not found');
+    throw new Error(
+      `user-storage - feature/entry not found - HTTP ${userStorageResponse.status}`,
+    );
   }
 
   if (!userStorageResponse.ok) {
-    throw new Error('user-storage - unable to delete data');
+    throw new Error(
+      `user-storage - unable to delete data - HTTP ${userStorageResponse.status}`,
+    );
   }
 }
 
@@ -370,7 +384,9 @@ export async function batchDeleteUserStorage(
   });
 
   if (!res.ok) {
-    throw new Error('user-storage - unable to batch delete data');
+    throw new Error(
+      `user-storage - unable to batch delete data - HTTP ${res.status}`,
+    );
   }
 }
 
@@ -394,10 +410,14 @@ export async function deleteUserStorageAllFeatureEntries(
   });
 
   if (userStorageResponse.status === 404) {
-    throw new Error('user-storage - feature not found');
+    throw new Error(
+      `user-storage - feature not found - HTTP ${userStorageResponse.status}`,
+    );
   }
 
   if (!userStorageResponse.ok) {
-    throw new Error('user-storage - unable to delete data');
+    throw new Error(
+      `user-storage - unable to delete data - HTTP ${userStorageResponse.status}`,
+    );
   }
 }
