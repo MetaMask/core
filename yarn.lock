@@ -3315,7 +3315,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/controller-utils": "npm:^11.4.4"
     "@metamask/eth-json-rpc-filters": "npm:^9.0.0"
-    "@metamask/json-rpc-engine": "npm:^10.0.1"
+    "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/permission-controller": "npm:^11.0.4"
     "@metamask/rpc-errors": "npm:^7.0.2"
