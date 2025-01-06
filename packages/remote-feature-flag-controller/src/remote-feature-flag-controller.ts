@@ -102,7 +102,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
-  #getMetaMetricsId: () => string | Promise<string>;
+  #getMetaMetricsId: () => string;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -126,7 +126,7 @@ export class RemoteFeatureFlagController extends BaseController<
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
-    getMetaMetricsId: () => string | Promise<string>;
+    getMetaMetricsId: () => string;
     fetchInterval?: number;
     disabled?: boolean;
   }) {
@@ -208,11 +208,7 @@ export class RemoteFeatureFlagController extends BaseController<
     remoteFeatureFlags: FeatureFlags,
   ): Promise<FeatureFlags> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
-    const metaMetricsIdResult = this.#getMetaMetricsId();
-    const metaMetricsId =
-      metaMetricsIdResult instanceof Promise
-        ? await metaMetricsIdResult
-        : metaMetricsIdResult;
+    const metaMetricsId = this.#getMetaMetricsId();
 
     const clientType = this.#clientConfigApiService.getClient();
     const thresholdValue = generateDeterministicRandomNumber(

@@ -59,7 +59,7 @@ function createController(
     state: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
-    getMetaMetricsId: () => Promise<string> | string;
+    getMetaMetricsId: () => string;
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
@@ -68,8 +68,7 @@ function createController(
     clientConfigApiService:
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
-    getMetaMetricsId:
-      options.getMetaMetricsId ?? (() => Promise.resolve(MOCK_METRICS_ID)),
+    getMetaMetricsId: options.getMetaMetricsId ?? (() => MOCK_METRICS_ID),
   });
 }
 
@@ -273,7 +272,7 @@ describe('RemoteFeatureFlagController', () => {
       });
       const controller = createController({
         clientConfigApiService,
-        getMetaMetricsId: () => Promise.resolve(MOCK_METRICS_ID),
+        getMetaMetricsId: () => MOCK_METRICS_ID,
       });
       await controller.updateRemoteFeatureFlags();
 
@@ -291,32 +290,13 @@ describe('RemoteFeatureFlagController', () => {
       });
       const controller = createController({
         clientConfigApiService,
-        getMetaMetricsId: () => Promise.resolve(MOCK_METRICS_ID),
+        getMetaMetricsId: () => MOCK_METRICS_ID,
       });
       await controller.updateRemoteFeatureFlags();
 
       const { testFlagForThreshold, ...nonThresholdFlags } =
         controller.state.remoteFeatureFlags;
       expect(nonThresholdFlags).toStrictEqual(MOCK_FLAGS);
-    });
-
-    it('handles synchronous metaMetricsId', async () => {
-      const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
-      });
-      const controller = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-
-      await controller.updateRemoteFeatureFlags();
-
-      expect(
-        controller.state.remoteFeatureFlags.testFlagForThreshold,
-      ).toStrictEqual({
-        name: 'groupC',
-        value: 'valueC',
-      });
     });
   });
 
