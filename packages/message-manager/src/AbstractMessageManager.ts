@@ -264,7 +264,7 @@ export abstract class AbstractMessageManager<
       status === 'errored' ||
       this.additionalFinishStatuses.includes(status)
     ) {
-      this.hub.emit(`${messageId}:finished`, message);
+      this.hub.emit(`${messageId}:finished`, updatedMessage);
     }
   }
 
