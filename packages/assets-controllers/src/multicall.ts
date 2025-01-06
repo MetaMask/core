@@ -392,7 +392,27 @@ export const multicallOrFallback = async (
   }
 
   const multicallAddress = MULTICALL_CONTRACT_BY_CHAINID[chainId];
-  return await (multicallAddress
-    ? multicall(calls, multicallAddress, provider, maxCallsPerMulticall)
-    : fallback(calls, maxCallsParallel));
+  if (multicallAddress) {
+    try {
+      return await multicall(
+        calls,
+        multicallAddress,
+        provider,
+        maxCallsPerMulticall,
+      );
+    } catch (error: unknown) {
+      // Fallback only on revert
+      // https://docs.ethers.org/v5/troubleshooting/errors/#help-CALL_EXCEPTION
+      if (
+        !error ||
+        typeof error !== 'object' ||
+        !('code' in error) ||
+        error.code !== 'CALL_EXCEPTION'
+      ) {
+        throw error;
+      }
+    }
+  }
+
+  return await fallback(calls, maxCallsParallel);
 };
