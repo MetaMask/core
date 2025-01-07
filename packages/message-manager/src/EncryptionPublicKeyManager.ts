@@ -19,7 +19,7 @@ import { validateEncryptionPublicKeyMessageData } from './utils';
 export type EncryptionPublicKeyManagerState =
   MessageManagerState<EncryptionPublicKey>;
 
-type EncryptionPublicKeyManagerUnapprovedMessageAddedEvent = {
+export type EncryptionPublicKeyManagerUnapprovedMessageAddedEvent = {
   type: `${string}:unapprovedMessage`;
   payload: [AbstractMessageParamsMetamask];
 };

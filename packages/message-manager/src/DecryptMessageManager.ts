@@ -18,7 +18,7 @@ import { normalizeMessageData, validateDecryptedMessageData } from './utils';
 
 export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
 
-type DecryptMessageManagerUnapprovedMessageAddedEvent = {
+export type DecryptMessageManagerUnapprovedMessageAddedEvent = {
   type: `${string}:unapprovedMessage`;
   payload: [AbstractMessageParamsMetamask];
 };
