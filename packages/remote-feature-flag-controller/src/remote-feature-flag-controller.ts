@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
-import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
+import type { IAbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -98,7 +98,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #disabled: boolean;
 
-  #clientConfigApiService: AbstractClientConfigApiService;
+  readonly #clientConfigApiService: IAbstractClientConfigApiService;
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
@@ -125,7 +125,7 @@ export class RemoteFeatureFlagController extends BaseController<
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
-    clientConfigApiService: AbstractClientConfigApiService;
+    clientConfigApiService: IAbstractClientConfigApiService;
     getMetaMetricsId: () => string;
     fetchInterval?: number;
     disabled?: boolean;
@@ -193,9 +193,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @private
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(
-      remoteFeatureFlags,
-    );
+    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
         remoteFeatureFlags: processedRemoteFeatureFlags,

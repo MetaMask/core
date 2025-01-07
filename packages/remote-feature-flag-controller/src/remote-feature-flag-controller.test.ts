@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 
-import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
+import type { IAbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
   RemoteFeatureFlagController,
   controllerName,
@@ -55,7 +55,7 @@ function createController(
   options: Partial<{
     messenger: RemoteFeatureFlagControllerMessenger;
     state: Partial<RemoteFeatureFlagControllerState>;
-    clientConfigApiService: AbstractClientConfigApiService;
+    clientConfigApiService: IAbstractClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
   }> = {},
@@ -218,7 +218,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const clientConfigApiService = {
         fetchRemoteFeatureFlags: fetchSpy,
-      } as AbstractClientConfigApiService;
+      } as IAbstractClientConfigApiService;
 
       const controller = createController({
         clientConfigApiService,
@@ -387,7 +387,7 @@ function buildClientConfigApiService({
   remoteFeatureFlags?: FeatureFlags;
   cacheTimestamp?: number;
   error?: Error;
-} = {}): AbstractClientConfigApiService {
+} = {}): IAbstractClientConfigApiService {
   return {
     fetchRemoteFeatureFlags: jest.fn().mockImplementation(() => {
       if (error) {

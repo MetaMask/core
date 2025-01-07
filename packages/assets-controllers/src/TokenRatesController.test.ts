@@ -30,7 +30,7 @@ import {
 } from '../../network-controller/tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
-  AbstractTokenPricesService,
+  IAbstractTokenPricesService,
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
@@ -2093,11 +2093,9 @@ describe('TokenRatesController', () => {
               price: 0.002,
             },
           }),
-          validateCurrencySupported: jest.fn().mockReturnValue(
-            false,
-            // Cast used because this method has an assertion in the return
-            // value that I don't know how to type properly with Jest's mock.
-          ) as unknown as AbstractTokenPricesService['validateCurrencySupported'],
+          validateCurrencySupported(_currency: unknown): _currency is string {
+            return false;
+          },
         });
         nock('https://min-api.cryptocompare.com')
           .get('/data/price')
@@ -2288,11 +2286,9 @@ describe('TokenRatesController', () => {
               value: 0.002,
             },
           }),
-          validateChainIdSupported: jest.fn().mockReturnValue(
-            false,
-            // Cast used because this method has an assertion in the return
-            // value that I don't know how to type properly with Jest's mock.
-          ) as unknown as AbstractTokenPricesService['validateChainIdSupported'],
+          validateChainIdSupported(_chainId: unknown): _chainId is Hex {
+            return false;
+          },
         });
         await withController(
           {
@@ -2758,8 +2754,8 @@ async function callUpdateExchangeRatesMethod({
  * @returns The built mock token prices service.
  */
 function buildMockTokenPricesService(
-  overrides: Partial<AbstractTokenPricesService> = {},
-): AbstractTokenPricesService {
+  overrides: Partial<IAbstractTokenPricesService> = {},
+): IAbstractTokenPricesService {
   return {
     async fetchTokenPrices() {
       return {};

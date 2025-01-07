@@ -8,7 +8,7 @@ import { remove0x } from '@metamask/utils';
 import BN from 'bn.js';
 
 import type { Nft, NftMetadata } from './NftController';
-import type { AbstractTokenPricesService } from './token-prices-service';
+import type { IAbstractTokenPricesService } from './token-prices-service';
 import { type ContractExchangeRates } from './TokenRatesController';
 
 /**
@@ -387,7 +387,7 @@ export async function fetchTokenContractExchangeRates({
   tokenAddresses,
   chainId,
 }: {
-  tokenPricesService: AbstractTokenPricesService;
+  tokenPricesService: IAbstractTokenPricesService;
   nativeCurrency: string;
   tokenAddresses: Hex[];
   chainId: Hex;
@@ -403,7 +403,7 @@ export async function fetchTokenContractExchangeRates({
 
   const tokenPricesByTokenAddress = await reduceInBatchesSerially<
     Hex,
-    Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+    Awaited<ReturnType<IAbstractTokenPricesService['fetchTokenPrices']>>
   >({
     values: [...tokenAddresses].sort(),
     batchSize: TOKEN_PRICES_BATCH_SIZE,
