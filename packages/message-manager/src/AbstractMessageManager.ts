@@ -98,6 +98,11 @@ export type MessageManagerState<Message extends AbstractMessage> = {
   unapprovedMessagesCount: number;
 };
 
+export type UpdateBadgeEvent = {
+  type: `${string}:updateBadge`;
+  payload: [unusedPayload: string];
+};
+
 /**
  * A function for verifying a message, whether it is malicious or not
  */
@@ -106,7 +111,16 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
-type AbstractMessageManagerOptions<
+/**
+ * AbstractMessageManager constructor options.
+ *
+ * @property additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
+ * @property messenger - Controller messaging system.
+ * @property name - The name of the manager.
+ * @property securityProviderRequest - A function for verifying a message, whether it is malicious or not.
+ * @property state - Initial state to set on this controller.
+ */
+export type AbstractMessageManagerOptions<
   Message extends AbstractMessage,
   Action extends ActionConstraint,
   Event extends EventConstraint,
@@ -115,7 +129,7 @@ type AbstractMessageManagerOptions<
   messenger: RestrictedControllerMessenger<
     string,
     Action,
-    Event,
+    Event | UpdateBadgeEvent,
     string,
     string
   >;
@@ -136,7 +150,13 @@ export abstract class AbstractMessageManager<
 > extends BaseController<
   string,
   MessageManagerState<Message>,
-  RestrictedControllerMessenger<string, Action, Event, string, string>
+  RestrictedControllerMessenger<
+    string,
+    Action,
+    Event | UpdateBadgeEvent,
+    string,
+    string
+  >
 > {
   protected messages: Message[];
 
@@ -144,18 +164,8 @@ export abstract class AbstractMessageManager<
 
   private readonly additionalFinishStatuses: string[];
 
-  hub: EventEmitter = new EventEmitter();
+  internalEvents = new EventEmitter();
 
-  /**
-   * Creates an AbstractMessageManager instance.
-   *
-   * @param options - Options for the AbstractMessageManager.
-   * @param options.additionalFinishStatuses - Optional list of statuses that are accepted to emit a finished event.
-   * @param options.messenger - Controller messaging system.
-   * @param options.name - The name of the manager.
-   * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
-   * @param options.state - Initial state to set on this controller.
-   */
   constructor({
     additionalFinishStatuses,
     messenger,
@@ -235,7 +245,8 @@ export abstract class AbstractMessageManager<
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {
-      this.hub.emit('updateBadge');
+      // Empty payload is used to satisfy event constraint for BaseControllerV2
+      this.messagingSystem.publish(`${this.name as string}:updateBadge`, '');
     }
   }
 
@@ -257,14 +268,17 @@ export abstract class AbstractMessageManager<
       status,
     };
     this.updateMessage(updatedMessage);
-    this.hub.emit(`${messageId}:${status}`, updatedMessage);
+    this.internalEvents.emit(`${messageId}:${status}`, updatedMessage);
     if (
       status === 'rejected' ||
       status === 'signed' ||
       status === 'errored' ||
       this.additionalFinishStatuses.includes(status)
     ) {
-      this.hub.emit(`${messageId}:finished`, updatedMessage);
+      this.internalEvents.emit(
+        `${messageId as string}:finished`,
+        updatedMessage,
+      );
     }
   }
 
@@ -516,7 +530,7 @@ export abstract class AbstractMessageManager<
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
-      this.hub.once(
+      this.internalEvents.once(
         `${messageId as string}:finished`,
         (data: AbstractMessage) => {
           switch (data.status) {

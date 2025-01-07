@@ -18,10 +18,15 @@ import { normalizeMessageData, validateDecryptedMessageData } from './utils';
 
 export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
 
+type DecryptMessageManagerUnapprovedMessageAddedEvent = {
+  type: `${string}:unapprovedMessage`;
+  payload: [AbstractMessageParamsMetamask];
+};
+
 export type DecryptMessageManagerMessenger = RestrictedControllerMessenger<
   string,
   ActionConstraint,
-  EventConstraint,
+  EventConstraint | DecryptMessageManagerUnapprovedMessageAddedEvent,
   string,
   string
 >;
@@ -84,7 +89,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
   ActionConstraint,
-  EventConstraint
+  EventConstraint | DecryptMessageManagerUnapprovedMessageAddedEvent
 > {
   constructor({
     additionalFinishStatuses,
@@ -118,32 +123,35 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = await this.addUnapprovedMessage(messageParams, req);
 
     return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: DecryptMessage) => {
-        switch (data.status) {
-          case 'decrypted':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask DecryptMessage: User denied message decryption.',
-              ),
-            );
-          case 'errored':
-            return reject(
-              new Error(
-                'MetaMask DecryptMessage: This message cannot be decrypted.',
-              ),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask DecryptMessage: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
+      this.internalEvents.once(
+        `${messageId}:finished`,
+        (data: DecryptMessage) => {
+          switch (data.status) {
+            case 'decrypted':
+              return resolve(data.rawSig as string);
+            case 'rejected':
+              return reject(
+                new Error(
+                  'MetaMask DecryptMessage: User denied message decryption.',
+                ),
+              );
+            case 'errored':
+              return reject(
+                new Error(
+                  'MetaMask DecryptMessage: This message cannot be decrypted.',
+                ),
+              );
+            default:
+              return reject(
+                new Error(
+                  `MetaMask DecryptMessage: Unknown problem: ${JSON.stringify(
+                    messageParams,
+                  )}`,
+                ),
+              );
+          }
+        },
+      );
     });
   }
 
@@ -176,7 +184,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, {
+    this.messagingSystem.publish(`${this.name as string}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

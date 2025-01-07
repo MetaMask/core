@@ -76,7 +76,7 @@ describe('EncryptionPublicKeyManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'received',
           rawSig: rawSigMock,
         });
@@ -91,7 +91,7 @@ describe('EncryptionPublicKeyManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'rejected',
         });
       }, 100);
@@ -107,7 +107,7 @@ describe('EncryptionPublicKeyManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'unknown',
         });
       }, 100);

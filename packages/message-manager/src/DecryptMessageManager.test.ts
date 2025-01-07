@@ -81,7 +81,7 @@ describe('DecryptMessageManager', () => {
         data: dataMock,
       });
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'decrypted',
           rawSig: rawSigMock,
         });
@@ -97,7 +97,7 @@ describe('DecryptMessageManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'rejected',
         });
       }, 100);
@@ -114,7 +114,7 @@ describe('DecryptMessageManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'errored',
         });
       }, 100);
@@ -131,7 +131,7 @@ describe('DecryptMessageManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'unknown',
         });
       }, 100);

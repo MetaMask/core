@@ -19,10 +19,15 @@ import { validateEncryptionPublicKeyMessageData } from './utils';
 export type EncryptionPublicKeyManagerState =
   MessageManagerState<EncryptionPublicKey>;
 
+type EncryptionPublicKeyManagerUnapprovedMessageAddedEvent = {
+  type: `${string}:unapprovedMessage`;
+  payload: [AbstractMessageParamsMetamask];
+};
+
 export type EncryptionPublicKeyManagerMessenger = RestrictedControllerMessenger<
   string,
   ActionConstraint,
-  EventConstraint,
+  EventConstraint | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent,
   string,
   string
 >;
@@ -82,7 +87,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
   ActionConstraint,
-  EventConstraint
+  EventConstraint | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
 > {
   constructor({
     additionalFinishStatuses,
@@ -116,26 +121,29 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = await this.addUnapprovedMessage(messageParams, req);
 
     return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: EncryptionPublicKey) => {
-        switch (data.status) {
-          case 'received':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask EncryptionPublicKey: User denied message EncryptionPublicKey.',
-              ),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask EncryptionPublicKey: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
+      this.internalEvents.once(
+        `${messageId}:finished`,
+        (data: EncryptionPublicKey) => {
+          switch (data.status) {
+            case 'received':
+              return resolve(data.rawSig as string);
+            case 'rejected':
+              return reject(
+                new Error(
+                  'MetaMask EncryptionPublicKey: User denied message EncryptionPublicKey.',
+                ),
+              );
+            default:
+              return reject(
+                new Error(
+                  `MetaMask EncryptionPublicKey: Unknown problem: ${JSON.stringify(
+                    messageParams,
+                  )}`,
+                ),
+              );
+          }
+        },
+      );
     });
   }
 
@@ -167,7 +175,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, {
+    this.messagingSystem.publish(`${this.name as string}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });
