@@ -547,7 +547,21 @@ describe('AbstractTestManager', () => {
 
   describe('clearUnapprovedMessages', () => {
     it('clears the unapproved messages', () => {
-      const controller = new AbstractTestManager(MOCK_INITIAL_OPTIONS);
+      const controller = new AbstractTestManager({
+        ...MOCK_INITIAL_OPTIONS,
+        state: {
+          unapprovedMessages: {
+            '1': {
+              id: '1',
+              messageParams: { from: '0x1', test: 1 },
+              status: 'unapproved',
+              time: 10,
+              type: 'type',
+            },
+          },
+          unapprovedMessagesCount: 1,
+        },
+      });
       controller.clearUnapprovedMessages();
       expect(controller.getUnapprovedMessagesCount()).toBe(0);
     });

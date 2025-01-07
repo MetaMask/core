@@ -16,10 +16,12 @@ import type {
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { normalizeMessageData, validateDecryptedMessageData } from './utils';
 
+const managerName = 'DecryptMessageManager';
+
 export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
 
 export type DecryptMessageManagerUnapprovedMessageAddedEvent = {
-  type: `${string}:unapprovedMessage`;
+  type: `${typeof managerName}:unapprovedMessage`;
   payload: [AbstractMessageParamsMetamask];
 };
 
@@ -33,7 +35,6 @@ export type DecryptMessageManagerMessenger = RestrictedControllerMessenger<
 
 type DecryptMessageManagerOptions = {
   messenger: DecryptMessageManagerMessenger;
-  name: string;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<DecryptMessage>;
   additionalFinishStatuses?: string[];
@@ -94,14 +95,13 @@ export class DecryptMessageManager extends AbstractMessageManager<
   constructor({
     additionalFinishStatuses,
     messenger,
-    name,
     securityProviderRequest,
     state,
   }: DecryptMessageManagerOptions) {
     super({
       additionalFinishStatuses,
       messenger,
-      name,
+      name: managerName,
       securityProviderRequest,
       state,
     });
@@ -184,7 +184,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.messagingSystem.publish(`${this.name as string}:unapprovedMessage`, {
+    this.messagingSystem.publish(`${managerName}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

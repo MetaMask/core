@@ -11,7 +11,6 @@ const mockMessenger = {
 const mockInitialOptions = {
   additionalFinishStatuses: undefined,
   messenger: mockMessenger,
-  name: 'DecryptMessageManager',
   securityProviderRequest: undefined,
 };
 

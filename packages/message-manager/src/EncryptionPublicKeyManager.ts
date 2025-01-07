@@ -16,11 +16,13 @@ import type {
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { validateEncryptionPublicKeyMessageData } from './utils';
 
+const managerName = 'EncryptionPublicKeyManager';
+
 export type EncryptionPublicKeyManagerState =
   MessageManagerState<EncryptionPublicKey>;
 
 export type EncryptionPublicKeyManagerUnapprovedMessageAddedEvent = {
-  type: `${string}:unapprovedMessage`;
+  type: `${typeof managerName}:unapprovedMessage`;
   payload: [AbstractMessageParamsMetamask];
 };
 
@@ -34,7 +36,6 @@ export type EncryptionPublicKeyManagerMessenger = RestrictedControllerMessenger<
 
 type EncryptionPublicKeyManagerOptions = {
   messenger: EncryptionPublicKeyManagerMessenger;
-  name: string;
   securityProviderRequest?: SecurityProviderRequest;
   state?: MessageManagerState<EncryptionPublicKey>;
   additionalFinishStatuses?: string[];
@@ -92,14 +93,13 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   constructor({
     additionalFinishStatuses,
     messenger,
-    name,
     securityProviderRequest,
     state,
   }: EncryptionPublicKeyManagerOptions) {
     super({
       additionalFinishStatuses,
       messenger,
-      name,
+      name: managerName,
       securityProviderRequest,
       state,
     });
