@@ -1,6 +1,8 @@
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bytesToHex } from '@ethereumjs/util';
 import { hexlify } from '@ethersproject/bytes';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
 import { BigNumber } from 'bignumber.js';
 import jsonDiffer from 'fast-json-patch';
 import _ from 'lodash';
@@ -77,7 +79,6 @@ export const calculateStatus = (stxStatus: SmartTransactionsStatus) => {
     SmartTransactionCancellationReason.DEADLINE_MISSED,
     SmartTransactionCancellationReason.INVALID_NONCE,
     SmartTransactionCancellationReason.USER_CANCELLED,
-    SmartTransactionCancellationReason.PREVIOUS_TX_CANCELLED,
   ];
   if (stxStatus?.minedTx === SmartTransactionMinedTx.NOT_MINED) {
     if (
@@ -277,4 +278,65 @@ export const getReturnTxHashAsap = (
   return clientId === ClientId.Extension
     ? smartTransactionsFeatureFlags?.extensionReturnTxHashAsap
     : smartTransactionsFeatureFlags?.mobileReturnTxHashAsap;
+};
+
+export const shouldMarkRegularTransactionAsFailed = ({
+  smartTransaction,
+  clientId,
+  getFeatureFlags,
+}: {
+  smartTransaction: SmartTransaction;
+  clientId: ClientId;
+  getFeatureFlags: () => FeatureFlags;
+}): boolean => {
+  const { status, transactionId } = smartTransaction;
+  const failureStatuses: SmartTransactionStatuses[] = [
+    SmartTransactionStatuses.CANCELLED,
+    SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
+    SmartTransactionStatuses.UNKNOWN,
+    SmartTransactionStatuses.RESOLVED,
+  ];
+  if (
+    !status ||
+    !failureStatuses.includes(status as SmartTransactionStatuses)
+  ) {
+    return false;
+  }
+  const { smartTransactions: smartTransactionsFeatureFlags } =
+    getFeatureFlags() ?? {};
+  const returnTxHashAsapEnabled = getReturnTxHashAsap(
+    clientId,
+    smartTransactionsFeatureFlags,
+  );
+  return Boolean(returnTxHashAsapEnabled && transactionId);
+};
+
+export const markRegularTransactionAsFailed = ({
+  smartTransaction,
+  getRegularTransactions,
+  updateTransaction,
+}: {
+  smartTransaction: SmartTransaction;
+  getRegularTransactions: () => TransactionMeta[];
+  updateTransaction: (transaction: TransactionMeta, note: string) => void;
+}) => {
+  const { transactionId, status } = smartTransaction;
+  const originalTransaction = getRegularTransactions().find(
+    (transaction) => transaction.id === transactionId,
+  );
+  if (!originalTransaction) {
+    throw new Error('Cannot find regular transaction to mark it as failed');
+  }
+  if (originalTransaction.status === TransactionStatus.failed) {
+    return; // Already marked as failed.
+  }
+  const updatedTransaction: TransactionMeta = {
+    ...originalTransaction,
+    status: TransactionStatus.failed,
+    error: {
+      name: 'SmartTransactionFailed',
+      message: `Smart transaction failed with status: ${status}`,
+    },
+  };
+  updateTransaction(updatedTransaction, `Smart transaction status: ${status}`);
 };

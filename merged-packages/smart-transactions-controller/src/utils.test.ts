@@ -1,4 +1,8 @@
-import { ChainId } from '@metamask/controller-utils';
+import { ChainId, NetworkType } from '@metamask/controller-utils';
+import {
+  type TransactionMeta,
+  TransactionStatus,
+} from '@metamask/transaction-controller';
 
 import packageJson from '../package.json';
 import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
@@ -168,17 +172,7 @@ describe('src/utils.js', () => {
       );
     });
 
-    it('returns cancellation state if cancellationReason provided', () => {
-      const statusResponse = {
-        ...createStatusResponse(),
-        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
-      };
-      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
-        SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
-      );
-    });
-
-    it('returns pending if a tx was user cancelled, but is not settled yet', () => {
+    it('returns status "pending" if a tx was user cancelled, but is not settled yet', () => {
       const statusResponse = {
         ...createStatusResponse(),
         cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
@@ -189,14 +183,63 @@ describe('src/utils.js', () => {
       );
     });
 
-    it('returns cancellation state "CANCELLED_PREVIOUS_TX_CANCELLED" if cancellationReason provided', () => {
+    it('returns status "cancelled_user_cancelled" if the "user_cancelled" cancellationReason is provided', () => {
       const statusResponse = {
         ...createStatusResponse(),
-        cancellationReason:
-          SmartTransactionCancellationReason.PREVIOUS_TX_CANCELLED,
+        cancellationReason: SmartTransactionCancellationReason.USER_CANCELLED,
       };
       expect(utils.calculateStatus(statusResponse)).toStrictEqual(
-        SmartTransactionStatuses.CANCELLED_PREVIOUS_TX_CANCELLED,
+        SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
+      );
+    });
+
+    it('returns status "cancelled" if the "would_revert" cancellationReason is provided', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason: SmartTransactionCancellationReason.WOULD_REVERT,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.CANCELLED,
+      );
+    });
+
+    it('returns status "cancelled" if the "too_cheap" cancellationReason is provided', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason: SmartTransactionCancellationReason.TOO_CHEAP,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.CANCELLED,
+      );
+    });
+
+    it('returns status "cancelled" if the "deadline_missed" cancellationReason is provided', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason: SmartTransactionCancellationReason.DEADLINE_MISSED,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.CANCELLED,
+      );
+    });
+
+    it('returns status "cancelled" if the "invalid_nonce" cancellationReason is provided', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason: SmartTransactionCancellationReason.INVALID_NONCE,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.CANCELLED,
+      );
+    });
+
+    it('returns status "pending" if the "not_cancelled" cancellationReason is provided', () => {
+      const statusResponse = {
+        ...createStatusResponse(),
+        cancellationReason: SmartTransactionCancellationReason.NOT_CANCELLED,
+      };
+      expect(utils.calculateStatus(statusResponse)).toStrictEqual(
+        SmartTransactionStatuses.PENDING,
       );
     });
   });
@@ -325,6 +368,225 @@ describe('src/utils.js', () => {
         mobileReturnTxHashAsap: true,
       });
       expect(result).toBe(true);
+    });
+  });
+
+  describe('shouldMarkRegularTransactionAsFailed', () => {
+    const createSmartTransaction = (status: SmartTransactionStatuses) => ({
+      uuid: 'test-uuid',
+      status,
+      transactionId: '123',
+      time: 12345,
+      statusMetadata: {
+        cancellationFeeWei: 0,
+        deadlineRatio: 0,
+        minedHash: '',
+        minedTx: SmartTransactionMinedTx.NOT_MINED,
+        isSettled: false,
+      },
+    });
+
+    const mockGetFeatureFlags =
+      (returnTxHashAsap = true) =>
+      () => ({
+        smartTransactions: {
+          extensionReturnTxHashAsap: returnTxHashAsap,
+          mobileReturnTxHashAsap: returnTxHashAsap,
+        },
+      });
+
+    it('returns true for "cancelled" status when feature flag is enabled', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.CANCELLED,
+        ),
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(true);
+    });
+
+    it('returns true for "cancelled_user_cancelled" status when feature flag is enabled', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
+        ),
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(true);
+    });
+
+    it('returns true for "unknown" status when feature flag is enabled', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.UNKNOWN,
+        ),
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(true);
+    });
+
+    it('returns true for "resolved" status when feature flag is enabled', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.RESOLVED,
+        ),
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(true);
+    });
+
+    it('returns false for "pending" status when feature flag is enabled', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.PENDING,
+        ),
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(false);
+    });
+
+    it('returns false for "success" status when feature flag is enabled', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.SUCCESS,
+        ),
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(false);
+    });
+
+    it('returns false when feature flag is disabled regardless of status', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.CANCELLED,
+        ),
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(false),
+      });
+      expect(result).toBe(false);
+    });
+
+    it('returns false when transactionId is missing', () => {
+      const smartTransaction = {
+        ...createSmartTransaction(SmartTransactionStatuses.CANCELLED),
+        transactionId: undefined,
+      };
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction,
+        clientId: ClientId.Extension,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(false);
+    });
+
+    it('returns true for mobile client when mobile feature flag is enabled', () => {
+      const result = utils.shouldMarkRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.CANCELLED,
+        ),
+        clientId: ClientId.Mobile,
+        getFeatureFlags: mockGetFeatureFlags(true),
+      });
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('markRegularTransactionAsFailed', () => {
+    const createSmartTransaction = (status: SmartTransactionStatuses) => ({
+      uuid: 'test-uuid',
+      status,
+      transactionId: '123',
+      time: 12345,
+      statusMetadata: {
+        cancellationFeeWei: 0,
+        deadlineRatio: 0,
+        minedHash: '',
+        minedTx: SmartTransactionMinedTx.NOT_MINED,
+        isSettled: false,
+      },
+    });
+
+    const mockTransaction: TransactionMeta = {
+      chainId: ChainId.mainnet,
+      id: '123',
+      origin: 'test1.com',
+      status: TransactionStatus.submitted,
+      time: 1631714313,
+      txParams: {
+        from: '0x6',
+      },
+      hash: '0x7',
+      rawTx: '0x8',
+      networkClientId: NetworkType.mainnet,
+    };
+
+    it('updates transaction with failed status and error message', () => {
+      const updateTransactionMock = jest.fn();
+
+      utils.markRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.CANCELLED,
+        ),
+        getRegularTransactions: () => [mockTransaction],
+        updateTransaction: updateTransactionMock,
+      });
+
+      expect(updateTransactionMock).toHaveBeenCalledWith(
+        {
+          ...mockTransaction,
+          status: TransactionStatus.failed,
+          error: {
+            name: 'SmartTransactionFailed',
+            message: 'Smart transaction failed with status: cancelled',
+          },
+        },
+        'Smart transaction status: cancelled',
+      );
+    });
+
+    it('throws error if original transaction cannot be found', () => {
+      const updateTransactionMock = jest.fn();
+      const getRegularTransactionsMock = jest.fn(() => []);
+
+      expect(() =>
+        utils.markRegularTransactionAsFailed({
+          smartTransaction: createSmartTransaction(
+            SmartTransactionStatuses.CANCELLED,
+          ),
+          getRegularTransactions: getRegularTransactionsMock,
+          updateTransaction: updateTransactionMock,
+        }),
+      ).toThrow('Cannot find regular transaction to mark it as failed');
+
+      expect(updateTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('does not update transaction if status is already failed', () => {
+      const updateTransactionMock = jest.fn();
+      const failedTransaction = {
+        ...mockTransaction,
+        status: TransactionStatus.failed,
+        error: {
+          name: 'SmartTransactionFailed',
+          message: 'Smart transaction failed',
+        },
+      };
+
+      utils.markRegularTransactionAsFailed({
+        smartTransaction: createSmartTransaction(
+          SmartTransactionStatuses.CANCELLED,
+        ),
+        getRegularTransactions: () => [failedTransaction],
+        updateTransaction: updateTransactionMock,
+      });
+
+      expect(updateTransactionMock).not.toHaveBeenCalled();
     });
   });
 });

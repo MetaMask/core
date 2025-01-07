@@ -1270,8 +1270,12 @@ describe('SmartTransactionsController', () => {
                 from: '0x123',
               },
               networkClientId: NetworkType.mainnet,
+              error: {
+                message: 'Smart transaction failed with status: cancelled',
+                name: 'SmartTransactionFailed',
+              },
             },
-            'Smart transaction cancelled',
+            'Smart transaction status: cancelled',
           );
         },
       );

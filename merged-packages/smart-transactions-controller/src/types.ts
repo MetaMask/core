@@ -27,7 +27,6 @@ export enum SmartTransactionCancellationReason {
   INVALID_NONCE = 'invalid_nonce',
   USER_CANCELLED = 'user_cancelled',
   NOT_CANCELLED = 'not_cancelled',
-  PREVIOUS_TX_CANCELLED = 'previous_tx_cancelled',
 }
 
 export enum SmartTransactionStatuses {
@@ -36,12 +35,7 @@ export enum SmartTransactionStatuses {
   REVERTED = 'reverted',
   UNKNOWN = 'unknown',
   CANCELLED = 'cancelled',
-  CANCELLED_WOULD_REVERT = 'cancelled_would_revert',
-  CANCELLED_TOO_CHEAP = 'cancelled_too_cheap',
-  CANCELLED_DEADLINE_MISSED = 'cancelled_deadline_missed',
-  CANCELLED_INVALID_NONCE = 'cancelled_invalid_nonce',
   CANCELLED_USER_CANCELLED = 'cancelled_user_cancelled',
-  CANCELLED_PREVIOUS_TX_CANCELLED = 'cancelled_previous_tx_cancelled',
   RESOLVED = 'resolved',
 }
 
@@ -52,17 +46,15 @@ export enum ClientId {
 
 export const cancellationReasonToStatusMap = {
   [SmartTransactionCancellationReason.WOULD_REVERT]:
-    SmartTransactionStatuses.CANCELLED_WOULD_REVERT,
+    SmartTransactionStatuses.CANCELLED,
   [SmartTransactionCancellationReason.TOO_CHEAP]:
-    SmartTransactionStatuses.CANCELLED_TOO_CHEAP,
+    SmartTransactionStatuses.CANCELLED,
   [SmartTransactionCancellationReason.DEADLINE_MISSED]:
-    SmartTransactionStatuses.CANCELLED_DEADLINE_MISSED,
+    SmartTransactionStatuses.CANCELLED,
   [SmartTransactionCancellationReason.INVALID_NONCE]:
-    SmartTransactionStatuses.CANCELLED_INVALID_NONCE,
+    SmartTransactionStatuses.CANCELLED,
   [SmartTransactionCancellationReason.USER_CANCELLED]:
     SmartTransactionStatuses.CANCELLED_USER_CANCELLED,
-  [SmartTransactionCancellationReason.PREVIOUS_TX_CANCELLED]:
-    SmartTransactionStatuses.CANCELLED_PREVIOUS_TX_CANCELLED,
 };
 
 export type SmartTransactionsStatus = {

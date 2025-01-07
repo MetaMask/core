@@ -56,7 +56,8 @@ import {
   getTxHash,
   getSmartTransactionMetricsProperties,
   getSmartTransactionMetricsSensitiveProperties,
-  getReturnTxHashAsap,
+  shouldMarkRegularTransactionAsFailed,
+  markRegularTransactionAsFailed,
 } from './utils';
 
 const SECOND = 1000;
@@ -558,27 +559,18 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       nextSmartTransaction,
     );
 
-    if (nextSmartTransaction.status === SmartTransactionStatuses.CANCELLED) {
-      const returnTxHashAsap = getReturnTxHashAsap(
-        this.#clientId,
-        this.#getFeatureFlags()?.smartTransactions,
-      );
-      if (returnTxHashAsap && nextSmartTransaction.transactionId) {
-        const foundTransaction = this.#getRegularTransactions().find(
-          (transaction) =>
-            transaction.id === nextSmartTransaction.transactionId,
-        );
-        if (foundTransaction) {
-          const updatedTransaction = {
-            ...foundTransaction,
-            status: TransactionStatus.failed,
-          };
-          this.#updateTransaction(
-            updatedTransaction as TransactionMeta,
-            'Smart transaction cancelled',
-          );
-        }
-      }
+    if (
+      shouldMarkRegularTransactionAsFailed({
+        smartTransaction: nextSmartTransaction,
+        clientId: this.#clientId,
+        getFeatureFlags: this.#getFeatureFlags,
+      })
+    ) {
+      markRegularTransactionAsFailed({
+        smartTransaction: nextSmartTransaction,
+        getRegularTransactions: this.#getRegularTransactions,
+        updateTransaction: this.#updateTransaction,
+      });
     }
 
     if (
