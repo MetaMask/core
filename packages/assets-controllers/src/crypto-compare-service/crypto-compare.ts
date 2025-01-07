@@ -1,5 +1,7 @@
 import { handleFetch } from '@metamask/controller-utils';
 
+import { getKeyByValue } from '../assetsUtil';
+
 /**
  * A map from native currency symbol to CryptoCompare identifier.
  * This is only needed when the values don't match.
@@ -141,11 +143,11 @@ export async function fetchMultiExchangeRate(
   cryptocurrencies: string[],
   includeUSDRate: boolean,
 ): Promise<Record<string, Record<string, number>>> {
-  const url = getMultiPricingURL(
-    cryptocurrencies,
-    [fiatCurrency],
-    includeUSDRate,
+  const fsyms = cryptocurrencies.map(
+    (nativeCurrency) =>
+      nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency,
   );
+  const url = getMultiPricingURL(fsyms, [fiatCurrency], includeUSDRate);
   const response = await handleFetch(url);
   handleErrorResponse(response);
 
@@ -154,7 +156,8 @@ export async function fetchMultiExchangeRate(
     string,
     Record<string, number>,
   ][]) {
-    rates[cryptocurrency.toLowerCase()] = {
+    const key = getKeyByValue(nativeSymbolOverrides, cryptocurrency);
+    rates[key?.toLowerCase() ?? cryptocurrency.toLowerCase()] = {
       [fiatCurrency.toLowerCase()]: values[fiatCurrency.toUpperCase()],
       ...(includeUSDRate && { usd: values.USD }),
     };
