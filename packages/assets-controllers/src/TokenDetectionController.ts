@@ -347,7 +347,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.messagingSystem.subscribe('KeyringController:unlock', async () => {
       this.#isUnlocked = true;
-      await this.#restartTokenDetection();
     });
 
     this.messagingSystem.subscribe('KeyringController:lock', () => {
@@ -435,7 +434,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
-   * Start polling for detected tokens.
+   * @deprecated use StaticIntervalPollingController.startPolling instead.
    */
   async start(): Promise<void> {
     this.enable();
@@ -443,7 +442,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
-   * Stop polling for detected tokens.
+   * @deprecated use StaticIntervalPollingController.stopPollingByPollingToken instead.
    */
   stop(): void {
     this.disable();
@@ -585,7 +584,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const chainsToDetectUsingRpc: NetworkClient[] = [];
 
     clientNetworks.forEach(({ chainId, networkClientId }) => {
-      if (supportedNetworks?.includes(hexToNumber(chainId))) {
+      if (supportedNetworks?.includes(hexToNumber(chainId)) && this.#isDetectionEnabledFromPreferences) {
         chainsToDetectUsingAccountAPI.push(chainId);
       } else {
         chainsToDetectUsingRpc.push({ chainId, networkClientId });
