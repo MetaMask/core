@@ -66,12 +66,7 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            {
-              accounts: ['0x00', '0x01', '0x02'],
-              type: 'CustomKeyring',
-              typeIndex: 0,
-              id: '123',
-            },
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
           ],
         },
         [],
@@ -113,14 +108,7 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [
-            {
-              accounts: ['0x00'],
-              type: 'CustomKeyring',
-              typeIndex: 0,
-              id: '123',
-            },
-          ],
+          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
         },
         [],
       );
@@ -150,14 +138,7 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [
-            {
-              accounts: ['0x00'],
-              type: 'CustomKeyring',
-              typeIndex: 0,
-              id: '123',
-            },
-          ],
+          keyrings: [{ accounts: ['0x00'], type: 'CustomKeyring' }],
         },
         [],
       );
@@ -186,14 +167,7 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [
-            {
-              accounts: [],
-              type: 'CustomKeyring',
-              typeIndex: 0,
-              id: '123',
-            },
-          ],
+          keyrings: [{ accounts: [], type: 'CustomKeyring' }],
         },
         [],
       );
@@ -223,12 +197,7 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            {
-              accounts: ['0x00', '0x01', '0x02'],
-              type: 'CustomKeyring',
-              typeIndex: 0,
-              id: '123',
-            },
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
           ],
         },
         [],
@@ -259,18 +228,8 @@ describe('PreferencesController', () => {
         {
           ...getDefaultKeyringState(),
           keyrings: [
-            {
-              accounts: ['0x00', '0x01', '0x02'],
-              type: 'CustomKeyring',
-              typeIndex: 0,
-              id: '123',
-            },
-            {
-              accounts: ['0x00', '0x01', '0x02'],
-              type: 'CustomKeyring',
-              typeIndex: 1,
-              id: '456',
-            },
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
+            { accounts: ['0x00', '0x01', '0x02'], type: 'CustomKeyring' },
           ],
         },
         [],
@@ -300,14 +259,7 @@ describe('PreferencesController', () => {
         'KeyringController:stateChange',
         {
           ...getDefaultKeyringState(),
-          keyrings: [
-            {
-              accounts: ['0x00', '0x01'],
-              type: 'CustomKeyring',
-              typeIndex: 0,
-              id: '123',
-            },
-          ],
+          keyrings: [{ accounts: ['0x00', '0x01'], type: 'CustomKeyring' }],
         },
         [],
       );

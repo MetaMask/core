@@ -60,8 +60,7 @@
     "@metamask/utils": "^11.1.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
-    "immer": "^9.0.6",
-    "ulid": "^2.3.0"
+    "immer": "^9.0.6"
   },
   "devDependencies": {
     "@ethereumjs/common": "^3.2.0",
