@@ -43,6 +43,9 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "cross-spawn@^7.0.0": "^7.0.5",
+    "cross-spawn@^7.0.2": "^7.0.5",
+    "cross-spawn@^7.0.3": "^7.0.5",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"
