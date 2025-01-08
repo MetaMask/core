@@ -147,6 +147,11 @@ type TransactionMetaBase = {
   destinationTokenSymbol?: string;
 
   /**
+   * The estimated gas for the transaction.
+   */
+  estimatedGas?: string;
+
+  /**
    * The estimated base fee of the transaction.
    */
   estimatedBaseFee?: string;
