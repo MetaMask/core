@@ -32,11 +32,11 @@ export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  const [gas, estimatedGas, simulationFails] = await getGas(request);
+  const [gas, simulationFails, gasLimitNoBuffer] = await getGas(request);
 
   txMeta.txParams.gas = gas;
   txMeta.simulationFails = simulationFails;
-  txMeta.estimatedGas = estimatedGas;
+  txMeta.gasLimitNoBuffer = gasLimitNoBuffer;
 
   if (!initialParams.gas) {
     txMeta.originalGasEstimate = txMeta.txParams.gas;
@@ -133,22 +133,23 @@ export function addGasBuffer(
 
 async function getGas(
   request: UpdateGasRequest,
-): Promise<[string, string, TransactionMeta['simulationFails']?]> {
+): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
   const { isCustomNetwork, chainId, txMeta } = request;
-  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
-    txMeta.txParams,
-    request.ethQuery,
-  );
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
-    return [txMeta.txParams.gas, estimatedGas];
+    return [txMeta.txParams.gas];
   }
 
   if (await requiresFixedGas(request)) {
     log('Using fixed value', FIXED_GAS);
-    return [FIXED_GAS, estimatedGas];
+    return [FIXED_GAS];
   }
+
+  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
+    txMeta.txParams,
+    request.ethQuery,
+  );
 
   if (isCustomNetwork || simulationFails) {
     log(
@@ -156,7 +157,7 @@ async function getGas(
         ? 'Using original estimate as custom network'
         : 'Using original fallback estimate as simulation failed',
     );
-    return [estimatedGas, estimatedGas, simulationFails];
+    return [estimatedGas, simulationFails];
   }
 
   const bufferMultiplier =
@@ -170,7 +171,7 @@ async function getGas(
     bufferMultiplier,
   );
 
-  return [bufferedGas, estimatedGas, simulationFails];
+  return [bufferedGas, simulationFails, estimatedGas];
 }
 
 async function requiresFixedGas({

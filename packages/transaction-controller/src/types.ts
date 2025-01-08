@@ -147,11 +147,6 @@ type TransactionMetaBase = {
   destinationTokenSymbol?: string;
 
   /**
-   * The estimated gas for the transaction.
-   */
-  estimatedGas?: string;
-
-  /**
    * The estimated base fee of the transaction.
    */
   estimatedBaseFee?: string;
@@ -188,6 +183,11 @@ type TransactionMetaBase = {
 
   /** Whether the gas fee estimates have been checked at least once. */
   gasFeeEstimatesLoaded?: boolean;
+
+  /**
+   * The estimated gas for the transaction without buffer.
+   */
+  gasLimitNoBuffer?: string;
 
   /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
