@@ -13,9 +13,9 @@ import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-ty
  * - Hex format with 0x prefix (extension or old mobile implementation)
  *
  * For UUIDv4 format, the following normalizations are applied:
- * - Replaces version (4) bits with 'f' to normalize range
- * - Replaces variant bits (8-b) with 'f' to normalize range
  * - Removes all dashes from the UUID
+ * - Remove version (4) bits and replace with 'f'
+ * - Converts the remaining hex string to a BigInt for calculation
  *
  * For hex format:
  * - Expects a hex string with '0x' prefix (e.g., '0x1234abcd')
@@ -28,19 +28,18 @@ import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-ty
 export function generateDeterministicRandomNumber(
   metaMetricsId: string,
 ): number {
-  let cleanId: string, value: bigint;
+  let cleanId: string;
   // uuidv4 format
   if (uuidValidate(metaMetricsId) && uuidVersion(metaMetricsId) === 4) {
-    cleanId = metaMetricsId.replace(/^(.{12})4/u, '$1f').replace(/-/gu, '');
-    value = BigInt(`0x${cleanId}`);
+    cleanId = metaMetricsId.replace(/-/gu, '').replace(/^(.{12})4/u, '$1f');
   } else {
     // hex format with 0x prefix
     cleanId = metaMetricsId.slice(2);
-    value = BigInt(`0x${cleanId}`);
   }
+  const value = BigInt(`0x${cleanId}`);
   const maxValue = BigInt(`0x${'f'.repeat(cleanId.length)}`);
   // Use BigInt division first, then convert to number to maintain precision
-  return Number((value * BigInt(1000000)) / maxValue) / 1000000;
+  return Number((value * BigInt(1_000_000)) / maxValue) / 1_000_000;
 }
 
 /**
