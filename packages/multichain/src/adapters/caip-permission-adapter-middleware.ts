@@ -4,7 +4,7 @@ import type {
 } from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors } from '@metamask/rpc-errors';
-import type { JsonRpcRequest } from '@metamask/utils';
+import { hexToBigInt, type JsonRpcRequest } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
@@ -62,7 +62,7 @@ export async function caipPermissionAdapterMiddleware(
   const { chainId } =
     hooks.getNetworkConfigurationByNetworkClientId(networkClientId);
 
-  const scope: InternalScopeString = `eip155:${parseInt(chainId, 16)}`;
+  const scope: InternalScopeString = `eip155:${hexToBigInt(chainId).toString(10)}`;
 
   const sessionScopes = getSessionScopes(caveat.value);
 
