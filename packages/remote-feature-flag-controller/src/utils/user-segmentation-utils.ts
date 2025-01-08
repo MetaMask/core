@@ -31,10 +31,7 @@ export function generateDeterministicRandomNumber(
   let cleanId: string, value: bigint;
   // uuidv4 format
   if (uuidValidate(metaMetricsId) && uuidVersion(metaMetricsId) === 4) {
-    cleanId = metaMetricsId
-      .replace(/^(.{12})4/u, '$1f')
-      .replace(/(.{16})[89ab]/u, '$1f')
-      .replace(/-/gu, '');
+    cleanId = metaMetricsId.replace(/^(.{12})4/u, '$1f').replace(/-/gu, '');
     value = BigInt(`0x${cleanId}`);
   } else {
     // hex format with 0x prefix
