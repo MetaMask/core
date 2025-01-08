@@ -1,5 +1,10 @@
 {
-  "compilerOptions": { "esModuleInterop": true, "noEmit": true },
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": true
+  },
   "references": [
     { "path": "./examples/example-controllers" },
     { "path": "./packages/accounts-controller" },

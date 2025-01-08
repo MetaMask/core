@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+## [45.1.2]
+
+### Changed
+
+- Remove use of `@metamask/keyring-api` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - `@metamask/providers` and `webextension-polyfill` peer dependencies are no longer required.
+- Use new `@metamask/keyring-internal-api@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - This package has been split out from the Keyring API. Its types are compatible with the `@metamask/keyring-api` package used previously.
+
 ## [45.1.1]
 
 ### Changed
@@ -1291,7 +1304,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.2...HEAD
+[45.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.1...@metamask/assets-controllers@45.1.2
 [45.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.0...@metamask/assets-controllers@45.1.1
 [45.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.0.0...@metamask/assets-controllers@45.1.0
 [45.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.1.0...@metamask/assets-controllers@45.0.0

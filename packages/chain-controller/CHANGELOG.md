@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+## [0.2.2]
+
+### Changed
+
+- Remove use of `@metamask/keyring-api` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - `@metamask/providers` and `webextension-polyfill` peer dependencies are no longer required.
+- Use new `@metamask/keyring-internal-api@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - This package has been split out from the Keyring API. Its types are compatible with the `@metamask/keyring-api` package used previously.
+- Use new `@metamask/keyring-utils@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
+
 ## [0.2.1]
 
 ### Fixed
@@ -79,7 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.2...HEAD
+[0.2.2]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.1...@metamask/chain-controller@0.2.2
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.2.0...@metamask/chain-controller@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.3...@metamask/chain-controller@0.2.0
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...@metamask/chain-controller@0.1.3

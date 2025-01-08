@@ -1,6 +1,6 @@
 {
   "name": "@metamask/remote-feature-flag-controller",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags",
   "keywords": [
     "MetaMask",
@@ -47,9 +47,10 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.2",
-    "@metamask/utils": "^10.0.0",
-    "cockatiel": "^3.1.2"
+    "@metamask/base-controller": "^7.1.0",
+    "@metamask/utils": "^11.0.1",
+    "cockatiel": "^3.1.2",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

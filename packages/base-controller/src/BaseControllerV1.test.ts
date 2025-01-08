@@ -16,7 +16,7 @@ import {
   countControllerStateMetadata,
   getCountMessenger,
 } from './BaseControllerV2.test';
-import { ControllerMessenger } from './ControllerMessenger';
+import { ControllerMessenger } from './Messenger';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };

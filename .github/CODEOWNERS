@@ -36,6 +36,7 @@
 /packages/rate-limit-controller            @MetaMask/snaps-devs
 
 ## Wallet API Platform Team
+/packages/multichain                       @MetaMask/wallet-api-platform-engineers
 /packages/queued-request-controller        @MetaMask/wallet-api-platform-engineers
 
 ## Wallet Framework Team
@@ -68,8 +69,8 @@
 /packages/announcement-controller/CHANGELOG.md    @MetaMask/wallet-ux @MetaMask/wallet-framework-engineers
 /packages/approval-controller/package.json        @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/wallet-framework-engineers
-/packages/assets-controller/package.json          @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
-/packages/assets-controller/CHANGELOG.md          @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
+/packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
+/packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
 /packages/chain-controller/package.json           @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/chain-controller/CHANGELOG.md           @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/ens-controller/package.json             @MetaMask/confirmations @MetaMask/wallet-framework-engineers
@@ -90,6 +91,8 @@
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/package.json    @MetaMask/notifications @MetaMask/identity @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/notifications @MetaMask/identity @MetaMask/wallet-framework-engineers
+/packages/multichain/package.json                 @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+/packages/multichain/CHANGELOG.md                 @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/CHANGELOG.md  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/wallet-framework-engineers
