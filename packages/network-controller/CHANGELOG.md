@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
+### Fixed
+
+- Fix `lookupNetwork` so that it will no longer throw an error if `networkDidChange` subscriptions have been removed before it returns ([#5116](https://github.com/MetaMask/core/pull/5116))
+  - This error could occur if the NetworkController's messenger is cleared of subscriptions, as in a "destroy" step.
+
 ## [22.1.1]
 
 ### Changed
