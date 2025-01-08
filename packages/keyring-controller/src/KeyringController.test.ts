@@ -74,25 +74,6 @@ const password = 'password123';
 
 const commonConfig = { chain: Chain.Goerli, hardfork: Hardfork.Berlin };
 
-/**
- * Strip the `id` property from each keyring in the state as it is generated
- * by the `ulid()` function and is not deterministic.
- *
- * @param state - The state to strip the `id` property from.
- * @returns The state with the `id` property stripped from each keyring.
- */
-function stripKeyringIds(state: KeyringControllerState): Omit<
-  KeyringControllerState,
-  'keyrings'
-> & {
-  keyrings: Omit<(typeof state.keyrings)[number], 'id'>[];
-} {
-  return {
-    ...state,
-    keyrings: state.keyrings.map(({ id, ...rest }) => rest),
-  };
-}
-
 describe('KeyringController', () => {
   afterEach(() => {
     sinon.restore();
@@ -427,9 +408,7 @@ describe('KeyringController', () => {
                 password,
                 currentSeedWord,
               );
-              expect(stripKeyringIds(initialState)).toStrictEqual(
-                stripKeyringIds(controller.state),
-              );
+              expect(initialState).toStrictEqual(controller.state);
             },
           );
         });
@@ -998,9 +977,7 @@ describe('KeyringController', () => {
             const address = '0x51253087e6f8358b5f10c0a94315d69db3357859';
             const newKeyring = {
               accounts: [address],
-              id: undefined,
               type: 'Simple Key Pair',
-              typeIndex: undefined,
             };
             const importedAccountAddress =
               await controller.importAccountWithStrategy(
@@ -1078,9 +1055,7 @@ describe('KeyringController', () => {
 
             const newKeyring = {
               accounts: [address],
-              id: undefined,
               type: 'Simple Key Pair',
-              typeIndex: undefined,
             };
             const modifiedState = {
               ...initialState,
@@ -2084,9 +2059,7 @@ describe('KeyringController', () => {
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
               await controller.submitPassword(password);
-              expect(stripKeyringIds(controller.state)).toStrictEqual(
-                stripKeyringIds(initialState),
-              );
+              expect(controller.state).toStrictEqual(initialState);
             },
           );
         });
@@ -2188,9 +2161,7 @@ describe('KeyringController', () => {
             MOCK_ENCRYPTION_KEY,
             initialState.encryptionSalt as string,
           );
-          expect(stripKeyringIds(controller.state)).toStrictEqual(
-            stripKeyringIds(initialState),
-          );
+          expect(controller.state).toStrictEqual(initialState);
         },
       );
     });
@@ -3443,9 +3414,7 @@ describe('KeyringController', () => {
           controller.submitPassword(password),
         ]);
 
-        expect(stripKeyringIds(controller.state)).toStrictEqual(
-          stripKeyringIds(initialState),
-        );
+        expect(controller.state).toStrictEqual(initialState);
       });
     });
 
@@ -3458,9 +3427,7 @@ describe('KeyringController', () => {
           controller.persistAllKeyrings(),
         ]);
 
-        expect(stripKeyringIds(controller.state)).toStrictEqual(
-          stripKeyringIds(initialState),
-        );
+        expect(controller.state).toStrictEqual(initialState);
       });
     });
 
@@ -3479,9 +3446,7 @@ describe('KeyringController', () => {
 
         await controller.submitPassword(password);
 
-        expect(stripKeyringIds(controller.state)).toStrictEqual(
-          stripKeyringIds(initialState),
-        );
+        expect(controller.state).toStrictEqual(initialState);
         expect(listener).toHaveBeenCalled();
       });
     });
