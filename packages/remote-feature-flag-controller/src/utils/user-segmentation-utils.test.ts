@@ -1,9 +1,6 @@
-import { validate as uuidValidate, version as uuidVersion } from 'uuid';
-
 import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
-  generateFallbackMetaMetricsId,
 } from './user-segmentation-utils';
 
 const MOCK_METRICS_IDS = [
@@ -73,14 +70,6 @@ describe('user-segmentation-utils', () => {
       expect(
         isFeatureFlagWithScopeValue(MOCK_FEATURE_FLAGS.INVALID_NO_SCOPE),
       ).toBe(false);
-    });
-  });
-
-  describe('generateFallbackMetaMetricsId', () => {
-    it('returns a valid uuidv4', () => {
-      const result = generateFallbackMetaMetricsId();
-      expect(uuidValidate(result)).toBe(true);
-      expect(uuidVersion(result)).toBe(4);
     });
   });
 });
