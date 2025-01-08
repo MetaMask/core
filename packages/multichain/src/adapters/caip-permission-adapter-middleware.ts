@@ -62,7 +62,9 @@ export async function caipPermissionAdapterMiddleware(
   const { chainId } =
     hooks.getNetworkConfigurationByNetworkClientId(networkClientId);
 
-  const scope: InternalScopeString = `eip155:${hexToBigInt(chainId).toString(10)}`;
+  const scope: InternalScopeString = `eip155:${hexToBigInt(chainId).toString(
+    10,
+  )}`;
 
   const sessionScopes = getSessionScopes(caveat.value);
 
