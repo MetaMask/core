@@ -138,12 +138,12 @@ async function getGas(
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
-    return [txMeta.txParams.gas];
+    return [txMeta.txParams.gas, undefined, txMeta.txParams.gas];
   }
 
   if (await requiresFixedGas(request)) {
     log('Using fixed value', FIXED_GAS);
-    return [FIXED_GAS];
+    return [FIXED_GAS, undefined, FIXED_GAS];
   }
 
   const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
@@ -157,7 +157,7 @@ async function getGas(
         ? 'Using original estimate as custom network'
         : 'Using original fallback estimate as simulation failed',
     );
-    return [estimatedGas, simulationFails];
+    return [estimatedGas, simulationFails, estimatedGas];
   }
 
   const bufferMultiplier =
