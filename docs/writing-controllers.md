@@ -248,17 +248,17 @@ class FooController extends BaseController<
 // === Client repo ===
 
 const rootMessenger = new Messenger<'BarController:stateChange', never>();
-const barMessenger = rootMessenger.getRestricted({
+const barControllerMessenger = rootMessenger.getRestricted({
   name: 'BarController',
 });
 const barController = new BarController({
-  messenger: barMessenger,
+  messenger: barControllerMessenger,
 });
-const fooMessenger = rootMessenger.getRestricted({
+const fooControllerMessenger = rootMessenger.getRestricted({
   name: 'FooController',
 });
 const fooController = new FooController({
-  messenger: fooMessenger,
+  messenger: fooControllerMessenger,
 });
 ```
 
@@ -329,11 +329,11 @@ class FooController extends BaseController<
 // === Client repo ===
 
 const rootMessenger = new Messenger<'FooController:someEvent', never>();
-const fooMessenger = rootMessenger.getRestricted({
+const fooControllerMessenger = rootMessenger.getRestricted({
   name: 'FooController',
 });
 const fooController = new FooController({
-  messenger: fooMessenger,
+  messenger: fooControllerMessenger,
 });
 rootMessenger.subscribe('FooController:someEvent', () => {
   // do something with the event
@@ -784,7 +784,7 @@ export type AllowedEvents =
   | ApprovalControllerApprovalRequestApprovedEvent
   | ApprovalControllerApprovalRequestRejectedEvent;
 
-export type SwapsMessenger = RestrictedMessenger<
+export type SwapsControllerMessenger = RestrictedMessenger<
   'SwapsController',
   SwapsControllerActions | AllowedActions,
   SwapsControllerEvents | AllowedEvents,
@@ -796,7 +796,7 @@ export type SwapsMessenger = RestrictedMessenger<
 A messenger that allows no actions or events (whether internal or external) looks like this:
 
 ```typescript
-export type SwapsMessenger = RestrictedMessenger<
+export type SwapsControllerMessenger = RestrictedMessenger<
   'SwapsController',
   never,
   never,
@@ -890,7 +890,7 @@ class GasFeeController extends BaseController</* ... */> {
     messenger,
   }: // ...
   {
-    messenger: GasFeeMessenger;
+    messenger: GasFeeControllerMessenger;
     // ...
   }) {
     // ...
@@ -915,7 +915,7 @@ class GasFeeController extends BaseController</* ... */> {
     messenger,
   }: // ...
   {
-    messenger: GasFeeMessenger;
+    messenger: GasFeeControllerMessenger;
     // ...
   }) {
     // ...
@@ -968,7 +968,7 @@ But this gets unwieldy if there are multiple properties to check:
 
 ```typescript
 class NftController extends BaseController/*<...>*/ {
-  constructor({ messenger }, { messenger: NftMessenger }) {
+  constructor({ messenger }, { messenger: NftControllerMessenger }) {
     // ...
 
     let preferencesControllerState = messenger.call(
@@ -1037,7 +1037,7 @@ const selectPreferencesControllerState = createSelector(
 );
 
 class NftController extends BaseController /*<...>*/ {
-  constructor({ messenger }, { messenger: NftMessenger }) {
+  constructor({ messenger }, { messenger: NftControllerMessenger }) {
     // ...
 
     messenger.subscribe(
@@ -1169,7 +1169,7 @@ import { AccountsControllerGetStateAction } from '@metamask/accounts-controller'
 
 type AllowedActions = AccountsControllerGetStateAction;
 
-type PreferencesMessenger = RestrictedMessenger<
+type PreferencesControllerMessenger = RestrictedMessenger<
   'PreferencesController',
   AllowedActions,
   never,
@@ -1180,13 +1180,13 @@ type PreferencesMessenger = RestrictedMessenger<
 class PreferencesController extends BaseController<
   'PreferencesController',
   // ...
-  PreferencesMessenger
+  PreferencesControllerMessenger
 > {
   constructor({
     messenger,
   }: // ...
   {
-    messenger: PreferencesMessenger;
+    messenger: PreferencesControllerMessenger;
     // ...
   }) {
     // ...
@@ -1267,7 +1267,7 @@ type AccountsControllerActions =
   | AccountsControllerGetActiveAccountAction
   | AccountsControllerGetInactiveAccountsAction;
 
-export type AccountsMessenger = RestrictedMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   'AccountsController',
   AccountsControllerActions,
   never,
@@ -1377,7 +1377,7 @@ export type AccountsControllerGetStateAction = ControllerGetStateAction<
 
 type AccountsControllerActions = AccountsControllerGetStateAccountAction;
 
-export type AccountsMessenger = RestrictedMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   'AccountsController',
   AccountsControllerActions,
   never,
