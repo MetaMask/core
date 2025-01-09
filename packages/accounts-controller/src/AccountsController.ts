@@ -171,7 +171,7 @@ export type AccountsControllerEvents =
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountRenamedEvent;
 
-export type AccountsMessenger = RestrictedMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AccountsControllerActions | AllowedActions,
   AccountsControllerEvents | AllowedEvents,
@@ -225,7 +225,7 @@ export const EMPTY_ACCOUNT = {
 export class AccountsController extends BaseController<
   typeof controllerName,
   AccountsControllerState,
-  AccountsMessenger
+  AccountsControllerMessenger
 > {
   /**
    * Constructor for AccountsController.
@@ -238,7 +238,7 @@ export class AccountsController extends BaseController<
     messenger,
     state,
   }: {
-    messenger: AccountsMessenger;
+    messenger: AccountsControllerMessenger;
     state: AccountsControllerState;
   }) {
     super({

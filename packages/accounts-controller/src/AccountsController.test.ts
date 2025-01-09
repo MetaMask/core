@@ -284,7 +284,7 @@ function buildMessenger() {
  * @param messenger - The messenger to restrict.
  * @returns The restricted messenger.
  */
-function buildAccountsMessenger(messenger = buildMessenger()) {
+function buildAccountsControllerMessenger(messenger = buildMessenger()) {
   return messenger.getRestricted({
     name: 'AccountsController',
     allowedEvents: [
@@ -323,10 +323,11 @@ function setupAccountsController({
     AccountsControllerEvents | AllowedEvents
   >;
 } {
-  const accountsMessenger = buildAccountsMessenger(messenger);
+  const accountsControllerMessenger =
+    buildAccountsControllerMessenger(messenger);
 
   const accountsController = new AccountsController({
-    messenger: accountsMessenger,
+    messenger: accountsControllerMessenger,
     state: { ...defaultState, ...initialState },
   });
   return { accountsController, messenger };
