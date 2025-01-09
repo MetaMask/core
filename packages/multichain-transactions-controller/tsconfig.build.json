@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../accounts-controller/tsconfig.build.json" },
+    { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../keyring-controller/tsconfig.build.json" },
+    { "path": "../polling-controller/tsconfig.build.json" }
+  ],
+  "include": ["../../types", "./src"]
+}

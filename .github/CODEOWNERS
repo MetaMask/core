@@ -59,6 +59,7 @@
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/selected-network-controller  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/profile-sync-controller      @MetaMask/notifications @MetaMask/identity
+/packages/multichain-transactions-controller @MetaMask/solana-wallet-snap-team @MetaMask/cet-btc-team
 
 ## Package Release related
 /packages/accounts-controller/package.json        @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers

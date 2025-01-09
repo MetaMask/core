@@ -3265,6 +3265,29 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^20.0.2"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^7.1.0"
+    "@metamask/keyring-api": "npm:^12.0.0"
+    "@metamask/keyring-controller": "npm:^19.0.2"
+    "@metamask/polling-controller": "npm:^12.0.2"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^20.0.0
+    "@metamask/keyring-controller": ^19.0.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/multichain@workspace:packages/multichain":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain@workspace:packages/multichain"
