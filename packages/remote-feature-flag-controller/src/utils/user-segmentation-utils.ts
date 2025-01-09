@@ -1,5 +1,4 @@
 import type { Json } from '@metamask/utils';
-import { v4 as uuidV4 } from 'uuid';
 
 import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
 
@@ -39,11 +38,3 @@ export const isFeatureFlagWithScopeValue = (
     'scope' in featureFlag
   );
 };
-
-/**
- * Generates UUIDv4 as a fallback metaMetricsId
- * @returns A UUIDv4 string
- */
-export function generateFallbackMetaMetricsId(): string {
-  return uuidV4();
-}
