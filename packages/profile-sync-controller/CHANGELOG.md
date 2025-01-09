@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.1.2]
 
-### Uncategorized
+### Added
 
-- feat: decouple account sync logic from `UserStorageController` ([#5078](https://github.com/MetaMask/core/pull/5078))
 - feat: improve profile sync services logs ([#5101](https://github.com/MetaMask/core/pull/5101))
 
 ### Changed
 
+- feat: decouple account sync logic from `UserStorageController` ([#5078](https://github.com/MetaMask/core/pull/5078))
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
 ## [3.1.1]
