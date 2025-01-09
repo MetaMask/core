@@ -13,6 +13,15 @@ const MOCK_METRICS_IDS = {
   MOBILE_MAX: 'ffffffff-ffff-4fff-bfff-ffffffffffff',
   EXTENSION_MIN: `0x${'0'.repeat(64) as string}`,
   EXTENSION_MAX: `0x${'f'.repeat(64) as string}`,
+  UUID_V3: '00000000-0000-3000-8000-000000000000',
+  INVALID_HEX_NO_PREFIX:
+    '86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420',
+  INVALID_HEX_SHORT:
+    '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d13642',
+  INVALID_HEX_LONG:
+    '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d1364200',
+  INVALID_HEX_INVALID_CHARS:
+    '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d13642g',
 };
 
 const MOCK_FEATURE_FLAGS = {
@@ -123,6 +132,48 @@ describe('user-segmentation-utils', () => {
           expect(count).toBeGreaterThanOrEqual(minExpected);
           expect(count).toBeLessThanOrEqual(maxExpected);
         });
+      });
+    });
+
+    describe('MetaMetrics ID validation', () => {
+      it('throws an error if the MetaMetrics ID is empty', () => {
+        expect(() => generateDeterministicRandomNumber('')).toThrow(
+          'MetaMetrics ID cannot be empty',
+        );
+      });
+
+      it('throws an error if the MetaMetrics ID is not a valid UUIDv4', () => {
+        expect(() =>
+          generateDeterministicRandomNumber(MOCK_METRICS_IDS.UUID_V3),
+        ).toThrow('Invalid UUID version. Expected v4, got v3');
+      });
+
+      it('throws an error if the MetaMetrics ID is not a valid hex string', () => {
+        expect(() =>
+          generateDeterministicRandomNumber(
+            MOCK_METRICS_IDS.INVALID_HEX_NO_PREFIX,
+          ),
+        ).toThrow('Hex ID must start with 0x prefix');
+      });
+
+      it('throws an error if the MetaMetrics ID is a short hex string', () => {
+        expect(() =>
+          generateDeterministicRandomNumber(MOCK_METRICS_IDS.INVALID_HEX_SHORT),
+        ).toThrow('Invalid hex ID length. Expected 64 characters, got 63');
+      });
+
+      it('throws an error if the MetaMetrics ID is a long hex string', () => {
+        expect(() =>
+          generateDeterministicRandomNumber(MOCK_METRICS_IDS.INVALID_HEX_LONG),
+        ).toThrow('Invalid hex ID length. Expected 64 characters, got 65');
+      });
+
+      it('throws an error if the MetaMetrics ID contains invalid hex characters', () => {
+        expect(() =>
+          generateDeterministicRandomNumber(
+            MOCK_METRICS_IDS.INVALID_HEX_INVALID_CHARS,
+          ),
+        ).toThrow('Hex ID contains invalid characters');
       });
     });
   });
