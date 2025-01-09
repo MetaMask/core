@@ -11339,7 +11339,7 @@ describe('NetworkController', () => {
       });
     });
 
-    it.only('allows calling `getNetworkConfigurationByNetworkClientId` when subscribing to state changes containing new endpoints', async () => {
+    it('allows calling `getNetworkConfigurationByNetworkClientId` when subscribing to state changes containing new endpoints', async () => {
       const network = buildCustomNetworkConfiguration({
         chainId: '0x1' as Hex,
         name: 'mainnet',
