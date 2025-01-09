@@ -185,7 +185,7 @@ type TransactionMetaBase = {
   gasFeeEstimatesLoaded?: boolean;
 
   /**
-   * The estimated gas for the transaction without buffer.
+   * The estimated gas for the transaction without any buffer applied.
    */
   gasLimitNoBuffer?: string;
 
