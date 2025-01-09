@@ -195,5 +195,21 @@ describe('CryptoCompare', () => {
         sol: { eur: 3000 },
       });
     });
+
+    it('should override native symbol for mantle native token', async () => {
+      nock(cryptoCompareHost)
+        .get('/data/pricemulti?fsyms=MANTLE,ETH&tsyms=EUR')
+        .reply(200, {
+          MANTLE: { EUR: 1000 },
+          ETH: { EUR: 2000 },
+        });
+
+      // @ts-expect-error Testing the case where the USD rate is not included
+      const response = await fetchMultiExchangeRate('EUR', ['MNT', 'ETH']);
+      expect(response).toStrictEqual({
+        eth: { eur: 2000 },
+        mnt: { eur: 1000 },
+      });
+    });
   });
 });

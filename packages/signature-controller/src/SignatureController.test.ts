@@ -185,7 +185,7 @@ describe('SignatureController', () => {
 
     normalizePersonalMessageParamsMock.mockImplementation((params) => params);
     normalizeTypedMessageParamsMock.mockImplementation((params) => params);
-    uuidV1Mock.mockReturnValue(ID_MOCK);
+    uuidV1Mock.mockReturnValueOnce(ID_MOCK);
   });
 
   describe('unapprovedPersonalMessagesCount', () => {

@@ -16,10 +16,15 @@ ignores:
   - 'simple-git-hooks'
   - 'ts-node'
   - 'typedoc'
-  # Ignore plugins implicitly imported by tools
+  # Ignore plugins for tools
+  - '@typescript-eslint/*'
+  - 'babel-jest'
+  - 'eslint-config-*'
+  - 'eslint-plugin-*'
   - 'jest-silent-reporter'
   - 'prettier-plugin-packagejson'
-  # Ignore plugins we explicitly use with tools
-  - 'babel-jest'
+  - 'typescript-eslint'
+  # Ignore dependencies imported implicitly by tools
+  - 'eslint-import-resolver-typescript'
   # Ignore dependencies which plug into the NPM lifecycle
   - '@lavamoat/preinstall-always-fail'

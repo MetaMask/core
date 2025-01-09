@@ -1,3 +1,5 @@
+import log from 'loglevel';
+
 import { Env, Platform, getEnvUrls, getOidcClientId } from '../../shared/env';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
@@ -37,13 +39,16 @@ export async function getNonce(publicKey: string): Promise<string | null> {
   try {
     const nonceResponse = await fetch(nonceUrl.toString());
     if (!nonceResponse.ok) {
+      log.error(
+        `authentication-controller/services: unable to get nonce - HTTP ${nonceResponse.status}`,
+      );
       return null;
     }
 
     const nonceJson: NonceResponse = await nonceResponse.json();
     return nonceJson?.nonce ?? null;
   } catch (e) {
-    console.error('authentication-controller/services: unable to get nonce', e);
+    log.error('authentication-controller/services: unable to get nonce', e);
     return null;
   }
 }
@@ -107,13 +112,16 @@ export async function login(
     });
 
     if (!response.ok) {
+      log.error(
+        `authentication-controller/services: unable to login - HTTP ${response.status}`,
+      );
       return null;
     }
 
     const loginResponse: LoginResponse = await response.json();
     return loginResponse ?? null;
   } catch (e) {
-    console.error('authentication-controller/services: unable to login', e);
+    log.error('authentication-controller/services: unable to login', e);
     return null;
   }
 }
@@ -157,13 +165,16 @@ export async function getAccessToken(
     });
 
     if (!response.ok) {
+      log.error(
+        `authentication-controller/services: unable to get access token - HTTP ${response.status}`,
+      );
       return null;
     }
 
     const accessTokenResponse: OAuthTokenResponse = await response.json();
     return accessTokenResponse?.access_token ?? null;
   } catch (e) {
-    console.error(
+    log.error(
       'authentication-controller/services: unable to get access token',
       e,
     );
