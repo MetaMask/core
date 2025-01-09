@@ -81,7 +81,7 @@
     "@metamask/approval-controller": "^7.1.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^12.0.0",
+    "@metamask/keyring-api": "^13.0.0",
     "@metamask/keyring-controller": "^19.0.2",
     "@metamask/keyring-internal-api": "^1.1.0",
     "@metamask/keyring-snap-client": "^1.0.0",
