@@ -26,10 +26,17 @@ export type EncryptionPublicKeyManagerUnapprovedMessageAddedEvent = {
   payload: [AbstractMessageParamsMetamask];
 };
 
+export type EncryptionPublicKeyManagerUpdateBadgeEvent = {
+  type: `${typeof managerName}:updateBadge`;
+  payload: [];
+};
+
 export type EncryptionPublicKeyManagerMessenger = RestrictedControllerMessenger<
   string,
   ActionConstraint,
-  EventConstraint | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent,
+  | EventConstraint
+  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
+  | EncryptionPublicKeyManagerUpdateBadgeEvent,
   string,
   string
 >;
@@ -88,7 +95,9 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKeyParams,
   EncryptionPublicKeyParamsMetamask,
   ActionConstraint,
-  EventConstraint | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
+  | EventConstraint
+  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
+  | EncryptionPublicKeyManagerUpdateBadgeEvent
 > {
   constructor({
     additionalFinishStatuses,

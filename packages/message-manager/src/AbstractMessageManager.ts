@@ -100,7 +100,7 @@ export type MessageManagerState<Message extends AbstractMessage> = {
 
 export type UpdateBadgeEvent = {
   type: `${string}:updateBadge`;
-  payload: [unusedPayload: string];
+  payload: [];
 };
 
 /**
@@ -245,8 +245,7 @@ export abstract class AbstractMessageManager<
       state.unapprovedMessagesCount = this.getUnapprovedMessagesCount();
     });
     if (emitUpdateBadge) {
-      // Empty payload is used to satisfy event constraint for BaseControllerV2
-      this.messagingSystem.publish(`${this.name as string}:updateBadge`, '');
+      this.messagingSystem.publish(`${this.name as string}:updateBadge`);
     }
   }
 

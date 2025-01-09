@@ -25,10 +25,17 @@ export type DecryptMessageManagerUnapprovedMessageAddedEvent = {
   payload: [AbstractMessageParamsMetamask];
 };
 
+export type DecryptMessageManagerUpdateBadgeEvent = {
+  type: `${typeof managerName}:updateBadge`;
+  payload: [];
+};
+
 export type DecryptMessageManagerMessenger = RestrictedControllerMessenger<
   string,
   ActionConstraint,
-  EventConstraint | DecryptMessageManagerUnapprovedMessageAddedEvent,
+  | EventConstraint
+  | DecryptMessageManagerUnapprovedMessageAddedEvent
+  | DecryptMessageManagerUpdateBadgeEvent,
   string,
   string
 >;
@@ -90,7 +97,9 @@ export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessageParams,
   DecryptMessageParamsMetamask,
   ActionConstraint,
-  EventConstraint | DecryptMessageManagerUnapprovedMessageAddedEvent
+  | EventConstraint
+  | DecryptMessageManagerUnapprovedMessageAddedEvent
+  | DecryptMessageManagerUpdateBadgeEvent
 > {
   constructor({
     additionalFinishStatuses,

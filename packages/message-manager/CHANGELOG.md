@@ -10,10 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Base class of `DecryptMessageManager` and `EncryptionPublicKeyManager`(`AbstractMessageManager`) now expects new options to initialise ([#5103](https://github.com/MetaMask/core/pull/5103))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+### Removed
+
 - **BREAKING:** Removed internal event emitter (`hub` property) from `AbstractMessageManager` ([#5103](https://github.com/MetaMask/core/pull/5103))
 - **BREAKING:** `unapprovedMessage` and `updateBadge` removed from internal events. These events are now emitted from messaging system ([#5103](https://github.com/MetaMask/core/pull/5103))
   - Controllers should now listen to `DerivedManagerName:X` event instead of using internal event emitter.
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
 ## [11.0.3]
 
