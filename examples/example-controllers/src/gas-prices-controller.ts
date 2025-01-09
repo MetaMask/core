@@ -121,7 +121,7 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link GasPricesController}.
  */
-export type GasPricesMessenger = RestrictedMessenger<
+export type GasPricesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   GasPricesControllerActions | AllowedActions,
   GasPricesControllerEvents | AllowedEvents,
@@ -188,7 +188,7 @@ export function getDefaultGasPricesControllerState(): GasPricesControllerState {
 export class GasPricesController extends BaseController<
   typeof controllerName,
   GasPricesControllerState,
-  GasPricesMessenger
+  GasPricesControllerMessenger
 > {
   /**
    * The service object that is used to obtain gas prices.
@@ -210,7 +210,7 @@ export class GasPricesController extends BaseController<
     state,
     gasPricesService,
   }: {
-    messenger: GasPricesMessenger;
+    messenger: GasPricesControllerMessenger;
     state?: Partial<GasPricesControllerState>;
     gasPricesService: AbstractGasPricesService;
   }) {

@@ -1,6 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { GasPricesController } from '@metamask/example-controllers';
-import type { GasPricesMessenger } from '@metamask/example-controllers';
+import type { GasPricesControllerMessenger } from '@metamask/example-controllers';
 
 import type {
   ExtractAvailableAction,
@@ -96,12 +96,12 @@ describe('GasPricesController', () => {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<GasPricesMessenger>;
+type RootAction = ExtractAvailableAction<GasPricesControllerMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<GasPricesMessenger>;
+type RootEvent = ExtractAvailableEvent<GasPricesControllerMessenger>;
 
 /**
  * Constructs the unrestricted messenger. This can be used to call actions and
@@ -137,7 +137,9 @@ function getRootMessenger({
  * @param rootMessenger - The root messenger to restrict.
  * @returns The restricted messenger.
  */
-function getMessenger(rootMessenger = getRootMessenger()): GasPricesMessenger {
+function getMessenger(
+  rootMessenger = getRootMessenger(),
+): GasPricesControllerMessenger {
   return rootMessenger.getRestricted({
     name: 'GasPricesController',
     allowedActions: ['NetworkController:getState'],

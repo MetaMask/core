@@ -5,7 +5,7 @@ import type {
   ExtractAvailableEvent,
 } from '../../../packages/base-controller/tests/helpers';
 import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../../packages/controller-utils/src/util';
-import type { PetNamesMessenger } from './pet-names-controller';
+import type { PetNamesControllerMessenger } from './pet-names-controller';
 import { PetNamesController } from './pet-names-controller';
 
 describe('PetNamesController', () => {
@@ -145,12 +145,12 @@ describe('PetNamesController', () => {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<PetNamesMessenger>;
+type RootAction = ExtractAvailableAction<PetNamesControllerMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<PetNamesMessenger>;
+type RootEvent = ExtractAvailableEvent<PetNamesControllerMessenger>;
 
 /**
  * Constructs the unrestricted messenger. This can be used to call actions and
@@ -169,7 +169,9 @@ function getRootMessenger(): Messenger<RootAction, RootEvent> {
  * @param rootMessenger - The root messenger to restrict.
  * @returns The restricted messenger.
  */
-function getMessenger(rootMessenger = getRootMessenger()): PetNamesMessenger {
+function getMessenger(
+  rootMessenger = getRootMessenger(),
+): PetNamesControllerMessenger {
   return rootMessenger.getRestricted({
     name: 'PetNamesController',
     allowedActions: [],

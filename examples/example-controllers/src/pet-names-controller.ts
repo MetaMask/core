@@ -89,7 +89,7 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link PetNamesController}.
  */
-export type PetNamesMessenger = RestrictedMessenger<
+export type PetNamesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   PetNamesControllerActions | AllowedActions,
   PetNamesControllerEvents | AllowedEvents,
@@ -151,7 +151,7 @@ export function getDefaultPetNamesControllerState(): PetNamesControllerState {
 export class PetNamesController extends BaseController<
   typeof controllerName,
   PetNamesControllerState,
-  PetNamesMessenger
+  PetNamesControllerMessenger
 > {
   /**
    * Constructs a new {@link PetNamesController}.
@@ -165,7 +165,7 @@ export class PetNamesController extends BaseController<
     messenger,
     state,
   }: {
-    messenger: PetNamesMessenger;
+    messenger: PetNamesControllerMessenger;
     state?: Partial<PetNamesControllerState>;
   }) {
     super({

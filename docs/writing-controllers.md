@@ -48,7 +48,7 @@ class FooController extends BaseController</* ... */> {
     messenger,
     state = {},
   }: {
-    messenger: FooMessenger;
+    messenger: FooControllerMessenger;
     state?: Partial<FooControllerState>;
   }) {
     super({
@@ -86,7 +86,7 @@ class FooController extends BaseController</* ... */> {
     messenger,
     state = {},
   }: {
-    messenger: FooMessenger;
+    messenger: FooControllerMessenger;
     state?: Partial<FooControllerState>;
   }) {
     super({
@@ -157,7 +157,7 @@ class FooController extends BaseController</* ... */> {
       messenger,
       state = {},
     }: {
-      messenger: FooMessenger;
+      messenger: FooControllerMessenger;
       state?: Partial<FooControllerState>;
     },
     isEnabled: boolean,
@@ -176,7 +176,7 @@ class FooController extends BaseController</* ... */> {
     state = {},
     isEnabled,
   }: {
-    messenger: FooMessenger;
+    messenger: FooControllerMessenger;
     state?: Partial<FooControllerState>;
     isEnabled: boolean;
   }) {
@@ -223,7 +223,7 @@ If the recipient controller supports the messaging system, however, the callback
 
 const name = 'FooController';
 
-type FooMessenger = RestrictedMessenger<
+type FooControllerMessenger = RestrictedMessenger<
   typeof name,
   never,
   never,
@@ -234,9 +234,9 @@ type FooMessenger = RestrictedMessenger<
 class FooController extends BaseController<
   'FooController',
   // ...,
-  FooMessenger
+  FooControllerMessenger
 > {
-  constructor({ messenger /*, ... */ }, { messenger: FooMessenger }) {
+  constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
     super({ messenger /* ... */ });
 
     messenger.subscribe('BarController:stateChange', (state) => {
@@ -304,7 +304,7 @@ However, this pattern can be replaced with the use of the messenger:
 
 const name = 'FooController';
 
-type FooMessenger = RestrictedMessenger<
+type FooControllerMessenger = RestrictedMessenger<
   typeof name,
   never,
   never,
@@ -315,9 +315,9 @@ type FooMessenger = RestrictedMessenger<
 class FooController extends BaseController<
   'FooController',
   // ...,
-  FooMessenger
+  FooControllerMessenger
 > {
-  constructor({ messenger /*, ... */ }, { messenger: FooMessenger }) {
+  constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
     super({ messenger /*, ... */ });
   }
 
@@ -508,7 +508,7 @@ export type FooControllerActions =
   | FooControllerUpdateCurrencyAction
   | FooControllerUpdateRatesAction;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   FooControllerActions,
   never,
@@ -524,7 +524,7 @@ export type FooControllerActions =
   | FooControllerUpdateCurrencyAction
   | FooControllerUpdateRatesAction;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   FooControllerActions,
   never,
@@ -548,7 +548,7 @@ export type FooControllerEvents =
   | FooControllerMessageReceivedEvent
   | FooControllerNotificationAddedEvent;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   FooControllerEvents,
@@ -564,7 +564,7 @@ export type FooControllerEvents =
   | FooControllerMessageReceivedEvent
   | FooControllerNotificationAddedEvent;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   FooControllerEvents,
@@ -590,7 +590,7 @@ export type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   AllowedActions,
   never,
@@ -608,7 +608,7 @@ export type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   AllowedActions,
   never,
@@ -628,7 +628,7 @@ type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   AllowedActions,
   never,
@@ -643,7 +643,10 @@ If, in a test, you need to access all of the actions included in a controller's 
 // NOTE: You may need to adjust the path depending on where you are
 import { ExtractAvailableAction } from '../../base-controller/tests/helpers';
 
-const messenger = new Messenger<ExtractAvailableAction<FooMessenger>, never>();
+const messenger = new Messenger<
+  ExtractAvailableAction<FooControllerMessenger>,
+  never
+>();
 ```
 
 ## Define, but do not export, a type union for external event types
@@ -663,7 +666,7 @@ export type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   AllowedEvents,
@@ -681,7 +684,7 @@ export type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   AllowedEvents,
@@ -701,7 +704,7 @@ type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooMessenger = RestrictedMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   AllowedEvents,
@@ -716,7 +719,10 @@ If, in a test, you need to access all of the events included in a controller's m
 // NOTE: You may need to adjust the path depending on where you are
 import { ExtractAvailableEvent } from '../../base-controller/tests/helpers';
 
-const messenger = new Messenger<never, ExtractAvailableEvent<FooMessenger>>();
+const messenger = new Messenger<
+  never,
+  ExtractAvailableEvent<FooControllerMessenger>
+>();
 ```
 
 ## Define and export a type for the controller's messenger
@@ -849,7 +855,7 @@ export class FooController extends BaseController<
   //   Property 'bar' is incompatible with index signature.
   //     Type 'string | undefined' is not assignable to type 'Json'.
   FooControllerState,
-  FooMessenger
+  FooControllerMessenger
 > {
   // ...
 }
@@ -866,7 +872,7 @@ export class FooController extends BaseController<
   'FooController',
   // No error
   FooControllerState,
-  FooMessenger
+  FooControllerMessenger
 > {
   // ...
 }
