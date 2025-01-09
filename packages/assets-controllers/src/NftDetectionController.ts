@@ -340,6 +340,60 @@ export type GetCollectionsResponse = {
   collections: CollectionResponse[];
 };
 
+export type UserCollectionResponse = {
+  collection: {
+    id: string;
+    slug: string;
+    name: string;
+    image: string;
+    isSpam: boolean;
+    banner: string;
+
+    discordUrl: string;
+    externalUrl: string;
+    twitterUsername: string;
+    openseaVerificationStatus: string;
+    description: string;
+    metadataDisabled: boolean;
+    sampleImages: string[];
+    tokenCount: string;
+    primaryContract: string;
+    tokenSetId: string;
+    floorAskPrice: Price | null;
+    rank: {
+      '1day': null | number;
+      '7day': null | number;
+      '30day': null | number;
+      allTime: null | number;
+    };
+    volume: {
+      '1day': number;
+      '7day': number;
+      '30day': number;
+      allTime: number;
+    };
+    volumeChange: {
+      '1day': number;
+      '7day': number;
+      '30day': number;
+    };
+    floorSale: {
+      '1day': number;
+      '7day': number;
+      '30day': number;
+    };
+    contractKind: string;
+  };
+  ownership: {
+    tokenCount: string;
+    totalValue: number;
+  };
+};
+
+export type GetUserCollectionsResponse = {
+  collections: UserCollectionResponse[];
+};
+
 export type CollectionResponse = {
   id?: string;
   openseaVerificationStatus?: string;
@@ -535,22 +589,45 @@ export class NftDetectionController extends BaseController<
   #getOwnerNftApi({
     chainId,
     address,
+    collectionsArr,
     next,
   }: {
     chainId: string;
     address: string;
+    collectionsArr: string[];
     next?: string;
+  }) {
+    const collectionArrString = collectionsArr
+      ?.map((s) => `collection=${s}`)
+      .join('&');
+
+    return `${
+      NFT_API_BASE_URL as string
+    }/users/${address}/tokens?chainIds=${chainId}&limit=50&includeTopBid=true&${collectionArrString}&continuation=${
+      next ?? ''
+    }`;
+  }
+
+  #getOwnerCollectionsApi({
+    chainId,
+    address,
+    limit,
+    offset,
+  }: {
+    chainId: string;
+    address: string;
+    limit: number;
+    offset: number;
   }) {
     return `${
       NFT_API_BASE_URL as string
-    }/users/${address}/tokens?chainIds=${chainId}&limit=50&includeTopBid=true&continuation=${
-      next ?? ''
-    }`;
+    }/users/${address}/collections?chainId=${chainId}&limit=${limit}&includeTopBid=true&offset=${offset}`;
   }
 
   async #getOwnerNfts(
     address: string,
     chainId: Hex,
+    collectionsArr: string[],
     cursor: string | undefined,
   ) {
     // Convert hex chainId to number
@@ -558,9 +635,32 @@ export class NftDetectionController extends BaseController<
     const url = this.#getOwnerNftApi({
       chainId: convertedChainId,
       address,
+      collectionsArr,
       next: cursor,
     });
     const nftApiResponse: ReservoirResponse = await handleFetch(url, {
+      headers: {
+        Version: NFT_API_VERSION,
+      },
+    });
+    return nftApiResponse;
+  }
+
+  async #getOwnerCollections(
+    address: string,
+    chainId: Hex,
+    limit: number,
+    offset: number,
+  ) {
+    // Convert hex chainId to number
+    const convertedChainId = convertHexToDecimal(chainId).toString();
+    const url = this.#getOwnerCollectionsApi({
+      chainId: convertedChainId,
+      address,
+      limit,
+      offset,
+    });
+    const nftApiResponse = await handleFetch(url, {
       headers: {
         Version: NFT_API_VERSION,
       },
@@ -621,66 +721,83 @@ export class NftDetectionController extends BaseController<
     } = createDeferredPromise({ suppressUnhandledRejection: true });
     this.#inProcessNftFetchingUpdates[updateKey] = inProgressUpdate;
 
-    let next;
     let apiNfts: TokensResponse[] = [];
-    let resultNftApi: ReservoirResponse;
+    let resultNftApiCollection: GetUserCollectionsResponse;
+    let offset = 0;
+
     try {
+      const LIMIT_COLLECTIONS = 20;
+      // We will fetch the first page of user collections
+
       do {
-        resultNftApi = await this.#getOwnerNfts(userAddress, chainId, next);
-        apiNfts = resultNftApi.tokens.filter(
-          (elm) =>
-            elm.token.isSpam === false &&
-            (elm.blockaidResult?.result_type
-              ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
-              : true),
+        resultNftApiCollection = await this.#getOwnerCollections(
+          userAddress,
+          chainId,
+          LIMIT_COLLECTIONS,
+          offset,
         );
-        // Retrieve collections from apiNfts
-        // contract and collection.id are equal for simple contract addresses; this is to exclude cases for shared contracts
-        const collections = apiNfts.reduce<string[]>((acc, currValue) => {
-          if (
-            !acc.includes(currValue.token.contract) &&
-            currValue.token.contract === currValue?.token?.collection?.id
-          ) {
-            acc.push(currValue.token.contract);
-          }
-          return acc;
-        }, []);
 
-        if (collections.length !== 0) {
-          // Call API to retrive collections infos
-          // The api accept a max of 20 contracts
-          const collectionResponse: GetCollectionsResponse =
-            await reduceInBatchesSerially({
-              values: collections,
-              batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
-              eachBatch: async (allResponses, batch) => {
-                const params = new URLSearchParams(
-                  batch.map((s) => ['contract', s]),
-                );
-                params.append('chainId', '1'); // Adding chainId 1 because we are only detecting for mainnet
-                const collectionResponseForBatch = await fetchWithErrorHandling(
-                  {
-                    url: `${
-                      NFT_API_BASE_URL as string
-                    }/collections?${params.toString()}`,
-                    options: {
-                      headers: {
-                        Version: NFT_API_VERSION,
-                      },
-                    },
-                    timeout: NFT_API_TIMEOUT,
+        if (resultNftApiCollection.collections.length === 0) {
+          break;
+        }
+
+        // fetch NFTs for the retrieved collections
+        const contractAddressIds: string[] =
+          resultNftApiCollection.collections.map(
+            (collectionItem) => collectionItem.collection.id,
+          );
+
+        const contractAddressArr: string[] =
+          resultNftApiCollection.collections.map(
+            (collectionItem) => collectionItem.collection.primaryContract,
+          );
+
+        // The api accept a max of 20 contracts
+        const convertedChainId = convertHexToDecimal(chainId).toString();
+        const collectionResponse: GetCollectionsResponse =
+          await reduceInBatchesSerially({
+            values: contractAddressArr,
+            batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
+            eachBatch: async (allResponses, batch) => {
+              const params = new URLSearchParams(
+                batch.map((s) => ['contract', s]),
+              );
+              params.append('chainId', convertedChainId);
+              const collectionResponseForBatch = await fetchWithErrorHandling({
+                url: `${
+                  NFT_API_BASE_URL as string
+                }/collections?${params.toString()}`,
+                options: {
+                  headers: {
+                    Version: NFT_API_VERSION,
                   },
-                );
+                },
+                timeout: NFT_API_TIMEOUT,
+              });
 
-                return {
-                  ...allResponses,
-                  ...collectionResponseForBatch,
-                };
-              },
-              initialResult: {},
-            });
+              return {
+                ...allResponses,
+                ...collectionResponseForBatch,
+              };
+            },
+            initialResult: {},
+          });
+        let nftsResult: ReservoirResponse;
+        let nextNftResult;
+        do {
+          // fetch all nft for retrieved collections
+          nftsResult = await this.#getOwnerNfts(
+            userAddress,
+            chainId,
+            contractAddressIds,
+            nextNftResult,
+          );
 
-          // Add collections response fields to  newnfts
+          apiNfts = nftsResult.tokens.filter(
+            (elm) => elm.token.isSpam === false,
+          );
+
+          // fill in missing collection info
           if (collectionResponse.collections?.length) {
             apiNfts.forEach((singleNFT) => {
               const found = collectionResponse.collections.find(
@@ -688,14 +805,14 @@ export class NftDetectionController extends BaseController<
                   elm.id?.toLowerCase() ===
                   singleNFT.token.contract.toLowerCase(),
               );
+
               if (found) {
                 singleNFT.token = {
                   ...singleNFT.token,
                   collection: {
                     ...(singleNFT.token.collection ?? {}),
                     creator: found?.creator,
-                    openseaVerificationStatus: found?.openseaVerificationStatus,
-                    contractDeployedAt: found.contractDeployedAt,
+                    // contractDeployedAt: found.contractDeployedAt,
                     ownerCount: found.ownerCount,
                     topBid: found.topBid,
                   },
@@ -703,68 +820,70 @@ export class NftDetectionController extends BaseController<
               }
             });
           }
-        }
 
-        // Proceed to add NFTs
-        const addNftPromises = apiNfts.map(async (nft) => {
-          const {
-            tokenId,
-            contract,
-            kind,
-            image: imageUrl,
-            imageSmall: imageThumbnailUrl,
-            metadata: { imageOriginal: imageOriginalUrl } = {},
-            name,
-            description,
-            attributes,
-            topBid,
-            lastSale,
-            rarityRank,
-            rarityScore,
-            collection,
-          } = nft.token;
+          // Proceed to add NFTs
+          const addNftPromises = apiNfts.map(async (nft) => {
+            const {
+              tokenId,
+              contract,
+              kind,
+              image: imageUrl,
+              imageSmall: imageThumbnailUrl,
+              metadata: { imageOriginal: imageOriginalUrl } = {},
+              name,
+              description,
+              attributes,
+              topBid,
+              lastSale,
+              rarityRank,
+              rarityScore,
+              collection,
+            } = nft.token;
 
-          let ignored;
-          /* istanbul ignore else */
-          const { ignoredNfts } = this.#getNftState();
-          if (ignoredNfts.length) {
-            ignored = ignoredNfts.find((c) => {
+            let ignored;
+            /* istanbul ignore else */
+            const { ignoredNfts } = this.#getNftState();
+            if (ignoredNfts.length) {
+              ignored = ignoredNfts.find((c) => {
+                /* istanbul ignore next */
+                return (
+                  c.address === toChecksumHexAddress(contract) &&
+                  c.tokenId === tokenId
+                );
+              });
+            }
+
+            /* istanbul ignore else */
+            if (!ignored) {
               /* istanbul ignore next */
-              return (
-                c.address === toChecksumHexAddress(contract) &&
-                c.tokenId === tokenId
+              const nftMetadata: NftMetadata = Object.assign(
+                {},
+                { name },
+                description && { description },
+                imageUrl && { image: imageUrl },
+                imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
+                imageOriginalUrl && { imageOriginal: imageOriginalUrl },
+                kind && { standard: kind.toUpperCase() },
+                lastSale && { lastSale },
+                attributes && { attributes },
+                topBid && { topBid },
+                rarityRank && { rarityRank },
+                rarityScore && { rarityScore },
+                collection && { collection },
               );
-            });
-          }
+              await this.#addNft(contract, tokenId, {
+                nftMetadata,
+                userAddress,
+                source: Source.Detected,
+                networkClientId: options?.networkClientId,
+              });
+            }
+          });
+          await Promise.all(addNftPromises);
+        } while ((nextNftResult = nftsResult.continuation));
 
-          /* istanbul ignore else */
-          if (!ignored) {
-            /* istanbul ignore next */
-            const nftMetadata: NftMetadata = Object.assign(
-              {},
-              { name },
-              description && { description },
-              imageUrl && { image: imageUrl },
-              imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
-              imageOriginalUrl && { imageOriginal: imageOriginalUrl },
-              kind && { standard: kind.toUpperCase() },
-              lastSale && { lastSale },
-              attributes && { attributes },
-              topBid && { topBid },
-              rarityRank && { rarityRank },
-              rarityScore && { rarityScore },
-              collection && { collection },
-            );
-            await this.#addNft(contract, tokenId, {
-              nftMetadata,
-              userAddress,
-              source: Source.Detected,
-              networkClientId: options?.networkClientId,
-            });
-          }
-        });
-        await Promise.all(addNftPromises);
-      } while ((next = resultNftApi.continuation));
+        offset += LIMIT_COLLECTIONS;
+      } while (resultNftApiCollection.collections.length !== 0);
       updateSucceeded();
     } catch (error) {
       updateFailed(error);

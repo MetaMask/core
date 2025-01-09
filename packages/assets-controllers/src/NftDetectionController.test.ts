@@ -51,7 +51,7 @@ describe('NftDetectionController', () => {
     nock(NFT_API_BASE_URL)
       .persist()
       .get(
-        `/users/0x1/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+        `/users/0x1/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc&collection=0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d&collection=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -118,7 +118,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x9/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+        `/users/0x9/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -142,7 +142,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x123/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+        `/users/0x123/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xtest1&collection=0xtest2&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -161,6 +161,7 @@ describe('NftDetectionController', () => {
               },
               isSpam: false,
               collection: {
+                openseaVerificationStatus: 'verified',
                 id: '0xtest1',
               },
             },
@@ -185,6 +186,7 @@ describe('NftDetectionController', () => {
               },
               isSpam: false,
               collection: {
+                openseaVerificationStatus: 'verified',
                 id: '0xtest2',
               },
             },
@@ -308,6 +310,99 @@ describe('NftDetectionController', () => {
             },
           },
         ],
+      })
+      .get(
+        `/users/Oxuser/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+      )
+      .reply(200, {
+        collections: [
+          {
+            collection: {
+              id: '0xtest1',
+              slug: '',
+              name: '',
+              image: null,
+              isSpam: false,
+              tokenCount: '2',
+              primaryContract: '0xtest1',
+              rank: {
+                '1day': null,
+                '7day': null,
+                '30day': null,
+                allTime: null,
+              },
+              volume: {
+                '1day': 0,
+                '7day': 0,
+                '30day': 0,
+                allTime: 0,
+              },
+              volumeChange: {
+                '1day': null,
+                '7day': null,
+                '30day': null,
+              },
+              floorSale: {
+                '1day': null,
+                '7day': null,
+                '30day': null,
+              },
+              contractKind: 'erc721',
+            },
+            ownership: {
+              tokenCount: '1',
+              totalValue: 0,
+            },
+          },
+          {
+            collection: {
+              id: '0xtest2',
+              slug: '',
+              name: '',
+              image: null,
+              isSpam: false,
+              tokenCount: '2',
+              primaryContract: '0xtest2',
+              rank: {
+                '1day': null,
+                '7day': null,
+                '30day': null,
+                allTime: null,
+              },
+              volume: {
+                '1day': 0,
+                '7day': 0,
+                '30day': 0,
+                allTime: 0,
+              },
+              volumeChange: {
+                '1day': null,
+                '7day': null,
+                '30day': null,
+              },
+              floorSale: {
+                '1day': null,
+                '7day': null,
+                '30day': null,
+              },
+              contractKind: 'erc721',
+            },
+            ownership: {
+              tokenCount: '1',
+              totalValue: 0,
+            },
+          },
+        ],
+      })
+      .get(
+        `/users/Oxuser/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+      )
+      .reply(200, {
+        collections: [],
+      })
+      .get(`/collections?contract=0xtest1&contract=0xtest2&chainId=1`)
+      .reply(200, {
+        collections: [],
       });
   });
 
@@ -410,6 +505,121 @@ describe('NftDetectionController', () => {
           selectedAddress,
         });
         // nock
+        const mockApiCallUserCollections = nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/collections`)
+          .query({
+            chainId: '59144',
+            limit: '20',
+            includeTopBid: true,
+            offset: '0',
+          })
+          .reply(200, {
+            collections: [
+              {
+                collection: {
+                  id: '0x8bec24c57d944779417ab93c6e745ccf56e47225',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0x8bec24c57d944779417ab93c6e745ccf56e47225',
+                  tokenSetId:
+                    'contract:0x8bec24c57d944779417ab93c6e745ccf56e47225',
+                  rank: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                    allTime: null,
+                  },
+                  volume: {
+                    '1day': 0,
+                    '7day': 0,
+                    '30day': 0,
+                    allTime: 0,
+                  },
+                  volumeChange: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+            ],
+          });
+        const mockApiCallUserCollections2 = nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/collections`)
+          .query({
+            chainId: '59144',
+            limit: '20',
+            includeTopBid: true,
+            offset: '20',
+          })
+          .reply(200, {
+            collections: [],
+          });
+
+        const mockApiCallCollections = nock(NFT_API_BASE_URL)
+          .get(`/collections`)
+          .query({
+            chainId: '59144',
+            contract: '0x8bec24c57d944779417ab93c6e745ccf56e47225',
+          })
+          .reply(200, {
+            collections: [
+              {
+                collection: {
+                  id: '0x8bec24c57d944779417ab93c6e745ccf56e47225',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0x8bec24c57d944779417ab93c6e745ccf56e47225',
+                  tokenSetId:
+                    'contract:0x8bec24c57d944779417ab93c6e745ccf56e47225',
+                  rank: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                    allTime: null,
+                  },
+                  volume: {
+                    '1day': 0,
+                    '7day': 0,
+                    '30day': 0,
+                    allTime: 0,
+                  },
+                  volumeChange: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+            ],
+          });
+
         const mockApiCall = nock(NFT_API_BASE_URL)
           .get(`/users/${selectedAddress}/tokens`)
           .query({
@@ -417,6 +627,7 @@ describe('NftDetectionController', () => {
             limit: '50',
             chainIds: '59144',
             includeTopBid: true,
+            collection: '0x8bec24c57d944779417ab93c6e745ccf56e47225',
           })
           .reply(200, {
             tokens: [],
@@ -426,6 +637,9 @@ describe('NftDetectionController', () => {
         await controller.detectNfts();
 
         expect(mockApiCall.isDone()).toBe(true);
+        expect(mockApiCallUserCollections.isDone()).toBe(true);
+        expect(mockApiCallUserCollections2.isDone()).toBe(true);
+        expect(mockApiCallCollections.isDone()).toBe(true);
       },
     );
   });
@@ -488,62 +702,6 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should detect and add NFTs correctly when blockaid result is not included in response', async () => {
-    const mockAddNft = jest.fn();
-    const selectedAddress = '0x1';
-    const selectedAccount = createMockInternalAccount({
-      address: selectedAddress,
-    });
-    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
-    await withController(
-      {
-        options: { addNft: mockAddNft },
-        mockPreferencesState: {},
-        mockGetSelectedAccount,
-      },
-      async ({ controller, controllerEvents }) => {
-        controllerEvents.triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          useNftDetection: true,
-        });
-
-        // Mock /getCollections call
-
-        nock(NFT_API_BASE_URL)
-          .get(
-            `/collections?contract=0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc&contract=0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d&contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
-          )
-          .replyWithError(new Error('Failed to fetch'));
-
-        // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
-          duration: 1,
-        });
-        mockAddNft.mockReset();
-
-        await controller.detectNfts();
-
-        expect(mockAddNft).toHaveBeenCalledWith(
-          '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-          '2574',
-          {
-            nftMetadata: {
-              description: 'Description 2574',
-              image: 'image/2574.png',
-              name: 'ID 2574',
-              standard: 'ERC721',
-              imageOriginal: 'imageOriginal/2574.png',
-            },
-            userAddress: selectedAccount.address,
-            source: Source.Detected,
-            networkClientId: undefined,
-          },
-        );
-      },
-    );
-  });
-
   describe('getCollections', () => {
     it('should not call getCollections api when collection ids do not match contract address', async () => {
       const mockAddNft = jest.fn();
@@ -571,7 +729,7 @@ describe('NftDetectionController', () => {
           mockAddNft.mockReset();
           nock(NFT_API_BASE_URL)
             .get(
-              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xtest1&collection=0xtest2&continuation=`,
             )
             .reply(200, {
               tokens: [
@@ -669,9 +827,10 @@ describe('NftDetectionController', () => {
         },
       );
     });
-    it('should detect and add NFTs correctly when blockaid result is in response with unsuccessful getCollections', async () => {
+    it('should detect and add NFTs correctly when getCollections call is unsuccessful', async () => {
       const mockAddNft = jest.fn();
       const selectedAddress = '0x123';
+
       const selectedAccount = createMockInternalAccount({
         address: selectedAddress,
       });
@@ -694,6 +853,109 @@ describe('NftDetectionController', () => {
           });
           mockAddNft.mockReset();
 
+          // Nock getUserNfts
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xtest1&collection=0xtest2&continuation=`,
+            )
+            .reply(200, {
+              tokens: [
+                {
+                  token: {
+                    contract: '0xtest1',
+                    kind: 'erc721',
+                    name: 'ID 2574',
+                    description: 'Description 2574',
+                    image: 'image/2574.png',
+                    tokenId: '2574',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/2574.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      openseaVerificationStatus: 'verified',
+                      id: '0xtest1',
+                    },
+                  },
+                },
+                {
+                  token: {
+                    contract: '0xtest2',
+                    kind: 'erc721',
+                    name: 'ID 2575',
+                    description: 'Description 2575',
+                    image: 'image/2575.png',
+                    tokenId: '2575',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/2575.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      openseaVerificationStatus: 'verified',
+                      id: '0xtest2',
+                    },
+                  },
+                },
+              ],
+            });
+
+          // Nock successful getUserCollections api call
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/0x123/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+            )
+            .reply(200, {
+              collections: [
+                {
+                  collection: {
+                    id: '0xtest1',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtest1',
+
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+                {
+                  collection: {
+                    id: '0xtest2',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtest2',
+
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+              ],
+            });
+
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/0x123/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+            )
+            .reply(200, {
+              collections: [],
+            });
+
+          // Nock failed getCollections api call
           nock(NFT_API_BASE_URL)
             .get(`/collections?contract=0xtest1&contract=0xtest2&chainId=1`)
             .replyWithError(new Error('Failed to fetch'));
@@ -710,6 +972,7 @@ describe('NftDetectionController', () => {
               imageOriginal: 'imageOriginal/2574.png',
               collection: {
                 id: '0xtest1',
+                openseaVerificationStatus: 'verified',
               },
             },
             userAddress: selectedAccount.address,
@@ -725,6 +988,7 @@ describe('NftDetectionController', () => {
               imageOriginal: 'imageOriginal/2575.png',
               collection: {
                 id: '0xtest2',
+                openseaVerificationStatus: 'verified',
               },
             },
             userAddress: selectedAccount.address,
@@ -734,8 +998,9 @@ describe('NftDetectionController', () => {
         },
       );
     });
-    it('should detect and add NFTs correctly when blockaid result is in response with successful getCollections', async () => {
+    it('should detect and add NFTs correctly when getCollections call is successful', async () => {
       const mockAddNft = jest.fn();
+      nock.cleanAll();
       const selectedAddress = '0x123';
       const selectedAccount = createMockInternalAccount({
         address: selectedAddress,
@@ -758,6 +1023,149 @@ describe('NftDetectionController', () => {
             duration: 1,
           });
           mockAddNft.mockReset();
+
+          // Nock getUserNfts
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xtest1&collection=0xtest2&continuation=`,
+            )
+            .reply(200, {
+              tokens: [
+                {
+                  token: {
+                    contract: '0xtest1',
+                    kind: 'erc721',
+                    name: 'ID 2574',
+                    description: 'Description 2574',
+                    image: 'image/2574.png',
+                    tokenId: '2574',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/2574.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      id: '0xtest1',
+                      openseaVerificationStatus: 'verified',
+                    },
+                  },
+                },
+                {
+                  token: {
+                    contract: '0xtest2',
+                    kind: 'erc721',
+                    name: 'ID 2575',
+                    description: 'Description 2575',
+                    image: 'image/2575.png',
+                    tokenId: '2575',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/2575.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      id: '0xtest2',
+                      openseaVerificationStatus: 'verified',
+                    },
+                  },
+                },
+              ],
+            });
+
+          // Nock successful getUserCollections api call
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/0x123/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+            )
+            .reply(200, {
+              collections: [
+                {
+                  collection: {
+                    id: '0xtest1',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtest1',
+                    rank: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                      allTime: null,
+                    },
+                    volume: {
+                      '1day': 0,
+                      '7day': 0,
+                      '30day': 0,
+                      allTime: 0,
+                    },
+                    volumeChange: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                    },
+                    floorSale: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                    },
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+                {
+                  collection: {
+                    id: '0xtest2',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtest2',
+                    rank: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                      allTime: null,
+                    },
+                    volume: {
+                      '1day': 0,
+                      '7day': 0,
+                      '30day': 0,
+                      allTime: 0,
+                    },
+                    volumeChange: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                    },
+                    floorSale: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                    },
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+              ],
+            });
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/0x123/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+            )
+            .reply(200, {
+              collections: [],
+            });
 
           const testTopBid = {
             id: 'id',
@@ -817,11 +1225,10 @@ describe('NftDetectionController', () => {
               imageOriginal: 'imageOriginal/2574.png',
               collection: {
                 id: '0xtest1',
-                contractDeployedAt: undefined,
+
                 creator: '0xcreator1',
                 openseaVerificationStatus: 'verified',
-                ownerCount: undefined,
-                tokenCount: undefined,
+
                 topBid: testTopBid,
               },
             },
@@ -876,6 +1283,117 @@ describe('NftDetectionController', () => {
             duration: 1,
           });
           mockAddNft.mockReset();
+
+          // Nock successful getUserCollections api call
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+            )
+            .reply(200, {
+              collections: [
+                {
+                  collection: {
+                    id: '0xtestCollection1',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtestCollection1',
+
+                    floorSale: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                    },
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+                {
+                  collection: {
+                    id: '0xtestCollection2',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtestCollection2',
+
+                    floorSale: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                    },
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+              ],
+            });
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+            )
+            .reply(200, {
+              collections: [],
+            });
+
+          // Nock getUserNfts
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xtestCollection1&collection=0xtestCollection2&continuation=`,
+            )
+            .reply(200, {
+              tokens: [
+                {
+                  token: {
+                    contract: '0xtestCollection1',
+                    kind: 'erc721',
+                    name: 'ID 1',
+                    description: 'Description 1',
+                    image: 'image/1.png',
+                    tokenId: '1',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/1.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      id: '0xtestCollection1',
+                      openseaVerificationStatus: 'verified',
+                    },
+                  },
+                },
+                {
+                  token: {
+                    contract: '0xtestCollection2',
+                    kind: 'erc721',
+                    name: 'ID 2',
+                    description: 'Description 2',
+                    image: 'image/2.png',
+                    tokenId: '2',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/2.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      id: '0xtestCollection2',
+                      openseaVerificationStatus: 'verified',
+                    },
+                  },
+                },
+              ],
+            });
 
           nock(NFT_API_BASE_URL)
             .get(
@@ -958,6 +1476,7 @@ describe('NftDetectionController', () => {
     it('should detect and add NFTs from a single collection', async () => {
       const mockAddNft = jest.fn();
       const selectedAddress = 'Oxuser';
+      nock.cleanAll();
       const selectedAccount = createMockInternalAccount({
         address: selectedAddress,
       });
@@ -979,9 +1498,49 @@ describe('NftDetectionController', () => {
             duration: 1,
           });
           mockAddNft.mockReset();
+
+          // Nock successful getUserCollections api call
           nock(NFT_API_BASE_URL)
             .get(
-              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+              `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+            )
+            .reply(200, {
+              collections: [
+                {
+                  collection: {
+                    id: '0xtestCollection1',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtestCollection1',
+
+                    floorSale: {
+                      '1day': null,
+                      '7day': null,
+                      '30day': null,
+                    },
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+              ],
+            });
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+            )
+            .reply(200, {
+              collections: [],
+            });
+
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&collection=0xtestCollection1&continuation=`,
             )
             .reply(200, {
               tokens: [
@@ -1000,13 +1559,9 @@ describe('NftDetectionController', () => {
                     },
                     isSpam: false,
                     collection: {
+                      openseaVerificationStatus: 'verified',
                       id: '0xtestCollection1',
                     },
-                  },
-                  blockaidResult: {
-                    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-                    // eslint-disable-next-line @typescript-eslint/naming-convention
-                    result_type: BlockaidResultType.Benign,
                   },
                 },
                 {
@@ -1024,6 +1579,7 @@ describe('NftDetectionController', () => {
                     },
                     isSpam: false,
                     collection: {
+                      openseaVerificationStatus: 'verified',
                       id: '0xtestCollection1',
                     },
                   },
@@ -1062,11 +1618,9 @@ describe('NftDetectionController', () => {
                 imageOriginal: 'imageOriginal/1.png',
                 collection: {
                   id: '0xtestCollection1',
-                  contractDeployedAt: undefined,
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
                   ownerCount: '555',
-                  tokenCount: undefined,
                 },
               },
               userAddress: selectedAccount.address,
@@ -1087,11 +1641,10 @@ describe('NftDetectionController', () => {
                 imageOriginal: 'imageOriginal/2.png',
                 collection: {
                   id: '0xtestCollection1',
-                  contractDeployedAt: undefined,
+
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
                   ownerCount: '555',
-                  tokenCount: undefined,
                 },
               },
               userAddress: selectedAccount.address,
@@ -1132,6 +1685,55 @@ describe('NftDetectionController', () => {
             duration: 1,
           });
           mockAddNft.mockReset();
+
+          // Nock successful getUserCollections api call
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+            )
+            .reply(200, {
+              collections: [
+                {
+                  collection: {
+                    id: '0xtest1',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtest1',
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+                {
+                  collection: {
+                    id: '0xtest2',
+                    slug: '',
+                    name: '',
+                    image: null,
+                    isSpam: false,
+                    tokenCount: '2',
+                    primaryContract: '0xtest2',
+                    contractKind: 'erc721',
+                  },
+                  ownership: {
+                    tokenCount: '1',
+                    totalValue: 0,
+                  },
+                },
+              ],
+            });
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+            )
+            .reply(200, {
+              collections: [],
+            });
 
           nock(NFT_API_BASE_URL)
             .get(`/collections?contract=0xtest1&chainId=1`)
@@ -1180,6 +1782,7 @@ describe('NftDetectionController', () => {
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2575.png',
               collection: {
+                openseaVerificationStatus: 'verified',
                 id: '0xtest2',
               },
             },
@@ -1223,6 +1826,46 @@ describe('NftDetectionController', () => {
           duration: 1,
         });
         mockAddNft.mockReset();
+
+        // Nock successful getUserCollections api call
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/0x9/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+          )
+          .reply(200, {
+            collections: [
+              {
+                collection: {
+                  id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+            ],
+          });
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/0x9/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+          )
+          .reply(200, {
+            collections: [],
+          });
+
         nock(NFT_API_BASE_URL)
           .get(
             `/collections?contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
@@ -1293,6 +1936,45 @@ describe('NftDetectionController', () => {
           duration: 1,
         });
         mockAddNft.mockReset();
+
+        // Nock successful getUserCollections api call
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/0x9/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+          )
+          .reply(200, {
+            collections: [
+              {
+                collection: {
+                  id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+            ],
+          });
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/0x9/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+          )
+          .reply(200, {
+            collections: [],
+          });
 
         nock(NFT_API_BASE_URL)
           .get(
@@ -1469,6 +2151,51 @@ describe('NftDetectionController', () => {
           clock,
           duration: 1,
         });
+        // Nock successful getUserCollections api call
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+          )
+          .reply(200, {
+            collections: [
+              {
+                collection: {
+                  id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+            ],
+          });
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+          )
+          .reply(200, {
+            collections: [],
+          });
+
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/collections?contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
+          )
+          .replyWithError(new Error('Failed to fetch'));
+
         // This mock is for the call under test
         nock(NFT_API_BASE_URL)
           .get(`/users/${selectedAddress}/tokens`)
@@ -1477,6 +2204,7 @@ describe('NftDetectionController', () => {
             limit: '50',
             chainIds: '1',
             includeTopBid: true,
+            collection: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
           })
           .replyWithError(new Error('UNEXPECTED ERROR'));
 
@@ -1513,6 +2241,88 @@ describe('NftDetectionController', () => {
         });
         mockAddNft.mockReset();
         mockAddNft.mockRejectedValueOnce(new Error('UNEXPECTED ERROR'));
+
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+          )
+          .reply(200, {
+            collections: [
+              {
+                collection: {
+                  id: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+              {
+                collection: {
+                  id: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+              {
+                collection: {
+                  id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+            ],
+          });
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+          )
+          .reply(200, {
+            collections: [],
+          });
 
         nock(NFT_API_BASE_URL)
           .get(
@@ -1584,11 +2394,50 @@ describe('NftDetectionController', () => {
 
         nock(NFT_API_BASE_URL)
           .get(
+            `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=0`,
+          )
+          .reply(200, {
+            collections: [
+              {
+                collection: {
+                  id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+                  slug: '',
+                  name: '',
+                  image: null,
+                  isSpam: false,
+                  tokenCount: '2',
+                  primaryContract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+
+                  floorSale: {
+                    '1day': null,
+                    '7day': null,
+                    '30day': null,
+                  },
+                  contractKind: 'erc721',
+                },
+                ownership: {
+                  tokenCount: '1',
+                  totalValue: 0,
+                },
+              },
+            ],
+          });
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/users/${selectedAddress}/collections?chainId=1&limit=20&includeTopBid=true&offset=20`,
+          )
+          .reply(200, {
+            collections: [],
+          });
+
+        nock(NFT_API_BASE_URL)
+          .get(
             `/collections?contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
           )
-          .replyWithError(new Error('Failed to fetch'));
+          .reply(200, {
+            collections: [],
+          });
         await Promise.all([controller.detectNfts(), controller.detectNfts()]);
-
         expect(mockAddNft).toHaveBeenCalledTimes(1);
       },
     );
