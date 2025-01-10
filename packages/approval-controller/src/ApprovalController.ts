@@ -258,7 +258,10 @@ export type ApprovalStateChange = ControllerStateChangeEvent<
   ApprovalControllerState
 >;
 
-export type ApprovalControllerEvents = ApprovalStateChange;
+export type ApprovalControllerEvents =
+  | ApprovalApprovedEvent
+  | ApprovalRejectedEvent
+  | ApprovalStateChange;
 
 // Action Types
 
@@ -323,6 +326,25 @@ export type ShowSuccess = {
 export type ShowError = {
   type: `${typeof controllerName}:showError`;
   handler: ApprovalController['error'];
+};
+
+export type ApprovalRejectedEvent = {
+  type: `${typeof controllerName}:rejected`;
+  payload: [
+    {
+      approval: ApprovalRequest<ApprovalRequestData>;
+      error: Error;
+    },
+  ];
+};
+
+export type ApprovalApprovedEvent = {
+  type: `${typeof controllerName}:accepted`;
+  payload: [
+    {
+      approval: ApprovalRequest<ApprovalRequestData>;
+    },
+  ];
 };
 
 export type ApprovalControllerActions =
@@ -729,6 +751,9 @@ export class ApprovalController extends BaseController<
       if (!requestDeleted) {
         this.#delete(id);
       }
+      this.messagingSystem.publish(`${controllerName}:accepted`, {
+        approval,
+      });
     });
   }
 
@@ -740,9 +765,16 @@ export class ApprovalController extends BaseController<
    * @param error - The error to reject the approval promise with.
    */
   reject(id: string, error: unknown): void {
+    const rejectedApproval = this.get(
+      id,
+    ) as ApprovalRequest<ApprovalRequestData>;
     const callbacks = this.#getCallbacks(id);
     this.#delete(id);
     callbacks.reject(error);
+    this.messagingSystem.publish(`${controllerName}:rejected`, {
+      approval: rejectedApproval,
+      error: error as Error,
+    });
   }
 
   /**
