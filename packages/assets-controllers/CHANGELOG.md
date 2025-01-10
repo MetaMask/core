@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Bump `eslint` to `^9.11.1` and migrate to flat config ([#4727](https://github.com/MetaMask/core/pull/4727))
+- feat!: add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066))
+- fix: fix mantle price when calling fetchMultiExchangeRate ([#5099](https://github.com/MetaMask/core/pull/5099))
+- fix: handle multicall revert in `TokenBalancesController` ([#5083](https://github.com/MetaMask/core/pull/5083))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- fix: Prevent State Changes for ignoreTokens on Non-Current Network ([#5014](https://github.com/MetaMask/core/pull/5014))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
