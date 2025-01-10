@@ -122,7 +122,7 @@ export const getDefaultAddressBookControllerState =
 /**
  * The messenger of the {@link AddressBookController} for communication.
  */
-export type AddressBookMessenger = RestrictedMessenger<
+export type AddressBookControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AddressBookControllerActions,
   AddressBookControllerEvents,
@@ -136,7 +136,7 @@ export type AddressBookMessenger = RestrictedMessenger<
 export class AddressBookController extends BaseController<
   typeof controllerName,
   AddressBookControllerState,
-  AddressBookMessenger
+  AddressBookControllerMessenger
 > {
   /**
    * Creates an AddressBookController instance.
@@ -149,7 +149,7 @@ export class AddressBookController extends BaseController<
     messenger,
     state,
   }: {
-    messenger: AddressBookMessenger;
+    messenger: AddressBookControllerMessenger;
     state?: Partial<AddressBookControllerState>;
   }) {
     const mergedState = { ...getDefaultAddressBookControllerState(), ...state };
