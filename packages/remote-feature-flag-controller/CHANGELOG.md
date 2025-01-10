@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- fix(3742): improve user segmentation with BigInt-based random generation ([#5110](https://github.com/MetaMask/core/pull/5110))
-- fix(3742): change getMetaMetricsId to only sync func type ([#5108](https://github.com/MetaMask/core/pull/5108))
+- Improve user segmentation with BigInt-based random generation ([#5110](https://github.com/MetaMask/core/pull/5110))
+- Change getMetaMetricsId to only sync func type ([#5108](https://github.com/MetaMask/core/pull/5108))
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
 ## [1.2.0]
