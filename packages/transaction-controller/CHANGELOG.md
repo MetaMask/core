@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat!: add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066))
-
 ### Added
 
 - Add `gasLimitNoBuffer` property to `TransactionMeta` type ([#5113](https://github.com/MetaMask/core/pull/5113))

@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump `eslint` to `^9.11.1` and migrate to flat config ([#4727](https://github.com/MetaMask/core/pull/4727))
-- Release 277.0.0 ([#5117](https://github.com/MetaMask/core/pull/5117))
-- fix: add notification call prevention logic ([#5081](https://github.com/MetaMask/core/pull/5081))
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- fix: check push notification compatibility before setting up firebase ([#5069](https://github.com/MetaMask/core/pull/5069))
-- Release 270.0.0 ([#5058](https://github.com/MetaMask/core/pull/5058))
-- Release 269.0.0 ([#5054](https://github.com/MetaMask/core/pull/5054))
-
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
