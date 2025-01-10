@@ -388,6 +388,7 @@ const INTERNAL_ACCOUNT_MOCK: InternalAccount = {
   id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
   address: ACCOUNT_MOCK,
   type: 'eip155:eoa',
+  scopes: ['eip155'],
   options: {},
   methods: [],
   metadata: {
