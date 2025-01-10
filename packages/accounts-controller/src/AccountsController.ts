@@ -8,6 +8,7 @@ import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   EthAccountType,
   EthMethod,
+  EthScopes,
   isEvmAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -203,6 +204,7 @@ export const EMPTY_ACCOUNT = {
   options: {},
   methods: [],
   type: EthAccountType.Eoa,
+  scopes: [EthScopes.Namespace],
   metadata: {
     name: '',
     keyring: {
@@ -456,7 +458,7 @@ export class AccountsController extends BaseController<
       };
       // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
       // See: https://github.com/MetaMask/utils/issues/168
-      // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
+      // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
       currentState.internalAccounts.accounts[accountId] = internalAccount;
 
       if (metadata.name) {
@@ -582,6 +584,7 @@ export class AccountsController extends BaseController<
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ],
+      scopes: [EthScopes.Namespace],
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
@@ -656,6 +659,7 @@ export class AccountsController extends BaseController<
           EthMethod.SignTypedDataV3,
           EthMethod.SignTypedDataV4,
         ],
+        scopes: [EthScopes.Namespace],
         type: EthAccountType.Eoa,
         metadata: {
           name: this.#populateExistingMetadata(id, 'name') ?? '',
