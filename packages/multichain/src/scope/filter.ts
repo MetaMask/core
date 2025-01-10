@@ -44,29 +44,6 @@ export const bucketScopesBySupport = (
 };
 
 /**
- * Returns a NormalizedScopesObject with only
- * scopes that are supported entirely as is.
- * @param scopes - The NormalizedScopesObject to filter.
- * @param hooks - The hooks.
- * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
- * @returns a NormalizedScopesObject with only scopes that are currently supported.
- */
-export const getSupportedScopes = (
-  scopes: NormalizedScopesObject,
-  {
-    isChainIdSupported,
-  }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
-  },
-) => {
-  const { supportedScopes } = bucketScopesBySupport(scopes, {
-    isChainIdSupported,
-  });
-
-  return supportedScopes;
-};
-
-/**
  * Returns a NormalizedScopeObject with
  * unsupported methods and notifications removed.
  * @param scopeString - The InternalScopeString for the scopeObject.

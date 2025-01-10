@@ -1,6 +1,5 @@
 import * as Assert from './assert';
 import {
-  getSupportedScopes,
   bucketScopesBySupport,
   getSupportedScopeObjects,
 } from './filter';
@@ -20,79 +19,6 @@ jest.mock('./supported', () => ({
 const MockSupported = jest.mocked(Supported);
 
 describe('filter', () => {
-  describe('getSupportedScopes', () => {
-    const isChainIdSupported = jest.fn();
-
-    it('checks if each scope is supported', () => {
-      getSupportedScopes(
-        {
-          'eip155:1': {
-            methods: ['a'],
-            notifications: [],
-            accounts: [],
-          },
-          'eip155:5': {
-            methods: ['b'],
-            notifications: [],
-            accounts: [],
-          },
-        },
-        { isChainIdSupported },
-      );
-
-      expect(MockAssert.assertScopeSupported).toHaveBeenCalledWith(
-        'eip155:1',
-        {
-          methods: ['a'],
-          notifications: [],
-          accounts: [],
-        },
-        { isChainIdSupported },
-      );
-      expect(MockAssert.assertScopeSupported).toHaveBeenCalledWith(
-        'eip155:5',
-        {
-          methods: ['b'],
-          notifications: [],
-          accounts: [],
-        },
-        { isChainIdSupported },
-      );
-    });
-
-    it('returns only supported scopes', () => {
-      MockAssert.assertScopeSupported.mockImplementation((scopeString) => {
-        if (scopeString === 'eip155:1') {
-          throw new Error('scope not supported');
-        }
-      });
-
-      expect(
-        getSupportedScopes(
-          {
-            'eip155:1': {
-              methods: ['a'],
-              notifications: [],
-              accounts: [],
-            },
-            'eip155:5': {
-              methods: ['b'],
-              notifications: [],
-              accounts: [],
-            },
-          },
-          { isChainIdSupported },
-        ),
-      ).toStrictEqual({
-        'eip155:5': {
-          methods: ['b'],
-          notifications: [],
-          accounts: [],
-        },
-      });
-    });
-  });
-
   describe('bucketScopesBySupport', () => {
     const isChainIdSupported = jest.fn();
 
