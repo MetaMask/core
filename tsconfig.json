@@ -16,6 +16,7 @@
     { "path": "./packages/build-utils" },
     { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },
+    { "path": "./packages/earn-controller" },
     { "path": "./packages/ens-controller" },
     { "path": "./packages/eth-json-rpc-provider" },
     { "path": "./packages/gas-fee-controller" },
