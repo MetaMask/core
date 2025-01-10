@@ -83,6 +83,24 @@ export async function readMonorepoFiles(): Promise<MonorepoFileData> {
 }
 
 /**
+ * Checks if a package path already exists.
+ *
+ * @param packagePath - The package path.
+ * @returns True if the path exists, false otherwise.
+ */
+async function packagePathExists(packagePath: string) {
+  try {
+    // We use `access`, cause no matter if `packagePath` is a directory or a file, we won't
+    // be able to write anything there if it already exists.
+    await fs.access(packagePath);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Finalizes package and repo files, writes them to disk, and performs necessary
  * postprocessing (e.g. running `yarn install`).
  *
@@ -94,7 +112,7 @@ export async function finalizeAndWriteData(
   monorepoFileData: MonorepoFileData,
 ) {
   const packagePath = path.join(PACKAGES_PATH, packageData.directoryName);
-  if ((await fs.stat(packagePath)).isDirectory()) {
+  if (await packagePathExists(packagePath)) {
     throw new Error(`The package directory already exists: ${packagePath}`);
   }
 
