@@ -24,7 +24,6 @@ const transformError = (
     error.path.length > 0 ? `.${error.path.join('.')}` : ''
   } ${error.message}`;
 
-  // Use rpcErrors.invalidParams to generate the error
   return rpcErrors.invalidParams({
     message,
     data: {
