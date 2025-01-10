@@ -259,7 +259,7 @@ export type ApprovalStateChange = ControllerStateChangeEvent<
 >;
 
 export type ApprovalControllerEvents =
-  | ApprovalApprovedEvent
+  | ApprovalAcceptedEvent
   | ApprovalRejectedEvent
   | ApprovalStateChange;
 
@@ -338,7 +338,7 @@ export type ApprovalRejectedEvent = {
   ];
 };
 
-export type ApprovalApprovedEvent = {
+export type ApprovalAcceptedEvent = {
   type: `${typeof controllerName}:accepted`;
   payload: [
     {
