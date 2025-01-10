@@ -24,8 +24,8 @@ const transformError = (
     error.path.length > 0 ? `.${error.path.join('.')}` : ''
   } ${error.message}`;
 
-  return {
-    code: -32602, // TODO: could be a different error code or not wrapped in json-rpc error, since this will also be wrapped in a -32602 invalid params error
+  // Use rpcErrors.invalidParams to generate the error
+  return rpcErrors.invalidParams({
     message,
     data: {
       param: param.name,
@@ -33,7 +33,7 @@ const transformError = (
       schema: error.schema,
       got,
     },
-  };
+  });
 };
 
 const v = new Validator();
@@ -66,26 +66,17 @@ const multichainMethodCallValidator = async (
     !isObject(methodToCheck) ||
     !('params' in methodToCheck)
   ) {
-    return [
-      {
-        code: -32601,
-        message: 'The method does not exist / is not available.',
-        data: {
-          method,
-        },
-      },
-    ];
+    console.log(
+      'ERROR FOR TESTING:',
+      rpcErrors.methodNotFound({ data: { method } }).data,
+    );
+    return [rpcErrors.methodNotFound({ data: { method } })] as JsonRpcError[];
   }
 
   const errors: JsonRpcError[] = [];
   for (const param of methodToCheck.params) {
     if (!isObject(params)) {
-      return [
-        {
-          code: -32602,
-          message: 'Invalid method parameter(s).',
-        },
-      ];
+      return [rpcErrors.invalidParams()] as JsonRpcError[];
     }
     const p = param as ContentDescriptorObject;
     const paramToCheck = params[p.name];
