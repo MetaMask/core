@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.3.0]
 
-### Uncategorized
+### Added
 
-- feat: add a `customProvider` option to the sdk `JwtBearerAuth` class ([#5105](https://github.com/MetaMask/core/pull/5105))
+- Add a `customProvider` option to the sdk `JwtBearerAuth` class ([#5105](https://github.com/MetaMask/core/pull/5105))
+
+### Changed
+
 - Bump `eslint` to `^9.11.1` and migrate to flat config ([#4727](https://github.com/MetaMask/core/pull/4727))
-- feat!: add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066))
+- Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` and `@metamask/keyring-internal-api` from `^1.0.0` to `^1.1.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
 
 ## [3.2.0]
 
