@@ -5,7 +5,7 @@ import {
   arrangeAuthAPIs,
 } from './__fixtures__/mock-auth';
 import type { MockVariable } from './__fixtures__/test-utils';
-import { arrangeAuth } from './__fixtures__/test-utils';
+import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';
 import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
 import {
@@ -142,6 +142,28 @@ describe('Authentication - constructor()', () => {
         {} as MockVariable,
       );
     }).toThrow(UnsupportedAuthTypeError);
+  });
+
+  it('supports using a custom provider as a constructor option', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP, {
+      customProvider: arrangeMockProvider().mockProvider,
+    });
+
+    await auth.connectSnap();
+    const isSnapConnected = await auth.isSnapConnected();
+
+    expect(isSnapConnected).toBe(true);
+  });
+
+  it('supports using a custom provider set at a later point in time', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+
+    auth.setCustomProvider(arrangeMockProvider().mockProvider);
+
+    await auth.connectSnap();
+    const isSnapConnected = await auth.isSnapConnected();
+
+    expect(isSnapConnected).toBe(true);
   });
 });
 
