@@ -2,6 +2,7 @@ import log from 'loglevel';
 
 import encryption, { createSHA256Hash } from '../../shared/encryption';
 import { SHARED_SALT } from '../../shared/encryption/constants';
+import type { KeyStore } from '../../shared/encryption/key-storage';
 import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
@@ -36,6 +37,7 @@ export type UserStorageBaseOptions = {
   bearerToken: string;
   storageKey: string;
   nativeScryptCrypto?: NativeScrypt;
+  keyStore?: KeyStore;
 };
 
 export type UserStorageOptions = UserStorageBaseOptions & {
@@ -58,7 +60,8 @@ export async function getUserStorage(
   opts: UserStorageOptions,
 ): Promise<string | null> {
   try {
-    const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
+    const { bearerToken, path, storageKey, nativeScryptCrypto, keyStore } =
+      opts;
 
     const encryptedPath = createEntryPath(path, storageKey);
     const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);
@@ -94,6 +97,7 @@ export async function getUserStorage(
       encryptedData,
       opts.storageKey,
       nativeScryptCrypto,
+      keyStore,
     );
 
     // Re-encrypt and re-upload the entry if the salt is random
@@ -119,7 +123,7 @@ export async function getUserStorageAllFeatureEntries(
   opts: UserStorageAllFeatureEntriesOptions,
 ): Promise<string[] | null> {
   try {
-    const { bearerToken, path, nativeScryptCrypto } = opts;
+    const { bearerToken, path, nativeScryptCrypto, keyStore } = opts;
     const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
     const userStorageResponse = await fetch(url.toString(), {
@@ -161,6 +165,7 @@ export async function getUserStorageAllFeatureEntries(
           entry.Data,
           opts.storageKey,
           nativeScryptCrypto,
+          keyStore,
         );
         decryptedData.push(data);
 
@@ -173,6 +178,7 @@ export async function getUserStorageAllFeatureEntries(
               data,
               opts.storageKey,
               nativeScryptCrypto,
+              keyStore,
             ),
           ]);
         }
@@ -212,6 +218,7 @@ export async function upsertUserStorage(
     data,
     opts.storageKey,
     nativeScryptCrypto,
+    opts.keyStore,
   );
   const encryptedPath = createEntryPath(path, storageKey);
   const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);

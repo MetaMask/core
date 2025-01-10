@@ -5,11 +5,7 @@ import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
 import type { NativeScrypt } from '../types/encryption';
-import {
-  getCachedKeyBySalt,
-  getCachedKeyGeneratedWithSharedSalt,
-  setCachedKey,
-} from './cache';
+import { getCachedKeyBySalt, setCachedKey } from './cache';
 import {
   ALGORITHM_KEY_SIZE,
   ALGORITHM_NONCE_SIZE,
@@ -19,6 +15,7 @@ import {
   SCRYPT_SALT_SIZE,
   SHARED_SALT,
 } from './constants';
+import type { KeyStore } from './key-storage';
 import {
   base64ToByteArray,
   byteArrayToBase64,
@@ -26,6 +23,11 @@ import {
   stringToByteArray,
 } from './utils';
 
+/**
+ * Describes the structure of an encrypted payload for user storage.
+ *
+ * The data is encrypted using AES-GCM, and the key is derived from the profile storage_key using scrypt.
+ */
 export type EncryptedPayload = {
   // version
   v: '1';
@@ -36,7 +38,7 @@ export type EncryptedPayload = {
   // data
   d: string;
 
-  // encryption options - scrypt
+  // derivation options - scrypt
   o: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     N: number;
@@ -54,12 +56,14 @@ class EncryptorDecryptor {
     plaintext: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    keyStore?: KeyStore,
   ): Promise<string> {
     try {
       return await this.#encryptStringV1(
         plaintext,
         password,
         nativeScryptCrypto,
+        keyStore,
       );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
@@ -71,6 +75,7 @@ class EncryptorDecryptor {
     encryptedDataStr: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    keyStore?: KeyStore,
   ): Promise<string> {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
@@ -80,6 +85,7 @@ class EncryptorDecryptor {
             encryptedData,
             password,
             nativeScryptCrypto,
+            keyStore,
           );
         }
       }
@@ -96,6 +102,7 @@ class EncryptorDecryptor {
     plaintext: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    keyStore?: KeyStore,
   ): Promise<string> {
     const { key, salt } = await this.#getOrGenerateScryptKey(
       password,
@@ -107,6 +114,7 @@ class EncryptorDecryptor {
       },
       undefined,
       nativeScryptCrypto,
+      keyStore,
     );
 
     // Encrypt and prepend salt.
@@ -139,6 +147,7 @@ class EncryptorDecryptor {
     data: EncryptedPayload,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    keyStore?: KeyStore,
   ): Promise<string> {
     const { o, d: base64CiphertextAndNonceAndSalt, saltLen } = data;
 
@@ -165,6 +174,7 @@ class EncryptorDecryptor {
       },
       salt,
       nativeScryptCrypto,
+      keyStore,
     );
 
     // Decrypt and return result.
@@ -238,11 +248,13 @@ class EncryptorDecryptor {
     o: EncryptedPayload['o'],
     salt?: Uint8Array,
     nativeScryptCrypto?: NativeScrypt,
+    keyStore?: KeyStore,
   ) {
     const hashedPassword = createSHA256Hash(password);
+
     const cachedKey = salt
       ? getCachedKeyBySalt(hashedPassword, salt)
-      : getCachedKeyGeneratedWithSharedSalt(hashedPassword);
+      : getCachedKeyBySalt(hashedPassword, SHARED_SALT);
 
     if (cachedKey) {
       return {
@@ -252,9 +264,23 @@ class EncryptorDecryptor {
     }
 
     const newSalt = salt ?? SHARED_SALT;
+    const keyRef = `${hashedPassword}${bytesToHex(newSalt)}`;
+    if (keyStore) {
+      try {
+        const storedKey = await keyStore.loadKey(keyRef);
+        if (storedKey) {
+          setCachedKey(hashedPassword, newSalt, storedKey);
+          return {
+            key: storedKey,
+            salt: newSalt,
+          };
+        }
+      } catch (e) {
+        // nop. couldn't decrypt key, proceed to deriving it
+      }
+    }
 
     let newKey: Uint8Array;
-
     if (nativeScryptCrypto) {
       newKey = await nativeScryptCrypto(
         stringToByteArray(password),
@@ -274,6 +300,13 @@ class EncryptorDecryptor {
     }
 
     setCachedKey(hashedPassword, newSalt, newKey);
+    if (keyStore) {
+      try {
+        await keyStore.storeKey(keyRef, newKey);
+      } catch (e) {
+        // nop. couldn't store key, proceed to just returning it
+      }
+    }
 
     return {
       key: newKey,

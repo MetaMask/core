@@ -1,8 +1,8 @@
 import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRenamedEvent,
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerAccountRenamedEvent,
-  AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -12,10 +12,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
+  type KeyringControllerAddNewAccountAction,
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerAddNewAccountAction,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -26,22 +26,29 @@ import type {
   NetworkControllerUpdateNetworkAction,
 } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Eip1024EncryptedData } from '@metamask/utils';
 
 import { createSHA256Hash } from '../../shared/encryption';
+import type { KeyStore } from '../../shared/encryption/key-storage';
+import { ERC1024WrappedKeyStore } from '../../shared/encryption/key-storage';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import {
   type UserStoragePathWithFeatureAndKey,
   type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
+import {
+  createSnapDecryptMessageRequest,
+  createSnapEncryptionPublicKeyRequest,
+  createSnapSignMessageRequest,
+} from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
   AuthenticationControllerPerformSignOut,
-} from '../authentication/AuthenticationController';
+} from '../authentication';
 import {
   saveInternalAccountToUserStorage,
   syncInternalAccountsWithUserStorage,
@@ -102,6 +109,10 @@ export type UserStorageControllerState = {
    * Condition used to ensure that we do not perform any network sync mutations until we have synced at least once
    */
   hasNetworkSyncingSyncedAtLeastOnce?: boolean;
+  /**
+   * Content keys used to encrypt/decrypt user storage content. These are wrapped while at rest.
+   */
+  encryptedContentKeys: Record<string, string>;
 };
 
 export const defaultState: UserStorageControllerState = {
@@ -110,6 +121,7 @@ export const defaultState: UserStorageControllerState = {
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
+  encryptedContentKeys: {},
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
@@ -134,6 +146,10 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: false,
   },
   hasNetworkSyncingSyncedAtLeastOnce: {
+    persist: true,
+    anonymous: false,
+  },
+  encryptedContentKeys: {
     persist: true,
     anonymous: false,
   },
@@ -313,6 +329,79 @@ export default class UserStorageController extends BaseController<
     isNetworkSyncingEnabled: false,
   };
 
+  #_snapPublicKeyCache: string | null = null;
+
+  #keyWrapping = {
+    /**
+     * Returns the snap Encryption public key.
+     *
+     * @returns The snap Encryption public key.
+     */
+    snapGetEncryptionPublicKey: async (): Promise<string> => {
+      if (this.#_snapPublicKeyCache) {
+        return this.#_snapPublicKeyCache;
+      }
+
+      if (!this.#isUnlocked) {
+        throw new Error(
+          '#snapGetEncryptionPublicKey - unable to call snap, wallet is locked',
+        );
+      }
+
+      const result = (await this.messagingSystem.call(
+        'SnapController:handleRequest',
+        createSnapEncryptionPublicKeyRequest(),
+      )) as string;
+
+      this.#_snapPublicKeyCache = result;
+
+      return result;
+    },
+
+    /**
+     * Decrypts a message using the message signing snap.
+     *
+     * @param data - Eip1024EncryptedData - The encrypted data.
+     * @returns The decrypted message, if it was intended for this wallet, null otherwise. TODO: check error scenarios
+     */
+    snapDecryptMessage: async (data: Eip1024EncryptedData): Promise<string> => {
+      if (!this.#isUnlocked) {
+        throw new Error(
+          '#snapDecryptMessage - unable to call snap, wallet is locked',
+        );
+      }
+
+      const result = (await this.messagingSystem.call(
+        'SnapController:handleRequest',
+        createSnapDecryptMessageRequest(data),
+      )) as string;
+
+      return result;
+    },
+
+    loadWrappedKey: async (keyRef: string): Promise<string | null> => {
+      return this.state.encryptedContentKeys[keyRef] ?? null;
+    },
+
+    storeWrappedKey: (keyRef: string, wrappedKey: string): Promise<void> => {
+      return new Promise((resolve) => {
+        this.update((state) => {
+          state.encryptedContentKeys[keyRef] = wrappedKey;
+          resolve();
+        });
+      });
+    },
+
+    getWrappedKeyStore: (): KeyStore => {
+      return new ERC1024WrappedKeyStore({
+        decryptMessage: this.#keyWrapping.snapDecryptMessage,
+        getPublicKey: this.#keyWrapping.snapGetEncryptionPublicKey,
+        getItem: this.#keyWrapping.loadWrappedKey,
+        setItem: this.#keyWrapping.storeWrappedKey,
+      });
+    },
+  };
+
   #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
@@ -374,7 +463,9 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+  #nativeScryptCrypto: NativeScrypt | undefined;
+
+  #keyStore: KeyStore | undefined;
 
   getMetaMetricsState: () => boolean;
 
@@ -385,6 +476,7 @@ export default class UserStorageController extends BaseController<
     config,
     getMetaMetricsState,
     nativeScryptCrypto,
+    keyStore,
   }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
@@ -395,6 +487,7 @@ export default class UserStorageController extends BaseController<
     };
     getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
+    keyStore?: KeyStore;
   }) {
     super({
       messenger,
@@ -432,6 +525,8 @@ export default class UserStorageController extends BaseController<
           !this.state.hasNetworkSyncingSyncedAtLeastOnce,
       });
     }
+
+    this.#keyStore = keyStore ?? this.#keyWrapping.getWrappedKeyStore();
   }
 
   /**
@@ -491,6 +586,7 @@ export default class UserStorageController extends BaseController<
       storageKey,
       bearerToken,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      keyStore: this.#keyStore,
     };
   }
 
@@ -581,6 +677,7 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      keyStore: this.#keyStore,
     });
 
     return result;
@@ -606,6 +703,7 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      keyStore: this.#keyStore,
     });
 
     return result;
@@ -633,6 +731,7 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      keyStore: this.#keyStore,
     });
   }
 
@@ -660,6 +759,7 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      keyStore: this.#keyStore,
     });
   }
 
@@ -730,6 +830,7 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      keyStore: this.#keyStore,
     });
   }
 
