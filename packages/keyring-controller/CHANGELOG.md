@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat!: add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- fix: lock `KeyringController` mutex on `verifySeedPhrase` ([#5077](https://github.com/MetaMask/core/pull/5077))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Bump `eslint` to `^9.11.1` and migrate to flat config ([#4727](https://github.com/MetaMask/core/pull/4727))
+- feat!: add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066))
+
 ## [3.2.0]
 
 ### Added
