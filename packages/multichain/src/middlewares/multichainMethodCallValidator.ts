@@ -66,10 +66,6 @@ const multichainMethodCallValidator = async (
     !isObject(methodToCheck) ||
     !('params' in methodToCheck)
   ) {
-    console.log(
-      'ERROR FOR TESTING:',
-      rpcErrors.methodNotFound({ data: { method } }).data,
-    );
     return [rpcErrors.methodNotFound({ data: { method } })] as JsonRpcError[];
   }
 
