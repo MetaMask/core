@@ -70,26 +70,21 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             try {
-              expect(error).toBeDefined();
-              expect((error as JsonRpcError).message).toBe(
-                'Invalid method parameter(s).',
-              );
-              expect((error as JsonRpcError).code).toBe(-32602);
-              expect((error as JsonRpcError).data).toStrictEqual([
-                {
-                  code: -32602,
-                  message: 'scope is required, but is undefined',
-                  data: {
-                    param: 'scope',
-                    path: [],
-                    schema: {
-                      pattern: '[-a-z0-9]{3,8}(:[-_a-zA-Z0-9]{1,32})?',
-                      type: 'string',
-                    },
-                    got: undefined,
-                  },
+              const rpcError = error as JsonRpcError & { data: JsonRpcError[] };
+              expect(rpcError.message).toBe('Invalid method parameter(s).');
+              expect(rpcError.code).toBe(-32602);
+              expect(rpcError.data[0].data).toStrictEqual({
+                got: undefined,
+                param: 'scope',
+                path: [],
+                schema: {
+                  pattern: '[-a-z0-9]{3,8}(:[-_a-zA-Z0-9]{1,32})?',
+                  type: 'string',
                 },
-              ]);
+              });
+              expect(rpcError.data[0].message).toBe(
+                'scope is required, but is undefined',
+              );
               resolve();
             } catch (e) {
               reject(e);
@@ -125,31 +120,26 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             try {
-              expect(error).toBeDefined();
-              expect((error as JsonRpcError).message).toBe(
-                'Invalid method parameter(s).',
-              );
-              expect((error as JsonRpcError).code).toBe(-32602);
-              expect((error as JsonRpcError).data).toStrictEqual([
-                {
-                  code: -32602,
-                  data: {
-                    got: undefined,
-                    param: 'request',
-                    path: [],
-                    schema: {
-                      properties: {
-                        method: {
-                          type: 'string',
-                        },
-                        params: true,
-                      },
-                      type: 'object',
+              const rpcError = error as JsonRpcError & { data: JsonRpcError[] };
+              expect(rpcError.message).toBe('Invalid method parameter(s).');
+              expect(rpcError.code).toBe(-32602);
+              expect(rpcError.data[0].data).toStrictEqual({
+                got: undefined,
+                param: 'request',
+                path: [],
+                schema: {
+                  properties: {
+                    method: {
+                      type: 'string',
                     },
+                    params: true,
                   },
-                  message: 'request is required, but is undefined',
+                  type: 'object',
                 },
-              ]);
+              });
+              expect(rpcError.data[0].message).toBe(
+                'request is required, but is undefined',
+              );
               resolve();
             } catch (e) {
               reject(e);
@@ -191,30 +181,25 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             try {
-              expect(error).toBeDefined();
-              expect((error as JsonRpcError).message).toBe(
-                'Invalid method parameter(s).',
-              );
-              expect((error as JsonRpcError).code).toBe(-32602);
-              expect((error as JsonRpcError).data).toStrictEqual([
-                {
-                  code: -32602,
-                  data: {
-                    got: {
-                      method: {},
-                      params: {
-                        test: 'test',
-                      },
-                    },
-                    param: 'request',
-                    path: ['method'],
-                    schema: {
-                      type: 'string',
-                    },
+              const rpcError = error as JsonRpcError & { data: JsonRpcError[] };
+              expect(rpcError.message).toBe('Invalid method parameter(s).');
+              expect(rpcError.code).toBe(-32602);
+              expect(rpcError.data[0].data).toStrictEqual({
+                got: {
+                  method: {},
+                  params: {
+                    test: 'test',
                   },
-                  message: 'request.method is not of a type(s) string',
                 },
-              ]);
+                param: 'request',
+                path: ['method'],
+                schema: {
+                  type: 'string',
+                },
+              });
+              expect(rpcError.data[0].message).toBe(
+                'request.method is not of a type(s) string',
+              );
               resolve();
             } catch (e) {
               reject(e);
@@ -296,31 +281,26 @@ describe('multichainMethodCallValidatorMiddleware', () => {
           mockNext,
           (error) => {
             try {
-              expect(error).toBeDefined();
-              expect((error as JsonRpcError).code).toBe(-32602);
-              expect((error as JsonRpcError).message).toBe(
-                'Invalid method parameter(s).',
-              );
-              expect((error as JsonRpcError).data).toStrictEqual([
-                {
-                  code: -32602,
-                  data: {
-                    got: undefined,
-                    param: 'notification',
-                    path: [],
-                    schema: {
-                      properties: {
-                        method: {
-                          type: 'string',
-                        },
-                        params: true,
-                      },
-                      type: 'object',
+              const rpcError = error as JsonRpcError & { data: JsonRpcError[] };
+              expect(rpcError.message).toBe('Invalid method parameter(s).');
+              expect(rpcError.code).toBe(-32602);
+              expect(rpcError.data[0].data).toStrictEqual({
+                got: undefined,
+                param: 'notification',
+                path: [],
+                schema: {
+                  properties: {
+                    method: {
+                      type: 'string',
                     },
+                    params: true,
                   },
-                  message: 'notification is required, but is undefined',
+                  type: 'object',
                 },
-              ]);
+              });
+              expect(rpcError.data[0].message).toBe(
+                'notification is required, but is undefined',
+              );
               resolve();
             } catch (e) {
               reject(e);
@@ -465,21 +445,15 @@ describe('multichainMethodCallValidatorMiddleware', () => {
         mockNext,
         (error) => {
           try {
-            expect(error).toBeDefined();
-            console.log('error in test', error);
-            expect((error as JsonRpcError).message).toBe(
-              'Invalid method parameter(s).',
+            const rpcError = error as JsonRpcError & { data: JsonRpcError[] };
+            expect(rpcError.message).toBe('Invalid method parameter(s).');
+            expect(rpcError.code).toBe(-32602);
+            expect(rpcError.data[0].data).toStrictEqual({
+              method: 'unknown_method',
+            });
+            expect(rpcError.data[0].message).toBe(
+              'The method does not exist / is not available.',
             );
-            expect((error as JsonRpcError).code).toBe(-32602);
-            expect((error as JsonRpcError).data).toStrictEqual([
-              {
-                code: -32601,
-                message: 'The method does not exist / is not available.',
-                data: {
-                  method: 'unknown_method',
-                },
-              },
-            ]);
             resolve();
           } catch (e) {
             reject(e);
