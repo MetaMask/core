@@ -743,6 +743,17 @@ describe('assetsUtil', () => {
       }
     });
   });
+
+  describe('getKeyByValue', () => {
+    it('should return correct key for a specific value', () => {
+      const testMap = new Map([
+        ['toto', 'koko'],
+        ['foo', 'bar'],
+      ]);
+      const result = assetsUtil.getKeyByValue(testMap, 'koko');
+      expect(result).toBe('toto');
+    });
+  });
 });
 
 /**

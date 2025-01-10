@@ -14,7 +14,6 @@ import type {
 import {
   generateDeterministicRandomNumber,
   isFeatureFlagWithScopeValue,
-  generateFallbackMetaMetricsId,
 } from './utils/user-segmentation-utils';
 
 // === GENERAL ===
@@ -103,7 +102,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
-  #getMetaMetricsId?: Promise<string | undefined>;
+  #getMetaMetricsId: () => string;
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -114,7 +113,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.clientConfigApiService - The service instance to fetch remote feature flags.
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
-   * @param options.getMetaMetricsId - Promise that resolves to a metaMetricsId.
+   * @param options.getMetaMetricsId - Returns metaMetricsId.
    */
   constructor({
     messenger,
@@ -127,7 +126,7 @@ export class RemoteFeatureFlagController extends BaseController<
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
-    getMetaMetricsId?: Promise<string | undefined>;
+    getMetaMetricsId: () => string;
     fetchInterval?: number;
     disabled?: boolean;
   }) {
@@ -209,8 +208,7 @@ export class RemoteFeatureFlagController extends BaseController<
     remoteFeatureFlags: FeatureFlags,
   ): Promise<FeatureFlags> {
     const processedRemoteFeatureFlags: FeatureFlags = {};
-    const metaMetricsId =
-      (await this.#getMetaMetricsId) || generateFallbackMetaMetricsId();
+    const metaMetricsId = this.#getMetaMetricsId();
     const thresholdValue = generateDeterministicRandomNumber(metaMetricsId);
 
     for (const [

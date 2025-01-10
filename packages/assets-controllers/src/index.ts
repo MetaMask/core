@@ -130,6 +130,7 @@ export {
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
   fetchTokenContractExchangeRates,
+  getKeyByValue,
 } from './assetsUtil';
 export {
   CodefiTokenPricesServiceV2,
