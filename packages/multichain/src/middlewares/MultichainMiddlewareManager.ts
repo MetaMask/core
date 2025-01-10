@@ -32,6 +32,9 @@ type MiddlewareEntry = MiddlewareKey & {
 /**
  * A helper that facilates registering and calling of provided middleware instances
  * in the RPC pipeline based on the incoming request's scope, origin, and tabId.
+ * The core purpose of this class is to enable and manage multichain subscriptions
+ * (i.e. eth_subscribe called accross different chains and domains).
+ *
  * Note that only one middleware instance can be registered per scope, origin, tabId key.
  */
 export class MultichainMiddlewareManager {
