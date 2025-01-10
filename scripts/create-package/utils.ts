@@ -94,8 +94,13 @@ export async function finalizeAndWriteData(
   monorepoFileData: MonorepoFileData,
 ) {
   const packagePath = path.join(PACKAGES_PATH, packageData.directoryName);
-  if ((await fs.stat(packagePath)).isDirectory()) {
+  try {
+    await fs.stat(packagePath);
     throw new Error(`The package directory already exists: ${packagePath}`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
   }
 
   console.log('Writing package and monorepo files...');
@@ -136,7 +141,7 @@ async function writeJsonFile(
 ): Promise<void> {
   await fs.writeFile(
     filePath,
-    prettierFormat(fileContent, { ...prettierRc, parser: 'json' }),
+    await prettierFormat(fileContent, { ...prettierRc, parser: 'json' }),
   );
 }
 
