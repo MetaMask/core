@@ -1,3 +1,5 @@
+import type { Eip1193Provider } from 'ethers';
+
 import type { Env } from '../shared/env';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
@@ -42,6 +44,11 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     }
 
     throw new UnsupportedAuthTypeError('unsupported auth type');
+  }
+
+  setCustomProvider(provider: Eip1193Provider) {
+    this.#assertSRP(this.#type, this.#sdk);
+    this.#sdk.setCustomProvider(provider);
   }
 
   async getAccessToken(): Promise<string> {

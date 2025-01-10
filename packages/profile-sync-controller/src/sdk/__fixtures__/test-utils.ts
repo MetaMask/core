@@ -1,3 +1,5 @@
+import type { Eip1193Provider } from 'ethers';
+
 import { Env, Platform } from '../../shared/env';
 import { JwtBearerAuth } from '../authentication';
 import type {
@@ -5,6 +7,7 @@ import type {
   AuthStorageOptions,
 } from '../authentication-jwt-bearer/types';
 import { AuthType } from '../authentication-jwt-bearer/types';
+import { SNAP_ORIGIN } from '../utils/messaging-signing-snap-requests';
 
 // Alias mocking variables with ANY to test runtime safety.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,6 +45,7 @@ const mockAuthOptions = () => {
  * @param mockPublicKey - provide the mock public key
  * @param authOptionsOverride - overrides
  * @param authOptionsOverride.signing - override auth signing
+ * @param authOptionsOverride.customProvider - override custom provider
  * @returns Auth instance
  */
 export function arrangeAuth(
@@ -49,6 +53,7 @@ export function arrangeAuth(
   mockPublicKey: string,
   authOptionsOverride?: {
     signing?: AuthSigningOptions;
+    customProvider?: Eip1193Provider;
   },
 ) {
   const authOptionsMock = mockAuthOptions();
@@ -67,6 +72,7 @@ export function arrangeAuth(
         type: AuthType.SRP,
       },
       {
+        customProvider: authOptionsOverride?.customProvider,
         storage: {
           getLoginResponse: authOptionsMock.mockGetLoginResponse,
           setLoginResponse: authOptionsMock.mockSetLoginResponse,
@@ -103,3 +109,16 @@ export function arrangeAuth(
 
   throw new Error('Unable to arrange auth mock for invalid auth type');
 }
+
+/**
+ * Mock utility - creates a mock provider
+ * @returns mock provider
+ */
+export const arrangeMockProvider = () => {
+  const mockRequest = jest.fn().mockResolvedValue({ [SNAP_ORIGIN]: {} });
+  const mockProvider: Eip1193Provider = {
+    request: mockRequest,
+  };
+
+  return { mockProvider, mockRequest };
+};
