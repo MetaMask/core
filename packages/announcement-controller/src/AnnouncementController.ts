@@ -66,7 +66,7 @@ const metadata = {
   },
 };
 
-export type AnnouncementMessenger = RestrictedMessenger<
+export type AnnouncementControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AnnouncementControllerActions,
   AnnouncementControllerEvents,
@@ -80,7 +80,7 @@ export type AnnouncementMessenger = RestrictedMessenger<
 export class AnnouncementController extends BaseController<
   typeof controllerName,
   AnnouncementControllerState,
-  AnnouncementMessenger
+  AnnouncementControllerMessenger
 > {
   /**
    * Creates a AnnouncementController instance.
@@ -95,7 +95,7 @@ export class AnnouncementController extends BaseController<
     state,
     allAnnouncements,
   }: {
-    messenger: AnnouncementMessenger;
+    messenger: AnnouncementControllerMessenger;
     state?: AnnouncementControllerState;
     allAnnouncements: AnnouncementMap;
   }) {

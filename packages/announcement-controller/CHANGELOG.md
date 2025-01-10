@@ -10,8 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
-- Rename `AnnouncementControllerMessenger` to `AnnouncementMessenger` ([#5092](https://github.com/MetaMask/core/pull/5092))
-  - The old name is preserved as an alias, so this is not a breaking change.
 
 ## [7.0.2]
 

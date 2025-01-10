@@ -6,7 +6,6 @@ export type {
   AnnouncementControllerEvents,
   AnnouncementControllerGetStateAction,
   AnnouncementControllerStateChangeEvent,
-  AnnouncementMessenger,
-  AnnouncementMessenger as AnnouncementControllerMessenger,
+  AnnouncementControllerMessenger,
 } from './AnnouncementController';
 export { AnnouncementController } from './AnnouncementController';
