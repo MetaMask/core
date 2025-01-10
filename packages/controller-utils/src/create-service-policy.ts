@@ -7,7 +7,9 @@ import {
   wrap,
   CircuitState,
 } from 'cockatiel';
-import type { IPolicy } from 'cockatiel';
+import type { IPolicy, Policy } from 'cockatiel';
+
+export type { IPolicy as IServicePolicy };
 
 /**
  * The maximum number of times that a failing action should be re-run before
@@ -50,6 +52,10 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * @param options - The options to this function.
  * @param options.maxRetries - The maximum number of times that a failing action
  * should be re-run before giving up. Defaults to 3.
+ * @param options.retryFilterPolicy - The policy used to control when the
+ * function should be retried based on either the result of the function or an
+ * error that it throws. For instance, you could use this to retry only certain
+ * errors. See `handleWhen` and friends from Cockatiel for more.
  * @param options.maxConsecutiveFailures - The maximum number of times that
  * the action is allowed to fail before pausing further retries. Defaults to 12.
  * @param options.circuitBreakDuration - The length of time (in milliseconds) to
@@ -63,6 +69,9 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * @param options.onDegraded - A function which is called when the action
  * succeeds before `maxConsecutiveFailures` is reached, but takes more time
  * than the `degradedThreshold` to run.
+ * @param options.onRetry - A function which will be called the moment the
+ * policy kicks off a timer to re-run the function passed to the policy. This
+ * is primarily useful in tests where we are mocking timers.
  * @returns A Cockatiel policy object that can be used to run an arbitrary
  * action (a function).
  * @example
@@ -70,6 +79,9 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * ``` ts
  * const policy = createServicePolicy({
  *   maxRetries: 3,
+ *   retryFilterPolicy: handleWhen((error) => {
+ *     return error.message.includes('oops');
+ *   }),
  *   maxConsecutiveFailures: 3,
  *   circuitBreakDuration: 5000,
  *   degradedThreshold: 2000,
@@ -93,6 +105,9 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  *   constructor() {
  *     this.#policy = createServicePolicy({
  *       maxRetries: 3,
+ *       retryFilterPolicy: handleWhen((error) => {
+ *         return error.message.includes('oops');
+ *       }),
  *       maxConsecutiveFailures: 3,
  *       circuitBreakDuration: 5000,
  *       degradedThreshold: 2000,
@@ -110,6 +125,7 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  */
 export function createServicePolicy({
   maxRetries = DEFAULT_MAX_RETRIES,
+  retryFilterPolicy = handleAll,
   maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
   circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
   degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
@@ -119,15 +135,20 @@ export function createServicePolicy({
   onDegraded = () => {
     // do nothing
   },
+  onRetry = () => {
+    // do nothing
+  },
 }: {
   maxRetries?: number;
+  retryFilterPolicy?: Policy;
   maxConsecutiveFailures?: number;
   degradedThreshold?: number;
   circuitBreakDuration?: number;
   onBreak?: () => void;
   onDegraded?: () => void;
+  onRetry?: () => void;
 } = {}): IPolicy {
-  const retryPolicy = retry(handleAll, {
+  const retryPolicy = retry(retryFilterPolicy, {
     maxAttempts: maxRetries,
     // Retries of the action passed to the policy will be padded by increasing
     // delays, determined by a formula.
@@ -155,6 +176,7 @@ export function createServicePolicy({
   //   `maxConsecutiveFailures`
   circuitBreakerPolicy.onBreak(onBreak);
 
+  retryPolicy.onRetry(onRetry);
   retryPolicy.onGiveUp(() => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       // The `onDegraded` callback will be called if the number of retries is

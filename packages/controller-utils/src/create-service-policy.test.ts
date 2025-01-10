@@ -1,3 +1,4 @@
+import { handleWhen } from 'cockatiel';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
@@ -111,28 +112,59 @@ describe('createServicePolicy', () => {
   });
 
   describe('wrapping a service that always fails', () => {
-    describe(`using the default max retries (${DEFAULT_MAX_RETRIES})`, () => {
-      it(`calls the service a total of ${
-        1 + DEFAULT_MAX_RETRIES
-      } times, delaying each retry using a backoff formula`, async () => {
+    describe('if a custom retry filter policy is given and the retry filter policy filters out the thrown error', () => {
+      it('throws what the service throws', async () => {
         const error = new Error('failure');
         const mockService = jest.fn(() => {
           throw error;
         });
-        const policy = createServicePolicy();
-        // Each retry delay is randomized using a decorrelated jitter formula,
-        // so we need to prevent that
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        const policy = createServicePolicy({
+          retryFilterPolicy: handleWhen(
+            (caughtError) => caughtError.message !== 'failure',
+          ),
+        });
 
         const promise = policy.execute(mockService);
-        // These values were found by logging them
-        clock.tickAsync(0).catch(() => {
-          // ignore any errors - adding to the promise queue is enough
+
+        await expect(promise).rejects.toThrow(error);
+      });
+
+      it('calls the service once and only once', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
         });
-        clock.tickAsync(176.27932892814937).catch(() => {
-          // ignore any errors - adding to the promise queue is enough
+        const policy = createServicePolicy({
+          retryFilterPolicy: handleWhen(
+            (caughtError) => caughtError.message !== 'failure',
+          ),
         });
-        clock.tickAsync(186.8886145345685).catch(() => {
+
+        const promise = policy.execute(mockService);
+        try {
+          await promise;
+        } catch {
+          // ignore the error
+        }
+
+        expect(mockService).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not call the onBreak callback', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const onBreak = jest.fn();
+        const policy = createServicePolicy({
+          retryFilterPolicy: handleWhen(
+            (caughtError) => caughtError.message !== 'failure',
+          ),
+          onBreak,
+        });
+
+        const promise = policy.execute(mockService);
+        clock.runAllAsync().catch(() => {
           // ignore any errors - adding to the promise queue is enough
         });
         try {
@@ -141,35 +173,59 @@ describe('createServicePolicy', () => {
           // ignore the error
         }
 
-        expect(mockService).toHaveBeenCalledTimes(1 + DEFAULT_MAX_RETRIES);
+        expect(onBreak).not.toHaveBeenCalled();
       });
 
-      describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
-        it('throws what the service throws', async () => {
+      it('does not call the onDegraded callback', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const onDegraded = jest.fn();
+        const policy = createServicePolicy({
+          retryFilterPolicy: handleWhen(
+            (caughtError) => caughtError.message !== 'failure',
+          ),
+          onDegraded,
+        });
+
+        const promise = policy.execute(mockService);
+        clock.runAllAsync().catch(() => {
+          // ignore any errors - adding to the promise queue is enough
+        });
+        try {
+          await promise;
+        } catch {
+          // ignore the error
+        }
+
+        expect(onDegraded).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('using the default retry filter policy (which retries all errors)', () => {
+      describe(`using the default max retries (${DEFAULT_MAX_RETRIES})`, () => {
+        it(`calls the service a total of ${
+          1 + DEFAULT_MAX_RETRIES
+        } times, delaying each retry using a backoff formula`, async () => {
           const error = new Error('failure');
           const mockService = jest.fn(() => {
             throw error;
           });
           const policy = createServicePolicy();
+          // Each retry delay is randomized using a decorrelated jitter formula,
+          // so we need to prevent that
+          jest.spyOn(Math, 'random').mockReturnValue(0);
 
           const promise = policy.execute(mockService);
-          clock.runAllAsync().catch(() => {
+          // These values were found by logging them
+          clock.tickAsync(0).catch(() => {
             // ignore any errors - adding to the promise queue is enough
           });
-
-          await expect(promise).rejects.toThrow(error);
-        });
-
-        it('does not call the onBreak callback, since the max number of consecutive failures is never reached', async () => {
-          const error = new Error('failure');
-          const mockService = jest.fn(() => {
-            throw error;
+          clock.tickAsync(176.27932892814937).catch(() => {
+            // ignore any errors - adding to the promise queue is enough
           });
-          const onBreak = jest.fn();
-          const policy = createServicePolicy({ onBreak });
-
-          const promise = policy.execute(mockService);
-          clock.runAllAsync().catch(() => {
+          clock.tickAsync(186.8886145345685).catch(() => {
             // ignore any errors - adding to the promise queue is enough
           });
           try {
@@ -178,19 +234,344 @@ describe('createServicePolicy', () => {
             // ignore the error
           }
 
-          expect(onBreak).not.toHaveBeenCalled();
+          expect(mockService).toHaveBeenCalledTimes(1 + DEFAULT_MAX_RETRIES);
         });
 
-        it('calls the onDegraded callback once, since the circuit is still closed', async () => {
+        describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
+          it('throws what the service throws', async () => {
+            const error = new Error('failure');
+            const mockService = jest.fn(() => {
+              throw error;
+            });
+            const policy = createServicePolicy();
+
+            const promise = policy.execute(mockService);
+            clock.runAllAsync().catch(() => {
+              // ignore any errors - adding to the promise queue is enough
+            });
+
+            await expect(promise).rejects.toThrow(error);
+          });
+
+          it('does not call the onBreak callback, since the max number of consecutive failures is never reached', async () => {
+            const error = new Error('failure');
+            const mockService = jest.fn(() => {
+              throw error;
+            });
+            const onBreak = jest.fn();
+            const policy = createServicePolicy({ onBreak });
+
+            const promise = policy.execute(mockService);
+            clock.runAllAsync().catch(() => {
+              // ignore any errors - adding to the promise queue is enough
+            });
+            try {
+              await promise;
+            } catch {
+              // ignore the error
+            }
+
+            expect(onBreak).not.toHaveBeenCalled();
+          });
+
+          it('calls the onDegraded callback once, since the circuit is still closed', async () => {
+            const error = new Error('failure');
+            const mockService = jest.fn(() => {
+              throw error;
+            });
+            const onDegraded = jest.fn();
+            const policy = createServicePolicy({ onDegraded });
+
+            const promise = policy.execute(mockService);
+            clock.runAllAsync().catch(() => {
+              // ignore any errors - adding to the promise queue is enough
+            });
+            try {
+              await promise;
+            } catch {
+              // ignore the error
+            }
+
+            expect(onDegraded).toHaveBeenCalledTimes(1);
+          });
+        });
+
+        describe('using a custom max number of consecutive failures', () => {
+          describe('if the initial run + retries is less than the max number of consecutive failures', () => {
+            it('throws what the service throws', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+                onBreak,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+
+              await expect(promise).rejects.toThrow(error);
+            });
+
+            it('does not call the onBreak callback', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+                onBreak,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onBreak).not.toHaveBeenCalled();
+            });
+
+            it('calls the onDegraded callback once', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+                onDegraded,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).toHaveBeenCalledTimes(1);
+            });
+          });
+
+          describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
+            it('throws what the service throws', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+
+              await expect(promise).rejects.toThrow(error);
+            });
+
+            it('calls the onBreak callback once with the error', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+                onBreak,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onBreak).toHaveBeenCalledTimes(1);
+              expect(onBreak).toHaveBeenCalledWith({ error });
+            });
+
+            it('never calls the onDegraded callback, since the circuit is open', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+                onDegraded,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).not.toHaveBeenCalled();
+            });
+
+            it('throws a BrokenCircuitError instead of whatever error the service produces if the service is executed again', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+              });
+
+              const firstExecution = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await firstExecution;
+              } catch {
+                // ignore the error
+              }
+
+              const secondExecution = policy.execute(mockService);
+              await expect(secondExecution).rejects.toThrow(
+                new Error(
+                  'Execution prevented because the circuit breaker is open',
+                ),
+              );
+            });
+          });
+
+          describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
+            it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+
+              await expect(promise).rejects.toThrow(
+                new Error(
+                  'Execution prevented because the circuit breaker is open',
+                ),
+              );
+            });
+
+            it('calls the onBreak callback once with the error', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+                onBreak,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onBreak).toHaveBeenCalledTimes(1);
+              expect(onBreak).toHaveBeenCalledWith({ error });
+            });
+
+            it('never calls the onDegraded callback, since the circuit is open', async () => {
+              const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({
+                maxConsecutiveFailures,
+                onDegraded,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).not.toHaveBeenCalled();
+            });
+          });
+        });
+      });
+
+      describe('using a custom max number of retries', () => {
+        it(`calls the service a total of 1 + <maxRetries> times, delaying each retry using a backoff formula`, async () => {
+          const maxRetries = 5;
           const error = new Error('failure');
           const mockService = jest.fn(() => {
             throw error;
           });
-          const onDegraded = jest.fn();
-          const policy = createServicePolicy({ onDegraded });
+          const policy = createServicePolicy({ maxRetries });
+          // Each retry delay is randomized using a decorrelated jitter formula,
+          // so we need to prevent that
+          jest.spyOn(Math, 'random').mockReturnValue(0);
 
           const promise = policy.execute(mockService);
-          clock.runAllAsync().catch(() => {
+          // These values were found by logging them
+          clock.tickAsync(0).catch(() => {
+            // ignore any errors - adding to the promise queue is enough
+          });
+          clock.tickAsync(176.27932892814937).catch(() => {
+            // ignore any errors - adding to the promise queue is enough
+          });
+          clock.tickAsync(186.8886145345685).catch(() => {
+            // ignore any errors - adding to the promise queue is enough
+          });
+          clock.tickAsync(366.8287823691078).catch(() => {
+            // ignore any errors - adding to the promise queue is enough
+          });
+          clock.tickAsync(731.8792783578953).catch(() => {
             // ignore any errors - adding to the promise queue is enough
           });
           try {
@@ -199,779 +580,492 @@ describe('createServicePolicy', () => {
             // ignore the error
           }
 
-          expect(onDegraded).toHaveBeenCalledTimes(1);
-        });
-      });
-
-      describe('using a custom max number of consecutive failures', () => {
-        describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-          it('throws what the service throws', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-              onBreak,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-
-            await expect(promise).rejects.toThrow(error);
-          });
-
-          it('does not call the onBreak callback', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-              onBreak,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onBreak).not.toHaveBeenCalled();
-          });
-
-          it('calls the onDegraded callback once', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-              onDegraded,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onDegraded).toHaveBeenCalledTimes(1);
-          });
+          expect(mockService).toHaveBeenCalledTimes(1 + maxRetries);
         });
 
-        describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-          it('throws what the service throws', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
+        describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
+          describe('if the initial run + retries is less than the max number of consecutive failures', () => {
+            it('throws what the service throws', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({ maxRetries });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+
+              await expect(promise).rejects.toThrow(error);
             });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
+            it('does not call the onBreak callback', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({ maxRetries, onBreak });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onBreak).not.toHaveBeenCalled();
             });
 
-            await expect(promise).rejects.toThrow(error);
+            it('calls the onDegraded callback once', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({ maxRetries, onDegraded });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).toHaveBeenCalledTimes(1);
+            });
           });
 
-          it('calls the onBreak callback once with the error', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-              onBreak,
+          describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
+            it('throws what the service throws', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({ maxRetries });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+
+              await expect(promise).rejects.toThrow(error);
             });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
+            it('calls the onBreak callback once with the error', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({ maxRetries, onBreak });
 
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onBreak).toHaveBeenCalledTimes(1);
+              expect(onBreak).toHaveBeenCalledWith({ error });
+            });
+
+            it('never calls the onDegraded callback, since the circuit is open', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({ maxRetries, onDegraded });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).not.toHaveBeenCalled();
+            });
+
+            it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({ maxRetries, onDegraded });
+
+              const firstExecution = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await firstExecution;
+              } catch {
+                // ignore the error
+              }
+
+              const secondExecution = policy.execute(mockService);
+              await expect(secondExecution).rejects.toThrow(
+                new Error(
+                  'Execution prevented because the circuit breaker is open',
+                ),
+              );
+            });
           });
 
-          it('never calls the onDegraded callback, since the circuit is open', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-              onDegraded,
-            });
+          describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
+            it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
+              const mockService = jest.fn(() => {
+                throw new Error('failure');
+              });
+              const policy = createServicePolicy({ maxRetries });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
 
-            expect(onDegraded).not.toHaveBeenCalled();
-          });
-
-          it('throws a BrokenCircuitError instead of whatever error the service produces if the service is executed again', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
+              await expect(promise).rejects.toThrow(
+                new Error(
+                  'Execution prevented because the circuit breaker is open',
+                ),
+              );
             });
 
-            const firstExecution = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await firstExecution;
-            } catch {
-              // ignore the error
-            }
+            it('calls the onBreak callback once with the error', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({ maxRetries, onBreak });
 
-            const secondExecution = policy.execute(mockService);
-            await expect(secondExecution).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-        });
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
 
-        describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-          it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
+              expect(onBreak).toHaveBeenCalledTimes(1);
+              expect(onBreak).toHaveBeenCalledWith({ error });
             });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
+            it('never calls the onDegraded callback, since the circuit is open', async () => {
+              const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({ maxRetries, onDegraded });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).not.toHaveBeenCalled();
             });
-
-            await expect(promise).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-
-          it('calls the onBreak callback once with the error', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-              onBreak,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
-          });
-
-          it('never calls the onDegraded callback, since the circuit is open', async () => {
-            const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({
-              maxConsecutiveFailures,
-              onDegraded,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onDegraded).not.toHaveBeenCalled();
-          });
-        });
-      });
-    });
-
-    describe('using a custom max number of retries', () => {
-      it(`calls the service a total of 1 + <maxRetries> times, delaying each retry using a backoff formula`, async () => {
-        const maxRetries = 5;
-        const error = new Error('failure');
-        const mockService = jest.fn(() => {
-          throw error;
-        });
-        const policy = createServicePolicy({ maxRetries });
-        // Each retry delay is randomized using a decorrelated jitter formula,
-        // so we need to prevent that
-        jest.spyOn(Math, 'random').mockReturnValue(0);
-
-        const promise = policy.execute(mockService);
-        // These values were found by logging them
-        clock.tickAsync(0).catch(() => {
-          // ignore any errors - adding to the promise queue is enough
-        });
-        clock.tickAsync(176.27932892814937).catch(() => {
-          // ignore any errors - adding to the promise queue is enough
-        });
-        clock.tickAsync(186.8886145345685).catch(() => {
-          // ignore any errors - adding to the promise queue is enough
-        });
-        clock.tickAsync(366.8287823691078).catch(() => {
-          // ignore any errors - adding to the promise queue is enough
-        });
-        clock.tickAsync(731.8792783578953).catch(() => {
-          // ignore any errors - adding to the promise queue is enough
-        });
-        try {
-          await promise;
-        } catch {
-          // ignore the error
-        }
-
-        expect(mockService).toHaveBeenCalledTimes(1 + maxRetries);
-      });
-
-      describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
-        describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-          it('throws what the service throws', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({ maxRetries });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-
-            await expect(promise).rejects.toThrow(error);
-          });
-
-          it('does not call the onBreak callback', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onBreak });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onBreak).not.toHaveBeenCalled();
-          });
-
-          it('calls the onDegraded callback once', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onDegraded });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onDegraded).toHaveBeenCalledTimes(1);
           });
         });
 
-        describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-          it('throws what the service throws', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({ maxRetries });
+        describe('using a custom max number of consecutive failures', () => {
+          describe('if the initial run + retries is less than the max number of consecutive failures', () => {
+            it('throws what the service throws', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures - 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+              });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+
+              await expect(promise).rejects.toThrow(error);
             });
 
-            await expect(promise).rejects.toThrow(error);
+            it('does not call the onBreak callback', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures - 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+                onBreak,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onBreak).not.toHaveBeenCalled();
+            });
+
+            it('calls the onDegraded callback once', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures - 2;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+                onDegraded,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).toHaveBeenCalledTimes(1);
+            });
           });
 
-          it('calls the onBreak callback once with the error', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onBreak });
+          describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
+            it('throws what the service throws', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+              });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
 
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
+              await expect(promise).rejects.toThrow(error);
+            });
+
+            it('calls the onBreak callback once with the error', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+                onBreak,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onBreak).toHaveBeenCalledTimes(1);
+              expect(onBreak).toHaveBeenCalledWith({ error });
+            });
+
+            it('never calls the onDegraded callback, since the circuit is open', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+                onDegraded,
+              });
+
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
+
+              expect(onDegraded).not.toHaveBeenCalled();
+            });
+
+            it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures - 1;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+              });
+
+              const firstExecution = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await firstExecution;
+              } catch {
+                // ignore the error
+              }
+
+              const secondExecution = policy.execute(mockService);
+              await expect(secondExecution).rejects.toThrow(
+                new Error(
+                  'Execution prevented because the circuit breaker is open',
+                ),
+              );
+            });
           });
 
-          it('never calls the onDegraded callback, since the circuit is open', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onDegraded });
+          describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
+            it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+              });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
 
-            expect(onDegraded).not.toHaveBeenCalled();
-          });
-
-          it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onDegraded });
-
-            const firstExecution = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await firstExecution;
-            } catch {
-              // ignore the error
-            }
-
-            const secondExecution = policy.execute(mockService);
-            await expect(secondExecution).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-        });
-
-        describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-          it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-            const mockService = jest.fn(() => {
-              throw new Error('failure');
-            });
-            const policy = createServicePolicy({ maxRetries });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
+              await expect(promise).rejects.toThrow(
+                new Error(
+                  'Execution prevented because the circuit breaker is open',
+                ),
+              );
             });
 
-            await expect(promise).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
+            it('calls the onBreak callback once with the error', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onBreak = jest.fn();
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+                onBreak,
+              });
 
-          it('calls the onBreak callback once with the error', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onBreak });
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
-          });
-
-          it('never calls the onDegraded callback, since the circuit is open', async () => {
-            const maxRetries = DEFAULT_MAX_CONSECUTIVE_FAILURES;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onDegraded });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onDegraded).not.toHaveBeenCalled();
-          });
-        });
-      });
-
-      describe('using a custom max number of consecutive failures', () => {
-        describe('if the initial run + retries is less than the max number of consecutive failures', () => {
-          it('throws what the service throws', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
+              expect(onBreak).toHaveBeenCalledTimes(1);
+              expect(onBreak).toHaveBeenCalledWith({ error });
             });
 
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
+            it('never calls the onDegraded callback, since the circuit is open', async () => {
+              const maxConsecutiveFailures = 5;
+              const maxRetries = maxConsecutiveFailures;
+              const error = new Error('failure');
+              const mockService = jest.fn(() => {
+                throw error;
+              });
+              const onDegraded = jest.fn();
+              const policy = createServicePolicy({
+                maxRetries,
+                maxConsecutiveFailures,
+                onDegraded,
+              });
 
-            await expect(promise).rejects.toThrow(error);
-          });
+              const promise = policy.execute(mockService);
+              clock.runAllAsync().catch(() => {
+                // ignore any errors - adding to the promise queue is enough
+              });
+              try {
+                await promise;
+              } catch {
+                // ignore the error
+              }
 
-          it('does not call the onBreak callback', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
+              expect(onDegraded).not.toHaveBeenCalled();
             });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-              onBreak,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onBreak).not.toHaveBeenCalled();
-          });
-
-          it('calls the onDegraded callback once', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 2;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-              onDegraded,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onDegraded).toHaveBeenCalledTimes(1);
-          });
-        });
-
-        describe('if the initial run + retries is equal to the max number of consecutive failures', () => {
-          it('throws what the service throws', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-
-            await expect(promise).rejects.toThrow(error);
-          });
-
-          it('calls the onBreak callback once with the error', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-              onBreak,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
-          });
-
-          it('never calls the onDegraded callback, since the circuit is open', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-              onDegraded,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onDegraded).not.toHaveBeenCalled();
-          });
-
-          it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures - 1;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-
-            const firstExecution = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await firstExecution;
-            } catch {
-              // ignore the error
-            }
-
-            const secondExecution = policy.execute(mockService);
-            await expect(secondExecution).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-        });
-
-        describe('if the initial run + retries is greater than the max number of consecutive failures', () => {
-          it('throws a BrokenCircuitError instead of whatever error the service produces', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-
-            await expect(promise).rejects.toThrow(
-              new Error(
-                'Execution prevented because the circuit breaker is open',
-              ),
-            );
-          });
-
-          it('calls the onBreak callback once with the error', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-              onBreak,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
-          });
-
-          it('never calls the onDegraded callback, since the circuit is open', async () => {
-            const maxConsecutiveFailures = 5;
-            const maxRetries = maxConsecutiveFailures;
-            const error = new Error('failure');
-            const mockService = jest.fn(() => {
-              throw error;
-            });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({
-              maxRetries,
-              maxConsecutiveFailures,
-              onDegraded,
-            });
-
-            const promise = policy.execute(mockService);
-            clock.runAllAsync().catch(() => {
-              // ignore any errors - adding to the promise queue is enough
-            });
-            try {
-              await promise;
-            } catch {
-              // ignore the error
-            }
-
-            expect(onDegraded).not.toHaveBeenCalled();
           });
         });
       });
@@ -979,6 +1073,9 @@ describe('createServicePolicy', () => {
   });
 
   describe('wrapping a service that fails continuously and then succeeds on the final try', () => {
+    // NOTE: Using a custom retry filter policy is not tested here since the
+    // same thing would happen as above if the error is filtered out
+
     describe(`using the default max retries (${DEFAULT_MAX_RETRIES})`, () => {
       it(`calls the service a total of ${
         1 + DEFAULT_MAX_RETRIES
