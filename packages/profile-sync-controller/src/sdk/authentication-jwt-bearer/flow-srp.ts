@@ -1,3 +1,5 @@
+import type { Eip1193Provider } from 'ethers';
+
 import { ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
@@ -32,35 +34,47 @@ const getDefaultEIP6963Provider = async () => {
   return provider;
 };
 
-const defaultEIP6963SigningOptions: AuthSigningOptions = {
+const getDefaultEIP6963SigningOptions = (
+  customProvider?: Eip1193Provider,
+): AuthSigningOptions => ({
   getIdentifier: async (): Promise<string> => {
-    const provider = await getDefaultEIP6963Provider();
+    const provider = customProvider ?? (await getDefaultEIP6963Provider());
     return await MESSAGE_SIGNING_SNAP.getPublicKey(provider);
   },
   signMessage: async (message: string): Promise<string> => {
-    const provider = await getDefaultEIP6963Provider();
+    const provider = customProvider ?? (await getDefaultEIP6963Provider());
     if (!message.startsWith('metamask:')) {
       throw new ValidationError('message must start with "metamask:"');
     }
     const formattedMessage = message as `metamask:${string}`;
     return await MESSAGE_SIGNING_SNAP.signMessage(provider, formattedMessage);
   },
-};
+});
 
 export class SRPJwtBearerAuth implements IBaseAuth {
   #config: AuthConfig;
 
   #options: Required<JwtBearerAuth_SRP_Options>;
 
+  #customProvider?: Eip1193Provider;
+
   constructor(
     config: AuthConfig & { type: AuthType.SRP },
-    options: JwtBearerAuth_SRP_Options,
+    options: JwtBearerAuth_SRP_Options & { customProvider?: Eip1193Provider },
   ) {
     this.#config = config;
+    this.#customProvider = options.customProvider;
     this.#options = {
       storage: options.storage,
-      signing: options.signing ?? defaultEIP6963SigningOptions,
+      signing:
+        options.signing ??
+        getDefaultEIP6963SigningOptions(this.#customProvider),
     };
+  }
+
+  setCustomProvider(provider: Eip1193Provider) {
+    this.#customProvider = provider;
+    this.#options.signing = getDefaultEIP6963SigningOptions(provider);
   }
 
   async getAccessToken(): Promise<string> {
@@ -92,7 +106,8 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async isSnapConnected(): Promise<boolean> {
-    const provider = await getMetaMaskProviderEIP6963();
+    const provider =
+      this.#customProvider ?? (await getDefaultEIP6963Provider());
     if (!provider) {
       return false;
     }
@@ -102,7 +117,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   }
 
   async connectSnap(): Promise<string> {
-    const provider = await getDefaultEIP6963Provider();
+    const provider =
+      this.#customProvider ?? (await getDefaultEIP6963Provider());
+
     const res = await connectSnap(provider);
     return res;
   }
