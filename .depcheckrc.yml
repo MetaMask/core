@@ -28,4 +28,3 @@ ignores:
   - 'eslint-import-resolver-typescript'
   # Ignore dependencies which plug into the NPM lifecycle
   - '@lavamoat/preinstall-always-fail'
-  
