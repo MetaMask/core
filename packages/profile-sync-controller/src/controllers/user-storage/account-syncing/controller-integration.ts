@@ -96,7 +96,10 @@ type SyncInternalAccountsWithUserStorageConfig = AccountSyncingConfig & {
   maxNumberOfAccountsToAdd?: number;
   onAccountAdded?: () => void;
   onAccountNameUpdated?: () => void;
-  onAccountSyncErroneousSituation?: (errorMessage: string) => void;
+  onAccountSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
 };
 
 /**
@@ -141,6 +144,9 @@ export async function syncInternalAccountsWithUserStorage(
       );
       return;
     }
+    // Keep a record if erroneous situations are found during the sync
+    // This is done so we can send the context to Sentry in case of an erroneous situation
+    let erroneousSituationsFound = false;
 
     // Prepare an array of internal accounts to be saved to the user storage
     const internalAccountsToBeSavedToUserStorage: InternalAccount[] = [];
@@ -191,8 +197,18 @@ export async function syncInternalAccountsWithUserStorage(
       if (!userStorageAccount) {
         // If the account was just added in the previous step, skip saving it, it's likely to be a bogus account
         if (newlyAddedAccounts.includes(internalAccount)) {
+          erroneousSituationsFound = true;
           onAccountSyncErroneousSituation?.(
             'An account was added to the internal accounts list but was not present in the user storage accounts list',
+            {
+              internalAccount,
+              userStorageAccount,
+              newlyAddedAccounts,
+              userStorageAccountsList,
+              internalAccountsList,
+              refreshedInternalAccountsList,
+              internalAccountsToBeSavedToUserStorage,
+            },
           );
           continue;
         }
@@ -295,9 +311,63 @@ export async function syncInternalAccountsWithUserStorage(
         USER_STORAGE_FEATURE_NAMES.accounts,
         userStorageAccountsToBeDeleted.map((account) => account.a),
       );
+      erroneousSituationsFound = true;
       onAccountSyncErroneousSituation?.(
         'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
+        {
+          userStorageAccountsToBeDeleted,
+          internalAccountsList,
+          refreshedInternalAccountsList,
+          internalAccountsToBeSavedToUserStorage,
+          userStorageAccountsList,
+        },
       );
+    }
+
+    if (erroneousSituationsFound) {
+      const [finalUserStorageAccountsList, finalInternalAccountsList] =
+        await Promise.all([
+          getUserStorageAccountsList(options),
+          getInternalAccountsList(options),
+        ]);
+
+      const doesEveryAccountInInternalAccountsListExistInUserStorageAccountsList =
+        finalInternalAccountsList.every((account) =>
+          finalUserStorageAccountsList?.some(
+            (userStorageAccount) => userStorageAccount.a === account.address,
+          ),
+        );
+
+      // istanbul ignore next
+      const doesEveryAccountInUserStorageAccountsListExistInInternalAccountsList =
+        (finalUserStorageAccountsList?.length || 0) > maxNumberOfAccountsToAdd
+          ? true
+          : finalUserStorageAccountsList?.every((account) =>
+              finalInternalAccountsList.some(
+                (internalAccount) => internalAccount.address === account.a,
+              ),
+            );
+
+      const doFinalListsMatch =
+        doesEveryAccountInInternalAccountsListExistInUserStorageAccountsList &&
+        doesEveryAccountInUserStorageAccountsListExistInInternalAccountsList;
+
+      const context = {
+        finalUserStorageAccountsList,
+        finalInternalAccountsList,
+      };
+      if (doFinalListsMatch) {
+        onAccountSyncErroneousSituation?.(
+          'Erroneous situations were found during the sync, but final state matches the expected state',
+          context,
+        );
+      } else {
+        erroneousSituationsFound = true;
+        onAccountSyncErroneousSituation?.(
+          'Erroneous situations were found during the sync, and final state does not match the expected state',
+          context,
+        );
+      }
     }
 
     // We do this here and not in the finally statement because we want to make sure that
