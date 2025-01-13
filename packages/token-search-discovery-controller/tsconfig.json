@@ -3,5 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "include": ["./src", "../base-controller/src/index.ts"]
+  "references": [{ "path": "../../packages/base-controller" }],
+  "include": ["../../types", "./src"]
 }
