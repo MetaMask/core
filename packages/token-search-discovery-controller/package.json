@@ -1,6 +1,6 @@
 {
   "name": "@metamask/token-search-discovery-controller",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Manages token search and discovery",
   "keywords": [
     "MetaMask",
