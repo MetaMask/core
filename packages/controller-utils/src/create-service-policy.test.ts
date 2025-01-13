@@ -60,8 +60,8 @@ describe('createServicePolicy', () => {
       const policy = createServicePolicy();
 
       const promise = policy.execute(mockService);
-      // It's safe not to await this promise; adding it to the promise queue
-      // is enough to prevent this test from running indefinitely.
+      // It's safe not to await this promise; adding it to the promise queue is
+      // enough to prevent this test from running indefinitely.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       clock.runAllAsync();
       await ignoreRejection(promise);
@@ -78,8 +78,8 @@ describe('createServicePolicy', () => {
       const policy = createServicePolicy({ onRetry });
 
       const promise = policy.execute(mockService);
-      // It's safe not to await this promise; adding it to the promise queue
-      // is enough to prevent this test from running indefinitely.
+      // It's safe not to await this promise; adding it to the promise queue is
+      // enough to prevent this test from running indefinitely.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       clock.runAllAsync();
       await ignoreRejection(promise);
@@ -303,8 +303,8 @@ describe('createServicePolicy', () => {
       const policy = createServicePolicy();
 
       const promise = policy.execute(mockService);
-      // It's safe not to await this promise; adding it to the promise queue
-      // is enough to prevent this test from running indefinitely.
+      // It's safe not to await this promise; adding it to the promise queue is
+      // enough to prevent this test from running indefinitely.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       clock.runAllAsync();
       await promise;
@@ -325,8 +325,8 @@ describe('createServicePolicy', () => {
       const policy = createServicePolicy({ onRetry });
 
       const promise = policy.execute(mockService);
-      // It's safe not to await this promise; adding it to the promise queue
-      // is enough to prevent this test from running indefinitely.
+      // It's safe not to await this promise; adding it to the promise queue is
+      // enough to prevent this test from running indefinitely.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       clock.runAllAsync();
       await promise;
@@ -561,8 +561,8 @@ describe('createServicePolicy', () => {
           });
 
           const firstExecution = policy.execute(mockService);
-          // It's safe not to await this promise; adding it to the promise
-          // queue is enough to prevent this test from running indefinitely.
+          // It's safe not to await this promise; adding it to the promise queue
+          // is enough to prevent this test from running indefinitely.
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           clock.runAllAsync();
           await ignoreRejection(firstExecution);
