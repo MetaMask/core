@@ -185,6 +185,11 @@ type TransactionMetaBase = {
   gasFeeEstimatesLoaded?: boolean;
 
   /**
+   * The estimated gas for the transaction without any buffer applied.
+   */
+  gasLimitNoBuffer?: string;
+
+  /**
    * A hex string of the transaction hash, used to identify the transaction on the network.
    */
   hash?: string;

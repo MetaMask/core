@@ -38,6 +38,7 @@ const mockBtcAccount = {
   options: {},
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
+  scopes: [],
 };
 
 const mockEthAccount = {
@@ -59,6 +60,7 @@ const mockEthAccount = {
   options: {},
   methods: [EthMethod.SignTypedDataV4, EthMethod.SignTransaction],
   type: EthAccountType.Eoa,
+  scopes: [],
 };
 
 const mockTransactionResult = {
