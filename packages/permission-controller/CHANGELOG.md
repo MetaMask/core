@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove redundant caveat validator calls ([#5062](https://github.com/MetaMask/core/pull/5062))
   - In some cases, caveats were being validated multiple times or without the
-    possibility of having changed.
+    possibility of being changed.
   - The intended purpose of permission and caveat validators has also been
     documented. See `ARCHITECTURE.md`.
 - Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
