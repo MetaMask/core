@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.5]
+
 ### Uncategorized
 
 - Release 274.0.0 ([#5082](https://github.com/MetaMask/core/pull/5082))
@@ -318,7 +320,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.5...HEAD
+[11.0.5]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...@metamask/permission-controller@11.0.5
 [11.0.4]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4
 [11.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...@metamask/permission-controller@11.0.3
 [11.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.1...@metamask/permission-controller@11.0.2
