@@ -34,5 +34,6 @@
   "metamask/selected-network-controller": "team-wallet-api-platform,team-wallet-framework,team-assets",
   "metamask/signature-controller": "team-confirmations",
   "metamask/transaction-controller": "team-confirmations",
-  "metamask/user-operation-controller": "team-confirmations"
+  "metamask/user-operation-controller": "team-confirmations",
+  "metamask/multichain-transactions-controller": "team-sol,team-accounts"
 }
