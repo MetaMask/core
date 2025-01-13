@@ -11363,20 +11363,15 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller, messenger }) => {
-          // Verify we can call `getNetworkConfigurationByNetworkClientId` with the new endpoint
-          const stateChangePromise = new Promise<void>((resolve, reject) => {
+
+          const stateChangePromise = new Promise<NetworkConfiguration | undefined>((resolve) => {
             messenger.subscribe('NetworkController:stateChange', (state) => {
               const { networkClientId } =
                 state.networkConfigurationsByChainId['0x1'].rpcEndpoints[1];
 
-              const networkConfiguration =
-                controller.getNetworkConfigurationByNetworkClientId(
-                  networkClientId,
-                );
-
-              networkConfiguration
-                ? resolve()
-                : reject(`networkClient ${networkClientId} not found`);
+              resolve(
+                controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+              );
             });
           });
 
@@ -11392,7 +11387,8 @@ describe('NetworkController', () => {
             ],
           });
 
-          await stateChangePromise;
+          const networkConfiguration = await stateChangePromise;
+          expect(networkConfiguration).toBeDefined();
         },
       );
     });
