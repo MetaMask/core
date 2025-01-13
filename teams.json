@@ -6,7 +6,6 @@
   "metamask/assets-controllers": "team-assets",
   "metamask/base-controller": "team-wallet-framework",
   "metamask/build-utils": "team-wallet-framework",
-  "metamask/chain-controller": "team-accounts",
   "metamask/composable-controller": "team-wallet-framework",
   "metamask/controller-utils": "team-wallet-framework",
   "metamask/ens-controller": "team-confirmations",
