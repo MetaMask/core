@@ -45,9 +45,9 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  *
  * @param options - The options to this function.
  * @param options.maxConsecutiveFailures - The maximum number of times that
- * the action is allowed to fail before pausing further retries. Defaults to 12.
- * @param options.onBreak - A function which is called when the action fails too
- * many times in a row (specifically, more than `maxConsecutiveFailures`).
+ * the service is allowed to fail before pausing further retries. Defaults to 12.
+ * @param options.onBreak - A function which is called when the service fails
+ * too many times in a row (specifically, more than `maxConsecutiveFailures`).
  * @param options.onRetry - A function which will be called the moment the
  * policy kicks off a timer to re-run the function passed to the policy. This
  * is primarily useful in tests where we are mocking timers.
