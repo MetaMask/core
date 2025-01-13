@@ -1,11 +1,10 @@
 {
   "name": "@metamask/multichain-transactions-controller",
   "version": "0.0.0",
-  "description": "This package is responsible for getting transactions from our Bitcoin and Solana snaps.",
+  "description": "This package is responsible for getting transactions from our Bitcoin and Solana snaps",
   "keywords": [
     "MetaMask",
-    "Bitcoin",
-    "Solana"
+    "Ethereum"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/multichain-transactions-controller#readme",
   "bugs": {
@@ -30,8 +29,8 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/types/index.d.cts",
   "files": [
     "dist/"
   ],
@@ -49,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.1.0",
-    "@metamask/keyring-api": "^12.0.0",
+    "@metamask/keyring-api": "^13.0.0",
     "@metamask/polling-controller": "^12.0.2",
     "@metamask/snaps-utils": "^8.3.0",
     "@metamask/utils": "^11.0.1",
