@@ -27,6 +27,7 @@
     { "path": "./packages/permission-controller/tsconfig.build.json" },
     { "path": "./packages/permission-log-controller/tsconfig.build.json" },
     { "path": "./packages/phishing-controller/tsconfig.build.json" },
+    { "path": "./packages/polling-controller/tsconfig.build.json" },
     { "path": "./packages/preferences-controller/tsconfig.build.json" },
     { "path": "./packages/profile-sync-controller/tsconfig.build.json" },
     { "path": "./packages/queued-request-controller/tsconfig.build.json" },
@@ -34,9 +35,11 @@
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
+    {
+      "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
+    },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" },
-    { "path": "./packages/polling-controller/tsconfig.build.json" }
+    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
   ],
   "files": [],
   "include": []

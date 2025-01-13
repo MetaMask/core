@@ -52,6 +52,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 
@@ -93,8 +94,10 @@ linkStyle default opacity:0.5
   profile_sync_controller(["@metamask/profile-sync-controller"]);
   queued_request_controller(["@metamask/queued-request-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
+  remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   accounts_controller --> base_controller;
@@ -167,6 +170,8 @@ linkStyle default opacity:0.5
   queued_request_controller --> network_controller;
   queued_request_controller --> selected_network_controller;
   rate_limit_controller --> base_controller;
+  remote_feature_flag_controller --> base_controller;
+  remote_feature_flag_controller --> controller_utils;
   selected_network_controller --> base_controller;
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
