@@ -25,6 +25,7 @@ import {
   ApprovalType,
   NFT_API_BASE_URL,
   NFT_API_VERSION,
+  NFT_UPDATE_THRESHOLD,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -2053,7 +2054,10 @@ export class NftController extends BaseController<
       (singleNft) =>
         !singleNft.name && !singleNft.description && !singleNft.image,
     );
-    if (nftsToUpdate.length !== 0) {
+    if (
+      nftsToUpdate.length !== 0 &&
+      nftsToUpdate.length < NFT_UPDATE_THRESHOLD
+    ) {
       await this.updateNftMetadata({
         nfts: nftsToUpdate,
         userAddress: account.address,
