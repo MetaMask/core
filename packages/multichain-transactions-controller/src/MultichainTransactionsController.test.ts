@@ -17,6 +17,7 @@ import {
   defaultState,
   MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
+import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -146,35 +147,25 @@ describe('MultichainTransactionsController', () => {
     expect(controller.state).toEqual({ nonEvmTransactions: {} });
   });
 
-  it('starts polling when calling start', async () => {
+  it('starts tracking when calling start', async () => {
+    const spyTracker = jest.spyOn(
+      MultichainTransactionsTracker.prototype,
+      'start',
+    );
     const { controller } = setupController();
-    const startPollingSpy = jest.spyOn(controller, 'startPolling');
-    
     await controller.start();
-    
-    expect(startPollingSpy).toHaveBeenCalledWith({
-      accountId: '',
-      pagination: { limit: 10 },
-    });
+    expect(spyTracker).toHaveBeenCalledTimes(1);
   });
 
-  it('stops polling when calling stop', async () => {
+  it('stops tracking when calling stop', async () => {
+    const spyTracker = jest.spyOn(
+      MultichainTransactionsTracker.prototype,
+      'stop',
+    );
     const { controller } = setupController();
-    const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
-    
     await controller.start();
-    controller.stop();
-    
-    expect(stopAllPollingSpy).toHaveBeenCalled();
-  });
-
-  it('executes polling correctly', async () => {
-    const { controller } = setupController();
-    const updateTransactionsSpy = jest.spyOn(controller as any, '#updateTransactions');
-    
-    await controller['_executePoll']();
-    
-    expect(updateTransactionsSpy).toHaveBeenCalled();
+    await controller.stop();
+    expect(spyTracker).toHaveBeenCalledTimes(1);
   });
 
   it('update transactions when calling updateTransactions', async () => {

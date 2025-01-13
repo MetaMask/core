@@ -6,11 +6,9 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
-
 import { isEvmAccountType, Transaction } from '@metamask/keyring-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
-import { type InternalAccount } from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
@@ -24,6 +22,7 @@ import {
   MultichainNetworks,
   TRANSACTIONS_CHECK_INTERVALS,
 } from './constants';
+import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
 const controllerName = 'MultichainTransactionsController';
 
@@ -136,43 +135,23 @@ export type TransactionStateEntry = {
   lastUpdated: number;
 };
 
-/** The input to start polling for the {@link MultichainTransactionsController} */
-type MultichainTransactionsPollingInput = {
-  accountId: string;
-  pagination: PaginationOptions;
-};
-
-/**
- * This type is used to track the state of transaction fetching for each account.
- * It's not about the transactions themselves, but rather about managing when and how we fetch them.
- */
-type TransactionInfo = {
-  lastUpdated: number;
-  blockTime: number;
-  pagination: PaginationOptions;
-};
-
 /**
  * The MultichainTransactionsController is responsible for fetching and caching account
  * transactions for non-EVM accounts.
  */
-export class MultichainTransactionsController extends StaticIntervalPollingController<MultichainTransactionsPollingInput>()<
+export class MultichainTransactionsController extends BaseController<
   typeof controllerName,
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger
 > {
-  #transactions: Record<string, TransactionInfo> = {};
-
-  #handle?: ReturnType<typeof setTimeout>;
+  #tracker: MultichainTransactionsTracker;
 
   constructor({
     messenger,
     state,
-    interval = 5000,
   }: {
     messenger: MultichainTransactionsControllerMessenger;
     state: MultichainTransactionsControllerState;
-    interval?: number;
   }) {
     super({
       messenger,
@@ -184,106 +163,26 @@ export class MultichainTransactionsController extends StaticIntervalPollingContr
       },
     });
 
-    this.setIntervalLength(interval);
+    this.#tracker = new MultichainTransactionsTracker(
+      async (accountId: string, pagination: PaginationOptions) =>
+        await this.#updateTransactions(accountId, pagination),
+    );
 
-    // Register all non-EVM accounts
+    // Register all non-EVM accounts into the tracker
     for (const account of this.#listAccounts()) {
       if (this.#isNonEvmAccount(account)) {
-        this.track(
-          account.id,
-          this.#getBlockTimeForAccount(account),
-        );
+        this.#tracker.track(account.id, this.#getBlockTimeFor(account));
       }
     }
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      (account: InternalAccount) => this.#handleOnAccountAdded(account),
+      (account) => this.#handleOnAccountAdded(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
       (accountId: string) => this.#handleOnAccountRemoved(accountId),
     );
-  }
-
-    /**
-   * Checks if an account ID is being tracked.
-   *
-   * @param accountId - The account ID.
-   * @returns True if the account is being tracked, false otherwise.
-   */
-  isTracked(accountId: string) {
-    return accountId in this.#transactions;
-  }
-
-    /**
-   * Asserts that an account ID is being tracked.
-   *
-   * @param accountId - The account ID.
-   * @throws If the account ID is not being tracked.
-   */
-    assertBeingTracked(accountId: string) {
-      if (!this.isTracked(accountId)) {
-      throw new Error(`Account is not being tracked: ${accountId}`);
-    }
-  }
-
-  /**
-   * Implementation of polling execution
-   */
-  async _executePoll(): Promise<void> {
-    try {
-      await Promise.allSettled(
-        Object.keys(this.#transactions).map(async (accountId) => {
-          this.assertBeingTracked(accountId);
-  
-          const info = this.#transactions[accountId];
-          const isOutdated = Date.now() - info.lastUpdated >= info.blockTime;
-          const hasNoTransactionsYet = info.lastUpdated === 0;
-      
-          if (hasNoTransactionsYet || isOutdated) {
-            await this.#updateTransactions(accountId, info.pagination);
-            this.#transactions[accountId].lastUpdated = Date.now();
-          }
-        }),
-      );
-    } catch (error) {
-      console.error('Error during transaction polling:', error);
-    }
-  }
-
-  /**
-   * Starts tracking a new account ID. This method has no effect on already tracked
-   * accounts.
-   *
-   * @param accountId - The account ID.
-   * @param blockTime - The block time (used when refreshing the account transactions).
-   * @param pagination - Options for paginating transaction results. Defaults to { limit: 10 }.
-   */
-  track(
-    accountId: string,
-    blockTime: number,
-    pagination: PaginationOptions = { limit: 10 },
-  ) {
-    if (blockTime <= 0) {
-      throw new Error('Block time must be positive');
-    }
-
-    if (!this.isTracked(accountId)) {
-      this.#transactions[accountId] = {
-        lastUpdated: 0,
-        blockTime,
-        pagination,
-      };
-    }
-  }
-
-  /**
-   * Stop tracking an account
-   */
-  untrack(accountId: string) {
-    this.assertBeingTracked(accountId);
-    delete this.#transactions[accountId];
   }
 
   /**
@@ -371,51 +270,34 @@ export class MultichainTransactionsController extends StaticIntervalPollingContr
   }
 
   /**
-   * Update the transactions for a tracked account ID.
+   * Updates transactions for a specific account
    *
-   * @param accountId - The account ID.
-   * @throws If the account ID is not being tracked.
+   * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
-    this.assertBeingTracked(accountId);
-
-    const info = this.#transactions[accountId];
-    const isOutdated = Date.now() - info.lastUpdated >= info.blockTime;
-    const hasNoTransactionsYet = info.lastUpdated === 0;
-
-    if (hasNoTransactionsYet || isOutdated) {
-      await this.#updateTransactions(accountId, info.pagination);
-      this.#transactions[accountId].lastUpdated = Date.now();
-    }
+    await this.#tracker.updateTransactionsForAccount(accountId);
   }
 
   /**
-   * Update the transactions of all tracked accounts
+   * Updates the transactions of all supported accounts. This method doesn't return
+   * anything, but it updates the state of the controller.
    */
   async updateTransactions() {
-    await Promise.allSettled(
-      Object.keys(this.#transactions).map(async (accountId) => {
-        await this.updateTransactionsForAccount(accountId);
-      }),
-    );
+    await this.#tracker.updateTransactions();
   }
 
   /**
    * Starts the polling process.
    */
-
   async start(): Promise<void> {
-    await this.startPolling({
-      accountId: '', // Empty string as we're not polling individual accounts
-      pagination: { limit: 10 }, // Default pagination
-    });
+    this.#tracker.start();
   }
 
   /**
    * Stops the polling process.
    */
-  stop(): void {
-    this.stopAllPolling();
+  async stop(): Promise<void> {
+    this.#tracker.stop();
   }
 
   /**
@@ -424,7 +306,7 @@ export class MultichainTransactionsController extends StaticIntervalPollingContr
    * @param account - The account to get the block time for.
    * @returns The block time for the account.
    */
-  #getBlockTimeForAccount(account: InternalAccount): number {
+  #getBlockTimeFor(account: InternalAccount): number {
     if (account.type in TRANSACTIONS_CHECK_INTERVALS) {
       return TRANSACTIONS_CHECK_INTERVALS[
         account.type as keyof typeof TRANSACTIONS_CHECK_INTERVALS
@@ -459,7 +341,7 @@ export class MultichainTransactionsController extends StaticIntervalPollingContr
       return;
     }
 
-    this.track(account.id, this.#getBlockTimeForAccount(account));
+    this.#tracker.track(account.id, this.#getBlockTimeFor(account));
   }
 
   /**
@@ -468,8 +350,8 @@ export class MultichainTransactionsController extends StaticIntervalPollingContr
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string) {
-    if (this.isTracked(accountId)) {
-      this.untrack(accountId);
+    if (this.#tracker.isTracked(accountId)) {
+      this.#tracker.untrack(accountId);
     }
 
     if (accountId in this.state.nonEvmTransactions) {

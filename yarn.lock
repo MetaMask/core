@@ -3125,6 +3125,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^13.0.0":
+  version: 13.0.0
+  resolution: "@metamask/keyring-api@npm:13.0.0"
+  dependencies:
+    "@metamask/keyring-utils": "npm:^1.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.0.1"
+    bech32: "npm:^2.0.0"
+  checksum: 10/f7e8982112a2813790354267af8f79cbf241d7ca9d733fe5e8de1a13993203b154ac6d358a92bd4340cbd4d25f4bac48681d17a25e3dc6f2336c95c00c371686
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@npm:^19.0.2, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -3172,6 +3184,18 @@ __metadata:
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^9.3.0"
   checksum: 10/dd0fff93ddfdce008f1db82d404bd040d09840413723c831819d3a7f4c2819a4303657e4acd7578cfd22bd05ad9c7aa563fc88f13f2f06999e2325ada71b824c
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-internal-api@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@metamask/keyring-internal-api@npm:1.1.0"
+  dependencies:
+    "@metamask/keyring-api": "npm:^13.0.0"
+    "@metamask/keyring-utils": "npm:^1.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.0.1"
+  checksum: 10/5db127cfe319c289b95d55d08b6737820f00761564e219d756a55e030b83043fb43d18bac3b63fcc69cd2e03129f831410ce960ba954d8183d976d87a6781b8c
   languageName: node
   linkType: hard
 
@@ -3274,9 +3298,16 @@ __metadata:
     "@metamask/base-controller": "npm:^7.1.0"
     "@metamask/keyring-api": "npm:^12.0.0"
     "@metamask/keyring-controller": "npm:^19.0.2"
+    "@metamask/keyring-internal-api": "npm:^1.1.0"
+    "@metamask/keyring-snap-client": "npm:^1.0.0"
     "@metamask/polling-controller": "npm:^12.0.2"
+    "@metamask/snaps-controllers": "npm:^9.10.0"
+    "@metamask/snaps-sdk": "npm:^6.7.0"
+    "@metamask/snaps-utils": "npm:^8.3.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
+    immer: "npm:^9.0.6"
     jest: "npm:^27.5.1"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
