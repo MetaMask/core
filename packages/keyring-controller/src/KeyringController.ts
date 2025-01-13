@@ -43,9 +43,12 @@ import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
+// When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
+import { monotonicFactory } from 'ulid';
 
 import { KeyringControllerError } from './constants';
 
+const ulid = monotonicFactory();
 const name = 'KeyringController';
 
 /**
@@ -89,6 +92,10 @@ export type KeyringControllerState = {
    * Representations of managed keyrings.
    */
   keyrings: KeyringObject[];
+  /**
+   * Metadata for each keyring.
+   */
+  keyringsMetadata: KeyringMetadata[];
   /**
    * The encryption key derived from the password and used to encrypt
    * the vault. This is only stored if the `cacheEncryptionKey` option
@@ -266,6 +273,18 @@ export type KeyringObject = {
 };
 
 /**
+ * @type KeyringMetadata
+ *
+ * Keyring metadata
+ * @property id - Keyring ID
+ * @property name - Keyring name
+ */
+export type KeyringMetadata = {
+  id: string;
+  name: string;
+};
+
+/**
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
@@ -290,6 +309,7 @@ export enum SignTypedDataVersion {
 export type SerializedKeyring = {
   type: string;
   data: Json;
+  metadata: KeyringMetadata;
 };
 
 /**
@@ -395,6 +415,9 @@ export type KeyringSelector =
     }
   | {
       address: Hex;
+    }
+  | {
+      id: string;
     };
 
 /**
@@ -434,6 +457,7 @@ export const getDefaultKeyringState = (): KeyringControllerState => {
   return {
     isUnlocked: false,
     keyrings: [],
+    keyringsMetadata: [],
   };
 };
 
@@ -623,6 +647,7 @@ export class KeyringController extends BaseController<
         vault: { persist: true, anonymous: false },
         isUnlocked: { persist: false, anonymous: true },
         keyrings: { persist: false, anonymous: false },
+        keyringsMetadata: { persist: false, anonymous: false },
         encryptionKey: { persist: false, anonymous: false },
         encryptionSalt: { persist: false, anonymous: false },
       },
@@ -639,6 +664,7 @@ export class KeyringController extends BaseController<
 
     this.#encryptor = encryptor;
     this.#keyrings = [];
+    this.#keyringsMetadata = [];
     this.#unsupportedKeyrings = [];
 
     // This option allows the controller to cache an exported key
@@ -655,18 +681,21 @@ export class KeyringController extends BaseController<
    * Adds a new account to the default (first) HD seed phrase keyring.
    *
    * @param accountCount - Number of accounts before adding a new one, used to
-   * @param typeIndex - The id of the keyring to add the account to.
+   * @param keyringId - The id of the keyring to add the account to.
    * make the method idempotent.
    * @returns Promise resolving to the added account address.
    */
   async addNewAccount(
     accountCount?: number,
-    typeIndex?: number,
+    keyringId?: string,
   ): Promise<string> {
     return this.#persistOrRollback(async () => {
-      const selectedKeyring = this.getKeyringsByType('HD Key Tree')[
-        typeIndex ?? 0
-      ] as EthKeyring<Json>;
+      let selectedKeyring = this.getKeyringsByType(
+        'HD Key Tree',
+      )[0] as EthKeyring<Json>;
+      if (keyringId) {
+        selectedKeyring = this.#getKeyringById(keyringId);
+      }
       if (!selectedKeyring) {
         throw new Error('No HD keyring found');
       }
@@ -687,7 +716,7 @@ export class KeyringController extends BaseController<
       }
 
       const [addedAccountAddress] = await selectedKeyring.addAccounts(1);
-      await this.verifySeedPhrase(typeIndex ?? 0);
+      await this.#verifySeedPhrase(keyringId);
 
       return addedAccountAddress;
     });
@@ -759,15 +788,6 @@ export class KeyringController extends BaseController<
     });
   }
 
-  async createKeyringFromMnemonic(mnemonic: string): Promise<string> {
-    return this.#persistOrRollback(async () => {
-      return await this.#createKeyringWithFirstAccount(KeyringTypes.hd, {
-        mnemonic,
-        numberOfAccounts: 1,
-      });
-    });
-  }
-
   /**
    * Create a new vault and primary keyring.
    *
@@ -804,7 +824,9 @@ export class KeyringController extends BaseController<
       return this.getOrAddQRKeyring();
     }
 
-    return this.#persistOrRollback(async () => this.#newKeyring(type, opts));
+    return this.#persistOrRollback(async () =>
+      this.#newKeyring(type, opts, { id: ulid(), name: '' }),
+    );
   }
 
   /**
@@ -833,28 +855,23 @@ export class KeyringController extends BaseController<
    * Gets the seed phrase of the HD keyring.
    *
    * @param password - Password of the keyring.
-   * @param typeIndex - The index of the keyring type.
+   * @param keyringId - The id of the keyring.
    * @returns Promise resolving to the seed phrase.
    */
   async exportSeedPhrase(
     password: string,
-    typeIndex?: number,
+    keyringId?: string,
   ): Promise<Uint8Array> {
     await this.verifyPassword(password);
-    if (!typeIndex) {
+    if (!keyringId) {
       assertHasUint8ArrayMnemonic(this.#keyrings[0]);
       return this.#keyrings[0].mnemonic;
     }
-    const selectedKeyring = (
-      this.#keyrings as (EthKeyring<Json> & {
-        opts: { typeIndex: number };
-        mnemonic: Uint8Array;
-      })[]
-    ).filter((keyring) => keyring.type === KeyringTypes.hd)[typeIndex];
+    const selectedKeyring = this.#getKeyringById(keyringId);
     if (!selectedKeyring) {
       throw new Error('Keyring not found');
     }
-    assertHasUint8ArrayMnemonic(selectedKeyring as EthKeyring<Json>);
+    assertHasUint8ArrayMnemonic(selectedKeyring);
 
     return selectedKeyring.mnemonic;
   }
@@ -882,17 +899,21 @@ export class KeyringController extends BaseController<
   /**
    * Returns the public addresses of all accounts from every keyring.
    *
-   * @param keyringIndex - The index of the keyring to get the accounts from.
+   * @param keyringId - The id of the keyring to get the accounts from.
    * @returns A promise resolving to an array of addresses.
    */
-  async getAccounts(keyringIndex?: number): Promise<string[]> {
-    const keyrings = this.state.keyrings.filter(
-      (keyring) => keyring.type === KeyringTypes.hd,
-    );
-    if (keyringIndex) {
-      return keyrings[keyringIndex].accounts;
+  async getAccounts(keyringId?: string): Promise<string[]> {
+    if (keyringId) {
+      const keyringIndex = this.state.keyringsMetadata.findIndex(
+        (keyring) => keyring.id === keyringId,
+      );
+      const keyring = this.state.keyrings[keyringIndex];
+      if (!keyring) {
+        throw new Error('Keyring not found');
+      }
+      return keyring.accounts;
     }
-    return keyrings.reduce<string[]>(
+    return this.state.keyrings.reduce<string[]>(
       (accounts, keyring) => accounts.concat(keyring.accounts),
       [],
     );
@@ -1064,7 +1085,7 @@ export class KeyringController extends BaseController<
       }
       const newKeyring = (await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
-      ])) as EthKeyring<Json>;
+      ], { id: ulid(), name: '' })) as EthKeyring<Json>;
       const accounts = await newKeyring.getAccounts();
       return accounts[0];
     });
@@ -1388,11 +1409,13 @@ export class KeyringController extends BaseController<
   /**
    * Verifies the that the seed phrase restores the current keychain's accounts.
    *
-   * @param typeIndex - The index of the keyring to verify.
+   * @param keyringId - The id of the keyring to verify.
    * @returns Promise resolving to the seed phrase as Uint8Array.
    */
-  async verifySeedPhrase(): Promise<Uint8Array> {
-    return this.#withControllerLock(async () => this.#verifySeedPhrase());
+  async verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
+    return this.#withControllerLock(async () =>
+      this.#verifySeedPhrase(keyringId),
+    );
   }
 
   /**
@@ -1468,17 +1491,21 @@ export class KeyringController extends BaseController<
         keyring = (await this.getKeyringForAccount(selector.address)) as
           | SelectedKeyring
           | undefined;
-      } else {
+      } else if ('type' in selector) {
         keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
           | SelectedKeyring
           | undefined;
 
         if (!keyring && options.createIfMissing) {
+          const newMetadata = { id: ulid(), name: '' };
           keyring = (await this.#newKeyring(
             selector.type,
             options.createWithData,
+            newMetadata,
           )) as SelectedKeyring;
         }
+      } else if ('id' in selector) {
+        keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
       }
 
       if (!keyring) {
@@ -1786,6 +1813,19 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Get the keyring by id.
+   *
+   * @param keyringId - The id of the keyring.
+   * @returns The keyring.
+   */
+  #getKeyringById(keyringId: string): EthKeyring<Json> {
+    const index = this.#keyringsMetadata.findIndex(
+      (metadata) => metadata.id === keyringId,
+    );
+    return this.#keyrings[index] as EthKeyring<Json>;
+  }
+
+  /**
    * Get the keyring builder for the given `type`.
    *
    * @param type - The type of keyring to get the builder for.
@@ -1810,7 +1850,10 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    return (await this.#newKeyring(KeyringTypes.qr)) as unknown as QRKeyring;
+    return (await this.#newKeyring(KeyringTypes.qr, undefined, {
+      id: ulid(),
+      name: '',
+    })) as unknown as QRKeyring;
   }
 
   /**
@@ -1881,22 +1924,25 @@ export class KeyringController extends BaseController<
   /**
    * Internal non-exclusive method to verify the seed phrase.
    *
+   * @param keyringId - The id of the keyring to verify the seed phrase for.
    * @returns A promise resolving to the seed phrase as Uint8Array.
    */
-  async #verifySeedPhrase(): Promise<Uint8Array> {
+  async #verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
     this.#assertControllerMutexIsLocked();
 
-    const primaryKeyring = this.getKeyringsByType(KeyringTypes.hd)[0] as
-      | EthKeyring<Json>
-      | undefined;
-    if (!primaryKeyring) {
+    const keyring = keyringId
+      ? this.#getKeyringById(keyringId)
+      : this.getKeyringsByType(KeyringTypes.hd)[0] as
+          | EthKeyring<Json>
+          | undefined;
+    if (!keyring) {
       throw new Error('No HD keyring found.');
     }
 
-    assertHasUint8ArrayMnemonic(primaryKeyring);
+    assertHasUint8ArrayMnemonic(keyring);
 
-    const seedWords = primaryKeyring.mnemonic;
-    const accounts = await primaryKeyring.getAccounts();
+    const seedWords = keyring.mnemonic;
+    const accounts = await keyring.getAccounts();
     /* istanbul ignore if */
     if (accounts.length === 0) {
       throw new Error('Cannot verify an empty keyring.');
@@ -1953,12 +1999,13 @@ export class KeyringController extends BaseController<
     },
   ): Promise<SerializedKeyring[]> {
     const serializedKeyrings = await Promise.all(
-      this.#keyrings.map(async (keyring) => {
-        const [type, data] = await Promise.all([
+      this.#keyrings.map(async (keyring, index) => {
+        const [type, data, metadata] = await Promise.all([
           keyring.type,
           keyring.serialize(),
+          this.#keyringsMetadata[index],
         ]);
-        return { type, data };
+        return { type, data, metadata };
       }),
     );
 
@@ -2060,9 +2107,11 @@ export class KeyringController extends BaseController<
 
       await this.#restoreSerializedKeyrings(vault);
       const updatedKeyrings = await this.#getUpdatedKeyrings();
+      const updatedKeyringsMetadata = this.#keyringsMetadata;
 
       this.update((state) => {
         state.keyrings = updatedKeyrings;
+        state.keyringsMetadata = updatedKeyringsMetadata;
         if (updatedState.encryptionKey || updatedState.encryptionSalt) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = updatedState.encryptionSalt;
@@ -2143,9 +2192,11 @@ export class KeyringController extends BaseController<
       }
 
       const updatedKeyrings = await this.#getUpdatedKeyrings();
+      const updatedKeyringsMetadata = this.#keyringsMetadata;
       this.update((state) => {
         state.vault = updatedState.vault;
         state.keyrings = updatedKeyrings;
+        state.keyringsMetadata = updatedKeyringsMetadata;
         if (updatedState.encryptionKey) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
@@ -2188,7 +2239,10 @@ export class KeyringController extends BaseController<
   async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
     this.#assertControllerMutexIsLocked();
 
-    const keyring = (await this.#newKeyring(type, opts)) as EthKeyring<Json>;
+    const keyring = (await this.#newKeyring(type, opts, {
+      id: ulid(),
+      name: '',
+    })) as EthKeyring<Json>;
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
@@ -2205,10 +2259,15 @@ export class KeyringController extends BaseController<
    *
    * @param type - The type of keyring to add.
    * @param data - The data to restore a previously serialized keyring.
+   * @param metadata - The metadata to add to the keyring.
    * @returns The new keyring.
    * @throws If the keyring includes duplicated accounts.
    */
-  async #newKeyring(type: string, data?: unknown): Promise<EthKeyring<Json>> {
+  async #newKeyring(
+    type: string,
+    data?: unknown,
+    metadata?: KeyringMetadata,
+  ): Promise<EthKeyring<Json>> {
     this.#assertControllerMutexIsLocked();
 
     const keyringBuilder = this.#getKeyringBuilderForType(type);
@@ -2250,6 +2309,9 @@ export class KeyringController extends BaseController<
     }
 
     this.#keyrings.push(keyring);
+    if (metadata && this.#keyringsMetadata.length < this.#keyrings.length) {
+      this.#keyringsMetadata = [...this.#keyringsMetadata, metadata];
+    }
 
     return keyring;
   }
@@ -2279,8 +2341,8 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     try {
-      const { type, data } = serialized;
-      return await this.#newKeyring(type, data);
+      const { type, data, metadata } = serialized;
+      return await this.#newKeyring(type, data, metadata);
     } catch (_) {
       this.#unsupportedKeyrings.push(serialized);
       return undefined;
@@ -2315,12 +2377,13 @@ export class KeyringController extends BaseController<
     // in order to decide which ones are now valid (accounts.length > 0)
 
     await Promise.all(
-      this.#keyrings.map(async (keyring: EthKeyring<Json>) => {
+      this.#keyrings.map(async (keyring: EthKeyring<Json>, index: number) => {
         const accounts = await keyring.getAccounts();
         if (accounts.length > 0) {
           validKeyrings.push(keyring);
         } else {
           await this.#destroyKeyring(keyring);
+          this.#keyringsMetadata = this.#keyringsMetadata.filter((_, i) => i !== index);
         }
       }),
     );

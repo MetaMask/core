@@ -509,6 +509,12 @@ describe('AccountsController', () => {
             accounts: [mockAccount.address],
           },
         ],
+        keyringsMetadata: [
+          {
+            id: 'mock-id',
+            name: 'mock-name',
+          },
+        ],
       };
 
       messenger.publish(
@@ -533,7 +539,7 @@ describe('AccountsController', () => {
 
       messenger.publish(
         'KeyringController:stateChange',
-        { isUnlocked: true, keyrings: [] },
+        { isUnlocked: true, keyrings: [], keyringsMetadata: [] },
         [],
       );
 
@@ -551,6 +557,13 @@ describe('AccountsController', () => {
           {
             accounts: [mockAccount.address, mockAccount2.address],
             type: KeyringTypes.hd,
+            id: '123',
+          },
+        ],
+        keyringsMetadata: [
+          {
+            id: 'mock-id',
+            name: 'mock-name',
           },
         ],
       };
@@ -587,6 +600,12 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
             },
           ],
         };
@@ -644,6 +663,16 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.snap,
               accounts: [mockAccount3.address, mockAccount4.address],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+            {
+              id: 'mock-id2',
+              name: 'mock-name2',
             },
           ],
         };
@@ -713,6 +742,16 @@ describe('AccountsController', () => {
               accounts: [mockAccount3.address, mockAccount4.address],
             },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+            {
+              id: 'mock-id2',
+              name: 'mock-name2',
+            },
+          ],
         };
 
         const { accountsController } = setupAccountsController({
@@ -757,6 +796,12 @@ describe('AccountsController', () => {
                 mockAccount2.address,
                 mockAccount3.address,
               ],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
             },
           ],
         };
@@ -821,6 +866,12 @@ describe('AccountsController', () => {
               ],
             },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+          ],
         };
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -881,6 +932,16 @@ describe('AccountsController', () => {
               accounts: [mockAccount3.address],
             },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+            {
+              id: 'mock-id2',
+              name: 'mock-name2',
+            },
+          ],
         };
 
         const { accountsController } = setupAccountsController({
@@ -915,6 +976,12 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
             },
           ],
         };
@@ -972,6 +1039,12 @@ describe('AccountsController', () => {
               accounts: [mockAccount.address, mockAccount2.address],
             },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+          ],
         };
 
         messenger.publish(
@@ -1001,6 +1074,12 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount2.address],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
             },
           ],
         };
@@ -1042,6 +1121,12 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
             },
           ],
         };
@@ -1102,6 +1187,12 @@ describe('AccountsController', () => {
             {
               type: KeyringTypes.hd,
               accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
             },
           ],
         };
@@ -1177,6 +1268,12 @@ describe('AccountsController', () => {
               ],
             },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+          ],
         };
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -1247,6 +1344,12 @@ describe('AccountsController', () => {
               accounts: [mockAccount.address, mockAccount2.address],
             },
           ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+          ],
         };
         messenger.publish(
           'KeyringController:stateChange',
@@ -1289,6 +1392,12 @@ describe('AccountsController', () => {
           {
             type: KeyringTypes.hd,
             accounts: [mockReinitialisedAccount.address],
+          },
+        ],
+        keyringsMetadata: [
+          {
+            id: 'mock-id',
+            name: 'mock-name',
           },
         ],
       };
@@ -1385,6 +1494,12 @@ describe('AccountsController', () => {
                 mockExistingAccount1.address,
                 mockExistingAccount2.address,
               ],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
             },
           ],
         };
@@ -2653,6 +2768,16 @@ describe('AccountsController', () => {
           {
             type: 'Simple Key Pair',
             accounts: simpleAddressess,
+          },
+        ],
+        keyringsMetadata: [
+          {
+            id: 'mock-id',
+            name: 'mock-name',
+          },
+          {
+            id: 'mock-id2',
+            name: 'mock-name2',
           },
         ],
       };
