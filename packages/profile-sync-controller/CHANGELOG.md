@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: update accounts-related packages versioning for new `scopes` feature ([#5136](https://github.com/MetaMask/core/pull/5136))
+- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+
 ## [3.3.0]
 
 ### Added

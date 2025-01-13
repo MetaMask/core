@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: update accounts-related packages versioning for new `scopes` feature ([#5136](https://github.com/MetaMask/core/pull/5136))
+- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+- feat!: add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
