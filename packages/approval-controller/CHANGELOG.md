@@ -9,13 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.1.2]
 
-### Uncategorized
-
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- chore: bump nanoid dependency ([#5073](https://github.com/MetaMask/core/pull/5073))
-
 ### Changed
 
+- Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
 ## [7.1.1]

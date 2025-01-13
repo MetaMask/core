@@ -9,12 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.5]
 
-### Uncategorized
+### Changed
 
-- Release 274.0.0 ([#5082](https://github.com/MetaMask/core/pull/5082))
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- chore: bump nanoid dependency ([#5073](https://github.com/MetaMask/core/pull/5073))
-- refactor(permission-controller): Rationalize permission and caveat validation ([#5062](https://github.com/MetaMask/core/pull/5062))
+- Remove redundant caveat validator calls ([#5062](https://github.com/MetaMask/core/pull/5062))
+  - In some cases, caveats were being validated multiple times or without the
+    possibility of having changed.
+  - The intended purpose of permission and caveat validators has also been
+    documented. See `ARCHITECTURE.md`.
+- Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
 
 ### Changed
 
