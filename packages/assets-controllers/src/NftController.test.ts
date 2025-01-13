@@ -4471,6 +4471,21 @@ describe('NftController', () => {
   });
 
   describe('updateNftMetadata', () => {
+    it('should not update Nft metadata when preferences change and current and incoming state are the same', async () => {
+      const {
+        nftController,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController();
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+      });
+
+      expect(spy).toHaveBeenCalledTimes(0);
+    });
     it('should update Nft metadata successfully', async () => {
       const tokenURI = 'https://api.pudgypenguins.io/lil/4';
       const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
