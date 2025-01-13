@@ -362,7 +362,6 @@ export async function syncInternalAccountsWithUserStorage(
           context,
         );
       } else {
-        erroneousSituationsFound = true;
         onAccountSyncErroneousSituation?.(
           'Erroneous situations were found during the sync, and final state does not match the expected state',
           context,
