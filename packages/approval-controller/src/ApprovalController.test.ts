@@ -9,6 +9,7 @@ import type {
   AddApprovalOptions,
   ApprovalControllerActions,
   ApprovalControllerEvents,
+  ApprovalControllerMessenger,
   ErrorOptions,
   StartFlowOptions,
   SuccessOptions,
@@ -243,15 +244,17 @@ function getRestrictedMessenger() {
 describe('approval controller', () => {
   let approvalController: ApprovalController;
   let showApprovalRequest: jest.Mock;
+  let messenger: ApprovalControllerMessenger;
 
   beforeEach(() => {
     nanoidMock.mockReturnValue('TestId');
     jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
 
+    messenger = getRestrictedMessenger();
     showApprovalRequest = jest.fn();
 
     approvalController = new ApprovalController({
-      messenger: getRestrictedMessenger(),
+      messenger,
       showApprovalRequest,
     });
   });
@@ -815,6 +818,9 @@ describe('approval controller', () => {
 
   describe('accept', () => {
     it('resolves approval promise', async () => {
+      const acceptedEvent = jest.fn();
+      messenger.subscribe('ApprovalController:accepted', acceptedEvent);
+
       const approvalPromise = approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
@@ -826,6 +832,15 @@ describe('approval controller', () => {
 
       const result = await approvalPromise;
       expect(result).toBe('success');
+
+      expect(acceptedEvent.mock.calls[0][0]).toEqual({
+        approval: expect.objectContaining({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: 'myType',
+          time: expect.any(Number),
+        }),
+      });
     });
 
     it('resolves multiple approval promises out of order', async () => {
@@ -1067,13 +1082,26 @@ describe('approval controller', () => {
 
   describe('reject', () => {
     it('rejects approval promise', async () => {
+      const rejectedEvent = jest.fn();
+      messenger.subscribe('ApprovalController:rejected', rejectedEvent);
+
+      const rejectedError = new Error('failure');
       const approvalPromise = approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
         type: TYPE,
       });
-      approvalController.reject('foo', new Error('failure'));
-      await expect(approvalPromise).rejects.toThrow('failure');
+      approvalController.reject('foo', rejectedError);
+      await expect(approvalPromise).rejects.toThrow(rejectedError);
+
+      expect(rejectedEvent.mock.calls[0][0]).toEqual({
+        approval: expect.objectContaining({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: TYPE,
+        }),
+        error: rejectedError,
+      });
     });
 
     it('rejects multiple approval promises out of order', async () => {
