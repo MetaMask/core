@@ -27,7 +27,6 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/build-utils`](packages/build-utils)
-- [`@metamask/chain-controller`](packages/chain-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
 - [`@metamask/ens-controller`](packages/ens-controller)
@@ -70,7 +69,6 @@ linkStyle default opacity:0.5
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
   build_utils(["@metamask/build-utils"]);
-  chain_controller(["@metamask/chain-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
   ens_controller(["@metamask/ens-controller"]);
@@ -112,7 +110,6 @@ linkStyle default opacity:0.5
   assets_controllers --> network_controller;
   assets_controllers --> preferences_controller;
   base_controller --> json_rpc_engine;
-  chain_controller --> base_controller;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
   ens_controller --> base_controller;
