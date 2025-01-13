@@ -422,15 +422,21 @@ export class NftController extends BaseController<
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
-    this.#ipfsGateway = ipfsGateway;
-    this.#openSeaEnabled = openSeaEnabled;
-    this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+    //Get current state values
+    if (
+      this.#ipfsGateway !== ipfsGateway ||
+      this.#openSeaEnabled !== openSeaEnabled ||
+      this.#isIpfsGatewayEnabled !== isIpfsGatewayEnabled
+    ) {
+      this.#ipfsGateway = ipfsGateway;
+      this.#openSeaEnabled = openSeaEnabled;
+      this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+      const needsUpdateNftMetadata =
+        (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
-    const needsUpdateNftMetadata =
-      (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
-
-    if (needsUpdateNftMetadata && selectedAccount) {
-      await this.#updateNftUpdateForAccount(selectedAccount);
+      if (needsUpdateNftMetadata && selectedAccount) {
+        await this.#updateNftUpdateForAccount(selectedAccount);
+      }
     }
   }
 
