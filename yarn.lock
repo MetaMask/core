@@ -2509,46 +2509,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/chain-api@npm:^0.1.0":
-  version: 0.1.0
-  resolution: "@metamask/chain-api@npm:0.1.0"
-  dependencies:
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^9.0.0"
-  checksum: 10/45855703cc31f19b35ed6973096377192c8ca595afa9cd12ff90a90a5236bb8cbbbb1f0b6dc9ebe1c2fb6ab887cce266b192c94538a432c786d9b4b4e2536b88
-  languageName: node
-  linkType: hard
-
-"@metamask/chain-controller@workspace:packages/chain-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/chain-controller@workspace:packages/chain-controller"
-  dependencies:
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/chain-api": "npm:^0.1.0"
-    "@metamask/keyring-internal-api": "npm:^2.0.0"
-    "@metamask/keyring-utils": "npm:^1.0.0"
-    "@metamask/providers": "npm:^18.1.1"
-    "@metamask/snaps-controllers": "npm:^9.10.0"
-    "@metamask/snaps-sdk": "npm:^6.7.0"
-    "@metamask/snaps-utils": "npm:^8.3.0"
-    "@metamask/utils": "npm:^11.0.1"
-    "@types/jest": "npm:^27.4.1"
-    "@types/readable-stream": "npm:^2.3.0"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^27.5.1"
-    ts-jest: "npm:^27.1.4"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
-    uuid: "npm:^8.3.2"
-    webextension-polyfill: "npm:^0.12.0"
-  peerDependencies:
-    "@metamask/providers": ^18.1.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
-  languageName: unknown
-  linkType: soft
-
 "@metamask/composable-controller@workspace:packages/composable-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/composable-controller@workspace:packages/composable-controller"
