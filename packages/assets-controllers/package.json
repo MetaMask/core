@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "45.1.2",
+  "version": "46.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -77,12 +77,12 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/accounts-controller": "^20.0.2",
+    "@metamask/accounts-controller": "^21.0.0",
     "@metamask/approval-controller": "^7.1.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-api": "^13.0.0",
-    "@metamask/keyring-controller": "^19.0.2",
+    "@metamask/keyring-controller": "^19.0.3",
     "@metamask/keyring-internal-api": "^2.0.0",
     "@metamask/keyring-snap-client": "^2.0.0",
     "@metamask/network-controller": "^22.1.1",
@@ -105,7 +105,7 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^20.0.0",
+    "@metamask/accounts-controller": "^21.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/network-controller": "^22.0.0",
