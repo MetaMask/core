@@ -300,9 +300,6 @@ describe('createServicePolicy', () => {
         throw new Error('failure');
       });
       const policy = createServicePolicy();
-      // Each retry delay is randomized using a decorrelated jitter formula, so
-      // we need to make the delay times deterministic
-      jest.spyOn(Math, 'random').mockReturnValue(0);
 
       const promise = policy.execute(mockService);
       // It's safe not to await this promise; adding it to the promise queue
@@ -325,9 +322,6 @@ describe('createServicePolicy', () => {
       });
       const onRetry = jest.fn();
       const policy = createServicePolicy({ onRetry });
-      // Each retry delay is randomized using a decorrelated jitter formula, so
-      // we need to make the delay times deterministic
-      jest.spyOn(Math, 'random').mockReturnValue(0);
 
       const promise = policy.execute(mockService);
       // It's safe not to await this promise; adding it to the promise queue
