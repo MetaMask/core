@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add new `MultichainBalancesController` ([#4965](https://github.com/MetaMask/core/pull/4965))
+  - This controller has been migrated from the MetaMask extension codebase.
 - Added utility function `getKeyByValue` ([#5099](https://github.com/MetaMask/core/pull/5099))
 
 ### Changed
@@ -20,8 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
 - Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
 - Bump `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- Add new `MultichainBalancesController` ([#4965](https://github.com/MetaMask/core/pull/4965))
-  - This controller has been migrated from the MetaMask extension codebase.
 
 ### Fixed
 
