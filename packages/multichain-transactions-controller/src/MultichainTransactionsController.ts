@@ -18,10 +18,7 @@ import type {
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
-import {
-  MultichainNetworks,
-  TRANSACTIONS_CHECK_INTERVALS,
-} from './constants';
+import { MultichainNetworks, TRANSACTIONS_CHECK_INTERVALS } from './constants';
 import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
 const controllerName = 'MultichainTransactionsController';

@@ -28,8 +28,6 @@ const mockSolanaAccount = {
   type: SolAccountType.DataAccount,
 };
 
-
-
 function setupTracker() {
   const mockUpdateTransactions = jest.fn();
   const tracker = new MultichainTransactionsTracker(mockUpdateTransactions);
