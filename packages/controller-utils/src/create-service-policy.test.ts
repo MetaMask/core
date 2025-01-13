@@ -3,6 +3,7 @@ import type { SinonFakeTimers } from 'sinon';
 
 import {
   createServicePolicy,
+  DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
 } from './create-service-policy';
@@ -542,6 +543,33 @@ describe('createServicePolicy', () => {
 
           expect(onBreak).toHaveBeenCalledTimes(1);
           expect(onBreak).toHaveBeenCalledWith({ error });
+        });
+
+        it('returns what the service returns if it is successfully called again after the default circuit break duration has elapsed', async () => {
+          const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
+          let invocationCounter = 0;
+          const error = new Error('failure');
+          const mockService = () => {
+            invocationCounter += 1;
+            if (invocationCounter === DEFAULT_MAX_RETRIES + 1) {
+              return { some: 'data' };
+            }
+            throw error;
+          };
+          const policy = createServicePolicy({
+            maxConsecutiveFailures,
+          });
+
+          const firstExecution = policy.execute(mockService);
+          // It's safe not to await this promise; adding it to the promise
+          // queue is enough to prevent this test from running indefinitely.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          clock.runAllAsync();
+          await ignoreRejection(firstExecution);
+          clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+          const result = await policy.execute(mockService);
+
+          expect(result).toStrictEqual({ some: 'data' });
         });
       });
     });

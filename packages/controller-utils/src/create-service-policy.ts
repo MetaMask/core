@@ -101,9 +101,9 @@ export function createServicePolicy({
     // While the circuit is open, any additional invocations of the service
     // passed to the policy (either via automatic retries or by manually
     // executing the policy again) will result in a BrokenCircuitError. This
-    // will remain the case until `circuitBreakDuration` passes, after which the
-    // service will be allowed to run again. If the service succeeds, the
-    // circuit will close, otherwise it will remain open.
+    // will remain the case until the default circuit break duration passes,
+    // after which the service will be allowed to run again. If the service
+    // succeeds, the circuit will close, otherwise it will remain open.
     halfOpenAfter: DEFAULT_CIRCUIT_BREAK_DURATION,
     breaker: new ConsecutiveBreaker(maxConsecutiveFailures),
   });
@@ -111,9 +111,10 @@ export function createServicePolicy({
   // The `onBreak` callback will be called if the service consistently throws
   // for as many times as exceeds the maximum consecutive number of failures.
   // Combined with the retry policy, this can happen if:
-  // - `maxRetries` > `maxConsecutiveFailures` and the policy is executed once
-  // - `maxRetries` <= `maxConsecutiveFailures` but the policy is executed
-  //   multiple times, enough for the total number of retries to exceed
+  // - `maxConsecutiveFailures` < the default max retries (3) and the policy is
+  // executed once
+  // - `maxConsecutiveFailures` >= the default max retries (3) but the policy is
+  //   executed multiple times, enough for the total number of retries to exceed
   //   `maxConsecutiveFailures`
   circuitBreakerPolicy.onBreak(onBreak);
 
