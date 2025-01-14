@@ -309,7 +309,6 @@ export enum SignTypedDataVersion {
 export type SerializedKeyring = {
   type: string;
   data: Json;
-  metadata: KeyringMetadata;
 };
 
 /**
@@ -617,6 +616,8 @@ export class KeyringController extends BaseController<
 
   #keyrings: EthKeyring<Json>[];
 
+  #unsupportedKeyrings: SerializedKeyring[];
+
   #password?: string;
 
   #qrKeyringStateListener?: (
@@ -647,7 +648,7 @@ export class KeyringController extends BaseController<
         vault: { persist: true, anonymous: false },
         isUnlocked: { persist: false, anonymous: true },
         keyrings: { persist: false, anonymous: false },
-        keyringsMetadata: { persist: false, anonymous: false },
+        keyringsMetadata: { persist: true, anonymous: false },
         encryptionKey: { persist: false, anonymous: false },
         encryptionSalt: { persist: false, anonymous: false },
       },
@@ -664,7 +665,6 @@ export class KeyringController extends BaseController<
 
     this.#encryptor = encryptor;
     this.#keyrings = [];
-    this.#keyringsMetadata = [];
     this.#unsupportedKeyrings = [];
 
     // This option allows the controller to cache an exported key
@@ -1819,7 +1819,7 @@ export class KeyringController extends BaseController<
    * @returns The keyring.
    */
   #getKeyringById(keyringId: string): EthKeyring<Json> {
-    const index = this.#keyringsMetadata.findIndex(
+    const index = this.state.keyringsMetadata.findIndex(
       (metadata) => metadata.id === keyringId,
     );
     return this.#keyrings[index] as EthKeyring<Json>;
@@ -2000,12 +2000,11 @@ export class KeyringController extends BaseController<
   ): Promise<SerializedKeyring[]> {
     const serializedKeyrings = await Promise.all(
       this.#keyrings.map(async (keyring, index) => {
-        const [type, data, metadata] = await Promise.all([
+        const [type, data] = await Promise.all([
           keyring.type,
           keyring.serialize(),
-          this.#keyringsMetadata[index],
         ]);
-        return { type, data, metadata };
+        return { type, data };
       }),
     );
 
@@ -2028,6 +2027,13 @@ export class KeyringController extends BaseController<
 
     for (const serializedKeyring of serializedKeyrings) {
       await this.#restoreKeyring(serializedKeyring);
+    }
+
+    if (this.state.keyringsMetadata.length > this.#keyrings.length) {
+      this.update((state) => {
+        // remove metadata from the end of the array to have the same length as the keyrings array
+        state.keyringsMetadata = state.keyringsMetadata.slice(0, -1 * (state.keyringsMetadata.length - this.#keyrings.length));
+      })
     }
   }
 
@@ -2107,11 +2113,9 @@ export class KeyringController extends BaseController<
 
       await this.#restoreSerializedKeyrings(vault);
       const updatedKeyrings = await this.#getUpdatedKeyrings();
-      const updatedKeyringsMetadata = this.#keyringsMetadata;
 
       this.update((state) => {
         state.keyrings = updatedKeyrings;
-        state.keyringsMetadata = updatedKeyringsMetadata;
         if (updatedState.encryptionKey || updatedState.encryptionSalt) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = updatedState.encryptionSalt;
@@ -2192,14 +2196,15 @@ export class KeyringController extends BaseController<
       }
 
       const updatedKeyrings = await this.#getUpdatedKeyrings();
-      const updatedKeyringsMetadata = this.#keyringsMetadata;
       this.update((state) => {
         state.vault = updatedState.vault;
         state.keyrings = updatedKeyrings;
-        state.keyringsMetadata = updatedKeyringsMetadata;
         if (updatedState.encryptionKey) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
+        }
+        if (updatedKeyrings.length < state.keyringsMetadata.length) {
+          state.keyringsMetadata = state.keyringsMetadata.slice(0, -1 * (state.keyringsMetadata.length - updatedKeyrings.length));
         }
       });
 
@@ -2309,10 +2314,11 @@ export class KeyringController extends BaseController<
     }
 
     this.#keyrings.push(keyring);
-    if (metadata && this.#keyringsMetadata.length < this.#keyrings.length) {
-      this.#keyringsMetadata = [...this.#keyringsMetadata, metadata];
+    if (metadata && this.state.keyringsMetadata.length < this.#keyrings.length) {
+      this.update((state) => {
+        state.keyringsMetadata = [...state.keyringsMetadata, metadata];
+      });
     }
-
     return keyring;
   }
 
@@ -2341,8 +2347,8 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     try {
-      const { type, data, metadata } = serialized;
-      return await this.#newKeyring(type, data, metadata);
+      const { type, data } = serialized;
+      return await this.#newKeyring(type, data);
     } catch (_) {
       this.#unsupportedKeyrings.push(serialized);
       return undefined;
@@ -2383,7 +2389,6 @@ export class KeyringController extends BaseController<
           validKeyrings.push(keyring);
         } else {
           await this.#destroyKeyring(keyring);
-          this.#keyringsMetadata = this.#keyringsMetadata.filter((_, i) => i !== index);
         }
       }),
     );
