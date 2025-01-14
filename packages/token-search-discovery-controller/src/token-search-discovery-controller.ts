@@ -1,7 +1,5 @@
-import {
-  BaseController,
-  type RestrictedControllerMessenger,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { TokenSearchResponseItem } from './types';
 
 export const TOKENSEARCH_EVENTS = {
