@@ -53,6 +53,6 @@ export const walletRevokeSession = {
   methodNames: ['wallet_revokeSession'],
   implementation: walletRevokeSessionHandler,
   hookNames: {
-    revokePermission: true,
+    revokePermissionForOrigin: true,
   },
 };
