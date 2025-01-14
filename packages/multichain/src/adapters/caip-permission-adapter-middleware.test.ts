@@ -21,7 +21,7 @@ const baseRequest = {
 const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
-  const getCaveat = jest.fn().mockReturnValue({
+  const getCaveatForOrigin = jest.fn().mockReturnValue({
     value: {
       requiredScopes: {
         'eip155:1': {
@@ -74,14 +74,14 @@ const createMockedHandler = () => {
     },
   ) =>
     caipPermissionAdapterMiddleware(request, {}, next, end, {
-      getCaveat,
+      getCaveatForOrigin,
       getNetworkConfigurationByNetworkClientId,
     });
 
   return {
     next,
     end,
-    getCaveat,
+    getCaveatForOrigin,
     getNetworkConfigurationByNetworkClientId,
     handler,
   };
@@ -89,18 +89,17 @@ const createMockedHandler = () => {
 
 describe('CaipPermissionAdapterMiddleware', () => {
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
-    const { handler, getCaveat } = createMockedHandler();
+    const { handler, getCaveatForOrigin } = createMockedHandler();
     await handler(baseRequest);
-    expect(getCaveat).toHaveBeenCalledWith(
-      'http://test.com',
+    expect(getCaveatForOrigin).toHaveBeenCalledWith(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
     );
   });
 
   it('allows the request when there is no CAIP-25 endowment permission', async () => {
-    const { handler, getCaveat, next } = createMockedHandler();
-    getCaveat.mockImplementation(() => {
+    const { handler, getCaveatForOrigin, next } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => {
       throw new Error('permission not found');
     });
     await handler(baseRequest);
@@ -108,8 +107,8 @@ describe('CaipPermissionAdapterMiddleware', () => {
   });
 
   it('allows the request when the CAIP-25 endowment permission was not granted from the multichain API', async () => {
-    const { handler, getCaveat, next } = createMockedHandler();
-    getCaveat.mockReturnValue({
+    const { handler, getCaveatForOrigin, next } = createMockedHandler();
+    getCaveatForOrigin.mockReturnValue({
       value: {
         isMultichainOrigin: false,
       },

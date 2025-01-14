@@ -23,7 +23,7 @@ import { getSessionScopes } from './caip-permission-adapter-session-scopes';
  * @param next - The next middleware function.
  * @param end - The end function.
  * @param hooks - The hooks object.
- * @param hooks.getCaveat - Function to retrieve a caveat.
+ * @param hooks.getCaveatForOrigin - Function to retrieve a caveat for the origin.
  * @param hooks.getNetworkConfigurationByNetworkClientId - Function to retrieve a network configuration.
  */
 export async function caipPermissionAdapterMiddleware(
@@ -35,7 +35,7 @@ export async function caipPermissionAdapterMiddleware(
   next: () => Promise<void>,
   end: (error?: Error) => void,
   hooks: {
-    getCaveat: (
+    getCaveatForOrigin: (
       ...args: unknown[]
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
     getNetworkConfigurationByNetworkClientId: (
@@ -47,8 +47,7 @@ export async function caipPermissionAdapterMiddleware(
 
   let caveat;
   try {
-    caveat = hooks.getCaveat(
-      request.origin,
+    caveat = hooks.getCaveatForOrigin(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
     );
