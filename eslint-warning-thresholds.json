@@ -12,7 +12,7 @@
   "import-x/no-named-as-default": 1,
   "import-x/no-named-as-default-member": 8,
   "import-x/order": 209,
-  "jest/no-conditional-in-test": 129,
+  "jest/no-conditional-in-test": 104,
   "jest/prefer-lowercase-title": 2,
   "jest/prefer-strict-equal": 2,
   "jsdoc/check-tag-names": 375,
