@@ -22,9 +22,49 @@ import type { Hex, } from '@metamask/utils';
 
 const controllerName = 'MultichainAssetsController';
 
+// Represents an asset unit.
+type FungibleAssetUnit = {
+  // Human-friendly name of the asset unit.
+  name: string;
+
+  // Ticker symbol of the asset unit.
+  symbol: string;
+
+  // Number of decimals of the asset unit.
+  decimals: number;
+};
+
+// Fungible asset metadata.
+type FungibleAssetMetadata = {
+  // Human-friendly name of the asset.
+  name: string;
+
+  // Ticker symbol of the asset's main unit.
+  symbol: string;
+
+  // Whether the asset is native to the chain.
+  native: boolean;
+
+  // Represents a fungible asset
+  fungible: true;
+
+  // Base64 representation of the asset icon.
+  iconBase64: string;
+
+  // List of asset units.
+  units: FungibleAssetUnit[];
+};
+
+// Represents the metadata of an asset.
+type AssetMetadata = FungibleAssetMetadata
+
 export type MultichainAssetsControllerState = {
-  allTokens: { [chainId: Hex]: { [key: string]: CaipAssetType[] } };
-  allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
+  allTokens: { [chain: string]: { [account: string]: { 
+    CaipAssetType: string; metadata: AssetMetadata; }[]
+  } } ;
+  allIgnoredTokens: { [chain: string]: { [account: string]: { 
+    CaipAssetType: string; metadata: AssetMetadata; }[]
+  } } ;
 };
 
 /**
