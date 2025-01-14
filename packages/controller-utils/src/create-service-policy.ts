@@ -53,6 +53,9 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * @param options - The options to this function.
  * @param options.maxConsecutiveFailures - The maximum number of times that the
  * service is allowed to fail before pausing further retries. Defaults to 12.
+ * @param options.circuitBreakDuration - The length of time (in milliseconds) to
+ * pause retries of the action after the number of failures reaches
+ * `maxConsecutiveFailures`.
  * @param options.degradedThreshold - The length of time (in milliseconds) that
  * governs when the service is regarded as degraded (affecting when `onDegraded`
  * is called). Defaults to 5 seconds.
@@ -73,6 +76,7 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  *   constructor() {
  *     this.#policy = createServicePolicy({
  *       maxConsecutiveFailures: 3,
+ *       circuitBreakDuration: 5000,
  *       degradedThreshold: 2000,
  *       onBreak: () => {
  *         console.log('Circuit broke');
@@ -94,6 +98,7 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  */
 export function createServicePolicy({
   maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
   degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
   onBreak = () => {
     // do nothing
@@ -124,10 +129,10 @@ export function createServicePolicy({
     // While the circuit is open, any additional invocations of the service
     // passed to the policy (either via automatic retries or by manually
     // executing the policy again) will result in a BrokenCircuitError. This
-    // will remain the case until the default circuit break duration passes,
-    // after which the service will be allowed to run again. If the service
-    // succeeds, the circuit will close, otherwise it will remain open.
-    halfOpenAfter: DEFAULT_CIRCUIT_BREAK_DURATION,
+    // will remain the case until `circuitBreakDuration` passes, after which the
+    // service will be allowed to run again. If the service succeeds, the
+    // circuit will close, otherwise it will remain open.
+    halfOpenAfter: circuitBreakDuration,
     breaker: new ConsecutiveBreaker(maxConsecutiveFailures),
   });
 
