@@ -19,7 +19,7 @@ const baseRequest: JsonRpcRequest & { origin: string } = {
 const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
-  const revokePermission = jest.fn();
+  const revokePermissionForOrigin = jest.fn();
   const response = {
     result: true,
     id: 1,
@@ -27,32 +27,31 @@ const createMockedHandler = () => {
   };
   const handler = (request: JsonRpcRequest & { origin: string }) =>
     walletRevokeSession.implementation(request, response, next, end, {
-      revokePermission,
+      revokePermissionForOrigin,
     });
 
   return {
     next,
     response,
     end,
-    revokePermission,
+    revokePermissionForOrigin,
     handler,
   };
 };
 
 describe('wallet_revokeSession', () => {
   it('revokes the the CAIP-25 endowment permission', async () => {
-    const { handler, revokePermission } = createMockedHandler();
+    const { handler, revokePermissionForOrigin } = createMockedHandler();
 
     await handler(baseRequest);
-    expect(revokePermission).toHaveBeenCalledWith(
-      'http://test.com',
+    expect(revokePermissionForOrigin).toHaveBeenCalledWith(
       Caip25EndowmentPermissionName,
     );
   });
 
   it('returns true if the CAIP-25 endowment permission does not exist', async () => {
-    const { handler, response, revokePermission } = createMockedHandler();
-    revokePermission.mockImplementation(() => {
+    const { handler, response, revokePermissionForOrigin } = createMockedHandler();
+    revokePermissionForOrigin.mockImplementation(() => {
       throw new PermissionDoesNotExistError(
         'foo.com',
         Caip25EndowmentPermissionName,
@@ -64,8 +63,8 @@ describe('wallet_revokeSession', () => {
   });
 
   it('returns true if the subject does not exist', async () => {
-    const { handler, response, revokePermission } = createMockedHandler();
-    revokePermission.mockImplementation(() => {
+    const { handler, response, revokePermissionForOrigin } = createMockedHandler();
+    revokePermissionForOrigin.mockImplementation(() => {
       throw new UnrecognizedSubjectError('foo.com');
     });
 
@@ -74,8 +73,8 @@ describe('wallet_revokeSession', () => {
   });
 
   it('throws an internal RPC error if something unexpected goes wrong with revoking the permission', async () => {
-    const { handler, revokePermission, end } = createMockedHandler();
-    revokePermission.mockImplementation(() => {
+    const { handler, revokePermissionForOrigin, end } = createMockedHandler();
+    revokePermissionForOrigin.mockImplementation(() => {
       throw new Error('revoke failed');
     });
 
