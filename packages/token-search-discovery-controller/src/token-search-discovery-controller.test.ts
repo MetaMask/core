@@ -1,8 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import {
-  TokenSearchDiscoveryController,
-  TokenSearchDiscoveryControllerMessenger,
-} from './token-search-discovery-controller';
+import { TokenSearchDiscoveryController } from './token-search-discovery-controller';
+import type { TokenSearchDiscoveryControllerMessenger } from './token-search-discovery-controller';
 import type { TokenSearchResponseItem } from './types';
 
 const controllerName = 'TokenSearchDiscoveryController';
