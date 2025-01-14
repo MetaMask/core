@@ -298,28 +298,32 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
   describe('handles corrupted user storage gracefully', () => {
     const arrangeMocksForBogusAccounts = async () => {
+      const accountsList =
+        MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[];
       const { messengerMocks, config, options } = await arrangeMocks({
         messengerMockOptions: {
           accounts: {
-            accountsList:
-              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+            accountsList,
           },
         },
       });
+
+      const userStorageList =
+        MOCK_USER_STORAGE_ACCOUNTS.TWO_DEFAULT_NAMES_WITH_ONE_BOGUS;
 
       return {
         config,
         options,
         messengerMocks,
+        accountsList,
+        userStorageList,
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
               USER_STORAGE_FEATURE_NAMES.accounts,
               {
                 status: 200,
-                body: await createMockUserStorageEntries(
-                  MOCK_USER_STORAGE_ACCOUNTS.TWO_DEFAULT_NAMES_WITH_ONE_BOGUS,
-                ),
+                body: await createMockUserStorageEntries(userStorageList),
               },
             ),
           mockEndpointBatchDeleteUserStorage:
@@ -363,20 +367,86 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
       expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
     });
 
-    it('fires the onAccountSyncErroneousSituation callback in erroneous situations', async () => {
-      const onAccountSyncErroneousSituation = jest.fn();
+    describe('Fires the onAccountSyncErroneousSituation callback on erroneous situations', () => {
+      it('And logs if the final state is incorrect', async () => {
+        const onAccountSyncErroneousSituation = jest.fn();
 
-      const { config, options } = await arrangeMocksForBogusAccounts();
+        const { config, options, userStorageList, accountsList } =
+          await arrangeMocksForBogusAccounts();
 
-      await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
-        {
-          ...config,
-          onAccountSyncErroneousSituation,
-        },
-        options,
-      );
+        await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+          {
+            ...config,
+            onAccountSyncErroneousSituation,
+          },
+          options,
+        );
 
-      expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(1);
+        expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
+        expect(onAccountSyncErroneousSituation.mock.calls).toEqual([
+          [
+            'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
+            {
+              internalAccountsList: accountsList,
+              internalAccountsToBeSavedToUserStorage: [],
+              refreshedInternalAccountsList: accountsList,
+              userStorageAccountsList: userStorageList,
+              userStorageAccountsToBeDeleted: [userStorageList[1]],
+            },
+          ],
+          [
+            'Erroneous situations were found during the sync, and final state does not match the expected state',
+            {
+              finalInternalAccountsList: accountsList,
+              finalUserStorageAccountsList: null,
+            },
+          ],
+        ]);
+      });
+
+      it('And logs if the final state is correct', async () => {
+        const onAccountSyncErroneousSituation = jest.fn();
+
+        const { config, options, userStorageList, accountsList } =
+          await arrangeMocksForBogusAccounts();
+
+        await mockEndpointGetUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          {
+            status: 200,
+            body: await createMockUserStorageEntries([userStorageList[0]]),
+          },
+        );
+
+        await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
+          {
+            ...config,
+            onAccountSyncErroneousSituation,
+          },
+          options,
+        );
+
+        expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
+        expect(onAccountSyncErroneousSituation.mock.calls).toEqual([
+          [
+            'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
+            {
+              internalAccountsList: accountsList,
+              internalAccountsToBeSavedToUserStorage: [],
+              refreshedInternalAccountsList: accountsList,
+              userStorageAccountsList: userStorageList,
+              userStorageAccountsToBeDeleted: [userStorageList[1]],
+            },
+          ],
+          [
+            'Erroneous situations were found during the sync, but final state matches the expected state',
+            {
+              finalInternalAccountsList: accountsList,
+              finalUserStorageAccountsList: [userStorageList[0]],
+            },
+          ],
+        ]);
+      });
     });
   });
 

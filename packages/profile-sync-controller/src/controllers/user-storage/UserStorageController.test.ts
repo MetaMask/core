@@ -173,9 +173,8 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
       getMetaMetricsState: () => true,
     });
 
-    const result = await controller.performGetStorageAllFeatureEntries(
-      'notifications',
-    );
+    const result =
+      await controller.performGetStorageAllFeatureEntries('notifications');
     mockAPI.done();
     expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
   });
@@ -893,7 +892,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       ) => {
         onAccountAdded?.();
         onAccountNameUpdated?.();
-        onAccountSyncErroneousSituation?.('error message');
+        onAccountSyncErroneousSituation?.('error message', {});
         getMessenger();
         getUserStorageControllerInstance();
         return undefined;
