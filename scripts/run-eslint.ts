@@ -4,20 +4,40 @@ import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
 
-const EXISTING_WARNINGS_FILE = path.resolve(
-  __dirname,
-  '../eslint-warning-thresholds.json',
+const PROJECT_DIRECTORY = path.resolve(__dirname, '..');
+
+const WARNING_THRESHOLDS_FILE = path.join(
+  PROJECT_DIRECTORY,
+  'eslint-warning-thresholds.json',
 );
 
 /**
- * An object mapping rule IDs to their warning counts.
+ * A two-level object mapping path to files in which warnings appear to the IDs
+ * of rules for those warnings, then from rule IDs to the number of warnings for
+ * the rule.
+ *
+ * @example
+ * ``` ts
+ * {
+ *   "foo.ts": {
+ *     "rule1": 3,
+ *     "rule2": 4
+ *   },
+ *   "bar.ts": {
+ *     "rule3": 17,
+ *     "rule4": 5
+ *   }
+ * }
+ * ```
  */
-type WarningCounts = Record<string, number>;
+type WarningCounts = Record<string, Record<string, number>>;
 
 /**
  * An object indicating the difference in warnings for a specific rule.
  */
 type WarningComparison = {
+  /** The file path of the ESLint rule. */
+  filePath: string;
   /** The ID of the ESLint rule. */
   ruleId: string;
   /** The previous count of warnings for the rule. */
@@ -136,34 +156,53 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
 
   if (Object.keys(warningThresholds).length === 0) {
     console.log(
-      'The following ESLint warnings were produced and will be captured as thresholds for future runs:\n',
+      chalk.blue(
+        'The following lint violations were produced and will be captured as thresholds for future runs:\n',
+      ),
     );
-    for (const [ruleId, count] of Object.entries(warningCounts)) {
-      console.log(`- ${ruleId}: ${count}`);
+    for (const [filePath, ruleCounts] of Object.entries(warningCounts)) {
+      console.log(`- ${filePath}`);
+      for (const [ruleId, count] of Object.entries(ruleCounts)) {
+        console.log(`  - ${chalk.cyan(ruleId)}: ${count}`);
+      }
     }
     saveWarningThresholds(warningCounts);
   } else {
-    const comparisons = compareWarnings(warningThresholds, warningCounts);
+    const comparisonsByFile = compareWarnings(warningThresholds, warningCounts);
 
-    const changes = comparisons.filter(
-      (comparison) => comparison.difference !== 0,
-    );
-    const regressions = comparisons.filter(
-      (comparison) => comparison.difference > 0,
-    );
+    const changes = Object.values(comparisonsByFile)
+      .flat()
+      .filter((comparison) => comparison.difference !== 0);
+    const regressions = Object.values(comparisonsByFile)
+      .flat()
+      .filter((comparison) => comparison.difference > 0);
 
     if (changes.length > 0) {
       if (regressions.length > 0) {
         console.log(
           chalk.red(
-            '🛑 New ESLint warnings have been introduced and need to be resolved for linting to pass:\n',
+            '🛑 New lint violations have been introduced and need to be resolved for linting to pass:\n',
           ),
         );
 
-        for (const { ruleId, threshold, count, difference } of changes) {
-          console.log(
-            `- ${chalk.blue(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
-          );
+        for (const [filePath, fileChanges] of Object.entries(
+          comparisonsByFile,
+        )) {
+          if (fileChanges.some((fileChange) => fileChange.difference > 0)) {
+            console.log(chalk.underline(filePath));
+            for (const {
+              ruleId,
+              threshold,
+              count,
+              difference,
+            } of fileChanges) {
+              if (difference > 0) {
+                console.log(
+                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
+                );
+              }
+            }
+          }
         }
 
         process.exitCode = 1;
@@ -174,14 +213,28 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
           ),
         );
 
-        for (const { ruleId, threshold, count, difference } of changes) {
-          console.log(
-            `- ${chalk.blue(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
-          );
+        for (const [filePath, fileChanges] of Object.entries(
+          comparisonsByFile,
+        )) {
+          if (fileChanges.some((fileChange) => fileChange.difference !== 0)) {
+            console.log(chalk.underline(filePath));
+            for (const {
+              ruleId,
+              threshold,
+              count,
+              difference,
+            } of fileChanges) {
+              if (difference !== 0) {
+                console.log(
+                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
+                );
+              }
+            }
+          }
         }
 
         console.log(
-          `\n${chalk.yellow(`\`${path.basename(EXISTING_WARNINGS_FILE)}\` has been updated with the new counts. Please make sure to commit the changes.`)}`,
+          `\n${chalk.yellow(`\`${path.basename(WARNING_THRESHOLDS_FILE)}\` has been updated with the new counts. Please make sure to commit the changes.`)}`,
         );
 
         saveWarningThresholds(warningCounts);
@@ -191,81 +244,128 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
 }
 
 /**
- * Loads previous warning counts from a file.
+ * Loads previous warning thresholds from a file.
  *
- * @returns An object mapping rule IDs to their previous warning counts.
+ * @returns The warning thresholds loaded from file.
  */
 function loadWarningThresholds(): WarningCounts {
-  if (fs.existsSync(EXISTING_WARNINGS_FILE)) {
-    const data = fs.readFileSync(EXISTING_WARNINGS_FILE, 'utf-8');
+  if (fs.existsSync(WARNING_THRESHOLDS_FILE)) {
+    const data = fs.readFileSync(WARNING_THRESHOLDS_FILE, 'utf-8');
     return JSON.parse(data);
   }
   return {};
 }
 
 /**
- * Saves current warning counts to a file so they can be used for a future run.
+ * Saves current warning counts to a file so they can be referenced in a future
+ * run.
  *
- * @param warningCounts - An object mapping rule IDs to their current warning
- * counts.
+ * @param newWarningCounts - The new warning thresholds to save.
  */
-function saveWarningThresholds(warningCounts: WarningCounts): void {
+function saveWarningThresholds(newWarningCounts: WarningCounts): void {
   fs.writeFileSync(
-    EXISTING_WARNINGS_FILE,
-    `${JSON.stringify(warningCounts, null, 2)}\n`,
+    WARNING_THRESHOLDS_FILE,
+    `${JSON.stringify(newWarningCounts, null, 2)}\n`,
     'utf-8',
   );
 }
 
 /**
  * Given a list of results from an the ESLint run, counts the number of warnings
- * produced per rule.
+ * produced per file and rule.
  *
  * @param results - The ESLint results.
- * @returns An object mapping rule IDs to their warning counts, sorted by rule
- * ID.
+ * @returns A two-level object mapping path to files in which warnings appear to
+ * the IDs of rules for those warnings, then from rule IDs to the number of
+ * warnings for the rule.
  */
 function getWarningCounts(results: ESLint.LintResult[]): WarningCounts {
-  const warningCounts = results.reduce((acc, result) => {
-    for (const message of result.messages) {
-      if (message.severity === WARNING && message.ruleId) {
-        acc[message.ruleId] = (acc[message.ruleId] ?? 0) + 1;
+  const unsortedWarningCounts = results.reduce(
+    (workingWarningCounts, result) => {
+      const { filePath } = result;
+      const relativeFilePath = path.relative(PROJECT_DIRECTORY, filePath);
+      for (const message of result.messages) {
+        if (message.severity === WARNING && message.ruleId) {
+          if (!workingWarningCounts[relativeFilePath]) {
+            workingWarningCounts[relativeFilePath] = {};
+          }
+          workingWarningCounts[relativeFilePath][message.ruleId] =
+            (workingWarningCounts[relativeFilePath][message.ruleId] ?? 0) + 1;
+        }
       }
-    }
-    return acc;
-  }, {} as WarningCounts);
+      return workingWarningCounts;
+    },
+    {} as WarningCounts,
+  );
 
-  return Object.keys(warningCounts)
-    .sort(sortRules)
-    .reduce((sortedWarningCounts, key) => {
-      return { ...sortedWarningCounts, [key]: warningCounts[key] };
-    }, {} as WarningCounts);
+  const sortedWarningCounts: WarningCounts = {};
+  for (const filePath of Object.keys(unsortedWarningCounts).sort()) {
+    // We can safely assume this property is present.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const unsortedWarningCountsForFile = unsortedWarningCounts[filePath]!;
+    sortedWarningCounts[filePath] = Object.keys(unsortedWarningCountsForFile)
+      .sort(sortRules)
+      .reduce(
+        (acc, ruleId) => {
+          // We can safely assume this property is present.
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          acc[ruleId] = unsortedWarningCountsForFile[ruleId]!;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+  }
+  return sortedWarningCounts;
 }
 
 /**
  * Compares previous and current warning counts.
  *
- * @param warningThresholds - An object mapping rule IDs to the warning
- * thresholds established in a previous run.
- * @param warningCounts - An object mapping rule IDs to the current warning
- * counts.
- * @returns An array of objects indicating comparisons in warnings.
+ * @param warningThresholds - The previously recorded warning thresholds
+ * (organized by file and then rule).
+ * @param warningCounts - The current warning counts (organized by file and then
+ * rule).
+ * @returns An object mapping file paths to arrays of objects indicating
+ * comparisons in warnings.
  */
 function compareWarnings(
   warningThresholds: WarningCounts,
   warningCounts: WarningCounts,
-): WarningComparison[] {
-  const ruleIds = Array.from(
+): Record<string, WarningComparison[]> {
+  const comparisons: Record<string, WarningComparison[]> = {};
+  const filePaths = Array.from(
     new Set([...Object.keys(warningThresholds), ...Object.keys(warningCounts)]),
   );
-  return ruleIds
-    .map((ruleId) => {
-      const threshold = warningThresholds[ruleId] ?? 0;
-      const count = warningCounts[ruleId] ?? 0;
-      const difference = count - threshold;
-      return { ruleId, threshold, count, difference };
-    })
-    .sort((a, b) => sortRules(a.ruleId, b.ruleId));
+
+  for (const filePath of filePaths) {
+    const ruleIds = Array.from(
+      new Set([
+        ...Object.keys(warningThresholds[filePath] || {}),
+        ...Object.keys(warningCounts[filePath] || {}),
+      ]),
+    );
+
+    comparisons[filePath] = ruleIds
+      .map((ruleId) => {
+        const threshold = warningThresholds[filePath]?.[ruleId] ?? 0;
+        const count = warningCounts[filePath]?.[ruleId] ?? 0;
+        const difference = count - threshold;
+        return { filePath, ruleId, threshold, count, difference };
+      })
+      .sort((a, b) => sortRules(a.ruleId, b.ruleId));
+  }
+
+  return Object.keys(comparisons)
+    .sort()
+    .reduce(
+      (sortedComparisons, filePath) => {
+        // We can safely assume this property is present.
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        sortedComparisons[filePath] = comparisons[filePath]!;
+        return sortedComparisons;
+      },
+      {} as Record<string, WarningComparison[]>,
+    );
 }
 
 /**
