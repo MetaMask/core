@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.1]
 
-### Uncategorized
+### Added
 
-- feat: add sentry context to erroneous situation callbacks ([#5139](https://github.com/MetaMask/core/pull/5139))
+- Add optional sentry context parameter to erroneous situation callbacks ([#5139](https://github.com/MetaMask/core/pull/5139))
 
 ## [4.0.0]
 
