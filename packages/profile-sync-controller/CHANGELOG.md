@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add sentry context to erroneous situation callbacks ([#5139](https://github.com/MetaMask/core/pull/5139))
+
 ## [4.0.0]
 
 ### Changed
