@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0]
+
 ### Uncategorized
 
 - feat: persist `isAccountSyncingReadyToBeDispatched` statue value ([#5147](https://github.com/MetaMask/core/pull/5147))
@@ -420,7 +422,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.1.0...HEAD
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.0.1...@metamask/profile-sync-controller@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.0.0...@metamask/profile-sync-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.3.0...@metamask/profile-sync-controller@4.0.0
 [3.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.2.0...@metamask/profile-sync-controller@3.3.0
