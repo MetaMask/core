@@ -126,7 +126,7 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: false,
   },
   isAccountSyncingReadyToBeDispatched: {
-    persist: false,
+    persist: true,
     anonymous: false,
   },
   isAccountSyncingInProgress: {
