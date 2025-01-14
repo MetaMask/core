@@ -28,6 +28,7 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
       type: 'eip155:eoa' as const,
       options: {},
       methods: [],
+      scopes: ['eip155'],
       metadata: {
         name: 'Account 1',
         keyring: { type: 'HD Key Tree' },

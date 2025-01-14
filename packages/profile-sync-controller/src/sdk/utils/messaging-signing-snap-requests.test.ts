@@ -1,6 +1,7 @@
-import type { Eip1193Provider } from 'ethers';
-
-import type { MockVariable } from '../__fixtures__/test-utils';
+import {
+  arrangeMockProvider,
+  type MockVariable,
+} from '../__fixtures__/test-utils';
 import type { Snap } from './messaging-signing-snap-requests';
 import {
   MESSAGE_SIGNING_SNAP,
@@ -83,16 +84,3 @@ describe('MESSAGE_SIGNING_SNAP.signMessage() tests', () => {
     expect(mockRequest).toHaveBeenCalled();
   });
 });
-
-/**
- * Mock utility - creates a mock provider
- * @returns mock provider
- */
-function arrangeMockProvider() {
-  const mockRequest = jest.fn();
-  const mockProvider: Eip1193Provider = {
-    request: mockRequest,
-  };
-
-  return { mockProvider, mockRequest };
-}

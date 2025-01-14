@@ -580,7 +580,7 @@ export class SignatureController extends BaseController<
 
     const metadata = {
       chainId,
-      id: random(),
+      id,
       messageParams: finalMessageParams,
       networkClientId,
       securityAlertResponse,
