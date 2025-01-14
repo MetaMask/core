@@ -5,6 +5,7 @@ import {
   handleAll,
   retry,
   wrap,
+  CircuitState,
 } from 'cockatiel';
 import type { IPolicy } from 'cockatiel';
 
@@ -29,6 +30,12 @@ export const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_MAX_RETRIES) * 3;
 export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
 
 /**
+ * The default length of time (in milliseconds) that governs when the service is
+ * regarded as degraded (affecting when `onDegraded` is called).
+ */
+export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
+
+/**
  * Constructs an object exposing an `execute` method which, given a function —
  * hereafter called the "service" — will retry that service with ever increasing
  * delays until it succeeds. If the policy detects too many consecutive
@@ -46,8 +53,17 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  * @param options - The options to this function.
  * @param options.maxConsecutiveFailures - The maximum number of times that the
  * service is allowed to fail before pausing further retries. Defaults to 12.
+ * @param options.circuitBreakDuration - The length of time (in milliseconds) to
+ * pause retries of the action after the number of failures reaches
+ * `maxConsecutiveFailures`.
+ * @param options.degradedThreshold - The length of time (in milliseconds) that
+ * governs when the service is regarded as degraded (affecting when `onDegraded`
+ * is called). Defaults to 5 seconds.
  * @param options.onBreak - A function which is called when the service fails
  * too many times in a row (specifically, more than `maxConsecutiveFailures`).
+ * @param options.onDegraded - A function which is called when the service
+ * succeeds before `maxConsecutiveFailures` is reached, but takes more time than
+ * the `degradedThreshold` to run.
  * @param options.onRetry - A function which will be called the moment the
  * policy kicks off a timer to re-run the function passed to the policy. This is
  * primarily useful in tests where we are mocking timers.
@@ -60,8 +76,13 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  *   constructor() {
  *     this.#policy = createServicePolicy({
  *       maxConsecutiveFailures: 3,
+ *       circuitBreakDuration: 5000,
+ *       degradedThreshold: 2000,
  *       onBreak: () => {
  *         console.log('Circuit broke');
+ *       },
+ *       onDegraded: () => {
+ *         console.log('Service is degraded');
  *       },
  *     });
  *   }
@@ -77,7 +98,12 @@ export const DEFAULT_CIRCUIT_BREAK_DURATION = 30 * 60 * 1000;
  */
 export function createServicePolicy({
   maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
+  degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
   onBreak = () => {
+    // do nothing
+  },
+  onDegraded = () => {
     // do nothing
   },
   onRetry = () => {
@@ -85,7 +111,10 @@ export function createServicePolicy({
   },
 }: {
   maxConsecutiveFailures?: number;
+  circuitBreakDuration?: number;
+  degradedThreshold?: number;
   onBreak?: () => void;
+  onDegraded?: () => void;
   onRetry?: () => void;
 } = {}): IPolicy {
   const retryPolicy = retry(handleAll, {
@@ -101,10 +130,10 @@ export function createServicePolicy({
     // While the circuit is open, any additional invocations of the service
     // passed to the policy (either via automatic retries or by manually
     // executing the policy again) will result in a BrokenCircuitError. This
-    // will remain the case until the default circuit break duration passes,
-    // after which the service will be allowed to run again. If the service
-    // succeeds, the circuit will close, otherwise it will remain open.
-    halfOpenAfter: DEFAULT_CIRCUIT_BREAK_DURATION,
+    // will remain the case until `circuitBreakDuration` passes, after which the
+    // service will be allowed to run again. If the service succeeds, the
+    // circuit will close, otherwise it will remain open.
+    halfOpenAfter: circuitBreakDuration,
     breaker: new ConsecutiveBreaker(maxConsecutiveFailures),
   });
 
@@ -121,6 +150,26 @@ export function createServicePolicy({
   // The `onRetryPolicy` callback will be called each time the service is
   // invoked (including retries).
   retryPolicy.onRetry(onRetry);
+
+  retryPolicy.onGiveUp(() => {
+    if (circuitBreakerPolicy.state === CircuitState.Closed) {
+      // The `onDegraded` callback will be called if the number of retries is
+      // exceeded and the maximum number of consecutive failures has not been
+      // reached yet (whether the policy is called once or multiple times).
+      onDegraded();
+    }
+  });
+  retryPolicy.onSuccess(({ duration }) => {
+    if (
+      circuitBreakerPolicy.state === CircuitState.Closed &&
+      duration > degradedThreshold
+    ) {
+      // The `onDegraded` callback will also be called if the service does not
+      // throw, but the time it takes for the service to run exceeds the
+      // `degradedThreshold`.
+      onDegraded();
+    }
+  });
 
   // The retry policy really retries the circuit breaker policy, which invokes
   // the service.
