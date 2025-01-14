@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Persist `isAccountSyncingReadyToBeDispatched` statue value ([#5147](https://github.com/MetaMask/core/pull/5147))
+- Persist `isAccountSyncingReadyToBeDispatched` state value ([#5147](https://github.com/MetaMask/core/pull/5147))
 
 ## [4.0.1]
 
