@@ -37,7 +37,7 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  * @param next - The next middleware function.
  * @param end - The end function.
  * @param hooks - The hooks object.
- * @param hooks.getCaveat - the hook for getting a caveat from a permission for an origin.
+ * @param hooks.getCaveatForOrigin - the hook for getting a caveat from a permission for an origin.
  * @param hooks.findNetworkClientIdByChainId - the hook for finding the networkClientId for a chainId.
  * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
  */
@@ -47,8 +47,7 @@ async function walletInvokeMethodHandler(
   next: () => void,
   end: (error: Error) => void,
   hooks: {
-    getCaveat: (
-      origin: string,
+    getCaveatForOrigin: (
       endowmentPermissionName: string,
       caveatType: string,
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
@@ -62,8 +61,7 @@ async function walletInvokeMethodHandler(
 
   let caveat;
   try {
-    caveat = hooks.getCaveat(
-      request.origin,
+    caveat = hooks.getCaveatForOrigin(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
     );
@@ -122,7 +120,7 @@ export const walletInvokeMethod = {
   methodNames: ['wallet_invokeMethod'],
   implementation: walletInvokeMethodHandler,
   hookNames: {
-    getCaveat: true,
+    getCaveatForOrigin: true,
     findNetworkClientIdByChainId: true,
     getSelectedNetworkClientId: true,
   },

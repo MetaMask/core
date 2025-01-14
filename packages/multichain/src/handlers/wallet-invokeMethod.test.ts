@@ -34,7 +34,7 @@ const createMockedRequest = () => ({
 const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
-  const getCaveat = jest.fn().mockReturnValue({
+  const getCaveatForOrigin = jest.fn().mockReturnValue({
     value: {
       requiredScopes: {
         'eip155:1': {
@@ -66,7 +66,7 @@ const createMockedHandler = () => {
       next,
       end,
       {
-        getCaveat,
+        getCaveatForOrigin,
         findNetworkClientIdByChainId,
         getSelectedNetworkClientId,
       },
@@ -75,7 +75,7 @@ const createMockedHandler = () => {
   return {
     next,
     end,
-    getCaveat,
+    getCaveatForOrigin,
     findNetworkClientIdByChainId,
     getSelectedNetworkClientId,
     handler,
@@ -110,10 +110,9 @@ describe('wallet_invokeMethod', () => {
 
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
     const request = createMockedRequest();
-    const { handler, getCaveat } = createMockedHandler();
+    const { handler, getCaveatForOrigin } = createMockedHandler();
     await handler(request);
-    expect(getCaveat).toHaveBeenCalledWith(
-      'http://test.com',
+    expect(getCaveatForOrigin).toHaveBeenCalledWith(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
     );
@@ -148,8 +147,8 @@ describe('wallet_invokeMethod', () => {
 
   it('throws an unauthorized error when there is no CAIP-25 endowment permission', async () => {
     const request = createMockedRequest();
-    const { handler, getCaveat, end } = createMockedHandler();
-    getCaveat.mockImplementation(() => {
+    const { handler, getCaveatForOrigin, end } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => {
       throw new Error('permission not found');
     });
     await handler(request);
@@ -158,8 +157,8 @@ describe('wallet_invokeMethod', () => {
 
   it('throws an unauthorized error when the CAIP-25 endowment permission was not granted from the multichain flow', async () => {
     const request = createMockedRequest();
-    const { handler, getCaveat, end } = createMockedHandler();
-    getCaveat.mockReturnValue({
+    const { handler, getCaveatForOrigin, end } = createMockedHandler();
+    getCaveatForOrigin.mockReturnValue({
       value: {
         isMultichainOrigin: false,
       },

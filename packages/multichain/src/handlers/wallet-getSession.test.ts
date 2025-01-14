@@ -25,7 +25,7 @@ const baseRequest: JsonRpcRequest & { origin: string } = {
 const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
-  const getCaveat = jest.fn().mockReturnValue({
+  const getCaveatForOrigin = jest.fn().mockReturnValue({
     value: {
       requiredScopes: {
         'eip155:1': {
@@ -54,33 +54,32 @@ const createMockedHandler = () => {
   };
   const handler = (request: JsonRpcRequest & { origin: string }) =>
     walletGetSession.implementation(request, response, next, end, {
-      getCaveat,
+      getCaveatForOrigin,
     });
 
   return {
     next,
     response,
     end,
-    getCaveat,
+    getCaveatForOrigin,
     handler,
   };
 };
 
 describe('wallet_getSession', () => {
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
-    const { handler, getCaveat } = createMockedHandler();
+    const { handler, getCaveatForOrigin } = createMockedHandler();
 
     await handler(baseRequest);
-    expect(getCaveat).toHaveBeenCalledWith(
-      'http://test.com',
+    expect(getCaveatForOrigin).toHaveBeenCalledWith(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
     );
   });
 
   it('returns empty scopes if the CAIP-25 endowment permission does not exist', async () => {
-    const { handler, response, getCaveat } = createMockedHandler();
-    getCaveat.mockImplementation(() => {
+    const { handler, response, getCaveatForOrigin } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => {
       throw new Error('permission not found');
     });
 

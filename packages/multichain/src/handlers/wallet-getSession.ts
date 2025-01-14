@@ -20,7 +20,7 @@ import {
  * @param _next - The next middleware function. Unused.
  * @param end - The end function.
  * @param hooks - The hooks object.
- * @param hooks.getCaveat - Function to retrieve a caveat.
+ * @param hooks.getCaveatForOrigin - Function to retrieve a caveat for the origin.
  */
 async function walletGetSessionHandler(
   request: JsonRpcRequest & { origin: string },
@@ -28,8 +28,7 @@ async function walletGetSessionHandler(
   _next: () => void,
   end: () => void,
   hooks: {
-    getCaveat: (
-      origin: string,
+    getCaveatForOrigin: (
       endowmentPermissionName: string,
       caveatType: string,
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
@@ -37,8 +36,7 @@ async function walletGetSessionHandler(
 ) {
   let caveat;
   try {
-    caveat = hooks.getCaveat(
-      request.origin,
+    caveat = hooks.getCaveatForOrigin(
       Caip25EndowmentPermissionName,
       Caip25CaveatType,
     );
@@ -61,6 +59,6 @@ export const walletGetSession = {
   methodNames: ['wallet_getSession'],
   implementation: walletGetSessionHandler,
   hookNames: {
-    getCaveat: true,
+    getCaveatForOrigin: true,
   },
 };
