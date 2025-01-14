@@ -80,6 +80,8 @@ const config = createConfig([
       // TODO: These rules created more errors after the upgrade to ESLint 9.
       // Re-enable these rules and address any lint violations.
       'jest/no-conditional-in-test': 'warn',
+      'jest/prefer-lowercase-title': 'warn',
+      'jest/prefer-strict-equal': 'warn',
     },
   },
   {

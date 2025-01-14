@@ -94,14 +94,19 @@ async function runESLint(
   options: { quiet: boolean; fix: boolean },
 ): Promise<ESLint.LintResult[]> {
   let results = await eslint.lintFiles(['.']);
+  const errorResults = ESLint.getErrorResults(results);
+
+  if (errorResults.length > 0) {
+    process.exitCode = 1;
+  }
+
+  if (options.quiet) {
+    results = errorResults;
+  }
 
   const formatter = await eslint.loadFormatter('stylish');
   const resultText = formatter.format(results);
   console.log(resultText);
-
-  if (options.quiet) {
-    results = ESLint.getErrorResults(results);
-  }
 
   if (options.fix) {
     await ESLint.outputFixes(results);
@@ -156,19 +161,18 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
         console.log(
           'The overall number of ESLint warnings have decreased, good work! ❤️ \n',
         );
+        // We are still seeing differences on CI when it comes to linting
+        // results. Never write the thresholds file in that case.
+        // eslint-disable-next-line n/no-process-env
+        if (!process.env.CI) {
+          saveWarningThresholds(warningCounts);
+        }
       }
+
       for (const { ruleId, threshold, count, difference } of changes) {
         console.log(
           `- ${ruleId}: ${threshold} -> ${count} (${difference > 0 ? '+' : ''}${difference})`,
         );
-      }
-      // We are still seeing differences on CI when it comes to linting results.
-      // Only write the thresholds file if there are regressions in that case
-      // to prevent the "working directory clean" step in CI from failing.
-      // Also, it's okay to use `process.env` as this is a script.
-      // eslint-disable-next-line n/no-process-env
-      if (regressions.length > 0 || !process.env.CI) {
-        saveWarningThresholds(warningCounts);
       }
     }
   }
