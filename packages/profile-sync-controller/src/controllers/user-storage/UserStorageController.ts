@@ -161,6 +161,7 @@ type ControllerConfig = {
     onAccountSyncErroneousSituation?: (
       profileId: string,
       situationMessage: string,
+      sentryContext?: Record<string, unknown>,
     ) => void;
   };
 
@@ -864,10 +865,11 @@ export default class UserStorageController extends BaseController<
           this.#config?.accountSyncing?.onAccountAdded?.(profileId),
         onAccountNameUpdated: () =>
           this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
-        onAccountSyncErroneousSituation: (situationMessage) =>
+        onAccountSyncErroneousSituation: (situationMessage, sentryContext) =>
           this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
             profileId,
             situationMessage,
+            sentryContext,
           ),
       },
       {
