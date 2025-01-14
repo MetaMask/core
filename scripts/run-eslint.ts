@@ -161,7 +161,12 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
         console.log(
           'The overall number of ESLint warnings have decreased, good work! ❤️ \n',
         );
-        saveWarningThresholds(warningCounts);
+        // We are still seeing differences on CI when it comes to linting
+        // results. Never write the thresholds file in that case.
+        // eslint-disable-next-line n/no-process-env
+        if (!process.env.CI) {
+          saveWarningThresholds(warningCounts);
+        }
       }
 
       for (const { ruleId, threshold, count, difference } of changes) {
