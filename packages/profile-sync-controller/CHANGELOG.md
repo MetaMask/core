@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
-### Uncategorized
+### Changed
 
-- feat: persist `isAccountSyncingReadyToBeDispatched` statue value ([#5147](https://github.com/MetaMask/core/pull/5147))
+- Persist `isAccountSyncingReadyToBeDispatched` statue value ([#5147](https://github.com/MetaMask/core/pull/5147))
 
 ## [4.0.1]
 
