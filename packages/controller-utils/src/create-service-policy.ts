@@ -111,6 +111,7 @@ export function createServicePolicy({
   },
 }: {
   maxConsecutiveFailures?: number;
+  circuitBreakDuration?: number;
   degradedThreshold?: number;
   onBreak?: () => void;
   onDegraded?: () => void;
