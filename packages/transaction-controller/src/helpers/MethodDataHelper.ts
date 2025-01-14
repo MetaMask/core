@@ -3,7 +3,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 // This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';

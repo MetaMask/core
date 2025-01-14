@@ -7,7 +7,7 @@ import type {
 import type { ApprovalType } from '@metamask/controller-utils';
 import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
 import type { Draft } from 'immer';
 import { v1 as random } from 'uuid';
