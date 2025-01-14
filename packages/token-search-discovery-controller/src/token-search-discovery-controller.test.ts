@@ -1,24 +1,18 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   TokenSearchDiscoveryController,
-  TOKENSEARCH_EVENTS,
   TokenSearchDiscoveryControllerMessenger,
 } from './token-search-discovery-controller';
 import type { TokenSearchResponseItem } from './types';
 
-const name = 'TokenSearchDiscoveryController';
-
-type Events = {
-  type: (typeof TOKENSEARCH_EVENTS)[keyof typeof TOKENSEARCH_EVENTS];
-  payload: [TokenSearchResponseItem[]];
-};
+const controllerName = 'TokenSearchDiscoveryController';
 
 function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<never, Events>();
+  const controllerMessenger = new ControllerMessenger<never, never>();
   return controllerMessenger.getRestricted({
-    name,
+    name: controllerName,
     allowedActions: [],
-    allowedEvents: [TOKENSEARCH_EVENTS.SEARCH_COMPLETED],
+    allowedEvents: [],
   }) as TokenSearchDiscoveryControllerMessenger;
 }
 
@@ -77,7 +71,7 @@ describe('TokenSearchDiscoveryController', () => {
 
       const controller = new TokenSearchDiscoveryController({
         portfolioApiUrl: mockPortfolioApiUrl,
-        initialState,
+        state: initialState,
         messenger: getRestrictedMessenger(),
       });
 
@@ -170,7 +164,7 @@ describe('TokenSearchDiscoveryController', () => {
     it('should clear recent searches from state', () => {
       const controller = new TokenSearchDiscoveryController({
         portfolioApiUrl: mockPortfolioApiUrl,
-        initialState: {
+        state: {
           recentSearches: mockSearchResults,
           lastSearchTimestamp: 123,
         },

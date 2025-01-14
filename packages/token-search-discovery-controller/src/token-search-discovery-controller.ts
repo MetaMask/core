@@ -1,67 +1,132 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TokenSearchResponseItem } from './types';
 
-export const TOKENSEARCH_EVENTS = {
-  SEARCH_COMPLETED: 'SEARCH_COMPLETED',
-} as const;
+// === GENERAL ===
 
-const name = 'TokenSearchDiscoveryController';
+const controllerName = 'TokenSearchDiscoveryController';
 
-type Events = {
-  type: (typeof TOKENSEARCH_EVENTS)[keyof typeof TOKENSEARCH_EVENTS];
-  payload: [TokenSearchResponseItem[]];
-};
+// === STATE ===
 
-export type TokenSearchDiscoveryControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof name,
-    never,
-    Events,
-    never,
-    (typeof TOKENSEARCH_EVENTS)[keyof typeof TOKENSEARCH_EVENTS]
-  >;
-
-export type TokenSearchDiscoveryState = {
+export type TokenSearchDiscoveryControllerState = {
   recentSearches: TokenSearchResponseItem[];
   lastSearchTimestamp: number | null;
 };
 
-const defaultState: TokenSearchDiscoveryState = {
-  recentSearches: [],
-  lastSearchTimestamp: null,
-};
+const tokenSearchDiscoveryControllerMetadata = {
+  recentSearches: { persist: true, anonymous: false },
+  lastSearchTimestamp: { persist: true, anonymous: false },
+} as const;
 
+// === MESSENGER ===
+
+/**
+ * The action which can be used to retrieve the state of the
+ * {@link TokenSearchDiscoveryController}.
+ */
+export type TokenSearchDiscoveryControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    TokenSearchDiscoveryControllerState
+  >;
+
+/**
+ * All actions that {@link TokenSearchDiscoveryController} registers, to be
+ * called externally.
+ */
+export type TokenSearchDiscoveryControllerActions =
+  TokenSearchDiscoveryControllerGetStateAction;
+
+/**
+ * All actions that {@link TokenSearchDiscoveryController} calls internally.
+ */
+type AllowedActions = never;
+
+/**
+ * The event that {@link TokenSearchDiscoveryController} publishes when updating
+ * state.
+ */
+export type TokenSearchDiscoveryControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    TokenSearchDiscoveryControllerState
+  >;
+
+/**
+ * All events that {@link TokenSearchDiscoveryController} publishes, to be
+ * subscribed to externally.
+ */
+export type TokenSearchDiscoveryControllerEvents =
+  TokenSearchDiscoveryControllerStateChangeEvent;
+
+/**
+ * All events that {@link TokenSearchDiscoveryController} subscribes to internally.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger which is restricted to actions and events accessed by
+ * {@link TokenSearchDiscoveryController}.
+ */
+export type TokenSearchDiscoveryControllerMessenger =
+  RestrictedControllerMessenger<
+    typeof controllerName,
+    TokenSearchDiscoveryControllerActions | AllowedActions,
+    TokenSearchDiscoveryControllerEvents | AllowedEvents,
+    AllowedActions['type'],
+    AllowedEvents['type']
+  >;
+
+/**
+ * Constructs the default {@link TokenSearchDiscoveryController} state. This allows
+ * consumers to provide a partial state object when initializing the controller
+ * and also helps in constructing complete state objects for this controller in
+ * tests.
+ *
+ * @returns The default {@link TokenSearchDiscoveryController} state.
+ */
+export function getDefaultTokenSearchDiscoveryControllerState(): TokenSearchDiscoveryControllerState {
+  return {
+    recentSearches: [],
+    lastSearchTimestamp: null,
+  };
+}
+
+/**
+ * The TokenSearchDiscoveryController manages the retrieval of token search results and token discovery.
+ * It fetches token search results from the portfolio API.
+ */
 export class TokenSearchDiscoveryController extends BaseController<
-  typeof name,
-  TokenSearchDiscoveryState,
+  typeof controllerName,
+  TokenSearchDiscoveryControllerState,
   TokenSearchDiscoveryControllerMessenger
 > {
-  private readonly baseUrl: string;
+  readonly #baseUrl: string;
 
   constructor({
     portfolioApiUrl,
-    initialState,
+    state = {},
     messenger,
   }: {
     portfolioApiUrl: string;
-    initialState?: TokenSearchDiscoveryState;
+    state?: Partial<TokenSearchDiscoveryControllerState>;
     messenger: TokenSearchDiscoveryControllerMessenger;
   }) {
     super({
-      name,
-      metadata: {
-        recentSearches: { persist: true, anonymous: false },
-        lastSearchTimestamp: { persist: true, anonymous: false },
-      },
+      name: controllerName,
+      metadata: tokenSearchDiscoveryControllerMetadata,
       messenger,
-      state: { ...defaultState, ...initialState },
+      state: { ...getDefaultTokenSearchDiscoveryControllerState(), ...state },
     });
 
     if (!portfolioApiUrl) {
       throw new Error('Portfolio API URL is not set');
     }
-    this.baseUrl = portfolioApiUrl;
+    this.#baseUrl = portfolioApiUrl;
   }
 
   async searchTokens(
@@ -101,7 +166,7 @@ export class TokenSearchDiscoveryController extends BaseController<
     endpoint: string,
     options?: RequestInit,
   ): Promise<T> {
-    const url = `${this.baseUrl}/${endpoint}`;
+    const url = `${this.#baseUrl}/${endpoint}`;
     const response = await fetch(url, options);
 
     if (!response.ok) {
