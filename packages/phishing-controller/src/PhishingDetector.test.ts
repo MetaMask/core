@@ -1110,7 +1110,7 @@ describe('PhishingDetector', () => {
         ];
 
         // CID should be blocked
-        for await (const entry of expectedToBeBlocked) {
+        for (const entry of expectedToBeBlocked) {
           await withPhishingDetector(
             [
               {

@@ -71,7 +71,6 @@ export function createNetworkClient(
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
-    // eslint-disable-next-line n/no-process-env
     process.env.IN_TEST && networkConfig.type === 'custom'
       ? { pollingInterval: SECOND }
       : {};
@@ -190,7 +189,6 @@ function createCustomNetworkMiddleware({
   chainId: Hex;
   rpcApiMiddleware: JsonRpcMiddleware<JsonRpcParams, Json>;
 }): JsonRpcMiddleware<JsonRpcParams, Json> {
-  // eslint-disable-next-line n/no-process-env
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];
