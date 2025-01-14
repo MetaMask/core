@@ -940,7 +940,7 @@ class TokensController extends BaseController</* ... */> {
     messenger,
   }: // ...
   {
-    messenger: TokensMessenger;
+    messenger: TokensControllerMessenger;
     // ...
   }) {
     // ...
@@ -1296,7 +1296,7 @@ type AllowedActions =
   | AccountsControllerGetActiveAccountsAction
   | AccountsControllerGetInactiveAccountsAction;
 
-export type TokensMessenger = RestrictedMessenger<
+export type TokensControllerMessenger = RestrictedMessenger<
   'TokensController',
   AllowedActions,
   never,
@@ -1309,7 +1309,7 @@ class TokensController extends BaseController</* ... */> {
     messenger,
   }: // ...
   {
-    messenger: TokensMessenger;
+    messenger: TokensControllerMessenger;
     // ...
   }) {
     // ...
@@ -1394,7 +1394,7 @@ import { accountsControllerSelectors } from '@metamask/accounts-controller';
 
 type AllowedActions = AccountsControllerGetStateAction;
 
-export type TokensMessenger = RestrictedMessenger<
+export type TokensControllerMessenger = RestrictedMessenger<
   'TokensController',
   AllowedActions,
   never,
@@ -1407,7 +1407,7 @@ class TokensController extends BaseController</* ... */> {
     messenger,
     // ...
   }: {
-    messenger: TokensMessenger,
+    messenger: TokensControllerMessenger,
     // ...
   }) {
     // ...
