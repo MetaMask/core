@@ -1,7 +1,11 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { TokenSearchDiscoveryController } from './token-search-discovery-controller';
+import {
+  getDefaultTokenSearchDiscoveryControllerState,
+  TokenSearchDiscoveryController,
+} from './token-search-discovery-controller';
 import type { TokenSearchDiscoveryControllerMessenger } from './token-search-discovery-controller';
 import type { TokenSearchResponseItem } from './types';
+import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
 
 const controllerName = 'TokenSearchDiscoveryController';
 
@@ -15,7 +19,6 @@ function getRestrictedMessenger() {
 }
 
 describe('TokenSearchDiscoveryController', () => {
-  const mockPortfolioApiUrl = 'https://portfolio.dev-api.cx.metamask.io';
   const mockSearchResults: TokenSearchResponseItem[] = [
     {
       name: 'Test Token',
@@ -29,36 +32,22 @@ describe('TokenSearchDiscoveryController', () => {
     },
   ];
 
-  beforeEach(() => {
-    global.fetch = jest.fn();
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
+  class MockTokenSearchService extends AbstractTokenSearchApiService {
+    async searchTokens(): Promise<TokenSearchResponseItem[]> {
+      return mockSearchResults;
+    }
+  }
 
   describe('constructor', () => {
     it('should initialize with default state', () => {
       const controller = new TokenSearchDiscoveryController({
-        portfolioApiUrl: mockPortfolioApiUrl,
+        tokenSearchService: new MockTokenSearchService(),
         messenger: getRestrictedMessenger(),
       });
 
-      expect(controller.state).toStrictEqual({
-        recentSearches: [],
-        lastSearchTimestamp: null,
-      });
-    });
-
-    it('should throw if portfolioApiUrl is not provided', () => {
-      expect(
-        () =>
-          new TokenSearchDiscoveryController({
-            portfolioApiUrl: '',
-            messenger: getRestrictedMessenger(),
-          }),
-      ).toThrow('Portfolio API URL is not set');
+      expect(controller.state).toStrictEqual(
+        getDefaultTokenSearchDiscoveryControllerState(),
+      );
     });
 
     it('should initialize with initial state', () => {
@@ -68,113 +57,48 @@ describe('TokenSearchDiscoveryController', () => {
       };
 
       const controller = new TokenSearchDiscoveryController({
-        portfolioApiUrl: mockPortfolioApiUrl,
+        tokenSearchService: new MockTokenSearchService(),
         state: initialState,
         messenger: getRestrictedMessenger(),
       });
 
       expect(controller.state).toStrictEqual(initialState);
     });
+
+    it('should merge to complete state', () => {
+      const partialState = {
+        recentSearches: mockSearchResults,
+      };
+
+      const controller = new TokenSearchDiscoveryController({
+        tokenSearchService: new MockTokenSearchService(),
+        state: partialState,
+        messenger: getRestrictedMessenger(),
+      });
+
+      expect(controller.state).toStrictEqual({
+        ...getDefaultTokenSearchDiscoveryControllerState(),
+        ...partialState,
+      });
+    });
   });
 
   describe('searchTokens', () => {
-    it('should fetch tokens and update state', async () => {
+    it('should update state with search results', async () => {
+      const mockService = new MockTokenSearchService();
       const controller = new TokenSearchDiscoveryController({
-        portfolioApiUrl: mockPortfolioApiUrl,
+        tokenSearchService: mockService,
         messenger: getRestrictedMessenger(),
       });
 
-      (global.fetch as jest.Mock).mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockSearchResults),
-        }),
-      );
-
-      const timestamp = Date.now();
-      jest.setSystemTime(timestamp);
-
-      const results = await controller.searchTokens(['1'], 'TEST', '10');
-
-      expect(results).toEqual(mockSearchResults);
-      expect(controller.state).toStrictEqual({
-        recentSearches: mockSearchResults,
-        lastSearchTimestamp: timestamp,
-      });
-      expect(fetch).toHaveBeenCalledWith(
-        `${mockPortfolioApiUrl}/tokens-search/name?chains=1&name=TEST&limit=10`,
-        expect.objectContaining({
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
-    });
-
-    it('should handle empty parameters', async () => {
-      const controller = new TokenSearchDiscoveryController({
-        portfolioApiUrl: mockPortfolioApiUrl,
-        messenger: getRestrictedMessenger(),
+      const response = await controller.searchTokens({
+        chains: ['1'],
+        name: 'Test',
       });
 
-      (global.fetch as jest.Mock).mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockSearchResults),
-        }),
-      );
-
-      await controller.searchTokens();
-
-      expect(fetch).toHaveBeenCalledWith(
-        `${mockPortfolioApiUrl}/tokens-search/name?`,
-        expect.objectContaining({
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }),
-      );
-    });
-
-    it('should handle API errors', async () => {
-      const controller = new TokenSearchDiscoveryController({
-        portfolioApiUrl: mockPortfolioApiUrl,
-        messenger: getRestrictedMessenger(),
-      });
-
-      (global.fetch as jest.Mock).mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: false,
-          status: 500,
-        }),
-      );
-
-      await expect(controller.searchTokens()).rejects.toThrow(
-        'Portfolio API request failed with status: 500',
-      );
-      expect(controller.state.recentSearches).toEqual([]);
-    });
-  });
-
-  describe('clearRecentSearches', () => {
-    it('should clear recent searches from state', () => {
-      const controller = new TokenSearchDiscoveryController({
-        portfolioApiUrl: mockPortfolioApiUrl,
-        state: {
-          recentSearches: mockSearchResults,
-          lastSearchTimestamp: 123,
-        },
-        messenger: getRestrictedMessenger(),
-      });
-
-      controller.clearRecentSearches();
-
-      expect(controller.state).toStrictEqual({
-        recentSearches: [],
-        lastSearchTimestamp: null,
-      });
+      expect(response).toStrictEqual(mockSearchResults);
+      expect(controller.state.recentSearches).toStrictEqual(mockSearchResults);
+      expect(controller.state.lastSearchTimestamp).toBeDefined();
     });
   });
 });
