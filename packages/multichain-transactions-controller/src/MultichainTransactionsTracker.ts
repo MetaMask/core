@@ -11,9 +11,9 @@ type TransactionInfo = {
 const TRANSACTIONS_TRACKING_INTERVAL = 5 * 1000;
 
 export class MultichainTransactionsTracker {
-  #poller: Poller;
+  readonly #poller: Poller;
 
-  #updateTransactions: (
+  readonly #updateTransactions: (
     accountId: string,
     pagination: PaginationOptions,
   ) => Promise<void>;

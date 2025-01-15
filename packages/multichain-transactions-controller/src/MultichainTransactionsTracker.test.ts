@@ -2,8 +2,8 @@ import { SolAccountType, SolMethod } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { v4 as uuidv4 } from 'uuid';
 
-import { Poller } from './Poller';
 import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
+import { Poller } from './Poller';
 
 const MOCK_TIMESTAMP = 1733788800;
 
@@ -30,6 +30,8 @@ const mockSolanaAccount = {
 
 /**
  * Creates and returns a new MultichainTransactionsTracker instance with a mock update function.
+ *
+ * @returns The tracker instance and mock update function.
  */
 function setupTracker(): {
   tracker: MultichainTransactionsTracker;

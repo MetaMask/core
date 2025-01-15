@@ -1,5 +1,3 @@
-import type { Json, JsonRpcRequest } from '@metamask/utils';
-
 import {
   BaseController,
   type ControllerGetStateAction,
@@ -12,12 +10,14 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { Draft } from 'immer';
 import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
+import type { Draft } from 'immer';
+
 import { MultichainNetworks, TRANSACTIONS_CHECK_INTERVALS } from './constants';
 import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
@@ -141,7 +141,7 @@ export class MultichainTransactionsController extends BaseController<
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger
 > {
-  #tracker: MultichainTransactionsTracker;
+  readonly #tracker: MultichainTransactionsTracker;
 
   constructor({
     messenger,

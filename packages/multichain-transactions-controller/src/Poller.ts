@@ -1,7 +1,7 @@
 export class Poller {
-  #interval: number;
+  readonly #interval: number;
 
-  #callback: () => void;
+  readonly #callback: () => void;
 
   #handle: NodeJS.Timeout | undefined = undefined;
 
