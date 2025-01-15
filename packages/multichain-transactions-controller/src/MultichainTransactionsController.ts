@@ -226,8 +226,9 @@ export class MultichainTransactionsController extends BaseController<
        * All other chain transactions are included as-is
        */
       const transactions = response.data.filter((tx) => {
-        if (tx.chain.startsWith(MultichainNetworks.Solana)) {
-          return tx.chain === MultichainNetworks.Solana;
+        const chain = tx.chain as MultichainNetworks;
+        if (chain.startsWith(MultichainNetworks.Solana)) {
+          return chain === MultichainNetworks.Solana;
         }
         return true;
       });
