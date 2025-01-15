@@ -1,14 +1,10 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-
 import {
   getDefaultTokenSearchDiscoveryControllerState,
   TokenSearchDiscoveryController,
 } from './token-search-discovery-controller';
-
 import type { TokenSearchDiscoveryControllerMessenger } from './token-search-discovery-controller';
-
 import type { TokenSearchResponseItem } from './types';
-
 import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
 
 const controllerName = 'TokenSearchDiscoveryController';

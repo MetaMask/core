@@ -1,13 +1,10 @@
-import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
-
+import type { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-
 import { BaseController } from '@metamask/base-controller';
-
 import type { TokenSearchParams, TokenSearchResponseItem } from './types';
 
 // === GENERAL ===
@@ -110,6 +107,7 @@ export class TokenSearchDiscoveryController extends BaseController<
   TokenSearchDiscoveryControllerMessenger
 > {
   readonly #tokenSearchService: AbstractTokenSearchApiService;
+
   constructor({
     tokenSearchService,
     state = {},

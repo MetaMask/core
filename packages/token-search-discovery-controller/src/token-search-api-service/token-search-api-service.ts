@@ -1,5 +1,4 @@
 import { AbstractTokenSearchApiService } from './abstract-token-search-api-service';
-
 import type { TokenSearchParams, TokenSearchResponseItem } from '../types';
 
 export class TokenSearchApiService extends AbstractTokenSearchApiService {
