@@ -48,10 +48,13 @@ describe('TokenSearchApiService', () => {
 
   beforeEach(() => {
     service = new TokenSearchApiService(baseUrl);
+    mockFetch = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify([]), { status: 200 }));
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    mockFetch.mockRestore();
   });
 
   describe('constructor', () => {
@@ -70,7 +73,7 @@ describe('TokenSearchApiService', () => {
       },
       {
         params: { chains: ['1', '137'], name: 'Test' },
-        expectedUrl: `${baseUrl}/tokens-search/name?chains=1,137&name=Test`,
+        expectedUrl: `${baseUrl}/tokens-search/name?chains=1%2C137&name=Test`,
       },
       {
         params: { name: 'Test' },
