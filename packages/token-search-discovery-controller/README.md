@@ -1,6 +1,6 @@
 # `@metamask/token-search-discovery-controller`
 
-Manages token search and discovery
+Manages token search and discovery through the Portfolio API.
 
 ## Installation
 
