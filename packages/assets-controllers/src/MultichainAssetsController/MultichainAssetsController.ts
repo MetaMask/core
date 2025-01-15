@@ -1,8 +1,4 @@
-import type {
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
-  AccountsControllerListMultichainAccountsAction,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerAccountAddedEvent } from '@metamask/accounts-controller';
 import {
   BaseController,
   type ControllerGetStateAction,
@@ -12,13 +8,13 @@ import {
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { CaipAssetType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
-import type { SnapId } from '@metamask/snaps-sdk';
+import { GetPermissions } from '@metamask/permission-controller';
+import type {
+  GetAllSnaps,
+  HandleSnapRequest,
+} from '@metamask/snaps-controllers';
+import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { Hex, } from '@metamask/utils';
-
-
-
 
 const controllerName = 'MultichainAssetsController';
 
@@ -56,15 +52,14 @@ type FungibleAssetMetadata = {
 };
 
 // Represents the metadata of an asset.
-type AssetMetadata = FungibleAssetMetadata
+type AssetMetadata = FungibleAssetMetadata;
 
 export type MultichainAssetsControllerState = {
-  allTokens: { [chain: string]: { [account: string]: { 
-    CaipAssetType: string; metadata: AssetMetadata; }[]
-  } } ;
-  allIgnoredTokens: { [chain: string]: { [account: string]: { 
-    CaipAssetType: string; metadata: AssetMetadata; }[]
-  } } ;
+  metadata: {
+    [asset: CaipAssetType]: AssetMetadata;
+  };
+  allNonEvmTokens: { [account: string]: CaipAssetType[] };
+  allNonEvmIgnoredTokens: { [account: string]: CaipAssetType[] };
 };
 
 /**
@@ -76,7 +71,7 @@ export type MultichainAssetsControllerState = {
  * @returns The default {@link MultichainAssetsController} state.
  */
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
-  return { allTokens: {}, allIgnoredTokens: {} };
+  return { allNonEvmTokens: {}, allNonEvmIgnoredTokens: {}, metadata: {} };
 }
 
 /**
@@ -98,7 +93,8 @@ export type MultichainAssetsControllerStateChange = ControllerStateChangeEvent<
 /**
  * Actions exposed by the {@link MultichainAssetsController}.
  */
-export type MultichainAssetsControllerActions = MultichainAssetsControllerGetStateAction
+export type MultichainAssetsControllerActions =
+  MultichainAssetsControllerGetStateAction; 
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -109,16 +105,18 @@ export type MultichainAssetsControllerEvents =
 /**
  * Actions that this controller is allowed to call.
  */
-type AllowedActions =
-  | HandleSnapRequest
-  | AccountsControllerListMultichainAccountsAction;
+type AllowedActions = HandleSnapRequest | GetAllSnaps | GetPermissions;
 
 /**
  * Events that this controller is allowed to subscribe.
  */
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  
+  
+type AssetLookupResponse = {
+  assets: Record<CaipAssetType, AssetMetadata>;
+};
 
 /**
  * Messenger type for the MultichainAssetsController.
@@ -140,23 +138,25 @@ export type MultichainAssetsControllerMessenger =
  * the `anonymous` flag.
  */
 const assetsControllerMetadata = {
-  allTokens: {
+  metadata: {
     persist: true,
     anonymous: false,
   },
-  allIgnoredTokens: {
+  allNonEvmTokens: {
+    persist: true,
+    anonymous: false,
+  },
+  allNonEvmIgnoredTokens: {
     persist: true,
     anonymous: false,
   },
 };
-
 
 export class MultichainAssetsController extends BaseController<
   typeof controllerName,
   MultichainAssetsControllerState,
   MultichainAssetsControllerMessenger
 > {
-
   constructor({
     messenger,
     state = {},
@@ -178,7 +178,6 @@ export class MultichainAssetsController extends BaseController<
       'AccountsController:accountAdded',
       (account) => this.#handleOnAccountAdded(account),
     );
-
   }
 
   /**
@@ -207,17 +206,100 @@ export class MultichainAssetsController extends BaseController<
     }
 
     // Get assets list
-    if(account.metadata.snap) {
-      const assets = await this.#getAssets(account.id, account.metadata.snap.id);
+    if (account.metadata.snap) {
+      const assets = await this.#getAssets(
+        account.id,
+        account.metadata.snap.id,
+      );
       console.log(assets);
+      // todo: filter list of asset that doesn't have metadata
+      const assetsWithoutMetadata = assets.filter(
+        (asset) => !this.state.metadata[asset],
+      );
+      console.log(
+        '🚀 ~ #handleOnAccountAdded ~ assetsWithoutMetadata:',
+        assetsWithoutMetadata,
+      );
+
+      const snaps = this.#getAllSnaps();
+      //TODO: check when snaps should include endowment:assets and if it makes sense to check for each new received asset which snap it belongs to or can pick the first snap that has endowment:assets
+      console.log(snaps);
+      // TODO: get permissions for each snap by snap.id
+      const permissions = snaps.map((snap) =>
+        this.#getSnapsPermissions(snap.id),
+      );
+      console.log('🚀 ~ #handleOnAccountAdded ~ permissions:', permissions);
+
+      /* Mock that every permission returned includeds     "endowment:assets": {
+       "scopes": [
+        "bip122:000000000019d6689c085ae165831e93"
+      ]
+    }  */
+      // To be removed once the above is implemented
+      permissions.forEach((singlePermission) => {
+        singlePermission = {
+          ...singlePermission,
+          'endowment:assets': {
+            scopes: ['bip122:000000000019d6689c085ae165831e93'],
+          },
+        };
+      });
+      permissions[0] = {
+        ...permissions[0],
+        'endowment:assets': {
+          scopes: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
+        },
+      };
+
+      // Identify the correct snap that has the right endowment:assets permission
+      const currentAssetChain = assets[0].split('/')[0];
+      //TODO: get the permission index in the array of permissions
+      const permissionIndex = permissions.findIndex((permission) =>
+        permission['endowment:assets']?.scopes.includes(currentAssetChain),
+      );
+      console.log(
+        '🚀 ~ #handleOnAccountAdded ~ permissionIndex:',
+        permissionIndex,
+      );
+      const snapId = snaps[permissionIndex].id;
+      console.log('🚀 ~ #handleOnAccountAdded ~ snapId:', snapId);
+
+      // call the snap to get the metadata
+      if (assetsWithoutMetadata.length > 0) {
+        const metadata = await this.#getMetadata(assetsWithoutMetadata);
+        console.log('🚀 ~ #handleOnAccountAdded ~ metadata:', metadata);
+
+        const newMetadata = {
+          ...this.state.metadata,
+          ...metadata.assets,
+        };
+        this.update((state) => {
+          state.metadata = newMetadata;
+        });
+      }
+      //TODO: add new assets to state for the account
+      this.update((state) => {
+        state.allNonEvmTokens[account.id] = assets;
+      });
+      console.log('state', this.state);
     }
   }
 
+  #getAllSnaps(): Snap[] {
+    return this.messagingSystem.call('SnapController:getAll') as Snap[];
+  }
+
+  #getSnapsPermissions(origin: string): any {
+    return this.messagingSystem.call(
+      'PermissionController:getPermissions',
+      origin,
+    );
+  }
 
   async #getAssets(
     accountId: string,
     snapId: string,
-  ): Promise<any> {
+  ): Promise<CaipAssetType[]> {
     return await this.#getAssetsList(snapId, accountId);
   }
 
@@ -227,22 +309,58 @@ export class MultichainAssetsController extends BaseController<
    * @param snapId - ID of the Snap to get the client for.
    * @returns A `KeyringClient` for the Snap.
    */
-  async #getAssetsList(snapId: string, accountId: string): Promise<any> {
-      const result = (await this.messagingSystem.call('SnapController:handleRequest', {
+  async #getAssetsList(
+    snapId: string,
+    accountId: string,
+  ): Promise<CaipAssetType[]> {
+    const result = (await this.messagingSystem.call(
+      'SnapController:handleRequest',
+      {
         snapId: snapId as SnapId,
         origin: 'metamask',
         handler: HandlerType.OnRpcRequest,
         request: {
-          id: "didid",
+          id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
           jsonrpc: '2.0',
-          method: "listAccountAssets",
+          method: 'listAccountAssets',
           params: {
-            id: accountId
+            id: accountId,
           },
-        }
-        })) as any;
+        },
+      },
+    )) as any;
 
-      return result;
+    return result;
+  }
+
+  // TODO: mock function to get metadata
+  async #getMetadata(assets: CaipAssetType[]): Promise<AssetLookupResponse> {
+    return {
+      assets: {
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501': {
+          name: 'Solana',
+          symbol: 'SOL',
+          native: true,
+          fungible: true,
+          iconBase64:
+            'data:image/jpeg;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDI0LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCAzOTcuNyAzMTEuNyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzk3LjcgMzExLjc7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4KPHN0eWxlIHR5cGU9InRleHQvY3NzIj4KCS5zdDB7ZmlsbDp1cmwoI1NWR0lEXzFfKTt9Cgkuc3Qxe2ZpbGw6dXJsKCNTVkdJRF8yXyk7fQoJLnN0MntmaWxsOnVybCgjU1ZHSURfM18pO30KPC9zdHlsZT4KPGxpbmVhckdyYWRpZW50IGlkPSJTVkdJRF8xXyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIHgxPSIzNjAuODc5MSIgeTE9IjM1MS40NTUzIiB4Mj0iMTQxLjIxMyIgeTI9Ii02OS4yOTM2IiBncmFkaWVudFRyYW5zZm9ybT0ibWF0cml4KDEgMCAwIC0xIDAgMzE0KSI+Cgk8c3RvcCAgb2Zmc2V0PSIwIiBzdHlsZT0ic3RvcC1jb2xvcjojMDBGRkEzIi8+Cgk8c3RvcCAgb2Zmc2V0PSIxIiBzdHlsZT0ic3RvcC1jb2xvcjojREMxRkZGIi8+CjwvbGluZWFyR3JhZGllbnQ+CjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik02NC42LDIzNy45YzIuNC0yLjQsNS43LTMuOCw5LjItMy44aDMxNy40YzUuOCwwLDguNyw3LDQuNiwxMS4xbC02Mi43LDYyLjdjLTIuNCwyLjQtNS43LDMuOC05LjIsMy44SDYuNQoJYy01LjgsMC04LjctNy00LjYtMTEuMUw2NC42LDIzNy45eiIvPgo8bGluZWFyR3JhZGllbnQgaWQ9IlNWR0lEXzJfIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjI2NC44MjkxIiB5MT0iNDAxLjYwMTQiIHgyPSI0NS4xNjMiIHkyPSItMTkuMTQ3NSIgZ3JhZGllbnRUcmFuc2Zvcm09Im1hdHJpeCgxIDAgMCAtMSAwIDMxNCkiPgoJPHN0b3AgIG9mZnNldD0iMCIgc3R5bGU9InN0b3AtY29sb3I6IzAwRkZBMyIvPgoJPHN0b3AgIG9mZnNldD0iMSIgc3R5bGU9InN0b3AtY29sb3I6I0RDMUZGRiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNNjQuNiwzLjhDNjcuMSwxLjQsNzAuNCwwLDczLjgsMGgzMTcuNGM1LjgsMCw4LjcsNyw0LjYsMTEuMWwtNjIuNyw2Mi43Yy0yLjQsMi40LTUuNywzLjgtOS4yLDMuOEg2LjUKCWMtNS44LDAtOC43LTctNC42LTExLjFMNjQuNiwzLjh6Ii8+CjxsaW5lYXJHcmFkaWVudCBpZD0iU1ZHSURfM18iIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4MT0iMzEyLjU0ODQiIHkxPSIzNzYuNjg4IiB4Mj0iOTIuODgyMiIgeTI9Ii00NC4wNjEiIGdyYWRpZW50VHJhbnNmb3JtPSJtYXRyaXgoMSAwIDAgLTEgMCAzMTQpIj4KCTxzdG9wICBvZmZzZXQ9IjAiIHN0eWxlPSJzdG9wLWNvbG9yOiMwMEZGQTMiLz4KCTxzdG9wICBvZmZzZXQ9IjEiIHN0eWxlPSJzdG9wLWNvbG9yOiNEQzFGRkYiLz4KPC9saW5lYXJHcmFkaWVudD4KPHBhdGggY2xhc3M9InN0MiIgZD0iTTMzMy4xLDEyMC4xYy0yLjQtMi40LTUuNy0zLjgtOS4yLTMuOEg2LjVjLTUuOCwwLTguNyw3LTQuNiwxMS4xbDYyLjcsNjIuN2MyLjQsMi40LDUuNywzLjgsOS4yLDMuOGgzMTcuNAoJYzUuOCwwLDguNy03LDQuNi0xMS4xTDMzMy4xLDEyMC4xeiIvPgo8L3N2Zz4K',
+          units: [{ name: 'Solana', symbol: 'SOL', decimals: 9 }],
+        },
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr':
+          {
+            name: 'USDC',
+            symbol: 'USDC',
+            native: true,
+            fungible: true,
+            iconBase64:
+              'data:image/jpeg;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTAiIGhlaWdodD0iMjUwIj48cGF0aCBmaWxsPSIjMjc3NWNhIiBkPSJNMTI1IDI1MGM2OS4yNyAwIDEyNS01NS43MyAxMjUtMTI1UzE5NC4yNyAwIDEyNSAwIDAgNTUuNzMgMCAxMjVzNTUuNzMgMTI1IDEyNSAxMjV6bTAgMCIvPjxnIGZpbGw9IiNmZmYiPjxwYXRoIGQ9Ik0xNTkuMzc1IDE0NC43OTNjMC0xOC4yMy0xMC45MzgtMjQuNDgtMzIuODEzLTI3LjA4Ni0xNS42MjQtMi4wODItMTguNzUtNi4yNS0xOC43NS0xMy41MzkgMC03LjI5MyA1LjIwOC0xMS45OCAxNS42MjYtMTEuOTggOS4zNzQgMCAxNC41ODIgMy4xMjQgMTcuMTg3IDEwLjkzNy41MiAxLjU2MyAyLjA4MiAyLjYwNSAzLjY0NSAyLjYwNWg4LjMzNWMyLjA4MyAwIDMuNjQ1LTEuNTYyIDMuNjQ1LTMuNjQ4di0uNTJjLTIuMDgyLTExLjQ1Ny0xMS40NTctMjAuMzEyLTIzLjQzOC0yMS4zNTV2LTEyLjVjMC0yLjA4Mi0xLjU2Mi0zLjY0NC00LjE2Ny00LjE2NGgtNy44MTNjLTIuMDgyIDAtMy42NDQgMS41NjItNC4xNjQgNC4xNjR2MTEuOThjLTE1LjYyNSAyLjA4My0yNS41MjMgMTIuNS0yNS41MjMgMjUuNTIgMCAxNy4xODggMTAuNDE4IDIzLjk2MSAzMi4yOTMgMjYuNTYzIDE0LjU4MiAyLjYwNSAxOS4yNjkgNS43MyAxOS4yNjkgMTQuMDYyIDAgOC4zMzYtNy4yODkgMTQuMDYzLTE3LjE4NyAxNC4wNjMtMTMuNTQgMC0xOC4yMjctNS43MjctMTkuNzktMTMuNTQtLjUyMy0yLjA4NS0yLjA4NS0zLjEyNS0zLjY0OC0zLjEyNUg5My4yM2MtMi4wODUgMC0zLjY0OCAxLjU2My0zLjY0OCAzLjY0NXYuNTJjMi4wODYgMTMuMDIzIDEwLjQxOCAyMi4zOTggMjcuNjA2IDI1djEyLjVjMCAyLjA4NSAxLjU2MiAzLjY0OCA0LjE2NyA0LjE2N2g3LjgxM2MyLjA4MiAwIDMuNjQ0LTEuNTYyIDQuMTY0LTQuMTY3di0xMi41YzE1LjYyNS0yLjYwMiAyNi4wNDMtMTMuNTQgMjYuMDQzLTI3LjYwMnptMCAwIi8+PHBhdGggZD0iTTk4LjQzOCAxOTkuNDhjLTQwLjYyNi0xNC41ODUtNjEuNDU4LTU5Ljg5OC00Ni4zNTYtMTAwIDcuODEzLTIxLjg3NSAyNS0zOC41NDMgNDYuMzU1LTQ2LjM1NSAyLjA4My0xLjA0MyAzLjEyNi0yLjYwNSAzLjEyNi01LjIwN3YtNy4yOTNjMC0yLjA4Mi0xLjA0My0zLjY0NS0zLjEyNi00LjE2OC0uNTE5IDAtMS41NjIgMC0yLjA4Mi41MjMtNDkuNDggMTUuNjI1LTc2LjU2MiA2OC4yMjctNjAuOTM3IDExNy43MDggOS4zNzUgMjkuMTY3IDMxLjc3IDUxLjU2MiA2MC45MzcgNjAuOTM3IDIuMDgyIDEuMDQzIDQuMTY1IDAgNC42ODgtMi4wODIuNTItLjUyMy41Mi0xLjA0My41Mi0yLjA4NnYtNy4yODljMC0xLjU2My0xLjU2My0zLjY0OC0zLjEyNi00LjY4OHptNTUuMjA3LTE2Mi41Yy0yLjA4My0xLjA0Mi00LjE2NSAwLTQuNjg4IDIuMDgzLS41Mi41MTktLjUyIDEuMDQyLS41MiAyLjA4MnY3LjI5MmMwIDIuMDgzIDEuNTYzIDQuMTY4IDMuMTI1IDUuMjA4IDQwLjYyNSAxNC41ODUgNjEuNDU4IDU5Ljg5OCA0Ni4zNTYgMTAwLTcuODEzIDIxLjg3NS0yNSAzOC41NDItNDYuMzU2IDQ2LjM1NS0yLjA4MiAxLjA0My0zLjEyNSAyLjYwNS0zLjEyNSA1LjIwN3Y3LjI5M2MwIDIuMDgyIDEuMDQzIDMuNjQ1IDMuMTI1IDQuMTY4LjUyIDAgMS41NjMgMCAyLjA4My0uNTIzIDQ5LjQ4LTE1LjYyNSA3Ni41NjItNjguMjI3IDYwLjkzNy0xMTcuNzA4LTkuMzc1LTI5LjY4Ny0zMi4yODktNTIuMDgyLTYwLjkzNy02MS40NTd6bTAgMCIvPjwvZz48L3N2Zz4=',
+            units: [{ name: 'USDC', symbol: 'SUSDCOL', decimals: 18 }],
+          },
+      },
+    };
   }
 }
+
+
+
 
