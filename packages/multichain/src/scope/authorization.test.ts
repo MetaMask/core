@@ -149,7 +149,7 @@ describe('Scope Authorization', () => {
       );
     });
 
-    it('buckets the mayble supportable scopes', () => {
+    it('buckets the maybe supportable scopes', () => {
       const isChainIdSupportable = jest.fn();
       bucketScopes(
         {
