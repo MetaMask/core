@@ -13069,6 +13069,7 @@ function refreshNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
 }) {
+  // eslint-disable-next-line jest/require-top-level-describe
   it('emits networkWillChange with state payload', async () => {
     await withController(
       {
@@ -13097,6 +13098,7 @@ function refreshNetworkTests({
     );
   });
 
+  // eslint-disable-next-line jest/require-top-level-describe
   it('emits networkDidChange with state payload', async () => {
     await withController(
       {
@@ -13126,6 +13128,7 @@ function refreshNetworkTests({
   });
 
   if (expectedNetworkClientConfiguration.type === NetworkClientType.Custom) {
+    // eslint-disable-next-line jest/require-top-level-describe
     it('sets the provider to a custom RPC provider initialized with the RPC target and chain ID', async () => {
       await withController(
         {
@@ -13167,8 +13170,7 @@ function refreshNetworkTests({
       );
     });
   } else {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    // eslint-disable-next-line jest/require-top-level-describe
     it(`sets the provider to an Infura provider pointed to ${expectedNetworkClientConfiguration.network}`, async () => {
       await withController(
         {
@@ -13209,6 +13211,7 @@ function refreshNetworkTests({
     });
   }
 
+  // eslint-disable-next-line jest/require-top-level-describe
   it('replaces the provider object underlying the provider proxy without creating a new instance of the proxy itself', async () => {
     await withController(
       {
