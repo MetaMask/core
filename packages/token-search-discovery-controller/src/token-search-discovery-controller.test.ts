@@ -1,14 +1,22 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+
 import {
   getDefaultTokenSearchDiscoveryControllerState,
   TokenSearchDiscoveryController,
 } from './token-search-discovery-controller';
+
 import type { TokenSearchDiscoveryControllerMessenger } from './token-search-discovery-controller';
+
 import type { TokenSearchResponseItem } from './types';
+
 import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
 
 const controllerName = 'TokenSearchDiscoveryController';
 
+/**
+ * Helper function to get a restricted messenger for testing
+ * @returns A restricted messenger for the TokenSearchDiscoveryController
+ */
 function getRestrictedMessenger() {
   const controllerMessenger = new ControllerMessenger<never, never>();
   return controllerMessenger.getRestricted({

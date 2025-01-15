@@ -1,11 +1,14 @@
+import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
+
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+
 import { BaseController } from '@metamask/base-controller';
+
 import type { TokenSearchParams, TokenSearchResponseItem } from './types';
-import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
 
 // === GENERAL ===
 

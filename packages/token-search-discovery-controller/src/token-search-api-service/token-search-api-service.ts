@@ -1,12 +1,16 @@
 import { AbstractTokenSearchApiService } from './abstract-token-search-api-service';
+
 import type { TokenSearchParams, TokenSearchResponseItem } from '../types';
 
 export class TokenSearchApiService extends AbstractTokenSearchApiService {
-  constructor(private readonly baseUrl: string) {
+  readonly #baseUrl: string;
+
+  constructor(baseUrl: string) {
     super();
     if (!baseUrl) {
       throw new Error('Portfolio API URL is not set');
     }
+    this.#baseUrl = baseUrl;
   }
 
   async searchTokens(
@@ -25,7 +29,7 @@ export class TokenSearchApiService extends AbstractTokenSearchApiService {
     }
 
     const queryString = queryParams.toString();
-    const url = `${this.baseUrl}/tokens-search/name${queryString ? `?${queryString}` : ''}`;
+    const url = `${this.#baseUrl}/tokens-search/name${queryString ? `?${queryString}` : ''}`;
 
     const response = await fetch(url, {
       method: 'GET',
