@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+## [8.0.2]
+
+### Changed
+
+- Bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
+
+## [8.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
 ## [8.0.0]
 
 ### Changed
@@ -308,7 +324,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.2...HEAD
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.1...@metamask/queued-request-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.0...@metamask/queued-request-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.1...@metamask/queued-request-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.0...@metamask/queued-request-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@6.0.0...@metamask/queued-request-controller@7.0.0

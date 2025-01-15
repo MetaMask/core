@@ -1,4 +1,3 @@
-/* eslint-disable */
 const JSDOMEnvironment = require('jest-environment-jsdom');
 
 /**

@@ -1,4 +1,5 @@
-import { base64ToByteArray, byteArrayToBase64 } from './utils';
+import { SHARED_SALT } from './constants';
+import { byteArrayToBase64 } from './utils';
 
 type CachedEntry = {
   salt: Uint8Array;
@@ -47,31 +48,27 @@ export function getCachedKeyBySalt(
 }
 
 /**
- * Gets any cached key for a given hashed password
+ * Gets the cached key that was generated without a salt, if it exists.
+ * This is unique per hashed password.
  *
  * @param hashedPassword - hashed password for cache lookup
- * @returns any (the first) cached key
+ * @returns the cached key
  */
-export function getAnyCachedKey(
+export function getCachedKeyGeneratedWithSharedSalt(
   hashedPassword: string,
 ): CachedEntry | undefined {
   const cache = getPasswordCache(hashedPassword);
+  const base64Salt = byteArrayToBase64(SHARED_SALT);
+  const cachedKey = cache.get(base64Salt);
 
-  // Takes 1 item from an Iterator via Map.entries()
-  const cachedEntry: [string, Uint8Array] | undefined = cache
-    .entries()
-    .next().value;
-
-  if (!cachedEntry) {
+  if (!cachedKey) {
     return undefined;
   }
 
-  const base64Salt = cachedEntry[0];
-  const bytesSalt = base64ToByteArray(base64Salt);
   return {
-    salt: bytesSalt,
+    salt: SHARED_SALT,
     base64Salt,
-    key: cachedEntry[1],
+    key: cachedKey,
   };
 }
 

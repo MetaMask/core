@@ -1,6 +1,7 @@
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import type { UserStorageBaseOptions } from '../services';
 import {
+  batchUpsertUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from '../services';
@@ -72,8 +73,14 @@ export async function batchUpsertRemoteNetworks(
   networks: RemoteNetworkConfiguration[],
   opts: UserStorageBaseOptions,
 ): Promise<void> {
-  // TODO - this has not yet been provided by the backend team
-  // we will replace this with a batch endpoint in near future
-  const promises = networks.map((n) => upsertRemoteNetwork(n, opts));
-  await Promise.allSettled(promises);
+  const networkPathAndValues = networks.map((n) => {
+    const path = n.chainId;
+    const data = JSON.stringify(n);
+    return [path, data] as [string, string];
+  });
+
+  await batchUpsertUserStorage(networkPathAndValues, {
+    path: 'networks',
+    ...opts,
+  });
 }

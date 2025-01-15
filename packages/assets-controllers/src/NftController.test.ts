@@ -20,7 +20,7 @@ import {
   NFT_API_BASE_URL,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,

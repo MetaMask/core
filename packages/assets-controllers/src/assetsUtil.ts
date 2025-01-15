@@ -433,3 +433,18 @@ export async function fetchTokenContractExchangeRates({
     {},
   );
 }
+
+/**
+ * Function to search for a specific value in a given map and return the key
+ * @param map - map input to search value
+ * @param value - the value to search for
+ * @returns returns key that corresponds to the value
+ */
+export function getKeyByValue(map: Map<string, string>, value: string) {
+  for (const [key, val] of map.entries()) {
+    if (val === value) {
+      return key;
+    }
+  }
+  return null; // Return null if no match is found
+}

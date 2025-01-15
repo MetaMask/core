@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -64,7 +64,7 @@ export type PetNamesControllerActions = PetNamesControllerGetStateAction;
 /**
  * All actions that {@link PetNamesController} calls internally.
  */
-export type AllowedActions = never;
+type AllowedActions = never;
 
 /**
  * The event that {@link PetNamesController} publishes when updating state.
@@ -83,13 +83,13 @@ export type PetNamesControllerEvents = PetNamesControllerStateChangeEvent;
 /**
  * All events that {@link PetNamesController} subscribes to internally.
  */
-export type AllowedEvents = never;
+type AllowedEvents = never;
 
 /**
  * The messenger which is restricted to actions and events accessed by
  * {@link PetNamesController}.
  */
-export type PetNamesControllerMessenger = RestrictedControllerMessenger<
+export type PetNamesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   PetNamesControllerActions | AllowedActions,
   PetNamesControllerEvents | AllowedEvents,
@@ -120,13 +120,13 @@ export function getDefaultPetNamesControllerState(): PetNamesControllerState {
  * @example
  *
  * ``` ts
- * import { ControllerMessenger } from '@metamask/base-controller';
+ * import { Messenger } from '@metamask/base-controller';
  * import type {
  *   PetNamesControllerActions,
  *   PetNamesControllerEvents
  * } from '@metamask/example-controllers';
  *
- * const rootMessenger = new ControllerMessenger<
+ * const rootMessenger = new Messenger<
  *  PetNamesControllerActions,
  *  PetNamesControllerEvents
  * >();

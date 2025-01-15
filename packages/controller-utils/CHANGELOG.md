@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createServicePolicy` function to assist with reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143))
+
+## [11.4.5]
+
+### Changed
+
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+## [11.4.4]
+
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
@@ -14,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `@babel/runtime@^7.0.0` (required by `@metamask/ethjs-unit`)
   - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
   - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `bn.js`
+  - `eth-ens-namehash`
+  - `fast-deep-equal`
 
 ## [11.4.3]
 
@@ -432,7 +448,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.5...HEAD
+[11.4.5]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.4...@metamask/controller-utils@11.4.5
+[11.4.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.3...@metamask/controller-utils@11.4.4
 [11.4.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.2...@metamask/controller-utils@11.4.3
 [11.4.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.1...@metamask/controller-utils@11.4.2
 [11.4.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.0...@metamask/controller-utils@11.4.1

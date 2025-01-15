@@ -137,14 +137,15 @@ export type CaveatSpecificationBase = {
 
   /**
    * The validator function used to validate caveats of the associated type
-   * whenever they are instantiated. Caveat are instantiated whenever they are
-   * created or mutated.
+   * whenever they are constructed or mutated.
    *
    * The validator should throw an appropriate JSON-RPC error if validation fails.
    *
    * If no validator is specified, no validation of caveat values will be
-   * performed. Although caveats can also be validated by permission validators,
-   * validating caveat values separately is strongly recommended.
+   * performed. In instances where caveats are mutated but a permission's caveat
+   * array has not changed, any corresponding permission validator will not be
+   * called. For this reason, permission validators **must not** be relied upon
+   * to validate caveats.
    */
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

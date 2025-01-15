@@ -5,6 +5,7 @@ import type {
   ValidPermissionSpecification,
   PermissionValidatorConstraint,
   PermissionConstraint,
+  EndowmentCaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
@@ -48,6 +49,11 @@ export type Caip25CaveatValue = {
 export const Caip25CaveatType = 'authorizedScopes';
 
 /**
+ * The target name of the CAIP-25 endowment permission.
+ */
+export const Caip25EndowmentPermissionName = 'endowment:caip25';
+
+/**
  * Creates a CAIP-25 permission caveat.
  * @param value - The CAIP-25 permission caveat value.
  * @returns The CAIP-25 permission caveat (now including the type).
@@ -59,75 +65,52 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
   };
 };
 
-/**
- * The target name of the CAIP-25 endowment permission.
- */
-export const Caip25EndowmentPermissionName = 'endowment:caip25';
-
-type Caip25EndowmentSpecification = ValidPermissionSpecification<{
-  permissionType: PermissionType.Endowment;
-  targetName: typeof Caip25EndowmentPermissionName;
-  endowmentGetter: (_options?: EndowmentGetterParams) => null;
-  validator: PermissionValidatorConstraint;
-  allowedCaveats: Readonly<NonEmptyArray<string>> | null;
-}>;
-
-type Caip25EndowmentSpecificationBuilderOptions = {
-  methodHooks: {
-    findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
-    listAccounts: () => { address: Hex }[];
-  };
+type Caip25EndowmentCaveatSpecificationBuilderOptions = {
+  findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
+  listAccounts: () => { address: Hex }[];
 };
 
 /**
- * Helper that returns a `endowment:caip25` specification that
- * can be passed into the PermissionController constructor.
+ * Helper that returns a `authorizedScopes` CAIP-25 caveat specification
+ * that can be passed into the PermissionController constructor.
  *
- * @param builderOptions - The specification builder options.
- * @param builderOptions.methodHooks - The RPC method hooks needed by the method implementation.
- * @returns The specification for the `caip25` endowment.
+ * @param options - The specification builder options.
+ * @param options.findNetworkClientIdByChainId - The hook for getting the networkClientId that serves a chainId.
+ * @param options.listAccounts - The hook for getting internalAccount objects for all evm accounts.
+ * @returns The specification for the `caip25` caveat.
  */
-const specificationBuilder: PermissionSpecificationBuilder<
-  PermissionType.Endowment,
-  Caip25EndowmentSpecificationBuilderOptions,
-  Caip25EndowmentSpecification
-> = ({ methodHooks }: Caip25EndowmentSpecificationBuilderOptions) => {
+export const caip25CaveatBuilder = ({
+  findNetworkClientIdByChainId,
+  listAccounts,
+}: Caip25EndowmentCaveatSpecificationBuilderOptions): EndowmentCaveatSpecificationConstraint &
+  Required<Pick<EndowmentCaveatSpecificationConstraint, 'validator'>> => {
   return {
-    permissionType: PermissionType.Endowment,
-    targetName: Caip25EndowmentPermissionName,
-    allowedCaveats: [Caip25CaveatType],
-    endowmentGetter: (_getterOptions?: EndowmentGetterParams) => null,
-    validator: (permission: PermissionConstraint) => {
-      const caip25Caveat = permission.caveats?.[0];
+    type: Caip25CaveatType,
+    validator: (
+      caveat: { type: typeof Caip25CaveatType; value: unknown },
+      _origin?: string,
+      _target?: string,
+    ) => {
       if (
-        permission.caveats?.length !== 1 ||
-        caip25Caveat?.type !== Caip25CaveatType
-      ) {
-        throw new Error(
-          `${Caip25EndowmentPermissionName} error: Invalid caveats. There must be a single caveat of type "${Caip25CaveatType}".`,
-        );
-      }
-
-      if (
-        !caip25Caveat.value ||
-        !hasProperty(caip25Caveat.value, 'requiredScopes') ||
-        !hasProperty(caip25Caveat.value, 'optionalScopes') ||
-        !hasProperty(caip25Caveat.value, 'isMultichainOrigin') ||
-        typeof caip25Caveat.value.isMultichainOrigin !== 'boolean'
+        !caveat.value ||
+        !hasProperty(caveat.value, 'requiredScopes') ||
+        !hasProperty(caveat.value, 'optionalScopes') ||
+        !hasProperty(caveat.value, 'isMultichainOrigin') ||
+        typeof caveat.value.isMultichainOrigin !== 'boolean'
       ) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
         );
       }
 
-      const { requiredScopes, optionalScopes } = caip25Caveat.value;
+      const { requiredScopes, optionalScopes } = caveat.value;
 
       assertIsInternalScopesObject(requiredScopes);
       assertIsInternalScopesObject(optionalScopes);
 
       const isChainIdSupported = (chainId: Hex) => {
         try {
-          methodHooks.findNetworkClientIdByChainId(chainId);
+          findNetworkClientIdByChainId(chainId);
           return true;
         } catch (err) {
           return false;
@@ -150,9 +133,9 @@ const specificationBuilder: PermissionSpecificationBuilder<
 
       // Fetch EVM accounts from native wallet keyring
       // These addresses are lowercased already
-      const existingEvmAddresses = methodHooks
-        .listAccounts()
-        .map((account) => account.address);
+      const existingEvmAddresses = listAccounts().map(
+        (account) => account.address,
+      );
       const ethAccounts = getEthAccounts({
         requiredScopes,
         optionalScopes,
@@ -164,6 +147,43 @@ const specificationBuilder: PermissionSpecificationBuilder<
       if (!allEthAccountsSupported) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
+        );
+      }
+    },
+  };
+};
+
+type Caip25EndowmentSpecification = ValidPermissionSpecification<{
+  permissionType: PermissionType.Endowment;
+  targetName: typeof Caip25EndowmentPermissionName;
+  endowmentGetter: (_options?: EndowmentGetterParams) => null;
+  validator: PermissionValidatorConstraint;
+  allowedCaveats: Readonly<NonEmptyArray<string>> | null;
+}>;
+
+/**
+ * Helper that returns a `endowment:caip25` specification that
+ * can be passed into the PermissionController constructor.
+ *
+ * @returns The specification for the `caip25` endowment.
+ */
+const specificationBuilder: PermissionSpecificationBuilder<
+  PermissionType.Endowment,
+  Record<never, never>,
+  Caip25EndowmentSpecification
+> = () => {
+  return {
+    permissionType: PermissionType.Endowment,
+    targetName: Caip25EndowmentPermissionName,
+    allowedCaveats: [Caip25CaveatType],
+    endowmentGetter: (_getterOptions?: EndowmentGetterParams) => null,
+    validator: (permission: PermissionConstraint) => {
+      if (
+        permission.caveats?.length !== 1 ||
+        permission.caveats?.[0]?.type !== Caip25CaveatType
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Invalid caveats. There must be a single caveat of type "${Caip25CaveatType}".`,
         );
       }
     },

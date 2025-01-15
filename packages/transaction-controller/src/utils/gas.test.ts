@@ -197,6 +197,9 @@ describe('gas', () => {
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
         );
+        expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
+          toHex(estimatedGas),
+        );
       });
 
       it('to padded estimate using chain multiplier if padded estimate less than percentage of block gas limit', async () => {
@@ -219,6 +222,9 @@ describe('gas', () => {
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
         );
+        expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
+          toHex(estimatedGas),
+        );
       });
 
       it('to percentage of block gas limit if padded estimate only is greater than percentage of block gas limit', async () => {
@@ -240,6 +246,9 @@ describe('gas', () => {
         expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(maxGasLimit));
         expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
           updateGasRequest.txMeta.txParams.gas,
+        );
+        expect(updateGasRequest.txMeta.gasLimitNoBuffer).toBe(
+          toHex(estimatedGas),
         );
       });
 

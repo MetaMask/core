@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/keyring-controller` from `19.0.1` to `19.0.2` ([#5058](https://github.com/MetaMask/core/pull/5058))
+- Bump `@metamask/network-controller` from `22.1.0` to `^22.1.1` ([#5038](https://github.com/MetaMask/core/pull/5038))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+### Fixed
+
+- Align signature request and message params ID ([#5102](https://github.com/MetaMask/core/pull/5102))
+
+## [23.1.0]
+
+### Changed
+
+- fix: Fixes in signature decoding functionality ([#5028](https://github.com/MetaMask/core/pull/5028))
+- fix: signature decoding api should be called for typed sign V3 also ([#5033](https://github.com/MetaMask/core/pull/5033))
+- fix: Revert `eth-sig-util` package ([#5027](https://github.com/MetaMask/core/pull/5027))
+- fix: Update `jsonschema` version & `eth-sig-util` ([#4998](https://github.com/MetaMask/core/pull/4998))
+
+## [23.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/eth-sig-util`
+
 ## [23.0.0]
 
 ### Changed
@@ -420,7 +453,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.0...HEAD
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.1.0...@metamask/signature-controller@23.2.0
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.1...@metamask/signature-controller@23.1.0
+[23.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.0...@metamask/signature-controller@23.0.1
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@22.0.0...@metamask/signature-controller@23.0.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@21.1.0...@metamask/signature-controller@22.0.0
 [21.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@21.0.0...@metamask/signature-controller@21.1.0
