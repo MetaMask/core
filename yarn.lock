@@ -3432,6 +3432,7 @@ __metadata:
     "@metamask/snaps-utils": "npm:^8.3.0"
     "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
+    "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^27.5.1"
@@ -3439,6 +3440,7 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^20.0.0
     "@metamask/keyring-controller": ^19.0.0

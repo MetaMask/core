@@ -6,7 +6,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { isEvmAccountType, Transaction } from '@metamask/keyring-api';
+import { isEvmAccountType, type Transaction } from '@metamask/keyring-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -286,14 +286,14 @@ export class MultichainTransactionsController extends BaseController<
   /**
    * Starts the polling process.
    */
-  async start(): Promise<void> {
+  start(): void {
     this.#tracker.start();
   }
 
   /**
    * Stops the polling process.
    */
-  async stop(): Promise<void> {
+  stop(): void {
     this.#tracker.stop();
   }
 

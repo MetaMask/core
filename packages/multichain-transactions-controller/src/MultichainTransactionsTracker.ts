@@ -1,5 +1,5 @@
 import { Poller } from './Poller';
-import { PaginationOptions } from './MultichainTransactionsController';
+import type { PaginationOptions } from './MultichainTransactionsController';
 
 type TransactionInfo = {
   lastUpdated: number;
@@ -28,22 +28,22 @@ export class MultichainTransactionsTracker {
   ) {
     this.#updateTransactions = updateTransactionsCallback;
 
-    this.#poller = new Poller(() => {
-      this.updateTransactions();
+    this.#poller = new Poller(async () => {
+      await this.updateTransactions();
     }, TRANSACTIONS_TRACKING_INTERVAL);
   }
 
   /**
    * Starts the tracking process.
    */
-  async start(): Promise<void> {
+  start(): void {
     this.#poller.start();
   }
 
   /**
    * Stops the tracking process.
    */
-  async stop(): Promise<void> {
+  stop(): void {
     this.#poller.stop();
   }
 

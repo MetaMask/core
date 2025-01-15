@@ -28,7 +28,13 @@ const mockSolanaAccount = {
   type: SolAccountType.DataAccount,
 };
 
-function setupTracker() {
+/**
+ * Creates and returns a new MultichainTransactionsTracker instance with a mock update function.
+ */
+function setupTracker(): {
+  tracker: MultichainTransactionsTracker;
+  mockUpdateTransactions: jest.Mock;
+} {
   const mockUpdateTransactions = jest.fn();
   const tracker = new MultichainTransactionsTracker(mockUpdateTransactions);
 
@@ -43,7 +49,7 @@ describe('MultichainTransactionsTracker', () => {
     const { tracker } = setupTracker();
     const spyPoller = jest.spyOn(Poller.prototype, 'start');
 
-    await tracker.start();
+    tracker.start();
     expect(spyPoller).toHaveBeenCalledTimes(1);
   });
 
@@ -51,15 +57,15 @@ describe('MultichainTransactionsTracker', () => {
     const { tracker } = setupTracker();
     const spyPoller = jest.spyOn(Poller.prototype, 'stop');
 
-    await tracker.start();
-    await tracker.stop();
+    tracker.start();
+    tracker.stop();
     expect(spyPoller).toHaveBeenCalledTimes(1);
   });
 
   it('is not tracking if none accounts have been registered', async () => {
     const { tracker, mockUpdateTransactions } = setupTracker();
 
-    await tracker.start();
+    tracker.start();
     await tracker.updateTransactions();
 
     expect(mockUpdateTransactions).not.toHaveBeenCalled();
@@ -68,7 +74,7 @@ describe('MultichainTransactionsTracker', () => {
   it('tracks account transactions', async () => {
     const { tracker, mockUpdateTransactions } = setupTracker();
 
-    await tracker.start();
+    tracker.start();
     tracker.track(mockSolanaAccount.id, 0);
     await tracker.updateTransactions();
 
@@ -80,7 +86,7 @@ describe('MultichainTransactionsTracker', () => {
   it('untracks account transactions', async () => {
     const { tracker, mockUpdateTransactions } = setupTracker();
 
-    await tracker.start();
+    tracker.start();
     tracker.track(mockSolanaAccount.id, 0);
     await tracker.updateTransactions();
     expect(mockUpdateTransactions).toHaveBeenCalledWith(mockSolanaAccount.id, {
@@ -95,7 +101,7 @@ describe('MultichainTransactionsTracker', () => {
   it('tracks account after being registered', async () => {
     const { tracker } = setupTracker();
 
-    await tracker.start();
+    tracker.start();
     tracker.track(mockSolanaAccount.id, 0);
     expect(tracker.isTracked(mockSolanaAccount.id)).toBe(true);
   });
@@ -103,7 +109,7 @@ describe('MultichainTransactionsTracker', () => {
   it('does not track account if not registered', async () => {
     const { tracker } = setupTracker();
 
-    await tracker.start();
+    tracker.start();
     expect(tracker.isTracked(mockSolanaAccount.id)).toBe(false);
   });
 
@@ -115,7 +121,7 @@ describe('MultichainTransactionsTracker', () => {
       .spyOn(global.Date, 'now')
       .mockImplementation(() => new Date(MOCK_TIMESTAMP).getTime());
 
-    await tracker.start();
+    tracker.start();
     tracker.track(mockSolanaAccount.id, blockTime);
     await tracker.updateTransactions();
     expect(mockUpdateTransactions).toHaveBeenCalledTimes(1);

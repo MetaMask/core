@@ -11,11 +11,11 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import { v4 as uuidv4 } from 'uuid';
 import {
   MultichainTransactionsController,
-  AllowedActions,
-  AllowedEvents,
-  MultichainTransactionsControllerState,
   defaultState,
-  MultichainTransactionsControllerMessenger,
+  type AllowedActions,
+  type AllowedEvents,
+  type MultichainTransactionsControllerState,
+  type MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
 import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
@@ -155,7 +155,7 @@ describe('MultichainTransactionsController', () => {
       'start',
     );
     const { controller } = setupController();
-    await controller.start();
+    controller.start();
     expect(spyTracker).toHaveBeenCalledTimes(1);
   });
 
@@ -165,8 +165,8 @@ describe('MultichainTransactionsController', () => {
       'stop',
     );
     const { controller } = setupController();
-    await controller.start();
-    await controller.stop();
+    controller.start();
+    controller.stop();
     expect(spyTracker).toHaveBeenCalledTimes(1);
   });
 
@@ -331,7 +331,7 @@ describe('MultichainTransactionsController', () => {
     const { controller, mockSnapHandleRequest } = setupController();
     mockSnapHandleRequest.mockRejectedValue(new Error('Failed to fetch'));
 
-    await expect(controller.updateTransactions()).resolves.not.toThrow();
+    await controller.updateTransactions();
     expect(controller.state.nonEvmTransactions).toEqual({});
   });
 });
