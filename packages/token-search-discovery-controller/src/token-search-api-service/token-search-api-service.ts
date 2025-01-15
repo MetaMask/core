@@ -24,15 +24,15 @@ export class TokenSearchApiService extends AbstractTokenSearchApiService {
       queryParams.append('limit', tokenSearchParams.limit);
     }
 
-    const response = await fetch(
-      `${this.baseUrl}/tokens-search/name?${queryParams.toString()}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+    const queryString = queryParams.toString();
+    const url = `${this.baseUrl}/tokens-search/name${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    );
+    });
 
     if (!response.ok) {
       throw new Error(
