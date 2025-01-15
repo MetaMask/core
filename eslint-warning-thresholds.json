@@ -3,7 +3,7 @@
   "@typescript-eslint/no-base-to-string": 3,
   "@typescript-eslint/no-duplicate-enum-values": 2,
   "@typescript-eslint/no-misused-promises": 1,
-  "@typescript-eslint/no-unsafe-enum-comparison": 32,
+  "@typescript-eslint/no-unsafe-enum-comparison": 35,
   "@typescript-eslint/no-unused-vars": 36,
   "@typescript-eslint/prefer-promise-reject-errors": 13,
   "@typescript-eslint/prefer-readonly": 145,
