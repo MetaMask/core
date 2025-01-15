@@ -422,7 +422,7 @@ export class NftController extends BaseController<
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
-    //Get current state values
+    // Get current state values
     if (
       this.#ipfsGateway !== ipfsGateway ||
       this.#openSeaEnabled !== openSeaEnabled ||
