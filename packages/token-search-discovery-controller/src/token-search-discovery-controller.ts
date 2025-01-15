@@ -4,7 +4,8 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { TokenSearchResponseItem } from './types';
+import type { TokenSearchParams, TokenSearchResponseItem } from './types';
+import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
 
 // === GENERAL ===
 
@@ -105,14 +106,13 @@ export class TokenSearchDiscoveryController extends BaseController<
   TokenSearchDiscoveryControllerState,
   TokenSearchDiscoveryControllerMessenger
 > {
-  readonly #baseUrl: string;
-
+  readonly #tokenSearchService: AbstractTokenSearchApiService;
   constructor({
-    portfolioApiUrl,
+    tokenSearchService,
     state = {},
     messenger,
   }: {
-    portfolioApiUrl: string;
+    tokenSearchService: AbstractTokenSearchApiService;
     state?: Partial<TokenSearchDiscoveryControllerState>;
     messenger: TokenSearchDiscoveryControllerMessenger;
   }) {
@@ -123,36 +123,14 @@ export class TokenSearchDiscoveryController extends BaseController<
       state: { ...getDefaultTokenSearchDiscoveryControllerState(), ...state },
     });
 
-    if (!portfolioApiUrl) {
-      throw new Error('Portfolio API URL is not set');
-    }
-    this.#baseUrl = portfolioApiUrl;
+    this.#tokenSearchService = tokenSearchService;
   }
 
   async searchTokens(
-    chains: string[] = [],
-    name?: string,
-    limit?: string,
+    tokenSearchParams: TokenSearchParams,
   ): Promise<TokenSearchResponseItem[]> {
-    const queryParams = new URLSearchParams();
-
-    if (chains.length > 0) {
-      queryParams.append('chains', chains.join());
-    }
-    if (name) {
-      queryParams.append('name', name);
-    }
-    if (limit) {
-      queryParams.append('limit', limit);
-    }
-
-    const endpoint = `tokens-search/name?${queryParams.toString()}`;
-    const results = await this.request<TokenSearchResponseItem[]>(endpoint, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    const results =
+      await this.#tokenSearchService.searchTokens(tokenSearchParams);
 
     this.update((state) => {
       state.recentSearches = results;
@@ -160,28 +138,5 @@ export class TokenSearchDiscoveryController extends BaseController<
     });
 
     return results;
-  }
-
-  private async request<T>(
-    endpoint: string,
-    options?: RequestInit,
-  ): Promise<T> {
-    const url = `${this.#baseUrl}/${endpoint}`;
-    const response = await fetch(url, options);
-
-    if (!response.ok) {
-      throw new Error(
-        `Portfolio API request failed with status: ${response.status}`,
-      );
-    }
-
-    return response.json();
-  }
-
-  clearRecentSearches(): void {
-    this.update((state) => {
-      state.recentSearches = [];
-      state.lastSearchTimestamp = null;
-    });
   }
 }
