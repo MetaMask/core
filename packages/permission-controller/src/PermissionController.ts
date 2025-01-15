@@ -1982,7 +1982,6 @@ export class PermissionController<
     target: string,
   ): void {
     if (!isPlainObject(caveat)) {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal
       throw new InvalidCaveatError(caveat, origin, target);
     }
 
