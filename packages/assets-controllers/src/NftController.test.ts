@@ -4487,7 +4487,6 @@ describe('NftController', () => {
       expect(spy).toHaveBeenCalledTimes(0);
     });
     it('should call update Nft metadata when preferences change is triggered and at least ipfsGateway, openSeaEnabled or isIpfsGatewayEnabled change', async () => {
-      
       const {
         nftController,
         mockGetAccount,
