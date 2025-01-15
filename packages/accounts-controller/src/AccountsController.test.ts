@@ -4,6 +4,8 @@ import {
   EthAccountType,
   BtcMethod,
   EthMethod,
+  EthScopes,
+  BtcScopes,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
@@ -66,6 +68,7 @@ const mockAccount: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
+  scopes: [EthScopes.Namespace],
   metadata: {
     name: 'Account 1',
     keyring: { type: KeyringTypes.hd },
@@ -81,6 +84,7 @@ const mockAccount2: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
+  scopes: [EthScopes.Namespace],
   metadata: {
     name: 'Account 2',
     keyring: { type: KeyringTypes.hd },
@@ -95,6 +99,7 @@ const mockAccount3: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
+  scopes: [EthScopes.Namespace],
   metadata: {
     name: '',
     keyring: { type: KeyringTypes.snap },
@@ -114,6 +119,7 @@ const mockAccount4: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
+  scopes: [EthScopes.Namespace],
   metadata: {
     name: 'Custom Name',
     keyring: { type: KeyringTypes.snap },
@@ -191,24 +197,32 @@ function createExpectedInternalAccount({
   lastSelected?: number;
   nameLastUpdatedAt?: number;
 }): InternalAccount {
-  const accountTypeToMethods = {
-    [`${EthAccountType.Eoa}`]: [...Object.values(ETH_EOA_METHODS)],
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    [`${EthAccountType.Erc4337}`]: [...Object.values(ETH_ERC_4337_METHODS)],
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    [`${BtcAccountType.P2wpkh}`]: [...Object.values(BtcMethod)],
+  const accountTypeToInfo: Record<
+    string,
+    { methods: string[]; scopes: string[] }
+  > = {
+    [`${EthAccountType.Eoa}`]: {
+      methods: [...Object.values(ETH_EOA_METHODS)],
+      scopes: [EthScopes.Namespace],
+    },
+    [`${EthAccountType.Erc4337}`]: {
+      methods: [...Object.values(ETH_ERC_4337_METHODS)],
+      scopes: [EthScopes.Mainnet], // Assuming we are using mainnet for those Smart Accounts
+    },
+    [`${BtcAccountType.P2wpkh}`]: {
+      methods: [...Object.values(BtcMethod)],
+      scopes: [BtcScopes.Mainnet],
+    },
   };
 
-  const methods =
-    accountTypeToMethods[type as keyof typeof accountTypeToMethods];
+  const { methods, scopes } = accountTypeToInfo[type];
 
-  const account = {
+  const account: InternalAccount = {
     id,
     address,
     options: {},
     methods,
+    scopes,
     type,
     metadata: {
       name,
@@ -217,7 +231,7 @@ function createExpectedInternalAccount({
       lastSelected: lastSelected || expect.any(Number),
       ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
     },
-  } as InternalAccount;
+  };
 
   if (snapId) {
     account.metadata.snap = {

@@ -30,7 +30,7 @@ import {
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 import { v1 as random } from 'uuid';
 
@@ -580,7 +580,7 @@ export class SignatureController extends BaseController<
 
     const metadata = {
       chainId,
-      id: random(),
+      id,
       messageParams: finalMessageParams,
       networkClientId,
       securityAlertResponse,
@@ -782,7 +782,6 @@ export class SignatureController extends BaseController<
 
       const originalStatus = metadata.status;
 
-      // eslint-disable-next-line n/callback-return
       callback(metadata);
 
       statusChanged = metadata.status !== originalStatus;
@@ -802,7 +801,6 @@ export class SignatureController extends BaseController<
 
   #updateState(callback: (state: SignatureControllerState) => void) {
     return this.update((state) => {
-      // eslint-disable-next-line n/callback-return, n/no-callback-literal
       callback(state as unknown as SignatureControllerState);
 
       const unapprovedRequests = Object.values(state.signatureRequests).filter(

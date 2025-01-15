@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [46.0.0]
+
+### Added
+
+- Add new `MultichainBalancesController` ([#4965](https://github.com/MetaMask/core/pull/4965))
+  - This controller has been migrated from the MetaMask extension codebase.
+- Added utility function `getKeyByValue` ([#5099](https://github.com/MetaMask/core/pull/5099))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^20.0.0` to `^21.0.0` ([#5140](https://github.com/MetaMask/core/pull/5140))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
+- Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+### Fixed
+
+- Fix Mantle price when calling `fetchMultiExchangeRate` ([#5099](https://github.com/MetaMask/core/pull/5099))
+- Fix multicall revert in `TokenBalancesController` ([#5083](https://github.com/MetaMask/core/pull/5083))
+  - `TokenBalancesController` was fixed to fetch erc20 token balances even if there's an invalid token in state whose address does not point to a smart contract.
+- Fix state changes for `ignoreTokens` for non-selected networks ([#5014](https://github.com/MetaMask/core/pull/5014))
+
 ## [45.1.2]
 
 ### Changed
@@ -1300,7 +1323,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.0...HEAD
+[46.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.2...@metamask/assets-controllers@46.0.0
 [45.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.1...@metamask/assets-controllers@45.1.2
 [45.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.0...@metamask/assets-controllers@45.1.1
 [45.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.0.0...@metamask/assets-controllers@45.1.0

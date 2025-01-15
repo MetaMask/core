@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
+- Bump `@metamask/keyring-internal-api` from `^1.0.0` to `^2.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066)), ([#5136](https://github.com/MetaMask/core/pull/5136))
+- Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+### Fixed
+
+- Make `verifySeedPhrase` mutually exclusive ([#5077](https://github.com/MetaMask/core/pull/5077))
+
 ## [19.0.2]
 
 ### Changed
@@ -618,7 +632,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.3...HEAD
+[19.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.2...@metamask/keyring-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.1...@metamask/keyring-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.0...@metamask/keyring-controller@19.0.1
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@18.0.0...@metamask/keyring-controller@19.0.0

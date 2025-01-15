@@ -577,7 +577,7 @@ export default class NotificationServicesController extends BaseController<
   #registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateMetamaskNotificationsList`,
-      async (...args) => this.updateMetamaskNotificationsList(...args),
+      this.updateMetamaskNotificationsList.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -1083,7 +1083,7 @@ export default class NotificationServicesController extends BaseController<
 
   /**
    * Fetches the list of metamask notifications.
-   * This includes OnChain notifications and Feature Announcements.
+   * This includes OnChain notifications; Feature Announcements; and Snap Notifications.
    *
    * **Action** - When a user views the notification list page/dropdown
    *
@@ -1096,35 +1096,46 @@ export default class NotificationServicesController extends BaseController<
     try {
       this.#setIsFetchingMetamaskNotifications(true);
 
+      // This is used by Feature Announcement & On Chain
+      // Not used by Snaps
+      const isGlobalNotifsEnabled = this.state.isNotificationServicesEnabled;
+
       // Raw Feature Notifications
-      const rawFeatureAnnouncementNotifications = this.state
-        .isFeatureAnnouncementsEnabled
-        ? await FeatureNotifications.getFeatureAnnouncementNotifications(
-            this.#featureAnnouncementEnv,
-            previewToken,
-          ).catch(() => [])
-        : [];
+      const rawFeatureAnnouncementNotifications =
+        isGlobalNotifsEnabled && this.state.isFeatureAnnouncementsEnabled
+          ? await FeatureNotifications.getFeatureAnnouncementNotifications(
+              this.#featureAnnouncementEnv,
+              previewToken,
+            ).catch(() => [])
+          : [];
 
       // Raw On Chain Notifications
       const rawOnChainNotifications: OnChainRawNotification[] = [];
-      const userStorage = await this.#storage
-        .getNotificationStorage()
-        .then((s) => s && (JSON.parse(s) as UserStorage))
-        .catch(() => null);
-      const bearerToken = await this.#auth.getBearerToken().catch(() => null);
-      if (userStorage && bearerToken) {
-        const notifications =
-          await OnChainNotifications.getOnChainNotifications(
-            userStorage,
-            bearerToken,
-          ).catch(() => []);
+      if (isGlobalNotifsEnabled) {
+        const userStorage = await this.#storage
+          .getNotificationStorage()
+          .then((s) => s && (JSON.parse(s) as UserStorage))
+          .catch(() => null);
+        const bearerToken = await this.#auth.getBearerToken().catch(() => null);
+        if (userStorage && bearerToken) {
+          const notifications =
+            await OnChainNotifications.getOnChainNotifications(
+              userStorage,
+              bearerToken,
+            ).catch(() => []);
 
-        rawOnChainNotifications.push(...notifications);
+          rawOnChainNotifications.push(...notifications);
+        }
       }
 
-      const readIds = this.state.metamaskNotificationsReadList;
+      // Snap Notifications (original)
+      // We do not want to remove them
+      const snapNotifications = this.state.metamaskNotificationsList.filter(
+        (notification) => notification.type === TRIGGER_TYPES.SNAP,
+      );
 
-      // Combined Notifications
+      // Process Notifications
+      const readIds = this.state.metamaskNotificationsReadList;
       const isNotUndefined = <Item>(t?: Item): t is Item => Boolean(t);
       const processAndFilter = (ns: RawNotificationUnion[]) =>
         ns
@@ -1136,15 +1147,14 @@ export default class NotificationServicesController extends BaseController<
       );
       const onChainNotifications = processAndFilter(rawOnChainNotifications);
 
-      const snapNotifications = this.state.metamaskNotificationsList.filter(
-        (notification) => notification.type === TRIGGER_TYPES.SNAP,
-      );
-
+      // Combine Notifications
       const metamaskNotifications: INotification[] = [
         ...featureAnnouncementNotifications,
         ...onChainNotifications,
         ...snapNotifications,
       ];
+
+      // Sort Notifications
       metamaskNotifications.sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
