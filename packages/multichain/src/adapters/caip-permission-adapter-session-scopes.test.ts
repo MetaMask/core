@@ -94,6 +94,25 @@ describe('CAIP-25 session scopes adapters', () => {
       });
     });
 
+    it('returns a NormalizedScopesObject with empty methods and notifications for scope not wallet namespace and unknown reference', () => {
+      const result = getSessionScopes({
+        requiredScopes: {},
+        optionalScopes: {
+          'foo:1': {
+            accounts: ['foo:1:0xdeadbeef'],
+          },
+        },
+      });
+
+      expect(result).toStrictEqual({
+        'foo:1': {
+          methods: [],
+          notifications: [],
+          accounts: ['foo:1:0xdeadbeef'],
+        },
+      });
+    });
+
     it('returns a NormalizedScopesObject for a eip155 namespaced scope', () => {
       const result = getSessionScopes({
         requiredScopes: {},
