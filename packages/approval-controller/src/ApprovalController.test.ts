@@ -244,17 +244,17 @@ function getRestrictedMessenger() {
 describe('approval controller', () => {
   let approvalController: ApprovalController;
   let showApprovalRequest: jest.Mock;
-  let messenger: ApprovalControllerMessenger;
+  let controllerMessenger: ApprovalControllerMessenger;
 
   beforeEach(() => {
     nanoidMock.mockReturnValue('TestId');
     jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
 
-    messenger = getRestrictedMessenger();
+    controllerMessenger = getRestrictedMessenger();
     showApprovalRequest = jest.fn();
 
     approvalController = new ApprovalController({
-      messenger,
+      messenger: controllerMessenger,
       showApprovalRequest,
     });
   });
@@ -780,16 +780,12 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by origin', () => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
     });
 
     it('returns false for non-existing entry by existing origin and non-existing type', () => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(
@@ -798,8 +794,6 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by non-existing origin and existing type', () => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
       expect(
@@ -808,8 +802,6 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by type', () => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
 
       expect(approvalController.has({ type: 'myType2' })).toBe(false);
@@ -818,15 +810,14 @@ describe('approval controller', () => {
 
   describe('accept', () => {
     it('resolves approval promise', async () => {
-      const acceptedEvent = jest.fn();
-      messenger.subscribe('ApprovalController:accepted', acceptedEvent);
-
       const approvalPromise = approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
         type: 'myType',
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo', 'success');
 
       const result = await approvalPromise;
@@ -835,7 +826,7 @@ describe('approval controller', () => {
 
     it('emits "accepted" event', async () => {
       const acceptedEvent = jest.fn();
-      messenger.subscribe('ApprovalController:accepted', acceptedEvent);
+      controllerMessenger.subscribe('ApprovalController:accepted', acceptedEvent);
 
       const approvalPromise = approvalController.add({
         id: 'foo',
@@ -843,6 +834,8 @@ describe('approval controller', () => {
         type: 'myType',
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo', 'success');
 
       await approvalPromise;
@@ -869,11 +862,15 @@ describe('approval controller', () => {
         type: 'myType2',
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo2', 'success2');
 
       let result = await approvalPromise2;
       expect(result).toBe('success2');
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo1', 'success1');
 
       result = await approvalPromise1;
@@ -1092,9 +1089,6 @@ describe('approval controller', () => {
 
   describe('reject', () => {
     it('rejects approval promise', async () => {
-      const rejectedEvent = jest.fn();
-      messenger.subscribe('ApprovalController:rejected', rejectedEvent);
-
       const rejectedError = new Error('failure');
       const approvalPromise = approvalController.add({
         id: 'foo',
@@ -1107,7 +1101,7 @@ describe('approval controller', () => {
 
     it('emits "rejected" event', async () => {
       const rejectedEvent = jest.fn();
-      messenger.subscribe('ApprovalController:rejected', rejectedEvent);
+      controllerMessenger.subscribe('ApprovalController:rejected', rejectedEvent);
 
       const rejectedError = new Error('failure');
       const approvalPromise = approvalController.add({
@@ -1117,18 +1111,16 @@ describe('approval controller', () => {
       });
       approvalController.reject('foo', rejectedError);
 
-      try {
-        await approvalPromise;
-      } catch (error) {
-        expect(rejectedEvent.mock.calls[0][0]).toEqual({
-          request: expect.objectContaining({
-            id: 'foo',
-            origin: 'bar.baz',
-            type: TYPE,
-          }),
-          error: rejectedError,
-        });
-      }
+      await expect(approvalPromise).rejects.toThrow(rejectedError);
+
+      expect(rejectedEvent.mock.calls[0][0]).toEqual({
+        request: expect.objectContaining({
+          id: 'foo',
+          origin: 'bar.baz',
+          type: TYPE,
+        }),
+        error: rejectedError,
+      });
     });
 
     it('rejects multiple approval promises out of order', async () => {
