@@ -69,34 +69,37 @@ describe('TokenSearchApiService', () => {
     it.each([
       {
         params: { chains: ['1'], name: 'Test', limit: '10' },
-        expectedUrl: `${baseUrl}/tokens-search/name?chains=1&name=Test&limit=10`,
+        expectedUrl: new URL(
+          `${baseUrl}/tokens-search/name?chains=1&name=Test&limit=10`,
+        ),
       },
       {
         params: { chains: ['1', '137'], name: 'Test' },
-        expectedUrl: `${baseUrl}/tokens-search/name?chains=1%2C137&name=Test`,
+        expectedUrl: new URL(
+          `${baseUrl}/tokens-search/name?chains=1%2C137&name=Test`,
+        ),
       },
       {
         params: { name: 'Test' },
-        expectedUrl: `${baseUrl}/tokens-search/name?name=Test`,
+        expectedUrl: new URL(`${baseUrl}/tokens-search/name?name=Test`),
       },
       {
         params: { chains: ['1'] },
-        expectedUrl: `${baseUrl}/tokens-search/name?chains=1`,
+        expectedUrl: new URL(`${baseUrl}/tokens-search/name?chains=1`),
       },
       {
         params: { limit: '20' },
-        expectedUrl: `${baseUrl}/tokens-search/name?limit=20`,
+        expectedUrl: new URL(`${baseUrl}/tokens-search/name?limit=20`),
       },
       {
         params: {},
-        expectedUrl: `${baseUrl}/tokens-search/name`,
+        expectedUrl: new URL(`${baseUrl}/tokens-search/name`),
       },
     ])(
       'should construct correct URL for params: $params',
       async ({ params, expectedUrl }) => {
         await service.searchTokens(params);
-
-        expect(mockFetch).toHaveBeenCalledWith(expectedUrl, expect.any(Object));
+        expect(mockFetch.mock.calls[0][0]).toEqual(expectedUrl);
       },
     );
 

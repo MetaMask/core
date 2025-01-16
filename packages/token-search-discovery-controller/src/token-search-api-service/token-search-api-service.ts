@@ -15,20 +15,17 @@ export class TokenSearchApiService extends AbstractTokenSearchApiService {
   async searchTokens(
     tokenSearchParams?: TokenSearchParams,
   ): Promise<TokenSearchResponseItem[]> {
-    const queryParams = new URLSearchParams();
+    const url = new URL('/tokens-search/name', this.#baseUrl);
 
     if (tokenSearchParams?.chains && tokenSearchParams.chains.length > 0) {
-      queryParams.append('chains', tokenSearchParams.chains.join());
+      url.searchParams.append('chains', tokenSearchParams.chains.join());
     }
     if (tokenSearchParams?.name) {
-      queryParams.append('name', tokenSearchParams.name);
+      url.searchParams.append('name', tokenSearchParams.name);
     }
     if (tokenSearchParams?.limit) {
-      queryParams.append('limit', tokenSearchParams.limit);
+      url.searchParams.append('limit', tokenSearchParams.limit);
     }
-
-    const queryString = queryParams.toString();
-    const url = `${this.#baseUrl}/tokens-search/name${queryString ? `?${queryString}` : ''}`;
 
     const response = await fetch(url, {
       method: 'GET',
