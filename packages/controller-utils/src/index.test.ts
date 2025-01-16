@@ -35,7 +35,6 @@ describe('@metamask/controller-utils', () => {
         "RPC",
         "FALL_BACK_VS_CURRENCY",
         "IPFS_DEFAULT_GATEWAY_URL",
-        "NFT_UPDATE_THRESHOLD",
         "GANACHE_CHAIN_ID",
         "MAX_SAFE_CHAIN_ID",
         "ERC721",

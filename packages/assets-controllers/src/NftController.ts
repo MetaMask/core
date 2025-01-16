@@ -25,7 +25,6 @@ import {
   ApprovalType,
   NFT_API_BASE_URL,
   NFT_API_VERSION,
-  NFT_UPDATE_THRESHOLD,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -101,12 +100,11 @@ type SuggestedNftMeta = {
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * @property transactionId - Transaction Id associated with the NFT
  */
-export type Nft =
-  | {
-      tokenId: string;
-      address: string;
-      isCurrentlyOwned?: boolean;
-    } & NftMetadata;
+export type Nft = {
+  tokenId: string;
+  address: string;
+  isCurrentlyOwned?: boolean;
+} & NftMetadata;
 
 type NftUpdate = {
   nft: Nft;
@@ -274,6 +272,8 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   allNfts: {},
   ignoredNfts: [],
 });
+
+const NFT_UPDATE_THRESHOLD = 500;
 
 /**
  * Controller that stores assets and exposes convenience methods
