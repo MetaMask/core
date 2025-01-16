@@ -47,7 +47,7 @@ import type { Hex } from '@metamask/utils';
 import { add0x, hexToNumber } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 // This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
@@ -3495,7 +3495,6 @@ export class TransactionController extends BaseController<
 
       const originalTransactionMeta = cloneDeep(transactionMeta);
 
-      // eslint-disable-next-line n/callback-return
       transactionMeta = callback(transactionMeta) ?? transactionMeta;
 
       if (skipValidation !== true) {

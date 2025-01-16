@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createServicePolicy` function to assist with reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143))
+
 ## [11.4.5]
 
 ### Changed
