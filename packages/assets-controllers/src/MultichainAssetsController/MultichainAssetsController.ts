@@ -1,4 +1,8 @@
-import type { AccountsControllerAccountAddedEvent } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRemovedEvent,
+  AccountsControllerListMultichainAccountsAction,
+} from '@metamask/accounts-controller';
 import {
   BaseController,
   type ControllerGetStateAction,
@@ -94,7 +98,7 @@ export type MultichainAssetsControllerStateChange = ControllerStateChangeEvent<
  * Actions exposed by the {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerActions =
-  MultichainAssetsControllerGetStateAction; 
+  MultichainAssetsControllerGetStateAction;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -105,15 +109,19 @@ export type MultichainAssetsControllerEvents =
 /**
  * Actions that this controller is allowed to call.
  */
-type AllowedActions = HandleSnapRequest | GetAllSnaps | GetPermissions;
+type AllowedActions =
+  | HandleSnapRequest
+  | GetAllSnaps
+  | GetPermissions
+  | AccountsControllerListMultichainAccountsAction;
 
 /**
  * Events that this controller is allowed to subscribe.
  */
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  
-  
+  | AccountsControllerAccountRemovedEvent;
+
 type AssetLookupResponse = {
   assets: Record<CaipAssetType, AssetMetadata>;
 };
@@ -121,14 +129,13 @@ type AssetLookupResponse = {
 /**
  * Messenger type for the MultichainAssetsController.
  */
-export type MultichainAssetsControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    MultichainAssetsControllerActions | AllowedActions,
-    MultichainAssetsControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type MultichainAssetsControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  MultichainAssetsControllerActions | AllowedActions,
+  MultichainAssetsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * {@link MultichainAssetsController}'s metadata.
@@ -176,7 +183,11 @@ export class MultichainAssetsController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      (account) => this.#handleOnAccountAdded(account),
+      async (account) => await this.#handleOnAccountAdded(account),
+    );
+    this.messagingSystem.subscribe(
+      'AccountsController:accountRemoved',
+      (account) => this.#handleOnAccountRemoved(account),
     );
   }
 
@@ -199,7 +210,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param account - The new account being added.
    */
-  async #handleOnAccountAdded(account: InternalAccount): Promise<void> {
+  async #handleOnAccountAdded(account: InternalAccount) {
     if (!this.#isNonEvmAccount(account)) {
       // Nothing to do here for EVM accounts
       return;
@@ -211,31 +222,21 @@ export class MultichainAssetsController extends BaseController<
         account.id,
         account.metadata.snap.id,
       );
-      console.log(assets);
-      // todo: filter list of asset that doesn't have metadata
       const assetsWithoutMetadata = assets.filter(
         (asset) => !this.state.metadata[asset],
       );
-      console.log(
-        '🚀 ~ #handleOnAccountAdded ~ assetsWithoutMetadata:',
-        assetsWithoutMetadata,
-      );
-
       const snaps = this.#getAllSnaps();
-      //TODO: check when snaps should include endowment:assets and if it makes sense to check for each new received asset which snap it belongs to or can pick the first snap that has endowment:assets
-      console.log(snaps);
-      // TODO: get permissions for each snap by snap.id
+
       const permissions = snaps.map((snap) =>
         this.#getSnapsPermissions(snap.id),
       );
-      console.log('🚀 ~ #handleOnAccountAdded ~ permissions:', permissions);
 
       /* Mock that every permission returned includeds     "endowment:assets": {
        "scopes": [
         "bip122:000000000019d6689c085ae165831e93"
       ]
     }  */
-      // To be removed once the above is implemented
+      // Mock start To be removed once the above is implemented
       permissions.forEach((singlePermission) => {
         singlePermission = {
           ...singlePermission,
@@ -250,16 +251,12 @@ export class MultichainAssetsController extends BaseController<
           scopes: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
         },
       };
+      // Mock End To be removed once the above is implemented
 
       // Identify the correct snap that has the right endowment:assets permission
       const currentAssetChain = assets[0].split('/')[0];
-      //TODO: get the permission index in the array of permissions
       const permissionIndex = permissions.findIndex((permission) =>
         permission['endowment:assets']?.scopes.includes(currentAssetChain),
-      );
-      console.log(
-        '🚀 ~ #handleOnAccountAdded ~ permissionIndex:',
-        permissionIndex,
       );
       const snapId = snaps[permissionIndex].id;
       console.log('🚀 ~ #handleOnAccountAdded ~ snapId:', snapId);
@@ -267,7 +264,6 @@ export class MultichainAssetsController extends BaseController<
       // call the snap to get the metadata
       if (assetsWithoutMetadata.length > 0) {
         const metadata = await this.#getMetadata(assetsWithoutMetadata);
-        console.log('🚀 ~ #handleOnAccountAdded ~ metadata:', metadata);
 
         const newMetadata = {
           ...this.state.metadata,
@@ -277,12 +273,35 @@ export class MultichainAssetsController extends BaseController<
           state.metadata = newMetadata;
         });
       }
-      //TODO: add new assets to state for the account
       this.update((state) => {
         state.allNonEvmTokens[account.id] = assets;
       });
-      console.log('state', this.state);
     }
+  }
+
+  /**
+   * Handles changes when a new account has been removed.
+   *
+   * @param account - The new account being removed.
+   */
+  async #handleOnAccountRemoved(accountId: string): Promise<void> {
+    const selectedAccounts = this.messagingSystem.call(
+      'AccountsController:listMultichainAccounts',
+    );
+
+    const nonEvmAccounts = selectedAccounts.filter((account) =>
+      this.#isNonEvmAccount(account),
+    );
+    const account: InternalAccount | undefined = nonEvmAccounts.find(
+      (multichainAccount) => multichainAccount.id === accountId,
+    );
+    if (!account) {
+      return;
+    }
+
+    this.update((state) => {
+      delete state.allNonEvmTokens[accountId];
+    });
   }
 
   #getAllSnaps(): Snap[] {
@@ -309,6 +328,7 @@ export class MultichainAssetsController extends BaseController<
    * @param snapId - ID of the Snap to get the client for.
    * @returns A `KeyringClient` for the Snap.
    */
+  // TODO: update this to use the snap handler
   async #getAssetsList(
     snapId: string,
     accountId: string,
@@ -333,9 +353,9 @@ export class MultichainAssetsController extends BaseController<
     return result;
   }
 
-  // TODO: mock function to get metadata
+  // TODO: update this function to get metadata from the snap
   async #getMetadata(assets: CaipAssetType[]): Promise<AssetLookupResponse> {
-    return {
+    return Promise.resolve({
       assets: {
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501': {
           name: 'Solana',
@@ -357,10 +377,6 @@ export class MultichainAssetsController extends BaseController<
             units: [{ name: 'USDC', symbol: 'SUSDCOL', decimals: 18 }],
           },
       },
-    };
+    });
   }
 }
-
-
-
-
