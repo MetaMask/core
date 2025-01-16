@@ -150,7 +150,7 @@ describe('MultichainMiddlewareManager', () => {
     expect(endSpy).toHaveBeenCalledWith(rpcErrors.methodNotFound());
   });
 
-  it('should add middleware and return error ifno middleware exists for scope, origin, and tabId and request is "eth_unsubscribe"', () => {
+  it('should add middleware and return error if no middleware exists for scope, origin, and tabId and request is "eth_unsubscribe"', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middleware =
       multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
