@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `createServicePolicy` function to assist with reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143))
+- Add `createServicePolicy` function to assist with reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143), [#5149](https://github.com/MetaMask/core/pull/5149))
+  - Also add `DEFAULT_DEGRADED_THRESHOLD`, `DEFAULT_MAX_CONSECUTIVE_FAILURES`, and `DEFAULT_MAX_RETRIES` constants and `IServicePolicy` type
 
 ## [11.4.5]
 
