@@ -488,6 +488,7 @@ export class AccountsController extends BaseController<
     //   can happen when the Snap keyring adds a new account. The Snap keyring will
     //   create a new account and will automatically "persists" by calling this
     //   function explicitly to create its associated internal account.
+    //
     //   FIXME: This logic is kinda tricky and could be replaced with the new
     //          incoming notification system that the Snap keyring will use.
     const snapAccounts = await this.#listAccountsFromSnapKeyring();
@@ -495,7 +496,7 @@ export class AccountsController extends BaseController<
 
     // Keep track of unnamed account to rename them after.
     const namedAccounts: InternalAccount[] = [];
-    const unnamedAccounts: InternalAccount[ ]= [];
+    const unnamedAccounts: InternalAccount[] = [];
 
     // Compute the updated list of internal accounts:
     const accounts: Record<string, InternalAccount> = {};
@@ -687,14 +688,12 @@ export class AccountsController extends BaseController<
   ): InternalAccount['metadata'] {
     return {
       // First, use all defaults metadata:
-      // This will be renamed by `updateAccounts`.
-      name: '',
+      name: '', // This will be renamed by `updateAccounts`
       keyring: {
         type: keyringType,
       },
       importTime: Date.now(),
-      // This means the account has never been selected yet.
-      lastSelected: 0,
+      lastSelected: 0, // This means the account has never been selected yet
 
       // Then, expand the optional metadata (if defined) to override the default ones!
       ...metadata,
@@ -804,7 +803,7 @@ export class AccountsController extends BaseController<
       const addedAccounts: AddressAndKeyringTypeObject[] = [];
       const deletedAccounts: InternalAccount[] = [];
 
-      // Snap account IDs are random uuid while normal accounts
+      // Snap account IDs are random UUIDs while normal accounts
       // are determininistic based on the address.
 
       // ^NOTE: This will be removed when normal accounts also implement internal accounts
