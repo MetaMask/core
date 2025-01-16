@@ -4,6 +4,7 @@ describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
+        "DEFAULT_CIRCUIT_BREAK_DURATION",
         "DEFAULT_DEGRADED_THRESHOLD",
         "DEFAULT_MAX_CONSECUTIVE_FAILURES",
         "DEFAULT_MAX_RETRIES",
