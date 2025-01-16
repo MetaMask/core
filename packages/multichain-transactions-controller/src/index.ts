@@ -7,6 +7,6 @@ export type {
 export {
   TRANSACTIONS_CHECK_INTERVALS,
   NETWORK_ASSETS_MAP,
-  MultichainNetworks,
-  MultichainNativeAssets,
+  MultichainNetwork,
+  MultichainNativeAsset,
 } from './constants';

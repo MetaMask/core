@@ -3,7 +3,23 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
-import { Poller } from './Poller';
+
+type PollerMock = {
+  start: jest.Mock;
+  stop: jest.Mock;
+};
+
+const mockStart = jest.fn();
+const mockStop = jest.fn();
+
+jest.mock('./Poller', () => ({
+  __esModule: true,
+  Poller(this: PollerMock) {
+    this.start = mockStart;
+    this.stop = mockStop;
+    return this;
+  },
+}));
 
 const MOCK_TIMESTAMP = 1733788800;
 
@@ -47,21 +63,23 @@ function setupTracker(): {
 }
 
 describe('MultichainTransactionsTracker', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('starts polling when calling start', async () => {
     const { tracker } = setupTracker();
-    const spyPoller = jest.spyOn(Poller.prototype, 'start');
 
     tracker.start();
-    expect(spyPoller).toHaveBeenCalledTimes(1);
+    expect(mockStart).toHaveBeenCalledTimes(1);
   });
 
   it('stops polling when calling stop', async () => {
     const { tracker } = setupTracker();
-    const spyPoller = jest.spyOn(Poller.prototype, 'stop');
 
     tracker.start();
     tracker.stop();
-    expect(spyPoller).toHaveBeenCalledTimes(1);
+    expect(mockStop).toHaveBeenCalledTimes(1);
   });
 
   it('is not tracking if none accounts have been registered', async () => {

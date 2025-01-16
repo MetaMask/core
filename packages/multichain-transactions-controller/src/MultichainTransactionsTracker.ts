@@ -10,6 +10,13 @@ type TransactionInfo = {
 // Every 5s in milliseconds.
 const TRANSACTIONS_TRACKING_INTERVAL = 5 * 1000;
 
+/**
+ * This class manages the tracking and periodic updating of transactions for multiple blockchain accounts.
+ *
+ * The tracker uses a polling mechanism to periodically check and update transactions
+ * for all tracked accounts, respecting each account's specific block time to determine
+ * when updates are needed.
+ */
 export class MultichainTransactionsTracker {
   readonly #poller: Poller;
 

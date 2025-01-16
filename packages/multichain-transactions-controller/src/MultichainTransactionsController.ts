@@ -18,11 +18,18 @@ import type {
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { MultichainNetworks, TRANSACTIONS_CHECK_INTERVALS } from './constants';
+import { MultichainNetwork, TRANSACTIONS_CHECK_INTERVALS } from './constants';
 import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
 const controllerName = 'MultichainTransactionsController';
 
+/**
+ * PaginationOptions
+ *
+ * Represents options for paginating transaction results
+ * limit - The maximum number of transactions to return
+ * next - The cursor for the next page of transactions, or null if there is no next page
+ */
 export type PaginationOptions = {
   limit: number;
   next?: string | null;
@@ -38,11 +45,15 @@ export type MultichainTransactionsControllerState = {
 };
 
 /**
- * Default state of the {@link MultichainTransactionsController}.
+ * Constructs the default {@link MultichainTransactionsController} state.
+ *
+ * @returns The default {@link MultichainTransactionsController} state.
  */
-export const defaultState: MultichainTransactionsControllerState = {
-  nonEvmTransactions: {},
-};
+export function getDefaultMultichainTransactionsControllerState(): MultichainTransactionsControllerState {
+  return {
+    nonEvmTransactions: {},
+  };
+}
 
 /**
  * Returns the state of the {@link MultichainTransactionsController}.
@@ -116,7 +127,7 @@ export type AllowedEvents =
  * using the `persist` flag; and if they can be sent to Sentry or not, using
  * the `anonymous` flag.
  */
-const MultichainTransactionsControllerMetadata = {
+const multichainTransactionsControllerMetadata = {
   nonEvmTransactions: {
     persist: true,
     anonymous: false,
@@ -148,14 +159,14 @@ export class MultichainTransactionsController extends BaseController<
     state,
   }: {
     messenger: MultichainTransactionsControllerMessenger;
-    state: MultichainTransactionsControllerState;
+    state?: Partial<MultichainTransactionsControllerState>;
   }) {
     super({
       messenger,
       name: controllerName,
-      metadata: MultichainTransactionsControllerMetadata,
+      metadata: multichainTransactionsControllerMetadata,
       state: {
-        ...defaultState,
+        ...getDefaultMultichainTransactionsControllerState(),
         ...state,
       },
     });
@@ -226,9 +237,9 @@ export class MultichainTransactionsController extends BaseController<
        * All other chain transactions are included as-is
        */
       const transactions = response.data.filter((tx) => {
-        const chain = tx.chain as MultichainNetworks;
-        if (chain.startsWith(MultichainNetworks.Solana)) {
-          return chain === MultichainNetworks.Solana;
+        const chain = tx.chain as MultichainNetwork;
+        if (chain.startsWith(MultichainNetwork.Solana)) {
+          return chain === MultichainNetwork.Solana;
         }
         return true;
       });

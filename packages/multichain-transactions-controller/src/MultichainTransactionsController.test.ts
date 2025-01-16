@@ -12,7 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 import {
   MultichainTransactionsController,
-  defaultState,
+  getDefaultMultichainTransactionsControllerState,
   type AllowedActions,
   type AllowedEvents,
   type MultichainTransactionsControllerState,
@@ -88,7 +88,7 @@ const mockTransactionResult = {
 };
 
 const setupController = ({
-  state = defaultState,
+  state = getDefaultMultichainTransactionsControllerState(),
   mocks,
 }: {
   state?: MultichainTransactionsControllerState;
