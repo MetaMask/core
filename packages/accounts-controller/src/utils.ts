@@ -50,7 +50,7 @@ export function keyringTypeToName(keyringType: string): string {
  * @param address - The Ethereum address to generate the UUID from.
  * @returns The UUID v4 options.
  */
-export function getUUIDOptionsFromAddressOfNormalAccount(
+export function getUUIDOptionsFromAddressOfNativeAccount(
   address: string,
 ): V4Options {
   const v4options = {
@@ -65,16 +65,16 @@ export function getUUIDOptionsFromAddressOfNormalAccount(
  * @param address - The Ethereum address to generate the UUID from.
  * @returns The generated UUID.
  */
-export function getUUIDFromAddressOfNormalAccount(address: string): string {
-  return uuid(getUUIDOptionsFromAddressOfNormalAccount(address));
+export function getUUIDFromAddressOfNativeAccount(address: string): string {
+  return uuid(getUUIDOptionsFromAddressOfNativeAccount(address));
 }
 
 /**
- * Check if a keyring type is considered a "normal" keyring.
+ * Check if a keyring type is considered a native keyring.
  * @param keyringType - The account's keyring type.
- * @returns True if the keyring type is considered a "normal" keyring, false otherwise.
+ * @returns True if the keyring type is considered a native keyring, false otherwise.
  */
-export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
+export function isNativeKeyringType(keyringType: KeyringTypes): boolean {
   // Right now, we only have to "exclude" Snap accounts, but this might need to be
   // adapted later on if we have new kind of keyrings!
   return keyringType !== KeyringTypes.snap;

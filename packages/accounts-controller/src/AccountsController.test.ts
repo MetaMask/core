@@ -28,7 +28,7 @@ import type {
 import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
 import { createMockInternalAccount } from './tests/mocks';
 import {
-  getUUIDOptionsFromAddressOfNormalAccount,
+  getUUIDOptionsFromAddressOfNativeAccount,
   keyringTypeToName,
 } from './utils';
 
@@ -133,13 +133,13 @@ const mockAccount4: InternalAccount = {
   },
 };
 
-class MockNormalAccountUUID {
+class MockNativeAccountUUID {
   #accountIds: Record<string, string> = {};
 
   constructor(accounts: InternalAccount[]) {
     for (const account of accounts) {
       const accountId = actualUUID(
-        getUUIDOptionsFromAddressOfNormalAccount(account.address),
+        getUUIDOptionsFromAddressOfNativeAccount(account.address),
       );
 
       // Register "hard-coded" (from test) account ID with the actual account UUID
@@ -156,21 +156,21 @@ class MockNormalAccountUUID {
 }
 
 /**
- * Mock generated normal account ID to their actual mock ID. This function will
+ * Mock generated native account ID to their actual mock ID. This function will
  * automatically attaches those accounts to `mockUUID`. A random UUID will be
- * generated if an account has not been registered. See {@link MockNormalAccountUUID}.
+ * generated if an account has not been registered. See {@link MockNativeAccountUUID}.
  *
- * @param accounts - List of normal accounts to map with their mock ID.
+ * @param accounts - List of native accounts to map with their mock ID.
  */
-function mockUUIDWithNormalAccounts(accounts: InternalAccount[]) {
-  const mockAccountUUIDs = new MockNormalAccountUUID(accounts);
+function mockUUIDWithNativeAccounts(accounts: InternalAccount[]) {
+  const mockAccountUUIDs = new MockNativeAccountUUID(accounts);
   mockUUID.mockImplementation(mockAccountUUIDs.mock.bind(mockAccountUUIDs));
 }
 
 /**
- * Creates an `InternalAccount` object from the given normal account properties.
+ * Creates an `InternalAccount` object from the given native account properties.
  *
- * @param props - The properties of the normal account.
+ * @param props - The properties of the native account.
  * @param props.id - The ID of the account.
  * @param props.name - The name of the account.
  * @param props.address - The address of the account.
@@ -181,7 +181,7 @@ function mockUUIDWithNormalAccounts(accounts: InternalAccount[]) {
  * @param props.importTime - The import time of the account.
  * @param props.lastSelected - The last selected time of the account.
  * @param props.nameLastUpdatedAt - The last updated time of the account name.
- * @returns The `InternalAccount` object created from the normal account properties.
+ * @returns The `InternalAccount` object created from the native account properties.
  */
 function createExpectedInternalAccount({
   id,
@@ -476,7 +476,7 @@ describe('AccountsController', () => {
     it('uses listMultichainAccounts', async () => {
       const messenger = buildMessenger();
 
-      mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+      mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -571,7 +571,7 @@ describe('AccountsController', () => {
       it('add new accounts', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2, mockAccount3]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2, mockAccount3]);
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -610,7 +610,7 @@ describe('AccountsController', () => {
       });
 
       it('add Snap accounts', async () => {
-        mockUUIDWithNormalAccounts([mockAccount]);
+        mockUUIDWithNativeAccounts([mockAccount]);
 
         const messenger = buildMessenger();
         messenger.registerActionHandler(
@@ -677,7 +677,7 @@ describe('AccountsController', () => {
       });
 
       it('handle the event when a Snap deleted the account before the it was added', async () => {
-        mockUUIDWithNormalAccounts([mockAccount]);
+        mockUUIDWithNativeAccounts([mockAccount]);
 
         const messenger = buildMessenger();
         messenger.registerActionHandler(
@@ -737,7 +737,7 @@ describe('AccountsController', () => {
       it('increment the default account number when adding an account', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2, mockAccount3]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2, mockAccount3]);
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -790,7 +790,7 @@ describe('AccountsController', () => {
       it('use the next number after the total number of accounts of a keyring when adding an account, if the index is lower', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2, mockAccount3]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2, mockAccount3]);
 
         const mockAccount2WithCustomName = createExpectedInternalAccount({
           id: 'mock-id2',
@@ -848,7 +848,7 @@ describe('AccountsController', () => {
       });
 
       it('handle when the account to set as selectedAccount is undefined', async () => {
-        mockUUIDWithNormalAccounts([mockAccount]);
+        mockUUIDWithNativeAccounts([mockAccount]);
 
         const messenger = buildMessenger();
         messenger.registerActionHandler(
@@ -899,7 +899,7 @@ describe('AccountsController', () => {
       it('selectedAccount remains the same after adding a new account', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2, mockAccount3]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2, mockAccount3]);
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -942,7 +942,7 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         const messengerSpy = jest.spyOn(messenger, 'publish');
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
         setupAccountsController({
           initialState: {
@@ -985,7 +985,7 @@ describe('AccountsController', () => {
       it('delete accounts if its gone from the keyring state', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount2]);
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -1026,7 +1026,7 @@ describe('AccountsController', () => {
       it('delete accounts and set the most recent lastSelected account', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -1079,7 +1079,7 @@ describe('AccountsController', () => {
       it('delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
         const mockAccount2WithoutLastSelected = {
           ...mockAccount2,
@@ -1140,7 +1140,7 @@ describe('AccountsController', () => {
         const currentTime = Date.now();
         const messenger = buildMessenger();
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
         const mockAccountWithoutLastSelected = {
           ...mockAccount,
@@ -1216,7 +1216,7 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         const messengerSpy = jest.spyOn(messenger, 'publish');
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
         setupAccountsController({
           initialState: {
@@ -1270,7 +1270,7 @@ describe('AccountsController', () => {
         keyringType: KeyringTypes.hd,
       });
 
-      mockUUIDWithNormalAccounts([
+      mockUUIDWithNativeAccounts([
         mockInitialAccount,
         mockReinitialisedAccount,
       ]);
@@ -1354,7 +1354,7 @@ describe('AccountsController', () => {
         });
         mockExistingAccount2.metadata.lastSelected = lastSelectedForAccount2;
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -1439,8 +1439,8 @@ describe('AccountsController', () => {
       );
     });
 
-    it('update accounts with normal accounts', async () => {
-      mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+    it('update accounts with native accounts', async () => {
+      mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1486,7 +1486,7 @@ describe('AccountsController', () => {
           keyringType: KeyringTypes.hd,
         }),
       ];
-      mockUUIDWithNormalAccounts(expectedAccounts);
+      mockUUIDWithNativeAccounts(expectedAccounts);
 
       await accountsController.updateAccounts();
 
@@ -1583,7 +1583,7 @@ describe('AccountsController', () => {
     });
 
     it('set the account with the correct index', async () => {
-      mockUUIDWithNormalAccounts([mockAccount]);
+      mockUUIDWithNativeAccounts([mockAccount]);
 
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1626,7 +1626,7 @@ describe('AccountsController', () => {
           keyringType: KeyringTypes.hd,
         }),
       ];
-      mockUUIDWithNormalAccounts(expectedAccounts);
+      mockUUIDWithNativeAccounts(expectedAccounts);
 
       await accountsController.updateAccounts();
 
@@ -1635,8 +1635,8 @@ describe('AccountsController', () => {
       );
     });
 
-    it('filter Snap accounts from normalAccounts', async () => {
-      mockUUIDWithNormalAccounts([mockAccount]);
+    it('filter Snap accounts from native accounts', async () => {
+      mockUUIDWithNativeAccounts([mockAccount]);
 
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1649,7 +1649,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      // first account will be normal, second will be a snap account
+      // first account will be native, second will be a snap account
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
         mockGetAccounts.mockResolvedValue([mockAddress1, '0x1234']),
@@ -1693,8 +1693,8 @@ describe('AccountsController', () => {
       );
     });
 
-    it('filter Snap accounts from normalAccounts even if the snap account is listed before normal accounts', async () => {
-      mockUUIDWithNormalAccounts([mockAccount]);
+    it('filter Snap accounts from native accounts even if the snap account is listed before native accounts', async () => {
+      mockUUIDWithNativeAccounts([mockAccount]);
 
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1707,7 +1707,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      // first account will be normal, second will be a snap account
+      // first account will be native, second will be a snap account
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
         mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]),
@@ -1761,7 +1761,7 @@ describe('AccountsController', () => {
       KeyringTypes.qr,
       'Custody - JSON - RPC',
     ])('should add accounts for %s type', async (keyringType) => {
-      mockUUIDWithNormalAccounts([mockAccount]);
+      mockUUIDWithNativeAccounts([mockAccount]);
 
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1810,7 +1810,7 @@ describe('AccountsController', () => {
     });
 
     it('throw an error if the keyring type is unknown', async () => {
-      mockUUIDWithNormalAccounts([mockAccount]);
+      mockUUIDWithNativeAccounts([mockAccount]);
 
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1891,7 +1891,7 @@ describe('AccountsController', () => {
         });
         mockExistingAccount2.metadata.lastSelected = lastSelectedForAccount2;
 
-        mockUUIDWithNormalAccounts([mockAccount, mockAccount2]);
+        mockUUIDWithNativeAccounts([mockAccount, mockAccount2]);
 
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
@@ -1903,7 +1903,7 @@ describe('AccountsController', () => {
           ]),
         );
 
-        // first account will be normal, second will be a snap account
+        // first account will be native, second will be a snap account
         messenger.registerActionHandler(
           'KeyringController:getAccounts',
           mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]),
@@ -2542,7 +2542,7 @@ describe('AccountsController', () => {
     it('return the next account number', async () => {
       const messenger = buildMessenger();
 
-      mockUUIDWithNormalAccounts([
+      mockUUIDWithNativeAccounts([
         mockAccount,
         mockSimpleKeyring1,
         mockSimpleKeyring2,
@@ -2580,7 +2580,7 @@ describe('AccountsController', () => {
     it('return the next account number even with an index gap', async () => {
       const messenger = buildMessenger();
 
-      mockUUIDWithNormalAccounts([
+      mockUUIDWithNativeAccounts([
         mockAccount,
         mockSimpleKeyring1,
         mockSimpleKeyring2,

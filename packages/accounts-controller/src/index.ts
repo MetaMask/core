@@ -23,4 +23,4 @@ export type {
   AccountsControllerMessenger,
 } from './AccountsController';
 export { AccountsController } from './AccountsController';
-export { keyringTypeToName, getUUIDFromAddressOfNormalAccount } from './utils';
+export { keyringTypeToName, getUUIDFromAddressOfNativeAccount as getUUIDFromAddressOfNormalAccount } from './utils';

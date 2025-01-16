@@ -36,8 +36,8 @@ import {
 import type { Draft } from 'immer';
 
 import {
-  getUUIDFromAddressOfNormalAccount,
-  isNormalKeyringType,
+  getUUIDFromAddressOfNativeAccount,
+  isNativeKeyringType,
   keyringTypeToName,
 } from './utils';
 
@@ -471,7 +471,7 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Updates the internal accounts list by retrieving normal and snap accounts,
+   * Updates the internal accounts list by retrieving native and Snap accounts,
    * removing duplicates, and updating the metadata of each account.
    *
    * @returns A Promise that resolves when the accounts have been updated.
@@ -492,7 +492,7 @@ export class AccountsController extends BaseController<
     //   FIXME: This logic is kinda tricky and could be replaced with the new
     //          incoming notification system that the Snap keyring will use.
     const snapAccounts = await this.#listAccountsFromSnapKeyring();
-    const normalAccounts = await this.#listAccountsFromOtherKeyrings();
+    const nativeAccounts = await this.#listAccountsFromOtherKeyrings();
 
     // Keep track of unnamed account to rename them after.
     const namedAccounts: InternalAccount[] = [];
@@ -500,7 +500,7 @@ export class AccountsController extends BaseController<
 
     // Compute the updated list of internal accounts:
     const accounts: Record<string, InternalAccount> = {};
-    for (const keyringInternalAccount of [...normalAccounts, ...snapAccounts]) {
+    for (const keyringInternalAccount of [...nativeAccounts, ...snapAccounts]) {
       const { id } = keyringInternalAccount;
 
       const internalAccount = this.state.internalAccounts.accounts[id];
@@ -602,7 +602,7 @@ export class AccountsController extends BaseController<
   ): InternalAccount {
     // Non-Snap accounts computes their account ID based on their address (in a
     // deterministic way).
-    const id = getUUIDFromAddressOfNormalAccount(address);
+    const id = getUUIDFromAddressOfNativeAccount(address);
     // If the account does not exist yet, metadata will use all default values.
     const account = this.getAccount(id);
     const metadata = this.#getAccountMetadataOrDefaults(
@@ -622,7 +622,7 @@ export class AccountsController extends BaseController<
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ],
-      // Normal accounts are all EOA.
+      // Native accounts are all EOA.
       type: EthAccountType.Eoa,
       // And EOA accounts are compatible on every EVM chains, so use the namespace here.
       scopes: [EthScopes.Namespace],
@@ -717,8 +717,8 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns a list of normal accounts.
-   * Note: listNormalAccounts is a temporary method until the keyrings all implement the InternalAccount interface.
+   * Returns a list of native accounts.
+   * NOTE: This method is a temporary solution until the keyrings all implement the InternalAccount interface.
    * Once all keyrings implement the InternalAccount interface, this method can be removed and getAccounts can be used instead.
    *
    * @returns A Promise that resolves to an array of InternalAccount objects.
@@ -729,8 +729,8 @@ export class AccountsController extends BaseController<
     for (const address of await this.#getAccountAddresses()) {
       const keyring = await this.#getKeyringForAccount(address);
 
-      if (!isNormalKeyringType(keyring.type as KeyringTypes)) {
-        // We only consider "normal accounts" here, so keep looping.
+      if (!isNativeKeyringType(keyring.type as KeyringTypes)) {
+        // We only consider native accounts here, so keep looping.
         continue;
       }
 
@@ -759,7 +759,7 @@ export class AccountsController extends BaseController<
     // submit password twice and clear the keyring state.
     // https://github.com/MetaMask/KeyringController/blob/2d73a4deed8d013913f6ef0c9f5c0bb7c614f7d3/src/KeyringController.ts#L910
     if (keyringState.isUnlocked && keyringState.keyrings.length > 0) {
-      const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
+      const updatedNativeKeyringAddresses: AddressAndKeyringTypeObject[] = [];
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
       for (const keyring of keyringState.keyrings) {
@@ -773,7 +773,7 @@ export class AccountsController extends BaseController<
             }),
           );
         } else {
-          updatedNormalKeyringAddresses.push(
+          updatedNativeKeyringAddresses.push(
             ...keyring.accounts.map((address) => {
               return {
                 address,
@@ -784,18 +784,18 @@ export class AccountsController extends BaseController<
         }
       }
 
-      const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
+      const { previousNativeInternalAccounts, previousSnapInternalAccounts } =
         this.listMultichainAccounts().reduce(
           (accumulator, account) => {
             if (account.metadata.keyring.type === KeyringTypes.snap) {
               accumulator.previousSnapInternalAccounts.push(account);
             } else {
-              accumulator.previousNormalInternalAccounts.push(account);
+              accumulator.previousNativeInternalAccounts.push(account);
             }
             return accumulator;
           },
           {
-            previousNormalInternalAccounts: [] as InternalAccount[],
+            previousNativeInternalAccounts: [] as InternalAccount[],
             previousSnapInternalAccounts: [] as InternalAccount[],
           },
         );
@@ -803,15 +803,15 @@ export class AccountsController extends BaseController<
       const addedAccounts: AddressAndKeyringTypeObject[] = [];
       const deletedAccounts: InternalAccount[] = [];
 
-      // Snap account IDs are random UUIDs while normal accounts
+      // Snap account IDs are random UUIDs while native accounts
       // are determininistic based on the address.
 
-      // ^NOTE: This will be removed when normal accounts also implement internal accounts
-      // finding all the normal accounts that were added
-      for (const account of updatedNormalKeyringAddresses) {
+      // ^NOTE: This will be removed when native accounts also implement internal accounts
+      // finding all the native accounts that were added
+      for (const account of updatedNativeKeyringAddresses) {
         if (
           !this.state.internalAccounts.accounts[
-            getUUIDFromAddressOfNormalAccount(account.address)
+            getUUIDFromAddressOfNativeAccount(account.address)
           ]
         ) {
           addedAccounts.push(account);
@@ -831,10 +831,10 @@ export class AccountsController extends BaseController<
         }
       }
 
-      // finding all the normal accounts that were deleted
-      for (const account of previousNormalInternalAccounts) {
+      // finding all the native accounts that were deleted
+      for (const account of previousNativeInternalAccounts) {
         if (
-          !updatedNormalKeyringAddresses.find(
+          !updatedNativeKeyringAddresses.find(
             ({ address }) =>
               address.toLowerCase() === account.address.toLowerCase(),
           )
