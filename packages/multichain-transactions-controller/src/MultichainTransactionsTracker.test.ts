@@ -4,20 +4,23 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
-type PollerMock = {
-  start: jest.Mock;
-  stop: jest.Mock;
-};
-
 const mockStart = jest.fn();
 const mockStop = jest.fn();
 
 jest.mock('./Poller', () => ({
   __esModule: true,
-  Poller(this: PollerMock) {
-    this.start = mockStart;
-    this.stop = mockStop;
-    return this;
+  Poller: class {
+    #callback: () => void;
+
+    constructor(callback: () => void) {
+      this.#callback = callback;
+    }
+
+    start = () => {
+      mockStart();
+      this.#callback();
+    };
+    stop = mockStop;
   },
 }));
 
@@ -155,5 +158,32 @@ describe('MultichainTransactionsTracker', () => {
 
     await tracker.updateTransactions();
     expect(mockUpdateTransactions).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls updateTransactions when polling', async () => {
+    const { tracker } = setupTracker();
+    const spyUpdateTransactions = jest.spyOn(tracker, 'updateTransactions');
+
+    tracker.start();
+    jest.runOnlyPendingTimers();
+
+    expect(spyUpdateTransactions).toHaveBeenCalled();
+  });
+
+  it('throws when asserting an untracked account', () => {
+    const { tracker } = setupTracker();
+    const untrackerId = 'untracked-account';
+
+    expect(() => tracker.assertBeingTracked(untrackerId)).toThrow(
+      `Account is not being tracked: ${untrackerId}`,
+    );
+  });
+
+  it('does not throw when asserting a tracked account', () => {
+    const { tracker } = setupTracker();
+    const trackerId = 'tracked-account';
+
+    tracker.track(trackerId, 1000);
+    expect(() => tracker.assertBeingTracked(trackerId)).not.toThrow();
   });
 });
