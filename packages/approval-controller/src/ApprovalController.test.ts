@@ -780,12 +780,16 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by origin', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
     });
 
     it('returns false for non-existing entry by existing origin and non-existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(
@@ -794,6 +798,8 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by non-existing origin and existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
       expect(
@@ -802,6 +808,8 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
 
       expect(approvalController.has({ type: 'myType2' })).toBe(false);
