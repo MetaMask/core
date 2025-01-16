@@ -4486,6 +4486,7 @@ describe('NftController', () => {
 
       expect(spy).toHaveBeenCalledTimes(0);
     });
+
     it('should call update Nft metadata when preferences change is triggered and at least ipfsGateway, openSeaEnabled or isIpfsGatewayEnabled change', async () => {
       const {
         nftController,
@@ -4512,6 +4513,7 @@ describe('NftController', () => {
 
       expect(spy).toHaveBeenCalledTimes(1);
     });
+
     it('should update Nft metadata successfully', async () => {
       const tokenURI = 'https://api.pudgypenguins.io/lil/4';
       const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
