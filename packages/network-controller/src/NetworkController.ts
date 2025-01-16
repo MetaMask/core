@@ -594,11 +594,10 @@ export function getDefaultNetworkControllerState(): NetworkState {
  * @param state - NetworkController state
  * @returns A list of all available network configurations
  */
-export function getNetworkConfigurations(
-  state: NetworkState,
-): NetworkConfiguration[] {
-  return Object.values(state.networkConfigurationsByChainId);
-}
+export const getNetworkConfigurations = createSelector(
+  (state: NetworkState): Record<Hex, NetworkConfiguration> => state.networkConfigurationsByChainId,
+  (networkConfigurationsByChainId): NetworkConfiguration[] => Object.values(networkConfigurationsByChainId),
+)
 
 /**
  * Get a list of all available client IDs from a list of
