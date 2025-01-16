@@ -10,7 +10,7 @@ const mockStop = jest.fn();
 jest.mock('./Poller', () => ({
   __esModule: true,
   Poller: class {
-    #callback: () => void;
+    readonly #callback: () => void;
 
     constructor(callback: () => void) {
       this.#callback = callback;
@@ -20,6 +20,7 @@ jest.mock('./Poller', () => ({
       mockStart();
       this.#callback();
     };
+
     stop = mockStop;
   },
 }));

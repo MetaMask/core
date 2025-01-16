@@ -1,3 +1,8 @@
+import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRemovedEvent,
+  AccountsControllerListMultichainAccountsAction,
+} from '@metamask/accounts-controller';
 import {
   BaseController,
   type ControllerGetStateAction,
@@ -5,16 +10,11 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType, type Transaction } from '@metamask/keyring-api';
-import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type {
-  AccountsControllerAccountAddedEvent,
-  AccountsControllerAccountRemovedEvent,
-  AccountsControllerListMultichainAccountsAction,
-} from '@metamask/accounts-controller';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
