@@ -687,16 +687,16 @@ export class AccountsController extends BaseController<
     metadata?: InternalAccount['metadata'],
   ): InternalAccount['metadata'] {
     return {
-      // First, use all defaults metadata:
-      name: '', // This will be renamed by `updateAccounts`
+      // Expand the account's metadata first, and then adds default if they are not
+      // defined.
+      ...metadata,
+
+      name: metadata?.name ?? '', // This will be renamed by `updateAccounts` if empty.
       keyring: {
         type: keyringType,
       },
-      importTime: Date.now(),
-      lastSelected: 0, // This means the account has never been selected yet
-
-      // Then, expand the optional metadata (if defined) to override the default ones!
-      ...metadata,
+      importTime: metadata?.importTime ?? Date.now(),
+      lastSelected: metadata?.lastSelected ?? 0, // This means the account has never been selected yet.
     };
   }
 
