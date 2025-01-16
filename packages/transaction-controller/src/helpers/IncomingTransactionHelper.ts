@@ -1,7 +1,7 @@
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
 import { incomingTransactionsLogger as log } from '../logger';

@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -121,7 +121,7 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link GasPricesController}.
  */
-export type GasPricesControllerMessenger = RestrictedControllerMessenger<
+export type GasPricesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   GasPricesControllerActions | AllowedActions,
   GasPricesControllerEvents | AllowedEvents,
@@ -151,7 +151,7 @@ export function getDefaultGasPricesControllerState(): GasPricesControllerState {
  * @example
  *
  * ``` ts
- * import { ControllerMessenger } from '@metamask/base-controller';
+ * import { Messenger } from '@metamask/base-controller';
  * import {
  *   GasPricesController,
  *   GasPricesService
@@ -164,7 +164,7 @@ export function getDefaultGasPricesControllerState(): GasPricesControllerState {
  *
  * // Assuming that you're using this in the browser
  * const gasPricesService = new GasPricesService({ fetch });
- * const rootMessenger = new ControllerMessenger<
+ * const rootMessenger = new Messenger<
  *  GasPricesControllerActions | NetworkControllerGetStateAction,
  *  GasPricesControllerEvents
  * >();

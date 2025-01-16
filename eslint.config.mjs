@@ -1,19 +1,12 @@
 import base, { createConfig } from '@metamask/eslint-config';
-import nodejs from '@metamask/eslint-config-nodejs';
 import jest from '@metamask/eslint-config-jest';
+import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
 
-const config = createConfig(
+const config = createConfig([
+  ...base,
   {
     ignores: [
-      'yarn.lock',
-      '**/**.map',
-      '**/**.tsbuildinfo',
-      '**/*.json',
-      '**/*.md',
-      '**/LICENSE',
-      '**/*.sh',
-      '**/.DS_Store',
       '**/dist/**',
       '**/docs/**',
       '**/coverage/**',
@@ -22,7 +15,6 @@ const config = createConfig(
       'scripts/create-package/package-template/**',
     ],
   },
-  ...base,
   {
     rules: {
       // Left disabled because various properties throughough this repo are snake_case because the
@@ -32,14 +24,12 @@ const config = createConfig(
       'id-length': 'off',
 
       // TODO: re-enble most of these rules
-      '@typescript-eslint/naming-convention': 'off',
       'function-paren-newline': 'off',
       'id-denylist': 'off',
       'implicit-arrow-linebreak': 'off',
-      'import/no-anonymous-default-export': 'off',
-      'import/no-unassigned-import': 'off',
+      'import-x/no-anonymous-default-export': 'off',
+      'import-x/no-unassigned-import': 'off',
       'lines-around-comment': 'off',
-      'n/no-sync': 'off',
       'no-async-promise-executor': 'off',
       'no-case-declarations': 'off',
       'no-invalid-this': 'off',
@@ -53,6 +43,12 @@ const config = createConfig(
         'off',
         { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
       ],
+
+      // TODO: These rules created more errors after the upgrade to ESLint 9.
+      // Re-enable these rules and address any lint violations.
+      'import-x/no-named-as-default-member': 'warn',
+      'prettier/prettier': 'warn',
+      'no-empty-function': 'warn',
     },
     settings: {
       jsdoc: {
@@ -62,26 +58,38 @@ const config = createConfig(
   },
   {
     files: [
-      '**/jest.config.js',
-      '**/jest.environment.js',
-      '**/tests/**/*.{ts,js}',
-      '*.js',
-      '*.test.{ts,js}',
+      '**/*.{js,cjs,mjs}',
+      '**/*.test.{js,ts}',
+      '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
-      'scripts/create-package/*.ts',
-      'yarn.config.cjs',
+      'scripts/create-package/**/*.ts',
     ],
     extends: [nodejs],
+    rules: {
+      // TODO: Re-enable this
+      'n/no-sync': 'off',
+      // TODO: These rules created more errors after the upgrade to ESLint 9.
+      // Re-enable these rules and address any lint violations.
+      'n/no-unsupported-features/node-builtins': 'warn',
+    },
   },
   {
-    files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
+    files: ['**/*.test.{js,ts}', '**/tests/**/*.{js,ts}'],
     extends: [jest],
+    rules: {
+      // TODO: These rules created more errors after the upgrade to ESLint 9.
+      // Re-enable these rules and address any lint violations.
+      'jest/no-conditional-in-test': 'warn',
+      'jest/prefer-lowercase-title': 'warn',
+      'jest/prefer-strict-equal': 'warn',
+    },
   },
   {
     // These files are test helpers, not tests. We still use the Jest ESLint
     // config here to ensure that ESLint expects a test-like environment, but
     // various rules meant just to apply to tests have been disabled.
-    files: ['**/tests/**/*.{ts,js}', '!*.test.{ts,js}'],
+    files: ['**/tests/**/*.{js,ts}'],
+    ignores: ['**/*.test.{js,ts}'],
     rules: {
       'jest/no-export': 'off',
       'jest/require-top-level-describe': 'off',
@@ -89,20 +97,39 @@ const config = createConfig(
     },
   },
   {
-    files: ['*.js', '*.cjs'],
-    parserOptions: {
+    files: ['**/*.{js,cjs}'],
+    languageOptions: {
       sourceType: 'script',
-      ecmaVersion: '2020',
+      ecmaVersion: 2020,
     },
   },
   {
-    files: ['*.ts'],
+    files: ['**/*.ts'],
     extends: [typescript],
-    parserOptions: {
-      tsconfigRootDir: import.meta.dirname,
-      project: ['./tsconfig.packages.json'],
+    languageOptions: {
+      parserOptions: {
+        tsconfigRootDir: import.meta.dirname,
+        project: './tsconfig.packages.json',
+        // Disable `projectService` because we run into out-of-memory issues.
+        // See this ticket for inspiration out how to solve this:
+        // <https://github.com/typescript-eslint/typescript-eslint/issues/1192>
+        projectService: false,
+      },
     },
     rules: {
+      // These rules have been customized from their defaults.
+      '@typescript-eslint/switch-exhaustiveness-check': [
+        'error',
+        {
+          considerDefaultExhaustiveForUnions: true,
+        },
+      ],
+
+      // This rule does not detect multiple imports of the same file where types
+      // are being imported in one case and runtime values are being imported in
+      // another
+      'import-x/no-duplicates': 'off',
+
       // Enable rules that are disabled in `@metamask/eslint-config-typescript`
       '@typescript-eslint/no-explicit-any': 'error',
 
@@ -110,6 +137,7 @@ const config = createConfig(
       '@typescript-eslint/promise-function-async': 'off',
 
       // TODO: re-enable most of these rules
+      '@typescript-eslint/naming-convention': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/prefer-enum-initializers': 'off',
@@ -118,26 +146,50 @@ const config = createConfig(
       '@typescript-eslint/prefer-reduce-type-parameter': 'off',
       'no-restricted-syntax': 'off',
       'no-restricted-globals': 'off',
+
+      // TODO: These rules created more errors after the upgrade to ESLint 9.
+      // Re-enable these rules and address any lint violations.
+      '@typescript-eslint/consistent-type-exports': 'warn',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-base-to-string': 'warn',
+      '@typescript-eslint/no-duplicate-enum-values': 'warn',
+      '@typescript-eslint/no-misused-promises': 'warn',
+      '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
+      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/only-throw-error': 'warn',
+      '@typescript-eslint/prefer-promise-reject-errors': 'warn',
+      '@typescript-eslint/prefer-readonly': 'warn',
+      'import-x/namespace': 'warn',
+      'import-x/no-named-as-default': 'warn',
+      'import-x/order': 'warn',
+      'jsdoc/check-tag-names': 'warn',
+      'jsdoc/require-returns': 'warn',
+      'jsdoc/tag-lines': 'warn',
+      'no-unused-private-class-members': 'warn',
+      'promise/always-return': 'warn',
+      'promise/catch-or-return': 'warn',
+      'promise/param-names': 'warn',
     },
   },
   {
     files: ['tests/setupAfterEnv/matchers.ts'],
-    parserOptions: {
+    languageOptions: {
       sourceType: 'script',
     },
   },
+  // This should really be in `@metamask/eslint-config-typescript`
   {
-    files: ['*.d.ts'],
+    files: ['**/*.d.ts'],
     rules: {
       '@typescript-eslint/naming-convention': 'warn',
-      'import/unambiguous': 'off',
+      'import-x/unambiguous': 'off',
     },
   },
   {
     files: ['scripts/*.ts'],
     rules: {
-      // All scripts will have shebangs.
-      'n/shebang': 'off',
+      // Scripts may be self-executable and thus have hashbangs.
+      'n/hashbang': 'off',
     },
   },
   {
@@ -145,8 +197,20 @@ const config = createConfig(
     rules: {
       // These files run under Node, and thus `require(...)` is expected.
       'n/global-require': 'off',
+
+      // TODO: These rules created more errors after the upgrade to ESLint 9.
+      // Re-enable these rules and address any lint violations.
+      'n/prefer-global/text-encoder': 'warn',
+      'n/prefer-global/text-decoder': 'warn',
+      'no-shadow': 'warn',
     },
   },
-);
+  {
+    files: ['**/*.mjs'],
+    languageOptions: {
+      sourceType: 'module',
+    },
+  },
+]);
 
 export default config;

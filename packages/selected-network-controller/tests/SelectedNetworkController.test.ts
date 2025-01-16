@@ -44,7 +44,7 @@ function buildMessenger() {
  * @param options.getSubjectNames - Permissions controller list of domains with permissions
  * @returns The network controller restricted messenger.
  */
-export function buildSelectedNetworkControllerMessenger({
+function buildSelectedNetworkControllerMessenger({
   messenger = new ControllerMessenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents

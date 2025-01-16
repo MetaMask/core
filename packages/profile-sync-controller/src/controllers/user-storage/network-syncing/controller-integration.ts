@@ -29,7 +29,7 @@ type PerformMainNetworkSyncProps = {
  * Ensures that listeners do not fire during main sync (prevent double requests)
  */
 // Exported to help testing
-// eslint-disable-next-line import/no-mutable-exports
+// eslint-disable-next-line import-x/no-mutable-exports
 export let isMainNetworkSyncInProgress = false;
 
 /**

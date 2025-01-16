@@ -20,7 +20,7 @@ import type { PushNotificationEnv } from '../../types/firebase';
 declare const self: ServiceWorkerGlobalScope;
 
 // Exported to help testing
-// eslint-disable-next-line import/no-mutable-exports
+// eslint-disable-next-line import-x/no-mutable-exports
 export let supportedCache: boolean | null = null;
 
 const getPushAvailability = async () => {
