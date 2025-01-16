@@ -3,6 +3,8 @@ import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
 
+const NODE_LTS_VERSION = 22;
+
 const config = createConfig([
   ...base,
   {
@@ -82,6 +84,11 @@ const config = createConfig([
       'jest/no-conditional-in-test': 'warn',
       'jest/prefer-lowercase-title': 'warn',
       'jest/prefer-strict-equal': 'warn',
+    },
+    settings: {
+      node: {
+        version: `^${NODE_LTS_VERSION}`,
+      },
     },
   },
   {
