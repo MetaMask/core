@@ -333,7 +333,7 @@ describe('MultichainMiddlewareManager', () => {
     const endSpy = jest.fn();
 
     middleware(
-      { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_subscribe', scope },
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,
@@ -365,7 +365,7 @@ describe('MultichainMiddlewareManager', () => {
     const endSpy = jest.fn();
 
     middleware(
-      { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_subscribe', scope },
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,
