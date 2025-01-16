@@ -99,7 +99,9 @@ describe('TokenSearchApiService', () => {
       'should construct correct URL for params: $params',
       async ({ params, expectedUrl }) => {
         await service.searchTokens(params);
-        expect(mockFetch.mock.calls[0][0]).toEqual(expectedUrl);
+        expect(mockFetch.mock.calls[0][0].toString()).toBe(
+          expectedUrl.toString(),
+        );
       },
     );
 
