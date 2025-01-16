@@ -2,6 +2,7 @@ import type {
   JsonRpcEngineEndCallback,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
+import { rpcErrors } from '@metamask/rpc-errors';
 import type {
   Json,
   JsonRpcRequest,
@@ -125,6 +126,11 @@ export class MultichainMiddlewareManager {
 
       if (middlewareEntry) {
         middlewareEntry.middleware(req, res, next, end);
+      } else if (['eth_subscribe', 'eth_unsubscribe'].includes(req.method)) {
+        // TODO: Temporary safety guard to prevent requests with these methods
+        // from being forwarded to the RPC endpoint even though this scenario
+        // should not be possible.
+        return end(rpcErrors.methodNotFound());
       } else {
         return next();
       }

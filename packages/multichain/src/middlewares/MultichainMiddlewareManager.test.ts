@@ -1,3 +1,5 @@
+import { rpcErrors } from '@metamask/rpc-errors';
+
 import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
 import { MultichainMiddlewareManager } from './MultichainMiddlewareManager';
 
@@ -39,6 +41,69 @@ describe('MultichainMiddlewareManager', () => {
     );
     expect(nextSpy).not.toHaveBeenCalled();
     expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it('should add middleware and call next if if no middleware exists for scope, origin, and tabId and request is not "eth_subscribe" or "eth_unsubscribe', () => {
+    const multichainMiddlewareManager = new MultichainMiddlewareManager();
+    const middleware =
+      multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
+        origin,
+        123,
+      );
+
+    const nextSpy = jest.fn();
+    const endSpy = jest.fn();
+
+    middleware(
+      { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(nextSpy).toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it('should add middleware and return error if if no middleware exists for scope, origin, and tabId and request is "eth_subscribe"', () => {
+    const multichainMiddlewareManager = new MultichainMiddlewareManager();
+    const middleware =
+      multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
+        origin,
+        123,
+      );
+
+    const nextSpy = jest.fn();
+    const endSpy = jest.fn();
+
+    middleware(
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_subscribe', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(nextSpy).not.toHaveBeenCalled();
+    expect(endSpy).toHaveBeenCalledWith(rpcErrors.methodNotFound());
+  });
+
+  it('should add middleware and return error if if no middleware exists for scope, origin, and tabId and request is "eth_unsubscribe"', () => {
+    const multichainMiddlewareManager = new MultichainMiddlewareManager();
+    const middleware =
+      multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
+        origin,
+        123,
+      );
+
+    const nextSpy = jest.fn();
+    const endSpy = jest.fn();
+
+    middleware(
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_unsubscribe', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(nextSpy).not.toHaveBeenCalled();
+    expect(endSpy).toHaveBeenCalledWith(rpcErrors.methodNotFound());
   });
 
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware has no destroy function', async () => {
