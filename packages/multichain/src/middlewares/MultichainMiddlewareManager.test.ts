@@ -129,7 +129,7 @@ describe('MultichainMiddlewareManager', () => {
     expect(endSpy).not.toHaveBeenCalled();
   });
 
-  it('should add middleware and return error ifno middleware exists for scope, origin, and tabId and request is "eth_subscribe"', () => {
+  it('should add middleware and return error if no middleware exists for scope, origin, and tabId and request is "eth_subscribe"', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middleware =
       multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
