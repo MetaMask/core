@@ -26,7 +26,7 @@ import {
   NFT_API_BASE_URL,
   NFT_API_VERSION,
 } from '@metamask/controller-utils';
-import { type InternalAccount } from '@metamask/keyring-api';
+import { type InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -100,12 +100,11 @@ type SuggestedNftMeta = {
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * @property transactionId - Transaction Id associated with the NFT
  */
-export type Nft =
-  | {
-      tokenId: string;
-      address: string;
-      isCurrentlyOwned?: boolean;
-    } & NftMetadata;
+export type Nft = {
+  tokenId: string;
+  address: string;
+  isCurrentlyOwned?: boolean;
+} & NftMetadata;
 
 type NftUpdate = {
   nft: Nft;
@@ -274,6 +273,8 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   ignoredNfts: [],
 });
 
+const NFT_UPDATE_THRESHOLD = 500;
+
 /**
  * Controller that stores assets and exposes convenience methods
  */
@@ -421,15 +422,21 @@ export class NftController extends BaseController<
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
-    this.#ipfsGateway = ipfsGateway;
-    this.#openSeaEnabled = openSeaEnabled;
-    this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+    // Get current state values
+    if (
+      this.#ipfsGateway !== ipfsGateway ||
+      this.#openSeaEnabled !== openSeaEnabled ||
+      this.#isIpfsGatewayEnabled !== isIpfsGatewayEnabled
+    ) {
+      this.#ipfsGateway = ipfsGateway;
+      this.#openSeaEnabled = openSeaEnabled;
+      this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+      const needsUpdateNftMetadata =
+        (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
-    const needsUpdateNftMetadata =
-      (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
-
-    if (needsUpdateNftMetadata && selectedAccount) {
-      await this.#updateNftUpdateForAccount(selectedAccount);
+      if (needsUpdateNftMetadata && selectedAccount) {
+        await this.#updateNftUpdateForAccount(selectedAccount);
+      }
     }
   }
 
@@ -2053,7 +2060,10 @@ export class NftController extends BaseController<
       (singleNft) =>
         !singleNft.name && !singleNft.description && !singleNft.image,
     );
-    if (nftsToUpdate.length !== 0) {
+    if (
+      nftsToUpdate.length !== 0 &&
+      nftsToUpdate.length < NFT_UPDATE_THRESHOLD
+    ) {
       await this.updateNftMetadata({
         nfts: nftsToUpdate,
         userAddress: account.address,

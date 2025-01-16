@@ -5,8 +5,6 @@ import type { Hex } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
-import type { RemoteTransactionSource } from '../types';
-import type { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
 
@@ -160,22 +158,6 @@ function newMultichainTrackingHelper(
       return mockNonceTracker;
     });
 
-  const mockIncomingTransactionHelpers: Record<
-    Hex,
-    jest.Mocked<IncomingTransactionHelper>
-  > = {};
-  const mockCreateIncomingTransactionHelper = jest
-    .fn()
-    .mockImplementation(({ chainId }: { chainId: Hex }) => {
-      const mockIncomingTransactionHelper = {
-        start: jest.fn(),
-        stop: jest.fn(),
-        update: jest.fn(),
-      } as unknown as jest.Mocked<IncomingTransactionHelper>;
-      mockIncomingTransactionHelpers[chainId] = mockIncomingTransactionHelper;
-      return mockIncomingTransactionHelper;
-    });
-
   const mockPendingTransactionTrackers: Record<
     Hex,
     jest.Mocked<PendingTransactionTracker>
@@ -190,8 +172,6 @@ function newMultichainTrackingHelper(
       mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker;
       return mockPendingTransactionTracker;
     });
-  const mockCreateRemoteTransactionSource = () =>
-    ({} as RemoteTransactionSource);
 
   const options = {
     isMultichainEnabled: true,
@@ -199,22 +179,12 @@ function newMultichainTrackingHelper(
     nonceTracker: {
       getNonceLock: jest.fn().mockResolvedValue(mockNonceLock),
     },
-    incomingTransactionOptions: {
-      // make this a comparable reference
-      includeTokenTransfers: true,
-      isEnabled: () => true,
-      queryEntireHistory: true,
-      updateTransactions: true,
-    },
     findNetworkClientIdByChainId: mockFindNetworkClientIdByChainId,
     getNetworkClientById: mockGetNetworkClientById,
     getNetworkClientRegistry: mockGetNetworkClientRegistry,
-    removeIncomingTransactionHelperListeners: jest.fn(),
     removePendingTransactionTrackerListeners: jest.fn(),
     createNonceTracker: mockCreateNonceTracker,
-    createIncomingTransactionHelper: mockCreateIncomingTransactionHelper,
     createPendingTransactionTracker: mockCreatePendingTransactionTracker,
-    createRemoteTransactionSource: mockCreateRemoteTransactionSource,
     onNetworkStateChange: jest.fn(),
     ...opts,
   };
@@ -226,7 +196,6 @@ function newMultichainTrackingHelper(
     options,
     mockNonceLock,
     mockNonceTrackers,
-    mockIncomingTransactionHelpers,
     mockPendingTransactionTrackers,
   };
 }
@@ -333,13 +302,6 @@ describe('MultichainTrackingHelper', () => {
         chainId: '0x1',
       });
 
-      expect(options.createIncomingTransactionHelper).toHaveBeenCalledTimes(1);
-      expect(options.createIncomingTransactionHelper).toHaveBeenCalledWith({
-        blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
-        remoteTransactionSource: expect.anything(),
-        chainId: '0x1',
-      });
-
       expect(options.createPendingTransactionTracker).toHaveBeenCalledTimes(1);
       expect(options.createPendingTransactionTracker).toHaveBeenCalledWith({
         provider: MOCK_PROVIDERS.mainnet,
@@ -353,20 +315,16 @@ describe('MultichainTrackingHelper', () => {
 
   describe('#stopTrackingByNetworkClientId', () => {
     it('stops trackers and removes them from the tracking map', () => {
-      const {
-        options,
-        mockIncomingTransactionHelpers,
-        mockPendingTransactionTrackers,
-        helper,
-      } = newMultichainTrackingHelper({
-        getNetworkClientRegistry: jest.fn().mockReturnValue({
-          mainnet: {
-            configuration: {
-              chainId: '0x1',
+      const { options, mockPendingTransactionTrackers, helper } =
+        newMultichainTrackingHelper({
+          getNetworkClientRegistry: jest.fn().mockReturnValue({
+            mainnet: {
+              configuration: {
+                chainId: '0x1',
+              },
             },
-          },
-        }),
-      });
+          }),
+        });
 
       helper.initialize();
 
@@ -378,93 +336,7 @@ describe('MultichainTrackingHelper', () => {
       expect(
         options.removePendingTransactionTrackerListeners,
       ).toHaveBeenCalledWith(mockPendingTransactionTrackers['0x1']);
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
-      expect(
-        options.removeIncomingTransactionHelperListeners,
-      ).toHaveBeenCalledWith(mockIncomingTransactionHelpers['0x1']);
       expect(helper.has('mainnet')).toBe(false);
-    });
-  });
-
-  describe('startIncomingTransactionPolling', () => {
-    it('starts polling on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      helper.startIncomingTransactionPolling(['mainnet', 'goerli']);
-      expect(mockIncomingTransactionHelpers['0x1'].start).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].start,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].start,
-      ).not.toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers['0xa'].start,
-      ).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('stopIncomingTransactionPolling', () => {
-    it('stops polling on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      helper.stopIncomingTransactionPolling(['mainnet', 'goerli']);
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].stop,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].stop,
-      ).not.toHaveBeenCalled();
-      expect(mockIncomingTransactionHelpers['0xa'].stop).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('stopAllIncomingTransactionPolling', () => {
-    it('stops polling on all IncomingTransactionHelpers', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      helper.stopAllIncomingTransactionPolling();
-      expect(mockIncomingTransactionHelpers['0x1'].stop).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].stop,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].stop,
-      ).toHaveBeenCalled();
-      expect(mockIncomingTransactionHelpers['0xa'].stop).toHaveBeenCalled();
-    });
-  });
-
-  describe('updateIncomingTransactions', () => {
-    it('calls update on the IncomingTransactionHelper for the networkClientIds', () => {
-      const { mockIncomingTransactionHelpers, helper } =
-        newMultichainTrackingHelper();
-
-      helper.initialize();
-
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      helper.updateIncomingTransactions(['mainnet', 'goerli']);
-      expect(mockIncomingTransactionHelpers['0x1'].update).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.goerli].update,
-      ).toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers[ChainId.sepolia].update,
-      ).not.toHaveBeenCalled();
-      expect(
-        mockIncomingTransactionHelpers['0xa'].update,
-      ).not.toHaveBeenCalled();
     });
   });
 

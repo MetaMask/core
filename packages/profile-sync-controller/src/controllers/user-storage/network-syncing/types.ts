@@ -1,9 +1,4 @@
-import type { NetworkConfiguration as _NetworkConfiguration } from '@metamask/network-controller';
-
-// TODO - replace shim once we update NetworkController type
-export type NetworkConfiguration = _NetworkConfiguration & {
-  lastUpdatedAt?: number;
-};
+import type { NetworkConfiguration } from '@metamask/network-controller';
 
 export type RemoteNetworkConfiguration = NetworkConfiguration & {
   /**

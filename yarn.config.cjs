@@ -1,4 +1,9 @@
-// @ts-check
+/* @ts-check */
+// The ESLint JSDoc plugin usually disables this rule for TypeScript files,
+// but for JavaScript files we are typechecking, we need to disable it manually.
+// See: <https://github.com/gajus/eslint-plugin-jsdoc/issues/888#issuecomment-1544914446>
+/* eslint-disable jsdoc/no-undefined-types */
+
 // This file is used to define, among other configuration, rules that Yarn will
 // execute when you run `yarn constraints`. These rules primarily check the
 // manifests of each package in the monorepo to ensure they follow a standard

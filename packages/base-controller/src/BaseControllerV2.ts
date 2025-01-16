@@ -6,11 +6,11 @@ import type {
   BaseControllerV1Instance,
   StateConstraint as StateConstraintV1,
 } from './BaseControllerV1';
-import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
+import type { ActionConstraint, EventConstraint } from './Messenger';
 import type {
   RestrictedControllerMessenger,
   RestrictedControllerMessengerConstraint,
-} from './RestrictedControllerMessenger';
+} from './RestrictedMessenger';
 
 enablePatches();
 
