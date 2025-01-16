@@ -1406,6 +1406,7 @@ describe('AccountsController', () => {
           ...mockAccount,
           metadata: {
             ...mockAccount.metadata,
+            name: `${keyringTypeToName(KeyringTypes.snap)} 1`,
             keyring: {
               type: KeyringTypes.snap,
             },
@@ -1423,6 +1424,7 @@ describe('AccountsController', () => {
           ...mockAccount2,
           metadata: {
             ...mockAccount2.metadata,
+            name: `${keyringTypeToName(KeyringTypes.snap)} 2`,
             keyring: {
               type: KeyringTypes.snap,
             },
@@ -1493,7 +1495,7 @@ describe('AccountsController', () => {
       );
     });
 
-    it('update accounts with Snap accounts when snap keyring is defined and has accounts', async () => {
+    it('update accounts with Snap accounts when Snap keyring is defined and has accounts', async () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
@@ -1676,7 +1678,7 @@ describe('AccountsController', () => {
           keyringType: KeyringTypes.hd,
         }),
         createExpectedInternalAccount({
-          name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
+          name: 'Snap Account 2',
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
@@ -1734,7 +1736,7 @@ describe('AccountsController', () => {
           keyringType: KeyringTypes.hd,
         }),
         createExpectedInternalAccount({
-          name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
+          name: 'Snap Account 2',
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
