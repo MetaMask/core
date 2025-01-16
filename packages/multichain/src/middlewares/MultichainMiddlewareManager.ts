@@ -30,6 +30,9 @@ type MiddlewareEntry = MiddlewareKey & {
   middleware: ExtendedJsonRpcMiddleware;
 };
 
+// Methods related to eth_subscriptions
+const SubscriptionMethods = ['eth_subscribe', 'eth_unsubscribe'];
+
 /**
  * A helper that facilates registering and calling of provided middleware instances
  * in the RPC pipeline based on the incoming request's scope, origin, and tabId.
@@ -124,13 +127,15 @@ export class MultichainMiddlewareManager {
         tabId,
       });
 
-      if (middlewareEntry) {
-        middlewareEntry.middleware(req, res, next, end);
-      } else if (['eth_subscribe', 'eth_unsubscribe'].includes(req.method)) {
-        // TODO: Temporary safety guard to prevent requests with these methods
-        // from being forwarded to the RPC endpoint even though this scenario
-        // should not be possible.
-        return end(rpcErrors.methodNotFound());
+      if (SubscriptionMethods.includes(req.method)) {
+        if (middlewareEntry) {
+          middlewareEntry.middleware(req, res, next, end);
+        } else {
+          // TODO: Temporary safety guard to prevent requests with these methods
+          // from being forwarded to the RPC endpoint even though this scenario
+          // should not be possible.
+          return end(rpcErrors.methodNotFound());
+        }
       } else {
         return next();
       }

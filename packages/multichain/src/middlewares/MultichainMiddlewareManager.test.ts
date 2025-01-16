@@ -8,7 +8,77 @@ const origin = 'example.com';
 const tabId = 123;
 
 describe('MultichainMiddlewareManager', () => {
-  it('should add middleware and get called for the scope, origin, and tabId', () => {
+  it('should add middleware and get called for the scope, origin, and tabId if request is "eth_subscribe', () => {
+    const multichainMiddlewareManager = new MultichainMiddlewareManager();
+    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    multichainMiddlewareManager.addMiddleware({
+      scope,
+      origin,
+      tabId,
+      middleware: middlewareSpy,
+    });
+
+    const middleware =
+      multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
+        origin,
+        123,
+      );
+
+    const nextSpy = jest.fn();
+    const endSpy = jest.fn();
+
+    middleware(
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_subscribe', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(middlewareSpy).toHaveBeenCalledWith(
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_subscribe', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(nextSpy).not.toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it('should add middleware and get called for the scope, origin, and tabId if request is "eth_unsubscribe', () => {
+    const multichainMiddlewareManager = new MultichainMiddlewareManager();
+    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    multichainMiddlewareManager.addMiddleware({
+      scope,
+      origin,
+      tabId,
+      middleware: middlewareSpy,
+    });
+
+    const middleware =
+      multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
+        origin,
+        123,
+      );
+
+    const nextSpy = jest.fn();
+    const endSpy = jest.fn();
+
+    middleware(
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_unsubscribe', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(middlewareSpy).toHaveBeenCalledWith(
+      { jsonrpc: '2.0' as const, id: 0, method: 'eth_unsubscribe', scope },
+      { jsonrpc: '2.0', id: 0 },
+      nextSpy,
+      endSpy,
+    );
+    expect(nextSpy).not.toHaveBeenCalled();
+    expect(endSpy).not.toHaveBeenCalled();
+  });
+
+  it('should add middleware and call next if called for the scope, origin, and tabId but request is not "eth_subscribe" or "eth_unsubscribe"', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
@@ -33,17 +103,12 @@ describe('MultichainMiddlewareManager', () => {
       nextSpy,
       endSpy,
     );
-    expect(middlewareSpy).toHaveBeenCalledWith(
-      { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
-      { jsonrpc: '2.0', id: 0 },
-      nextSpy,
-      endSpy,
-    );
-    expect(nextSpy).not.toHaveBeenCalled();
+    expect(middlewareSpy).not.toHaveBeenCalled()
+    expect(nextSpy).toHaveBeenCalled();
     expect(endSpy).not.toHaveBeenCalled();
   });
 
-  it('should add middleware and call next if if no middleware exists for scope, origin, and tabId and request is not "eth_subscribe" or "eth_unsubscribe', () => {
+  it('should add middleware and call next ifno middleware exists for scope, origin, and tabId and request is not "eth_subscribe" or "eth_unsubscribe', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middleware =
       multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
@@ -64,7 +129,7 @@ describe('MultichainMiddlewareManager', () => {
     expect(endSpy).not.toHaveBeenCalled();
   });
 
-  it('should add middleware and return error if if no middleware exists for scope, origin, and tabId and request is "eth_subscribe"', () => {
+  it('should add middleware and return error ifno middleware exists for scope, origin, and tabId and request is "eth_subscribe"', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middleware =
       multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
@@ -85,7 +150,7 @@ describe('MultichainMiddlewareManager', () => {
     expect(endSpy).toHaveBeenCalledWith(rpcErrors.methodNotFound());
   });
 
-  it('should add middleware and return error if if no middleware exists for scope, origin, and tabId and request is "eth_unsubscribe"', () => {
+  it('should add middleware and return error ifno middleware exists for scope, origin, and tabId and request is "eth_unsubscribe"', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middleware =
       multichainMiddlewareManager.generateMultichainMiddlewareForOriginAndTabId(
