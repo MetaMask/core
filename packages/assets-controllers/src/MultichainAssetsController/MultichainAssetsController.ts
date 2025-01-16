@@ -248,23 +248,20 @@ export class MultichainAssetsController extends BaseController<
       ]
     }  */
       // Mock start To be removed once the above is implemented
-      permissions.forEach((singlePermission: AssetEndowment, index: number) => {
-        if (index === 0) {
-          singlePermission = {
-            ...singlePermission,
-            'endowment:assets': {
-              scopes: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
-            },
-          };
-        } else {
-          (singlePermission as unknown as AssetEndowment) = {
-            ...singlePermission,
-            'endowment:assets': {
-              scopes: ['bip122:000000000019d6689c085ae165831e93'],
-            },
-          };
-        }
+      permissions.forEach((singlePermission) => {
+        (singlePermission as unknown as AssetEndowment) = {
+          ...singlePermission,
+          'endowment:assets': {
+            scopes: ['bip122:000000000019d6689c085ae165831e93'],
+          },
+        };
       });
+      (permissions[0] as unknown as AssetEndowment) = {
+        ...permissions[0],
+        'endowment:assets': {
+          scopes: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
+        },
+      };
       // Mock End To be removed once the above is implemented
 
       // Identify the correct snap that has the right endowment:assets permission
