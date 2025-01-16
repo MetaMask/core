@@ -3,22 +3,25 @@ import type { Balance, CaipAssetType } from '@metamask/keyring-api';
 import { EthAccountType, EthMethod, EthScopes } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { PermissionConstraint } from '@metamask/permission-controller';
+import type { SubjectPermissions } from '@metamask/permission-controller';
+import type { Snap } from '@metamask/snaps-utils';
+import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
+import type {
+  MultichainAssetsControllerMessenger,
+  MultichainAssetsControllerState,
+} from './MultichainAssetsController';
+import {
+  getDefaultMultichainAssetsControllerState,
+  MultichainAssetsController,
+} from './MultichainAssetsController';
+import { advanceTime } from '../../../../tests/helpers';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-
-import {
-  getDefaultMultichainAssetsControllerState,
-  MultichainAssetsController,
-  MultichainAssetsControllerMessenger,
-  MultichainAssetsControllerState,
-} from './MultichainAssetsController';
-import { Snap } from '@metamask/snaps-utils';
-import { advanceTime } from '../../../../tests/helpers';
-import { useFakeTimers } from 'sinon';
 
 const mockSolanaAccount = {
   type: 'solana:data-account',
@@ -761,7 +764,7 @@ const setupController = ({
     listMultichainAccounts?: InternalAccount[];
     handleRequestReturnValue?: Record<CaipAssetType, Balance>;
     getAllReturnValue?: Snap[];
-    getPermissionsReturnValue?: any;
+    getPermissionsReturnValue?: SubjectPermissions<PermissionConstraint>;
   };
 } = {}) => {
   const controllerMessenger = getRootControllerMessenger();

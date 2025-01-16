@@ -12,7 +12,11 @@ import {
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { CaipAssetType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { GetPermissions } from '@metamask/permission-controller';
+import type {
+  GetPermissions,
+  PermissionConstraint,
+  SubjectPermissions,
+} from '@metamask/permission-controller';
 import type {
   GetAllSnaps,
   HandleSnapRequest,
@@ -159,6 +163,13 @@ const assetsControllerMetadata = {
   },
 };
 
+// Define a temporary interface for the permission structure
+type AssetEndowment = {
+  'endowment:assets'?: {
+    scopes: string[];
+  };
+};
+
 export class MultichainAssetsController extends BaseController<
   typeof controllerName,
   MultichainAssetsControllerState,
@@ -237,26 +248,30 @@ export class MultichainAssetsController extends BaseController<
       ]
     }  */
       // Mock start To be removed once the above is implemented
-      permissions.forEach((singlePermission) => {
-        singlePermission = {
-          ...singlePermission,
-          'endowment:assets': {
-            scopes: ['bip122:000000000019d6689c085ae165831e93'],
-          },
-        };
+      permissions.forEach((singlePermission: AssetEndowment, index: number) => {
+        if (index === 0) {
+          singlePermission = {
+            ...singlePermission,
+            'endowment:assets': {
+              scopes: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
+            },
+          };
+        } else {
+          (singlePermission as unknown as AssetEndowment) = {
+            ...singlePermission,
+            'endowment:assets': {
+              scopes: ['bip122:000000000019d6689c085ae165831e93'],
+            },
+          };
+        }
       });
-      permissions[0] = {
-        ...permissions[0],
-        'endowment:assets': {
-          scopes: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
-        },
-      };
       // Mock End To be removed once the above is implemented
 
       // Identify the correct snap that has the right endowment:assets permission
       const currentAssetChain = assets[0].split('/')[0];
-      const permissionIndex = permissions.findIndex((permission) =>
-        permission['endowment:assets']?.scopes.includes(currentAssetChain),
+      const permissionIndex = permissions.findIndex(
+        (permission: AssetEndowment) =>
+          permission['endowment:assets']?.scopes.includes(currentAssetChain),
       );
       const snapId = snaps[permissionIndex].id;
       console.log('🚀 ~ #handleOnAccountAdded ~ snapId:', snapId);
@@ -282,7 +297,7 @@ export class MultichainAssetsController extends BaseController<
   /**
    * Handles changes when a new account has been removed.
    *
-   * @param account - The new account being removed.
+   * @param accountId - The new account id being removed.
    */
   async #handleOnAccountRemoved(accountId: string): Promise<void> {
     const selectedAccounts = this.messagingSystem.call(
@@ -308,11 +323,13 @@ export class MultichainAssetsController extends BaseController<
     return this.messagingSystem.call('SnapController:getAll') as Snap[];
   }
 
-  #getSnapsPermissions(origin: string): any {
+  #getSnapsPermissions(
+    origin: string,
+  ): SubjectPermissions<PermissionConstraint> {
     return this.messagingSystem.call(
       'PermissionController:getPermissions',
       origin,
-    );
+    ) as SubjectPermissions<PermissionConstraint>;
   }
 
   async #getAssets(
@@ -326,6 +343,7 @@ export class MultichainAssetsController extends BaseController<
    * Gets a `KeyringClient` for a Snap.
    *
    * @param snapId - ID of the Snap to get the client for.
+   * @param accountId - ID of the account to get the assets for.
    * @returns A `KeyringClient` for the Snap.
    */
   // TODO: update this to use the snap handler
@@ -348,13 +366,14 @@ export class MultichainAssetsController extends BaseController<
           },
         },
       },
-    )) as any;
+    )) as CaipAssetType[];
 
     return result;
   }
 
   // TODO: update this function to get metadata from the snap
   async #getMetadata(assets: CaipAssetType[]): Promise<AssetLookupResponse> {
+    console.log('🚀 ~ #getMetadata ~ assets:', assets);
     return Promise.resolve({
       assets: {
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501': {
