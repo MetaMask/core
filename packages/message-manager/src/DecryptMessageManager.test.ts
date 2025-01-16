@@ -1,4 +1,18 @@
 import { DecryptMessageManager } from './DecryptMessageManager';
+import type { DecryptMessageManagerMessenger } from './DecryptMessageManager';
+
+const mockMessenger = {
+  registerActionHandler: jest.fn(),
+  registerInitialEventPayload: jest.fn(),
+  publish: jest.fn(),
+  clearEventSubscriptions: jest.fn(),
+} as unknown as DecryptMessageManagerMessenger;
+
+const mockInitialOptions = {
+  additionalFinishStatuses: undefined,
+  messenger: mockMessenger,
+  securityProviderRequest: undefined,
+};
 
 describe('DecryptMessageManager', () => {
   let controller: DecryptMessageManager;
@@ -9,7 +23,7 @@ describe('DecryptMessageManager', () => {
   const dataMock = '0x12345';
 
   beforeEach(() => {
-    controller = new DecryptMessageManager();
+    controller = new DecryptMessageManager(mockInitialOptions);
   });
 
   it('sets default state', () => {
@@ -17,10 +31,6 @@ describe('DecryptMessageManager', () => {
       unapprovedMessages: {},
       unapprovedMessagesCount: 0,
     });
-  });
-
-  it('sets default config', () => {
-    expect(controller.config).toStrictEqual({});
   });
 
   it('adds a valid message', async () => {
@@ -52,9 +62,7 @@ describe('DecryptMessageManager', () => {
 
   describe('addUnapprovedMessageAsync', () => {
     beforeEach(() => {
-      controller = new DecryptMessageManager(undefined, undefined, undefined, [
-        'decrypted',
-      ]);
+      controller = new DecryptMessageManager(mockInitialOptions);
 
       jest
         .spyOn(controller, 'addUnapprovedMessage')
@@ -72,7 +80,7 @@ describe('DecryptMessageManager', () => {
         data: dataMock,
       });
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'decrypted',
           rawSig: rawSigMock,
         });
@@ -88,7 +96,7 @@ describe('DecryptMessageManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'rejected',
         });
       }, 100);
@@ -105,7 +113,7 @@ describe('DecryptMessageManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'errored',
         });
       }, 100);
@@ -122,7 +130,7 @@ describe('DecryptMessageManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'unknown',
         });
       }, 100);
