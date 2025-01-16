@@ -826,15 +826,29 @@ describe('approval controller', () => {
         origin: 'bar.baz',
         type: 'myType',
       });
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
       approvalController.accept('foo', 'success');
 
       const result = await approvalPromise;
       expect(result).toBe('success');
+    });
+
+    it('emits "accepted" event', async () => {
+      const acceptedEvent = jest.fn();
+      messenger.subscribe('ApprovalController:accepted', acceptedEvent);
+
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: 'myType',
+      });
+
+      approvalController.accept('foo', 'success');
+
+      await approvalPromise;
 
       expect(acceptedEvent.mock.calls[0][0]).toEqual({
-        approval: expect.objectContaining({
+        request: expect.objectContaining({
           id: 'foo',
           origin: 'bar.baz',
           type: 'myType',
@@ -855,15 +869,11 @@ describe('approval controller', () => {
         type: 'myType2',
       });
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo2', 'success2');
 
       let result = await approvalPromise2;
       expect(result).toBe('success2');
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo1', 'success1');
 
       result = await approvalPromise1;
@@ -1093,15 +1103,32 @@ describe('approval controller', () => {
       });
       approvalController.reject('foo', rejectedError);
       await expect(approvalPromise).rejects.toThrow(rejectedError);
+    });
 
-      expect(rejectedEvent.mock.calls[0][0]).toEqual({
-        approval: expect.objectContaining({
-          id: 'foo',
-          origin: 'bar.baz',
-          type: TYPE,
-        }),
-        error: rejectedError,
+    it('emits "rejected" event', async () => {
+      const rejectedEvent = jest.fn();
+      messenger.subscribe('ApprovalController:rejected', rejectedEvent);
+
+      const rejectedError = new Error('failure');
+      const approvalPromise = approvalController.add({
+        id: 'foo',
+        origin: 'bar.baz',
+        type: TYPE,
       });
+      approvalController.reject('foo', rejectedError);
+
+      try {
+        await approvalPromise;
+      } catch (error) {
+        expect(rejectedEvent.mock.calls[0][0]).toEqual({
+          request: expect.objectContaining({
+            id: 'foo',
+            origin: 'bar.baz',
+            type: TYPE,
+          }),
+          error: rejectedError,
+        });
+      }
     });
 
     it('rejects multiple approval promises out of order', async () => {

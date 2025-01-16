@@ -332,7 +332,7 @@ export type ApprovalRejectedEvent = {
   type: `${typeof controllerName}:rejected`;
   payload: [
     {
-      approval: ApprovalRequest<ApprovalRequestData>;
+      request: ApprovalRequest<ApprovalRequestData>;
       error: Error;
     },
   ];
@@ -342,7 +342,7 @@ export type ApprovalAcceptedEvent = {
   type: `${typeof controllerName}:accepted`;
   payload: [
     {
-      approval: ApprovalRequest<ApprovalRequestData>;
+      request: ApprovalRequest<ApprovalRequestData>;
     },
   ];
 };
@@ -752,7 +752,7 @@ export class ApprovalController extends BaseController<
         this.#delete(id);
       }
       this.messagingSystem.publish(`${controllerName}:accepted`, {
-        approval,
+        request: approval,
       });
     });
   }
@@ -772,7 +772,7 @@ export class ApprovalController extends BaseController<
     this.#delete(id);
     callbacks.reject(error);
     this.messagingSystem.publish(`${controllerName}:rejected`, {
-      approval: rejectedApproval,
+      request: rejectedApproval,
       error: error as Error,
     });
   }
