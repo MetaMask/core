@@ -35,6 +35,9 @@
 ## Snaps Team
 /packages/rate-limit-controller            @MetaMask/snaps-devs
 
+## Portfolio Team
+/packages/token-search-discovery-controller      @MetaMask/portfolio
+
 ## Wallet API Platform Team
 /packages/multichain                       @MetaMask/wallet-api-platform-engineers
 /packages/queued-request-controller        @MetaMask/wallet-api-platform-engineers
@@ -103,3 +106,5 @@
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/multichain-transactions-controller/package.json @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+/packages/token-search-discovery-controller/package.json      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
+/packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/wallet-framework-engineers

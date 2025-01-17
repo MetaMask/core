@@ -39,6 +39,7 @@
     { "path": "./packages/remote-feature-flag-controller" },
     { "path": "./packages/selected-network-controller" },
     { "path": "./packages/signature-controller" },
+    { "path": "./packages/token-search-discovery-controller" },
     { "path": "./packages/transaction-controller" },
     { "path": "./packages/user-operation-controller" }
   ],
