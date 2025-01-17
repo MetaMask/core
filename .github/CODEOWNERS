@@ -9,6 +9,7 @@
 ## Accounts Team
 /packages/accounts-controller        @MetaMask/accounts-engineers
 /packages/keyring-controller         @MetaMask/accounts-engineers
+/packages/multichain-transactions-controller @MetaMask/accounts-engineers
 
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
@@ -58,7 +59,6 @@
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/selected-network-controller  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/profile-sync-controller      @MetaMask/notifications @MetaMask/identity
-/packages/multichain-transactions-controller @MetaMask/accounts-engineers
 
 ## Package Release related
 /packages/accounts-controller/package.json        @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
@@ -101,3 +101,5 @@
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/user-operation-controller/package.json  @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/multichain-transactions-controller/package.json @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+/packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers

@@ -67,10 +67,6 @@ function setupTracker(): {
 }
 
 describe('MultichainTransactionsTracker', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   it('starts polling when calling start', async () => {
     const { tracker } = setupTracker();
 
