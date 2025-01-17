@@ -191,6 +191,20 @@ describe('KeyringController', () => {
           );
         });
       });
+
+      it('should throw an error if there is no primary keyring', async () => {
+        await withController(async ({ controller, encryptor }) => {
+          await controller.setLocked();
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockResolvedValueOnce([{ type: 'Unsupported', data: '' }]);
+          await controller.submitPassword('123');
+
+          await expect(controller.addNewAccount()).rejects.toThrow(
+            'No HD keyring found',
+          );
+        });
+      });
     });
 
     it('should throw error when the controller is locked', async () => {
@@ -694,12 +708,9 @@ describe('KeyringController', () => {
           it('should throw error', async () => {
             await withController(async ({ controller }) => {
               await expect(
-                controller.exportAccount(
-                  password,
-                  '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-                ),
+                controller.exportAccount(password, ''),
               ).rejects.toThrow(
-                `KeyringController - No keyring found. Error info: There are ${controller.state.keyrings.length} keyrings available, but none match the address`,
+                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
               );
             });
           });
@@ -841,7 +852,7 @@ describe('KeyringController', () => {
           await expect(
             controller.decryptMessage(messageParams),
           ).rejects.toThrow(
-            `KeyringController - No keyring found. Error info: There are ${controller.state.keyrings.length} keyrings available, but none match the address`,
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -892,14 +903,32 @@ describe('KeyringController', () => {
     });
 
     describe('when non-existing account is provided', () => {
-      it('should throw error', async () => {
+      it('should throw error if no account matches the address', async () => {
         await withController(async ({ controller }) => {
           await expect(
             controller.getKeyringForAccount(
               '0x0000000000000000000000000000000000000000',
             ),
           ).rejects.toThrow(
-            `KeyringController - No keyring found. Error info: There are ${controller.state.keyrings.length} keyrings available, but none match the address`,
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
+          );
+        });
+      });
+
+      it('should throw an error if there is no keyring', async () => {
+        await withController(async ({ controller, encryptor }) => {
+          await controller.setLocked();
+          jest
+            .spyOn(encryptor, 'decrypt')
+            .mockResolvedValueOnce([{ type: 'Unsupported', data: '' }]);
+          await controller.submitPassword('123');
+
+          await expect(
+            controller.getKeyringForAccount(
+              '0x0000000000000000000000000000000000000000',
+            ),
+          ).rejects.toThrow(
+            'KeyringController - No keyring found. Error info: There are no keyrings',
           );
         });
       });
@@ -1218,13 +1247,13 @@ describe('KeyringController', () => {
               '0x0000000000000000000000000000000000000000',
             ),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are 2 keyrings available, but none match the address',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
 
           await expect(
             controller.removeAccount('0xDUMMY_INPUT'),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: There are 2 keyrings available, but none match the address',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1282,7 +1311,7 @@ describe('KeyringController', () => {
               from: '',
             }),
           ).rejects.toThrow(
-            `KeyringController - No keyring found. Error info: There are ${controller.state.keyrings.length} keyrings available, but none match the address`,
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1350,7 +1379,7 @@ describe('KeyringController', () => {
               from: '',
             }),
           ).rejects.toThrow(
-            `KeyringController - No keyring found. Error info: There are ${controller.state.keyrings.length} keyrings available, but none match the address`,
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1702,7 +1731,7 @@ describe('KeyringController', () => {
             expect(unsignedEthTx.v).toBeUndefined();
             await controller.signTransaction(unsignedEthTx, '');
           }).rejects.toThrow(
-            `KeyringController - No keyring found. Error info: There are ${controller.state.keyrings.length} keyrings available, but none match the address`,
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -2275,6 +2304,20 @@ describe('KeyringController', () => {
         },
       );
     });
+
+    it('should throw an error if there is no primary keyring', async () => {
+      await withController(async ({ controller, encryptor }) => {
+        await controller.setLocked();
+        jest
+          .spyOn(encryptor, 'decrypt')
+          .mockResolvedValueOnce([{ type: 'Unsupported', data: '' }]);
+        await controller.submitPassword('123');
+
+        await expect(controller.verifySeedPhrase()).rejects.toThrow(
+          'No HD keyring found',
+        );
+      });
+    });
   });
 
   describe('verifyPassword', () => {
@@ -2449,7 +2492,7 @@ describe('KeyringController', () => {
               await expect(
                 controller.withKeyring(selector, fn),
               ).rejects.toThrow(
-                `KeyringController - No keyring found. Error info: There are ${controller.state.keyrings.length} keyrings available, but none match the address`,
+                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
               );
               expect(fn).not.toHaveBeenCalled();
             });
@@ -3476,7 +3519,7 @@ describe('KeyringController', () => {
             await expect(
               controller.exportAccount(password, mockAddress),
             ).rejects.toThrow(
-              'KeyringController - No keyring found. Error info: There are 1 keyrings available, but none match the address',
+              'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
             );
           },
         );

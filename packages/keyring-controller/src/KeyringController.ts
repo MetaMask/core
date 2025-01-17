@@ -30,7 +30,6 @@ import type {
 } from '@metamask/utils';
 import {
   add0x,
-  assert,
   assertIsStrictHexString,
   bytesToHex,
   hasProperty,
@@ -662,7 +661,9 @@ export class KeyringController extends BaseController<
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring<Json>
         | undefined;
-      assert(primaryKeyring, 'No HD Keyring found');
+      if (!primaryKeyring) {
+        throw new Error('No HD keyring found');
+      }
 
       const oldAccounts = await primaryKeyring.getAccounts();
 
@@ -923,24 +924,33 @@ export class KeyringController extends BaseController<
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
     this.#assertIsUnlocked();
-
     const address = normalize(account);
-    assert(
-      address,
-      `${KeyringControllerError.NoKeyring}. Error infor: Invalid account address`,
+
+    const candidates = await Promise.all(
+      this.#keyrings.map(async (keyring) => {
+        return Promise.all([keyring, keyring.getAccounts()]);
+      }),
     );
 
-    const keyringIndex = this.state.keyrings.findIndex((keyring) =>
-      keyring.accounts.includes(address),
-    );
+    const winners = candidates.filter((candidate) => {
+      const accounts = candidate[1].map(normalize);
+      return accounts.includes(address);
+    });
 
-    if (keyringIndex === -1 || !this.#keyrings[keyringIndex]) {
-      throw new Error(
-        `${KeyringControllerError.NoKeyring}. Error info: There are ${this.#keyrings.length} keyrings available, but none match the address`,
-      );
+    if (winners.length && winners[0]?.length) {
+      return winners[0][0];
     }
 
-    return this.#keyrings[keyringIndex];
+    // Adding more info to the error
+    let errorInfo = '';
+    if (!candidates.length) {
+      errorInfo = 'There are no keyrings';
+    } else if (!winners.length) {
+      errorInfo = 'There are keyrings, but none match the address';
+    }
+    throw new Error(
+      `${KeyringControllerError.NoKeyring}. Error info: ${errorInfo}`,
+    );
   }
 
   /**
@@ -1890,7 +1900,10 @@ export class KeyringController extends BaseController<
     const primaryKeyring = this.getKeyringsByType(KeyringTypes.hd)[0] as
       | EthKeyring<Json>
       | undefined;
-    assert(primaryKeyring, 'No HD keyring found.');
+    if (!primaryKeyring) {
+      throw new Error('No HD keyring found.');
+    }
+
     assertHasUint8ArrayMnemonic(primaryKeyring);
 
     const seedWords = primaryKeyring.mnemonic;
