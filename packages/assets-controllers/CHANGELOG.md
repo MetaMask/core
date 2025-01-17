@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: add thresshold for update NFT metadata ([#5134](https://github.com/MetaMask/core/pull/5134))
+
 ## [46.0.0]
 
 ### Added

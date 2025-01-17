@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
 ### Changed
 
 - **BREAKING:** Base class of `DecryptMessageManager` and `EncryptionPublicKeyManager`(`AbstractMessageManager`) now expects new options to initialise ([#5103](https://github.com/MetaMask/core/pull/5103))
