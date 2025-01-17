@@ -339,8 +339,8 @@ describe('MultichainMiddlewareManager', () => {
       endSpy,
     );
     expect(middlewareSpy).not.toHaveBeenCalled();
-    expect(nextSpy).toHaveBeenCalled();
-    expect(endSpy).not.toHaveBeenCalled();
+    expect(nextSpy).not.toHaveBeenCalled();
+    expect(endSpy).toHaveBeenCalled();
   });
 
   it('should remove middleware by origin and tabId', () => {
@@ -371,7 +371,7 @@ describe('MultichainMiddlewareManager', () => {
       endSpy,
     );
     expect(middlewareSpy).not.toHaveBeenCalled();
-    expect(nextSpy).toHaveBeenCalled();
-    expect(endSpy).not.toHaveBeenCalled();
+    expect(nextSpy).not.toHaveBeenCalled();
+    expect(endSpy).toHaveBeenCalled();
   });
 });
