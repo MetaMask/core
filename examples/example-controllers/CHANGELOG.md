@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(docs): Rename `ControllerMessenger` to `Messenger` ([#5089](https://github.com/MetaMask/core/pull/5089))
-
 [Unreleased]: https://github.com/MetaMask/core/

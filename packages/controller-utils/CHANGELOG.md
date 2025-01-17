@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
-- Start extracting service policy boilerplate to common function ([#5141](https://github.com/MetaMask/core/pull/5141))
-
 ### Added
 
 - Add `createServicePolicy` function to assist with reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143))
