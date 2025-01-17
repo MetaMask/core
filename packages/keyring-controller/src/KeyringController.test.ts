@@ -193,12 +193,12 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should throw error with no HD keyring', async () => {
+    it('should throw error when the controller is locked', async () => {
       await withController(
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(controller.addNewAccount()).rejects.toThrow(
-            'No HD keyring found',
+            KeyringControllerError.ControllerLocked,
           );
         },
       );
@@ -901,19 +901,16 @@ describe('KeyringController', () => {
         });
       });
 
-      it('should throw an error if there are no keyrings', async () => {
-        await withController(
-          { skipVaultCreation: true },
-          async ({ controller }) => {
-            await expect(
-              controller.getKeyringForAccount(
-                '0x51253087e6f8358b5f10c0a94315d69db3357859',
-              ),
-            ).rejects.toThrow(
-              'KeyringController - No keyring found. Error info: There are no keyrings',
-            );
-          },
-        );
+      it('should throw an error if the controller is locked', async () => {
+        await withController(async ({ controller }) => {
+          await controller.setLocked();
+
+          await expect(
+            controller.getKeyringForAccount(
+              '0x51253087e6f8358b5f10c0a94315d69db3357859',
+            ),
+          ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+        });
       });
     });
   });
@@ -963,7 +960,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(controller.persistAllKeyrings()).rejects.toThrow(
-          KeyringControllerError.MissingCredentials,
+          KeyringControllerError.ControllerLocked,
         );
       });
     });
@@ -2018,9 +2015,9 @@ describe('KeyringController', () => {
             async ({ controller }) => {
               await controller.setLocked();
 
-              await expect(controller.changePassword('')).rejects.toThrow(
-                KeyringControllerError.MissingCredentials,
-              );
+              await expect(async () =>
+                controller.changePassword(''),
+              ).rejects.toThrow(KeyringControllerError.ControllerLocked);
             },
           );
         });
@@ -2265,12 +2262,12 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should throw error with no HD keyring', async () => {
+    it('should throw error if the controller is locked', async () => {
       await withController(
         { skipVaultCreation: true },
         async ({ controller }) => {
           await expect(controller.verifySeedPhrase()).rejects.toThrow(
-            'No HD keyring found',
+            KeyringControllerError.ControllerLocked,
           );
         },
       );
