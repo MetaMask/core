@@ -217,7 +217,7 @@ export const EMPTY_ACCOUNT = {
 /**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
- * It also provides convenience methods for accessing and updating the internal accounts.
+ * It also provides convenient methods for accessing and updating the internal accounts.
  * The accounts controller also listens for keyring state changes and updates the internal accounts accordingly.
  * The accounts controller also listens for snap state changes and updates the internal accounts accordingly.
  *
@@ -735,7 +735,7 @@ export class AccountsController extends BaseController<
       const deletedAccounts: InternalAccount[] = [];
 
       // snap account ids are random uuid while normal accounts
-      // are determininistic based on the address
+      // are deterministic based on the address
 
       // ^NOTE: This will be removed when normal accounts also implement internal accounts
       // finding all the normal accounts that were added
@@ -868,7 +868,7 @@ export class AccountsController extends BaseController<
    * Returns the list of accounts for a given keyring type.
    * @param keyringType - The type of keyring.
    * @param accounts - Accounts to filter by keyring type.
-   * @returns The list of accounts associcated with this keyring type.
+   * @returns The list of accounts associated with this keyring type.
    */
   #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
     return (accounts ?? this.listMultichainAccounts()).filter(
