@@ -25,13 +25,6 @@ import {
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
-import MockEncryptor, {
-  MOCK_ENCRYPTION_KEY,
-} from '../tests/mocks/mockEncryptor';
-import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
-import { MockKeyring } from '../tests/mocks/mockKeyring';
-import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
-import { buildMockTransaction } from '../tests/mocks/mockTransaction';
 import { KeyringControllerError } from './constants';
 import type {
   KeyringControllerEvents,
@@ -47,6 +40,13 @@ import {
   isCustodyKeyring,
   keyringBuilderFactory,
 } from './KeyringController';
+import MockEncryptor, {
+  MOCK_ENCRYPTION_KEY,
+} from '../tests/mocks/mockEncryptor';
+import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
+import { MockKeyring } from '../tests/mocks/mockKeyring';
+import MockShallowGetAccountsKeyring from '../tests/mocks/mockShallowGetAccountsKeyring';
+import { buildMockTransaction } from '../tests/mocks/mockTransaction';
 
 jest.mock('uuid', () => {
   return {
@@ -181,12 +181,10 @@ describe('KeyringController', () => {
       it('should not add a new account if called twice with the same accountCount param', async () => {
         await withController(async ({ controller, initialState }) => {
           const accountCount = initialState.keyrings[0].accounts.length;
-          const firstAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
-          const secondAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
+          const firstAccountAdded =
+            await controller.addNewAccount(accountCount);
+          const secondAccountAdded =
+            await controller.addNewAccount(accountCount);
           expect(firstAccountAdded).toBe(secondAccountAdded);
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
@@ -220,13 +218,11 @@ describe('KeyringController', () => {
 
           const accountCount = initialState.keyrings[0].accounts.length;
           // We add a new account for "index 1" (not existing yet)
-          const firstAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
+          const firstAccountAdded =
+            await controller.addNewAccount(accountCount);
           // Adding an account for an existing index will return the existing account's address
-          const secondAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
+          const secondAccountAdded =
+            await controller.addNewAccount(accountCount);
           expect(firstAccountAdded).toBe(secondAccountAdded);
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
@@ -258,9 +254,8 @@ describe('KeyringController', () => {
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
           ) as Keyring<Json>[];
-          const addedAccountAddress = await controller.addNewAccountForKeyring(
-            primaryKeyring,
-          );
+          const addedAccountAddress =
+            await controller.addNewAccountForKeyring(primaryKeyring);
           expect(initialState.keyrings).toHaveLength(1);
           expect(initialState.keyrings[0].accounts).not.toStrictEqual(
             controller.state.keyrings[0].accounts,
@@ -306,9 +301,8 @@ describe('KeyringController', () => {
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
           ) as Keyring<Json>[];
-          const addedAccountAddress = await controller.addNewAccountForKeyring(
-            primaryKeyring,
-          );
+          const addedAccountAddress =
+            await controller.addNewAccountForKeyring(primaryKeyring);
           expect(initialState.keyrings).toHaveLength(1);
           expect(initialState.keyrings[0].accounts).not.toStrictEqual(
             controller.state.keyrings[0].accounts,
@@ -407,9 +401,8 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
-              const currentSeedWord = await controller.exportSeedPhrase(
-                password,
-              );
+              const currentSeedWord =
+                await controller.exportSeedPhrase(password);
 
               await controller.createNewVaultAndRestore(
                 password,
@@ -475,9 +468,8 @@ describe('KeyringController', () => {
               async ({ controller }) => {
                 await controller.createNewVaultAndKeychain(password);
 
-                const currentSeedPhrase = await controller.exportSeedPhrase(
-                  password,
-                );
+                const currentSeedPhrase =
+                  await controller.exportSeedPhrase(password);
 
                 expect(currentSeedPhrase.length).toBeGreaterThan(0);
                 expect(
@@ -565,17 +557,15 @@ describe('KeyringController', () => {
             await withController(
               { cacheEncryptionKey },
               async ({ controller, initialState }) => {
-                const initialSeedWord = await controller.exportSeedPhrase(
-                  password,
-                );
+                const initialSeedWord =
+                  await controller.exportSeedPhrase(password);
                 expect(initialSeedWord).toBeDefined();
                 const initialVault = controller.state.vault;
 
                 await controller.createNewVaultAndKeychain(password);
 
-                const currentSeedWord = await controller.exportSeedPhrase(
-                  password,
-                );
+                const currentSeedWord =
+                  await controller.exportSeedPhrase(password);
                 expect(initialState).toStrictEqual(controller.state);
                 expect(initialSeedWord).toBe(currentSeedWord);
                 expect(initialVault).toStrictEqual(controller.state.vault);
@@ -2556,21 +2546,18 @@ describe('KeyringController', () => {
           ),
         );
 
-        const firstPage = await signProcessKeyringController.connectQRHardware(
-          0,
-        );
+        const firstPage =
+          await signProcessKeyringController.connectQRHardware(0);
         expect(firstPage).toHaveLength(5);
         expect(firstPage[0].index).toBe(0);
 
-        const secondPage = await signProcessKeyringController.connectQRHardware(
-          1,
-        );
+        const secondPage =
+          await signProcessKeyringController.connectQRHardware(1);
         expect(secondPage).toHaveLength(5);
         expect(secondPage[0].index).toBe(5);
 
-        const goBackPage = await signProcessKeyringController.connectQRHardware(
-          -1,
-        );
+        const goBackPage =
+          await signProcessKeyringController.connectQRHardware(-1);
         expect(goBackPage).toStrictEqual(firstPage);
 
         await signProcessKeyringController.unlockQRHardwareWalletAccount(0);
