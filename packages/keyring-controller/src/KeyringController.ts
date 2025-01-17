@@ -656,31 +656,35 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the added account address.
    */
   async addNewAccount(accountCount?: number): Promise<string> {
-    return this.withKeyring(
-      { type: KeyringTypes.hd },
-      async (primaryKeyring) => {
-        const oldAccounts = await primaryKeyring.getAccounts();
+    this.#assertIsUnlocked();
 
-        if (accountCount && oldAccounts.length !== accountCount) {
-          if (accountCount > oldAccounts.length) {
-            throw new Error('Account out of sequence');
-          }
-          // we return the account already existing at index `accountCount`
-          const existingAccount = oldAccounts[accountCount];
+    return this.#persistOrRollback(async () => {
+      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+        | EthKeyring<Json>
+        | undefined;
+      assert(primaryKeyring, 'No HD Keyring found');
 
-          if (!existingAccount) {
-            throw new Error(`Can't find account at index ${accountCount}`);
-          }
+      const oldAccounts = await primaryKeyring.getAccounts();
 
-          return existingAccount;
+      if (accountCount && oldAccounts.length !== accountCount) {
+        if (accountCount > oldAccounts.length) {
+          throw new Error('Account out of sequence');
+        }
+        // we return the account already existing at index `accountCount`
+        const existingAccount = oldAccounts[accountCount];
+
+        if (!existingAccount) {
+          throw new Error(`Can't find account at index ${accountCount}`);
         }
 
-        const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
-        await this.#verifySeedPhrase();
+        return existingAccount;
+      }
 
-        return addedAccountAddress;
-      },
-    );
+      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
+      await this.#verifySeedPhrase();
+
+      return addedAccountAddress;
+    });
   }
 
   /**
