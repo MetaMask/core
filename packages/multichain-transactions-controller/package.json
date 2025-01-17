@@ -47,7 +47,6 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^21.0.0",
     "@metamask/base-controller": "^7.1.1",
     "@metamask/keyring-api": "^13.0.0",
     "@metamask/keyring-internal-api": "^2.0.0",
@@ -62,6 +61,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@metamask/accounts-controller": "^21.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.0.3",
     "@types/jest": "^27.4.1",

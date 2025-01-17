@@ -3313,7 +3313,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller"
   dependencies:
-    "@metamask/accounts-controller": "npm:^21.0.0"
+    "@metamask/accounts-controller": "npm:^21.0.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/keyring-api": "npm:^13.0.0"
