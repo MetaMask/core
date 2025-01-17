@@ -1,5 +1,5 @@
 import { BigNumber } from '@ethersproject/bignumber';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
@@ -78,7 +78,7 @@ async function setupAssetContractControllers({
   } as const;
   let provider: Provider;
 
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     | ExtractAvailableAction<AssetsContractControllerMessenger>
     | NetworkControllerActions,
     | ExtractAvailableEvent<AssetsContractControllerMessenger>
@@ -86,7 +86,7 @@ async function setupAssetContractControllers({
   >();
   const networkController = new NetworkController({
     infuraProjectId,
-    messenger: controllerMessenger.getRestricted({
+    messenger: messenger.getRestricted({
       name: 'NetworkController',
       allowedActions: [],
       allowedEvents: [],
@@ -103,10 +103,8 @@ async function setupAssetContractControllers({
     );
   }
 
-  controllerMessenger.unregisterActionHandler(
-    'NetworkController:getNetworkClientById',
-  );
-  controllerMessenger.registerActionHandler(
+  messenger.unregisterActionHandler('NetworkController:getNetworkClientById');
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     useNetworkControllerProvider
@@ -117,7 +115,7 @@ async function setupAssetContractControllers({
         }),
   );
 
-  const assetsContractMessenger = controllerMessenger.getRestricted({
+  const assetsContractMessenger = messenger.getRestricted({
     name: 'AssetsContractController',
     allowedActions: [
       'NetworkController:getNetworkClientById',
@@ -137,18 +135,14 @@ async function setupAssetContractControllers({
   });
 
   return {
-    messenger: controllerMessenger,
+    messenger,
     network: networkController,
     assetsContract,
     provider,
     networkClientConfiguration,
     infuraProjectId,
     triggerPreferencesStateChange: (state: PreferencesState) => {
-      controllerMessenger.publish(
-        'PreferencesController:stateChange',
-        state,
-        [],
-      );
+      messenger.publish('PreferencesController:stateChange', state, []);
     },
   };
 }

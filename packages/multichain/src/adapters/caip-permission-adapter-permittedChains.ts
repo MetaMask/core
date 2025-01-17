@@ -1,6 +1,6 @@
 import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { KnownCaipNamespace } from '@metamask/utils';
+import { hexToBigInt, KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { getUniqueArrayItems } from '../scope/transform';
@@ -57,7 +57,7 @@ export const addPermittedEthChainId = (
   caip25CaveatValue: Caip25CaveatValue,
   chainId: Hex,
 ): Caip25CaveatValue => {
-  const scopeString = `eip155:${parseInt(chainId, 16)}`;
+  const scopeString = `eip155:${hexToBigInt(chainId).toString(10)}`;
   if (
     Object.keys(caip25CaveatValue.requiredScopes).includes(scopeString) ||
     Object.keys(caip25CaveatValue.optionalScopes).includes(scopeString)

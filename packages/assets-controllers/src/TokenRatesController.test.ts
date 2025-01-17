@@ -1,5 +1,5 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -51,20 +51,21 @@ const defaultSelectedAccount = createMockInternalAccount({
 });
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
 
-type MainControllerMessenger = ControllerMessenger<
+type MainMessenger = Messenger<
   AllowedActions | AddApprovalRequest,
   AllowedEvents
 >;
 
 /**
  * Builds a messenger that `TokenRatesController` can use to communicate with other controllers.
- * @param controllerMessenger - The main controller messenger.
+ *
+ * @param messenger - The main messenger.
  * @returns The restricted messenger.
  */
 function buildTokenRatesControllerMessenger(
-  controllerMessenger: MainControllerMessenger = new ControllerMessenger(),
+  messenger: MainMessenger = new Messenger(),
 ): TokenRatesControllerMessenger {
-  return controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name: controllerName,
     allowedActions: [
       'TokensController:getState',
@@ -2093,11 +2094,9 @@ describe('TokenRatesController', () => {
               price: 0.002,
             },
           }),
-          validateCurrencySupported: jest.fn().mockReturnValue(
-            false,
-            // Cast used because this method has an assertion in the return
-            // value that I don't know how to type properly with Jest's mock.
-          ) as unknown as AbstractTokenPricesService['validateCurrencySupported'],
+          validateCurrencySupported(_currency: unknown): _currency is string {
+            return false;
+          },
         });
         nock('https://min-api.cryptocompare.com')
           .get('/data/price')
@@ -2288,11 +2287,9 @@ describe('TokenRatesController', () => {
               value: 0.002,
             },
           }),
-          validateChainIdSupported: jest.fn().mockReturnValue(
-            false,
-            // Cast used because this method has an assertion in the return
-            // value that I don't know how to type properly with Jest's mock.
-          ) as unknown as AbstractTokenPricesService['validateChainIdSupported'],
+          validateChainIdSupported(_chainId: unknown): _chainId is Hex {
+            return false;
+          },
         });
         await withController(
           {
@@ -2553,7 +2550,6 @@ type WithControllerCallback<ReturnValue> = ({
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof TokenRatesController>[0]>;
-  messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
   mockNetworkClientConfigurationsByNetworkClientId?: Record<
     NetworkClientId,
     NetworkClientConfiguration
@@ -2581,16 +2577,14 @@ async function withController<ReturnValue>(
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const {
     options,
-    messenger,
     mockNetworkClientConfigurationsByNetworkClientId,
     mockTokensControllerState,
     mockNetworkState,
   } = rest;
-  const controllerMessenger =
-    messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
   const mockTokensState = jest.fn<TokensControllerState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokensController:getState',
     mockTokensState.mockReturnValue({
       ...getDefaultTokensState(),
@@ -2601,13 +2595,13 @@ async function withController<ReturnValue>(
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     getNetworkClientById,
   );
 
   const networkStateMock = jest.fn<NetworkState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getState',
     networkStateMock.mockReturnValue({
       ...getDefaultNetworkControllerState(),
@@ -2616,44 +2610,40 @@ async function withController<ReturnValue>(
   );
 
   const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount.mockReturnValue(defaultSelectedAccount),
   );
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getAccount',
     mockGetAccount.mockReturnValue(defaultSelectedAccount),
   );
 
   const controller = new TokenRatesController({
     tokenPricesService: buildMockTokenPricesService(),
-    messenger: buildTokenRatesControllerMessenger(controllerMessenger),
+    messenger: buildTokenRatesControllerMessenger(messenger),
     ...options,
   });
   try {
     return await fn({
       controller,
       triggerSelectedAccountChange: (account: InternalAccount) => {
-        controllerMessenger.publish(
+        messenger.publish(
           'AccountsController:selectedEvmAccountChange',
           account,
         );
       },
 
       triggerTokensStateChange: (state: TokensControllerState) => {
-        controllerMessenger.publish('TokensController:stateChange', state, []);
+        messenger.publish('TokensController:stateChange', state, []);
       },
       triggerNetworkStateChange: (
         state: NetworkState,
         patches: Patch[] = [],
       ) => {
-        controllerMessenger.publish(
-          'NetworkController:stateChange',
-          state,
-          patches,
-        );
+        messenger.publish('NetworkController:stateChange', state, patches);
       },
     });
   } finally {

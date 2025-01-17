@@ -4,7 +4,7 @@ import type {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import HDKeyring from '@metamask/eth-hd-keyring';
@@ -73,15 +73,31 @@ export const isCustodyKeyring = (keyringType: string): boolean => {
 };
 
 /**
- * KeyringControllerState
- *
  * The KeyringController state
  */
 export type KeyringControllerState = {
+  /**
+   * Encrypted array of serialized keyrings data.
+   */
   vault?: string;
+  /**
+   * Whether the vault has been decrypted successfully and
+   * keyrings contained within are deserialized and available.
+   */
   isUnlocked: boolean;
+  /**
+   * Representations of managed keyrings.
+   */
   keyrings: KeyringObject[];
+  /**
+   * The encryption key derived from the password and used to encrypt
+   * the vault. This is only stored if the `cacheEncryptionKey` option
+   * is enabled.
+   */
   encryptionKey?: string;
+  /**
+   * The salt used to derive the encryption key from the password.
+   */
   encryptionSalt?: string;
 };
 
@@ -208,7 +224,7 @@ export type KeyringControllerEvents =
   | KeyringControllerAccountRemovedEvent
   | KeyringControllerQRKeyringStateChangeEvent;
 
-export type KeyringControllerMessenger = RestrictedControllerMessenger<
+export type KeyringControllerMessenger = RestrictedMessenger<
   typeof name,
   KeyringControllerActions,
   KeyringControllerEvents,
@@ -232,12 +248,16 @@ export type KeyringControllerOptions = {
 );
 
 /**
- * KeyringObject
- *
- * Keyring object to return in fullUpdate
+ * A keyring object representation.
  */
 export type KeyringObject = {
+  /**
+   * Accounts associated with the keyring.
+   */
   accounts: string[];
+  /**
+   * Keyring type.
+   */
   type: string;
 };
 
@@ -582,7 +602,7 @@ export class KeyringController extends BaseController<
    * @param options.encryptor - An optional object for defining encryption schemes.
    * @param options.keyringBuilders - Set a new name for account.
    * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
   constructor(options: KeyringControllerOptions) {
@@ -2174,8 +2194,6 @@ export class KeyringController extends BaseController<
       // NOTE: Not all keyrings implement this method in a asynchronous-way. Using `await` for
       // non-thenable will still be valid (despite not being really useful). It allows us to cover both
       // cases and allow retro-compatibility too.
-      // FIXME: For some reason, it seems that eslint is complaining about this call being non-thenable
-      // even though it is... For now, we just disable it:
       await keyring.generateRandomMnemonic();
       await keyring.addAccounts(1);
     }

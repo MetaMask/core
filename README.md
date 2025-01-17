@@ -29,6 +29,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
+- [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
@@ -38,6 +39,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/multichain`](packages/multichain)
+- [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
@@ -49,8 +51,10 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
 - [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
+- [`@metamask/token-search-discovery-controller`](packages/token-search-discovery-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 
@@ -71,6 +75,7 @@ linkStyle default opacity:0.5
   build_utils(["@metamask/build-utils"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
+  earn_controller(["@metamask/earn-controller"]);
   ens_controller(["@metamask/ens-controller"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);
@@ -80,6 +85,7 @@ linkStyle default opacity:0.5
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   multichain(["@metamask/multichain"]);
+  multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
@@ -91,8 +97,10 @@ linkStyle default opacity:0.5
   profile_sync_controller(["@metamask/profile-sync-controller"]);
   queued_request_controller(["@metamask/queued-request-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
+  remote_feature_flag_controller(["@metamask/remote-feature-flag-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
   signature_controller(["@metamask/signature-controller"]);
+  token_search_discovery_controller(["@metamask/token-search-discovery-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   accounts_controller --> base_controller;
@@ -164,6 +172,8 @@ linkStyle default opacity:0.5
   queued_request_controller --> network_controller;
   queued_request_controller --> selected_network_controller;
   rate_limit_controller --> base_controller;
+  remote_feature_flag_controller --> base_controller;
+  remote_feature_flag_controller --> controller_utils;
   selected_network_controller --> base_controller;
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;

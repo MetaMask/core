@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   type ProviderProxy,
   type BlockTrackerProxy,
@@ -25,33 +25,33 @@ import {
 } from '../src/SelectedNetworkController';
 
 /**
- * Builds a new instance of the ControllerMessenger class for the SelectedNetworkController.
+ * Builds a new instance of the Messenger class for the SelectedNetworkController.
  *
- * @returns A new instance of the ControllerMessenger class for the SelectedNetworkController.
+ * @returns A new instance of the Messenger class for the SelectedNetworkController.
  */
 function buildMessenger() {
-  return new ControllerMessenger<
+  return new Messenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >();
 }
 
 /**
- * Build a restricted controller messenger for the selected network controller.
+ * Build a restricted messenger for the selected network controller.
  *
  * @param options - The options bag.
- * @param options.messenger - A controller messenger.
+ * @param options.messenger - A messenger.
  * @param options.getSubjectNames - Permissions controller list of domains with permissions
  * @returns The network controller restricted messenger.
  */
 function buildSelectedNetworkControllerMessenger({
-  messenger = new ControllerMessenger<
+  messenger = new Messenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >(),
   getSubjectNames,
 }: {
-  messenger?: ControllerMessenger<
+  messenger?: Messenger<
     SelectedNetworkControllerActions | AllowedActions,
     SelectedNetworkControllerEvents | AllowedEvents
   >;
