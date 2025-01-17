@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [21.0.1]
 
-### Uncategorized
+### Changed
 
-- chore(accounts-controller): bump eth-snap-keyring to 8.1.0 ([#5167](https://github.com/MetaMask/core/pull/5167))
-- test(accounts-controller): improve uuid mocks ([#5005](https://github.com/MetaMask/core/pull/5005))
+- Bump `@metamask/eth-snap-keyring` from `^8.0.0` to `^8.1.0` ([#5167](https://github.com/MetaMask/core/pull/5167))
 
 ## [21.0.0]
 
