@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.1]
+
+### Changed
+
+- Bump `@metamask/eth-snap-keyring` from `^8.0.0` to `^8.1.0` ([#5167](https://github.com/MetaMask/core/pull/5167))
+
 ## [21.0.0]
 
 ### Changed
@@ -388,7 +394,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.1...HEAD
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.0...@metamask/accounts-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.2...@metamask/accounts-controller@21.0.0
 [20.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.1...@metamask/accounts-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.0...@metamask/accounts-controller@20.0.1
