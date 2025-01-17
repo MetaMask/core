@@ -11338,6 +11338,60 @@ describe('NetworkController', () => {
         });
       });
     });
+
+    it('allows calling `getNetworkConfigurationByNetworkClientId` when subscribing to state changes containing new endpoints', async () => {
+      const network = buildCustomNetworkConfiguration({
+        chainId: '0x1' as Hex,
+        name: 'mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Custom,
+            url: 'https://test.endpoint/1',
+            networkClientId: 'client1',
+          },
+        ],
+      });
+
+      await withController(
+        {
+          state: {
+            selectedNetworkClientId: 'client1',
+            networkConfigurationsByChainId: { '0x1': network },
+          },
+        },
+        async ({ controller, messenger }) => {
+
+          const stateChangePromise = new Promise<NetworkConfiguration | undefined>((resolve) => {
+            messenger.subscribe('NetworkController:stateChange', (state) => {
+              const { networkClientId } =
+                state.networkConfigurationsByChainId['0x1'].rpcEndpoints[1];
+
+              resolve(
+                controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+              );
+            });
+          });
+
+          // Add a new endpoint
+          await controller.updateNetwork('0x1', {
+            ...network,
+            rpcEndpoints: [
+              ...network.rpcEndpoints,
+              {
+                type: RpcEndpointType.Custom,
+                url: 'https://test.endpoint/2',
+              },
+            ],
+          });
+
+          const networkConfiguration = await stateChangePromise;
+          expect(networkConfiguration).toBeDefined();
+        },
+      );
+    });
   });
 
   describe('removeNetwork', () => {
