@@ -3,6 +3,8 @@ import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
 
+const NODE_LTS_VERSION = 22;
+
 const config = createConfig([
   ...base,
   {
@@ -83,6 +85,11 @@ const config = createConfig([
       'jest/prefer-lowercase-title': 'warn',
       'jest/prefer-strict-equal': 'warn',
     },
+    settings: {
+      node: {
+        version: `^${NODE_LTS_VERSION}`,
+      },
+    },
   },
   {
     // These files are test helpers, not tests. We still use the Jest ESLint
@@ -117,6 +124,14 @@ const config = createConfig([
       },
     },
     rules: {
+      // These rules have been customized from their defaults.
+      '@typescript-eslint/switch-exhaustiveness-check': [
+        'error',
+        {
+          considerDefaultExhaustiveForUnions: true,
+        },
+      ],
+
       // This rule does not detect multiple imports of the same file where types
       // are being imported in one case and runtime values are being imported in
       // another
@@ -151,7 +166,6 @@ const config = createConfig([
       '@typescript-eslint/only-throw-error': 'warn',
       '@typescript-eslint/prefer-promise-reject-errors': 'warn',
       '@typescript-eslint/prefer-readonly': 'warn',
-      '@typescript-eslint/switch-exhaustiveness-check': 'warn',
       'import-x/namespace': 'warn',
       'import-x/no-named-as-default': 'warn',
       'import-x/order': 'warn',
