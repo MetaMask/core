@@ -1,5 +1,9 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
-import { createServicePolicy, handleWhen } from '@metamask/controller-utils';
+import {
+  CircuitState,
+  createServicePolicy,
+  handleWhen,
+} from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 import {
@@ -85,6 +89,12 @@ export class RpcService implements AbstractRpcService {
   readonly #fetchOptions: FetchOptions;
 
   /**
+   * An RPC service that represents a failover endpoint which will be invoked
+   * while the circuit for _this_ service is open.
+   */
+  readonly #failoverService: AbstractRpcService | undefined;
+
+  /**
    * The policy that wraps the request.
    */
   readonly #policy: ServicePolicy;
@@ -103,17 +113,22 @@ export class RpcService implements AbstractRpcService {
    * @param args.fetchOptions - A common set of options that will be used to
    * make every request. Can be overridden on the request level (e.g. to add
    * headers).
+   * @param args.failoverService - An RPC service that represents a failover
+   * endpoint which will be invoked while the circuit for _this_ service is
+   * open.
    */
   constructor({
     fetch: givenFetch,
     btoa: givenBtoa,
     endpointUrl,
     fetchOptions = {},
+    failoverService,
   }: {
     fetch: typeof fetch;
     btoa: typeof btoa;
     endpointUrl: URL | string;
     fetchOptions?: FetchOptions;
+    failoverService?: AbstractRpcService;
   }) {
     this.#fetch = givenFetch;
     this.#endpointUrl = getNormalizedEndpointUrl(endpointUrl);
@@ -122,6 +137,7 @@ export class RpcService implements AbstractRpcService {
       fetchOptions,
       givenBtoa,
     );
+    this.#failoverService = failoverService;
 
     const policy = createServicePolicy({
       maxRetries: 4,
@@ -179,7 +195,9 @@ export class RpcService implements AbstractRpcService {
   }
 
   /**
-   * Makes a request to the RPC endpoint.
+   * Makes a request to the RPC endpoint. If the circuit is open because this
+   * request has failed too many times, the request is forwarded to a failover
+   * service (if provided).
    *
    * This overload is specifically designed for `eth_getBlockByNumber`, which
    * can return a `result` of `null` despite an expected `Result` being
@@ -201,7 +219,9 @@ export class RpcService implements AbstractRpcService {
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>>;
 
   /**
-   * Makes a request to the RPC endpoint.
+   * Makes a request to the RPC endpoint. If the circuit is open because this
+   * request has failed too many times, the request is forwarded to a failover
+   * service (if provided).
    *
    * This overload is designed for all RPC methods except for
    * `eth_getBlockByNumber`, which are expected to return a `result` of the
@@ -231,10 +251,23 @@ export class RpcService implements AbstractRpcService {
       fetchOptions,
     );
 
-    return await this.#executePolicy<Params, Result>(
-      jsonRpcRequest,
-      completeFetchOptions,
-    );
+    try {
+      return await this.#executePolicy<Params, Result>(
+        jsonRpcRequest,
+        completeFetchOptions,
+      );
+    } catch (error) {
+      if (
+        this.#policy.circuitBreakerPolicy.state === CircuitState.Open &&
+        this.#failoverService !== undefined
+      ) {
+        return await this.#failoverService.request(
+          jsonRpcRequest,
+          completeFetchOptions,
+        );
+      }
+      throw error;
+    }
   }
 
   /**
