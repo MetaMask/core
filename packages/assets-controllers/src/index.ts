@@ -177,3 +177,5 @@ export type {
   MultichainAssetsControllerEvents,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
+
+export { MultiChainTokensRatesController } from './MultichainTokensRatesController';
