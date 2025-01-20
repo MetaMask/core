@@ -67,7 +67,6 @@ export type MultichainAssetsControllerState = {
     [asset: CaipAssetType]: AssetMetadata;
   };
   allNonEvmTokens: { [account: string]: CaipAssetType[] };
-  allNonEvmIgnoredTokens: { [account: string]: CaipAssetType[] };
 };
 
 /**
@@ -79,7 +78,7 @@ export type MultichainAssetsControllerState = {
  * @returns The default {@link MultichainAssetsController} state.
  */
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
-  return { allNonEvmTokens: {}, allNonEvmIgnoredTokens: {}, metadata: {} };
+  return { allNonEvmTokens: {}, metadata: {} };
 }
 
 /**
@@ -154,10 +153,6 @@ const assetsControllerMetadata = {
     anonymous: false,
   },
   allNonEvmTokens: {
-    persist: true,
-    anonymous: false,
-  },
-  allNonEvmIgnoredTokens: {
     persist: true,
     anonymous: false,
   },
@@ -265,13 +260,31 @@ export class MultichainAssetsController extends BaseController<
       // Mock End To be removed once the above is implemented
 
       // Identify the correct snap that has the right endowment:assets permission
-      const currentAssetChain = assets[0].split('/')[0];
+      // TODO: create a mapping of the assets to the snapId based on the permission['endowment:assets']?.scopes from permissions array and the assets[0].split('/')[0] from assets array
+      const mapAssetsToSnapId = new Map<CaipAssetType, string[]>();
+      assets.forEach((asset) => {
+        const snapIds: string[] = [];
+        permissions.forEach((permission: AssetEndowment, index: number) => {
+          if (
+            permission['endowment:assets']?.scopes.includes(asset.split('/')[0])
+          ) {
+            snapIds.push(snaps[index].id);
+          }
+        });
+        mapAssetsToSnapId.set(asset, snapIds);
+      });
+      console.log(
+        '🚀 ~ #handleOnAccountAdded ~ mapAssetsToSnapId:',
+        mapAssetsToSnapId,
+      );
+
+      /*       const currentAssetChain = assets[0].split('/')[0];
       const permissionIndex = permissions.findIndex(
         (permission: AssetEndowment) =>
           permission['endowment:assets']?.scopes.includes(currentAssetChain),
       );
       const snapId = snaps[permissionIndex].id;
-      console.log('🚀 ~ #handleOnAccountAdded ~ snapId:', snapId);
+      console.log('🚀 ~ #handleOnAccountAdded ~ snapId:', snapId); */
 
       // call the snap to get the metadata
       if (assetsWithoutMetadata.length > 0) {

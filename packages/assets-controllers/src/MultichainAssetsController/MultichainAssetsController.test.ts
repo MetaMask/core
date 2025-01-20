@@ -845,7 +845,6 @@ describe('MultichainAssetsController', () => {
     const { controller } = setupController({});
     expect(controller.state).toStrictEqual({
       allNonEvmTokens: {},
-      allNonEvmIgnoredTokens: {},
       metadata: {},
     });
   });
@@ -863,7 +862,6 @@ describe('MultichainAssetsController', () => {
     expect(controller.state).toStrictEqual({
       allNonEvmTokens: {},
       metadata: {},
-      allNonEvmIgnoredTokens: {},
     });
   });
 
@@ -881,7 +879,6 @@ describe('MultichainAssetsController', () => {
       allNonEvmTokens: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
-      allNonEvmIgnoredTokens: {},
       metadata: mockGetMetadataReturnValue,
     });
   });
@@ -900,7 +897,7 @@ describe('MultichainAssetsController', () => {
       allNonEvmTokens: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
-      allNonEvmIgnoredTokens: {},
+
       metadata: mockGetMetadataReturnValue,
     });
     // Remove an EVM account
@@ -912,7 +909,7 @@ describe('MultichainAssetsController', () => {
       allNonEvmTokens: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
-      allNonEvmIgnoredTokens: {},
+
       metadata: mockGetMetadataReturnValue,
     });
   });
@@ -932,7 +929,7 @@ describe('MultichainAssetsController', () => {
       allNonEvmTokens: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
-      allNonEvmIgnoredTokens: {},
+
       metadata: mockGetMetadataReturnValue,
     });
     // Remove the added solana account
@@ -945,7 +942,7 @@ describe('MultichainAssetsController', () => {
 
     expect(controller.state).toStrictEqual({
       allNonEvmTokens: {},
-      allNonEvmIgnoredTokens: {},
+
       metadata: mockGetMetadataReturnValue,
     });
   });
