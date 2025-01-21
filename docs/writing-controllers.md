@@ -223,7 +223,7 @@ If the recipient controller supports the messaging system, however, the callback
 
 const name = 'FooController';
 
-type FooControllerMessenger = RestrictedControllerMessenger<
+type FooControllerMessenger = RestrictedMessenger<
   typeof name,
   never,
   never,
@@ -247,10 +247,7 @@ class FooController extends BaseController<
 
 // === Client repo ===
 
-const rootMessenger = new ControllerMessenger<
-  'BarController:stateChange',
-  never
->();
+const rootMessenger = new Messenger<'BarController:stateChange', never>();
 const barControllerMessenger = rootMessenger.getRestricted({
   name: 'BarController',
 });
@@ -307,7 +304,7 @@ However, this pattern can be replaced with the use of the messenger:
 
 const name = 'FooController';
 
-type FooControllerMessenger = RestrictedControllerMessenger<
+type FooControllerMessenger = RestrictedMessenger<
   typeof name,
   never,
   never,
@@ -331,10 +328,7 @@ class FooController extends BaseController<
 
 // === Client repo ===
 
-const rootMessenger = new ControllerMessenger<
-  'FooController:someEvent',
-  never
->();
+const rootMessenger = new Messenger<'FooController:someEvent', never>();
 const fooControllerMessenger = rootMessenger.getRestricted({
   name: 'FooController',
 });
@@ -505,7 +499,7 @@ A controller should define and export a type union that holds all of its actions
 
 The name of this type should be `${ControllerName}Actions`.
 
-This type should be only passed to `RestrictedControllerMessenger` as the 2nd type parameter. It should _not_ be included in its 4th type parameter, as that is is used for external actions.
+This type should be only passed to `RestrictedMessenger` as the 2nd type parameter. It should _not_ be included in its 4th type parameter, as that is is used for external actions.
 
 🚫 **`FooController['type']` is passed as the 4th type parameter**
 
@@ -514,7 +508,7 @@ export type FooControllerActions =
   | FooControllerUpdateCurrencyAction
   | FooControllerUpdateRatesAction;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   FooControllerActions,
   never,
@@ -530,7 +524,7 @@ export type FooControllerActions =
   | FooControllerUpdateCurrencyAction
   | FooControllerUpdateRatesAction;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   FooControllerActions,
   never,
@@ -545,7 +539,7 @@ A controller should define and export a type union that holds all of its events.
 
 The name of this type should be `${ControllerName}Events`.
 
-This type should be only passed to `RestrictedControllerMessenger` as the 3rd type parameter. It should _not_ be included in its 5th type parameter, as that is is used for external events.
+This type should be only passed to `RestrictedMessenger` as the 3rd type parameter. It should _not_ be included in its 5th type parameter, as that is is used for external events.
 
 🚫 **`FooControllerEvents['type']` is passed as the 5th type parameter**
 
@@ -554,7 +548,7 @@ export type FooControllerEvents =
   | FooControllerMessageReceivedEvent
   | FooControllerNotificationAddedEvent;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   FooControllerEvents,
@@ -570,7 +564,7 @@ export type FooControllerEvents =
   | FooControllerMessageReceivedEvent
   | FooControllerNotificationAddedEvent;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   FooControllerEvents,
@@ -583,11 +577,11 @@ export type FooControllerMessenger = RestrictedControllerMessenger<
 
 A controller may wish to call actions defined by other controllers, and therefore will need to define them in the messenger's allowlist.
 
-In this case, the controller should group these types into a type union so that they can be easily passed to the `RestrictedControllerMessenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
+In this case, the controller should group these types into a type union so that they can be easily passed to the `RestrictedMessenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
 
 The name of this type should be `AllowedActions`.
 
-This type should not only be passed to `RestrictedControllerMessenger` as the 2nd type parameter, but should also be included in its 4th type parameter.
+This type should not only be passed to `RestrictedMessenger` as the 2nd type parameter, but should also be included in its 4th type parameter.
 
 🚫 **`never` is passed as the 4th type parameter**
 
@@ -596,7 +590,7 @@ export type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   AllowedActions,
   never,
@@ -614,7 +608,7 @@ export type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   AllowedActions,
   never,
@@ -634,7 +628,7 @@ type AllowedActions =
   | BarControllerDoSomethingAction
   | BarControllerDoSomethingElseAction;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   AllowedActions,
   never,
@@ -649,7 +643,7 @@ If, in a test, you need to access all of the actions included in a controller's 
 // NOTE: You may need to adjust the path depending on where you are
 import { ExtractAvailableAction } from '../../base-controller/tests/helpers';
 
-const messenger = new ControllerMessenger<
+const messenger = new Messenger<
   ExtractAvailableAction<FooControllerMessenger>,
   never
 >();
@@ -659,11 +653,11 @@ const messenger = new ControllerMessenger<
 
 A controller may wish to subscribe to events defined by other controllers, and therefore will need to define them in the messenger's allowlist.
 
-In this case, the controller should group these types into a type union so that they can be easily passed to the `RestrictedControllerMessenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
+In this case, the controller should group these types into a type union so that they can be easily passed to the `RestrictedMessenger` type. However, it should not export this type, as it would then be re-exporting types that another package has already exported.
 
 The name of this type should be `AllowedEvents`.
 
-This type should not only be passed to `RestrictedControllerMessenger` as the 3rd type parameter, but should also be included in its 5th type parameter.
+This type should not only be passed to `RestrictedMessenger` as the 3rd type parameter, but should also be included in its 5th type parameter.
 
 🚫 **`never` is passed as the 5th type parameter**
 
@@ -672,7 +666,7 @@ export type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   AllowedEvents,
@@ -690,7 +684,7 @@ export type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   AllowedEvents,
@@ -710,7 +704,7 @@ type AllowedEvents =
   | BarControllerSomethingHappenedEvent
   | BarControllerSomethingElseHappenedEvent;
 
-export type FooControllerMessenger = RestrictedControllerMessenger<
+export type FooControllerMessenger = RestrictedMessenger<
   'FooController',
   never,
   AllowedEvents,
@@ -725,7 +719,7 @@ If, in a test, you need to access all of the events included in a controller's m
 // NOTE: You may need to adjust the path depending on where you are
 import { ExtractAvailableEvent } from '../../base-controller/tests/helpers';
 
-const messenger = new ControllerMessenger<
+const messenger = new Messenger<
   never,
   ExtractAvailableEvent<FooControllerMessenger>
 >();
@@ -790,7 +784,7 @@ export type AllowedEvents =
   | ApprovalControllerApprovalRequestApprovedEvent
   | ApprovalControllerApprovalRequestRejectedEvent;
 
-export type SwapsControllerMessenger = RestrictedControllerMessenger<
+export type SwapsControllerMessenger = RestrictedMessenger<
   'SwapsController',
   SwapsControllerActions | AllowedActions,
   SwapsControllerEvents | AllowedEvents,
@@ -802,7 +796,7 @@ export type SwapsControllerMessenger = RestrictedControllerMessenger<
 A messenger that allows no actions or events (whether internal or external) looks like this:
 
 ```typescript
-export type SwapsControllerMessenger = RestrictedControllerMessenger<
+export type SwapsControllerMessenger = RestrictedMessenger<
   'SwapsController',
   never,
   never,
@@ -1175,7 +1169,7 @@ import { AccountsControllerGetStateAction } from '@metamask/accounts-controller'
 
 type AllowedActions = AccountsControllerGetStateAction;
 
-type PreferencesControllerMessenger = RestrictedControllerMessenger<
+type PreferencesControllerMessenger = RestrictedMessenger<
   'PreferencesController',
   AllowedActions,
   never,
@@ -1273,7 +1267,7 @@ type AccountsControllerActions =
   | AccountsControllerGetActiveAccountAction
   | AccountsControllerGetInactiveAccountsAction;
 
-export type AccountsControllerMessenger = RestrictedControllerMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   'AccountsController',
   AccountsControllerActions,
   never,
@@ -1302,7 +1296,7 @@ type AllowedActions =
   | AccountsControllerGetActiveAccountsAction
   | AccountsControllerGetInactiveAccountsAction;
 
-export type TokensControllerMessenger = RestrictedControllerMessenger<
+export type TokensControllerMessenger = RestrictedMessenger<
   'TokensController',
   AllowedActions,
   never,
@@ -1383,7 +1377,7 @@ export type AccountsControllerGetStateAction = ControllerGetStateAction<
 
 type AccountsControllerActions = AccountsControllerGetStateAccountAction;
 
-export type AccountsControllerMessenger = RestrictedControllerMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   'AccountsController',
   AccountsControllerActions,
   never,
@@ -1400,7 +1394,7 @@ import { accountsControllerSelectors } from '@metamask/accounts-controller';
 
 type AllowedActions = AccountsControllerGetStateAction;
 
-export type TokensControllerMessenger = RestrictedControllerMessenger<
+export type TokensControllerMessenger = RestrictedMessenger<
   'TokensController',
   AllowedActions,
   never,

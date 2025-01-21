@@ -9,7 +9,6 @@
 ## Accounts Team
 /packages/accounts-controller        @MetaMask/accounts-engineers
 /packages/keyring-controller         @MetaMask/accounts-engineers
-/packages/chain-controller           @MetaMask/accounts-engineers
 
 ## Assets Team
 /packages/assets-controllers         @MetaMask/metamask-assets
@@ -34,6 +33,9 @@
 
 ## Snaps Team
 /packages/rate-limit-controller            @MetaMask/snaps-devs
+
+## Portfolio Team
+/packages/token-search-discovery-controller      @MetaMask/portfolio
 
 ## Wallet API Platform Team
 /packages/multichain                       @MetaMask/wallet-api-platform-engineers
@@ -71,8 +73,6 @@
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
 /packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
-/packages/chain-controller/package.json           @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
-/packages/chain-controller/CHANGELOG.md           @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/ens-controller/package.json             @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/ens-controller/CHANGELOG.md             @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/gas-fee-controller/package.json         @MetaMask/confirmations @MetaMask/wallet-framework-engineers
@@ -103,3 +103,5 @@
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/user-operation-controller/package.json  @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/user-operation-controller/CHANGELOG.md  @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/token-search-discovery-controller/package.json      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
+/packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/wallet-framework-engineers

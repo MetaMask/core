@@ -3,13 +3,8 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist",
-    "rootDir": "./src",
-    "skipLibCheck": true
+    "rootDir": "./src"
   },
-  "references": [
-    {
-      "path": "../base-controller/tsconfig.build.json"
-    }
-  ],
+  "references": [{ "path": "../base-controller/tsconfig.build.json" }],
   "include": ["../../types", "./src"]
 }

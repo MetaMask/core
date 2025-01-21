@@ -30,6 +30,7 @@
     { "path": "./packages/permission-controller" },
     { "path": "./packages/permission-log-controller" },
     { "path": "./packages/phishing-controller" },
+    { "path": "./packages/polling-controller" },
     { "path": "./packages/preferences-controller" },
     { "path": "./packages/profile-sync-controller" },
     { "path": "./packages/queued-request-controller" },
@@ -37,9 +38,9 @@
     { "path": "./packages/remote-feature-flag-controller" },
     { "path": "./packages/selected-network-controller" },
     { "path": "./packages/signature-controller" },
+    { "path": "./packages/token-search-discovery-controller" },
     { "path": "./packages/transaction-controller" },
-    { "path": "./packages/user-operation-controller" },
-    { "path": "./packages/polling-controller" }
+    { "path": "./packages/user-operation-controller" }
   ],
   "files": [],
   "include": ["./types"]

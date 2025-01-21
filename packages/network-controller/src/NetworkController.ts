@@ -22,6 +22,7 @@ import type { Hex } from '@metamask/utils';
 import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
+import { cloneDeep } from 'lodash';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
@@ -1667,11 +1668,6 @@ export class NetworkController extends BaseController<
       });
     });
 
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
-
     this.messagingSystem.publish(
       `${controllerName}:networkAdded`,
       newNetworkConfiguration,
@@ -1950,11 +1946,6 @@ export class NetworkController extends BaseController<
       });
     }
 
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
-
     this.#unregisterNetworkClientsAsNeeded({
       networkClientOperations,
       autoManagedNetworkClientRegistry,
@@ -2013,11 +2004,6 @@ export class NetworkController extends BaseController<
         existingNetworkConfiguration,
       });
     });
-
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
 
     this.messagingSystem.publish(
       'NetworkController:networkRemoved',
@@ -2531,6 +2517,11 @@ export class NetworkController extends BaseController<
       state.networkConfigurationsByChainId[args.networkFields.chainId] =
         args.networkConfigurationToPersist;
     }
+
+    this.#networkConfigurationsByNetworkClientId =
+      buildNetworkConfigurationsByNetworkClientId(
+        cloneDeep(state.networkConfigurationsByChainId),
+      );
   }
 
   /**

@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/chain-controller",
-  "version": "0.2.2",
-  "description": "Manages chain-agnostic providers",
+  "name": "@metamask/token-search-discovery-controller",
+  "version": "1.0.0",
+  "description": "Manages token search and discovery through the Portfolio API",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/chain-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/token-search-discovery-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,42 +37,28 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/chain-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/chain-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/token-search-discovery-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/token-search-discovery-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.1.0",
-    "@metamask/chain-api": "^0.1.0",
-    "@metamask/keyring-internal-api": "^1.0.0",
-    "@metamask/keyring-utils": "^1.0.0",
-    "@metamask/snaps-controllers": "^9.10.0",
-    "@metamask/snaps-sdk": "^6.7.0",
-    "@metamask/snaps-utils": "^8.3.0",
-    "@metamask/utils": "^11.0.1",
-    "uuid": "^8.3.2"
+    "@metamask/base-controller": "^7.1.1",
+    "@metamask/utils": "^11.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/providers": "^18.1.1",
     "@types/jest": "^27.4.1",
-    "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2",
-    "webextension-polyfill": "^0.12.0"
-  },
-  "peerDependencies": {
-    "@metamask/providers": "^18.1.0",
-    "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

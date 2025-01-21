@@ -6,7 +6,6 @@
   "metamask/assets-controllers": "team-assets",
   "metamask/base-controller": "team-wallet-framework",
   "metamask/build-utils": "team-wallet-framework",
-  "metamask/chain-controller": "team-accounts",
   "metamask/composable-controller": "team-wallet-framework",
   "metamask/controller-utils": "team-wallet-framework",
   "metamask/ens-controller": "team-confirmations",
@@ -34,5 +33,6 @@
   "metamask/selected-network-controller": "team-wallet-api-platform,team-wallet-framework,team-assets",
   "metamask/signature-controller": "team-confirmations",
   "metamask/transaction-controller": "team-confirmations",
+  "metamask/token-search-discovery-controller": "team-portfolio",
   "metamask/user-operation-controller": "team-confirmations"
 }
