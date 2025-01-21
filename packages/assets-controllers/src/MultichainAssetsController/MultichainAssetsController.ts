@@ -237,11 +237,6 @@ export class MultichainAssetsController extends BaseController<
         this.#getSnapsPermissions(snap.id),
       );
 
-      /* Mock that every permission returned includeds     "endowment:assets": {
-       "scopes": [
-        "bip122:000000000019d6689c085ae165831e93"
-      ]
-    }  */
       // Mock start To be removed once the above is implemented
       permissions.forEach((singlePermission) => {
         (singlePermission as unknown as AssetEndowment) = {
@@ -273,18 +268,7 @@ export class MultichainAssetsController extends BaseController<
         });
         mapAssetsToSnapId.set(asset, snapIds);
       });
-      console.log(
-        '🚀 ~ #handleOnAccountAdded ~ mapAssetsToSnapId:',
-        mapAssetsToSnapId,
-      );
-
-      /*       const currentAssetChain = assets[0].split('/')[0];
-      const permissionIndex = permissions.findIndex(
-        (permission: AssetEndowment) =>
-          permission['endowment:assets']?.scopes.includes(currentAssetChain),
-      );
-      const snapId = snaps[permissionIndex].id;
-      console.log('🚀 ~ #handleOnAccountAdded ~ snapId:', snapId); */
+      // should take the first snapId from the mapAssetsToSnapId and use it to get the assets
 
       // call the snap to get the metadata
       if (assetsWithoutMetadata.length > 0) {
