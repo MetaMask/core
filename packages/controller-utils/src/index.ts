@@ -5,7 +5,10 @@ export {
   DEFAULT_MAX_RETRIES,
   createServicePolicy,
 } from './create-service-policy';
-export type { IServicePolicy } from './create-service-policy';
+export type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from './create-service-policy';
 export * from './constants';
 export type { NonEmptyArray } from './util';
 export {
