@@ -5,6 +5,7 @@ import {
   assertScopesSupported,
   assertIsExternalScopesObject,
   assertIsInternalScopesObject,
+  assertIsInternalScopeString,
 } from './assert';
 import { Caip25Errors } from './errors';
 import * as Supported from './supported';
@@ -18,6 +19,7 @@ jest.mock('./supported', () => ({
 
 jest.mock('@metamask/utils', () => ({
   ...jest.requireActual('@metamask/utils'),
+  isCaipChainId: jest.fn(),
   isCaipReference: jest.fn(),
   isCaipAccountId: jest.fn(),
 }));
@@ -33,6 +35,7 @@ const validScopeObject: NormalizedScopeObject = {
 
 describe('Scope Assert', () => {
   beforeEach(() => {
+    MockUtils.isCaipChainId.mockImplementation(() => true);
     MockUtils.isCaipReference.mockImplementation(() => true);
     MockUtils.isCaipAccountId.mockImplementation(() => true);
   });
@@ -261,7 +264,7 @@ describe('Scope Assert', () => {
     });
 
     it('throws an error if passed an object with a key that is not a valid ExternalScopeString', () => {
-      jest.spyOn(Utils, 'isCaipReference').mockImplementation(() => false);
+      MockUtils.isCaipChainId.mockReturnValue(false);
 
       expect(() =>
         assertIsExternalScopesObject({ 'invalid-scope-string': {} }),
@@ -480,6 +483,44 @@ describe('Scope Assert', () => {
     });
   });
 
+  describe('assertIsInternalScopeString', () => {
+    it('throws an error if the value is not a string', () => {
+      expect(() => assertIsInternalScopeString({})).toThrow(
+        'scopeString is not a valid InternalScopeString',
+      );
+      expect(() => assertIsInternalScopeString(123)).toThrow(
+        'scopeString is not a valid InternalScopeString',
+      );
+      expect(() => assertIsInternalScopeString(undefined)).toThrow(
+        'scopeString is not a valid InternalScopeString',
+      );
+      expect(() => assertIsInternalScopeString(null)).toThrow(
+        'scopeString is not a valid InternalScopeString',
+      );
+    });
+
+    it("does not throw an error if the value is 'wallet'", () => {
+      expect(assertIsInternalScopeString('wallet')).toBeUndefined();
+      expect(MockUtils.isCaipChainId).not.toHaveBeenCalled();
+    });
+
+    it('does not throw an error if the value is a valid CAIP-2 Chain ID', () => {
+      MockUtils.isCaipChainId.mockReturnValue(true);
+
+      expect(assertIsInternalScopeString('scopeString')).toBeUndefined();
+      expect(MockUtils.isCaipChainId).toHaveBeenCalledWith('scopeString');
+    });
+
+    it('throws an error if the value is not a valid CAIP-2 Chain ID', () => {
+      MockUtils.isCaipChainId.mockReturnValue(false);
+
+      expect(() => assertIsInternalScopeString('scopeString')).toThrow(
+        'scopeString is not a valid InternalScopeString',
+      );
+      expect(MockUtils.isCaipChainId).toHaveBeenCalledWith('scopeString');
+    });
+  });
+
   describe('assertIsInternalScopesObject', () => {
     it('does not throw if passed obj is a valid InternalScopesObject with all valid properties', () => {
       const obj = {
@@ -509,7 +550,7 @@ describe('Scope Assert', () => {
     });
 
     it('throws an error if passed an object with a key that is not a valid InternalScopeString', () => {
-      jest.spyOn(Utils, 'isCaipReference').mockImplementation(() => false);
+      MockUtils.isCaipChainId.mockReturnValue(false);
 
       expect(() =>
         assertIsInternalScopesObject({ 'invalid-scope-string': {} }),
