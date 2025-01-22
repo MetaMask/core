@@ -3309,6 +3309,38 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/multichain-transactions-controller@workspace:packages/multichain-transactions-controller"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^21.0.1"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^7.1.1"
+    "@metamask/keyring-api": "npm:^13.0.0"
+    "@metamask/keyring-controller": "npm:^19.0.3"
+    "@metamask/keyring-internal-api": "npm:^2.0.0"
+    "@metamask/keyring-snap-client": "npm:^2.0.0"
+    "@metamask/polling-controller": "npm:^12.0.2"
+    "@metamask/snaps-controllers": "npm:^9.10.0"
+    "@metamask/snaps-sdk": "npm:^6.7.0"
+    "@metamask/snaps-utils": "npm:^8.3.0"
+    "@metamask/utils": "npm:^11.0.1"
+    "@types/jest": "npm:^27.4.1"
+    "@types/uuid": "npm:^8.3.0"
+    deepmerge: "npm:^4.2.2"
+    immer: "npm:^9.0.6"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^21.0.0
+    "@metamask/snaps-controllers": ^9.10.0
+  languageName: unknown
+  linkType: soft
+
 "@metamask/multichain@workspace:packages/multichain":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain@workspace:packages/multichain"
@@ -3672,7 +3704,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/selected-network-controller": "npm:^20.0.2"
+    "@metamask/selected-network-controller": "npm:^21.0.0"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
     "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
@@ -3688,7 +3720,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/network-controller": ^22.0.0
-    "@metamask/selected-network-controller": ^20.0.0
+    "@metamask/selected-network-controller": ^21.0.0
   languageName: unknown
   linkType: soft
 
@@ -3759,7 +3791,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@npm:^20.0.2, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@npm:^21.0.0, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
