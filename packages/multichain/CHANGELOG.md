@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Adds `bucketScopes` which groups the scopes in a `NormalizedScopesObject` based on if the scopes are already supported, could be supported, or are not supportable.
   - Adds `getSupportedScopeObjects` helper for getting only the supported methods and notifications from each `NormalizedScopeObject` in a `NormalizedScopesObject`.
 
+### Fixed
+- Fixes `removeScope` mutator incorrectly returning malformed CAIP-25 caveat values ([#5183](https://github.com/MetaMask/core/pull/5183)).
+
 ### Changed
 - Bump `@metamask/controller-utils` from `^11.4.4` to `^11.4.5` ([#5012](https://github.com/MetaMask/core/pull/5135))
 - Bump `@metamask/permission-controller` from `^11.0.4` to `^11.0.5` ([#5012](https://github.com/MetaMask/core/pull/5135))
