@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixes `removeScope` mutator incorrectly returning malformed CAIP-25 caveat values ([#5183](https://github.com/MetaMask/core/pull/5183)).
+
 ## [2.0.0]
 
 ### Added
