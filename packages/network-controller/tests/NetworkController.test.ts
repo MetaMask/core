@@ -11338,6 +11338,60 @@ describe('NetworkController', () => {
         });
       });
     });
+
+    it('allows calling `getNetworkConfigurationByNetworkClientId` when subscribing to state changes containing new endpoints', async () => {
+      const network = buildCustomNetworkConfiguration({
+        chainId: '0x1' as Hex,
+        name: 'mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Custom,
+            url: 'https://test.endpoint/1',
+            networkClientId: 'client1',
+          },
+        ],
+      });
+
+      await withController(
+        {
+          state: {
+            selectedNetworkClientId: 'client1',
+            networkConfigurationsByChainId: { '0x1': network },
+          },
+        },
+        async ({ controller, messenger }) => {
+
+          const stateChangePromise = new Promise<NetworkConfiguration | undefined>((resolve) => {
+            messenger.subscribe('NetworkController:stateChange', (state) => {
+              const { networkClientId } =
+                state.networkConfigurationsByChainId['0x1'].rpcEndpoints[1];
+
+              resolve(
+                controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+              );
+            });
+          });
+
+          // Add a new endpoint
+          await controller.updateNetwork('0x1', {
+            ...network,
+            rpcEndpoints: [
+              ...network.rpcEndpoints,
+              {
+                type: RpcEndpointType.Custom,
+                url: 'https://test.endpoint/2',
+              },
+            ],
+          });
+
+          const networkConfiguration = await stateChangePromise;
+          expect(networkConfiguration).toBeDefined();
+        },
+      );
+    });
   });
 
   describe('removeNetwork', () => {
@@ -13069,6 +13123,7 @@ function refreshNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
 }) {
+  // eslint-disable-next-line jest/require-top-level-describe
   it('emits networkWillChange with state payload', async () => {
     await withController(
       {
@@ -13097,6 +13152,7 @@ function refreshNetworkTests({
     );
   });
 
+  // eslint-disable-next-line jest/require-top-level-describe
   it('emits networkDidChange with state payload', async () => {
     await withController(
       {
@@ -13126,6 +13182,7 @@ function refreshNetworkTests({
   });
 
   if (expectedNetworkClientConfiguration.type === NetworkClientType.Custom) {
+    // eslint-disable-next-line jest/require-top-level-describe
     it('sets the provider to a custom RPC provider initialized with the RPC target and chain ID', async () => {
       await withController(
         {
@@ -13167,8 +13224,7 @@ function refreshNetworkTests({
       );
     });
   } else {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    // eslint-disable-next-line jest/require-top-level-describe
     it(`sets the provider to an Infura provider pointed to ${expectedNetworkClientConfiguration.network}`, async () => {
       await withController(
         {
@@ -13209,6 +13265,7 @@ function refreshNetworkTests({
     });
   }
 
+  // eslint-disable-next-line jest/require-top-level-describe
   it('replaces the provider object underlying the provider proxy without creating a new instance of the proxy itself', async () => {
     await withController(
       {

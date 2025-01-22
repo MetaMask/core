@@ -1,3 +1,5 @@
+import log from 'loglevel';
+
 import {
   mockEndpointGetPushNotificationLinks,
   mockEndpointUpdatePushNotificationLinks,
@@ -12,6 +14,10 @@ import {
   updateLinksAPI,
   updateTriggerPushNotifications,
 } from './services';
+
+// Testing util to clean up verbose logs when testing errors
+const mockErrorLog = () =>
+  jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
 const MOCK_NEW_REG_TOKEN = 'NEW_REG_TOKEN';
@@ -31,6 +37,7 @@ describe('NotificationServicesPushController Services', () => {
 
     it('should return null if given a bad response', async () => {
       const mockAPI = mockEndpointGetPushNotificationLinks({ status: 500 });
+      mockErrorLog();
       const result = await getPushNotificationLinks(MOCK_JWT);
       expect(mockAPI.isDone()).toBe(true);
       expect(result).toBeNull();
@@ -108,6 +115,7 @@ describe('NotificationServicesPushController Services', () => {
 
     it('should successfully call APIs and add provided mobile fcmToken', async () => {
       const { mobileParams, apis } = arrangeMocks();
+      mockErrorLog();
       const result = await activatePushNotifications(mobileParams);
 
       expect(apis.mockGet.isDone()).toBe(true);
@@ -119,6 +127,7 @@ describe('NotificationServicesPushController Services', () => {
 
     it('should return null if unable to get links from API', async () => {
       const { params, apis } = arrangeMocks({ mockGet: { status: 500 } });
+      mockErrorLog();
       const result = await activatePushNotifications(params);
 
       expect(apis.mockGet.isDone()).toBe(true);
@@ -177,6 +186,7 @@ describe('NotificationServicesPushController Services', () => {
 
     it('should return early when there is no registration token to delete', async () => {
       const { params, apis } = arrangeMocks();
+      mockErrorLog();
       const result = await deactivatePushNotifications({
         ...params,
         regToken: '',
@@ -191,6 +201,7 @@ describe('NotificationServicesPushController Services', () => {
 
     it('should return false when unable to get links api', async () => {
       const { params, apis } = arrangeMocks({ mockGet: { status: 500 } });
+      mockErrorLog();
       const result = await deactivatePushNotifications(params);
 
       expect(apis.mockGet.isDone()).toBe(true);
@@ -250,6 +261,7 @@ describe('NotificationServicesPushController Services', () => {
 
     it('should update trigger links and replace existing reg token', async () => {
       const { params, apis } = arrangeMocks();
+      mockErrorLog();
       const result = await updateTriggerPushNotifications(params);
 
       expect(apis.mockGet.isDone()).toBe(true);
@@ -263,6 +275,7 @@ describe('NotificationServicesPushController Services', () => {
 
     it('should return early if fails to get links api', async () => {
       const { params, apis } = arrangeMocks({ mockGet: { status: 500 } });
+      mockErrorLog();
       const result = await updateTriggerPushNotifications(params);
 
       expect(apis.mockGet.isDone()).toBe(true);

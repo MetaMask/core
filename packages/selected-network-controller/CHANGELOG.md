@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
+### Added
+
+- **BREAKING:** The `SelectedNetworkController` constructor now expects both `useRequestQueuePreference` and `onPreferencesStateChange` options ([#5065](https://github.com/MetaMask/core/pull/5065))
+  - These were previously removed in 20.0.0, but have been re-added for compatibility with Mobile.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.2` ([#5082](https://github.com/MetaMask/core/pull/5082))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+  - This upgrade is not a breaking change because this package does not use `generateRandomMnemonic`.
+
+## [20.0.2]
+
+### Changed
+
+- Bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
+
 ## [20.0.1]
 
 ### Fixed
@@ -317,7 +337,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.2...@metamask/selected-network-controller@21.0.0
+[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.1...@metamask/selected-network-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.0...@metamask/selected-network-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@19.0.0...@metamask/selected-network-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.2...@metamask/selected-network-controller@19.0.0

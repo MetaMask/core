@@ -86,6 +86,7 @@ describe('createQueuedRequestMiddleware', () => {
     const mockEnqueueRequest = getMockEnqueueRequest();
     const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: mockEnqueueRequest,
+      useRequestQueue: () => true,
     });
 
     const request = {
@@ -104,7 +105,7 @@ describe('createQueuedRequestMiddleware', () => {
     const mockEnqueueRequest = getMockEnqueueRequest();
     const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: mockEnqueueRequest,
-
+      useRequestQueue: () => true,
       shouldEnqueueRequest: ({ method }) =>
         method === 'method_with_confirmation',
     });
@@ -144,6 +145,7 @@ describe('createQueuedRequestMiddleware', () => {
   it('calls next after a request is queued and processed', async () => {
     const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: getMockEnqueueRequest(),
+      useRequestQueue: () => true,
     });
     const request = {
       ...getRequestDefaults(),
@@ -165,7 +167,7 @@ describe('createQueuedRequestMiddleware', () => {
         enqueueRequest: jest
           .fn()
           .mockRejectedValue(new Error('enqueuing error')),
-
+        useRequestQueue: () => true,
         shouldEnqueueRequest: () => true,
       });
       const request = {
@@ -189,7 +191,7 @@ describe('createQueuedRequestMiddleware', () => {
         enqueueRequest: jest
           .fn()
           .mockRejectedValue(new Error('enqueuing error')),
-
+        useRequestQueue: () => true,
         shouldEnqueueRequest: () => true,
       });
       const request = {
@@ -269,6 +271,7 @@ function buildQueuedRequestMiddleware(
 ) {
   const options = {
     enqueueRequest: getMockEnqueueRequest(),
+    useRequestQueue: () => false,
     shouldEnqueueRequest: () => false,
     ...overrideOptions,
   };

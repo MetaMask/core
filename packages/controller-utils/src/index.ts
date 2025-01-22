@@ -1,3 +1,4 @@
+export { createServicePolicy } from './create-service-policy';
 export * from './constants';
 export type { NonEmptyArray } from './util';
 export {

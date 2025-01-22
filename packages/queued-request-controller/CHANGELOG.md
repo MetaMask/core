@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+
+### Added
+
+- **BREAKING:** `createQueuedRequestMiddleware` now expects a `useRequestQueue` option ([#5065](https://github.com/MetaMask/core/pull/5065))
+  - This was previously removed in 20.0.0, but has been re-added for compatibility with Mobile.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/selected-network-controller` from `^20.0.2` to `^21.0.0` ([#5178](https://github.com/MetaMask/core/pull/5178))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.4.5` ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.2` ([#5082](https://github.com/MetaMask/core/pull/5082))
+- Bump `@metamask/rpc-errors` from `^7.0.1` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+  - This upgrade is not a breaking change because this package does not use `generateRandomMnemonic`.
+
+## [8.0.2]
+
+### Changed
+
+- Bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
+
 ## [8.0.1]
 
 ### Changed
@@ -314,7 +337,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.2...@metamask/queued-request-controller@9.0.0
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.1...@metamask/queued-request-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.0...@metamask/queued-request-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.1...@metamask/queued-request-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.0...@metamask/queued-request-controller@7.0.1
