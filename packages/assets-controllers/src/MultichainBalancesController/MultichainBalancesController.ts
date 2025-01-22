@@ -2,6 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
+  AccountsControllerAccountBalancesUpdatedEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -101,8 +102,8 @@ type AllowedActions =
  */
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
-
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountBalancesUpdatedEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -114,6 +115,23 @@ export type MultichainBalancesControllerMessenger =
     AllowedActions['type'],
     AllowedEvents['type']
   >;
+
+/**
+ * Event emitted by AccountsController, when the balances of an account are updated.
+ */
+type AccountBalancesUpdatedEvent = {
+  type: 'AccountsController:accountBalancesUpdated';
+  payload: {
+    balances: {
+      [accountId: string]: {
+        [assetId: CaipAssetType]: {
+          amount: string;
+          unit: string;
+        };
+      };
+    };
+  };
+};
 
 /**
  * {@link MultichainBalancesController}'s metadata.
@@ -175,6 +193,10 @@ export class MultichainBalancesController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
       (account) => this.#handleOnAccountRemoved(account),
+    );
+    this.messagingSystem.subscribe(
+      'AccountsController:accountBalancesUpdated',
+      (balanceUpdate) => this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
   }
 
@@ -312,6 +334,22 @@ export class MultichainBalancesController extends BaseController<
     // really be updated), see:
     // - https://github.com/MetaMask/core/blob/v213.0.0/packages/accounts-controller/src/AccountsController.ts#L1036-L1039
   }
+
+  /**
+   * Handles balance updates received from the AccountsController.
+   *
+   * @param balanceUpdate - The balance update event containing new balances.
+   */
+    #handleOnAccountBalancesUpdated(balanceUpdate: AccountBalancesUpdatedEvent): void {
+      this.update((state: Draft<MultichainBalancesControllerState>) => {
+        Object.entries(balanceUpdate.balances).forEach(([accountId, assetBalances]) => {
+          if (!state.balances[accountId]) {
+            state.balances[accountId] = {};
+          }
+          Object.assign(state.balances[accountId], assetBalances);
+        });
+      });
+    }
 
   /**
    * Handles changes when a new account has been removed.
