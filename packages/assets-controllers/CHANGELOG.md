@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [46.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^13.0.0` to `^14.0.0` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/keyring-internal-api` from `^2.0.0` to `^2.0.1` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/keyring-snap-client` from `^2.0.0` to `^3.0.0` ([#5177](https://github.com/MetaMask/core/pull/5177))
+
+### Fixed
+
+- Fix type issue in `ERC721Standard.getDetails` ([#4985](https://github.com/MetaMask/core/pull/4985))
+  - The image variable now returns a string instead of a promise when the token image uses the 'ipfs://' protocol.
+- Relax NFTs metadata RPC calls ([#5134](https://github.com/MetaMask/core/pull/5134))
+  - We now check the number of NFTs to update against a threshold value (500) to avoid sending an excessive amount of RPC calls to fetch NFTs metadata.
+
 ## [46.0.0]
 
 ### Added
@@ -1323,7 +1338,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.1...HEAD
+[46.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.0...@metamask/assets-controllers@46.0.1
 [46.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.2...@metamask/assets-controllers@46.0.0
 [45.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.1...@metamask/assets-controllers@45.1.2
 [45.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.0...@metamask/assets-controllers@45.1.1
