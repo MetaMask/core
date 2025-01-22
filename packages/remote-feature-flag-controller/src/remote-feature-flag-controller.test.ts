@@ -5,6 +5,7 @@ import {
   RemoteFeatureFlagController,
   controllerName,
   DEFAULT_CACHE_DURATION,
+  getDefaultRemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
 import type {
   RemoteFeatureFlagControllerActions,
@@ -17,9 +18,29 @@ import type { FeatureFlags } from './remote-feature-flag-controller-types';
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
   feature2: { chrome: '<109' },
+  feature3: [1, 2, 3],
 };
 
 const MOCK_FLAGS_TWO = { different: true };
+
+const MOCK_FLAGS_WITH_THRESHOLD = {
+  ...MOCK_FLAGS,
+  testFlagForThreshold: [
+    {
+      name: 'groupA',
+      scope: { type: 'threshold', value: 0.3 },
+      value: 'valueA',
+    },
+    {
+      name: 'groupB',
+      scope: { type: 'threshold', value: 0.5 },
+      value: 'valueB',
+    },
+    { name: 'groupC', scope: { type: 'threshold', value: 1 }, value: 'valueC' },
+  ],
+};
+
+const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
 
 /**
  * Creates a controller instance with default parameters for testing
@@ -36,6 +57,7 @@ function createController(
     state: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
+    getMetaMetricsId: () => string;
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
@@ -44,6 +66,7 @@ function createController(
     clientConfigApiService:
       options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
+    getMetaMetricsId: options.getMetaMetricsId ?? (() => MOCK_METRICS_ID),
   });
 }
 
@@ -239,6 +262,41 @@ describe('RemoteFeatureFlagController', () => {
     });
   });
 
+  describe('threshold feature flags', () => {
+    it('processes threshold feature flags based on provided metaMetricsId', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await controller.updateRemoteFeatureFlags();
+
+      expect(
+        controller.state.remoteFeatureFlags.testFlagForThreshold,
+      ).toStrictEqual({
+        name: 'groupC',
+        value: 'valueC',
+      });
+    });
+
+    it('preserves non-threshold feature flags unchanged', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_THRESHOLD,
+      });
+      const controller = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+      await controller.updateRemoteFeatureFlags();
+
+      const { testFlagForThreshold, ...nonThresholdFlags } =
+        controller.state.remoteFeatureFlags;
+      expect(nonThresholdFlags).toStrictEqual(MOCK_FLAGS);
+    });
+  });
+
   describe('enable and disable', () => {
     it('enables the controller and makes a network request to fetch', async () => {
       const clientConfigApiService = buildClientConfigApiService();
@@ -271,6 +329,15 @@ describe('RemoteFeatureFlagController', () => {
       await controller.updateRemoteFeatureFlags();
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
       expect(controller.state.remoteFeatureFlags).toStrictEqual(MOCK_FLAGS);
+    });
+  });
+
+  describe('getDefaultRemoteFeatureFlagControllerState', () => {
+    it('should return default state', () => {
+      expect(getDefaultRemoteFeatureFlagControllerState()).toStrictEqual({
+        remoteFeatureFlags: {},
+        cacheTimestamp: 0,
+      });
     });
   });
 });

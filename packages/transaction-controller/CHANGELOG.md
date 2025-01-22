@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [43.0.0]
+
+### Added
+
+- Add `gasLimitNoBuffer` property to `TransactionMeta` type ([#5113](https://github.com/MetaMask/core/pull/5113))
+  - `gasLimitNoBuffer` is the estimated gas for the transaction without any buffer applied.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^20.0.0` to `^21.0.0` ([#5140](https://github.com/MetaMask/core/pull/5140))
+- Bump `@metamask/base-controller` from `7.1.0` to `^7.1.1` ([#5135](https://github.com/MetaMask/core/pull/5135))
+
+## [42.1.0]
+
+### Added
+
+- Validate `gas` and `gasLimit` are hexadecimal strings ([#5093](https://github.com/MetaMask/core/pull/5093))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+## [42.0.0]
+
+### Added
+
+- Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Add `INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS` constant.
+
+### Changed
+
+- **BREAKING:** Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Rename `TransactionControllerIncomingTransactionBlockReceivedEvent` to `TransactionControllerIncomingTransactionsReceivedEvent`.
+  - Replace `networkClientIds` argument with `chainIds` in following methods:
+    - `startIncomingTransactionPolling`
+    - `stopIncomingTransactionPolling`
+    - `updateIncomingTransactions`
+- Bump `@metamask/eth-block-tracker` from `^11.0.2` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
+
+### Removed
+
+- **BREAKING:** Retrieve incoming transactions using Accounts API ([#4927](https://github.com/MetaMask/core/pull/4927))
+  - Remove `ETHERSCAN_SUPPORTED_NETWORKS` constant.
+  - Remove types:
+    - `EtherscanTransactionMeta`
+    - `RemoteTransactionSource`
+    - `RemoteTransactionSourceRequest`
+
+## [41.1.0]
+
+### Added
+
+- Add optional `destinationChainId` property to `TransactionMeta` to facilitate Bridge transactions ([#4988](https://github.com/MetaMask/core/pull/4988))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
 ### Fixed
 
 - Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
@@ -15,6 +74,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `@metamask/eth-block-tracker` `>=9` (required by `@metamask/nonce-tracker`)
   - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
   - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@ethereumjs/common`
+  - `@ethereumjs/util`
+  - `@metamask/eth-query`
+  - `bn.js`
+  - `fast-json-patch`
+  - `lodash`
 
 ## [41.0.0]
 
@@ -1172,7 +1238,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@43.0.0...HEAD
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.1.0...@metamask/transaction-controller@43.0.0
+[42.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.0.0...@metamask/transaction-controller@42.1.0
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.1.0...@metamask/transaction-controller@42.0.0
+[41.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.0.0...@metamask/transaction-controller@41.1.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.1.0...@metamask/transaction-controller@41.0.0
 [40.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@40.0.0...@metamask/transaction-controller@40.1.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@39.1.0...@metamask/transaction-controller@40.0.0

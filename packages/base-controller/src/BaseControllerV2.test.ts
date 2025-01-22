@@ -14,8 +14,8 @@ import {
   getPersistentState,
   isBaseController,
 } from './BaseControllerV2';
-import { ControllerMessenger } from './ControllerMessenger';
-import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
+import { ControllerMessenger } from './Messenger';
+import type { RestrictedControllerMessenger } from './RestrictedMessenger';
 
 export const countControllerName = 'CountController';
 

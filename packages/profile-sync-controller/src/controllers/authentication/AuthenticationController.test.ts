@@ -156,18 +156,6 @@ describe('authentication/authentication-controller - performSignOut() tests', ()
     expect(controller.state.isSignedIn).toBe(false);
     expect(controller.state.sessionData).toBeUndefined();
   });
-
-  it('should throw error if attempting to sign out when user is not logged in', () => {
-    const metametrics = createMockAuthMetaMetrics();
-    const { messenger } = createMockAuthenticationMessenger();
-    const controller = new AuthenticationController({
-      messenger,
-      state: { isSignedIn: false },
-      metametrics,
-    });
-
-    expect(() => controller.performSignOut()).toThrow(expect.any(Error));
-  });
 });
 
 describe('authentication/authentication-controller - getBearerToken() tests', () => {

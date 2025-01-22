@@ -122,4 +122,50 @@ describe('multicall', () => {
       ]);
     });
   });
+
+  describe('error handling of reverts', () => {
+    const call = {
+      contract: new Contract(
+        '0x0000000000000000000000000000000000000001',
+        abiERC20,
+        provider,
+      ),
+      functionSignature: 'balanceOf(address)',
+      arguments: ['0x0000000000000000000000000000000000000000'],
+    };
+
+    it('should fall back to parallel calls when multicall reverts', async () => {
+      jest.spyOn(provider, 'call').mockImplementationOnce(() => {
+        const error = { code: 'CALL_EXCEPTION' };
+        return Promise.reject(error);
+      });
+
+      jest
+        .spyOn(provider, 'call')
+        .mockImplementationOnce(() =>
+          Promise.resolve(defaultAbiCoder.encode(['uint256'], [1])),
+        );
+
+      const results = await multicallOrFallback([call], '0x1', provider);
+
+      expect(results).toMatchObject([
+        {
+          success: true,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          value: { _hex: '0x01' },
+        },
+      ]);
+    });
+
+    it('should throw rpc errors other than revert', async () => {
+      const error = { code: 'network error' };
+      jest.spyOn(provider, 'call').mockImplementationOnce(() => {
+        return Promise.reject(error);
+      });
+
+      await expect(
+        multicallOrFallback([call], '0x1', provider),
+      ).rejects.toMatchObject(error);
+    });
+  });
 });

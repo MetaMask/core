@@ -4,7 +4,7 @@ export type {
   TransactionControllerActions,
   TransactionControllerEvents,
   TransactionControllerGetStateAction,
-  TransactionControllerIncomingTransactionBlockReceivedEvent,
+  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
   TransactionControllerSpeedupTransactionAddedEvent,
   TransactionControllerState,
@@ -42,8 +42,6 @@ export type {
   InferTransactionTypeResult,
   LegacyGasFeeEstimates,
   Log,
-  RemoteTransactionSource,
-  RemoteTransactionSourceRequest,
   SavedGasFees,
   SecurityAlertResponse,
   SecurityProviderRequest,
@@ -71,7 +69,6 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types';
-export type { EtherscanTransactionMeta } from './utils/etherscan';
 export {
   DISPLAYED_TRANSACTION_HISTORY_PATHS,
   MAX_TRANSACTION_HISTORY_LENGTH,
@@ -82,4 +79,5 @@ export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils';
-export { CHAIN_IDS, ETHERSCAN_SUPPORTED_NETWORKS } from './constants';
+export { CHAIN_IDS } from './constants';
+export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';

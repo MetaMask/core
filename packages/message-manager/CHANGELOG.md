@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Base class of `DecryptMessageManager` and `EncryptionPublicKeyManager`(`AbstractMessageManager`) now expects new options to initialise ([#5103](https://github.com/MetaMask/core/pull/5103))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+### Removed
+
+- **BREAKING:** Removed internal event emitter (`hub` property) from `AbstractMessageManager` ([#5103](https://github.com/MetaMask/core/pull/5103))
+- **BREAKING:** `unapprovedMessage` and `updateBadge` removed from internal events. These events are now emitted from messaging system ([#5103](https://github.com/MetaMask/core/pull/5103))
+  - Controllers should now listen to `DerivedManagerName:X` event instead of using internal event emitter.
+
+## [11.0.3]
+
+### Changed
+
+- Bump `jsonschema` from `^1.2.4` to `^1.4.1` ([#4998](https://github.com/MetaMask/core/pull/4998), [#5027](https://github.com/MetaMask/core/pull/5027))
+
+## [11.0.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.4` ([#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012))
+
 ## [11.0.1]
 
 ### Changed
@@ -334,7 +359,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.3...@metamask/message-manager@12.0.0
+[11.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.2...@metamask/message-manager@11.0.3
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.1...@metamask/message-manager@11.0.2
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.0...@metamask/message-manager@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...@metamask/message-manager@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.0...@metamask/message-manager@10.1.1
