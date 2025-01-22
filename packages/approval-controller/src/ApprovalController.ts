@@ -967,8 +967,9 @@ export class ApprovalController extends BaseController<
     } else if (!type || typeof type !== 'string') {
       errorMessage = 'Must specify non-empty string type.';
     } else if (
-      requestData &&
-      (typeof requestData !== 'object' || Array.isArray(requestData))
+      !requestData ||
+      (requestData &&
+        (typeof requestData !== 'object' || Array.isArray(requestData)))
     ) {
       errorMessage = 'Request data must be a plain object if specified.';
     } else if (
