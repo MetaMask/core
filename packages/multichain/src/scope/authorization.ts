@@ -1,5 +1,6 @@
-import type { Json } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
+import { bucketScopesBySupport } from './filter';
 import { normalizeAndMergeScopes } from './transform';
 import type {
   ExternalScopesObject,
@@ -50,4 +51,43 @@ export const validateAndNormalizeScopes = (
     normalizedRequiredScopes,
     normalizedOptionalScopes,
   };
+};
+
+/**
+ * Groups a NormalizedScopesObject into three separate
+ * NormalizedScopesObjects for supported scopes,
+ * supportable scopes, and unsupportable scopes.
+ * @param scopes - The NormalizedScopesObject to group.
+ * @param hooks - The hooks.
+ * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
+ * @param hooks.isChainIdSupportable - A helper that returns true if an eth chainId could be supported by the wallet.
+ * @returns an object with three NormalizedScopesObjects separated by support.
+ */
+export const bucketScopes = (
+  scopes: NormalizedScopesObject,
+  {
+    isChainIdSupported,
+    isChainIdSupportable,
+  }: {
+    isChainIdSupported: (chainId: Hex) => boolean;
+    isChainIdSupportable: (chainId: Hex) => boolean;
+  },
+): {
+  supportedScopes: NormalizedScopesObject;
+  supportableScopes: NormalizedScopesObject;
+  unsupportableScopes: NormalizedScopesObject;
+} => {
+  const { supportedScopes, unsupportedScopes: maybeSupportableScopes } =
+    bucketScopesBySupport(scopes, {
+      isChainIdSupported,
+    });
+
+  const {
+    supportedScopes: supportableScopes,
+    unsupportedScopes: unsupportableScopes,
+  } = bucketScopesBySupport(maybeSupportableScopes, {
+    isChainIdSupported: isChainIdSupportable,
+  });
+
+  return { supportedScopes, supportableScopes, unsupportableScopes };
 };
