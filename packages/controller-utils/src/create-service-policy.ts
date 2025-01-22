@@ -7,7 +7,7 @@ import {
   wrap,
   CircuitState,
 } from 'cockatiel';
-import type { IPolicy } from 'cockatiel';
+import type { IPolicy, Policy } from 'cockatiel';
 
 export type { IPolicy as IServicePolicy };
 
@@ -51,6 +51,12 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * there for more.
  *
  * @param options - The options to this function.
+ * @param options.maxRetries - The maximum number of times that a failing
+ * service should be re-invoked before giving up. Defaults to 3.
+ * @param options.retryFilterPolicy - The policy used to control when the
+ * service should be retried based on either the result of the servce or an
+ * error that it throws. For instance, you could use this to retry only certain
+ * errors. See `handleWhen` and friends from Cockatiel for more.
  * @param options.maxConsecutiveFailures - The maximum number of times that the
  * service is allowed to fail before pausing further retries. Defaults to 12.
  * @param options.circuitBreakDuration - The length of time (in milliseconds) to
@@ -75,6 +81,10 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * class Service {
  *   constructor() {
  *     this.#policy = createServicePolicy({
+ *       maxRetries: 3,
+ *       retryFilterPolicy: handleWhen((error) => {
+ *         return error.message.includes('oops');
+ *       }),
  *       maxConsecutiveFailures: 3,
  *       circuitBreakDuration: 5000,
  *       degradedThreshold: 2000,
@@ -97,6 +107,8 @@ export const DEFAULT_DEGRADED_THRESHOLD = 5_000;
  * ```
  */
 export function createServicePolicy({
+  maxRetries = DEFAULT_MAX_RETRIES,
+  retryFilterPolicy = handleAll,
   maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
   circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
   degradedThreshold = DEFAULT_DEGRADED_THRESHOLD,
@@ -110,6 +122,8 @@ export function createServicePolicy({
     // do nothing
   },
 }: {
+  maxRetries?: number;
+  retryFilterPolicy?: Policy;
   maxConsecutiveFailures?: number;
   circuitBreakDuration?: number;
   degradedThreshold?: number;
@@ -117,10 +131,10 @@ export function createServicePolicy({
   onDegraded?: () => void;
   onRetry?: () => void;
 } = {}): IPolicy {
-  const retryPolicy = retry(handleAll, {
+  const retryPolicy = retry(retryFilterPolicy, {
     // Note that although the option here is called "max attempts", it's really
     // maximum number of *retries* (attempts past the initial attempt).
-    maxAttempts: DEFAULT_MAX_RETRIES,
+    maxAttempts: maxRetries,
     // Retries of the service will be executed following ever increasing delays,
     // determined by a backoff formula.
     backoff: new ExponentialBackoff(),
