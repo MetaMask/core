@@ -3156,6 +3156,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^13.0.0":
+  version: 13.0.0
+  resolution: "@metamask/keyring-api@npm:13.0.0"
+  dependencies:
+    "@metamask/keyring-utils": "npm:^1.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.0.1"
+    bech32: "npm:^2.0.0"
+  checksum: 10/f7e8982112a2813790354267af8f79cbf241d7ca9d733fe5e8de1a13993203b154ac6d358a92bd4340cbd4d25f4bac48681d17a25e3dc6f2336c95c00c371686
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-api@npm:^14.0.0":
   version: 14.0.0
   resolution: "@metamask/keyring-api@npm:14.0.0"
@@ -3206,7 +3218,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^2.0.1":
+"@metamask/keyring-internal-api@npm:^2.0.0, @metamask/keyring-internal-api@npm:^2.0.1":
   version: 2.0.1
   resolution: "@metamask/keyring-internal-api@npm:2.0.1"
   dependencies:
@@ -3235,6 +3247,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-snap-client@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/keyring-snap-client@npm:2.0.0"
+  dependencies:
+    "@metamask/keyring-api": "npm:^13.0.0"
+    "@metamask/keyring-utils": "npm:^1.0.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@types/uuid": "npm:^9.0.8"
+    uuid: "npm:^9.0.1"
+    webextension-polyfill: "npm:^0.12.0"
+  peerDependencies:
+    "@metamask/providers": ^18.3.1
+  checksum: 10/64fe458beeba190fec5891bcdf2f16ba410131cbd56a04b9276df5f43636b28e0ef9d1b4b9d30acefe4c87a253cc5908954e47666953f6f27a8cc2481758638f
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-snap-client@npm:^3.0.0":
   version: 3.0.0
   resolution: "@metamask/keyring-snap-client@npm:3.0.0"
@@ -3251,7 +3279,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^1.2.0":
+"@metamask/keyring-utils@npm:^1.0.0, @metamask/keyring-utils@npm:^1.2.0":
   version: 1.2.0
   resolution: "@metamask/keyring-utils@npm:1.2.0"
   dependencies:
