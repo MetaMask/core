@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Added
+
+- Add key Multichain API methods ([#4813](https://github.com/MetaMask/core/pull/4813))
+  - Adds `getInternalScopesObject` and `getSessionScopes` helpers for transforming between `NormalizedScopesObject` and `InternalScopesObject`.
+  - Adds handlers for `wallet_getSession`, `wallet_invokeMethod`, and `wallet_revokeSession` methods.
+  - Adds `multichainMethodCallValidatorMiddleware` for validating Multichain API method params as defined in @metamask/api-specs.
+  - Adds `MultichainMiddlewareManager` to multiplex a request to other middleware based on requested scope.
+  - Adds `MultichainSubscriptionManager` to handle concurrent subscriptions across multiple scopes.
+  - Adds `bucketScopes` which groups the scopes in a `NormalizedScopesObject` based on if the scopes are already supported, could be supported, or are not supportable.
+  - Adds `getSupportedScopeObjects` helper for getting only the supported methods and notifications from each `NormalizedScopeObject` in a `NormalizedScopesObject`.
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.4.5` ([#5012](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/permission-controller` from `^11.0.4` to `^11.0.5` ([#5012](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+### Fixed
+
+- Fixes `removeScope` mutator incorrectly returning malformed CAIP-25 caveat values ([#5183](https://github.com/MetaMask/core/pull/5183)).
+
 ## [2.0.0]
 
 ### Added
@@ -44,7 +67,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.0.0...@metamask/multichain@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.2...@metamask/multichain@2.0.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.1...@metamask/multichain@1.1.2
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.0...@metamask/multichain@1.1.1
