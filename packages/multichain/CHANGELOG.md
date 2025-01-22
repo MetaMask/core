@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add key Multichain API methods ([#4813](https://github.com/MetaMask/core/pull/4813))
   - Adds `getInternalScopesObject` and `getSessionScopes` helpers for transforming between `NormalizedScopesObject` and `InternalScopesObject`.
   - Adds `caipPermissionAdapterMiddleware` for enforcing CAIP-25 permission on the EIP-1193 API.
-  - Adds `walletGetSession`, `walletInvokeMethod`, and `walletRevokeSession` handlers.
+  - Adds handlers for `wallet_getSession`, `wallet_invokeMethod`, and `wallet_revokeSession` methods.
   - Adds `multichainMethodCallValidatorMiddleware` for validating Multichain API method params as defined in @metamask/api-specs.
   - Adds `MultichainMiddlewareManager` to multiplex a request to other middleware based on requested scope.
   - Adds `MultichainSubscriptionManager` to handle concurrent subscriptions across multiple scopes.
