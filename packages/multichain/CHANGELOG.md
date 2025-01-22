@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: Add Multichain API to `@metamask/multichain` ([#4813](https://github.com/MetaMask/core.git/pull/4813))
+- Release 280.0.0 ([#5135](https://github.com/MetaMask/core.git/pull/5135))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core.git/pull/5080))
+
 ## [2.0.0]
 
 ### Added
@@ -44,9 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.0.0...HEAD
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.2...@metamask/multichain@2.0.0
-[1.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.1...@metamask/multichain@1.1.2
-[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.0...@metamask/multichain@1.1.1
-[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.0.0...@metamask/multichain@1.1.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/multichain@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@1.1.2...@metamask/multichain@2.0.0
+[1.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@1.1.1...@metamask/multichain@1.1.2
+[1.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@1.1.0...@metamask/multichain@1.1.1
+[1.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/multichain@1.0.0...@metamask/multichain@1.1.0
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/multichain@1.0.0
