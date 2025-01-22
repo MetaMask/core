@@ -8,7 +8,7 @@ import { createStreamMiddleware, createEngineStream } from '.';
 const artificialDelay = async (time = 0) =>
   new Promise((resolve) => setTimeout(resolve, time));
 // TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-empty-function,@typescript-eslint/no-explicit-any
 const noop = function (_a: any) {};
 
 const jsonrpc = '2.0' as const;

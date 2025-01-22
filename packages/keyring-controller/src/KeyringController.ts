@@ -1580,7 +1580,6 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async cancelQRSynchronization(): Promise<void> {
-    // eslint-disable-next-line n/no-sync
     (await this.getOrAddQRKeyring()).cancelSync();
   }
 
@@ -2199,7 +2198,13 @@ export class KeyringController extends BaseController<
         );
       }
 
-      keyring.generateRandomMnemonic();
+      // NOTE: Not all keyrings implement this method in a asynchronous-way. Using `await` for
+      // non-thenable will still be valid (despite not being really useful). It allows us to cover both
+      // cases and allow retro-compatibility too.
+      // FIXME: For some reason, it seems that eslint is complaining about this call being non-thenable
+      // even though it is... For now, we just disable it:
+      // eslint-disable-next-line @typescript-eslint/await-thenable
+      await keyring.generateRandomMnemonic();
       await keyring.addAccounts(1);
     }
 
