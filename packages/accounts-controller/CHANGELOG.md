@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump accounts dependencies ([#5177](https://github.com/MetaMask/core/pull/5177))
+
 ## [21.0.1]
 
 ### Changed

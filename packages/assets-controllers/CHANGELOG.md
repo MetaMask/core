@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump accounts dependencies ([#5177](https://github.com/MetaMask/core/pull/5177))
+- fix: if image starts with 'ipfs://', the return value should be string type ([#4985](https://github.com/MetaMask/core/pull/4985))
+- Release `284.0.0` ([#5169](https://github.com/MetaMask/core/pull/5169))
+- fix: add thresshold for update NFT metadata ([#5134](https://github.com/MetaMask/core/pull/5134))
+
 ## [46.0.0]
 
 ### Added

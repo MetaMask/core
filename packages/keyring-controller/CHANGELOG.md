@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump accounts dependencies ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Release `284.0.0` ([#5169](https://github.com/MetaMask/core/pull/5169))
+- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+
 ## [19.0.3]
 
 ### Changed
