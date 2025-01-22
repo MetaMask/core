@@ -23,6 +23,7 @@ export enum KeyringControllerError {
   UnsupportedPrepareUserOperation = 'KeyringController - The keyring for the current address does not support the method prepareUserOperation.',
   UnsupportedPatchUserOperation = 'KeyringController - The keyring for the current address does not support the method patchUserOperation.',
   UnsupportedSignUserOperation = 'KeyringController - The keyring for the current address does not support the method signUserOperation.',
+  UnsupportedVerifySeedPhrase = 'KeyringController - The keyring does not support the method verifySeedPhrase.',
   NoAccountOnKeychain = "KeyringController - The keychain doesn't have accounts.",
   MissingCredentials = 'KeyringController - Cannot persist vault without password and encryption key',
   MissingVaultData = 'KeyringController - Cannot persist vault without vault information',
