@@ -197,11 +197,11 @@ export class MultichainAssetsController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      (account) => this.#handleOnAccountAdded(account),
+      async (account) => await this.#handleOnAccountAdded(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      (account) => this.#handleOnAccountRemoved(account),
+      async (account) => await this.#handleOnAccountRemoved(account),
     );
   }
 
