@@ -9,12 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [46.0.1]
 
-### Uncategorized
+### Changed
 
-- chore: bump accounts dependencies ([#5177](https://github.com/MetaMask/core/pull/5177))
-- fix: if image starts with 'ipfs://', the return value should be string type ([#4985](https://github.com/MetaMask/core/pull/4985))
-- Release `284.0.0` ([#5169](https://github.com/MetaMask/core/pull/5169))
-- fix: add thresshold for update NFT metadata ([#5134](https://github.com/MetaMask/core/pull/5134))
+- Bump `@metamask/keyring-api` from `^13.0.0` to `^14.0.0` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/keyring-internal-api` from `^2.0.0` to `^2.0.1` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/keyring-snap-client` from `^2.0.0` to `^3.0.0` ([#5177](https://github.com/MetaMask/core/pull/5177))
+
+### Fixed
+
+- Fix type issue in `ERC721Standard.getDetails` ([#4985](https://github.com/MetaMask/core/pull/4985))
+  - The returned `image` variable should have a been a `string` when the token image was using the `'ipfs://'` protocol.
+- Relax NFTs metadata RPC calls ([#5134](https://github.com/MetaMask/core/pull/5134))
+  - We now check the number of NFTs to update against a threshold value (500) to avoid sending an excessive amount of RPC calls to fetch NFTs metadata.
 
 ## [46.0.0]
 

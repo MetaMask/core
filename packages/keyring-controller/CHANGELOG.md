@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.0.4]
 
-### Uncategorized
+### Changed
 
-- chore: bump accounts dependencies ([#5177](https://github.com/MetaMask/core/pull/5177))
-- Release `284.0.0` ([#5169](https://github.com/MetaMask/core/pull/5169))
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+- Bump `@metamask/keyring-api` from `^13.0.0` to `^14.0.0` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/keyring-internal-api` from `^2.0.0` to `^2.0.1` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/message-manager` from `^12.0.0` to `^11.0.3` ([#5169](https://github.com/MetaMask/core/pull/5169))
 
 ## [19.0.3]
 
