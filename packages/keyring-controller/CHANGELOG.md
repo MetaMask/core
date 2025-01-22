@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.4]
+
 ### Uncategorized
 
 - chore: bump accounts dependencies ([#5177](https://github.com/MetaMask/core/pull/5177))
@@ -638,7 +640,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.4...HEAD
+[19.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.3...@metamask/keyring-controller@19.0.4
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.2...@metamask/keyring-controller@19.0.3
 [19.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.1...@metamask/keyring-controller@19.0.2
 [19.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.0...@metamask/keyring-controller@19.0.1
