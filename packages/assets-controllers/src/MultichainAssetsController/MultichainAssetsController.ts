@@ -10,7 +10,7 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import type { CaipAssetType } from '@metamask/keyring-api';
+import type { CaipAssetType, CaipAssetTypeOrId } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   GetPermissions,
@@ -26,6 +26,8 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
 
 import { parseCaipAssetType } from './utils';
+import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 const controllerName = 'MultichainAssetsController';
 
@@ -232,7 +234,7 @@ export class MultichainAssetsController extends BaseController<
 
     // Get assets list
     if (account.metadata.snap) {
-      const assets: CaipAssetType[] = await this.#getAssets(
+      const assets = await this.#getAssetsList(
         account.id,
         account.metadata.snap.id,
       );
@@ -366,45 +368,6 @@ export class MultichainAssetsController extends BaseController<
     ) as SubjectPermissions<PermissionConstraint>;
   }
 
-  async #getAssets(
-    accountId: string,
-    snapId: string,
-  ): Promise<CaipAssetType[]> {
-    return await this.#getAssetsList(snapId, accountId);
-  }
-
-  /**
-   * Gets a `KeyringClient` for a Snap.
-   *
-   * @param snapId - ID of the Snap to get the client for.
-   * @param accountId - ID of the account to get the assets for.
-   * @returns A `KeyringClient` for the Snap.
-   */
-  // TODO: update this to use the snap handler
-  async #getAssetsList(
-    snapId: string,
-    accountId: string,
-  ): Promise<CaipAssetType[]> {
-    const result = (await this.messagingSystem.call(
-      'SnapController:handleRequest',
-      {
-        snapId: snapId as SnapId,
-        origin: 'metamask',
-        handler: HandlerType.OnRpcRequest,
-        request: {
-          id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
-          jsonrpc: '2.0',
-          method: 'listAccountAssets',
-          params: {
-            id: accountId,
-          },
-        },
-      },
-    )) as CaipAssetType[];
-
-    return result;
-  }
-
   // TODO: update this function to get metadata from the snap
   async #getMetadata(assets: CaipAssetType[]): Promise<AssetLookupResponse> {
     console.log('🚀 ~ #getMetadata ~ assets:', assets);
@@ -430,6 +393,38 @@ export class MultichainAssetsController extends BaseController<
             units: [{ name: 'USDC', symbol: 'SUSDCOL', decimals: 18 }],
           },
       },
+    });
+  }
+
+  /**
+   * Get assets list for an account
+   *
+   * @param accountId - AccountId to get assets for
+   * @param snapId - Snap ID for the account
+   * @returns list of assets
+   */
+  async #getAssetsList(
+    accountId: string,
+    snapId: string,
+  ): Promise<CaipAssetTypeOrId[]> {
+    return await this.#getClient(snapId).listAccountAssets(accountId);
+  }
+
+  /**
+   * Gets a `KeyringClient` for a Snap.
+   *
+   * @param snapId - ID of the Snap to get the client for.
+   * @returns A `KeyringClient` for the Snap.
+   */
+  #getClient(snapId: string): KeyringClient {
+    return new KeyringClient({
+      send: async (request: JsonRpcRequest) =>
+        (await this.messagingSystem.call('SnapController:handleRequest', {
+          snapId: snapId as SnapId,
+          origin: 'metamask',
+          handler: HandlerType.OnKeyringRequest,
+          request,
+        })) as Promise<Json>,
     });
   }
 }
