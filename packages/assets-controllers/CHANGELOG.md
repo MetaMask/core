@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix type issue in `ERC721Standard.getDetails` ([#4985](https://github.com/MetaMask/core/pull/4985))
-  - The returned `image` variable should have a been a `string` when the token image was using the `'ipfs://'` protocol.
+  - The image variable now returns a string instead of a promise when the token image uses the 'ipfs://' protocol.
 - Relax NFTs metadata RPC calls ([#5134](https://github.com/MetaMask/core/pull/5134))
   - We now check the number of NFTs to update against a threshold value (500) to avoid sending an excessive amount of RPC calls to fetch NFTs metadata.
 
