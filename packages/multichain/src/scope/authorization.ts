@@ -1,4 +1,4 @@
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipChainId, Hex, Json } from '@metamask/utils';
 
 import { bucketScopesBySupport } from './filter';
 import { normalizeAndMergeScopes } from './transform';
@@ -59,18 +59,24 @@ export const validateAndNormalizeScopes = (
  * supportable scopes, and unsupportable scopes.
  * @param scopes - The NormalizedScopesObject to group.
  * @param hooks - The hooks.
- * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
- * @param hooks.isChainIdSupportable - A helper that returns true if an eth chainId could be supported by the wallet.
+ * @param hooks.isEvmChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
+ * @param hooks.isEvmChainIdSupportable - A helper that returns true if an eth chainId could be supported by the wallet.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns an object with three NormalizedScopesObjects separated by support.
  */
 export const bucketScopes = (
   scopes: NormalizedScopesObject,
   {
-    isChainIdSupported,
-    isChainIdSupportable,
+    isEvmChainIdSupported,
+    isEvmChainIdSupportable,
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods
   }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
-    isChainIdSupportable: (chainId: Hex) => boolean;
+    isEvmChainIdSupported: (chainId: Hex) => boolean;
+    isEvmChainIdSupportable: (chainId: Hex) => boolean;
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
   },
 ): {
   supportedScopes: NormalizedScopesObject;
@@ -79,14 +85,18 @@ export const bucketScopes = (
 } => {
   const { supportedScopes, unsupportedScopes: maybeSupportableScopes } =
     bucketScopesBySupport(scopes, {
-      isChainIdSupported,
+      isEvmChainIdSupported,
+      isNonEvmScopeSupported,
+      getNonEvmSupportedMethods,
     });
 
   const {
     supportedScopes: supportableScopes,
     unsupportedScopes: unsupportableScopes,
   } = bucketScopesBySupport(maybeSupportableScopes, {
-    isChainIdSupported: isChainIdSupportable,
+      isEvmChainIdSupported: isEvmChainIdSupportable,
+      isNonEvmScopeSupported,
+      getNonEvmSupportedMethods,
   });
 
   return { supportedScopes, supportableScopes, unsupportableScopes };

@@ -1,4 +1,5 @@
 import {
+  CaipChainId,
   hasProperty,
   isCaipAccountId,
   isCaipChainId,
@@ -32,17 +33,21 @@ import type {
  * @param hooks - An object containing the following properties:
  * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
  * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 export const assertScopeSupported = (
   scopeString: string,
   scopeObject: NormalizedScopeObject,
   {
     isEvmChainIdSupported,
-    isNonEvmScopeSupported
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods
   }
   : {
     isEvmChainIdSupported: (chainId: Hex) => boolean,
-        isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+
   },
 ) => {
   const { methods, notifications } = scopeObject;
@@ -51,7 +56,7 @@ export const assertScopeSupported = (
   }
 
   const allMethodsSupported = methods.every((method) =>
-    isSupportedMethod(scopeString, method),
+    isSupportedMethod(scopeString, method, {getNonEvmSupportedMethods}),
   );
 
   if (!allMethodsSupported) {
@@ -74,22 +79,26 @@ export const assertScopeSupported = (
  * @param hooks - An object containing the following properties:
  * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
  * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 export const assertScopesSupported = (
   scopes: NormalizedScopesObject,
   {
     isEvmChainIdSupported,
-    isNonEvmScopeSupported
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods
   }
   : {
     isEvmChainIdSupported: (chainId: Hex) => boolean,
         isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
   },
 ) => {
   for (const [scopeString, scopeObject] of Object.entries(scopes)) {
     assertScopeSupported(scopeString, scopeObject, {
       isEvmChainIdSupported,
-      isNonEvmScopeSupported
+      isNonEvmScopeSupported,
+      getNonEvmSupportedMethods,
     });
   }
 };

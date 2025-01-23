@@ -16,16 +16,19 @@ import type {
  * @param hooks - An object containing the following properties:
  * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
  * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 export const bucketScopesBySupport = (
   scopes: NormalizedScopesObject,
   {
     isEvmChainIdSupported,
-    isNonEvmScopeSupported
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods
   }
   : {
     isEvmChainIdSupported: (chainId: Hex) => boolean,
-        isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
   },
 ) => {
   const supportedScopes: NormalizedScopesObject = {};
@@ -36,7 +39,8 @@ export const bucketScopesBySupport = (
     try {
       assertScopeSupported(scopeString, scopeObject, {
         isEvmChainIdSupported,
-        isNonEvmScopeSupported
+        isNonEvmScopeSupported,
+        getNonEvmSupportedMethods
       });
       supportedScopes[scopeString] = scopeObject;
     } catch (err) {
@@ -52,16 +56,24 @@ export const bucketScopesBySupport = (
  * unsupported methods and notifications removed.
  * @param scopeString - The InternalScopeString for the scopeObject.
  * @param scopeObject - The NormalizedScopeObject to filter.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns a NormalizedScopeObject with only methods and notifications that are currently supported.
  */
 const getSupportedScopeObject = (
   scopeString: InternalScopeString,
   scopeObject: NormalizedScopeObject,
+  {
+    getNonEvmSupportedMethods
+  }
+  : {
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+  },
 ) => {
   const { methods, notifications } = scopeObject;
 
   const supportedMethods = methods.filter((method) =>
-    isSupportedMethod(scopeString, method),
+    isSupportedMethod(scopeString, method, {getNonEvmSupportedMethods}),
   );
 
   const supportedNotifications = notifications.filter((notification) =>
@@ -79,9 +91,18 @@ const getSupportedScopeObject = (
  * Returns a NormalizedScopesObject with
  * unsupported methods and notifications removed from scopeObjects.
  * @param scopes - The NormalizedScopesObject to filter.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns a NormalizedScopesObject with only methods, and notifications that are currently supported.
  */
-export const getSupportedScopeObjects = (scopes: NormalizedScopesObject) => {
+export const getSupportedScopeObjects = (scopes: NormalizedScopesObject,
+  {
+    getNonEvmSupportedMethods
+  }
+  : {
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+  },
+) => {
   const filteredScopesObject: NormalizedScopesObject = {};
 
   for (const [scopeString, scopeObject] of Object.entries(scopes)) {
@@ -89,6 +110,7 @@ export const getSupportedScopeObjects = (scopes: NormalizedScopesObject) => {
     filteredScopesObject[scopeString] = getSupportedScopeObject(
       scopeString,
       scopeObject,
+      {getNonEvmSupportedMethods}
     );
   }
 

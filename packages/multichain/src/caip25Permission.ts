@@ -11,7 +11,7 @@ import {
   CaveatMutatorOperation,
   PermissionType,
 } from '@metamask/permission-controller';
-import type { CaipAccountId, Json } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Json } from '@metamask/utils';
 import {
   hasProperty,
   KnownCaipNamespace,
@@ -68,7 +68,7 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
 type Caip25EndowmentCaveatSpecificationBuilderOptions = {
   findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
   listAccounts: () => { address: Hex }[];
-  isNonEvmScopeSupported: ()
+  isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
 };
 
 /**
