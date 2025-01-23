@@ -1,4 +1,4 @@
-import { type Hex } from '@metamask/utils';
+import { CaipChainId, type Hex } from '@metamask/utils';
 
 import { assertIsInternalScopeString, assertScopeSupported } from './assert';
 import { isSupportedMethod, isSupportedNotification } from './supported';
@@ -13,16 +13,19 @@ import type {
  * NormalizedScopesObject with supported scopes in one
  * and unsupported scopes in the other.
  * @param scopes - The NormalizedScopesObject to group.
- * @param hooks - The hooks.
- * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
- * @returns an object with two NormalizedScopesObjects separated by support.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
  */
 export const bucketScopesBySupport = (
   scopes: NormalizedScopesObject,
   {
-    isChainIdSupported,
-  }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
+    isEvmChainIdSupported,
+    isNonEvmScopeSupported
+  }
+  : {
+    isEvmChainIdSupported: (chainId: Hex) => boolean,
+        isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
   },
 ) => {
   const supportedScopes: NormalizedScopesObject = {};
@@ -32,7 +35,8 @@ export const bucketScopesBySupport = (
     assertIsInternalScopeString(scopeString);
     try {
       assertScopeSupported(scopeString, scopeObject, {
-        isChainIdSupported,
+        isEvmChainIdSupported,
+        isNonEvmScopeSupported
       });
       supportedScopes[scopeString] = scopeObject;
     } catch (err) {

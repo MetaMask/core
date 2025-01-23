@@ -1,6 +1,6 @@
 import { toHex, isEqualCaseInsensitive } from '@metamask/controller-utils';
-import type { CaipAccountId, Hex } from '@metamask/utils';
-import { KnownCaipNamespace, parseCaipAccountId } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Hex } from '@metamask/utils';
+import { isCaipChainId, KnownCaipNamespace, parseCaipAccountId } from '@metamask/utils';
 
 import {
   CaipReferenceRegexes,
@@ -15,26 +15,34 @@ import { parseScopeString } from './types';
 /**
  * Determines if a scope string is supported.
  * @param scopeString - The scope string to check.
- * @param isChainIdSupported - A predicate that determines if a chainID is supported.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
  * @returns A boolean indicating if the scope string is supported.
  */
 export const isSupportedScopeString = (
   scopeString: string,
-  isChainIdSupported: (chainId: Hex) => boolean,
+  { isEvmChainIdSupported,
+  isNonEvmScopeSupported }: {
+    isEvmChainIdSupported: (chainId: Hex) => boolean,
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
+  }
 ) => {
   const { namespace, reference } = parseScopeString(scopeString);
 
   switch (namespace) {
     case KnownCaipNamespace.Wallet:
-      return !reference || reference === KnownCaipNamespace.Eip155;
+      if (!reference || reference === KnownCaipNamespace.Eip155) {
+        return true
+      }
     case KnownCaipNamespace.Eip155:
       return (
         !reference ||
         (CaipReferenceRegexes.eip155.test(reference) &&
-          isChainIdSupported(toHex(reference)))
+          isEvmChainIdSupported(toHex(reference)))
       );
     default:
-      return false;
+      return isCaipChainId(scopeString) ? isNonEvmScopeSupported(scopeString) : false
   }
 };
 

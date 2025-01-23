@@ -29,20 +29,24 @@ import type {
  * Asserts that a scope string and its associated scope object are supported.
  * @param scopeString - The scope string against which to assert support.
  * @param scopeObject - The scope object against which to assert support.
- * @param options - An object containing the following properties:
- * @param options.isChainIdSupported - A predicate that determines if a chainID is supported.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
  */
 export const assertScopeSupported = (
   scopeString: string,
   scopeObject: NormalizedScopeObject,
   {
-    isChainIdSupported,
-  }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
+    isEvmChainIdSupported,
+    isNonEvmScopeSupported
+  }
+  : {
+    isEvmChainIdSupported: (chainId: Hex) => boolean,
+        isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
   },
 ) => {
   const { methods, notifications } = scopeObject;
-  if (!isSupportedScopeString(scopeString, isChainIdSupported)) {
+  if (!isSupportedScopeString(scopeString, {isEvmChainIdSupported, isNonEvmScopeSupported} )) {
     throw Caip25Errors.requestedChainsNotSupportedError();
   }
 
@@ -67,20 +71,25 @@ export const assertScopeSupported = (
 /**
  * Asserts that all scope strings and their associated scope objects are supported.
  * @param scopes - The scopes object against which to assert support.
- * @param options - An object containing the following properties:
- * @param options.isChainIdSupported - A predicate that determines if a chainID is supported.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
  */
 export const assertScopesSupported = (
   scopes: NormalizedScopesObject,
   {
-    isChainIdSupported,
-  }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
+    isEvmChainIdSupported,
+    isNonEvmScopeSupported
+  }
+  : {
+    isEvmChainIdSupported: (chainId: Hex) => boolean,
+        isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
   },
 ) => {
   for (const [scopeString, scopeObject] of Object.entries(scopes)) {
     assertScopeSupported(scopeString, scopeObject, {
-      isChainIdSupported,
+      isEvmChainIdSupported,
+      isNonEvmScopeSupported
     });
   }
 };
