@@ -43,58 +43,62 @@ describe('createServicePolicy', () => {
       expect(mockService).toHaveBeenCalledTimes(1);
     });
 
-    it('does not call the onBreak callback, since the circuit never opens', async () => {
+    it('does not call the listener passed to onBreak, since the circuit never opens', async () => {
       const mockService = jest.fn(() => ({ some: 'data' }));
-      const onBreak = jest.fn();
-      const policy = createServicePolicy({ onBreak });
+      const onBreakListener = jest.fn();
+      const policy = createServicePolicy();
+      policy.onBreak(onBreakListener);
 
       await policy.execute(mockService);
 
-      expect(onBreak).not.toHaveBeenCalled();
+      expect(onBreakListener).not.toHaveBeenCalled();
     });
 
     describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
-      it('does not call the onDegraded callback if the service execution time is below the threshold', async () => {
+      it('does not call the listener passed to onDegraded if the service execution time is below the threshold', async () => {
         const mockService = jest.fn(() => ({ some: 'data' }));
-        const onDegraded = jest.fn();
-        const policy = createServicePolicy({ onDegraded });
+        const onDegradedListener = jest.fn();
+        const policy = createServicePolicy();
+        policy.onDegraded(onDegradedListener);
 
         await policy.execute(mockService);
 
-        expect(onDegraded).not.toHaveBeenCalled();
+        expect(onDegradedListener).not.toHaveBeenCalled();
       });
 
-      it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
+      it('calls the listener passed to onDegraded once if the service execution time is beyond the threshold', async () => {
         const delay = DEFAULT_DEGRADED_THRESHOLD + 1;
         const mockService = jest.fn(() => {
           return new Promise((resolve) => {
             setTimeout(() => resolve({ some: 'data' }), delay);
           });
         });
-        const onDegraded = jest.fn();
-        const policy = createServicePolicy({ onDegraded });
+        const onDegradedListener = jest.fn();
+        const policy = createServicePolicy();
+        policy.onDegraded(onDegradedListener);
 
         const promise = policy.execute(mockService);
         clock.tick(delay);
         await promise;
 
-        expect(onDegraded).toHaveBeenCalledTimes(1);
+        expect(onDegradedListener).toHaveBeenCalledTimes(1);
       });
     });
 
     describe('using a custom degraded threshold', () => {
-      it('does not call the onDegraded callback if the service execution time below the threshold', async () => {
+      it('does not call the listener passed to onDegraded if the service execution time below the threshold', async () => {
         const degradedThreshold = 2000;
         const mockService = jest.fn(() => ({ some: 'data' }));
-        const onDegraded = jest.fn();
-        const policy = createServicePolicy({ degradedThreshold, onDegraded });
+        const onDegradedListener = jest.fn();
+        const policy = createServicePolicy({ degradedThreshold });
+        policy.onDegraded(onDegradedListener);
 
         await policy.execute(mockService);
 
-        expect(onDegraded).not.toHaveBeenCalled();
+        expect(onDegradedListener).not.toHaveBeenCalled();
       });
 
-      it('calls the onDegraded callback once if the service execution time beyond the threshold', async () => {
+      it('calls the listener passed to onDegraded once if the service execution time beyond the threshold', async () => {
         const degradedThreshold = 2000;
         const delay = degradedThreshold + 1;
         const mockService = jest.fn(() => {
@@ -102,14 +106,15 @@ describe('createServicePolicy', () => {
             setTimeout(() => resolve({ some: 'data' }), delay);
           });
         });
-        const onDegraded = jest.fn();
-        const policy = createServicePolicy({ degradedThreshold, onDegraded });
+        const onDegradedListener = jest.fn();
+        const policy = createServicePolicy({ degradedThreshold });
+        policy.onDegraded(onDegradedListener);
 
         const promise = policy.execute(mockService);
         clock.tick(delay);
         await promise;
 
-        expect(onDegraded).toHaveBeenCalledTimes(1);
+        expect(onDegradedListener).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -149,37 +154,37 @@ describe('createServicePolicy', () => {
         expect(mockService).toHaveBeenCalledTimes(1);
       });
 
-      it('does not call the onRetry callback', async () => {
+      it('does not call the listener passed to onRetry', async () => {
         const error = new Error('failure');
         const mockService = jest.fn(() => {
           throw error;
         });
-        const onRetry = jest.fn();
+        const onRetryListener = jest.fn();
         const policy = createServicePolicy({
           retryFilterPolicy: handleWhen(
             (caughtError) => caughtError.message !== 'failure',
           ),
-          onRetry,
         });
+        policy.onRetry(onRetryListener);
 
         const promise = policy.execute(mockService);
         await ignoreRejection(promise);
 
-        expect(onRetry).not.toHaveBeenCalled();
+        expect(onRetryListener).not.toHaveBeenCalled();
       });
 
-      it('does not call the onBreak callback', async () => {
+      it('does not call the listener passed to onBreak', async () => {
         const error = new Error('failure');
         const mockService = jest.fn(() => {
           throw error;
         });
-        const onBreak = jest.fn();
+        const onBreakListener = jest.fn();
         const policy = createServicePolicy({
           retryFilterPolicy: handleWhen(
             (caughtError) => caughtError.message !== 'failure',
           ),
-          onBreak,
         });
+        policy.onBreak(onBreakListener);
 
         const promise = policy.execute(mockService);
         // It's safe not to await this promise; adding it to the promise queue
@@ -188,21 +193,21 @@ describe('createServicePolicy', () => {
         clock.runAllAsync();
         await ignoreRejection(promise);
 
-        expect(onBreak).not.toHaveBeenCalled();
+        expect(onBreakListener).not.toHaveBeenCalled();
       });
 
-      it('does not call the onDegraded callback', async () => {
+      it('does not call the listener passed to onDegraded', async () => {
         const error = new Error('failure');
         const mockService = jest.fn(() => {
           throw error;
         });
-        const onDegraded = jest.fn();
+        const onDegradedListener = jest.fn();
         const policy = createServicePolicy({
           retryFilterPolicy: handleWhen(
             (caughtError) => caughtError.message !== 'failure',
           ),
-          onDegraded,
         });
+        policy.onDegraded(onDegradedListener);
 
         const promise = policy.execute(mockService);
         // It's safe not to await this promise; adding it to the promise queue
@@ -211,7 +216,7 @@ describe('createServicePolicy', () => {
         clock.runAllAsync();
         await ignoreRejection(promise);
 
-        expect(onDegraded).not.toHaveBeenCalled();
+        expect(onDegradedListener).not.toHaveBeenCalled();
       });
     });
 
@@ -243,13 +248,14 @@ describe('createServicePolicy', () => {
           expect(mockService).toHaveBeenCalledTimes(1 + DEFAULT_MAX_RETRIES);
         });
 
-        it('calls the onRetry callback once per retry', async () => {
+        it('calls the listener passed to onRetry once per retry', async () => {
           const error = new Error('failure');
           const mockService = jest.fn(() => {
             throw error;
           });
-          const onRetry = jest.fn();
-          const policy = createServicePolicy({ onRetry });
+          const onRetryListener = jest.fn();
+          const policy = createServicePolicy();
+          policy.onRetry(onRetryListener);
 
           const promise = policy.execute(mockService);
           // It's safe not to await this promise; adding it to the promise queue is
@@ -258,7 +264,7 @@ describe('createServicePolicy', () => {
           clock.runAllAsync();
           await ignoreRejection(promise);
 
-          expect(onRetry).toHaveBeenCalledTimes(DEFAULT_MAX_RETRIES);
+          expect(onRetryListener).toHaveBeenCalledTimes(DEFAULT_MAX_RETRIES);
         });
 
         describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
@@ -278,13 +284,14 @@ describe('createServicePolicy', () => {
             await expect(promise).rejects.toThrow(error);
           });
 
-          it('does not call the onBreak callback, since the max number of consecutive failures is never reached', async () => {
+          it('does not call the listener passed to onBreak, since the max number of consecutive failures is never reached', async () => {
             const error = new Error('failure');
             const mockService = jest.fn(() => {
               throw error;
             });
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({ onBreak });
+            const onBreakListener = jest.fn();
+            const policy = createServicePolicy();
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -293,16 +300,17 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onBreak).not.toHaveBeenCalled();
+            expect(onBreakListener).not.toHaveBeenCalled();
           });
 
-          it('calls the onDegraded callback once, since the circuit is still closed', async () => {
+          it('calls the listener passed to onDegraded once, since the circuit is still closed', async () => {
             const error = new Error('failure');
             const mockService = jest.fn(() => {
               throw error;
             });
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ onDegraded });
+            const onDegradedListener = jest.fn();
+            const policy = createServicePolicy();
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -311,7 +319,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onDegraded).toHaveBeenCalledTimes(1);
+            expect(onDegradedListener).toHaveBeenCalledTimes(1);
           });
         });
 
@@ -323,10 +331,8 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onBreak,
               });
 
               const promise = policy.execute(mockService);
@@ -338,17 +344,17 @@ describe('createServicePolicy', () => {
               await expect(promise).rejects.toThrow(error);
             });
 
-            it('does not call the onBreak callback', async () => {
+            it('does not call the listener passed to onBreak', async () => {
               const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
               const error = new Error('failure');
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
+              const onBreakListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onBreak,
               });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -357,20 +363,20 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).not.toHaveBeenCalled();
+              expect(onBreakListener).not.toHaveBeenCalled();
             });
 
-            it('calls the onDegraded callback once', async () => {
+            it('calls the listener passed to onDegraded once', async () => {
               const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 2;
               const error = new Error('failure');
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -379,7 +385,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -403,17 +409,17 @@ describe('createServicePolicy', () => {
               await expect(promise).rejects.toThrow(error);
             });
 
-            it('calls the onBreak callback once with the error', async () => {
+            it('calls the listener passed to onBreak once with the error', async () => {
               const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
               const error = new Error('failure');
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
+              const onBreakListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onBreak,
               });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -422,21 +428,21 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).toHaveBeenCalledTimes(1);
-              expect(onBreak).toHaveBeenCalledWith({ error });
+              expect(onBreakListener).toHaveBeenCalledTimes(1);
+              expect(onBreakListener).toHaveBeenCalledWith({ error });
             });
 
-            it('never calls the onDegraded callback, since the circuit is open', async () => {
+            it('never calls the listener passed to onDegraded, since the circuit is open', async () => {
               const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
               const error = new Error('failure');
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -445,7 +451,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('throws a BrokenCircuitError instead of whatever error the service produces if the service is executed again', async () => {
@@ -498,17 +504,17 @@ describe('createServicePolicy', () => {
               );
             });
 
-            it('calls the onBreak callback once with the error', async () => {
+            it('calls the listener passed to onBreak once with the error', async () => {
               const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
               const error = new Error('failure');
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
+              const onBreakListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onBreak,
               });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -517,21 +523,21 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).toHaveBeenCalledTimes(1);
-              expect(onBreak).toHaveBeenCalledWith({ error });
+              expect(onBreakListener).toHaveBeenCalledTimes(1);
+              expect(onBreakListener).toHaveBeenCalledWith({ error });
             });
 
-            it('never calls the onDegraded callback, since the circuit is open', async () => {
+            it('never calls the listener passed to onDegraded, since the circuit is open', async () => {
               const maxConsecutiveFailures = DEFAULT_MAX_RETRIES;
               const error = new Error('failure');
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -540,7 +546,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
           });
         });
@@ -582,11 +588,11 @@ describe('createServicePolicy', () => {
           const mockService = jest.fn(() => {
             throw error;
           });
-          const onRetry = jest.fn();
+          const onRetryListener = jest.fn();
           const policy = createServicePolicy({
             maxRetries,
-            onRetry,
           });
+          policy.onRetry(onRetryListener);
 
           const promise = policy.execute(mockService);
           // It's safe not to await this promise; adding it to the promise queue is
@@ -595,7 +601,7 @@ describe('createServicePolicy', () => {
           clock.runAllAsync();
           await ignoreRejection(promise);
 
-          expect(onRetry).toHaveBeenCalledTimes(maxRetries);
+          expect(onRetryListener).toHaveBeenCalledTimes(maxRetries);
         });
 
         describe(`using the default max number of consecutive failures (${DEFAULT_MAX_CONSECUTIVE_FAILURES})`, () => {
@@ -623,8 +629,9 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onBreak });
+              const onBreakListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -633,7 +640,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).not.toHaveBeenCalled();
+              expect(onBreakListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once', async () => {
@@ -642,8 +649,9 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const onDegradedListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -652,7 +660,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -680,8 +688,9 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onBreak });
+              const onBreakListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -690,8 +699,8 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).toHaveBeenCalledTimes(1);
-              expect(onBreak).toHaveBeenCalledWith({ error });
+              expect(onBreakListener).toHaveBeenCalledTimes(1);
+              expect(onBreakListener).toHaveBeenCalledWith({ error });
             });
 
             it('never calls the onDegraded callback, since the circuit is open', async () => {
@@ -700,8 +709,9 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const onDegradedListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -710,7 +720,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
@@ -719,8 +729,7 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const policy = createServicePolicy({ maxRetries });
 
               const firstExecution = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -765,8 +774,9 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onBreak });
+              const onBreakListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -775,8 +785,8 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).toHaveBeenCalledTimes(1);
-              expect(onBreak).toHaveBeenCalledWith({ error });
+              expect(onBreakListener).toHaveBeenCalledTimes(1);
+              expect(onBreakListener).toHaveBeenCalledWith({ error });
             });
 
             it('never calls the onDegraded callback, since the circuit is open', async () => {
@@ -785,8 +795,9 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const onDegradedListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -795,7 +806,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
           });
         });
@@ -830,12 +841,12 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
+              const onBreakListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onBreak,
               });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -844,7 +855,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).not.toHaveBeenCalled();
+              expect(onBreakListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once', async () => {
@@ -854,12 +865,12 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -868,7 +879,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -901,12 +912,12 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
+              const onBreakListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onBreak,
               });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -915,8 +926,8 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).toHaveBeenCalledTimes(1);
-              expect(onBreak).toHaveBeenCalledWith({ error });
+              expect(onBreakListener).toHaveBeenCalledTimes(1);
+              expect(onBreakListener).toHaveBeenCalledWith({ error });
             });
 
             it('never calls the onDegraded callback, since the circuit is open', async () => {
@@ -926,12 +937,12 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -940,7 +951,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('throws a BrokenCircuitError instead of whatever error the service produces if the policy is executed again', async () => {
@@ -1004,12 +1015,12 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onBreak = jest.fn();
+              const onBreakListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onBreak,
               });
+              policy.onBreak(onBreakListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1018,8 +1029,8 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onBreak).toHaveBeenCalledTimes(1);
-              expect(onBreak).toHaveBeenCalledWith({ error });
+              expect(onBreakListener).toHaveBeenCalledTimes(1);
+              expect(onBreakListener).toHaveBeenCalledWith({ error });
             });
 
             it('never calls the onDegraded callback, since the circuit is open', async () => {
@@ -1029,12 +1040,12 @@ describe('createServicePolicy', () => {
               const mockService = jest.fn(() => {
                 throw error;
               });
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1043,7 +1054,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await ignoreRejection(promise);
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
           });
         });
@@ -1096,8 +1107,9 @@ describe('createServicePolicy', () => {
             }
             throw new Error('failure');
           };
-          const onBreak = jest.fn();
-          const policy = createServicePolicy({ onBreak });
+          const onBreakListener = jest.fn();
+          const policy = createServicePolicy();
+          policy.onBreak(onBreakListener);
 
           const promise = policy.execute(mockService);
           // It's safe not to await this promise; adding it to the promise queue
@@ -1117,8 +1129,9 @@ describe('createServicePolicy', () => {
             }
             throw new Error('failure');
           };
-          const onBreak = jest.fn();
-          const policy = createServicePolicy({ onBreak });
+          const onBreakListener = jest.fn();
+          const policy = createServicePolicy();
+          policy.onBreak(onBreakListener);
 
           const promise = policy.execute(mockService);
           // It's safe not to await this promise; adding it to the promise queue
@@ -1127,7 +1140,7 @@ describe('createServicePolicy', () => {
           clock.runAllAsync();
           await promise;
 
-          expect(onBreak).not.toHaveBeenCalled();
+          expect(onBreakListener).not.toHaveBeenCalled();
         });
 
         describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
@@ -1140,8 +1153,9 @@ describe('createServicePolicy', () => {
               }
               throw new Error('failure');
             };
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ onDegraded });
+            const onDegradedListener = jest.fn();
+            const policy = createServicePolicy();
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1150,7 +1164,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onDegraded).not.toHaveBeenCalled();
+            expect(onDegradedListener).not.toHaveBeenCalled();
           });
 
           it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1166,8 +1180,9 @@ describe('createServicePolicy', () => {
                 }
               });
             };
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ onDegraded });
+            const onDegradedListener = jest.fn();
+            const policy = createServicePolicy();
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1176,7 +1191,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onDegraded).toHaveBeenCalledTimes(1);
+            expect(onDegradedListener).toHaveBeenCalledTimes(1);
           });
         });
 
@@ -1191,11 +1206,11 @@ describe('createServicePolicy', () => {
               }
               throw new Error('failure');
             };
-            const onDegraded = jest.fn();
+            const onDegradedListener = jest.fn();
             const policy = createServicePolicy({
-              onDegraded,
               degradedThreshold,
             });
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1204,7 +1219,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onDegraded).not.toHaveBeenCalled();
+            expect(onDegradedListener).not.toHaveBeenCalled();
           });
 
           it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1221,11 +1236,11 @@ describe('createServicePolicy', () => {
                 }
               });
             };
-            const onDegraded = jest.fn();
+            const onDegradedListener = jest.fn();
             const policy = createServicePolicy({
-              onDegraded,
               degradedThreshold,
             });
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1234,7 +1249,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onDegraded).toHaveBeenCalledTimes(1);
+            expect(onDegradedListener).toHaveBeenCalledTimes(1);
           });
         });
       });
@@ -1251,11 +1266,11 @@ describe('createServicePolicy', () => {
               }
               throw new Error('failure');
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1276,11 +1291,11 @@ describe('createServicePolicy', () => {
               }
               throw new Error('failure');
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1289,7 +1304,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onBreak).not.toHaveBeenCalled();
+            expect(onBreakListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
@@ -1303,11 +1318,11 @@ describe('createServicePolicy', () => {
                 }
                 throw new Error('failure');
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1316,7 +1331,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1333,11 +1348,11 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1346,7 +1361,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -1362,12 +1377,12 @@ describe('createServicePolicy', () => {
                 }
                 throw new Error('failure');
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1376,7 +1391,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1394,12 +1409,12 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1408,7 +1423,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
         });
@@ -1424,11 +1439,11 @@ describe('createServicePolicy', () => {
               }
               throw new Error('failure');
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1450,11 +1465,11 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1463,7 +1478,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onBreak).not.toHaveBeenCalled();
+            expect(onBreakListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
@@ -1478,11 +1493,11 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1491,7 +1506,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1508,11 +1523,11 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1521,7 +1536,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -1538,12 +1553,12 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1552,7 +1567,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1570,12 +1585,12 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1584,7 +1599,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
         });
@@ -1601,11 +1616,11 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1630,11 +1645,11 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1643,8 +1658,8 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
+            expect(onBreakListener).toHaveBeenCalledTimes(1);
+            expect(onBreakListener).toHaveBeenCalledWith({ error });
           });
 
           it('does not call the onDegraded callback', async () => {
@@ -1658,11 +1673,11 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onDegraded = jest.fn();
+            const onDegradedListener = jest.fn();
             const policy = createServicePolicy({
               maxConsecutiveFailures,
-              onDegraded,
             });
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1671,7 +1686,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onDegraded).not.toHaveBeenCalled();
+            expect(onDegradedListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`, () => {
@@ -1808,8 +1823,9 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onBreak });
+            const onBreakListener = jest.fn();
+            const policy = createServicePolicy({ maxRetries });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1818,7 +1834,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onBreak).not.toHaveBeenCalled();
+            expect(onBreakListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
@@ -1833,8 +1849,9 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const onDegradedListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1843,7 +1860,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1860,8 +1877,9 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const onDegradedListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1870,7 +1888,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -1887,12 +1905,12 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1901,7 +1919,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -1919,12 +1937,12 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -1933,7 +1951,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
         });
@@ -1972,8 +1990,9 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onBreak });
+            const onBreakListener = jest.fn();
+            const policy = createServicePolicy({ maxRetries });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -1982,7 +2001,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onBreak).not.toHaveBeenCalled();
+            expect(onBreakListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
@@ -1997,8 +2016,9 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const onDegradedListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2007,7 +2027,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -2024,8 +2044,9 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
-              const policy = createServicePolicy({ maxRetries, onDegraded });
+              const onDegradedListener = jest.fn();
+              const policy = createServicePolicy({ maxRetries });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2034,7 +2055,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -2051,12 +2072,12 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2065,7 +2086,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -2083,12 +2104,12 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2097,7 +2118,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
         });
@@ -2140,8 +2161,9 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onBreak });
+            const onBreakListener = jest.fn();
+            const policy = createServicePolicy({ maxRetries });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -2150,8 +2172,8 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
+            expect(onBreakListener).toHaveBeenCalledTimes(1);
+            expect(onBreakListener).toHaveBeenCalledWith({ error });
           });
 
           it('does not call the onDegraded callback', async () => {
@@ -2165,8 +2187,9 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onDegraded = jest.fn();
-            const policy = createServicePolicy({ maxRetries, onDegraded });
+            const onDegradedListener = jest.fn();
+            const policy = createServicePolicy({ maxRetries });
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -2175,7 +2198,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onDegraded).not.toHaveBeenCalled();
+            expect(onDegradedListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`, () => {
@@ -2257,12 +2280,12 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxRetries,
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -2285,12 +2308,12 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxRetries,
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -2299,7 +2322,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onBreak).not.toHaveBeenCalled();
+            expect(onBreakListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
@@ -2315,12 +2338,12 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2329,7 +2352,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -2347,12 +2370,12 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2361,7 +2384,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -2379,13 +2402,13 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2394,7 +2417,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -2413,13 +2436,13 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2428,7 +2451,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
         });
@@ -2472,12 +2495,12 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxRetries,
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -2486,7 +2509,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await promise;
 
-            expect(onBreak).not.toHaveBeenCalled();
+            expect(onBreakListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default degraded threshold (${DEFAULT_DEGRADED_THRESHOLD})`, () => {
@@ -2502,12 +2525,12 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2516,7 +2539,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -2534,12 +2557,12 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2548,7 +2571,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
 
@@ -2566,13 +2589,13 @@ describe('createServicePolicy', () => {
                 }
                 throw error;
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2581,7 +2604,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).not.toHaveBeenCalled();
+              expect(onDegradedListener).not.toHaveBeenCalled();
             });
 
             it('calls the onDegraded callback once if the service execution time is beyond the threshold', async () => {
@@ -2600,13 +2623,13 @@ describe('createServicePolicy', () => {
                   }
                 });
               };
-              const onDegraded = jest.fn();
+              const onDegradedListener = jest.fn();
               const policy = createServicePolicy({
                 maxRetries,
                 maxConsecutiveFailures,
-                onDegraded,
                 degradedThreshold,
               });
+              policy.onDegraded(onDegradedListener);
 
               const promise = policy.execute(mockService);
               // It's safe not to await this promise; adding it to the promise
@@ -2615,7 +2638,7 @@ describe('createServicePolicy', () => {
               clock.runAllAsync();
               await promise;
 
-              expect(onDegraded).toHaveBeenCalledTimes(1);
+              expect(onDegradedListener).toHaveBeenCalledTimes(1);
             });
           });
         });
@@ -2664,12 +2687,12 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onBreak = jest.fn();
+            const onBreakListener = jest.fn();
             const policy = createServicePolicy({
               maxRetries,
               maxConsecutiveFailures,
-              onBreak,
             });
+            policy.onBreak(onBreakListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -2678,8 +2701,8 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onBreak).toHaveBeenCalledTimes(1);
-            expect(onBreak).toHaveBeenCalledWith({ error });
+            expect(onBreakListener).toHaveBeenCalledTimes(1);
+            expect(onBreakListener).toHaveBeenCalledWith({ error });
           });
 
           it('does not call the onDegraded callback', async () => {
@@ -2694,12 +2717,12 @@ describe('createServicePolicy', () => {
               }
               throw error;
             };
-            const onDegraded = jest.fn();
+            const onDegradedListener = jest.fn();
             const policy = createServicePolicy({
               maxRetries,
               maxConsecutiveFailures,
-              onDegraded,
             });
+            policy.onDegraded(onDegradedListener);
 
             const promise = policy.execute(mockService);
             // It's safe not to await this promise; adding it to the promise
@@ -2708,7 +2731,7 @@ describe('createServicePolicy', () => {
             clock.runAllAsync();
             await ignoreRejection(promise);
 
-            expect(onDegraded).not.toHaveBeenCalled();
+            expect(onDegradedListener).not.toHaveBeenCalled();
           });
 
           describe(`using the default circuit break duration (${DEFAULT_CIRCUIT_BREAK_DURATION})`, () => {
