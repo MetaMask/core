@@ -68,6 +68,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import { ResimulateHelper } from './helpers/ResimulateHelper';
 import { projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
@@ -718,6 +719,8 @@ export class TransactionController extends BaseController<
 
   #multichainTrackingHelper: MultichainTrackingHelper;
 
+  #resimulateHelper: ResimulateHelper;
+
   /**
    * Method used to sign transactions
    */
@@ -926,6 +929,24 @@ export class TransactionController extends BaseController<
       this.#checkForPendingTransactionAndStartPolling,
     );
 
+    this.#resimulateHelper = new ResimulateHelper({
+      getBlockTracker: (networkClientId: NetworkClientId) => {
+        const { blockTracker } = this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        );
+        return blockTracker;
+      },
+      updateSimulationData: this.#updateSimulationData.bind(this),
+      onStateChange: (listener) => {
+        this.messagingSystem.subscribe(
+          'TransactionController:stateChange',
+          listener,
+        );
+      },
+      getTransactions: () => this.state.transactions,
+    });
+
     this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
   }
@@ -1016,9 +1037,8 @@ export class TransactionController extends BaseController<
       );
     }
 
-    const isEIP1559Compatible = await this.getEIP1559Compatibility(
-      networkClientId,
-    );
+    const isEIP1559Compatible =
+      await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
 
@@ -1855,6 +1875,29 @@ export class TransactionController extends BaseController<
     );
 
     return this.getTransaction(txId);
+  }
+
+  /**
+   * Update the isFocus state of a transaction.
+   * @param transactionId - The ID of the transaction to update.
+   * @param isFocused - The new focus state.
+   */
+  updateTransactionFocus(transactionId: string, isFocused: boolean) {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(`Transaction with id ${transactionId} not found`);
+    }
+
+    const updatedTransactionMeta = {
+      ...transactionMeta,
+      isFocused,
+    };
+
+    this.updateTransaction(
+      updatedTransactionMeta,
+      'TransactionController#updateTransactionFocus - Transaction focus updated',
+    );
   }
 
   /**
