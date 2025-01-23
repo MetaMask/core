@@ -50,7 +50,7 @@ export type TokenPricesByTokenAddress<
  * @template Currency - A type union of valid arguments for the `currency`
  * argument to `fetchTokenPrices`.
  */
-export type IAbstractTokenPricesService<
+export type AbstractTokenPricesService<
   ChainId extends Hex = Hex,
   TokenAddress extends Hex = Hex,
   Currency extends string = string,

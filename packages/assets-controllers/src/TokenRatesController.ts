@@ -26,7 +26,7 @@ import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
-import type { IAbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
+import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 import type {
   TokensControllerGetStateAction,
@@ -238,7 +238,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #pollState = PollState.Inactive;
 
-  readonly #tokenPricesService: IAbstractTokenPricesService;
+  readonly #tokenPricesService: AbstractTokenPricesService;
 
   #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
 
@@ -275,7 +275,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }: {
     interval?: number;
     disabled?: boolean;
-    tokenPricesService: IAbstractTokenPricesService;
+    tokenPricesService: AbstractTokenPricesService;
     messenger: TokenRatesControllerMessenger;
     state?: Partial<TokenRatesControllerState>;
   }) {
@@ -687,7 +687,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     let contractNativeInformations;
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<
       Hex,
-      Awaited<ReturnType<IAbstractTokenPricesService['fetchTokenPrices']>>
+      Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
     >({
       values: [...tokenAddresses].sort(),
       batchSize: TOKEN_PRICES_BATCH_SIZE,

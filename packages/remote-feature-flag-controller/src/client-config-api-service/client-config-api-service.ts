@@ -6,7 +6,7 @@ import {
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
 
-import type { IAbstractClientConfigApiService } from './abstract-client-config-api-service';
+import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
 import { BASE_URL } from '../constants';
 import type {
   FeatureFlags,
@@ -20,7 +20,7 @@ import type {
 /**
  * This service is responsible for fetching feature flags from the ClientConfig API.
  */
-export class ClientConfigApiService implements IAbstractClientConfigApiService {
+export class ClientConfigApiService implements AbstractClientConfigApiService {
   #fetch: typeof fetch;
 
   readonly #policy: ServicePolicy;

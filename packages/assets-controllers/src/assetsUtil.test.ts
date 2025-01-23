@@ -10,7 +10,7 @@ import { add0x, type Hex } from '@metamask/utils';
 import * as assetsUtil from './assetsUtil';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
-import type { IAbstractTokenPricesService } from './token-prices-service';
+import type { AbstractTokenPricesService } from './token-prices-service';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -772,7 +772,7 @@ function buildAddress(number: number) {
  *
  * @returns The mocked functions of token prices service.
  */
-function createMockPriceService(): IAbstractTokenPricesService {
+function createMockPriceService(): AbstractTokenPricesService {
   return {
     validateChainIdSupported(_chainId: unknown): _chainId is Hex {
       return true;

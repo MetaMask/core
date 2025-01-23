@@ -11,7 +11,7 @@ import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
 
 import type {
-  IAbstractTokenPricesService,
+  AbstractTokenPricesService,
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './abstract-token-prices-service';
@@ -354,7 +354,7 @@ type MarketDataByTokenAddress = { [address: Hex]: MarketData };
  */
 export class CodefiTokenPricesServiceV2
   implements
-    IAbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
+    AbstractTokenPricesService<SupportedChainId, Hex, SupportedCurrency>
 {
   readonly #policy: ServicePolicy;
 

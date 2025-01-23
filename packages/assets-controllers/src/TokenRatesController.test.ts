@@ -30,7 +30,7 @@ import {
 } from '../../network-controller/tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
-  IAbstractTokenPricesService,
+  AbstractTokenPricesService,
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
@@ -2754,8 +2754,8 @@ async function callUpdateExchangeRatesMethod({
  * @returns The built mock token prices service.
  */
 function buildMockTokenPricesService(
-  overrides: Partial<IAbstractTokenPricesService> = {},
-): IAbstractTokenPricesService {
+  overrides: Partial<AbstractTokenPricesService> = {},
+): AbstractTokenPricesService {
   return {
     async fetchTokenPrices() {
       return {};

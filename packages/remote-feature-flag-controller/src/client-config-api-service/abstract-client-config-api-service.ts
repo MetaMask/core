@@ -5,7 +5,7 @@ import type { ServiceResponse } from '../remote-feature-flag-controller-types';
 /**
  * A service object responsible for fetching feature flags.
  */
-export type IAbstractClientConfigApiService = Partial<
+export type AbstractClientConfigApiService = Partial<
   Pick<ServicePolicy, 'onBreak' | 'onDegraded'>
 > & {
   /**

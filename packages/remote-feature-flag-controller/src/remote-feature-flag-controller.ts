@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
-import type { IAbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
+import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -98,7 +98,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #disabled: boolean;
 
-  readonly #clientConfigApiService: IAbstractClientConfigApiService;
+  readonly #clientConfigApiService: AbstractClientConfigApiService;
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
@@ -125,7 +125,7 @@ export class RemoteFeatureFlagController extends BaseController<
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
-    clientConfigApiService: IAbstractClientConfigApiService;
+    clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
     fetchInterval?: number;
     disabled?: boolean;
