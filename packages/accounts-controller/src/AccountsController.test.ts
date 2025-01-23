@@ -1,4 +1,10 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import type {
+  AccountAssetListUpdatedEventPayload,
+  AccountBalancesUpdatedEventPayload,
+  AccountTransactionsUpdatedEventPayload,
+} from '@metamask/keyring-api';
+import type { SnapKeyringAccountBalancesUpdatedEvent, SnapKeyringEvents } from '@metamask/eth-snap-keyring';
 import {
   BtcAccountType,
   EthAccountType,
@@ -134,7 +140,7 @@ const mockAccount4: InternalAccount = {
 };
 
 class MockNormalAccountUUID {
-  #accountIds: Record<string, string> = {};
+  readonly #accountIds: Record<string, string> = {};
 
   constructor(accounts: InternalAccount[]) {
     for (const account of accounts) {
@@ -299,6 +305,9 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
     allowedEvents: [
       'SnapController:stateChange',
       'KeyringController:stateChange',
+      'SnapKeyring:accountAssetListUpdated',
+      'SnapKeyring:accountBalancesUpdated',
+      'SnapKeyring:accountTransactionsUpdated',
     ],
     allowedActions: [
       'KeyringController:getAccounts',
@@ -1391,6 +1400,119 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+  });
+
+  describe('onSnapKeyringEvents', () => {
+    const setupTest = () => {
+      const account = createExpectedInternalAccount({
+        id: 'mock-id',
+        name: 'Bitcoin Account',
+        address: 'tb1q4q7h8wuplrpmkxqvv6rrrq7qyhhjsj5uqcsxqu',
+        keyringType: KeyringTypes.snap,
+        snapId: 'mock-snap',
+        type: BtcAccountType.P2wpkh,
+      });
+
+      const messenger = buildMessenger();
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [account.id]: account,
+            },
+            selectedAccount: account.id,
+          },
+        },
+        messenger,
+      });
+
+      return { messenger, account, accountsController };
+    };
+
+    it('re-publishes keyring events: SnapKeyring:accountBalancesUpdated', () => {
+      const { account, messenger } = setupTest();
+
+      const payload: AccountBalancesUpdatedEventPayload = {
+        balances: {
+          [account.id]: {
+            'bip122:000000000019d6689c085ae165831e93/slip44:0': {
+              amount: '0.1',
+              unit: 'BTC',
+            },
+          },
+        },
+      };
+
+      const mockRePublishedCallback = jest.fn();
+      messenger.subscribe(
+        'AccountsController:accountBalancesUpdated',
+        mockRePublishedCallback,
+      );
+      messenger.publish('SnapKeyring:accountBalancesUpdated', payload);
+      expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
+    });
+
+    it('re-publishes keyring events: SnapKeyring:accountAssetListUpdated', () => {
+      const { account, messenger } = setupTest();
+
+      const payload: AccountAssetListUpdatedEventPayload = {
+        assets: {
+          [account.id]: {
+            added: ['bip122:000000000019d6689c085ae165831e93/slip44:0'],
+            removed: ['bip122:000000000933ea01ad0ee984209779ba/slip44:0'],
+          },
+        },
+      };
+
+      const mockRePublishedCallback = jest.fn();
+      messenger.subscribe(
+        'AccountsController:accountAssetListUpdated',
+        mockRePublishedCallback,
+      );
+      messenger.publish('SnapKeyring:accountAssetListUpdated', payload);
+      expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
+    });
+
+    it('re-publishes keyring events: SnapKeyring:accountTransactionsUpdated', () => {
+      const { account, messenger } = setupTest();
+
+      const payload: AccountTransactionsUpdatedEventPayload = {
+        transactions: {
+          [account.id]: [
+            {
+              id: 'f5d8ee39a430901c91a5917b9f2dc19d6d1a0e9cea205b009ca73dd04470b9a6',
+              timestamp: null,
+              chain: 'bip122:000000000019d6689c085ae165831e93',
+              status: 'submitted',
+              type: 'receive',
+              account: account.id,
+              from: [],
+              to: [],
+              fees: [
+                {
+                  type: 'base',
+                  asset: {
+                    fungible: true,
+                    type: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                    unit: 'BTC',
+                    amount: '0.0001',
+                  },
+                },
+              ],
+              events: [],
+            },
+          ],
+        }
+      };
+
+      const mockRePublishedCallback = jest.fn();
+      messenger.subscribe(
+        'AccountsController:accountTransactionsUpdated',
+        mockRePublishedCallback,
+      );
+      messenger.publish('SnapKeyring:accountTransactionsUpdated', payload);
+      expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
+    });
   });
 
   describe('updateAccounts', () => {
