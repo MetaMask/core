@@ -78,7 +78,7 @@ export class ResimulateHelper {
         const blockTime = nowSeconds + 60;
         this.#updateSimulationData(transactionMeta, { blockTime });
       } catch (error) {
-        log('Error during transaction resimulation', error);
+        console.log('Error during transaction resimulation', error);
       }
     };
 
@@ -87,7 +87,7 @@ export class ResimulateHelper {
     blockTracker.on('latest', listener);
     this.#activeResimulations.set(id, { isActive: true, networkClientId });
 
-    log(`Started resimulating transaction ${id} on new blocks`);
+    console.log(`Started resimulating transaction ${id} on new blocks`);
   }
 
   stop(transactionMeta: TransactionMeta) {
@@ -98,7 +98,7 @@ export class ResimulateHelper {
     }
 
     this.#removeListenerAndDeactivate(id, currentState.networkClientId);
-    log(`Stopped resimulating transaction ${id} on new blocks`);
+    console.log(`Stopped resimulating transaction ${id} on new blocks`);
   }
 
   #forceStop(id: string) {
@@ -111,7 +111,7 @@ export class ResimulateHelper {
       id,
       activeResimulationToStop.networkClientId,
     );
-    log(`Force stopped resimulating transaction ${id} on new blocks`);
+    console.log(`Force stopped resimulating transaction ${id} on new blocks`);
   }
 
   #removeListenerAndDeactivate(id: string, networkClientId: NetworkClientId) {

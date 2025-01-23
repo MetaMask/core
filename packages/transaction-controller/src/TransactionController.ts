@@ -3744,7 +3744,7 @@ export class TransactionController extends BaseController<
       },
     );
 
-    log('Updated simulation data', transactionId, simulationData);
+    console.log('Updated simulation data', transactionId, simulationData);
   }
 
   #onGasFeePollerTransactionUpdate({
