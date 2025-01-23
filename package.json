@@ -21,6 +21,7 @@
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "create-package": "ts-node scripts/create-package",
+    "git:fail-on-changes": "./scripts/fail-on-changes.sh",
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams",
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
@@ -41,7 +42,7 @@
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "simple-git-hooks": {
-    "pre-push": "yarn lint"
+    "pre-push": "yarn lint && yarn git:fail-on-changes"
   },
   "resolutions": {
     "elliptic@6.5.4": "^6.5.7",
