@@ -1,8 +1,17 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "paths": {
+      "@metamask/base-controller": ["../base-controller/src"]
+    }
   },
-  "references": [],
-  "include": ["../../types", "./src"]
+  "include": ["./src"],
+  "references": [
+    {
+      "path": "../base-controller"
+    }
+  ]
 }

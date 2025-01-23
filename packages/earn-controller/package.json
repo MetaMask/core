@@ -55,5 +55,8 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@metamask/stake-sdk": "^1.0.0"
   }
 }
