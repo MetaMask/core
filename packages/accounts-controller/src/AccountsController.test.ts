@@ -4,7 +4,6 @@ import type {
   AccountBalancesUpdatedEventPayload,
   AccountTransactionsUpdatedEventPayload,
 } from '@metamask/keyring-api';
-import type { SnapKeyringAccountBalancesUpdatedEvent, SnapKeyringEvents } from '@metamask/eth-snap-keyring';
 import {
   BtcAccountType,
   EthAccountType,
@@ -1502,7 +1501,7 @@ describe('AccountsController', () => {
               events: [],
             },
           ],
-        }
+        },
       };
 
       const mockRePublishedCallback = jest.fn();
