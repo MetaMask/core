@@ -4408,45 +4408,6 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('updateTransactionFocus', () => {
-    it('throws if transaction does not exist', async () => {
-      const { controller } = setupController();
-      expect(() => controller.updateTransactionFocus('123', true)).toThrow(
-        'Transaction with id 123 not found',
-      );
-    });
-
-    it('updates the isFocused state of a transaction', async () => {
-      const transactionId = '123';
-      const { controller } = setupController({
-        options: {
-          state: {
-            transactions: [
-              {
-                id: transactionId,
-                status: TransactionStatus.unapproved,
-                history: [{}],
-                txParams: {
-                  from: ACCOUNT_MOCK,
-                  to: ACCOUNT_2_MOCK,
-                },
-                // TODO: Replace `any` with type
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              } as any,
-            ],
-          },
-        },
-        updateToInitialState: true,
-      });
-
-      controller.updateTransactionFocus(transactionId, true);
-
-      const transaction = controller.state.transactions[0];
-
-      expect(transaction?.isFocused).toBe(true);
-    });
-  });
-
   describe('on pending transactions tracker event', () => {
     /**
      * Simulate an event from the pending transaction tracker.
@@ -4920,6 +4881,7 @@ describe('TransactionController', () => {
     };
 
     it('adds a transaction, signs and update status to `approved`', async () => {
+      console.log("saddsaads")
       const { controller, mockTransactionApprovalRequest } = setupController({
         options: {
           hooks: {
@@ -6113,6 +6075,45 @@ describe('TransactionController', () => {
           blockTime: 123,
         },
       );
+    });
+  });
+
+  describe('updateTransactionFocus', () => {
+    it('throws if transaction does not exist', async () => {
+      const { controller } = setupController();
+      expect(() => controller.updateTransactionFocus('123', true)).toThrow(
+        'Transaction with id 123 not found',
+      );
+    });
+
+    it('updates the isFocused state of a transaction', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status: TransactionStatus.unapproved,
+                history: [{}],
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+                // TODO: Replace `any` with type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              } as any,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateTransactionFocus(transactionId, true);
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.isFocused).toBe(true);
     });
   });
 });
