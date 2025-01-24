@@ -43,6 +43,7 @@ import {
   NetworkController,
   RpcEndpointType,
   selectAvailableNetworkClientIds,
+  selectNetworkConfigurations,
 } from '../src/NetworkController';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
@@ -13020,6 +13021,24 @@ describe('getNetworkConfigurations', () => {
 
     expect(getNetworkConfigurations(state)).toStrictEqual(
       Object.values(state.networkConfigurationsByChainId),
+    );
+  });
+});
+
+describe('selectNetworkConfigurations', () => {
+  it('returns network configurations available in the state', () => {
+    const state = getDefaultNetworkControllerState();
+
+    expect(selectNetworkConfigurations(state)).toStrictEqual(
+      Object.values(state.networkConfigurationsByChainId),
+    );
+  });
+
+  it('is memoized', () => {
+    const state = getDefaultNetworkControllerState();
+
+    expect(selectNetworkConfigurations(state)).toBe(
+      selectNetworkConfigurations(state),
     );
   });
 });
