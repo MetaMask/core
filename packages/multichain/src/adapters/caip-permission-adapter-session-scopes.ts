@@ -1,4 +1,4 @@
-import { KnownCaipNamespace } from '@metamask/utils';
+import { CaipChainId, isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
@@ -10,7 +10,6 @@ import {
 import { mergeScopes } from '../scope/transform';
 import type {
   InternalScopesObject,
-  NonWalletKnownCaipNamespace,
   NormalizedScopesObject,
 } from '../scope/types';
 import { parseScopeString } from '../scope/types';
@@ -41,10 +40,16 @@ export const getInternalScopesObject = (
 /**
  * Converts an InternalScopesObject to a NormalizedScopesObject.
  * @param internalScopesObject - The InternalScopesObject to convert.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns A NormalizedScopesObject.
  */
 const getNormalizedScopesObject = (
   internalScopesObject: InternalScopesObject,
+  { getNonEvmSupportedMethods }:
+  {
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+  }
 ) => {
   const normalizedScopes: NormalizedScopesObject = {};
 
@@ -56,19 +61,21 @@ const getNormalizedScopesObject = (
       let notifications: string[] = [];
 
       if (namespace === KnownCaipNamespace.Wallet) {
-        if (reference) {
-          methods =
-            KnownWalletNamespaceRpcMethods[
-              reference as NonWalletKnownCaipNamespace
-            ] ?? [];
-        } else {
+        if (!reference) {
           methods = KnownWalletRpcMethods;
+        } else if (reference === KnownCaipNamespace.Eip155) {
+          methods = KnownWalletNamespaceRpcMethods[reference];
+        } else {
+          methods =  isCaipChainId(scopeString) ? getNonEvmSupportedMethods(scopeString) : []
         }
-      } else {
+      } else if (namespace === KnownCaipNamespace.Eip155) {
         methods =
-          KnownRpcMethods[namespace as NonWalletKnownCaipNamespace] ?? [];
+          KnownRpcMethods[namespace];
         notifications =
-          KnownNotifications[namespace as NonWalletKnownCaipNamespace] ?? [];
+          KnownNotifications[namespace];
+      } else {
+        methods =  isCaipChainId(scopeString) ? getNonEvmSupportedMethods(scopeString) : []
+        notifications = [];
       }
 
       normalizedScopes[scopeString] = {
@@ -86,6 +93,8 @@ const getNormalizedScopesObject = (
  * Takes the scopes from an endowment:caip25 permission caveat value,
  * hydrates them with supported methods and notifications, and returns a NormalizedScopesObject.
  * @param caip25CaveatValue - The CAIP-25 CaveatValue to convert.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns A NormalizedScopesObject.
  */
 export const getSessionScopes = (
@@ -93,9 +102,13 @@ export const getSessionScopes = (
     Caip25CaveatValue,
     'requiredScopes' | 'optionalScopes'
   >,
+  { getNonEvmSupportedMethods }:
+  {
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+  }
 ) => {
   return mergeScopes(
-    getNormalizedScopesObject(caip25CaveatValue.requiredScopes),
-    getNormalizedScopesObject(caip25CaveatValue.optionalScopes),
+    getNormalizedScopesObject(caip25CaveatValue.requiredScopes, { getNonEvmSupportedMethods }),
+    getNormalizedScopesObject(caip25CaveatValue.optionalScopes, { getNonEvmSupportedMethods }),
   );
 };
