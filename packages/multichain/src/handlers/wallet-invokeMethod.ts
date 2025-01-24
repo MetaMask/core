@@ -2,6 +2,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type {
+  CaipChainId,
   Hex,
   Json,
   JsonRpcRequest,
@@ -40,6 +41,7 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  * @param hooks.getCaveatForOrigin - the hook for getting a caveat from a permission for an origin.
  * @param hooks.findNetworkClientIdByChainId - the hook for finding the networkClientId for a chainId.
  * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 async function walletInvokeMethodHandler(
   request: WalletInvokeMethodRequest,
@@ -53,6 +55,7 @@ async function walletInvokeMethodHandler(
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     getSelectedNetworkClientId: () => NetworkClientId;
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
   },
 ) {
   const { scope, request: wrappedRequest } = request.params;
@@ -72,7 +75,7 @@ async function walletInvokeMethodHandler(
     return end(providerErrors.unauthorized());
   }
 
-  const scopeObject = getSessionScopes(caveat.value)[scope];
+  const scopeObject = getSessionScopes(caveat.value, { getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods })[scope];
 
   if (!scopeObject?.methods?.includes(wrappedRequest.method)) {
     return end(providerErrors.unauthorized());

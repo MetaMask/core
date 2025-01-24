@@ -1,5 +1,5 @@
 import type { Caveat } from '@metamask/permission-controller';
-import type { JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
+import type { CaipChainId, JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
 import type { NormalizedScopesObject } from 'src/scope/types';
 
 import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
@@ -21,6 +21,7 @@ import {
  * @param end - The end function.
  * @param hooks - The hooks object.
  * @param hooks.getCaveatForOrigin - Function to retrieve a caveat for the origin.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 async function walletGetSessionHandler(
   request: JsonRpcRequest & { origin: string },
@@ -32,6 +33,7 @@ async function walletGetSessionHandler(
       endowmentPermissionName: string,
       caveatType: string,
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
   },
 ) {
   let caveat;
@@ -50,7 +52,7 @@ async function walletGetSessionHandler(
   }
 
   response.result = {
-    sessionScopes: getSessionScopes(caveat.value),
+    sessionScopes: getSessionScopes(caveat.value, { getNonEvmSupportedMethods: hooks. getNonEvmSupportedMethods} ),
   };
   return end();
 }
@@ -60,5 +62,6 @@ export const walletGetSession = {
   implementation: walletGetSessionHandler,
   hookNames: {
     getCaveatForOrigin: true,
+    getNonEvmSupportedMethods: true,
   },
 };
