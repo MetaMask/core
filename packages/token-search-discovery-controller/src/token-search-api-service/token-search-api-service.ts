@@ -15,7 +15,7 @@ export class TokenSearchApiService extends AbstractTokenSearchApiService {
   async searchTokens(
     tokenSearchParams?: TokenSearchParams,
   ): Promise<TokenSearchResponseItem[]> {
-    const url = new URL('/tokens-search/name', this.#baseUrl);
+    const url = new URL('/tokens-search', this.#baseUrl);
 
     if (tokenSearchParams?.chains && tokenSearchParams.chains.length > 0) {
       url.searchParams.append('chains', tokenSearchParams.chains.join());

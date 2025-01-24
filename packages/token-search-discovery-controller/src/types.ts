@@ -13,4 +13,5 @@ export type TokenSearchResponseItem = {
   usdPricePercentChange: {
     oneDay: number;
   };
+  logoUrl: string;
 };
