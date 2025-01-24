@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update the TokenSearchApiService to use the updated URL for `searchTokens`
   - The URL is now `/tokens-search` instead of `/tokens-search/name`
+- Changed the "name" parameter to "query" in the `searchTokens` method
 
 ## [1.0.0]
 
