@@ -1,6 +1,6 @@
 export type TokenSearchParams = {
   chains?: string[];
-  name?: string;
+  query?: string;
   limit?: string;
 };
 

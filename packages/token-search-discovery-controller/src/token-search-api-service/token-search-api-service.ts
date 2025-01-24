@@ -20,8 +20,8 @@ export class TokenSearchApiService extends AbstractTokenSearchApiService {
     if (tokenSearchParams?.chains && tokenSearchParams.chains.length > 0) {
       url.searchParams.append('chains', tokenSearchParams.chains.join());
     }
-    if (tokenSearchParams?.name) {
-      url.searchParams.append('name', tokenSearchParams.name);
+    if (tokenSearchParams?.query) {
+      url.searchParams.append('query', tokenSearchParams.query);
     }
     if (tokenSearchParams?.limit) {
       url.searchParams.append('limit', tokenSearchParams.limit);
