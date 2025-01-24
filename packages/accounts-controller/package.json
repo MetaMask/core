@@ -52,7 +52,7 @@
     "@metamask/eth-snap-keyring": "^8.1.1",
     "@metamask/keyring-api": "^14.0.0",
     "@metamask/keyring-internal-api": "^2.0.1",
-    "@metamask/snaps-sdk": "^6.7.0",
+    "@metamask/snaps-sdk": "^6.15.0",
     "@metamask/snaps-utils": "^8.3.0",
     "@metamask/utils": "^11.0.1",
     "deepmerge": "^4.2.2",
