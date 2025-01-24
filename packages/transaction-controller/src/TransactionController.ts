@@ -3743,8 +3743,6 @@ export class TransactionController extends BaseController<
         txMeta.simulationData = simulationData;
       },
     );
-
-    console.log('Updated simulation data', transactionId, simulationData);
   }
 
   #onGasFeePollerTransactionUpdate({

@@ -3,12 +3,12 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 
-import { type TransactionMeta, TransactionStatus } from '../types';
 import { createModuleLogger, projectLogger } from '../logger';
+import { type TransactionMeta, TransactionStatus } from '../types';
 
 const log = createModuleLogger(projectLogger, 'transaction-resimulator');
 
-type ResimulateHelperOptions = {
+export type ResimulateHelperOptions = {
   getBlockTracker: (networkClientId: NetworkClientId) => BlockTracker;
   getTransactions: () => TransactionMeta[];
   updateSimulationData: (transactionMeta: TransactionMeta) => void;
@@ -21,15 +21,18 @@ type ResimulationState = {
 };
 
 export class ResimulateHelper {
-  #getBlockTracker: (networkClientId: NetworkClientId) => BlockTracker;
-  #listeners: Map<string, (latestBlockNumber: string) => Promise<void>> =
-    new Map();
-  #activeResimulations: Map<string, ResimulationState> = new Map();
-  #updateSimulationData: (
-    transactionMeta: TransactionMeta,
-    { blockTime }: { blockTime: number },
-  ) => void;
-  #getTransactions: () => TransactionMeta[];
+  readonly #getBlockTracker: (networkClientId: NetworkClientId) => BlockTracker;
+
+  readonly #listeners: Map<
+    string,
+    (latestBlockNumber: string) => Promise<void>
+  > = new Map();
+
+  readonly #activeResimulations: Map<string, ResimulationState> = new Map();
+
+  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => void;
+
+  readonly #getTransactions: () => TransactionMeta[];
 
   constructor({
     getBlockTracker,
@@ -56,7 +59,7 @@ export class ResimulateHelper {
         }
       });
 
-      // Force stop any running transactions that are no longer unapproved/contained in the state
+      // Force stop any running active resimulations that are no longer unapproved transactions list
       this.#activeResimulations.forEach(({ isActive }, id) => {
         if (isActive && !unapprovedTransactionIds.has(id)) {
           this.#forceStop(id);
@@ -67,18 +70,17 @@ export class ResimulateHelper {
 
   start(transactionMeta: TransactionMeta) {
     const { id, networkClientId } = transactionMeta;
-    const currentState = this.#activeResimulations.get(id);
-    if (!transactionMeta.isFocused || (currentState && currentState.isActive)) {
+    const resimulation = this.#activeResimulations.get(id);
+    if (!transactionMeta.isFocused || (resimulation && resimulation.isActive)) {
       return;
     }
 
     const listener = async () => {
       try {
-        const nowSeconds = Math.floor(Date.now() / 1000);
-        const blockTime = nowSeconds + 60;
-        this.#updateSimulationData(transactionMeta, { blockTime });
+        this.#updateSimulationData(transactionMeta);
       } catch (error) {
-        console.log('Error during transaction resimulation', error);
+        /* istanbul ignore next */
+        log('Error during transaction resimulation', error);
       }
     };
 
@@ -86,45 +88,39 @@ export class ResimulateHelper {
     const blockTracker = this.#getBlockTracker(networkClientId);
     blockTracker.on('latest', listener);
     this.#activeResimulations.set(id, { isActive: true, networkClientId });
-
-    console.log(`Started resimulating transaction ${id} on new blocks`);
+    log(`Started resimulating transaction ${id} on new blocks`);
   }
 
   stop(transactionMeta: TransactionMeta) {
     const { id } = transactionMeta;
-    const currentState = this.#activeResimulations.get(id);
-    if (transactionMeta.isFocused || !currentState || !currentState.isActive) {
+    const resimulation = this.#activeResimulations.get(id);
+    if (transactionMeta.isFocused || !resimulation || !resimulation.isActive) {
       return;
     }
 
-    this.#removeListenerAndDeactivate(id, currentState.networkClientId);
-    console.log(`Stopped resimulating transaction ${id} on new blocks`);
+    this.#removeListener(id, resimulation.networkClientId);
+    log(`Stopped resimulating transaction ${id} on new blocks`);
   }
 
   #forceStop(id: string) {
-    const activeResimulationToStop = this.#activeResimulations.get(id);
-    if (!activeResimulationToStop) {
+    const resimulation = this.#activeResimulations.get(id);
+    if (!resimulation) {
+      /* istanbul ignore next */
       return;
     }
 
-    this.#removeListenerAndDeactivate(
-      id,
-      activeResimulationToStop.networkClientId,
-    );
-    console.log(`Force stopped resimulating transaction ${id} on new blocks`);
+    this.#removeListener(id, resimulation.networkClientId);
+    log(`Forced to stop resimulating transaction ${id} on new blocks`);
   }
 
-  #removeListenerAndDeactivate(id: string, networkClientId: NetworkClientId) {
+  #removeListener(id: string, networkClientId: NetworkClientId) {
     const listener = this.#listeners.get(id);
     if (listener) {
       const blockTracker = this.#getBlockTracker(networkClientId);
       blockTracker.removeListener('latest', listener);
       this.#listeners.delete(id);
     }
-    this.#activeResimulations.set(id, {
-      isActive: false,
-      networkClientId: networkClientId,
-    });
+    this.#activeResimulations.delete(id);
   }
 
   #getUnapprovedTransactions() {
