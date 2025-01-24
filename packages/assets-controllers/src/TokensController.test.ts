@@ -756,7 +756,6 @@ describe('TokensController', () => {
           controller.ignoreTokens(['0x01']);
           controller.ignoreTokens(['0xFAa']);
 
-          
           expect(
             controller.state.allIgnoredTokens[ChainId.mainnet][
               selectedAccount.address
@@ -1426,7 +1425,7 @@ describe('TokensController', () => {
           await controller.addToken({ address, symbol, decimals });
 
           expect(
-            controller.state.allTokens[ChainId.sepolia][
+            controller.state.allTokens[ChainId.mainnet][
               defaultMockInternalAccount.address
             ],
           ).toStrictEqual([
@@ -1454,7 +1453,7 @@ describe('TokensController', () => {
           });
 
           expect(
-            controller.state.allTokens[ChainId.sepolia][
+            controller.state.allTokens[ChainId.mainnet][
               defaultMockInternalAccount.address
             ],
           ).toStrictEqual([
@@ -1484,7 +1483,7 @@ describe('TokensController', () => {
           await controller.addToken({ address, symbol, decimals });
 
           expect(
-            controller.state.allTokens[ChainId.sepolia][
+            controller.state.allTokens[ChainId.mainnet][
               defaultMockInternalAccount.address
             ],
           ).toStrictEqual([
@@ -1512,7 +1511,7 @@ describe('TokensController', () => {
           });
 
           expect(
-            controller.state.allTokens[ChainId.sepolia][
+            controller.state.allTokens[ChainId.mainnet][
               defaultMockInternalAccount.address
             ],
           ).toStrictEqual([
@@ -1756,19 +1755,19 @@ describe('TokensController', () => {
 
         await controller.addDetectedTokens(dummyDetectedTokens);
         expect(
-          controller.state.allDetectedTokens[ChainId.sepolia][
+          controller.state.allDetectedTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual(dummyDetectedTokens);
 
         await controller.addTokens(dummyDetectedTokens);
         expect(
-          controller.state.allDetectedTokens[ChainId.sepolia][
+          controller.state.allDetectedTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([]);
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual(dummyAddedTokens);
@@ -2110,7 +2109,7 @@ describe('TokensController', () => {
         });
 
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([
@@ -2136,7 +2135,7 @@ describe('TokensController', () => {
         await controller.watchAsset({ asset: reqAsset, type: 'ERC20' });
 
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([
@@ -2210,7 +2209,7 @@ describe('TokensController', () => {
         });
 
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([
@@ -2243,7 +2242,7 @@ describe('TokensController', () => {
         });
 
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([
@@ -2271,12 +2270,12 @@ describe('TokensController', () => {
         await controller.watchAsset({ asset, type: 'ERC20' });
 
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toHaveLength(1);
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([
@@ -2331,12 +2330,8 @@ describe('TokensController', () => {
             controller.state.allTokens[ChainId.sepolia][
               defaultMockInternalAccount.address
             ],
-          ).toHaveLength(0);
-          expect(
-            controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toStrictEqual([]);
+          ).toBeUndefined();
+          expect(controller.state.allTokens[ChainId.mainnet]).toBeUndefined();
           expect(
             controller.state.allTokens[chainId][interactingAddress],
           ).toHaveLength(1);
@@ -2404,16 +2399,9 @@ describe('TokensController', () => {
               asset,
             },
           });
-          expect(
-            controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
-          expect(
-            controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toStrictEqual([]);
+
+          expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
+          expect(controller.state.allTokens[ChainId.mainnet]).toBeUndefined();
           expect(
             controller.state.allTokens['0x5'][interactingAddress],
           ).toHaveLength(1);
@@ -2446,16 +2434,8 @@ describe('TokensController', () => {
           controller.watchAsset({ asset, type: 'ERC20' }),
         ).rejects.toThrow(errorMessage);
 
-        expect(
-          controller.state.allTokens[ChainId.sepolia][
-            defaultMockInternalAccount.address
-          ],
-        ).toHaveLength(0);
-        expect(
-          controller.state.allTokens[ChainId.sepolia][
-            defaultMockInternalAccount.address
-          ],
-        ).toStrictEqual([]);
+        expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
+        expect(controller.state.allTokens[ChainId.mainnet]).toBeUndefined();
         expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
         expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
           id: requestId,
@@ -2599,11 +2579,7 @@ describe('TokensController', () => {
             decimals: 5,
           });
           triggerSelectedAccountChange(selectedAccount2);
-          expect(
-            controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toStrictEqual([]);
+          expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
 
           await controller.addToken({
             address: '0x03',
@@ -2612,8 +2588,8 @@ describe('TokensController', () => {
           });
           triggerSelectedAccountChange(selectedAccount);
           expect(
-            controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+            controller.state.allTokens[ChainId.mainnet][
+              selectedAccount.address
             ],
           ).toStrictEqual([
             {
@@ -2640,8 +2616,8 @@ describe('TokensController', () => {
 
           triggerSelectedAccountChange(selectedAccount2);
           expect(
-            controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+            controller.state.allTokens[ChainId.mainnet][
+              selectedAccount2.address
             ],
           ).toStrictEqual([
             {
@@ -2945,7 +2921,7 @@ describe('TokensController', () => {
           decimals: 2,
         });
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ][0],
         ).toStrictEqual({
@@ -2974,12 +2950,29 @@ describe('TokensController', () => {
                 aggregators: ['Aave'],
               },
             },
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 1,
+                data: {
+                  '0x01': {
+                    address: '0x01',
+                    symbol: 'bar',
+                    decimals: 2,
+                    occurrences: 1,
+                    name: 'BarName',
+                    iconUrl:
+                      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+                    aggregators: ['Aave'],
+                  },
+                },
+              },
+            },
           },
           [],
         );
 
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ][0],
         ).toStrictEqual({
@@ -3004,21 +2997,13 @@ describe('TokensController', () => {
           );
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
 
+          expect(controller.state.allTokens[ChainId.sepolia]).toBeUndefined();
           expect(
-            controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toStrictEqual([]);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
           expect(
-            controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toStrictEqual([]);
-          expect(
-            controller.state.allDetectedTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toStrictEqual([]);
+            controller.state.allDetectedTokens[ChainId.sepolia],
+          ).toBeUndefined();
         });
       });
     });
@@ -3036,8 +3021,10 @@ describe('TokensController', () => {
 
           await controller.addToken({ address, symbol, decimals });
 
+          console.log('salim 1111 ......', controller.state.allTokens);
+
           expect(
-            controller.state.allTokens[ChainId.sepolia][
+            controller.state.allTokens[ChainId.mainnet][
               defaultMockInternalAccount.address
             ],
           ).toStrictEqual([

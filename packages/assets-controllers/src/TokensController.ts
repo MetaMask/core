@@ -53,6 +53,7 @@ import type {
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import { cloneDeep } from 'lodash';
 
 /**
  * @type SuggestedAssetMeta
@@ -235,13 +236,37 @@ export class TokensController extends BaseController<
 
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
-      ({ tokenList }) => {
+      ({ tokensChainsCache }) => {
         const { allTokens } = this.state;
-        const tokens =
-          allTokens[this.#chainId]?.[this.#selectedAccountId] || [];
-        if (tokens.length && !tokens[0].name) {
-          this.#updateTokensAttribute(tokenList, 'name');
+        const selectedAddress = this.#getSelectedAddress();
+
+        // Deep clone the `allTokens` object to ensure mutability
+        const updatedAllTokens = cloneDeep(allTokens);
+
+        for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
+          const chainData = chainCache?.data || {};
+
+          if (updatedAllTokens[chainId as Hex]) {
+            if (updatedAllTokens[chainId as Hex][selectedAddress]) {
+              const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
+
+              for (const [, token] of Object.entries(tokens)) {
+                const cachedToken = chainData[token.address];
+                if (cachedToken && cachedToken.name && !token.name) {
+                  token.name = cachedToken.name; // Update the token name
+                }
+              }
+            }
+          }
         }
+
+        // Update the state with the modified tokens
+        this.update(() => {
+          return {
+            ...this.state,
+            allTokens: updatedAllTokens,
+          };
+        });
       },
     );
   }
@@ -355,7 +380,9 @@ export class TokensController extends BaseController<
     interactingAddress?: string;
     networkClientId?: NetworkClientId;
   }): Promise<Token[]> {
+    // TODO: remove this once this method is fully parameterized by chainId
     const chainId = this.#chainId;
+
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     let currentChainId = chainId;
@@ -370,6 +397,12 @@ export class TokensController extends BaseController<
       this.#getAddressOrSelectedAddress(interactingAddress);
     const isInteractingWithWalletAccount =
       this.#isInteractingWithWallet(accountAddress);
+
+    console.log(
+      'isInteractingWithWalletAccount ......',
+      isInteractingWithWalletAccount,
+    );
+
     try {
       address = toChecksumHexAddress(address);
       const tokens = allTokens[currentChainId]?.[accountAddress] || [];
