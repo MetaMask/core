@@ -1,11 +1,13 @@
 import {
-  circuitBreaker,
+  BrokenCircuitError,
+  CircuitState,
   ConsecutiveBreaker,
   ExponentialBackoff,
+  circuitBreaker,
   handleAll,
+  handleWhen,
   retry,
   wrap,
-  CircuitState,
 } from 'cockatiel';
 import type {
   CircuitBreakerPolicy,
@@ -13,6 +15,8 @@ import type {
   Policy,
   RetryPolicy,
 } from 'cockatiel';
+
+export { CircuitState, BrokenCircuitError, handleAll, handleWhen };
 
 /**
  * The options for `createServicePolicy`.
@@ -51,6 +55,15 @@ export type CreateServicePolicyOptions = {
  * The service policy object.
  */
 export type ServicePolicy = IPolicy & {
+  /**
+   * The Cockatiel circuit breaker policy that the service policy uses
+   * internally.
+   */
+  circuitBreakerPolicy: CircuitBreakerPolicy;
+  /**
+   * The Cockatiel retry policy that the service policy uses internally.
+   */
+  retryPolicy: RetryPolicy;
   /**
    * A function which is called when the number of times that the service fails
    * in a row meets the set maximum number of consecutive failures.
@@ -218,6 +231,8 @@ export function createServicePolicy({
 
   return {
     ...policy,
+    circuitBreakerPolicy,
+    retryPolicy,
     onBreak,
     onDegraded,
     onRetry,
