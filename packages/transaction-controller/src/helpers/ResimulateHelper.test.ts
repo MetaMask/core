@@ -21,10 +21,10 @@ describe('ResimulateHelper', () => {
   let getBlockTrackerMock: jest.Mock<
     (networkClientId: NetworkClientId) => BlockTracker
   >;
+  let getTransactionsMock: jest.Mock<() => TransactionMeta[]>;
   let updateSimulationDataMock: jest.Mock<
     (transactionMeta: TransactionMeta) => void
   >;
-  let getTransactionsMock: jest.Mock<() => TransactionMeta[]>;
   let onStateChangeMock: jest.Mock<(listener: () => void) => void>;
 
   let resimulateHelper: ResimulateHelper;
@@ -36,15 +36,15 @@ describe('ResimulateHelper', () => {
     } as unknown as jest.Mocked<BlockTracker>;
 
     getBlockTrackerMock = jest.fn().mockReturnValue(blockTrackerMock);
-    updateSimulationDataMock = jest.fn();
     getTransactionsMock = jest.fn();
     onStateChangeMock = jest.fn();
+    updateSimulationDataMock = jest.fn();
 
     resimulateHelper = new ResimulateHelper({
       getBlockTracker: getBlockTrackerMock,
       getTransactions: getTransactionsMock,
-      updateSimulationData: updateSimulationDataMock,
       onStateChange: onStateChangeMock,
+      updateSimulationData: updateSimulationDataMock,
     } as unknown as ResimulateHelperOptions);
   });
 

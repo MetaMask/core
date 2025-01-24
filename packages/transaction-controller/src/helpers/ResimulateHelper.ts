@@ -6,13 +6,13 @@ import type {
 import { createModuleLogger, projectLogger } from '../logger';
 import { type TransactionMeta, TransactionStatus } from '../types';
 
-const log = createModuleLogger(projectLogger, 'transaction-resimulator');
+const log = createModuleLogger(projectLogger, 'resimulate-helper');
 
 export type ResimulateHelperOptions = {
   getBlockTracker: (networkClientId: NetworkClientId) => BlockTracker;
   getTransactions: () => TransactionMeta[];
-  updateSimulationData: (transactionMeta: TransactionMeta) => void;
   onStateChange: (listener: () => void) => void;
+  updateSimulationData: (transactionMeta: TransactionMeta) => void;
 };
 
 type ResimulationState = {
@@ -21,18 +21,18 @@ type ResimulationState = {
 };
 
 export class ResimulateHelper {
+  readonly #activeResimulations: Map<string, ResimulationState> = new Map();
+
   readonly #getBlockTracker: (networkClientId: NetworkClientId) => BlockTracker;
+
+  readonly #getTransactions: () => TransactionMeta[];
 
   readonly #listeners: Map<
     string,
     (latestBlockNumber: string) => Promise<void>
   > = new Map();
 
-  readonly #activeResimulations: Map<string, ResimulationState> = new Map();
-
-  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => void;
-
-  readonly #getTransactions: () => TransactionMeta[];
+  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => void;  
 
   constructor({
     getBlockTracker,

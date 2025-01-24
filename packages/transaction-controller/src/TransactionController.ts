@@ -1037,8 +1037,9 @@ export class TransactionController extends BaseController<
       );
     }
 
-    const isEIP1559Compatible =
-      await this.getEIP1559Compatibility(networkClientId);
+    const isEIP1559Compatible = await this.getEIP1559Compatibility(
+      networkClientId,
+    );
 
     validateTxParams(txParams, isEIP1559Compatible);
 
