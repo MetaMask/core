@@ -68,7 +68,6 @@
     "async-mutex": "^0.5.0",
     "bitcoin-address-validation": "^2.2.3",
     "bn.js": "^5.2.1",
-    "cockatiel": "^3.1.2",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
     "multiformats": "^13.1.0",

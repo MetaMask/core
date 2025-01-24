@@ -238,7 +238,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #pollState = PollState.Inactive;
 
-  #tokenPricesService: AbstractTokenPricesService;
+  readonly #tokenPricesService: AbstractTokenPricesService;
 
   #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
 
