@@ -1,11 +1,12 @@
+import type {
+    BlockTracker,
+    NetworkClientId,
+  } from '@metamask/network-controller';
+
 import {
   ResimulateHelper,
   type ResimulateHelperOptions,
 } from './ResimulateHelper';
-import type {
-  BlockTracker,
-  NetworkClientId,
-} from '@metamask/network-controller';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
 

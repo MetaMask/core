@@ -60,7 +60,7 @@ export class ResimulateHelper {
       });
 
       // Force stop any running active resimulation that are no longer unapproved transactions list
-      this.#activeResimulations.forEach(({ isActive }, id) => {
+      this.#activeResimulations.forEach((_, id) => {
         const resimulation = this.#activeResimulations.get(id);
         if (
           resimulation &&

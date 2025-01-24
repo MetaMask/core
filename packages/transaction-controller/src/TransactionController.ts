@@ -719,8 +719,6 @@ export class TransactionController extends BaseController<
 
   #multichainTrackingHelper: MultichainTrackingHelper;
 
-  #resimulateHelper: ResimulateHelper;
-
   /**
    * Method used to sign transactions
    */
@@ -929,7 +927,7 @@ export class TransactionController extends BaseController<
       this.#checkForPendingTransactionAndStartPolling,
     );
 
-    this.#resimulateHelper = new ResimulateHelper({
+    new ResimulateHelper({
       getBlockTracker: (networkClientId: NetworkClientId) => {
         const { blockTracker } = this.messagingSystem.call(
           `NetworkController:getNetworkClientById`,
