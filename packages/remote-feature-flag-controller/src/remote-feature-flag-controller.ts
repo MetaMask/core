@@ -98,7 +98,7 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #disabled: boolean;
 
-  #clientConfigApiService: AbstractClientConfigApiService;
+  readonly #clientConfigApiService: AbstractClientConfigApiService;
 
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
@@ -193,9 +193,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * @private
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags) {
-    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(
-      remoteFeatureFlags,
-    );
+    const processedRemoteFeatureFlags = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
     this.update(() => {
       return {
         remoteFeatureFlags: processedRemoteFeatureFlags,
