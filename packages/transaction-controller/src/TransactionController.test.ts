@@ -86,7 +86,7 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
-import { shouldResimulate } from './utils/resimulate';
+import { shouldResimulate } from './helpers/ResimulateHelper';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -115,7 +115,10 @@ jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
 jest.mock('./utils/layer1-gas-fee-flow');
-jest.mock('./utils/resimulate');
+jest.mock('./helpers/ResimulateHelper', () => ({
+  ...jest.requireActual('./helpers/ResimulateHelper'),
+  shouldResimulate: jest.fn(),
+}));
 jest.mock('./utils/simulation');
 jest.mock('./utils/swaps');
 jest.mock('uuid');
@@ -4881,7 +4884,6 @@ describe('TransactionController', () => {
     };
 
     it('adds a transaction, signs and update status to `approved`', async () => {
-      console.log("saddsaads")
       const { controller, mockTransactionApprovalRequest } = setupController({
         options: {
           hooks: {

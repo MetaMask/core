@@ -68,7 +68,12 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
-import { ResimulateHelper } from './helpers/ResimulateHelper';
+import type { ResimulateResponse } from './helpers/ResimulateHelper';
+import {
+  ResimulateHelper,
+  hasSimulationDataChanged,
+  shouldResimulate,
+} from './helpers/ResimulateHelper';
 import { projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
@@ -111,8 +116,6 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
-import type { ResimulateResponse } from './utils/resimulate';
-import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
@@ -1035,9 +1038,8 @@ export class TransactionController extends BaseController<
       );
     }
 
-    const isEIP1559Compatible = await this.getEIP1559Compatibility(
-      networkClientId,
-    );
+    const isEIP1559Compatible =
+      await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
 
