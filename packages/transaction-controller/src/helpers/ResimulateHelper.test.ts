@@ -1,11 +1,9 @@
+import { NetworkType } from '@metamask/controller-utils';
 import type {
   BlockTracker,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { NetworkType } from '@metamask/controller-utils';
 import { BN } from 'bn.js';
-
-import { CHAIN_IDS } from '../constants';
 
 import {
   type ResimulateHelperOptions,
@@ -17,6 +15,7 @@ import {
   shouldResimulate,
   VALUE_COMPARISON_PERCENT_THRESHOLD,
 } from './ResimulateHelper';
+import { CHAIN_IDS } from '../constants';
 import type {
   TransactionMeta,
   SecurityAlertResponse,

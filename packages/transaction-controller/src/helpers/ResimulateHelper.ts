@@ -2,10 +2,10 @@ import type {
   BlockTracker,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { BN } from 'bn.js';
-import { isEqual } from 'lodash';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
+import { BN } from 'bn.js';
+import { isEqual } from 'lodash';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import { TransactionStatus } from '../types';
@@ -40,7 +40,6 @@ export type ResimulateHelperOptions = {
   onStateChange: (listener: () => void) => void;
   updateSimulationData: (transactionMeta: TransactionMeta) => void;
 };
-
 
 export class ResimulateHelper {
   readonly #activeResimulations: Map<string, ResimulationState> = new Map();
@@ -153,6 +152,7 @@ export class ResimulateHelper {
 
 /**
  * Determine if a transaction should be resimulated.
+ *
  * @param originalTransactionMeta - The original transaction metadata.
  * @param newTransactionMeta - The new transaction metadata.
  * @returns Whether the transaction should be resimulated.
@@ -206,6 +206,7 @@ export function shouldResimulate(
 
 /**
  * Determine if the simulation data has changed.
+ *
  * @param originalSimulationData - The original simulation data.
  * @param newSimulationData - The new simulation data.
  * @returns Whether the simulation data has changed.
@@ -268,6 +269,7 @@ export function hasSimulationDataChanged(
 
 /**
  * Determine if the transaction parameters have been updated.
+ *
  * @param originalTransactionMeta - The original transaction metadata.
  * @param newTransactionMeta - The new transaction metadata.
  * @returns Whether the transaction parameters have been updated.
@@ -301,6 +303,7 @@ function isParametersUpdated(
 
 /**
  * Determine if a transaction has a new security alert.
+ *
  * @param originalTransactionMeta - The original transaction metadata.
  * @param newTransactionMeta - The new transaction metadata.
  * @returns Whether the transaction has a new security alert.
@@ -332,6 +335,7 @@ function hasNewSecurityAlert(
 
 /**
  * Determine if a transaction has a value and simulation native balance mismatch.
+ *
  * @param originalTransactionMeta - The original transaction metadata.
  * @param newTransactionMeta - The new transaction metadata.
  * @returns Whether the transaction has a value and simulation native balance mismatch.
@@ -367,6 +371,7 @@ function hasValueAndNativeBalanceMismatch(
 
 /**
  * Determine if a balance change has been updated.
+ *
  * @param originalBalanceChange - The original balance change.
  * @param newBalanceChange - The new balance change.
  * @returns Whether the balance change has been updated.
@@ -385,6 +390,7 @@ function isBalanceChangeUpdated(
 
 /**
  * Determine if the percentage change between two values is within a threshold.
+ *
  * @param originalValue - The original value.
  * @param newValue - The new value.
  * @param originalNegative - Whether the original value is negative.

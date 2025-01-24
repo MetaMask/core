@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adds ability of re-simulating transaction depending on the `isFocused` property on `transactionMeta` ([#5189](https://github.com/MetaMask/core/pull/5189))
+  - `isFocused` property is expected to set by client.
+
 ## [43.0.0]
 
 ### Added
