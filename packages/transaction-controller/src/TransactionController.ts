@@ -87,6 +87,8 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
   SubmitHistoryEntry,
+  TransactionBatchRequest,
+  TransactionBatchResult,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -132,6 +134,11 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+import {
+  isFinalStatus,
+  isLocalFinalStatus,
+} from './utils/status';
+import { addTransactionBatch } from './utils/batch';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -1010,11 +1017,7 @@ export class TransactionController extends BaseController<
 
     txParams = normalizeTransactionParams(txParams);
 
-    if (!this.#multichainTrackingHelper.has(networkClientId)) {
-      throw new Error(
-        `Network client not found - ${networkClientId as string}`,
-      );
-    }
+    this.#validateNetworkClientId(networkClientId);
 
     const isEIP1559Compatible = await this.getEIP1559Compatibility(
       networkClientId,
@@ -1144,6 +1147,18 @@ export class TransactionController extends BaseController<
       }),
       transactionMeta: addedTransactionMeta,
     };
+  }
+
+  async addTransactionBatch(
+    request: TransactionBatchRequest,
+  ): Promise<TransactionBatchResult> {
+    return await addTransactionBatch({
+      addTransaction: this.addTransaction.bind(this),
+      messenger: this.messagingSystem,
+      supportsEIP1559: this.getEIP1559Compatibility.bind(this),
+      userRequest: request,
+      validateNetworkClientId: this.#validateNetworkClientId.bind(this),
+    });
   }
 
   startIncomingTransactionPolling(chainIds: Hex[]) {
@@ -2716,7 +2731,7 @@ export class TransactionController extends BaseController<
             return true;
           } else if (
             nonceNetworkSet.size < this.#transactionHistoryLimit ||
-            !this.isFinalState(status)
+            !isFinalStatus(status)
           ) {
             nonceNetworkSet.add(key);
             return true;
@@ -2728,35 +2743,6 @@ export class TransactionController extends BaseController<
 
     txsToKeep.reverse(); // Ascending time order
     return txsToKeep;
-  }
-
-  /**
-   * Determines if the transaction is in a final state.
-   *
-   * @param status - The transaction status.
-   * @returns Whether the transaction is in a final state.
-   */
-  private isFinalState(status: TransactionStatus): boolean {
-    return (
-      status === TransactionStatus.rejected ||
-      status === TransactionStatus.confirmed ||
-      status === TransactionStatus.failed
-    );
-  }
-
-  /**
-   * Whether the transaction has at least completed all local processing.
-   *
-   * @param status - The transaction status.
-   * @returns Whether the transaction is in a final state.
-   */
-  private isLocalFinalState(status: TransactionStatus): boolean {
-    return [
-      TransactionStatus.confirmed,
-      TransactionStatus.failed,
-      TransactionStatus.rejected,
-      TransactionStatus.submitted,
-    ].includes(status);
   }
 
   private async requestApproval(
@@ -2824,7 +2810,7 @@ export class TransactionController extends BaseController<
       return { meta: undefined, isCompleted: false };
     }
 
-    const isCompleted = this.isLocalFinalState(transaction.status);
+    const isCompleted = isLocalFinalStatus(transaction.status);
 
     return { meta: transaction, isCompleted };
   }
@@ -3773,5 +3759,13 @@ export class TransactionController extends BaseController<
 
       submitHistory.unshift(submitHistoryEntry);
     });
+  }
+
+  #validateNetworkClientId(networkClientId: NetworkClientId) {
+    if (!this.#multichainTrackingHelper.has(networkClientId)) {
+      throw new Error(
+        `Network client not found - ${networkClientId as string}`,
+      );
+    }
   }
 }

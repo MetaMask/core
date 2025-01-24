@@ -1,5 +1,6 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
+import type { TraceContext } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
@@ -1373,3 +1374,32 @@ export type SubmitHistoryEntry = {
 export type InternalAccount = ReturnType<
   AccountsController['getSelectedAccount']
 >;
+
+export type TransactionBatchEntryRequest = {
+  params: TransactionParams;
+  required?: boolean;
+  swaps?: {
+    hasApproveTx?: boolean;
+    meta?: Partial<TransactionMeta>;
+  };
+  type?: TransactionType;
+};
+
+export type TransactionBatchEntryResult = {
+  transactionId: string;
+};
+
+export type TransactionBatchRequest = {
+  requests: TransactionBatchEntryRequest[];
+  networkClientId: NetworkClientId;
+  origin?: string;
+  requireApproval?: boolean;
+  sequential?: boolean;
+  traceContext?: TraceContext;
+};
+
+export type TransactionBatchResult = {
+  results: TransactionBatchEntryResult[];
+  waitForConfirm: () => Promise<void>;
+  waitForSubmit: () => Promise<void>;
+};
