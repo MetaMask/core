@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add utility function for reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143), [#5149](https://github.com/MetaMask/core/pull/5149), [#5188](https://github.com/MetaMask/core/pull/5188))
+- Add utility function for reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143), [#5149](https://github.com/MetaMask/core/pull/5149), [#5188](https://github.com/MetaMask/core/pull/5188), [#5192](https://github.com/MetaMask/core/pull/5192))
   - Add function `createServicePolicy`
   - Add constants `DEFAULT_CIRCUIT_BREAK_DURATION`, `DEFAULT_DEGRADED_THRESHOLD`, `DEFAULT_MAX_CONSECUTIVE_FAILURES`, and `DEFAULT_MAX_RETRIES`
   - Add types `ServicePolicy` and `CreateServicePolicyOptions`
+  - Re-export `BrokenCircuitError`, `CircuitState`, `handleAll`, and `handleWhen` from `cockatiel`
 
 ## [11.4.5]
 

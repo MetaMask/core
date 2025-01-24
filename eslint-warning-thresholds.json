@@ -15,7 +15,7 @@
   "jest/prefer-strict-equal": 2,
   "jsdoc/check-tag-names": 375,
   "jsdoc/require-returns": 25,
-  "jsdoc/tag-lines": 335,
+  "jsdoc/tag-lines": 334,
   "n/no-unsupported-features/node-builtins": 4,
   "n/prefer-global/text-encoder": 4,
   "n/prefer-global/text-decoder": 4,
