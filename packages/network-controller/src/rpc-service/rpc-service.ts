@@ -13,14 +13,14 @@ import deepmerge from 'deepmerge';
 import type { AbstractRpcService } from './abstract-rpc-service';
 
 /**
- * Equivalent to the built-in `FetchOptions` type, but renamed for clarity.
+ * Equivalent to the built-in `RequestInit` type, but renamed for clarity.
  */
 export type FetchOptions = RequestInit;
 
 /**
  * The list of error messages that represent a failure to reach the network.
  *
- * This list was derived from Sindre Sorhus's package `is-network-error`:
+ * This list was derived from Sindre Sorhus's `is-network-error` package:
  * <https://github.com/sindresorhus/is-network-error/blob/7bbfa8be9482ce1427a21fbff60e3ee1650dd091/index.js>
  */
 export const NETWORK_UNREACHABLE_ERRORS = new Set([
@@ -359,8 +359,8 @@ export class RpcService implements AbstractRpcService {
         };
       }
 
-      // Type annotation: We assume this if it's valid JSON, it's a valid
-      // JSON-RPC response.
+      // Type annotation: We assume that if this response is valid JSON, it's a
+      // valid JSON-RPC response.
       let json: JsonRpcResponse<Result>;
       try {
         json = JSON.parse(text);
