@@ -100,7 +100,7 @@ describe('TokenSearchDiscoveryController', () => {
 
       const response = await controller.searchTokens({
         chains: ['1'],
-        name: 'Test',
+        query: 'Test',
       });
 
       expect(response).toStrictEqual(mockSearchResults);

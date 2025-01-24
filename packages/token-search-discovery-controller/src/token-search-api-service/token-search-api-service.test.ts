@@ -72,20 +72,20 @@ describe('TokenSearchApiService', () => {
   describe('searchTokens', () => {
     it.each([
       {
-        params: { chains: ['1'], name: 'Test', limit: '10' },
+        params: { chains: ['1'], query: 'Test', limit: '10' },
         expectedUrl: new URL(
-          `${baseUrl}/tokens-search?chains=1&name=Test&limit=10`,
+          `${baseUrl}/tokens-search?chains=1&query=Test&limit=10`,
         ),
       },
       {
-        params: { chains: ['1', '137'], name: 'Test' },
+        params: { chains: ['1', '137'], query: 'Test' },
         expectedUrl: new URL(
-          `${baseUrl}/tokens-search?chains=1%2C137&name=Test`,
+          `${baseUrl}/tokens-search?chains=1%2C137&query=Test`,
         ),
       },
       {
-        params: { name: 'Test' },
-        expectedUrl: new URL(`${baseUrl}/tokens-search?name=Test`),
+        params: { query: 'Test' },
+        expectedUrl: new URL(`${baseUrl}/tokens-search?query=Test`),
       },
       {
         params: { chains: ['1'] },
@@ -123,7 +123,7 @@ describe('TokenSearchApiService', () => {
   describe('searchTokens response handling', () => {
     it.each([
       {
-        params: { chains: ['1'], name: 'Test', limit: '2' },
+        params: { chains: ['1'], query: 'Test', limit: '2' },
         mockResponse: mockResponses.allParams,
         description: 'all parameters',
       },
@@ -133,7 +133,7 @@ describe('TokenSearchApiService', () => {
         description: 'only chain parameter',
       },
       {
-        params: { name: 'Name' },
+        params: { query: 'Name' },
         mockResponse: mockResponses.onlyName,
         description: 'only name parameter',
       },
