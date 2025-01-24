@@ -32,7 +32,7 @@ export class ResimulateHelper {
     (latestBlockNumber: string) => Promise<void>
   > = new Map();
 
-  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => void;  
+  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => void;
 
   constructor({
     getBlockTracker,
@@ -59,10 +59,20 @@ export class ResimulateHelper {
         }
       });
 
-      // Force stop any running active resimulations that are no longer unapproved transactions list
+      // Force stop any running active resimulation that are no longer unapproved transactions list
       this.#activeResimulations.forEach(({ isActive }, id) => {
-        if (isActive && !unapprovedTransactionIds.has(id)) {
-          this.#forceStop(id);
+        const resimulation = this.#activeResimulations.get(id);
+        if (
+          resimulation &&
+          resimulation.isActive &&
+          !unapprovedTransactionIds.has(id)
+        ) {
+          this.stop({
+            id,
+            // Forcing this to false to ensure the resimulation is stopped
+            isFocused: false,
+            networkClientId: resimulation.networkClientId,
+          } as unknown as TransactionMeta);
         }
       });
     });
@@ -100,17 +110,6 @@ export class ResimulateHelper {
 
     this.#removeListener(id, resimulation.networkClientId);
     log(`Stopped resimulating transaction ${id} on new blocks`);
-  }
-
-  #forceStop(id: string) {
-    const resimulation = this.#activeResimulations.get(id);
-    if (!resimulation) {
-      /* istanbul ignore next */
-      return;
-    }
-
-    this.#removeListener(id, resimulation.networkClientId);
-    log(`Forced to stop resimulating transaction ${id} on new blocks`);
   }
 
   #removeListener(id: string, networkClientId: NetworkClientId) {
