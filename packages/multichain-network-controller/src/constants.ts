@@ -3,7 +3,7 @@ import { NetworkStatus } from '@metamask/network-controller';
 import type {
   MultichainNetworkConfiguration,
   MultichainNetworkMetadata,
-} from './multichain-network-controller';
+} from './MultichainNetworkController';
 
 export const bitcoinCaip2ChainId = 'bip122:000000000019d6689c085ae165831e93';
 export const solanaCaip2ChainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
