@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Introduce the logoUrl property to the TokenSearchApiService response
+
+### Changed
+
+- Update the TokenSearchApiService to use the updated URL for `searchTokens`
+  - The URL is now `/tokens-search` instead of `/tokens-search/name`
+
 ## [1.0.0]
 
 ### Added
