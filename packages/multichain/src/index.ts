@@ -7,9 +7,24 @@ export {
   addPermittedEthChainId,
   setPermittedEthChainIds,
 } from './adapters/caip-permission-adapter-permittedChains';
+export {
+  getInternalScopesObject,
+  getSessionScopes,
+} from './adapters/caip-permission-adapter-session-scopes';
+
+export { walletGetSession } from './handlers/wallet-getSession';
+export { walletInvokeMethod } from './handlers/wallet-invokeMethod';
+export { walletRevokeSession } from './handlers/wallet-revokeSession';
+
+export { multichainMethodCallValidatorMiddleware } from './middlewares/multichainMethodCallValidator';
+export { MultichainMiddlewareManager } from './middlewares/MultichainMiddlewareManager';
+export { MultichainSubscriptionManager } from './middlewares/MultichainSubscriptionManager';
 
 export type { Caip25Authorization } from './scope/authorization';
-export { validateAndNormalizeScopes } from './scope/authorization';
+export {
+  validateAndNormalizeScopes,
+  bucketScopes,
+} from './scope/authorization';
 export {
   KnownWalletRpcMethods,
   KnownRpcMethods,
@@ -17,6 +32,7 @@ export {
   KnownNotifications,
   KnownWalletScopeString,
 } from './scope/constants';
+export { getSupportedScopeObjects } from './scope/filter';
 export type {
   ExternalScopeString,
   ExternalScopeObject,
