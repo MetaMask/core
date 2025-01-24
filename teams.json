@@ -35,5 +35,6 @@
   "metamask/transaction-controller": "team-confirmations",
   "metamask/user-operation-controller": "team-confirmations",
   "metamask/multichain-transactions-controller": "team-sol,team-accounts",
-  "metamask/token-search-discovery-controller": "team-portfolio"
+  "metamask/token-search-discovery-controller": "team-portfolio",
+  "metamask/earn-controller": "team-stake"
 }
