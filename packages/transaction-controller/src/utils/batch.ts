@@ -1,3 +1,4 @@
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { waitForTransactionFinishedRemote } from './status';
@@ -44,7 +45,7 @@ export async function addTransactionBatch(
   log('Adding', request);
 
   const { supportsEIP1559, userRequest, validateNetworkClientId } = request;
-  const { networkClientId, requests } = userRequest;
+  const { networkClientId, requests, requireApproval } = userRequest;
 
   validateNetworkClientId(networkClientId);
 
@@ -58,6 +59,10 @@ export async function addTransactionBatch(
   }
 
   log('Validated', requests);
+
+  if (requireApproval !== false) {
+    await createApprovalRequest(request);
+  }
 
   const rawResults: ProcessTransactionResult[] = [];
 
@@ -212,4 +217,29 @@ async function waitForConfirmation(
   }
 
   log('Transaction was confirmed', transactionId);
+}
+
+/**
+ *
+ * @param request -
+ * @returns -
+ */
+async function createApprovalRequest(request: AddTransactionBatchRequest) {
+  const { messenger, userRequest } = request;
+  const { origin, requests } = userRequest;
+  const transactions = requests.map((entry) => entry.params);
+
+  const requestData = {
+    transactions,
+  };
+
+  return await messenger.call(
+    'ApprovalController:addRequest',
+    {
+      origin: origin || ORIGIN_METAMASK,
+      type: 'TransactionBatch',
+      requestData,
+    },
+    true,
+  );
 }

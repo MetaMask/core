@@ -1403,3 +1403,7 @@ export type TransactionBatchResult = {
   waitForConfirm: () => Promise<void>;
   waitForSubmit: () => Promise<void>;
 };
+
+export type TransactionBatchApprovalData = {
+  transactions: TransactionParams[];
+};
