@@ -85,6 +85,9 @@ describe('TokensController', () => {
   it('should set default state', async () => {
     await withController(({ controller }) => {
       expect(controller.state).toStrictEqual({
+        tokens: [],
+        ignoredTokens: [],
+        detectedTokens: [],
         allTokens: {},
         allIgnoredTokens: {},
         allDetectedTokens: {},
@@ -419,10 +422,6 @@ describe('TokensController', () => {
         });
         triggerSelectedAccountChange(secondAccount);
 
-        console.log(
-          'controller.state.allTokens ....',
-          controller.state.allTokens,
-        );
         expect(
           controller.state.allTokens[ChainId.mainnet][firstAccount.address][0],
         ).toStrictEqual({
@@ -736,14 +735,6 @@ describe('TokensController', () => {
             decimals: 3,
           });
 
-          console.log(
-            'controller.state.allTokens ....',
-            controller.state.allTokens[ChainId.sepolia],
-          );
-          console.log(
-            'controller.state.allIgnoredTokens ....',
-            controller.state.allIgnoredTokens,
-          );
           expect(
             controller.state.allIgnoredTokens[ChainId.sepolia],
           ).toBeUndefined();
@@ -757,12 +748,12 @@ describe('TokensController', () => {
           controller.ignoreTokens(['0xFAa']);
 
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
+            controller.state.allIgnoredTokens[ChainId.sepolia][
               selectedAccount.address
             ],
           ).toHaveLength(2);
           expect(
-            controller.state.allTokens[ChainId.mainnet][
+            controller.state.allTokens[ChainId.sepolia][
               selectedAccount.address
             ],
           ).toHaveLength(0);
@@ -773,12 +764,12 @@ describe('TokensController', () => {
             { address: '0x04', decimals: 4, symbol: 'foo', aggregators: [] },
           ]);
           expect(
-            controller.state.allTokens[ChainId.mainnet][
+            controller.state.allTokens[ChainId.sepolia][
               selectedAccount.address
             ],
           ).toHaveLength(3);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
+            controller.state.allIgnoredTokens[ChainId.sepolia][
               selectedAccount.address
             ],
           ).toHaveLength(1);
@@ -812,15 +803,13 @@ describe('TokensController', () => {
             decimals: 2,
           });
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           controller.ignoreTokens(['0x01']);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
             ],
           ).toHaveLength(1);
           expect(controller.state.allIgnoredTokens).toStrictEqual({
@@ -831,10 +820,8 @@ describe('TokensController', () => {
 
           controller.clearIgnoredTokens();
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
           expect(Object.keys(controller.state.allIgnoredTokens)).toHaveLength(
             0,
           );
@@ -867,24 +854,20 @@ describe('TokensController', () => {
             decimals: 2,
           });
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           controller.ignoreTokens(['0x01']);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount1.address
             ],
           ).toStrictEqual(['0x01']);
 
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           await controller.addToken({
             address: '0x02',
@@ -893,17 +876,17 @@ describe('TokensController', () => {
           });
           controller.ignoreTokens(['0x02']);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount1.address
             ],
           ).toStrictEqual(['0x02']);
 
           triggerSelectedAccountChange(selectedAccount2);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount2.address
             ],
-          ).toHaveLength(0);
+          ).toBeUndefined();
 
           await controller.addToken({
             address: '0x03',
@@ -912,8 +895,8 @@ describe('TokensController', () => {
           });
           controller.ignoreTokens(['0x03']);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount2.address
             ],
           ).toStrictEqual(['0x03']);
           expect(controller.state.allIgnoredTokens).toStrictEqual({
@@ -959,29 +942,25 @@ describe('TokensController', () => {
           });
           expect(
             controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(1);
           expect(
-            controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
           expect(
             controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toStrictEqual(['0x01']);
 
           // Verify that Goerli network has no ignored tokens
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           // Add and ignore a token on Goerli
           await controller.addToken({
@@ -991,13 +970,11 @@ describe('TokensController', () => {
           });
           controller.ignoreTokens(['0x02'], InfuraNetworkType.goerli);
           expect(
-            controller.state.allTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
+            controller.state.allTokens[ChainId.goerli][selectedAccount.address],
           ).toHaveLength(0);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount.address
             ],
           ).toStrictEqual(['0x02']);
 
@@ -1005,17 +982,17 @@ describe('TokensController', () => {
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           expect(
             controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toStrictEqual(['0x01']);
 
           // Switch to a different account on Goerli
           triggerSelectedAccountChange(otherAccount);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              otherAccount.address
             ],
-          ).toHaveLength(0);
+          ).toBeUndefined();
 
           // Add and ignore a token on the new account
           await controller.addToken({
@@ -1025,10 +1002,10 @@ describe('TokensController', () => {
           });
           controller.ignoreTokens(['0x03'], InfuraNetworkType.goerli);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              otherAccount.address
             ],
-          ).toStrictEqual([]);
+          ).toStrictEqual(['0x03']);
 
           // Validate the overall ignored tokens state
           expect(controller.state.allIgnoredTokens).toStrictEqual({
@@ -1070,14 +1047,12 @@ describe('TokensController', () => {
           });
           expect(
             controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(1);
           expect(
-            controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           // switch to goerli
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
@@ -1090,31 +1065,27 @@ describe('TokensController', () => {
           });
 
           expect(
-            controller.state.allTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
+            controller.state.allTokens[ChainId.goerli][selectedAccount.address],
           ).toHaveLength(1);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           // ignore token on sepolia
-          controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
+          controller.ignoreTokens(['0x01'], InfuraNetworkType.goerli);
 
           // as we are not on sepolia, tokens, ignoredTokens, and detectedTokens should not be affected
           expect(
             controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(1);
           expect(
-            controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
-          expect(controller.state.allDetectedTokens).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
+          expect(Object.keys(controller.state.allDetectedTokens)).toHaveLength(
+            0,
+          );
         },
       );
     });
@@ -1156,14 +1127,12 @@ describe('TokensController', () => {
 
           expect(
             controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(1);
           expect(
-            controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           // Ignore the token on sepolia
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
@@ -1171,15 +1140,17 @@ describe('TokensController', () => {
           // Ensure the tokens and ignoredTokens are updated for sepolia (globally selected network)
           expect(
             controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(0);
           expect(
             controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(1);
-          expect(controller.state.allDetectedTokens).toHaveLength(1);
+          expect(Object.keys(controller.state.allDetectedTokens)).toHaveLength(
+            1,
+          );
         },
       );
     });
@@ -1210,35 +1181,31 @@ describe('TokensController', () => {
           });
           expect(
             controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(1);
           expect(
-            controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.sepolia],
+          ).toBeUndefined();
 
           // Switch to Goerli network
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
-          ).toHaveLength(0);
+            controller.state.allIgnoredTokens[ChainId.goerli],
+          ).toBeUndefined();
 
           // Ignore the token on Sepolia
           controller.ignoreTokens(['0x01'], InfuraNetworkType.sepolia);
           expect(
             controller.state.allTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toHaveLength(0);
           expect(
             controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
-          ).toStrictEqual([]);
+          ).toStrictEqual(['0x01']);
 
           // Attempt to ignore a token that was added on Goerli
           await controller.addToken({
@@ -1248,27 +1215,25 @@ describe('TokensController', () => {
           });
           controller.ignoreTokens(['0x02'], InfuraNetworkType.goerli);
           expect(
-            controller.state.allTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
-            ],
+            controller.state.allTokens[ChainId.goerli][selectedAccount.address],
           ).toHaveLength(0);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.goerli][
+              selectedAccount.address
             ],
           ).toStrictEqual(['0x02']);
 
           // Verify that the ignored tokens from Sepolia are not retained
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
             ],
           ).toHaveLength(1);
           expect(
-            controller.state.allIgnoredTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+            controller.state.allIgnoredTokens[ChainId.sepolia][
+              selectedAccount.address
             ],
-          ).toStrictEqual(['0x02']);
+          ).toStrictEqual(['0x01']);
           expect(controller.state.allIgnoredTokens).toStrictEqual({
             [ChainId.sepolia]: {
               [selectedAddress]: ['0x01'],
@@ -1282,7 +1247,7 @@ describe('TokensController', () => {
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           expect(
             controller.state.allIgnoredTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
+              selectedAccount.address
             ],
           ).toStrictEqual(['0x01']);
         },
@@ -1607,7 +1572,7 @@ describe('TokensController', () => {
 
         await controller.addDetectedTokens([dummyDetectedToken]);
         expect(
-          controller.state.allDetectedTokens[ChainId.sepolia][
+          controller.state.allDetectedTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([dummyDetectedToken]);
@@ -1618,12 +1583,12 @@ describe('TokensController', () => {
           decimals: dummyDetectedToken.decimals,
         });
         expect(
-          controller.state.allDetectedTokens[ChainId.sepolia][
+          controller.state.allDetectedTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([]);
         expect(
-          controller.state.allTokens[ChainId.sepolia][
+          controller.state.allTokens[ChainId.mainnet][
             defaultMockInternalAccount.address
           ],
         ).toStrictEqual([dummyAddedToken]);
@@ -3021,24 +2986,20 @@ describe('TokensController', () => {
 
           await controller.addToken({ address, symbol, decimals });
 
-          console.log('salim 1111 ......', controller.state.allTokens);
-
-          expect(
-            controller.state.allTokens[ChainId.mainnet][
-              defaultMockInternalAccount.address
+          expect(controller.state.allTokens[ChainId.mainnet]['']).toStrictEqual(
+            [
+              {
+                address,
+                aggregators: [],
+                decimals,
+                image:
+                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
+                isERC721: true,
+                name: undefined,
+                symbol,
+              },
             ],
-          ).toStrictEqual([
-            {
-              address,
-              aggregators: [],
-              decimals,
-              image:
-                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
-              isERC721: true,
-              name: undefined,
-              symbol,
-            },
-          ]);
+          );
         });
       });
     });
@@ -3055,9 +3016,7 @@ describe('TokensController', () => {
           };
           await controller.addDetectedTokens([mockToken]);
           expect(
-            controller.state.allDetectedTokens[ChainId.sepolia][
-              defaultMockInternalAccount.address
-            ][0],
+            controller.state.allDetectedTokens[ChainId.mainnet][''][0],
           ).toStrictEqual({
             ...mockToken,
             image: undefined,
@@ -3085,9 +3044,7 @@ describe('TokensController', () => {
             await controller.watchAsset({ asset, type: 'ERC20' });
 
             expect(
-              controller.state.allTokens[ChainId.sepolia][
-                defaultMockInternalAccount.address
-              ],
+              controller.state.allTokens[ChainId.mainnet][''],
             ).toStrictEqual([
               {
                 address: '0x000000000000000000000000000000000000dEaD',
@@ -3177,6 +3134,26 @@ describe('TokensController', () => {
   describe('resetState', () => {
     it('resets the state to default state', async () => {
       const initialState: TokensControllerState = {
+        detectedTokens: [
+          {
+            address: '0x01',
+            symbol: 'barA',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+          },
+        ],
+        tokens: [
+          {
+            address: '0x02',
+            symbol: 'barB',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+          },
+        ],
         allTokens: {
           [ChainId.mainnet]: {
             '0x0001': [
@@ -3191,6 +3168,7 @@ describe('TokensController', () => {
             ],
           },
         },
+        ignoredTokens: ['0x03'],
         allIgnoredTokens: {
           [ChainId.mainnet]: {
             '0x0001': ['0x03'],
@@ -3223,6 +3201,9 @@ describe('TokensController', () => {
           controller.resetState();
 
           expect(controller.state).toStrictEqual({
+            tokens: [],
+            ignoredTokens: [],
+            detectedTokens: [],
             allTokens: {},
             allIgnoredTokens: {},
             allDetectedTokens: {},

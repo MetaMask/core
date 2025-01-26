@@ -80,14 +80,47 @@ type SuggestedAssetMeta = {
  * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
+ * @deprecated tokens - Use allTokens instead
+ * @deprecated ignoredTokens - Use allIgnoredTokens instead
+ * @deprecated detectedTokens - Use allDetectedTokens instead
  */
 export type TokensControllerState = {
+  /**
+   * @deprecated Use `allTokens` instead.
+   */
+  tokens: Token[];
+  /**
+   * @deprecated Use `allIgnoredTokens` instead.
+   */
+  ignoredTokens: string[];
+  /**
+   * @deprecated Use `allDetectedTokens` instead.
+   */
+  detectedTokens: Token[];
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
 };
 
 const metadata = {
+  tokens: {
+    persist: true,
+    anonymous: false,
+    // Deprecated: This field is no longer recommended. Use allTokens instead.
+    deprecated: true,
+  },
+  ignoredTokens: {
+    persist: true,
+    anonymous: false,
+    // Deprecated: This field is no longer recommended. Use allIgnoredTokens instead.
+    deprecated: true,
+  },
+  detectedTokens: {
+    persist: true,
+    anonymous: false,
+    // Deprecated: This field is no longer recommended. Use allDetectedTokens instead.
+    deprecated: true,
+  },
   allTokens: {
     persist: true,
     anonymous: false,
@@ -153,6 +186,12 @@ export type TokensControllerMessenger = RestrictedMessenger<
 
 export const getDefaultTokensState = (): TokensControllerState => {
   return {
+    // Deprecated: Use `allTokens` instead.
+    tokens: [],
+    // Deprecated: Use `allIgnoredTokens` instead.
+    ignoredTokens: [],
+    // Deprecated: Use `allDetectedTokens` instead.
+    detectedTokens: [],
     allTokens: {},
     allIgnoredTokens: {},
     allDetectedTokens: {},
@@ -397,11 +436,6 @@ export class TokensController extends BaseController<
       this.#getAddressOrSelectedAddress(interactingAddress);
     const isInteractingWithWalletAccount =
       this.#isInteractingWithWallet(accountAddress);
-
-    console.log(
-      'isInteractingWithWalletAccount ......',
-      isInteractingWithWalletAccount,
-    );
 
     try {
       address = toChecksumHexAddress(address);

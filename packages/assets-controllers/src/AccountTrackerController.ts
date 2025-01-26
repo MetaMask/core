@@ -53,8 +53,12 @@ export type AccountInformation = {
  *
  * Account tracker controller state
  * @property accounts - Map of addresses to account information
+ * @deprecated accounts - Use accountsByChainId instead.
  */
 export type AccountTrackerControllerState = {
+  /**
+   * @deprecated Use `accountsByChainId` instead.
+   */
   accounts: { [address: string]: AccountInformation };
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
 };
@@ -63,6 +67,8 @@ const accountTrackerMetadata = {
   accounts: {
     persist: true,
     anonymous: false,
+    // Deprecated: This field is no longer recommended. Use accountsByChainId instead.
+    deprecated: true,
   },
   accountsByChainId: {
     persist: true,
@@ -204,34 +210,35 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
   }
 
-  /**
-   * Gets the current chain ID.
-   * @returns The current chain ID.
-   */
-  #getCurrentChainId(): Hex {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    const {
-      configuration: { chainId },
-    } = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
-    return chainId;
-  }
+  // /**
+  //  * Gets the current chain ID.
+  //  * @returns The current chain ID.
+  //  */
+  // #getCurrentChainId(): Hex {
+  //   const { selectedNetworkClientId } = this.messagingSystem.call(
+  //     'NetworkController:getState',
+  //   );
+  //   const {
+  //     configuration: { chainId },
+  //   } = this.messagingSystem.call(
+  //     'NetworkController:getNetworkClientById',
+  //     selectedNetworkClientId,
+  //   );
+  //   return chainId;
+  // }
 
   private syncAccounts(newChainId: string) {
-    const accounts = { ...this.state.accounts };
+    // const accounts = { ...this.state.accounts };
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
 
-    const existing = Object.keys(accounts);
-    if (!accountsByChainId[newChainId]) {
-      accountsByChainId[newChainId] = {};
-      existing.forEach((address) => {
-        accountsByChainId[newChainId][address] = { balance: '0x0' };
-      });
-    }
+    console.log('salim 11111 .......', accountsByChainId, newChainId);
+    const existing = accountsByChainId[newChainId];
+    // if (!accountsByChainId[newChainId]) {
+    //   accountsByChainId[newChainId] = {};
+    //   existing.forEach((address) => {
+    //     accountsByChainId[newChainId][address] = { balance: '0x0' };
+    //   });
+    // }
 
     // Note: The address from the preferences controller are checksummed
     // The addresses from the accounts controller are lowercased
@@ -248,9 +255,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const oldAddresses = existing.filter(
       (address) => !addresses.includes(address),
     );
-    newAddresses.forEach((address) => {
-      accounts[address] = { balance: '0x0' };
-    });
+    // newAddresses.forEach((address) => {
+    //   accounts[address] = { balance: '0x0' };
+    // });
     Object.keys(accountsByChainId).forEach((chainId) => {
       newAddresses.forEach((address) => {
         accountsByChainId[chainId][address] = {
@@ -259,9 +266,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       });
     });
 
-    oldAddresses.forEach((address) => {
-      delete accounts[address];
-    });
+    // oldAddresses.forEach((address) => {
+    //   delete accounts[address];
+    // });
     Object.keys(accountsByChainId).forEach((chainId) => {
       oldAddresses.forEach((address) => {
         delete accountsByChainId[chainId][address];
@@ -269,7 +276,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     });
 
     this.update((state) => {
-      state.accounts = accounts;
+      // state.accounts = accounts;
       state.accountsByChainId = accountsByChainId;
     });
   }
@@ -333,13 +340,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       const { chainId, ethQuery } =
         this.#getCorrectNetworkClient(networkClientId);
       this.syncAccounts(chainId);
-      const { accounts, accountsByChainId } = this.state;
+      const { accountsByChainId } = this.state;
       const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
         'PreferencesController:getState',
       );
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
-        ? Object.keys(accounts)
+        ? Object.keys(accountsByChainId[chainId])
         : [toChecksumHexAddress(selectedAccount.address)];
 
       const accountsForChain = { ...accountsByChainId[chainId] };
@@ -365,9 +372,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       }
 
       this.update((state) => {
-        if (chainId === this.#getCurrentChainId()) {
-          state.accounts = accountsForChain;
-        }
+        // if (chainId === this.#getCurrentChainId()) {
+        //   state.accounts = accountsForChain;
+        // }
         state.accountsByChainId[chainId] = accountsForChain;
       });
     } finally {
