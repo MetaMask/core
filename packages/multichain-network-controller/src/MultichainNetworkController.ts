@@ -47,15 +47,17 @@ export type MultichainNetworkControllerState = {
   >;
   selectedMultichainNetworkChainId: string;
   multichainNetworksMetadata: Record<string, MultichainNetworkMetadata>;
+  nonEvmSelected: boolean;
 };
 
 /**
  * Default state of the {@link MultichainNetworkController}.
  */
 export const defaultState: MultichainNetworkControllerState = {
-  multichainNetworkConfigurationsByChainId: multichainNetworkConfigurations,
+  multichainNetworkConfigurationsByChainId: {},
   selectedMultichainNetworkChainId: bitcoinCaip2ChainId,
-  multichainNetworksMetadata: networksMetadata,
+  multichainNetworksMetadata: {},
+  nonEvmSelected: false,
 };
 
 /**
@@ -125,6 +127,7 @@ const multichainNetworkControllerMetadata = {
   multichainNetworkConfigurationsByChainId: { persist: true, anonymous: false },
   selectedMultichainNetworkChainId: { persist: true, anonymous: false },
   multichainNetworksMetadata: { persist: true, anonymous: false },
+  nonEvmSelected: { persist: true, anonymous: false },
 };
 
 /**
@@ -154,40 +157,25 @@ export class MultichainNetworkController extends BaseController<
     });
   }
 
-  async setActiveNetwork(
-    networkConfigurationId: string,
-    chainId?: string,
-  ): Promise<void> {
-    console.log(
-      'start setActiveNetwork in MultichainNetworkController',
-      networkConfigurationId,
-      chainId,
-    );
+  async setActiveNetwork(clientId: string, chainId?: string): Promise<void> {
     if (chainId && Object.keys(this.state).includes(chainId)) {
-      console.log(
-        'MultichainNetworkController: update network configuration',
-        networkConfigurationId,
-        chainId,
-      );
       this.update((state: Draft<MultichainNetworkControllerState>) => {
         state.selectedMultichainNetworkChainId = chainId;
-        // state.nonEvmSelected = true;
+        state.nonEvmSelected = true;
       });
       return;
     }
 
-    console.log(
-      'MultichainNetworkController: update network configuration on NetworkController',
-      networkConfigurationId,
-      chainId,
-    );
-    // this.update((state: Draft<MultichainNetworkControllerState>) => {
-    //   state.nonEvmSelected = false;
-    // });
+    this.update((state: Draft<MultichainNetworkControllerState>) => {
+      state.nonEvmSelected = false;
+    });
 
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
-      networkConfigurationId,
+      clientId,
     );
+
+    // TO DO: Should emit event to notify that the network has changed
+    // so the accounts-controller can update the selected account
   }
 }
