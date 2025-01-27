@@ -17,9 +17,11 @@ enablePatches();
  * @returns True if the controller is an instance of `BaseController`
  */
 export function isBaseController(
-  controller: ControllerInstance,
+  controller: unknown,
 ): controller is BaseControllerInstance {
   return (
+    typeof controller === 'object' &&
+    controller !== null &&
     'name' in controller &&
     typeof controller.name === 'string' &&
     'state' in controller &&
