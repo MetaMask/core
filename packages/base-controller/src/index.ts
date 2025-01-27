@@ -1,9 +1,7 @@
 export type {
   BaseControllerInstance,
-  ControllerInstance,
   Listener as ListenerV2,
   StateConstraint,
-  LegacyControllerStateConstraint,
   StateDeriver,
   StateDeriverConstraint,
   StateMetadata,

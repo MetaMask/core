@@ -2,10 +2,6 @@ import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
-import type {
-  BaseControllerV1Instance,
-  StateConstraint as StateConstraintV1,
-} from './BaseControllerV1';
 import type { ActionConstraint, EventConstraint } from './Messenger';
 import type {
   RestrictedMessenger,
@@ -39,14 +35,6 @@ export function isBaseController(
  * In other words, the narrowest supertype encompassing all controller state.
  */
 export type StateConstraint = Record<string, Json>;
-
-/**
- * A universal supertype for the controller state object, encompassing both `BaseControllerV1` and `BaseControllerV2` state.
- */
-// TODO: Remove once BaseControllerV2 migrations are completed for all controllers.
-export type LegacyControllerStateConstraint =
-  | StateConstraintV1
-  | StateConstraint;
 
 /**
  * A state change listener.
@@ -141,15 +129,6 @@ export type BaseControllerInstance = Omit<
 > & {
   metadata: StateMetadataConstraint;
 };
-
-/**
- * A widest subtype of all controller instances that inherit from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
- * Any `BaseController` or `BaseControllerV1` subclass instance can be assigned to this type.
- */
-// TODO: Remove once BaseControllerV2 migrations are completed for all controllers.
-export type ControllerInstance =
-  | BaseControllerV1Instance
-  | BaseControllerInstance;
 
 export type ControllerGetStateAction<
   ControllerName extends string,
