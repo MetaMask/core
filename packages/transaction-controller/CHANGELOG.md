@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Replaced `eth-method-registry` dependency with `@ethersproject/abi` for ABI method lookups ([#5203](https://github.com/MetaMask/core/pull/5203))
+  - The `MethodDataHelper` class now uses ethers.js `Interface` class to parse and lookup method signatures
+  - Method data is now derived directly from the ABI interface
+  - The structure of returned method data remains compatible with previous implementation
+
 ## [43.0.0]
 
 ### Added
