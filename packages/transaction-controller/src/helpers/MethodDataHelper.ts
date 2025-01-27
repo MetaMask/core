@@ -1,7 +1,7 @@
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import { Interface } from '@ethersproject/abi';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import { MethodRegistry } from 'eth-method-registry';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
@@ -14,26 +14,17 @@ const log = createModuleLogger(projectLogger, 'method-data');
 export class MethodDataHelper {
   hub: EventEmitter;
 
-  #getProvider: (networkClientId: NetworkClientId) => Provider;
-
   #getState: () => Record<string, MethodData>;
 
-  #methodRegistryByNetworkClientId: Map<NetworkClientId, MethodRegistry>;
+  #interfaceByNetworkClientId: Map<NetworkClientId, Interface>;
 
   #mutex = new Mutex();
 
-  constructor({
-    getProvider,
-    getState,
-  }: {
-    getProvider: (networkClientId: NetworkClientId) => Provider;
-    getState: () => Record<string, MethodData>;
-  }) {
+  constructor({ getState }: { getState: () => Record<string, MethodData> }) {
     this.hub = new EventEmitter();
 
-    this.#getProvider = getProvider;
     this.#getState = getState;
-    this.#methodRegistryByNetworkClientId = new Map();
+    this.#interfaceByNetworkClientId = new Map();
   }
 
   async lookup(
@@ -52,20 +43,15 @@ export class MethodDataHelper {
         return cachedResult;
       }
 
-      let registry = this.#methodRegistryByNetworkClientId.get(networkClientId);
+      let iface = this.#interfaceByNetworkClientId.get(networkClientId);
 
-      if (!registry) {
-        const provider = this.#getProvider(networkClientId);
-
-        // @ts-expect-error Type in eth-method-registry is inappropriate and should be changed
-        registry = new MethodRegistry({ provider });
-
-        this.#methodRegistryByNetworkClientId.set(networkClientId, registry);
-
-        log('Created registry', networkClientId);
+      if (!iface) {
+        iface = new Interface([]);
+        this.#interfaceByNetworkClientId.set(networkClientId, iface);
+        log('Created interface', networkClientId);
       }
 
-      const methodData = await this.#registryLookup(fourBytePrefix, registry);
+      const methodData = await this.#interfaceLookup(fourBytePrefix, iface);
 
       log('Result', methodData);
 
@@ -77,25 +63,25 @@ export class MethodDataHelper {
     }
   }
 
-  async #registryLookup(
+  async #interfaceLookup(
     fourBytePrefix: string,
-    methodRegistry: MethodRegistry,
+    iface: Interface,
   ): Promise<MethodData> {
-    const registryMethod = await methodRegistry.lookup(fourBytePrefix);
-
-    if (!registryMethod) {
-      log('No method found', fourBytePrefix);
-
+    try {
+      const functionFragment = iface.getFunction(fourBytePrefix);
+      return {
+        registryMethod: functionFragment.format(),
+        parsedRegistryMethod: {
+          name: functionFragment.name,
+          args: functionFragment.inputs.map(({ type }) => ({ type })),
+        },
+      };
+    } catch {
+      log('No method found or invalid signature', fourBytePrefix);
       return {
         registryMethod: '',
         parsedRegistryMethod: { name: undefined, args: undefined },
       };
     }
-
-    log('Parsing', registryMethod);
-
-    const parsedRegistryMethod = methodRegistry.parse(registryMethod);
-
-    return { registryMethod, parsedRegistryMethod };
   }
 }

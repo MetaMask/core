@@ -1,9 +1,9 @@
-import { MethodRegistry } from 'eth-method-registry';
+import { type FunctionFragment, Interface } from '@ethersproject/abi';
 
-import type { MethodData } from '../TransactionController';
 import { MethodDataHelper } from './MethodDataHelper';
+import type { MethodData } from '../TransactionController';
 
-jest.mock('eth-method-registry');
+jest.mock('@ethersproject/abi');
 
 const FOUR_BYTE_PREFIX_MOCK = '0x12345678';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
@@ -18,18 +18,18 @@ const METHOD_DATA_MOCK: MethodData = {
 };
 
 /**
- * Creates a mock MethodRegistry instance.
- * @returns The mocked MethodRegistry instance.
+ * Creates a mock Interface instance.
+ *
+ * @returns The mocked Interface instance.
  */
-function createMethodRegistryMock() {
+function createInterfaceMock() {
   return {
-    lookup: jest.fn(),
-    parse: jest.fn(),
-  } as unknown as jest.Mocked<MethodRegistry>;
+    getFunction: jest.fn(),
+  } as unknown as jest.Mocked<Interface>;
 }
 
 describe('MethodDataHelper', () => {
-  const methodRegistryClassMock = jest.mocked(MethodRegistry);
+  const interfaceClassMock = jest.mocked(Interface);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -38,7 +38,6 @@ describe('MethodDataHelper', () => {
   describe('lookup', () => {
     it('returns method data from cache', async () => {
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
         getState: () => ({ [FOUR_BYTE_PREFIX_MOCK]: METHOD_DATA_MOCK }),
       });
 
@@ -50,17 +49,17 @@ describe('MethodDataHelper', () => {
       expect(result).toStrictEqual(METHOD_DATA_MOCK);
     });
 
-    it('returns method data from registry lookup', async () => {
-      const methodRegistryMock = createMethodRegistryMock();
-      methodRegistryMock.lookup.mockResolvedValueOnce(SIGNATURE_MOCK);
-      methodRegistryMock.parse.mockReturnValueOnce(
-        METHOD_DATA_MOCK.parsedRegistryMethod,
-      );
+    it('returns method data from interface lookup', async () => {
+      const interfaceMock = createInterfaceMock();
+      interfaceMock.getFunction.mockReturnValueOnce({
+        name: 'testMethod',
+        inputs: [{ type: 'uint256' }, { type: 'uint256' }],
+        format: jest.fn(() => SIGNATURE_MOCK),
+      } as unknown as FunctionFragment);
 
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      interfaceClassMock.mockReturnValueOnce(interfaceMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
         getState: () => ({}),
       });
 
@@ -72,14 +71,15 @@ describe('MethodDataHelper', () => {
       expect(result).toStrictEqual(METHOD_DATA_MOCK);
     });
 
-    it('returns empty method data if not found in registry', async () => {
-      const methodRegistryMock = createMethodRegistryMock();
-      methodRegistryMock.lookup.mockResolvedValueOnce(undefined);
+    it('returns empty method data if not found in interface', async () => {
+      const interfaceMock = createInterfaceMock();
+      interfaceMock.getFunction.mockImplementationOnce(() => {
+        throw new Error('Function not found');
+      });
 
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      interfaceClassMock.mockReturnValueOnce(interfaceMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
         getState: () => ({}),
       });
 
@@ -94,16 +94,15 @@ describe('MethodDataHelper', () => {
       });
     });
 
-    it('creates registry instance for each unique network client ID', async () => {
-      const getProviderMock = jest.fn();
+    it('creates interface instance for each unique network client ID', async () => {
+      const interfaceMock = createInterfaceMock();
+      interfaceMock.getFunction.mockImplementationOnce(() => {
+        throw new Error('Function not found');
+      });
 
-      const methodRegistryMock = createMethodRegistryMock();
-      methodRegistryMock.lookup.mockResolvedValueOnce(undefined);
-
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      interfaceClassMock.mockReturnValueOnce(interfaceMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: getProviderMock,
         getState: () => ({}),
       });
 
@@ -122,21 +121,20 @@ describe('MethodDataHelper', () => {
         'anotherNetworkClientId',
       );
 
-      expect(methodRegistryClassMock).toHaveBeenCalledTimes(2);
-      expect(getProviderMock).toHaveBeenCalledTimes(2);
+      expect(interfaceClassMock).toHaveBeenCalledTimes(2);
     });
 
     it('emits event when method data is fetched', async () => {
-      const methodRegistryMock = createMethodRegistryMock();
-      methodRegistryMock.lookup.mockResolvedValueOnce(SIGNATURE_MOCK);
-      methodRegistryMock.parse.mockReturnValueOnce(
-        METHOD_DATA_MOCK.parsedRegistryMethod,
-      );
+      const interfaceMock = createInterfaceMock();
+      interfaceMock.getFunction.mockReturnValueOnce({
+        name: 'testMethod',
+        inputs: [{ type: 'uint256' }, { type: 'uint256' }],
+        format: jest.fn(() => SIGNATURE_MOCK),
+      } as unknown as FunctionFragment);
 
-      methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
+      interfaceClassMock.mockReturnValueOnce(interfaceMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
         getState: () => ({}),
       });
 

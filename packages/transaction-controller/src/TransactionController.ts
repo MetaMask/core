@@ -881,7 +881,6 @@ export class TransactionController extends BaseController<
     );
 
     this.#methodDataHelper = new MethodDataHelper({
-      getProvider: (networkClientId) => this.#getProvider({ networkClientId }),
       getState: () => this.state.methodData,
     });
 
