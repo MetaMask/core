@@ -214,31 +214,33 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   //  * Gets the current chain ID.
   //  * @returns The current chain ID.
   //  */
-  // #getCurrentChainId(): Hex {
-  //   const { selectedNetworkClientId } = this.messagingSystem.call(
-  //     'NetworkController:getState',
-  //   );
-  //   const {
-  //     configuration: { chainId },
-  //   } = this.messagingSystem.call(
-  //     'NetworkController:getNetworkClientById',
-  //     selectedNetworkClientId,
-  //   );
-  //   return chainId;
-  // }
+  #getCurrentChainId(): Hex {
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    return chainId;
+  }
 
   private syncAccounts(newChainId: string) {
     // const accounts = { ...this.state.accounts };
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
 
-    console.log('salim 11111 .......', accountsByChainId, newChainId);
-    const existing = accountsByChainId[newChainId];
-    // if (!accountsByChainId[newChainId]) {
-    //   accountsByChainId[newChainId] = {};
-    //   existing.forEach((address) => {
-    //     accountsByChainId[newChainId][address] = { balance: '0x0' };
-    //   });
-    // }
+    console.log('salim 11111 .......', accountsByChainId[newChainId]);
+    const existing = Object.keys(accountsByChainId?.[newChainId] ?? {});
+
+    // const existing = accountsByChainId[newChainId];
+    if (!accountsByChainId[newChainId]) {
+      accountsByChainId[newChainId] = {};
+      existing.forEach((address) => {
+        accountsByChainId[newChainId][address] = { balance: '0x0' };
+      });
+    }
 
     // Note: The address from the preferences controller are checksummed
     // The addresses from the accounts controller are lowercased
@@ -340,13 +342,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       const { chainId, ethQuery } =
         this.#getCorrectNetworkClient(networkClientId);
       this.syncAccounts(chainId);
-      const { accountsByChainId } = this.state;
+      const { accounts, accountsByChainId } = this.state;
       const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
         'PreferencesController:getState',
       );
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
-        ? Object.keys(accountsByChainId[chainId])
+        ? Object.keys(accounts)
         : [toChecksumHexAddress(selectedAccount.address)];
 
       const accountsForChain = { ...accountsByChainId[chainId] };
@@ -372,9 +374,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       }
 
       this.update((state) => {
-        // if (chainId === this.#getCurrentChainId()) {
-        //   state.accounts = accountsForChain;
-        // }
+        if (chainId === this.#getCurrentChainId()) {
+          state.accounts = accountsForChain;
+        }
         state.accountsByChainId[chainId] = accountsForChain;
       });
     } finally {

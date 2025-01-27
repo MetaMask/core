@@ -399,6 +399,7 @@ describe('AccountTrackerController', () => {
           },
           async ({ controller }) => {
             await controller.refresh(networkClientId);
+            console.log('salim 22222 .......', controller.state);
             expect(controller.state).toStrictEqual({
               accounts: {
                 // [checksumAddress1]: { balance: '0x1' },
