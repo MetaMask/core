@@ -2,7 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
-  AccountsControllerAccountBalancesUpdatesEvent
+  AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -11,7 +11,7 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import type { Balance, CaipAssetType } from '@metamask/keyring-api';
+import type { Balance, CaipAssetType, AccountBalancesUpdatedEventPayload } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -115,23 +115,6 @@ export type MultichainBalancesControllerMessenger =
     AllowedActions['type'],
     AllowedEvents['type']
   >;
-
-/**
- * Event emitted by AccountsController, when the balances of an account are updated.
- */
-type AccountBalancesUpdatedEvent = {
-  type: 'AccountsController:accountBalancesUpdated';
-  payload: {
-    balances: {
-      [accountId: string]: {
-        [assetId: CaipAssetType]: {
-          amount: string;
-          unit: string;
-        };
-      };
-    };
-  };
-};
 
 /**
  * {@link MultichainBalancesController}'s metadata.
@@ -340,16 +323,20 @@ export class MultichainBalancesController extends BaseController<
    *
    * @param balanceUpdate - The balance update event containing new balances.
    */
-    #handleOnAccountBalancesUpdated(balanceUpdate: AccountBalancesUpdatedEvent): void {
-      this.update((state: Draft<MultichainBalancesControllerState>) => {
-        Object.entries(balanceUpdate.balances).forEach(([accountId, assetBalances]) => {
+  #handleOnAccountBalancesUpdated(
+    balanceUpdate: AccountBalancesUpdatedEventPayload,
+  ): void {
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      Object.entries(balanceUpdate.balances).forEach(
+        ([accountId, assetBalances]) => {
           if (!state.balances[accountId]) {
             state.balances[accountId] = {};
           }
           Object.assign(state.balances[accountId], assetBalances);
-        });
-      });
-    }
+        },
+      );
+    });
+  }
 
   /**
    * Handles changes when a new account has been removed.

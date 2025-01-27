@@ -10,7 +10,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { isEvmAccountType, type Transaction } from '@metamask/keyring-api';
+import { isEvmAccountType, type Transaction, type AccountTransactionsUpdatedEventPayload } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -121,16 +121,6 @@ export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountTransactionsUpdatedEvent;
-
-/**
- * Event emitted when the transactions of an account are updated (added or
- * changed).
- */
-type AccountTransactionsUpdatedEvent = {
-  transactions: {
-    [accountId: string]: Transaction[];
-  };
-};
 
 /**
  * {@link MultichainTransactionsController}'s metadata.
@@ -392,14 +382,20 @@ export class MultichainTransactionsController extends BaseController<
    *
    * @param transactionsUpdate - The transaction update event containing new transactions.
    */
-  #handleOnAccountTransactionsUpdated(transactionsUpdate: AccountTransactionsUpdatedEvent): void {
+  #handleOnAccountTransactionsUpdated(
+    transactionsUpdate: AccountTransactionsUpdatedEventPayload,
+  ): void {
     this.update((state: Draft<MultichainTransactionsControllerState>) => {
-      Object.entries(transactionsUpdate.transactions).forEach(([accountId, transactions]) => {
-        if (this.#tracker.isTracked(accountId) && state.nonEvmTransactions[accountId]) {
-          state.nonEvmTransactions[accountId].transactions = transactions;
+      Object.entries(transactionsUpdate.transactions).forEach(
+        ([accountId, transactions]) => {
+          if (
+            this.#tracker.isTracked(accountId) &&
+            state.nonEvmTransactions[accountId]
+          ) {
+            state.nonEvmTransactions[accountId].transactions = transactions;
             state.nonEvmTransactions[accountId].lastUpdated = Date.now();
           }
-        }
+        },
       );
     });
   }
