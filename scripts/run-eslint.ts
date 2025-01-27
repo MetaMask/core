@@ -44,7 +44,7 @@ main().catch((error) => {
 async function main() {
   const { cache, fix, quiet } = parseCommandLineArguments();
 
-  const eslint = new ESLint({ cache, fix });
+  const eslint = new ESLint({ cache });
   const results = await runESLint(eslint, { fix, quiet });
   const hasErrors = results.some((result) => result.errorCount > 0);
 
