@@ -10,7 +10,11 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { isEvmAccountType, type Transaction, type AccountTransactionsUpdatedEventPayload } from '@metamask/keyring-api';
+import {
+  isEvmAccountType,
+  type Transaction,
+  type AccountTransactionsUpdatedEventPayload,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';

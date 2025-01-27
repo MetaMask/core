@@ -11,7 +11,11 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import type { Balance, CaipAssetType, AccountBalancesUpdatedEventPayload } from '@metamask/keyring-api';
+import type {
+  Balance,
+  CaipAssetType,
+  AccountBalancesUpdatedEventPayload,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
