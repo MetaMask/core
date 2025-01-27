@@ -1,5 +1,12 @@
 import type { ServicePolicy } from '@metamask/controller-utils';
-import type { Json } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcParams,
+  JsonRpcRequest,
+  JsonRpcResponse,
+} from '@metamask/utils';
+
+import type { FetchOptions } from './shared';
 
 /**
  * The interface for a service class responsible for making a request to an RPC
@@ -8,5 +15,8 @@ import type { Json } from '@metamask/utils';
 export type AbstractRpcService = Partial<
   Pick<ServicePolicy, 'onBreak' | 'onRetry' | 'onDegraded'>
 > & {
-  request(options?: RequestInit): Promise<Json>;
+  request<Params extends JsonRpcParams, Result extends Json>(
+    jsonRpcRequest: JsonRpcRequest<Params>,
+    fetchOptions?: FetchOptions,
+  ): Promise<JsonRpcResponse<Result | null>>;
 };

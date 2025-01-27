@@ -11,11 +11,7 @@ import {
 import deepmerge from 'deepmerge';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
-
-/**
- * Equivalent to the built-in `RequestInit` type, but renamed for clarity.
- */
-export type FetchOptions = RequestInit;
+import type { FetchOptions } from './shared';
 
 /**
  * The list of error messages that represent a failure to reach the network.
