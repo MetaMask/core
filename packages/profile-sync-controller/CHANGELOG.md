@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
+
 ## [4.1.1]
 
 ### Changed

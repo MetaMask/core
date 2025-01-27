@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
+
 ### Added
 
 - Add `onBreak` and `onDegraded` methods to `CodefiTokenPricesServiceV2` ([#5109](https://github.com/MetaMask/core/pull/5109))
