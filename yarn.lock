@@ -2696,6 +2696,7 @@ __metadata:
   resolution: "@metamask/earn-controller@workspace:packages/earn-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/stake-sdk": "npm:^1.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -2704,6 +2705,10 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@ethersproject/providers": ^5.7.0
+    "@metamask/controller-utils": ^11.4.5
+    "@metamask/network-controller": ^22.0.0
   languageName: unknown
   linkType: soft
 

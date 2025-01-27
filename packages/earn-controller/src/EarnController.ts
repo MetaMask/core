@@ -1,33 +1,25 @@
+import { Web3Provider } from '@ethersproject/providers';
 import type {
-  ActionConstraint,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { convertHexToDecimal } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
-  NetworkControllerStateChangeEvent,
-  NetworkState,
 } from '@metamask/network-controller';
-import {
-  StakeSdk as EarnSDK,
-  StakingType,
-  type StakeSdkConfig,
-  isSupportedChain,
-} from '@metamask/stake-sdk';
-import { Web3Provider } from '@ethersproject/providers';
-import { convertHexToDecimal } from '@metamask/controller-utils';
+import { StakeSdk as EarnSDK, type StakeSdkConfig } from '@metamask/stake-sdk';
 
 export const controllerName = 'EarnController';
 
 // === STATE ===
 
 /**
- * @type EarnOpportunity - Represents an earning opportunity
+ * EarnOpportunity - Represents an earning opportunity
  */
 export type EarnOpportunity = {
   protocol: string;
@@ -181,16 +173,13 @@ export class EarnController extends BaseController<
     // Listen for network changes
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
-      async ({ selectedNetworkClientId }) => {
-        await this.#initializeSDK(selectedNetworkClientId);
+      ({ selectedNetworkClientId }) => {
+        this.#initializeSDK(selectedNetworkClientId);
       },
     );
   }
 
-  /**
-   * Initialize the SDK based on network client ID
-   */
-  async #initializeSDK(networkClientId?: string) {
+  #initializeSDK(networkClientId?: string) {
     const { selectedNetworkClientId } = networkClientId
       ? { selectedNetworkClientId: networkClientId }
       : this.messagingSystem.call('NetworkController:getState');
@@ -206,7 +195,7 @@ export class EarnController extends BaseController<
     }
 
     const provider = new Web3Provider(networkClient.provider);
-    const chainId = networkClient.configuration.chainId;
+    const { chainId } = networkClient.configuration;
 
     // Initialize appropriate contracts based on chainId
     const config: StakeSdkConfig = {
@@ -222,10 +211,6 @@ export class EarnController extends BaseController<
     }
   }
 
-  /**
-   * Get current SDK instance
-   * @throws If SDK is not initialized
-   */
   #getSDK(): EarnSDK {
     if (!this.earnSDK) {
       throw new Error('EarnSDK not initialized');
