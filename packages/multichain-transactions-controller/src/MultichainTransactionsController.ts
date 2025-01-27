@@ -199,7 +199,7 @@ export class MultichainTransactionsController extends BaseController<
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountTransactionsUpdated',
-      (transactionsUpdate: AccountTransactionsUpdatedEvent) =>
+      (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
         this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
     );
   }
