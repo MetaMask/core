@@ -14,7 +14,7 @@ describe('TokenSearchApiService', () => {
         tokenAddress: '0x1',
         usdPrice: 100,
         usdPricePercentChange: { oneDay: 10 },
-        logoUrl: 'https://example.com/api/v1/tokenIcons/1/0x1.png',
+        logoUrl: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x1.png',
       },
       {
         name: 'Token2',
@@ -23,7 +23,6 @@ describe('TokenSearchApiService', () => {
         tokenAddress: '0x2',
         usdPrice: 200,
         usdPricePercentChange: { oneDay: 20 },
-        logoUrl: 'https://example.com/api/v1/tokenIcons/1/0x2.png',
       },
     ],
     onlyChain: [
@@ -34,7 +33,7 @@ describe('TokenSearchApiService', () => {
         tokenAddress: '0x3',
         usdPrice: 300,
         usdPricePercentChange: { oneDay: 30 },
-        logoUrl: 'https://example.com/api/v1/tokenIcons/1/0x3.png',
+        logoUrl: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x3.png',
       },
     ],
     onlyName: [
@@ -45,7 +44,6 @@ describe('TokenSearchApiService', () => {
         tokenAddress: '0x4',
         usdPrice: 400,
         usdPricePercentChange: { oneDay: 40 },
-        logoUrl: 'https://example.com/api/v1/tokenIcons/1/0x4.png',
       },
     ],
   };

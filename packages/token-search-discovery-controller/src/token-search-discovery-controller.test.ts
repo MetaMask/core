@@ -35,7 +35,7 @@ describe('TokenSearchDiscoveryController', () => {
       usdPricePercentChange: {
         oneDay: 10,
       },
-      logoUrl: 'https://example.com/api/v1/tokenIcons/1/0x123.png',
+      // no logoUrl to test optional case
     },
   ];
 
