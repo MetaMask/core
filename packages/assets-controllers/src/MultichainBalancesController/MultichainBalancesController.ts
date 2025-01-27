@@ -2,7 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
-  AccountsControllerAccountBalancesUpdatedEvent,
+  AccountsControllerAccountBalancesUpdatesEvent
 } from '@metamask/accounts-controller';
 import {
   BaseController,
