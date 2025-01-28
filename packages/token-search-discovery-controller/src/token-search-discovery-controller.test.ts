@@ -35,6 +35,7 @@ describe('TokenSearchDiscoveryController', () => {
       usdPricePercentChange: {
         oneDay: 10,
       },
+      // no logoUrl to test optional case
     },
   ];
 
@@ -99,7 +100,7 @@ describe('TokenSearchDiscoveryController', () => {
 
       const response = await controller.searchTokens({
         chains: ['1'],
-        name: 'Test',
+        query: 'Test',
       });
 
       expect(response).toStrictEqual(mockSearchResults);
