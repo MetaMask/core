@@ -117,7 +117,6 @@ export class RpcService implements AbstractRpcService {
     btoa: typeof btoa;
     endpointUrl: URL | string;
     fetchOptions?: FetchOptions;
-    failoverService?: AbstractRpcService;
   }) {
     this.#fetch = givenFetch;
     this.#endpointUrl = getNormalizedEndpointUrl(endpointUrl);
