@@ -2707,6 +2707,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@ethersproject/providers": ^5.7.0
+    "@metamask/accounts-controller": ^21.0.0
     "@metamask/controller-utils": ^11.4.5
     "@metamask/network-controller": ^22.0.0
   languageName: unknown

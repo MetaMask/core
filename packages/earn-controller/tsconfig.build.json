@@ -12,6 +12,9 @@
     },
     {
       "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../accounts-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]
