@@ -96,6 +96,7 @@ import {
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
+import { addTransactionBatch } from './utils/batch';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
@@ -116,6 +117,7 @@ import type { ResimulateResponse } from './utils/resimulate';
 import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
+import { isFinalStatus, isLocalFinalStatus } from './utils/status';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
@@ -134,11 +136,6 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
-import {
-  isFinalStatus,
-  isLocalFinalStatus,
-} from './utils/status';
-import { addTransactionBatch } from './utils/batch';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -252,6 +249,11 @@ export type PendingTransactionOptions = {
   isResubmitEnabled?: () => boolean;
 };
 
+export type PublishHook = (
+  transactionMeta: TransactionMeta,
+  rawTx: string,
+) => Promise<{ transactionHash?: string }>;
+
 /**
  * TransactionController constructor options.
  *
@@ -330,9 +332,10 @@ export type TransactionControllerOptions = {
     getAdditionalSignArguments?: (
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
-    publish?: (
-      transactionMeta: TransactionMeta,
-    ) => Promise<{ transactionHash: string }>;
+    publish?: PublishHook;
+    publishBatch?: (
+      signedTxs: string[],
+    ) => Promise<{ transactionHash?: string[] }>;
   };
 };
 
@@ -661,10 +664,11 @@ export class TransactionController extends BaseController<
 
   private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
-  private readonly publish: (
-    transactionMeta: TransactionMeta,
-    rawTx: string,
-  ) => Promise<{ transactionHash?: string }>;
+  private readonly publish: PublishHook;
+
+  private readonly publishBatch?: (
+    rawTx: string[],
+  ) => Promise<{ transactionHash?: string[] }>;
 
   private readonly getAdditionalSignArguments: (
     transactionMeta: TransactionMeta,
@@ -731,7 +735,7 @@ export class TransactionController extends BaseController<
   sign?: (
     transaction: TypedTransaction,
     from: string,
-    transactionMeta?: TransactionMeta,
+    ...additionalArgs: unknown[]
   ) => Promise<TypedTransaction>;
 
   /**
@@ -819,7 +823,8 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
     this.#transactionHistoryLimit = transactionHistoryLimit;
-    this.sign = sign;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.sign = sign as any;
     this.#testGasFeeFlows = testGasFeeFlows === true;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
@@ -833,6 +838,7 @@ export class TransactionController extends BaseController<
       hooks?.getAdditionalSignArguments ?? (() => []);
     this.publish =
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
+    this.publishBatch = hooks?.publishBatch;
 
     const findNetworkClientIdByChainId = (chainId: Hex) => {
       return this.messagingSystem.call(
@@ -978,6 +984,7 @@ export class TransactionController extends BaseController<
    * @param options.swaps.meta - Metadata for swap transaction.
    * @param options.networkClientId - The id of the network client for this transaction.
    * @param options.traceContext - The parent context for any new traces.
+   * @param options.publishHook -
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -988,6 +995,7 @@ export class TransactionController extends BaseController<
       method?: string;
       networkClientId: NetworkClientId;
       origin?: string;
+      publishHook?: PublishHook;
       requireApproval?: boolean | undefined;
       securityAlertResponse?: SecurityAlertResponse;
       sendFlowHistory?: SendFlowHistoryEntry[];
@@ -1007,6 +1015,7 @@ export class TransactionController extends BaseController<
       method,
       networkClientId,
       origin,
+      publishHook,
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
@@ -1019,9 +1028,7 @@ export class TransactionController extends BaseController<
 
     this.#validateNetworkClientId(networkClientId);
 
-    const isEIP1559Compatible = await this.getEIP1559Compatibility(
-      networkClientId,
-    );
+    const isEIP1559Compatible = await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
 
@@ -1141,6 +1148,7 @@ export class TransactionController extends BaseController<
     return {
       result: this.processApproval(addedTransactionMeta, {
         isExisting: Boolean(existingTransactionMeta),
+        publishHook: publishHook ?? this.publish,
         requireApproval,
         actionId,
         traceContext,
@@ -1155,6 +1163,7 @@ export class TransactionController extends BaseController<
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
       messenger: this.messagingSystem,
+      publishBatch: this.publishBatch,
       supportsEIP1559: this.getEIP1559Compatibility.bind(this),
       userRequest: request,
       validateNetworkClientId: this.#validateNetworkClientId.bind(this),
@@ -2349,16 +2358,18 @@ export class TransactionController extends BaseController<
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
+      actionId,
       isExisting = false,
+      publishHook,
       requireApproval,
       shouldShowRequest = true,
-      actionId,
       traceContext,
     }: {
+      actionId?: string;
       isExisting?: boolean;
+      publishHook: PublishHook;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
-      actionId?: string;
       traceContext?: TraceContext;
     },
   ): Promise<string> {
@@ -2411,6 +2422,7 @@ export class TransactionController extends BaseController<
           const approvalResult = await this.approveTransaction(
             transactionId,
             traceContext,
+            publishHook,
           );
           if (
             approvalResult === ApprovalState.SkippedViaBeforePublishHook &&
@@ -2479,13 +2491,14 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to approve.
    * @param traceContext - The parent context for any new traces.
+   * @param publishHook - The hook to use for publishing the transaction.
    */
   private async approveTransaction(
     transactionId: string,
-    traceContext?: unknown,
+    traceContext: unknown | undefined,
+    publishHook: PublishHook,
   ) {
     const cleanupTasks = new Array<() => void>();
-    cleanupTasks.push(await this.mutex.acquire());
 
     let transactionMeta = this.getTransactionOrThrow(transactionId);
 
@@ -2505,10 +2518,14 @@ export class TransactionController extends BaseController<
         log('Skipping approval as signing in progress', transactionId);
         return ApprovalState.NotApproved;
       }
+
       this.approvingTransactionIds.add(transactionId);
+
       cleanupTasks.push(() =>
         this.approvingTransactionIds.delete(transactionId),
       );
+
+      const lock = await this.mutex.acquire();
 
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
@@ -2519,9 +2536,6 @@ export class TransactionController extends BaseController<
           ),
       );
 
-      // must set transaction to submitted/failed before releasing lock
-      releaseNonce && cleanupTasks.push(releaseNonce);
-
       transactionMeta = this.#updateTransactionInternal(
         {
           transactionId,
@@ -2531,19 +2545,20 @@ export class TransactionController extends BaseController<
           const { txParams, chainId } = draftTxMeta;
 
           draftTxMeta.status = TransactionStatus.approved;
-          draftTxMeta.txParams = {
-            ...txParams,
-            nonce,
-            chainId,
-            gasLimit: txParams.gas,
-            ...(isEIP1559Transaction(txParams) && {
-              type: TransactionEnvelopeType.feeMarket,
-            }),
-          };
+          draftTxMeta.txParams.nonce = nonce;
+          draftTxMeta.txParams.chainId = chainId;
+          draftTxMeta.txParams.gasLimit = txParams.gas;
+
+          if (isEIP1559Transaction(txParams)) {
+            draftTxMeta.txParams.type = TransactionEnvelopeType.feeMarket;
+          }
         },
       );
 
       this.onTransactionStatusChange(transactionMeta);
+
+      releaseNonce?.();
+      lock();
 
       const rawTx = await this.#trace(
         { name: 'Sign', parentContext: traceContext },
@@ -2585,7 +2600,7 @@ export class TransactionController extends BaseController<
       await this.#trace(
         { name: 'Publish', parentContext: traceContext },
         async () => {
-          ({ transactionHash: hash } = await this.publish(
+          ({ transactionHash: hash } = await publishHook(
             transactionMeta,
             rawTx,
           ));
@@ -3214,14 +3229,14 @@ export class TransactionController extends BaseController<
   }
 
   private getNonceTrackerTransactions(
-    status: TransactionStatus,
+    statuses: TransactionStatus[],
     address: string,
     chainId: string,
   ) {
     return getAndFormatTransactionsForNonceTracker(
       chainId,
       address,
-      status,
+      statuses,
       this.state.transactions,
     );
   }
@@ -3296,7 +3311,7 @@ export class TransactionController extends BaseController<
       ),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
-        TransactionStatus.confirmed,
+        [TransactionStatus.confirmed],
         chainId,
       ),
     });
@@ -3400,7 +3415,11 @@ export class TransactionController extends BaseController<
 
   #getNonceTrackerPendingTransactions(chainId: string, address: string) {
     const standardPendingTransactions = this.getNonceTrackerTransactions(
-      TransactionStatus.submitted,
+      [
+        TransactionStatus.submitted,
+        TransactionStatus.approved,
+        TransactionStatus.signed,
+      ],
       address,
       chainId,
     );

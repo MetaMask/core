@@ -1,11 +1,16 @@
+/* eslint-disable promise/always-return */
+/* eslint-disable jsdoc/require-jsdoc */
+
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
-import { createModuleLogger } from '@metamask/utils';
+import type { DeferredPromise } from '@metamask/utils';
+import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
 
 import { waitForTransactionFinishedRemote } from './status';
 import { normalizeTransactionParams } from './utils';
 import { validateTxParams } from './validation';
 import { projectLogger } from '../logger';
 import type {
+  PublishHook,
   TransactionController,
   TransactionControllerMessenger,
 } from '../TransactionController';
@@ -13,6 +18,7 @@ import type {
   TransactionBatchEntryResult,
   TransactionBatchRequest,
   TransactionBatchResult,
+  TransactionMeta,
 } from '../types';
 import { TransactionStatus } from '../types';
 
@@ -20,8 +26,11 @@ const log = createModuleLogger(projectLogger, 'batch');
 
 export type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
-  supportsEIP1559: (networkClientId: string) => Promise<boolean>;
   messenger: TransactionControllerMessenger;
+  publishBatch?: (
+    signedTxs: string[],
+  ) => Promise<{ transactionHash?: string[] }>;
+  supportsEIP1559: (networkClientId: string) => Promise<boolean>;
   userRequest: TransactionBatchRequest;
   validateNetworkClientId: (networkClientId: string) => void;
 };
@@ -34,17 +43,17 @@ export type TransactionBatchContext = {
 
 type ProcessTransactionResult = Awaited<ReturnType<typeof processTransaction>>;
 
-/**
- *
- * @param request -
- * @returns -
- */
 export async function addTransactionBatch(
   request: AddTransactionBatchRequest,
 ): Promise<TransactionBatchResult> {
   log('Adding', request);
 
-  const { supportsEIP1559, userRequest, validateNetworkClientId } = request;
+  const {
+    publishBatch,
+    supportsEIP1559,
+    userRequest,
+    validateNetworkClientId,
+  } = request;
   const { networkClientId, requests, requireApproval } = userRequest;
 
   validateNetworkClientId(networkClientId);
@@ -64,11 +73,33 @@ export async function addTransactionBatch(
     await createApprovalRequest(request);
   }
 
+  const { publishAllPromise, publishHook, publishPromises, signedTxs } =
+    await buildCollectorPublishHook(request);
+
+  const finalPublishHook = publishBatch ? publishHook : undefined;
+
   const rawResults: ProcessTransactionResult[] = [];
 
   for (let index = 0; index < requests.length; index++) {
-    const result = await processTransaction(request, index);
+    const result = await processTransaction(request, index, finalPublishHook);
     rawResults.push(result);
+  }
+
+  log('Add transactions processed');
+
+  if (publishBatch) {
+    await publishAllPromise;
+
+    const publishResult = await publishBatch(signedTxs);
+
+    for (const [index, promise] of publishPromises.entries()) {
+      const { transactionHash } = publishResult;
+      const hash = transactionHash?.[index];
+
+      promise.resolve({ transactionHash: hash });
+    }
+
+    log('Published batch via hook', publishResult);
   }
 
   const waitForSubmit = () =>
@@ -89,7 +120,7 @@ export async function addTransactionBatch(
     }),
   );
 
-  log('Added successfully', results);
+  log('Result', results);
 
   return {
     results,
@@ -98,15 +129,10 @@ export async function addTransactionBatch(
   };
 }
 
-/**
- *
- * @param request -
- * @param index -
- * @returns -
- */
 async function processTransaction(
   request: AddTransactionBatchRequest,
   index: number,
+  publishHook: PublishHook | undefined,
 ) {
   const { userRequest } = request;
   const { requests, sequential } = userRequest;
@@ -117,6 +143,7 @@ async function processTransaction(
   const { transactionMeta, result: hash } = await addTransaction(
     request,
     index,
+    publishHook,
   );
 
   const transactionId = transactionMeta?.id;
@@ -150,17 +177,12 @@ async function processTransaction(
   };
 }
 
-/**
- *
- * @param request -
- * @param index -
- * @returns -
- */
 async function addTransaction(
   request: AddTransactionBatchRequest,
   index: number,
+  publishHook: PublishHook | undefined,
 ): Promise<ReturnType<TransactionController['addTransaction']>> {
-  const { userRequest, addTransaction: controllerAddTransaction } = request;
+  const { addTransaction: controllerAddTransaction, userRequest } = request;
   const { networkClientId, requests, traceContext } = userRequest;
   const entry = requests[index];
   const { params, swaps, type } = entry;
@@ -170,6 +192,7 @@ async function addTransaction(
   try {
     const addResult = await controllerAddTransaction(params, {
       networkClientId,
+      publishHook,
       requireApproval: false,
       swaps,
       traceContext,
@@ -189,12 +212,6 @@ async function addTransaction(
   }
 }
 
-/**
- *
- * @param transactionId -
- * @param messenger -
- * @returns -
- */
 async function waitForConfirmation(
   transactionId: string,
   messenger: TransactionControllerMessenger,
@@ -219,11 +236,6 @@ async function waitForConfirmation(
   log('Transaction was confirmed', transactionId);
 }
 
-/**
- *
- * @param request -
- * @returns -
- */
 async function createApprovalRequest(request: AddTransactionBatchRequest) {
   const { messenger, userRequest } = request;
   const { origin, requests } = userRequest;
@@ -242,4 +254,42 @@ async function createApprovalRequest(request: AddTransactionBatchRequest) {
     },
     true,
   );
+}
+
+async function buildCollectorPublishHook(request: AddTransactionBatchRequest) {
+  const { userRequest } = request;
+  const { requests } = userRequest;
+  
+  const signedTxs: string[] = [];
+  const publishPromises: DeferredPromise<{ transactionHash?: string }>[] = [];
+  const publishAllPromise = createDeferredPromise();
+
+  const publishHook: PublishHook = async (
+    _transactionMeta: TransactionMeta,
+    signedTx: string,
+  ) => {
+    signedTxs.push(signedTx);
+
+    log('Signed transaction', signedTx);
+
+    const publishPromise = createDeferredPromise<{
+      transactionHash?: string;
+    }>();
+    publishPromises.push(publishPromise);
+
+    if (signedTxs.length === requests.length) {
+      log('All transactions signed');
+
+      publishAllPromise.resolve();
+    }
+
+    return publishPromise.promise;
+  };
+
+  return {
+    publishAllPromise: publishAllPromise.promise,
+    publishHook,
+    publishPromises,
+    signedTxs,
+  };
 }
