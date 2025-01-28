@@ -1,8 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
   AccountAssetListUpdatedEvent,
-  Balance,
-  CaipAssetType,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
 import { EthAccountType, EthMethod, EthScopes } from '@metamask/keyring-api';
