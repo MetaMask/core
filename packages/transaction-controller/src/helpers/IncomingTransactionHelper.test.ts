@@ -1,12 +1,12 @@
 import type { Hex } from '@metamask/utils';
 
+import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { flushPromises } from '../../../../tests/helpers';
 import {
   TransactionStatus,
   type RemoteTransactionSource,
   type TransactionMeta,
 } from '../types';
-import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 
 jest.useFakeTimers();
 
@@ -28,7 +28,7 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
       type: 'eip155:eoa' as const,
       options: {},
       methods: [],
-      scopes: ['eip155'],
+      scopes: ['eip155:eoa'],
       metadata: {
         name: 'Account 1',
         keyring: { type: 'HD Key Tree' },
@@ -82,6 +82,7 @@ const createRemoteTransactionSourceMock = (
 
 /**
  * Emulate running the interval.
+ *
  * @param helper - The instance of IncomingTransactionHelper to use.
  * @param options - The options.
  * @param options.start - Whether to start the helper.
