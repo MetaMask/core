@@ -5,18 +5,14 @@ import {
   BtcMethod,
   EthAccountType,
   EthMethod,
-  BtcScopes,
-  EthScopes,
-  SolScopes,
+  BtcScope,
+  EthScope,
+  SolScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuidv4 } from 'uuid';
 
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 import { BalancesTracker } from './BalancesTracker';
 import {
   MultichainBalancesController,
@@ -26,6 +22,10 @@ import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
 } from './MultichainBalancesController';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../../base-controller/tests/helpers';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -43,7 +43,7 @@ const mockBtcAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [BtcScopes.Namespace],
+  scopes: [BtcScope.Testnet],
   options: {},
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
@@ -65,7 +65,7 @@ const mockEthAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   options: {},
   methods: [EthMethod.SignTypedDataV4, EthMethod.SignTransaction],
   type: EthAccountType.Eoa,
