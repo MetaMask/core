@@ -538,7 +538,7 @@ export async function displayForKeyring(
     // values, and `normalize` returns `string` unless given a nullish value
     accounts: accounts.map(normalize) as string[],
     // @ts-expect-error TODO: update type in @metamask/utils
-    fingerprint: keyring?.getFingerprint?.(),
+    fingerprint: await keyring?.getFingerprint?.(),
   };
 }
 
