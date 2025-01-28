@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0]
 
-### Uncategorized
+### Changed
 
-- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^15.0.0` ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^3.0.0` ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/keyring-snap-client` from `^3.0.0` to `^3.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190))
 
 ## [0.0.1]
 

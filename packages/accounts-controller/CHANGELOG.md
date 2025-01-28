@@ -9,9 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.0.0]
 
-### Uncategorized
+### Added
 
-- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Add `AccountsController:account{AssetList,Balances,Transactions}Updated` events ([#5190](https://github.com/MetaMask/core/pull/5190))
+  - Those events are being sent from Account Snaps (through the Snap keyring) and are being re-published by the `AccountController`.
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^15.0.0` ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^3.0.0` ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/eth-snap-keyring` from `^8.1.1` to `^9.0.0` ([#5190](https://github.com/MetaMask/core/pull/5190))
 
 ## [21.0.2]
 
