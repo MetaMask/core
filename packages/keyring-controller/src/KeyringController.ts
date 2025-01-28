@@ -260,6 +260,7 @@ export type KeyringControllerOptions = {
 export type KeyringObject = {
   accounts: string[];
   type: string;
+  fingerprint?: string;
 };
 
 /**
@@ -396,6 +397,9 @@ export type KeyringSelector =
     }
   | {
       address: Hex;
+    }
+  | {
+      fingerprint: string;
     };
 
 /**
@@ -523,9 +527,9 @@ function isSerializedKeyringsArray(
  * @param keyring - The keyring to display.
  * @returns A keyring display object, with type and accounts properties.
  */
-async function displayForKeyring(
+export async function displayForKeyring(
   keyring: EthKeyring<Json>,
-): Promise<{ type: string; accounts: string[] }> {
+): Promise<{ type: string; accounts: string[]; fingerprint?: string }> {
   const accounts = await keyring.getAccounts();
 
   return {
@@ -533,7 +537,29 @@ async function displayForKeyring(
     // Cast to `string[]` here is safe here because `accounts` has no nullish
     // values, and `normalize` returns `string` unless given a nullish value
     accounts: accounts.map(normalize) as string[],
+    // @ts-expect-error TODO: update type in @metamask/utils
+    fingerprint: keyring?.getFingerprint?.(),
   };
+}
+
+/**
+ * Retrieves a keyring from an array of keyrings based on its fingerprint.
+ *
+ * @param keyrings - Array of keyrings to search through.
+ * @param fingerprint - The fingerprint to match against.
+ * @returns Promise resolving to the matching keyring, or undefined if not found.
+ */
+export async function getKeyringByFingerprint(
+  keyrings: EthKeyring<Json>[],
+  fingerprint: string,
+): Promise<EthKeyring<Json> | undefined> {
+  const fingerprints = await Promise.all(
+    // @ts-expect-error TODO: update type in @metamask/utils
+    keyrings.map((kr) => kr?.getFingerprint?.()),
+  );
+
+  const index = fingerprints.indexOf(fingerprint);
+  return keyrings[index];
 }
 
 /**
@@ -822,12 +848,34 @@ export class KeyringController extends BaseController<
    * Gets the seed phrase of the HD keyring.
    *
    * @param password - Password of the keyring.
+   * @param keyringId - The keyring identifier.
    * @returns Promise resolving to the seed phrase.
    */
-  async exportSeedPhrase(password: string): Promise<Uint8Array> {
+  async exportSeedPhrase(
+    password: string,
+    keyringId?: string,
+  ): Promise<Uint8Array> {
     await this.verifyPassword(password);
-    assertHasUint8ArrayMnemonic(this.#keyrings[0]);
-    return this.#keyrings[0].mnemonic;
+
+    let keyring: EthKeyring<Json> | undefined;
+
+    if (keyringId) {
+      keyring = await getKeyringByFingerprint(this.#keyrings, keyringId);
+
+      if (!keyring) {
+        throw new Error(KeyringControllerError.KeyringNotFound);
+      }
+
+      if ((keyring.type as KeyringTypes) !== KeyringTypes.hd) {
+        throw new Error(KeyringControllerError.UnsupportedExportSeedPhrase);
+      }
+    } else {
+      // There will always be an HD keyring
+      keyring = this.getKeyringsByType(KeyringTypes.hd)[0] as EthKeyring<Json>;
+    }
+
+    assertHasUint8ArrayMnemonic(keyring);
+    return keyring.mnemonic;
   }
 
   /**
@@ -1432,6 +1480,11 @@ export class KeyringController extends BaseController<
         keyring = (await this.getKeyringForAccount(selector.address)) as
           | SelectedKeyring
           | undefined;
+      } else if ('fingerprint' in selector) {
+        keyring = (await getKeyringByFingerprint(
+          this.#keyrings,
+          selector.fingerprint,
+        )) as SelectedKeyring | undefined;
       } else {
         keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
           | SelectedKeyring

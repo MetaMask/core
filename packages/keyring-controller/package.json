@@ -51,7 +51,7 @@
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
     "@metamask/base-controller": "^7.1.1",
     "@metamask/browser-passworder": "^4.3.0",
-    "@metamask/eth-hd-keyring": "^7.0.4",
+    "@metamask/eth-hd-keyring": "npm:@metamask-previews/eth-hd-keyring@9.0.1-15a8cd2",
     "@metamask/eth-sig-util": "^8.0.0",
     "@metamask/eth-simple-keyring": "^6.0.5",
     "@metamask/keyring-api": "^14.0.0",

@@ -31,4 +31,5 @@ export enum KeyringControllerError {
   DataType = 'KeyringController - Incorrect data type provided',
   NoHdKeyring = 'KeyringController - No HD Keyring found',
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
+  UnsupportedExportSeedPhrase = 'KeyringController - The keyring for the current address does not support the method exportSeedPhrase.',
 }
