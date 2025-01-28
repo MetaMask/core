@@ -32,6 +32,7 @@ const baseState = {
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
+  encryptedContentKeys: {},
 };
 
 const arrangeMocks = async ({

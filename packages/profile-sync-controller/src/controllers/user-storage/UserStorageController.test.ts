@@ -109,6 +109,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
         isAccountSyncingInProgress: false,
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -190,6 +191,7 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -272,6 +274,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -378,6 +381,7 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -481,6 +485,7 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -585,6 +590,7 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -686,6 +692,7 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -779,6 +786,7 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
@@ -826,6 +834,7 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
         hasAccountSyncingSyncedAtLeastOnce: false,
         isAccountSyncingReadyToBeDispatched: false,
         isAccountSyncingInProgress: false,
+        encryptedContentKeys: {},
       },
     });
 
