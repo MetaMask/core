@@ -32,47 +32,6 @@ export enum EarnProductType {
   STABLECOIN_LENDING = 'stablecoin_lending',
 }
 
-export enum ChainId {
-  MAINNET = '0x1',
-  ARBITRUM = '0xa4b1',
-  BASE = '0x2105',
-}
-
-export enum TokenId {
-  USDC = 'USDC',
-  USDT = 'USDT',
-  DAI = 'DAI',
-}
-
-// Token addresses by chain for reference/lookup
-export const TOKEN_ADDRESSES: Record<TokenId, Record<ChainId, string>> = {
-  [TokenId.USDC]: {
-    [ChainId.MAINNET]: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-    [ChainId.ARBITRUM]: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
-    [ChainId.BASE]: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  },
-  [TokenId.USDT]: {
-    [ChainId.MAINNET]: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-    [ChainId.ARBITRUM]: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
-    [ChainId.BASE]: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
-  },
-  [TokenId.DAI]: {
-    [ChainId.MAINNET]: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
-    [ChainId.ARBITRUM]: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
-    [ChainId.BASE]: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
-  },
-} as const;
-
-// Token metadata
-export const TOKEN_METADATA: Record<
-  TokenId,
-  { name: string; decimals: number }
-> = {
-  [TokenId.USDC]: { name: 'USD Coin', decimals: 6 },
-  [TokenId.USDT]: { name: 'Tether USD', decimals: 6 },
-  [TokenId.DAI]: { name: 'Dai Stablecoin', decimals: 18 },
-} as const;
-
 // === Product Types ===
 export type PooledStakingProduct = {
   pooledStakes: PooledStake;
@@ -81,20 +40,19 @@ export type PooledStakingProduct = {
   isEligible: boolean;
 };
 
-export type StablecoinVault = {
-  address: string;
-  APY: string;
-  totalSupply: string;
-  totalLiquidity: string;
-  historicAPY: { timestamp: string; APY: string }[];
+export type StablecoinLendingProduct = {
+  vaults: StablecoinVault[];
 };
 
-export type StablecoinLendingProduct = {
-  [K in TokenId]: {
-    vaults: {
-      [chainId in ChainId]?: StablecoinVault;
-    };
-  };
+export type StablecoinVault = {
+  symbol: string;
+  name: string;
+  chainId: number;
+  tokenAddress: string;
+  vaultAddress: string;
+  currentAPY: string;
+  supply: string;
+  liquidity: string;
 };
 
 /**
@@ -124,11 +82,14 @@ export type EarnControllerState = {
 
 // === Default State ===
 const DEFAULT_STABLECOIN_VAULT: StablecoinVault = {
-  address: '0x0000000000000000000000000000000000000000',
-  APY: '0',
-  totalSupply: '0',
-  totalLiquidity: '0',
-  historicAPY: [],
+  symbol: '',
+  name: '',
+  chainId: 0,
+  tokenAddress: '',
+  vaultAddress: '',
+  currentAPY: '0',
+  supply: '0',
+  liquidity: '0',
 };
 
 /**
@@ -156,27 +117,7 @@ export function getDefaultEarnControllerState(): EarnControllerState {
       isEligible: false,
     },
     [EarnProductType.STABLECOIN_LENDING]: {
-      [TokenId.USDC]: {
-        vaults: {
-          [ChainId.MAINNET]: DEFAULT_STABLECOIN_VAULT,
-          [ChainId.ARBITRUM]: DEFAULT_STABLECOIN_VAULT,
-          [ChainId.BASE]: DEFAULT_STABLECOIN_VAULT,
-        },
-      },
-      [TokenId.USDT]: {
-        vaults: {
-          [ChainId.MAINNET]: DEFAULT_STABLECOIN_VAULT,
-          [ChainId.ARBITRUM]: DEFAULT_STABLECOIN_VAULT,
-          [ChainId.BASE]: DEFAULT_STABLECOIN_VAULT,
-        },
-      },
-      [TokenId.DAI]: {
-        vaults: {
-          [ChainId.MAINNET]: DEFAULT_STABLECOIN_VAULT,
-          [ChainId.ARBITRUM]: DEFAULT_STABLECOIN_VAULT,
-          [ChainId.BASE]: DEFAULT_STABLECOIN_VAULT,
-        },
-      },
+      vaults: [DEFAULT_STABLECOIN_VAULT],
     },
     lastUpdated: 0,
   };
@@ -276,6 +217,7 @@ export class EarnController extends BaseController<
       'NetworkController:networkDidChange',
       ({ selectedNetworkClientId }) => {
         this.#initializeSDK(selectedNetworkClientId);
+        this.fetchAndUpdateStakingData().catch(console.error);
       },
     );
 
@@ -283,7 +225,7 @@ export class EarnController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       () => {
-        this.#fetchAndUpdateStakingData().catch(console.error);
+        this.fetchAndUpdateStakingData().catch(console.error);
       },
     );
   }
@@ -359,7 +301,7 @@ export class EarnController extends BaseController<
     return convertHexToDecimal(chainId);
   }
 
-  async #fetchAndUpdateStakingData(): Promise<void> {
+  async fetchAndUpdateStakingData(): Promise<void> {
     const currentAccount = this.#getCurrentAccount();
     if (!currentAccount?.address) {
       return;
