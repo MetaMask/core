@@ -1,5 +1,9 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type { Balance, CaipAssetType } from '@metamask/keyring-api';
+import type {
+  Balance,
+  CaipAssetType,
+  CaipAssetTypeOrId,
+} from '@metamask/keyring-api';
 import { EthAccountType, EthMethod, EthScopes } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -762,7 +766,7 @@ const setupController = ({
   state?: MultichainAssetsControllerState;
   mocks?: {
     listMultichainAccounts?: InternalAccount[];
-    handleRequestReturnValue?: Record<CaipAssetType, Balance>;
+    handleRequestReturnValue?: CaipAssetTypeOrId[];
     getAllReturnValue?: Snap[];
     getPermissionsReturnValue?: SubjectPermissions<PermissionConstraint>;
   };
@@ -866,7 +870,11 @@ describe('MultichainAssetsController', () => {
   });
 
   it('updates allNonEvmTokens when "AccountsController:accountAdded" is fired', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, messenger, mockSnapHandleRequest } = setupController();
+
+    mockSnapHandleRequest
+      .mockReturnValueOnce(mockGetAssetsResult)
+      .mockReturnValueOnce(mockGetMetadataReturnValue);
 
     messenger.publish(
       'AccountsController:accountAdded',
@@ -884,7 +892,12 @@ describe('MultichainAssetsController', () => {
   });
 
   it('should not delete account from allNonEvmTokens when "AccountsController:accountRemoved" is fired with EVM account', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, messenger, mockSnapHandleRequest } = setupController();
+
+    mockSnapHandleRequest
+      .mockReturnValueOnce(mockGetAssetsResult)
+      .mockReturnValueOnce(mockGetMetadataReturnValue);
+
     // Add a solana account first
     messenger.publish(
       'AccountsController:accountAdded',
@@ -915,7 +928,11 @@ describe('MultichainAssetsController', () => {
   });
 
   it('updates allNonEvmTokens when "AccountsController:accountRemoved" is fired', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, messenger, mockSnapHandleRequest } = setupController();
+
+    mockSnapHandleRequest
+      .mockReturnValueOnce(mockGetAssetsResult)
+      .mockReturnValueOnce(mockGetMetadataReturnValue);
 
     // Add a solana account first
     messenger.publish(
