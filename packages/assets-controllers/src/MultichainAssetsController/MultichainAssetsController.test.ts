@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
+  AccountAssetListUpdatedEvent,
   Balance,
   CaipAssetType,
   CaipAssetTypeOrId,
@@ -963,4 +964,138 @@ describe('MultichainAssetsController', () => {
       metadata: mockGetMetadataReturnValue,
     });
   });
+
+  describe('updateAccountAssetsList', () => {
+    it('should update the assets list for an account when a new asset is added', () => {
+      const mockSolanaAccountId1 = 'account1';
+      const mockSolanaAccountId2 = 'account2';
+      const { controller } = setupController({
+        state: {
+          allNonEvmTokens: {
+            [mockSolanaAccountId1]: mockGetAssetsResult,
+          },
+          metadata: mockGetMetadataReturnValue,
+        } as MultichainAssetsControllerState,
+      });
+
+      const updatedAssetsList: AccountAssetListUpdatedEvent = {
+        method: 'notify:accountAssetListUpdated',
+        params: {
+          assets: {
+            [mockSolanaAccountId1]: {
+              added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+              removed: [],
+            },
+            [mockSolanaAccountId2]: {
+              added: [
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
+              ],
+              removed: [],
+            },
+          },
+        },
+      };
+
+      // call updateAccountAssetsList
+      controller.updateAccountAssetsList(updatedAssetsList);
+
+      expect(controller.state.allNonEvmTokens).toStrictEqual({
+        [mockSolanaAccountId1]: [
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken',
+        ],
+        [mockSolanaAccountId2]: [
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
+        ],
+      });
+    });
+
+    it('should not add duplicate assets to state', () => {
+      const mockSolanaAccountId1 = 'account1';
+      const mockSolanaAccountId2 = 'account2';
+      const { controller } = setupController({
+        state: {
+          allNonEvmTokens: {
+            [mockSolanaAccountId1]: mockGetAssetsResult,
+          },
+          metadata: mockGetMetadataReturnValue,
+        } as MultichainAssetsControllerState,
+      });
+
+      const updatedAssetsList: AccountAssetListUpdatedEvent = {
+        method: 'notify:accountAssetListUpdated',
+        params: {
+          assets: {
+            [mockSolanaAccountId1]: {
+              added:
+                mockGetAssetsResult as `${string}:${string}/${string}:${string}`[],
+              removed: [],
+            },
+            [mockSolanaAccountId2]: {
+              added: [
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
+              ],
+              removed: [],
+            },
+          },
+        },
+      };
+
+      // call updateAccountAssetsList
+      controller.updateAccountAssetsList(updatedAssetsList);
+
+      expect(controller.state.allNonEvmTokens).toStrictEqual({
+        [mockSolanaAccountId1]: [
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+        ],
+        [mockSolanaAccountId2]: [
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
+        ],
+      });
+    });
+
+    it('should update the assets list for an account when a an asset is removed', () => {
+      const mockSolanaAccountId1 = 'account1';
+      const mockSolanaAccountId2 = 'account2';
+      const { controller } = setupController({
+        state: {
+          allNonEvmTokens: {
+            [mockSolanaAccountId1]: mockGetAssetsResult,
+            [mockSolanaAccountId2]: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
+            ],
+          },
+          metadata: mockGetMetadataReturnValue,
+        } as MultichainAssetsControllerState,
+      });
+
+      const updatedAssetsList: AccountAssetListUpdatedEvent = {
+        method: 'notify:accountAssetListUpdated',
+        params: {
+          assets: {
+            [mockSolanaAccountId2]: {
+              added: [],
+              removed: [
+                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
+              ],
+            },
+          },
+        },
+      };
+
+      // call updateAccountAssetsList
+      controller.updateAccountAssetsList(updatedAssetsList);
+
+      expect(controller.state.allNonEvmTokens).toStrictEqual({
+        [mockSolanaAccountId1]: [
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+        ],
+        [mockSolanaAccountId2]: [],
+      });
+    });
+  });
 });
+

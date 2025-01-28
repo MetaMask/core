@@ -10,7 +10,11 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import type { CaipAssetType, CaipAssetTypeOrId } from '@metamask/keyring-api';
+import type {
+  AccountAssetListUpdatedEvent,
+  CaipAssetType,
+  CaipAssetTypeOrId,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type {
@@ -201,6 +205,33 @@ export class MultichainAssetsController extends BaseController<
       'AccountsController:accountRemoved',
       async (account) => await this.#handleOnAccountRemoved(account),
     );
+  }
+
+  /**
+   * Function to update the assets list for an account
+   *
+   * @param list - The list of assets to update
+   */
+  updateAccountAssetsList(list: AccountAssetListUpdatedEvent) {
+    const assetsToUpdate = list.params.assets;
+    for (const accountId in assetsToUpdate) {
+      if (Object.prototype.hasOwnProperty.call(assetsToUpdate, accountId)) {
+        const newAccountAssets = assetsToUpdate[accountId];
+        const assets = this.state.allNonEvmTokens[accountId] || [];
+
+        const filteredAssetsToAdd = newAccountAssets.added.filter(
+          (asset) => !assets.includes(asset),
+        );
+        const newAssets = [...assets, ...filteredAssetsToAdd];
+
+        const assetsAfterRemoval = newAssets.filter(
+          (asset) => !newAccountAssets.removed.includes(asset),
+        );
+        this.update((state) => {
+          state.allNonEvmTokens[accountId] = assetsAfterRemoval;
+        });
+      }
+    }
   }
 
   /**
