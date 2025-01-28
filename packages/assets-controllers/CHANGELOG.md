@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `ClientConfigApiService` constructor options `onBreak` and `onDegraded` in favor of methods ([#5109](https://github.com/MetaMask/core/pull/5109))
 - Add `@metamask/controller-utils@^11.4.5` as a dependency ([#5109](https://github.com/MetaMask/core/pull/5109))
   - `cockatiel` should still be in the dependency tree because it's now a dependency of `@metamask/controller-utils`
+- Re-introduce `@metamask/keyring-api` as a runtime dependency ([#5206](https://github.com/MetaMask/core/pull/5206))
+  - This was required since the introduction of the `MultichainBalancesController`.
 - Bump `@metamask/keyring-api` from `^14.0.0` to `^15.0.0` ([#5190](https://github.com/MetaMask/core/pull/5190))
 - Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^3.0.0` ([#5190](https://github.com/MetaMask/core/pull/5190))
 - Bump `@metamask/keyring-snap-client` from `^3.0.0` to `^3.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190))
