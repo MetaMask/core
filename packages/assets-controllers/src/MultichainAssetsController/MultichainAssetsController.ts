@@ -272,6 +272,50 @@ export class MultichainAssetsController extends BaseController<
     }
   }
 
+  /**
+   * Handles changes when a new account has been removed.
+   *
+   * @param accountId - The new account id being removed.
+   */
+  async #handleOnAccountRemoved(accountId: string): Promise<void> {
+    // Check if accountId is in allNonEvmTokens and if it is, remove it
+    if (this.state.allNonEvmTokens[accountId]) {
+      this.update((state) => {
+        delete state.allNonEvmTokens[accountId];
+      });
+    }
+  }
+
+  /**
+   * Refreshes the assets snaps and metadata for the given list of assets
+   *
+   * @param assets - The assets to refresh
+   */
+  async #refreshAssetsSnapsFor(assets: CaipAssetType[]) {
+    const assetsWithoutMetadata: CaipAssetType[] = assets.filter(
+      (asset) => !this.state.metadata[asset],
+    );
+
+    // call the snap to get the metadata
+    if (assetsWithoutMetadata.length > 0) {
+      // check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
+      if (
+        !assetsWithoutMetadata.every((asset: CaipAssetType) => {
+          const chainId = parseCaipAssetType(asset);
+          return Boolean(this.#getAssetSnapFor(chainId));
+        })
+      ) {
+        this.#snaps = this.#getAssetSnaps();
+      }
+      await this.#updateAssetsMetadata(assetsWithoutMetadata);
+    }
+  }
+
+  /**
+   * Updates the assets metadata for the given list of assets
+   *
+   * @param assets - The assets to update
+   */
   async #updateAssetsMetadata(assets: CaipAssetType[]) {
     // Creates a mapping of scope to their respective assets list.
     const assetsByScope: Record<CaipChainId, CaipAssetType[]> = {};
@@ -289,10 +333,7 @@ export class MultichainAssetsController extends BaseController<
         const assetsForChain = assetsByScope[chainId as CaipChainId];
         // Now fetch metadata from the associated asset Snaps:
         const snap = this.#getAssetSnapFor(chainId as CaipChainId);
-        console.log('🚀 ~ updateAssetsMetadata ~ snap:', snap);
         if (snap) {
-          // TODO: use the snap to get the metadata
-          // this is for testing
           const metadata = await this.#getMetadata(assetsForChain, snap.id);
           newMetadata = {
             ...this.state.metadata,
@@ -306,8 +347,12 @@ export class MultichainAssetsController extends BaseController<
     });
   }
 
-  // Creates a mapping of CAIP-2 Chain ID to Asset Snaps.
-  #getAssetSnaps() {
+  /**
+   * Creates a mapping of CAIP-2 Chain ID to Asset Snaps.
+   *
+   * @returns A mapping of CAIP-2 Chain ID to Asset Snaps.
+   */
+  #getAssetSnaps(): Record<CaipChainId, Snap[]> {
     const snaps: Record<CaipChainId, Snap[]> = {};
     const allSnaps = this.#getAllSnaps();
     const allPermissions = allSnaps.map((snap) =>
@@ -348,6 +393,12 @@ export class MultichainAssetsController extends BaseController<
     return snaps;
   }
 
+  /**
+   * Returns the first asset snap for the given scope
+   *
+   * @param scope - The scope to get the asset snap for
+   * @returns The asset snap for the given scope
+   */
   #getAssetSnapFor(scope: CaipChainId): Snap | undefined {
     const allSnaps = this.#snaps[scope];
     // Pick only the first one, we ignore the other Snaps if there are multiple candidates for now.
@@ -355,23 +406,20 @@ export class MultichainAssetsController extends BaseController<
   }
 
   /**
-   * Handles changes when a new account has been removed.
+   * Returns all the asset snaps
    *
-   * @param accountId - The new account id being removed.
+   * @returns All the asset snaps
    */
-  async #handleOnAccountRemoved(accountId: string): Promise<void> {
-    // Check if accountId is in allNonEvmTokens and if it is, remove it
-    if (this.state.allNonEvmTokens[accountId]) {
-      this.update((state) => {
-        delete state.allNonEvmTokens[accountId];
-      });
-    }
-  }
-
   #getAllSnaps(): Snap[] {
     return this.messagingSystem.call('SnapController:getAll') as Snap[];
   }
 
+  /**
+   * Returns the permissions for the given origin
+   *
+   * @param origin - The origin to get the permissions for
+   * @returns The permissions for the given origin
+   */
   #getSnapsPermissions(
     origin: string,
   ): SubjectPermissions<PermissionConstraint> {
@@ -381,31 +429,8 @@ export class MultichainAssetsController extends BaseController<
     ) as SubjectPermissions<PermissionConstraint>;
   }
 
-  async #refreshAssetsSnapsFor(assets: CaipAssetType[]) {
-    const assetsWithoutMetadata: CaipAssetType[] = assets.filter(
-      (asset) => !this.state.metadata[asset],
-    );
-
-    // call the snap to get the metadata
-    if (assetsWithoutMetadata.length > 0) {
-      // check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
-      if (
-        !assetsWithoutMetadata.every((asset: CaipAssetType) => {
-          const chainId = parseCaipAssetType(
-            asset as `${string}:${string}/${string}:${string}`,
-          );
-          console.log('this.snaps', this.#snaps);
-          return Boolean(this.#getAssetSnapFor(chainId));
-        })
-      ) {
-        this.#snaps = this.#getAssetSnaps();
-      }
-      await this.#updateAssetsMetadata(assetsWithoutMetadata);
-    }
-  }
-
   /**
-   * Returns the metadata for the assets
+   * Returns the metadata for the given assets
    *
    * @param assets - The assets to get metadata for
    * @param snapId - The snap ID to get metadata from
@@ -415,8 +440,6 @@ export class MultichainAssetsController extends BaseController<
     assets: CaipAssetType[],
     snapId: string,
   ): Promise<Record<CaipAssetType, AssetMetadata>> {
-    console.log('🚀 ~ #getMetadata ~ assets:', assets);
-
     return (await this.messagingSystem.call('SnapController:handleRequest', {
       snapId: snapId as SnapId,
       origin: 'metamask',
