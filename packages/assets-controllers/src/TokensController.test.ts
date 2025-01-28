@@ -46,7 +46,6 @@ import type {
   TokensControllerMessenger,
   TokensControllerState,
 } from './TokensController';
-import { CONNREFUSED } from 'dns';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid', () => ({
