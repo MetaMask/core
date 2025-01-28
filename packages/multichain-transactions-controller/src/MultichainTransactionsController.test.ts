@@ -18,7 +18,6 @@ import {
   type MultichainTransactionsControllerState,
   type MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
-import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -150,43 +149,6 @@ describe('MultichainTransactionsController', () => {
     expect(controller.state).toStrictEqual({ nonEvmTransactions: {} });
   });
 
-  it('starts tracking when calling start', async () => {
-    const spyTracker = jest.spyOn(
-      MultichainTransactionsTracker.prototype,
-      'start',
-    );
-    const { controller } = setupController();
-    controller.start();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('stops tracking when calling stop', async () => {
-    const spyTracker = jest.spyOn(
-      MultichainTransactionsTracker.prototype,
-      'stop',
-    );
-    const { controller } = setupController();
-    controller.start();
-    controller.stop();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('update transactions when calling updateTransactions', async () => {
-    const { controller } = setupController();
-
-    await controller.updateTransactions();
-
-    expect(controller.state).toStrictEqual({
-      nonEvmTransactions: {
-        [mockBtcAccount.id]: {
-          transactions: mockTransactionResult.data,
-          next: null,
-          lastUpdated: expect.any(Number),
-        },
-      },
-    });
-  });
-
   it('update transactions when "AccountsController:accountAdded" is fired', async () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController({
@@ -195,10 +157,8 @@ describe('MultichainTransactionsController', () => {
         },
       });
 
-    controller.start();
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
     messenger.publish('AccountsController:accountAdded', mockBtcAccount);
-    await controller.updateTransactions();
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {
@@ -215,8 +175,7 @@ describe('MultichainTransactionsController', () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController();
 
-    controller.start();
-    await controller.updateTransactions();
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {
         [mockBtcAccount.id]: {
@@ -229,7 +188,6 @@ describe('MultichainTransactionsController', () => {
 
     messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
     mockListMultichainAccounts.mockReturnValue([]);
-    await controller.updateTransactions();
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {},
@@ -244,10 +202,8 @@ describe('MultichainTransactionsController', () => {
         },
       });
 
-    controller.start();
     mockListMultichainAccounts.mockReturnValue([mockEthAccount]);
     messenger.publish('AccountsController:accountAdded', mockEthAccount);
-    await controller.updateTransactions();
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {},
@@ -334,7 +290,29 @@ describe('MultichainTransactionsController', () => {
     const { controller, mockSnapHandleRequest } = setupController();
     mockSnapHandleRequest.mockRejectedValue(new Error('Failed to fetch'));
 
-    await controller.updateTransactions();
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
     expect(controller.state.nonEvmTransactions).toStrictEqual({});
+  });
+
+  it('updates transactions when receiving accountTransactionsUpdated event', () => {
+    const { controller, messenger } = setupController();
+    const transactionUpdate = {
+      transactions: {
+        [mockBtcAccount.id]: mockTransactionResult.data,
+      },
+    };
+
+    messenger.publish(
+      'AccountsController:accountTransactionsUpdated',
+      transactionUpdate,
+    );
+
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id],
+    ).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      next: null,
+      lastUpdated: expect.any(Number),
+    });
   });
 });

@@ -23,8 +23,7 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { MultichainNetwork, TRANSACTIONS_CHECK_INTERVALS } from './constants';
-import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
+import { MultichainNetwork } from './constants';
 
 const controllerName = 'MultichainTransactionsController';
 
@@ -70,14 +69,6 @@ export type MultichainTransactionsControllerGetStateAction =
   >;
 
 /**
- * Updates the transactions of all supported accounts.
- */
-export type MultichainTransactionsControllerListTransactionsAction = {
-  type: `${typeof controllerName}:updateTransactions`;
-  handler: MultichainTransactionsController['updateTransactions'];
-};
-
-/**
  * Event emitted when the state of the {@link MultichainTransactionsController} changes.
  */
 export type MultichainTransactionsControllerStateChange =
@@ -90,8 +81,7 @@ export type MultichainTransactionsControllerStateChange =
  * Actions exposed by the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerActions =
-  | MultichainTransactionsControllerGetStateAction
-  | MultichainTransactionsControllerListTransactionsAction;
+  MultichainTransactionsControllerGetStateAction;
 
 /**
  * Events emitted by {@link MultichainTransactionsController}.
@@ -158,8 +148,6 @@ export class MultichainTransactionsController extends BaseController<
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger
 > {
-  readonly #tracker: MultichainTransactionsTracker;
-
   constructor({
     messenger,
     state,
@@ -177,21 +165,19 @@ export class MultichainTransactionsController extends BaseController<
       },
     });
 
-    this.#tracker = new MultichainTransactionsTracker(
-      async (accountId: string, pagination: PaginationOptions) =>
-        await this.#updateTransactions(accountId, pagination),
-    );
-
-    // Register all non-EVM accounts into the tracker
+    // Fetch initial transactions for all non-EVM accounts
     for (const account of this.#listAccounts()) {
-      if (this.#isNonEvmAccount(account)) {
-        this.#tracker.track(account.id, this.#getBlockTimeFor(account));
-      }
+      this.updateTransactionsForAccount(account.id).catch((error) => {
+        console.error(
+          `Failed to fetch initial transactions for account ${account.id}:`,
+          error,
+        );
+      });
     }
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      (account) => this.#handleOnAccountAdded(account),
+      (account: InternalAccount) => this.#handleOnAccountAdded(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
@@ -226,12 +212,34 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
-   * Updates the transactions for one account.
+   * Gets transactions for an account.
    *
-   * @param accountId - The ID of the account to update transactions for.
+   * @param accountId - The ID of the account to get transactions for.
+   * @param snapId - The ID of the snap that manages the account.
    * @param pagination - Options for paginating transaction results.
+   * @returns A promise that resolves to the transaction data and pagination info.
    */
-  async #updateTransactions(accountId: string, pagination: PaginationOptions) {
+  async #getTransactions(
+    accountId: string,
+    snapId: string,
+    pagination: PaginationOptions,
+  ): Promise<{
+    data: Transaction[];
+    next: string | null;
+  }> {
+    return await this.#getClient(snapId).listAccountTransactions(
+      accountId,
+      pagination,
+    );
+  }
+
+  /**
+   * Updates transactions for a specific account. This is used for the initial fetch
+   * when an account is first added.
+   *
+   * @param accountId - The ID of the account to get transactions for.
+   */
+  async updateTransactionsForAccount(accountId: string) {
     const account = this.#listAccounts().find(
       (accountItem) => accountItem.id === accountId,
     );
@@ -240,7 +248,7 @@ export class MultichainTransactionsController extends BaseController<
       const response = await this.#getTransactions(
         account.id,
         account.metadata.snap.id,
-        pagination,
+        { limit: 10 },
       );
 
       /**
@@ -268,76 +276,6 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
-   * Gets transactions for an account.
-   *
-   * @param accountId - The ID of the account to get transactions for.
-   * @param snapId - The ID of the snap that manages the account.
-   * @param pagination - Options for paginating transaction results.
-   * @returns A promise that resolves to the transaction data and pagination info.
-   */
-  async #getTransactions(
-    accountId: string,
-    snapId: string,
-    pagination: PaginationOptions,
-  ): Promise<{
-    data: Transaction[];
-    next: string | null;
-  }> {
-    return await this.#getClient(snapId).listAccountTransactions(
-      accountId,
-      pagination,
-    );
-  }
-
-  /**
-   * Updates transactions for a specific account
-   *
-   * @param accountId - The ID of the account to get transactions for.
-   */
-  async updateTransactionsForAccount(accountId: string) {
-    await this.#tracker.updateTransactionsForAccount(accountId);
-  }
-
-  /**
-   * Updates the transactions of all supported accounts. This method doesn't return
-   * anything, but it updates the state of the controller.
-   */
-  async updateTransactions() {
-    await this.#tracker.updateTransactions();
-  }
-
-  /**
-   * Starts the polling process.
-   */
-  start(): void {
-    this.#tracker.start();
-  }
-
-  /**
-   * Stops the polling process.
-   */
-  stop(): void {
-    this.#tracker.stop();
-  }
-
-  /**
-   * Gets the block time for a given account.
-   *
-   * @param account - The account to get the block time for.
-   * @returns The block time for the account.
-   */
-  #getBlockTimeFor(account: InternalAccount): number {
-    if (account.type in TRANSACTIONS_CHECK_INTERVALS) {
-      return TRANSACTIONS_CHECK_INTERVALS[
-        account.type as keyof typeof TRANSACTIONS_CHECK_INTERVALS
-      ];
-    }
-    throw new Error(
-      `Unsupported account type for transactions tracking: ${account.type}`,
-    );
-  }
-
-  /**
    * Checks for non-EVM accounts.
    *
    * @param account - The new account to be checked.
@@ -361,7 +299,7 @@ export class MultichainTransactionsController extends BaseController<
       return;
     }
 
-    this.#tracker.track(account.id, this.#getBlockTimeFor(account));
+    await this.updateTransactionsForAccount(account.id);
   }
 
   /**
@@ -370,10 +308,6 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string) {
-    if (this.#tracker.isTracked(accountId)) {
-      this.#tracker.untrack(accountId);
-    }
-
     if (accountId in this.state.nonEvmTransactions) {
       this.update((state: Draft<MultichainTransactionsControllerState>) => {
         delete state.nonEvmTransactions[accountId];
@@ -392,10 +326,7 @@ export class MultichainTransactionsController extends BaseController<
     this.update((state: Draft<MultichainTransactionsControllerState>) => {
       Object.entries(transactionsUpdate.transactions).forEach(
         ([accountId, transactions]) => {
-          if (
-            this.#tracker.isTracked(accountId) &&
-            state.nonEvmTransactions[accountId]
-          ) {
+          if (accountId in state.nonEvmTransactions) {
             state.nonEvmTransactions[accountId].transactions = transactions;
             state.nonEvmTransactions[accountId].lastUpdated = Date.now();
           }

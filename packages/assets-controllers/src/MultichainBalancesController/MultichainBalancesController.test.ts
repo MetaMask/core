@@ -7,7 +7,6 @@ import {
   EthMethod,
   BtcScopes,
   EthScopes,
-  SolScopes,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -17,7 +16,6 @@ import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-import { BalancesTracker } from './BalancesTracker';
 import {
   MultichainBalancesController,
   getDefaultMultichainBalancesControllerState,
@@ -161,43 +159,13 @@ describe('BalancesController', () => {
     expect(controller.state).toStrictEqual({ balances: {} });
   });
 
-  it('starts tracking when calling start', async () => {
-    const spyTracker = jest.spyOn(BalancesTracker.prototype, 'start');
+  it('should update balance for a specific account', async () => {
     const { controller } = setupController();
-    controller.start();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('stops tracking when calling stop', async () => {
-    const spyTracker = jest.spyOn(BalancesTracker.prototype, 'stop');
-    const { controller } = setupController();
-    controller.start();
-    controller.stop();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('updates balances when calling updateBalances', async () => {
-    const { controller } = setupController();
-
-    await controller.updateBalances();
-
-    expect(controller.state).toStrictEqual({
-      balances: {
-        [mockBtcAccount.id]: mockBalanceResult,
-      },
-    });
-  });
-
-  it('updates the balance for a specific account when calling updateBalance', async () => {
-    const { controller } = setupController();
-
     await controller.updateBalance(mockBtcAccount.id);
 
-    expect(controller.state).toStrictEqual({
-      balances: {
-        [mockBtcAccount.id]: mockBalanceResult,
-      },
-    });
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
   });
 
   it('updates balances when "AccountsController:accountAdded" is fired', async () => {
@@ -208,10 +176,8 @@ describe('BalancesController', () => {
         },
       });
 
-    controller.start();
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
     messenger.publish('AccountsController:accountAdded', mockBtcAccount);
-    await controller.updateBalances();
 
     expect(controller.state).toStrictEqual({
       balances: {
@@ -221,11 +187,9 @@ describe('BalancesController', () => {
   });
 
   it('updates balances when "AccountsController:accountRemoved" is fired', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
-      setupController();
+    const { controller, messenger } = setupController();
 
-    controller.start();
-    await controller.updateBalances();
+    await controller.updateBalance(mockBtcAccount.id);
     expect(controller.state).toStrictEqual({
       balances: {
         [mockBtcAccount.id]: mockBalanceResult,
@@ -233,8 +197,6 @@ describe('BalancesController', () => {
     });
 
     messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
-    mockListMultichainAccounts.mockReturnValue([]);
-    await controller.updateBalances();
 
     expect(controller.state).toStrictEqual({
       balances: {},
@@ -249,13 +211,49 @@ describe('BalancesController', () => {
         },
       });
 
-    controller.start();
     mockListMultichainAccounts.mockReturnValue([mockEthAccount]);
     messenger.publish('AccountsController:accountAdded', mockEthAccount);
-    await controller.updateBalances();
 
     expect(controller.state).toStrictEqual({
       balances: {},
     });
+  });
+
+  it('should handle errors gracefully when updating balance', async () => {
+    const { controller, mockSnapHandleRequest } = setupController();
+    mockSnapHandleRequest.mockRejectedValue(new Error('Failed to fetch'));
+
+    await controller.updateBalance(mockBtcAccount.id);
+    expect(controller.state.balances).toStrictEqual({});
+  });
+
+  it('updates balances when receiving accountBalancesUpdated event', () => {
+    const { controller, messenger } = setupController();
+    const balanceUpdate = {
+      balances: {
+        [mockBtcAccount.id]: mockBalanceResult,
+      },
+    };
+
+    messenger.publish(
+      'AccountsController:accountBalancesUpdated',
+      balanceUpdate,
+    );
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('fetches initial balances for existing non-EVM accounts', async () => {
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
   });
 });
