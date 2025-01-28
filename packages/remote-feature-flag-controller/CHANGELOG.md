@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `onBreak` and `onDegraded` methods to `ClientConfigApiService` ([#5109](https://github.com/MetaMask/core/pull/5109))
+  - These serve the same purpose as the `onBreak` and `onDegraded` constructor options, but align more closely with the Cockatiel policy API.
+
+### Changed
+
+- Deprecate `ClientConfigApiService` constructor options `onBreak` and `onDegraded` in favor of methods ([#5109](https://github.com/MetaMask/core/pull/5109))
+- Add `@metamask/controller-utils@^11.4.5` as a dependency ([#5109](https://github.com/MetaMask/core/pull/5109))
+  - `cockatiel` should still be in the dependency tree because it's now a dependency of `@metamask/controller-utils`
+
 ## [1.3.0]
 
 ### Changed
