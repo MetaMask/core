@@ -13,6 +13,10 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuidv4 } from 'uuid';
 
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../../base-controller/tests/helpers';
 import { BalancesTracker } from './BalancesTracker';
 import {
   MultichainBalancesController,
@@ -22,10 +26,6 @@ import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
 } from './MultichainBalancesController';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
