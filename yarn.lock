@@ -2788,9 +2788,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-hd-keyring@file:/Users/montelai/consensys/accounts/packages/keyring-eth-hd::locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller":
-  version: 9.0.1
-  resolution: "@metamask/eth-hd-keyring@file:/Users/montelai/consensys/accounts/packages/keyring-eth-hd#/Users/montelai/consensys/accounts/packages/keyring-eth-hd::hash=49dfdc&locator=%40metamask%2Fkeyring-controller%40workspace%3Apackages%2Fkeyring-controller"
+"@metamask/eth-hd-keyring@npm:@metamask-previews/eth-hd-keyring@9.0.1-2939d28":
+  version: 9.0.1-2939d28
+  resolution: "@metamask-previews/eth-hd-keyring@npm:9.0.1-2939d28"
   dependencies:
     "@ethereumjs/util": "npm:^8.1.0"
     "@metamask/eth-sig-util": "npm:^8.1.2"
@@ -2798,7 +2798,7 @@ __metadata:
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/utils": "npm:^11.0.1"
     ethereum-cryptography: "npm:^2.1.2"
-  checksum: 10/5bfc5016e01bcd7bce99128fc94682408a3434d3180bfa9a7cf0ab6e70c6fb668d884cdd6d2509a2800613c030af74348465bbd00769e99f4d0c2b3637133b99
+  checksum: 10/ae189ee0a49511e93a31206c9dfb5758c85cce19c14c3edd339fd7e45343e2140054973314fdfacc759b32228333f5a83757c1b128c26ba01136c8dff29acb04
   languageName: node
   linkType: hard
 
@@ -3238,7 +3238,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/browser-passworder": "npm:^4.3.0"
-    "@metamask/eth-hd-keyring": "file:/Users/montelai/consensys/accounts/packages/keyring-eth-hd"
+    "@metamask/eth-hd-keyring": "npm:@metamask-previews/eth-hd-keyring@9.0.1-2939d28"
     "@metamask/eth-sig-util": "npm:^8.0.0"
     "@metamask/eth-simple-keyring": "npm:^6.0.5"
     "@metamask/keyring-api": "npm:^14.0.0"
