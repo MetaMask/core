@@ -12,6 +12,7 @@ import {
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { CaipAssetType, CaipAssetTypeOrId } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringClient } from '@metamask/keyring-snap-client';
 import type {
   GetPermissions,
   PermissionConstraint,
@@ -24,10 +25,9 @@ import type {
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { parseCaipAssetType } from './utils';
-import { KeyringClient } from '@metamask/keyring-snap-client';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 const controllerName = 'MultichainAssetsController';
 
@@ -238,60 +238,40 @@ export class MultichainAssetsController extends BaseController<
         account.id,
         account.metadata.snap.id,
       );
-      const assetsWithoutMetadata: CaipAssetType[] = assets.filter(
-        (asset) => !this.state.metadata[asset],
-      );
-
-      // call the snap to get the metadata
-      if (assetsWithoutMetadata.length > 0) {
-        // check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
-        if (
-          !assetsWithoutMetadata.every((asset: CaipAssetType) => {
-            const chainId = parseCaipAssetType(
-              asset as `${string}:${string}/${string}:${string}`,
-            );
-            console.log('this.snaps', this.#snaps);
-            return this.#snaps[chainId as CaipChainId]?.length > 0;
-          })
-        ) {
-          this.#snaps = this.#getAssetSnaps();
-        }
-
-        await this.updateAssetsMetadata(assetsWithoutMetadata);
-      }
+      await this.#refreshAssetsSnapsFor(assets);
       this.update((state) => {
         state.allNonEvmTokens[account.id] = assets;
       });
     }
   }
 
-  async updateAssetsMetadata(assets: CaipAssetType[]) {
-    const tmpAssets: Record<CaipChainId, CaipAssetType[]> = {};
+  async #updateAssetsMetadata(assets: CaipAssetType[]) {
+    // Creates a mapping of scope to their respective assets list.
+    const assetsByScope: Record<CaipChainId, CaipAssetType[]> = {};
     for (const asset of assets) {
-      const chainId = parseCaipAssetType(
-        asset as `${string}:${string}/${string}:${string}`,
-      );
-      if (!tmpAssets[chainId]) {
-        tmpAssets[chainId] = [];
+      const chainId = parseCaipAssetType(asset);
+      if (!assetsByScope[chainId]) {
+        assetsByScope[chainId] = [];
       }
-      tmpAssets[chainId].push(asset);
+      assetsByScope[chainId].push(asset);
     }
 
     let newMetadata: Record<CaipAssetType, AssetMetadata>;
-    for (const chainId in tmpAssets) {
-      if (Object.prototype.hasOwnProperty.call(tmpAssets, chainId)) {
-        const assetsForChain = tmpAssets[chainId as CaipChainId];
+    for (const chainId in assetsByScope) {
+      if (Object.prototype.hasOwnProperty.call(assetsByScope, chainId)) {
+        const assetsForChain = assetsByScope[chainId as CaipChainId];
         // Now fetch metadata from the associated asset Snaps:
-        // Pick only the first one, we ignore the other Snaps if there are multiple candidates for now.
-        const [snap] = this.#snaps[chainId as CaipChainId];
+        const snap = this.#getAssetSnapFor(chainId as CaipChainId);
         console.log('🚀 ~ updateAssetsMetadata ~ snap:', snap);
-        // TODO: use the snap to get the metadata
-        // this is for testing
-        const metadata = await this.#getMetadata(assetsForChain);
-        newMetadata = {
-          ...this.state.metadata,
-          ...metadata.assets,
-        };
+        if (snap) {
+          // TODO: use the snap to get the metadata
+          // this is for testing
+          const metadata = await this.#getMetadata(assetsForChain);
+          newMetadata = {
+            ...this.state.metadata,
+            ...metadata.assets,
+          };
+        }
       }
     }
     this.update((state) => {
@@ -341,6 +321,12 @@ export class MultichainAssetsController extends BaseController<
     return snaps;
   }
 
+  #getAssetSnapFor(scope: CaipChainId): Snap | undefined {
+    const allSnaps = this.#snaps[scope];
+    // Pick only the first one, we ignore the other Snaps if there are multiple candidates for now.
+    return allSnaps?.[0]; // Will be undefined if there's no Snaps candidate for this scope.
+  }
+
   /**
    * Handles changes when a new account has been removed.
    *
@@ -366,6 +352,29 @@ export class MultichainAssetsController extends BaseController<
       'PermissionController:getPermissions',
       origin,
     ) as SubjectPermissions<PermissionConstraint>;
+  }
+
+  async #refreshAssetsSnapsFor(assets: CaipAssetType[]) {
+    const assetsWithoutMetadata: CaipAssetType[] = assets.filter(
+      (asset) => !this.state.metadata[asset],
+    );
+
+    // call the snap to get the metadata
+    if (assetsWithoutMetadata.length > 0) {
+      // check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
+      if (
+        !assetsWithoutMetadata.every((asset: CaipAssetType) => {
+          const chainId = parseCaipAssetType(
+            asset as `${string}:${string}/${string}:${string}`,
+          );
+          console.log('this.snaps', this.#snaps);
+          return Boolean(this.#getAssetSnapFor(chainId));
+        })
+      ) {
+        this.#snaps = this.#getAssetSnaps();
+      }
+      await this.#updateAssetsMetadata(assetsWithoutMetadata);
+    }
   }
 
   // TODO: update this function to get metadata from the snap
