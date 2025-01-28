@@ -103,9 +103,6 @@ export class RpcService implements AbstractRpcService {
    * @param args.fetchOptions - A common set of options that will be used to
    * make every request. Can be overridden on the request level (e.g. to add
    * headers).
-   * @param args.failoverService - An RPC service that represents a failover
-   * endpoint which will be invoked while the circuit for _this_ service is
-   * open.
    */
   constructor({
     fetch: givenFetch,
