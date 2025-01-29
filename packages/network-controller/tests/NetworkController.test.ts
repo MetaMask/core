@@ -1673,6 +1673,8 @@ describe('NetworkController', () => {
                 jest
                   .spyOn(messenger, 'unsubscribe')
                   .mockImplementation((eventType) => {
+                    // This is okay.
+                    // eslint-disable-next-line jest/no-conditional-in-test
                     if (eventType === 'NetworkController:networkDidChange') {
                       throw error;
                     }
@@ -2046,7 +2048,7 @@ describe('NetworkController', () => {
 
               const lookupNetworkPromise = controller.lookupNetwork();
               messenger.clearSubscriptions();
-              await lookupNetworkPromise;
+              expect(await lookupNetworkPromise).toBeUndefined();
             },
           );
         });
@@ -2108,6 +2110,8 @@ describe('NetworkController', () => {
               jest
                 .spyOn(messenger, 'unsubscribe')
                 .mockImplementation((eventType) => {
+                  // This is okay.
+                  // eslint-disable-next-line jest/no-conditional-in-test
                   if (eventType === 'NetworkController:networkDidChange') {
                     throw error;
                   }
@@ -11592,14 +11596,17 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller, messenger }) => {
-
-          const stateChangePromise = new Promise<NetworkConfiguration | undefined>((resolve) => {
+          const stateChangePromise = new Promise<
+            NetworkConfiguration | undefined
+          >((resolve) => {
             messenger.subscribe('NetworkController:stateChange', (state) => {
               const { networkClientId } =
                 state.networkConfigurationsByChainId['0x1'].rpcEndpoints[1];
 
               resolve(
-                controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+                controller.getNetworkConfigurationByNetworkClientId(
+                  networkClientId,
+                ),
               );
             });
           });
