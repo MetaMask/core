@@ -931,13 +931,6 @@ export class TransactionController extends BaseController<
     );
 
     new ResimulateHelper({
-      getBlockTracker: (networkClientId: NetworkClientId) => {
-        const { blockTracker } = this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        );
-        return blockTracker;
-      },
       updateSimulationData: this.#updateSimulationData.bind(this),
       onStateChange: (listener) => {
         this.messagingSystem.subscribe(

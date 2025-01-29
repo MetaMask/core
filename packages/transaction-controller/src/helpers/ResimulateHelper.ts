@@ -1,7 +1,3 @@
-import type {
-  BlockTracker,
-  NetworkClientId,
-} from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 import { BN } from 'bn.js';
@@ -23,45 +19,35 @@ export const RESIMULATE_PARAMS = ['to', 'value', 'data'] as const;
 export const BLOCKAID_RESULT_TYPE_MALICIOUS = 'Malicious';
 export const VALUE_COMPARISON_PERCENT_THRESHOLD = 5;
 export const BLOCK_TIME_ADDITIONAL_SECONDS = 60;
+export const RESIMULATE_INTERVAL_MS = 3000;
 
 export type ResimulateResponse = {
   blockTime?: number;
   resimulate: boolean;
 };
 
-type ResimulationState = {
-  isActive: boolean;
-  networkClientId: NetworkClientId;
-};
-
 export type ResimulateHelperOptions = {
-  getBlockTracker: (networkClientId: NetworkClientId) => BlockTracker;
   getTransactions: () => TransactionMeta[];
   onStateChange: (listener: () => void) => void;
   updateSimulationData: (transactionMeta: TransactionMeta) => void;
 };
 
 export class ResimulateHelper {
-  readonly #activeResimulations: Map<string, ResimulationState> = new Map();
+  // Map of transactionId <=> isActive
+  readonly #activeResimulations: Map<string, boolean> = new Map();
 
-  readonly #getBlockTracker: (networkClientId: NetworkClientId) => BlockTracker;
+  // Map of transactionId <=> intervalId
+  readonly #intervalIds: Map<string, NodeJS.Timeout> = new Map();
 
   readonly #getTransactions: () => TransactionMeta[];
-
-  readonly #listeners: Map<
-    string,
-    (latestBlockNumber: string) => Promise<void>
-  > = new Map();
 
   readonly #updateSimulationData: (transactionMeta: TransactionMeta) => void;
 
   constructor({
-    getBlockTracker,
     getTransactions,
     updateSimulationData,
     onStateChange,
   }: ResimulateHelperOptions) {
-    this.#getBlockTracker = getBlockTracker;
     this.#getTransactions = getTransactions;
     this.#updateSimulationData = updateSimulationData;
 
@@ -74,35 +60,29 @@ export class ResimulateHelper {
       // Start or stop resimulation based on the current isFocused state
       unapprovedTransactions.forEach((transactionMeta) => {
         if (transactionMeta.isFocused) {
-          this.start(transactionMeta);
+          this.#start(transactionMeta);
         } else {
-          this.stop(transactionMeta);
+          this.#stop(transactionMeta);
         }
       });
 
       // Force stop any running active resimulation that are no longer unapproved transactions list
-      this.#activeResimulations.forEach((_, id) => {
-        const resimulation = this.#activeResimulations.get(id);
-        if (
-          resimulation &&
-          resimulation.isActive &&
-          !unapprovedTransactionIds.has(id)
-        ) {
-          this.stop({
-            id,
+      this.#activeResimulations.forEach((isActive, transactionId) => {
+        if (isActive && !unapprovedTransactionIds.has(transactionId)) {
+          this.#stop({
+            id: transactionId,
             // Forcing this to false to ensure the resimulation is stopped
             isFocused: false,
-            networkClientId: resimulation.networkClientId,
           } as unknown as TransactionMeta);
         }
       });
     });
   }
 
-  start(transactionMeta: TransactionMeta) {
-    const { id, networkClientId } = transactionMeta;
-    const resimulation = this.#activeResimulations.get(id);
-    if (!transactionMeta.isFocused || (resimulation && resimulation.isActive)) {
+  #start(transactionMeta: TransactionMeta) {
+    const { id: transactionId } = transactionMeta;
+    const isActive = this.#activeResimulations.get(transactionId);
+    if (!transactionMeta.isFocused || isActive) {
       return;
     }
 
@@ -115,30 +95,30 @@ export class ResimulateHelper {
       }
     };
 
-    this.#listeners.set(id, listener);
-    const blockTracker = this.#getBlockTracker(networkClientId);
-    blockTracker.on('latest', listener);
-    this.#activeResimulations.set(id, { isActive: true, networkClientId });
-    log(`Started resimulating transaction ${id} on new blocks`);
+    // Set an interval to call the listener every 3 seconds
+    const intervalId = setInterval(listener, RESIMULATE_INTERVAL_MS);
+
+    this.#intervalIds.set(transactionId, intervalId);
+    this.#activeResimulations.set(transactionId, true);
+    log(`Started resimulating transaction ${transactionId} every 3 seconds`);
   }
 
-  stop(transactionMeta: TransactionMeta) {
-    const { id } = transactionMeta;
-    const resimulation = this.#activeResimulations.get(id);
-    if (transactionMeta.isFocused || !resimulation || !resimulation.isActive) {
+  #stop(transactionMeta: TransactionMeta) {
+    const { id: transactionId } = transactionMeta;
+    const isActive = this.#activeResimulations.get(transactionId);
+    if (transactionMeta.isFocused || !isActive) {
       return;
     }
 
-    this.#removeListener(id, resimulation.networkClientId);
-    log(`Stopped resimulating transaction ${id} on new blocks`);
+    this.#removeListener(transactionId);
+    log(`Stopped resimulating transaction ${transactionId} every 3 seconds`);
   }
 
-  #removeListener(id: string, networkClientId: NetworkClientId) {
-    const listener = this.#listeners.get(id);
-    if (listener) {
-      const blockTracker = this.#getBlockTracker(networkClientId);
-      blockTracker.removeListener('latest', listener);
-      this.#listeners.delete(id);
+  #removeListener(id: string) {
+    const intervalId = this.#intervalIds.get(id);
+    if (intervalId) {
+      clearInterval(intervalId); // Clear the interval
+      this.#intervalIds.delete(id);
     }
     this.#activeResimulations.delete(id);
   }

@@ -14,6 +14,7 @@ import {
   RESIMULATE_PARAMS,
   shouldResimulate,
   VALUE_COMPARISON_PERCENT_THRESHOLD,
+  RESIMULATE_INTERVAL_MS,
 } from './ResimulateHelper';
 import { CHAIN_IDS } from '../constants';
 import type {
@@ -87,10 +88,6 @@ const mockTransactionMeta = {
 jest.mock('../utils/utils');
 
 describe('ResimulateHelper', () => {
-  let blockTrackerMock: jest.Mocked<BlockTracker>;
-  let getBlockTrackerMock: jest.Mock<
-    (networkClientId: NetworkClientId) => BlockTracker
-  >;
   let getTransactionsMock: jest.Mock<() => TransactionMeta[]>;
   let updateSimulationDataMock: jest.Mock<
     (transactionMeta: TransactionMeta) => void
@@ -99,166 +96,104 @@ describe('ResimulateHelper', () => {
 
   let resimulateHelper: ResimulateHelper;
 
-  beforeEach(() => {
-    blockTrackerMock = {
-      on: jest.fn(),
-      removeListener: jest.fn(),
-    } as unknown as jest.Mocked<BlockTracker>;
+  function triggerStateChange() {
+    onStateChangeMock.mock.calls[0][0]();
+  }
 
-    getBlockTrackerMock = jest.fn().mockReturnValue(blockTrackerMock);
+  function mockGetTransactionsOnce(transactions: TransactionMeta[]) {
+    getTransactionsMock.mockReturnValueOnce(
+      transactions as unknown as ResimulateHelperOptions['getTransactions'],
+    );
+  }
+
+  beforeEach(() => {
+    jest.useFakeTimers();
     getTransactionsMock = jest.fn();
     onStateChangeMock = jest.fn();
     updateSimulationDataMock = jest.fn();
 
     resimulateHelper = new ResimulateHelper({
-      getBlockTracker: getBlockTrackerMock,
       getTransactions: getTransactionsMock,
       onStateChange: onStateChangeMock,
       updateSimulationData: updateSimulationDataMock,
     } as unknown as ResimulateHelperOptions);
   });
 
-  it('assigns a block tracker listener to resimulate for a focused transaction', () => {
-    resimulateHelper.start(mockTransactionMeta);
+  it(`resimulates unapproved focused transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, () => {
+    mockGetTransactionsOnce([mockTransactionMeta]);
+    triggerStateChange();
 
-    expect(getBlockTrackerMock).toHaveBeenCalledWith(
-      mockTransactionMeta.networkClientId,
-    );
-    expect(blockTrackerMock.on).toHaveBeenCalledWith(
-      'latest',
-      expect.any(Function),
-    );
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+
+    expect(updateSimulationDataMock).toHaveBeenCalledWith(mockTransactionMeta);
+    expect(updateSimulationDataMock).toHaveBeenCalledTimes(2);
   });
 
-  it('removes a block tracker listener for a transaction that is no longer focused', () => {
-    resimulateHelper.start(mockTransactionMeta);
+  it(`does not resimulate twice the same transaction even if state change is triggered twice`, () => {
+    mockGetTransactionsOnce([mockTransactionMeta]);
+    triggerStateChange();
+
+    // Halfway through the interval
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
+
+    // Assume state change is triggered again
+    mockGetTransactionsOnce([mockTransactionMeta]);
+    triggerStateChange();
+
+    // Halfway through the interval
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
+
+    expect(updateSimulationDataMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resimulate a transaction that is no longer focused', () => {
+    mockGetTransactionsOnce([mockTransactionMeta]);
+    triggerStateChange();
+
+    // Halfway through the interval
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
     const unfocusedTransactionMeta = {
       ...mockTransactionMeta,
       isFocused: false,
     } as TransactionMeta;
 
-    resimulateHelper.stop(unfocusedTransactionMeta);
+    mockGetTransactionsOnce([unfocusedTransactionMeta]);
+    triggerStateChange();
 
-    expect(blockTrackerMock.removeListener).toHaveBeenCalledWith(
-      'latest',
-      expect.any(Function),
-    );
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
+
+    expect(updateSimulationDataMock).toHaveBeenCalledTimes(0);
   });
 
-  it('does not add a block tracker listener for a transaction that is not focused', () => {
-    resimulateHelper.start({
+  it('does not resimulate a transaction that is not focused', () => {
+    const unfocusedTransactionMeta = {
       ...mockTransactionMeta,
       isFocused: false,
-    });
+    } as TransactionMeta;
 
-    expect(blockTrackerMock.on).not.toHaveBeenCalled();
+    mockGetTransactionsOnce([unfocusedTransactionMeta]);
+    triggerStateChange();
+
+    jest.advanceTimersByTime(2 * RESIMULATE_INTERVAL_MS);
+
+    expect(updateSimulationDataMock).toHaveBeenCalledTimes(0);
   });
 
-  it('does not add a block tracker listener for a transaction that is already resimulating', () => {
-    resimulateHelper.start(mockTransactionMeta);
-    resimulateHelper.start(mockTransactionMeta);
+  it('stops resimulating a transaction that is no longer in the transaction list', () => {
+    mockGetTransactionsOnce([mockTransactionMeta]);
+    triggerStateChange();
 
-    expect(blockTrackerMock.on).toHaveBeenCalledTimes(1);
-  });
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
 
-  it('does not remove a block tracker listener for a transaction that is not resimulating', () => {
-    resimulateHelper.stop(mockTransactionMeta);
+    mockGetTransactionsOnce([]);
+    triggerStateChange();
 
-    expect(blockTrackerMock.on).toHaveBeenCalledTimes(0);
-  });
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
 
-  describe('on Transaction Controller state change', () => {
-    it('start and stop resimulations depending on the isFocused state', async () => {
-      const firstTransactionMeta = {
-        ...mockTransactionMeta,
-        networkClientId: 'network1' as NetworkClientId,
-        id: '1',
-      } as TransactionMeta;
-
-      const secondTransactionMeta = {
-        ...mockTransactionMeta,
-        networkClientId: 'network2' as NetworkClientId,
-        id: '2',
-      } as TransactionMeta;
-
-      // Assume both transactions are started to put them in the activeResimulations state
-      resimulateHelper.start(firstTransactionMeta);
-      resimulateHelper.start(secondTransactionMeta);
-
-      expect(getBlockTrackerMock).toHaveBeenCalledWith(
-        firstTransactionMeta.networkClientId,
-      );
-      expect(getBlockTrackerMock).toHaveBeenCalledWith(
-        secondTransactionMeta.networkClientId,
-      );
-
-      // Assume both transactions are still in the transaction list but second is not focused anymore
-      getTransactionsMock.mockReturnValueOnce([
-        firstTransactionMeta,
-        {
-          ...secondTransactionMeta,
-          isFocused: false,
-        },
-      ] as unknown as ResimulateHelperOptions['getTransactions']);
-
-      // Manually trigger the state change listener
-      onStateChangeMock.mock.calls[0][0]();
-
-      expect(blockTrackerMock.removeListener).toHaveBeenCalledWith(
-        'latest',
-        expect.any(Function),
-      );
-
-      // Manually trigger the block tracker listener
-      const firstTransactionListener = blockTrackerMock.on.mock.calls[0][1];
-      await firstTransactionListener();
-
-      // Assert that first transaction is still in the activeResimulations state
-      expect(updateSimulationDataMock).toHaveBeenCalledWith(
-        firstTransactionMeta,
-      );
-    });
-
-    it('forces to stop resimulation for a transaction that is no longer in transaction list', async () => {
-      const firstTransactionMeta = {
-        ...mockTransactionMeta,
-        networkClientId: 'network1' as NetworkClientId,
-        id: '1',
-      } as TransactionMeta;
-
-      const secondTransactionMeta = {
-        ...mockTransactionMeta,
-        networkClientId: 'network2' as NetworkClientId,
-        id: '2',
-      } as TransactionMeta;
-
-      // Assume both transactions are started to put them in the activeResimulations state
-      resimulateHelper.start(firstTransactionMeta);
-      resimulateHelper.start(secondTransactionMeta);
-
-      // On next state change, first transaction is still in the transaction list but second is not
-      getTransactionsMock.mockReturnValueOnce([
-        firstTransactionMeta,
-      ] as unknown as ResimulateHelperOptions['getTransactions']);
-
-      // Manually trigger the state change listener
-      onStateChangeMock.mock.calls[0][0]();
-
-      expect(blockTrackerMock.removeListener).toHaveBeenCalledWith(
-        'latest',
-        expect.any(Function),
-      );
-
-      // Manually trigger the block tracker listener
-      const firstTransactionListener = blockTrackerMock.on.mock.calls[0][1];
-      await firstTransactionListener();
-
-      // Assert that first transaction is still in the activeResimulations state
-      expect(updateSimulationDataMock).toHaveBeenCalledWith(
-        firstTransactionMeta,
-      );
-    });
+    expect(updateSimulationDataMock).toHaveBeenCalledTimes(1);
   });
 });
 
