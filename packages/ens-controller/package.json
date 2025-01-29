@@ -50,7 +50,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^7.1.1",
     "@metamask/controller-utils": "^11.4.5",
-    "@metamask/utils": "^11.1.0",
+    "@metamask/utils": "^11.0.1",
     "punycode": "^2.1.1"
   },
   "devDependencies": {
