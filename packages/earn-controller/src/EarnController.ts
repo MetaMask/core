@@ -75,7 +75,7 @@ export const earnControllerMetadata: StateMetadata<EarnControllerState> = {
 
 // === State Types ===
 export type EarnControllerState = {
-  [EarnProductType.POOLED_STAKING]?: PooledStakingProduct;
+  [EarnProductType.POOLED_STAKING]: PooledStakingProduct;
   [EarnProductType.STABLECOIN_LENDING]?: StablecoinLendingProduct;
   lastUpdated: number;
 };
@@ -190,7 +190,7 @@ export class EarnController extends BaseController<
 > {
   #stakeSDK: StakeSdk | null = null;
 
-  #stakingApiService: StakingApiService | null = null;
+  readonly #stakingApiService: StakingApiService = new StakingApiService();
 
   constructor({
     messenger,
@@ -217,7 +217,7 @@ export class EarnController extends BaseController<
       'NetworkController:networkDidChange',
       ({ selectedNetworkClientId }) => {
         this.#initializeSDK(selectedNetworkClientId);
-        this.fetchAndUpdateStakingData().catch(console.error);
+        this.refreshPooledStakingData().catch(console.error);
       },
     );
 
@@ -225,7 +225,7 @@ export class EarnController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       () => {
-        this.fetchAndUpdateStakingData().catch(console.error);
+        this.refreshPooledStakingData().catch(console.error);
       },
     );
   }
@@ -256,32 +256,18 @@ export class EarnController extends BaseController<
     try {
       this.#stakeSDK = StakeSdk.create(config);
       this.#stakeSDK.pooledStakingContract.connectSignerOrProvider(provider);
-      this.#stakingApiService = new StakingApiService();
     } catch (error) {
       this.#stakeSDK = null;
-      throw error;
+      // Only log unexpected errors, not unsupported chain errors
+      if (
+        !(
+          error instanceof Error &&
+          error.message.includes('Unsupported chainId')
+        )
+      ) {
+        console.error('Stake SDK initialization failed:', error);
+      }
     }
-  }
-
-  #getSDK(): StakeSdk {
-    if (!this.#stakeSDK) {
-      throw new Error('EarnSDK not initialized');
-    }
-    return this.#stakeSDK;
-  }
-
-  // Add getter methods for specific contracts
-  private getPooledStakingContract() {
-    const sdk = this.#getSDK();
-
-    return sdk.pooledStakingContract;
-  }
-
-  #getEarnApiService() {
-    if (!this.#stakingApiService) {
-      throw new Error('EarnApiService not initialized');
-    }
-    return this.#stakingApiService;
   }
 
   #getCurrentAccount() {
@@ -301,14 +287,14 @@ export class EarnController extends BaseController<
     return convertHexToDecimal(chainId);
   }
 
-  async fetchAndUpdateStakingData(): Promise<void> {
+  async refreshPooledStakingData(): Promise<void> {
     const currentAccount = this.#getCurrentAccount();
     if (!currentAccount?.address) {
       return;
     }
 
     const chainId = this.#getCurrentChainId();
-    const apiService = this.#getEarnApiService();
+    const apiService = this.#stakingApiService;
 
     try {
       const { accounts, exchangeRate } = await apiService.getPooledStakes(
@@ -316,26 +302,33 @@ export class EarnController extends BaseController<
         chainId,
       );
 
-      const pooledStakes = accounts[0];
+      this.update((state) => {
+        state[EarnProductType.POOLED_STAKING].pooledStakes = accounts[0];
+        state[EarnProductType.POOLED_STAKING].exchangeRate = exchangeRate;
+      });
+    } catch (error) {
+      console.error('Failed to fetch pooled stakes:', error);
+    }
 
+    try {
       const { eligible: isEligible } =
         await apiService.getPooledStakingEligibility([currentAccount.address]);
 
-      const vaultData = await apiService.getVaultData(chainId);
-
-      const pooledStakingData: PooledStakingProduct = {
-        pooledStakes,
-        exchangeRate,
-        vaultData,
-        isEligible,
-      };
-
       this.update((state) => {
-        state[EarnProductType.POOLED_STAKING] = pooledStakingData;
-        state.lastUpdated = Date.now();
+        state[EarnProductType.POOLED_STAKING].isEligible = isEligible;
       });
     } catch (error) {
-      console.error('Failed to fetch staking data:', error);
+      console.error('Failed to fetch staking eligibility:', error);
+    }
+
+    try {
+      const vaultData = await apiService.getVaultData(chainId);
+
+      this.update((state) => {
+        state[EarnProductType.POOLED_STAKING].vaultData = vaultData;
+      });
+    } catch (error) {
+      console.error('Failed to fetch vault data:', error);
     }
   }
 }
