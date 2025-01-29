@@ -15,6 +15,7 @@ export * from './misc';
 export * from './number';
 export * from './opaque';
 export * from './promise';
+export * from './superstruct';
 export * from './time';
 export * from './transaction-types';
 export * from './versions';

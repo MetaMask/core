@@ -1,5 +1,7 @@
-import type { Infer, Struct } from '@metamask/superstruct';
-import { is, pattern, string } from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
+import { is } from '@metamask/superstruct';
+
+import { definePattern } from './superstruct';
 
 export const CAIP_CHAIN_ID_REGEX =
   /^(?<namespace>[-a-z0-9]{3,8}):(?<reference>[-_a-zA-Z0-9]{1,32})$/u;
@@ -28,38 +30,45 @@ export const CAIP_ASSET_ID_REGEX =
 /**
  * A CAIP-2 chain ID, i.e., a human-readable namespace and reference.
  */
-export const CaipChainIdStruct = pattern(
-  string(),
+export const CaipChainIdStruct = definePattern<`${string}:${string}`>(
+  'CaipChainId',
   CAIP_CHAIN_ID_REGEX,
-) as Struct<CaipChainId, null>;
-export type CaipChainId = `${string}:${string}`;
+);
+export type CaipChainId = Infer<typeof CaipChainIdStruct>;
 
 /**
  * A CAIP-2 namespace, i.e., the first part of a CAIP chain ID.
  */
-export const CaipNamespaceStruct = pattern(string(), CAIP_NAMESPACE_REGEX);
+export const CaipNamespaceStruct = definePattern(
+  'CaipNamespace',
+  CAIP_NAMESPACE_REGEX,
+);
 export type CaipNamespace = Infer<typeof CaipNamespaceStruct>;
 
 /**
  * A CAIP-2 reference, i.e., the second part of a CAIP chain ID.
  */
-export const CaipReferenceStruct = pattern(string(), CAIP_REFERENCE_REGEX);
+export const CaipReferenceStruct = definePattern(
+  'CaipReference',
+  CAIP_REFERENCE_REGEX,
+);
 export type CaipReference = Infer<typeof CaipReferenceStruct>;
 
 /**
  * A CAIP-10 account ID, i.e., a human-readable namespace, reference, and account address.
  */
-export const CaipAccountIdStruct = pattern(
-  string(),
-  CAIP_ACCOUNT_ID_REGEX,
-) as Struct<CaipAccountId, null>;
-export type CaipAccountId = `${string}:${string}:${string}`;
+export const CaipAccountIdStruct =
+  definePattern<`${string}:${string}:${string}`>(
+    'CaipAccountId',
+    CAIP_ACCOUNT_ID_REGEX,
+  );
+export type CaipAccountId = Infer<typeof CaipAccountIdStruct>;
 
 /**
  * A CAIP-10 account address, i.e., the third part of the CAIP account ID.
  */
-export const CaipAccountAddressStruct = pattern(
-  string(),
+export const CaipAccountAddressStruct = definePattern(
+  'CaipAccountAddress',
   CAIP_ACCOUNT_ADDRESS_REGEX,
 );
 export type CaipAccountAddress = Infer<typeof CaipAccountAddressStruct>;
@@ -67,8 +76,8 @@ export type CaipAccountAddress = Infer<typeof CaipAccountAddressStruct>;
 /**
  * A CAIP-19 asset namespace, i.e., a namespace domain of an asset.
  */
-export const CaipAssetNamespaceStruct = pattern(
-  string(),
+export const CaipAssetNamespaceStruct = definePattern(
+  'CaipAssetNamespace',
   CAIP_ASSET_NAMESPACE_REGEX,
 );
 export type CaipAssetNamespace = Infer<typeof CaipAssetNamespaceStruct>;
@@ -76,8 +85,8 @@ export type CaipAssetNamespace = Infer<typeof CaipAssetNamespaceStruct>;
 /**
  * A CAIP-19 asset reference, i.e., an identifier for an asset within a given namespace.
  */
-export const CaipAssetReferenceStruct = pattern(
-  string(),
+export const CaipAssetReferenceStruct = definePattern(
+  'CaipAssetReference',
   CAIP_ASSET_REFERENCE_REGEX,
 );
 export type CaipAssetReference = Infer<typeof CaipAssetReferenceStruct>;
@@ -85,26 +94,31 @@ export type CaipAssetReference = Infer<typeof CaipAssetReferenceStruct>;
 /**
  * A CAIP-19 asset token ID, i.e., a unique identifier for an addressable asset of a given type
  */
-export const CaipTokenIdStruct = pattern(string(), CAIP_TOKEN_ID_REGEX);
+export const CaipTokenIdStruct = definePattern(
+  'CaipTokenId',
+  CAIP_TOKEN_ID_REGEX,
+);
 export type CaipTokenId = Infer<typeof CaipTokenIdStruct>;
 
 /**
  * A CAIP-19 asset type identifier, i.e., a human-readable type of asset identifier.
  */
-export const CaipAssetTypeStruct = pattern(
-  string(),
-  CAIP_ASSET_TYPE_REGEX,
-) as Struct<CaipAssetType, null>;
-export type CaipAssetType = `${string}:${string}/${string}:${string}`;
+export const CaipAssetTypeStruct =
+  definePattern<`${string}:${string}/${string}:${string}`>(
+    'CaipAssetType',
+    CAIP_ASSET_TYPE_REGEX,
+  );
+export type CaipAssetType = Infer<typeof CaipAssetTypeStruct>;
 
 /**
  * A CAIP-19 asset ID identifier, i.e., a human-readable type of asset ID.
  */
-export const CaipAssetIdStruct = pattern(
-  string(),
-  CAIP_ASSET_ID_REGEX,
-) as Struct<CaipAssetId, null>;
-export type CaipAssetId = `${string}:${string}/${string}:${string}/${string}`;
+export const CaipAssetIdStruct =
+  definePattern<`${string}:${string}/${string}:${string}/${string}`>(
+    'CaipAssetId',
+    CAIP_ASSET_ID_REGEX,
+  );
+export type CaipAssetId = Infer<typeof CaipAssetIdStruct>;
 
 /** Known CAIP namespaces. */
 export enum KnownCaipNamespace {

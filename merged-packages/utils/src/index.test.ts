@@ -87,6 +87,7 @@ describe('index', () => {
         "createModuleLogger",
         "createNumber",
         "createProjectLogger",
+        "definePattern",
         "exactOptional",
         "getChecksumAddress",
         "getErrorMessage",

@@ -88,6 +88,7 @@ describe('node', () => {
         "createNumber",
         "createProjectLogger",
         "createSandbox",
+        "definePattern",
         "directoryExists",
         "ensureDirectoryStructureExists",
         "exactOptional",
