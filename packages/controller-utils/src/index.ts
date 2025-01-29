@@ -1,4 +1,18 @@
-export { createServicePolicy } from './create-service-policy';
+export {
+  BrokenCircuitError,
+  CircuitState,
+  DEFAULT_CIRCUIT_BREAK_DURATION,
+  DEFAULT_DEGRADED_THRESHOLD,
+  DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  DEFAULT_MAX_RETRIES,
+  createServicePolicy,
+  handleAll,
+  handleWhen,
+} from './create-service-policy';
+export type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from './create-service-policy';
 export * from './constants';
 export type { NonEmptyArray } from './util';
 export {

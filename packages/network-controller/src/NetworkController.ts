@@ -590,6 +590,16 @@ export function getDefaultNetworkControllerState(): NetworkState {
 }
 
 /**
+ * Redux selector for getting all network configurations from NetworkController
+ * state, keyed by chain ID.
+ *
+ * @param state - NetworkController state
+ * @returns All registered network configurations, keyed by chain ID.
+ */
+const selectNetworkConfigurationsByChainId = (state: NetworkState) =>
+  state.networkConfigurationsByChainId;
+
+/**
  * Get a list of all network configurations.
  *
  * @param state - NetworkController state
@@ -602,8 +612,22 @@ export function getNetworkConfigurations(
 }
 
 /**
- * Get a list of all available client IDs from a list of
- * network configurations
+ * Redux selector for getting a list of all network configurations from
+ * NetworkController state.
+ *
+ * @param state - NetworkController state
+ * @returns A list of all available network configurations
+ */
+export const selectNetworkConfigurations = createSelector(
+  selectNetworkConfigurationsByChainId,
+  (networkConfigurationsByChainId) =>
+    Object.values(networkConfigurationsByChainId),
+);
+
+/**
+ * Get a list of all available network client IDs from a list of network
+ * configurations.
+ *
  * @param networkConfigurations - The array of network configurations
  * @returns A list of all available client IDs
  */
@@ -617,8 +641,15 @@ export function getAvailableNetworkClientIds(
   );
 }
 
+/**
+ * Redux selector for getting a list of all available network client IDs
+ * from NetworkController state.
+ *
+ * @param state - NetworkController state
+ * @returns A list of all available network client IDs.
+ */
 export const selectAvailableNetworkClientIds = createSelector(
-  [getNetworkConfigurations],
+  selectNetworkConfigurations,
   getAvailableNetworkClientIds,
 );
 
@@ -773,7 +804,9 @@ function validateNetworkControllerState(state: NetworkState) {
   const networkConfigurationEntries = Object.entries(
     state.networkConfigurationsByChainId,
   );
-  const networkClientIds = selectAvailableNetworkClientIds(state);
+  const networkClientIds = getAvailableNetworkClientIds(
+    getNetworkConfigurations(state),
+  );
 
   if (networkConfigurationEntries.length === 0) {
     throw new Error(

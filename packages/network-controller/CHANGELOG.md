@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix `selectAvailableNetworkClientIds` so that it is properly memoized ([#5193](https://github.com/MetaMask/core/pull/5193))
 - Fix `lookupNetwork` so that it will no longer throw an error if `networkDidChange` subscriptions have been removed before it returns ([#5116](https://github.com/MetaMask/core/pull/5116))
   - This error could occur if the NetworkController's messenger is cleared of subscriptions, as in a "destroy" step.
 
