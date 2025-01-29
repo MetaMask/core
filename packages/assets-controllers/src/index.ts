@@ -167,14 +167,11 @@ export type {
   MultichainBalancesControllerMessenger,
 } from './MultichainBalancesController';
 
-export {
-  MultichainAssetsController,
-} from './MultichainAssetsController';
+export { MultichainAssetsController } from './MultichainAssetsController';
 
 export type {
   MultichainAssetsControllerState,
   MultichainAssetsControllerGetStateAction,
-
   MultichainAssetsControllerStateChange,
   MultichainAssetsControllerActions,
   MultichainAssetsControllerEvents,
