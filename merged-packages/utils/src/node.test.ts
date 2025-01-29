@@ -20,6 +20,7 @@ describe('node', () => {
         "CaipAssetIdStruct",
         "CaipAssetNamespaceStruct",
         "CaipAssetReferenceStruct",
+        "CaipAssetTypeOrIdStruct",
         "CaipAssetTypeStruct",
         "CaipChainIdStruct",
         "CaipNamespaceStruct",

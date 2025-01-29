@@ -20,6 +20,7 @@ describe('index', () => {
         "CaipAssetIdStruct",
         "CaipAssetNamespaceStruct",
         "CaipAssetReferenceStruct",
+        "CaipAssetTypeOrIdStruct",
         "CaipAssetTypeStruct",
         "CaipChainIdStruct",
         "CaipNamespaceStruct",

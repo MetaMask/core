@@ -27,6 +27,9 @@ export const CAIP_ASSET_TYPE_REGEX =
 export const CAIP_ASSET_ID_REGEX =
   /^(?<chainId>(?<namespace>[-a-z0-9]{3,8}):(?<reference>[-_a-zA-Z0-9]{1,32}))\/(?<assetNamespace>[-a-z0-9]{3,8}):(?<assetReference>[-.%a-zA-Z0-9]{1,128})\/(?<tokenId>[-.%a-zA-Z0-9]{1,78})$/u;
 
+const CAIP_ASSET_TYPE_OR_ID_REGEX =
+  /^(?<chainId>(?<namespace>[-a-z0-9]{3,8}):(?<reference>[-_a-zA-Z0-9]{1,32}))\/(?<assetNamespace>[-a-z0-9]{3,8}):(?<assetReference>[-.%a-zA-Z0-9]{1,128})(\/(?<tokenId>[-.%a-zA-Z0-9]{1,78}))?$/u;
+
 /**
  * A CAIP-2 chain ID, i.e., a human-readable namespace and reference.
  */
@@ -119,6 +122,14 @@ export const CaipAssetIdStruct =
     CAIP_ASSET_ID_REGEX,
   );
 export type CaipAssetId = Infer<typeof CaipAssetIdStruct>;
+
+/**
+ * A CAIP-19 asset type or asset ID identifier, i.e., a human-readable type of asset identifier.
+ */
+export const CaipAssetTypeOrIdStruct = definePattern<
+  CaipAssetType | CaipAssetId
+>('CaipAssetTypeOrId', CAIP_ASSET_TYPE_OR_ID_REGEX);
+export type CaipAssetTypeOrId = Infer<typeof CaipAssetTypeOrIdStruct>;
 
 /** Known CAIP namespaces. */
 export enum KnownCaipNamespace {
