@@ -225,7 +225,7 @@ export class MultichainAssetsController extends BaseController<
           (asset) => !assets.includes(asset),
         );
         // trigger fetching metadata for new assets
-        await this.#refreshAssetsSnapsFor(filteredAssetsToAdd);
+        await this.#refreshAssetsMetadata(filteredAssetsToAdd);
         const newAssets = [...assets, ...filteredAssetsToAdd];
 
         const assetsAfterRemoval = newAssets.filter(
@@ -269,7 +269,7 @@ export class MultichainAssetsController extends BaseController<
         account.id,
         account.metadata.snap.id,
       );
-      await this.#refreshAssetsSnapsFor(assets);
+      await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
         state.allNonEvmTokens[account.id] = assets;
       });
@@ -295,7 +295,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param assets - The assets to refresh
    */
-  async #refreshAssetsSnapsFor(assets: CaipAssetType[]) {
+  async #refreshAssetsMetadata(assets: CaipAssetType[]) {
     const assetsWithoutMetadata: CaipAssetType[] = assets.filter(
       (asset) => !this.state.metadata[asset],
     );
