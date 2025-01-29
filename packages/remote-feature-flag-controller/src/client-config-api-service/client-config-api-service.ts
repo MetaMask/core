@@ -1,14 +1,12 @@
 import {
-  circuitBreaker,
-  ConsecutiveBreaker,
-  ExponentialBackoff,
-  handleAll,
-  type IPolicy,
-  retry,
-  wrap,
-  CircuitState,
-} from 'cockatiel';
+  createServicePolicy,
+  DEFAULT_CIRCUIT_BREAK_DURATION,
+  DEFAULT_MAX_CONSECUTIVE_FAILURES,
+  DEFAULT_MAX_RETRIES,
+} from '@metamask/controller-utils';
+import type { ServicePolicy } from '@metamask/controller-utils';
 
+import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
 import { BASE_URL } from '../constants';
 import type {
   FeatureFlags,
@@ -19,19 +17,13 @@ import type {
   ApiDataResponse,
 } from '../remote-feature-flag-controller-types';
 
-const DEFAULT_FETCH_RETRIES = 3;
-// Each update attempt will result (1 + retries) calls if the server is down
-const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_FETCH_RETRIES) * 3;
-
-export const DEFAULT_DEGRADED_THRESHOLD = 5000;
-
 /**
  * This service is responsible for fetching feature flags from the ClientConfig API.
  */
-export class ClientConfigApiService {
+export class ClientConfigApiService implements AbstractClientConfigApiService {
   #fetch: typeof fetch;
 
-  #policy: IPolicy;
+  readonly #policy: ServicePolicy;
 
   #client: ClientType;
 
@@ -44,23 +36,83 @@ export class ClientConfigApiService {
    *
    * @param args - The arguments.
    * @param args.fetch - A function that can be used to make an HTTP request.
+   * If your JavaScript environment supports `fetch` natively, you'll probably
+   * want to pass that; otherwise you can pass an equivalent (such as `fetch`
+   * via `node-fetch`).
    * @param args.retries - Number of retry attempts for each fetch request.
-   * @param args.maximumConsecutiveFailures - The maximum number of consecutive failures
-   * allowed before breaking the circuit and pausing further fetch attempts.
-   * @param args.circuitBreakDuration - The duration for which the circuit remains open after
-   * too many consecutive failures.
-   * @param args.onBreak - Callback invoked when the circuit breaks.
-   * @param args.onDegraded - Callback invoked when the service is degraded (requests resolving too slowly).
-   * @param args.config - The configuration object, includes client, distribution, and environment.
+   * @param args.maximumConsecutiveFailures - The maximum number of consecutive
+   * failures allowed before breaking the circuit and pausing further fetch
+   * attempts.
+   * @param args.circuitBreakDuration - The amount of time to wait when the
+   * circuit breaks from too many consecutive failures.
+   * @param args.config - The configuration object, includes client,
+   * distribution, and environment.
    * @param args.config.client - The client type (e.g., 'extension', 'mobile').
-   * @param args.config.distribution - The distribution type (e.g., 'main', 'flask').
-   * @param args.config.environment - The environment type (e.g., 'prod', 'rc', 'dev').
+   * @param args.config.distribution - The distribution type (e.g., 'main',
+   * 'flask').
+   * @param args.config.environment - The environment type (e.g., 'prod', 'rc',
+   * 'dev').
    */
+  constructor(args: {
+    fetch: typeof fetch;
+    retries?: number;
+    maximumConsecutiveFailures?: number;
+    circuitBreakDuration?: number;
+    config: {
+      client: ClientType;
+      distribution: DistributionType;
+      environment: EnvironmentType;
+    };
+  });
+
+  /**
+   * Constructs a new ClientConfigApiService object.
+   *
+   * @deprecated This signature is deprecated; please use the `onBreak` and
+   * `onDegraded` methods instead.
+   * @param args - The arguments.
+   * @param args.fetch - A function that can be used to make an HTTP request.
+   * If your JavaScript environment supports `fetch` natively, you'll probably
+   * want to pass that; otherwise you can pass an equivalent (such as `fetch`
+   * via `node-fetch`).
+   * @param args.retries - Number of retry attempts for each fetch request.
+   * @param args.maximumConsecutiveFailures - The maximum number of consecutive
+   * failures allowed before breaking the circuit and pausing further fetch
+   * attempts.
+   * @param args.circuitBreakDuration - The amount of time to wait when the
+   * circuit breaks from too many consecutive failures.
+   * @param args.onBreak - Callback for when the circuit breaks, useful
+   * for capturing metrics about network failures.
+   * @param args.onDegraded - Callback for when the API responds successfully
+   * but takes too long to respond (5 seconds or more).
+   * @param args.config - The configuration object, includes client,
+   * distribution, and environment.
+   * @param args.config.client - The client type (e.g., 'extension', 'mobile').
+   * @param args.config.distribution - The distribution type (e.g., 'main',
+   * 'flask').
+   * @param args.config.environment - The environment type (e.g., 'prod', 'rc',
+   * 'dev').
+   */
+  // eslint-disable-next-line @typescript-eslint/unified-signatures
+  constructor(args: {
+    fetch: typeof fetch;
+    retries?: number;
+    maximumConsecutiveFailures?: number;
+    circuitBreakDuration?: number;
+    onBreak?: () => void;
+    onDegraded?: () => void;
+    config: {
+      client: ClientType;
+      distribution: DistributionType;
+      environment: EnvironmentType;
+    };
+  });
+
   constructor({
     fetch: fetchFunction,
-    retries = DEFAULT_FETCH_RETRIES,
+    retries = DEFAULT_MAX_RETRIES,
     maximumConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
-    circuitBreakDuration = 30 * 60 * 1000,
+    circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
     onBreak,
     onDegraded,
     config,
@@ -82,38 +134,39 @@ export class ClientConfigApiService {
     this.#distribution = config.distribution;
     this.#environment = config.environment;
 
-    const retryPolicy = retry(handleAll, {
-      maxAttempts: retries,
-      backoff: new ExponentialBackoff(),
+    this.#policy = createServicePolicy({
+      maxRetries: retries,
+      maxConsecutiveFailures: maximumConsecutiveFailures,
+      circuitBreakDuration,
     });
-
-    const circuitBreakerPolicy = circuitBreaker(handleAll, {
-      halfOpenAfter: circuitBreakDuration,
-      breaker: new ConsecutiveBreaker(maximumConsecutiveFailures),
-    });
-
     if (onBreak) {
-      circuitBreakerPolicy.onBreak(onBreak);
+      this.#policy.onBreak(onBreak);
     }
-
     if (onDegraded) {
-      retryPolicy.onGiveUp(() => {
-        if (circuitBreakerPolicy.state === CircuitState.Closed) {
-          onDegraded();
-        }
-      });
-
-      retryPolicy.onSuccess(({ duration }) => {
-        if (
-          circuitBreakerPolicy.state === CircuitState.Closed &&
-          duration > DEFAULT_DEGRADED_THRESHOLD // Default degraded threshold
-        ) {
-          onDegraded();
-        }
-      });
+      this.#policy.onDegraded(onDegraded);
     }
+  }
 
-    this.#policy = wrap(retryPolicy, circuitBreakerPolicy);
+  /**
+   * Listens for when the request to the API fails too many times in a row.
+   *
+   * @param args - The same arguments that {@link ServicePolicy.onBreak}
+   * takes.
+   * @returns What {@link ServicePolicy.onBreak} returns.
+   */
+  onBreak(...args: Parameters<ServicePolicy['onBreak']>) {
+    return this.#policy.onBreak(...args);
+  }
+
+  /**
+   * Listens for when the API is degraded.
+   *
+   * @param args - The same arguments that {@link ServicePolicy.onDegraded}
+   * takes.
+   * @returns What {@link ServicePolicy.onDegraded} returns.
+   */
+  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>) {
+    return this.#policy.onDegraded(...args);
   }
 
   /**

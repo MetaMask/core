@@ -27,7 +27,28 @@ export const KnownWalletRpcMethods: string[] = [
   'wallet_scanQRCode',
 ];
 
+/**
+ * Methods that belong to the `wallet:eip155` scope.
+ */
 const WalletEip155Methods = ['wallet_addEthereumChain'];
+
+/**
+ * Methods that are only supported via the EIP-1193 API.
+ */
+export const Eip1193OnlyMethods = [
+  'wallet_switchEthereumChain',
+  'wallet_getPermissions',
+  'wallet_requestPermissions',
+  'wallet_revokePermissions',
+  'eth_requestAccounts',
+  'eth_accounts',
+  'eth_coinbase',
+  'net_version',
+  'metamask_logWeb3ShimUsage',
+  'metamask_getProviderState',
+  'metamask_sendDomainMetadata',
+  'wallet_registerOnboarding',
+];
 
 /**
  * All MetaMask methods, except for ones we have specified in the constants above.
@@ -35,7 +56,8 @@ const WalletEip155Methods = ['wallet_addEthereumChain'];
 const Eip155Methods = MetaMaskOpenRPCDocument.methods
   .map(({ name }: { name: string }) => name)
   .filter((method: string) => !WalletEip155Methods.includes(method))
-  .filter((method: string) => !KnownWalletRpcMethods.includes(method));
+  .filter((method: string) => !KnownWalletRpcMethods.includes(method))
+  .filter((method: string) => !Eip1193OnlyMethods.includes(method));
 
 /**
  * Methods by ecosystem that are chain specific.
