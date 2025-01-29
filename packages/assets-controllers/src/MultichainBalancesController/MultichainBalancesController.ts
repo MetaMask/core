@@ -138,7 +138,7 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
-  #tracker: BalancesTracker;
+  readonly #tracker: BalancesTracker;
 
   constructor({
     messenger,

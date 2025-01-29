@@ -1,9 +1,9 @@
 import { PollerError } from './error';
 
 export class Poller {
-  #interval: number;
+  readonly #interval: number;
 
-  #callback: () => Promise<void>;
+  readonly #callback: () => Promise<void>;
 
   #handle: NodeJS.Timeout | undefined = undefined;
 
