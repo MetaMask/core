@@ -17,7 +17,7 @@ import type {
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import {
-  StakeSdk as EarnSDK,
+  StakeSdk,
   StakingApiService,
   type PooledStake,
   type StakeSdkConfig,
@@ -141,7 +141,7 @@ export type EarnControllerActions = EarnControllerGetStateAction;
 /**
  * All actions that EarnController calls internally.
  */
-type AllowedActions =
+export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction;
@@ -162,7 +162,7 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
 /**
  * All events that EarnController subscribes to internally.
  */
-type AllowedEvents =
+export type AllowedEvents =
   | NetworkControllerNetworkDidChangeEvent
   | AccountsControllerSelectedAccountChangeEvent;
 
@@ -188,9 +188,9 @@ export class EarnController extends BaseController<
   EarnControllerState,
   EarnControllerMessenger
 > {
-  #earnSDK: EarnSDK | null = null;
+  #stakeSDK: StakeSdk | null = null;
 
-  #earnApiService: StakingApiService | null = null;
+  #stakingApiService: StakingApiService | null = null;
 
   constructor({
     messenger,
@@ -241,7 +241,7 @@ export class EarnController extends BaseController<
     );
 
     if (!networkClient?.provider) {
-      this.#earnSDK = null;
+      this.#stakeSDK = null;
       return;
     }
 
@@ -254,20 +254,20 @@ export class EarnController extends BaseController<
     };
 
     try {
-      this.#earnSDK = EarnSDK.create(config);
-      this.#earnSDK.pooledStakingContract.connectSignerOrProvider(provider);
-      this.#earnApiService = new StakingApiService();
+      this.#stakeSDK = StakeSdk.create(config);
+      this.#stakeSDK.pooledStakingContract.connectSignerOrProvider(provider);
+      this.#stakingApiService = new StakingApiService();
     } catch (error) {
-      this.#earnSDK = null;
+      this.#stakeSDK = null;
       throw error;
     }
   }
 
-  #getSDK(): EarnSDK {
-    if (!this.#earnSDK) {
+  #getSDK(): StakeSdk {
+    if (!this.#stakeSDK) {
       throw new Error('EarnSDK not initialized');
     }
-    return this.#earnSDK;
+    return this.#stakeSDK;
   }
 
   // Add getter methods for specific contracts
@@ -278,10 +278,10 @@ export class EarnController extends BaseController<
   }
 
   #getEarnApiService() {
-    if (!this.#earnApiService) {
+    if (!this.#stakingApiService) {
       throw new Error('EarnApiService not initialized');
     }
-    return this.#earnApiService;
+    return this.#stakingApiService;
   }
 
   #getCurrentAccount() {
