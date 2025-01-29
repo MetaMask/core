@@ -67,6 +67,11 @@ export type MultichainNetworkControllerGetStateAction =
     MultichainNetworkControllerState
   >;
 
+export type MultichainNetworkControllerSetActiveNetworkAction = {
+  type: `${typeof controllerName}:setActiveNetwork`;
+  handler: MultichainNetworkController['setActiveNetwork'];
+};
+
 /**
  * Event emitted when the state of the {@link MultichainNetworkController} changes.
  */
@@ -80,7 +85,8 @@ export type MultichainNetworkStateControllerStateChange =
  * Actions exposed by the {@link MultichainNetworkController}.
  */
 export type MultichainNetworkStateControllerActions =
-  MultichainNetworkControllerGetStateAction;
+  | MultichainNetworkControllerGetStateAction
+  | MultichainNetworkControllerSetActiveNetworkAction;
 
 /**
  * Events emitted by {@link MultichainNetworkController}.
@@ -149,6 +155,8 @@ export class MultichainNetworkController extends BaseController<
         ...state,
       },
     });
+
+    this.#registerMessageHandlers();
   }
 
   /**
@@ -245,6 +253,17 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
       evmClientId,
+    );
+  }
+
+  /**
+   * Registers message handlers.
+   * @private
+   */
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      'MultichainNetworkController:setActiveNetwork',
+      this.setActiveNetwork.bind(this),
     );
   }
 }
