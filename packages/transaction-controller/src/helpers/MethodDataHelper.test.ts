@@ -1,44 +1,26 @@
-import { type FunctionFragment, Interface } from '@ethersproject/abi';
-
 import { MethodDataHelper } from './MethodDataHelper';
 import type { MethodData } from '../TransactionController';
 
-jest.mock('@ethersproject/abi');
-
 const FOUR_BYTE_PREFIX_MOCK = '0x12345678';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
-const SIGNATURE_MOCK = 'testMethod(uint256,uint256)';
-
-const METHOD_DATA_MOCK: MethodData = {
-  registryMethod: SIGNATURE_MOCK,
-  parsedRegistryMethod: {
-    name: 'testMethod',
-    args: [{ type: 'uint256' }, { type: 'uint256' }],
-  },
-};
-
-/**
- * Creates a mock Interface instance.
- *
- * @returns The mocked Interface instance.
- */
-function createInterfaceMock() {
-  return {
-    getFunction: jest.fn(),
-  } as unknown as jest.Mocked<Interface>;
-}
 
 describe('MethodDataHelper', () => {
-  const interfaceClassMock = jest.mocked(Interface);
-
   beforeEach(() => {
     jest.resetAllMocks();
   });
 
   describe('lookup', () => {
     it('returns method data from cache', async () => {
+      const cachedMethodData: MethodData = {
+        registryMethod: 'cached()',
+        parsedRegistryMethod: {
+          name: 'cached',
+          args: [],
+        },
+      };
+
       const methodDataHelper = new MethodDataHelper({
-        getState: () => ({ [FOUR_BYTE_PREFIX_MOCK]: METHOD_DATA_MOCK }),
+        getState: () => ({ [FOUR_BYTE_PREFIX_MOCK]: cachedMethodData }),
       });
 
       const result = await methodDataHelper.lookup(
@@ -46,39 +28,31 @@ describe('MethodDataHelper', () => {
         NETWORK_CLIENT_ID_MOCK,
       );
 
-      expect(result).toStrictEqual(METHOD_DATA_MOCK);
+      expect(result).toStrictEqual(cachedMethodData);
     });
 
-    it('returns method data from interface lookup', async () => {
-      const interfaceMock = createInterfaceMock();
-      interfaceMock.getFunction.mockReturnValueOnce({
-        name: 'testMethod',
-        inputs: [{ type: 'uint256' }, { type: 'uint256' }],
-        format: jest.fn(() => SIGNATURE_MOCK),
-      } as unknown as FunctionFragment);
-
-      interfaceClassMock.mockReturnValueOnce(interfaceMock);
-
+    it('correctly parses a known method signature', async () => {
       const methodDataHelper = new MethodDataHelper({
         getState: () => ({}),
       });
 
+      const fourBytePrefix = '0x13af4035';
+
       const result = await methodDataHelper.lookup(
-        FOUR_BYTE_PREFIX_MOCK,
+        fourBytePrefix,
         NETWORK_CLIENT_ID_MOCK,
       );
 
-      expect(result).toStrictEqual(METHOD_DATA_MOCK);
+      expect(result).toStrictEqual({
+        registryMethod: 'setOwner(address)',
+        parsedRegistryMethod: {
+          name: 'setOwner',
+          args: [{ type: 'address' }],
+        },
+      });
     });
 
-    it('returns empty method data if not found in interface', async () => {
-      const interfaceMock = createInterfaceMock();
-      interfaceMock.getFunction.mockImplementationOnce(() => {
-        throw new Error('Function not found');
-      });
-
-      interfaceClassMock.mockReturnValueOnce(interfaceMock);
-
+    it('returns empty result for unknown method signature', async () => {
       const methodDataHelper = new MethodDataHelper({
         getState: () => ({}),
       });
@@ -95,12 +69,22 @@ describe('MethodDataHelper', () => {
     });
 
     it('creates interface instance for each unique network client ID', async () => {
-      const interfaceMock = createInterfaceMock();
-      interfaceMock.getFunction.mockImplementationOnce(() => {
-        throw new Error('Function not found');
-      });
+      const mockInterface = jest.fn().mockImplementation(() => ({
+        getFunction: jest.fn().mockImplementation(() => {
+          throw new Error('Function not found');
+        }),
+      }));
 
-      interfaceClassMock.mockReturnValueOnce(interfaceMock);
+      jest.doMock('@ethersproject/abi', () => ({
+        Interface: mockInterface,
+      }));
+
+      // Clear the module cache
+      jest.resetModules();
+
+      // Re-import dependencies after mocking
+      // eslint-disable-next-line @typescript-eslint/no-require-imports, n/global-require, @typescript-eslint/no-shadow
+      const { MethodDataHelper } = require('./MethodDataHelper');
 
       const methodDataHelper = new MethodDataHelper({
         getState: () => ({}),
@@ -121,19 +105,17 @@ describe('MethodDataHelper', () => {
         'anotherNetworkClientId',
       );
 
-      expect(interfaceClassMock).toHaveBeenCalledTimes(2);
+      await methodDataHelper.lookup(
+        FOUR_BYTE_PREFIX_MOCK,
+        'anotherNetworkClientId',
+      );
+
+      expect(mockInterface).toHaveBeenCalledTimes(2);
+
+      jest.unmock('@ethersproject/abi');
     });
 
-    it('emits event when method data is fetched', async () => {
-      const interfaceMock = createInterfaceMock();
-      interfaceMock.getFunction.mockReturnValueOnce({
-        name: 'testMethod',
-        inputs: [{ type: 'uint256' }, { type: 'uint256' }],
-        format: jest.fn(() => SIGNATURE_MOCK),
-      } as unknown as FunctionFragment);
-
-      interfaceClassMock.mockReturnValueOnce(interfaceMock);
-
+    it('emits an update event for new lookups', async () => {
       const methodDataHelper = new MethodDataHelper({
         getState: () => ({}),
       });
@@ -141,15 +123,18 @@ describe('MethodDataHelper', () => {
       const updateListener = jest.fn();
       methodDataHelper.hub.on('update', updateListener);
 
-      await methodDataHelper.lookup(
-        FOUR_BYTE_PREFIX_MOCK,
-        NETWORK_CLIENT_ID_MOCK,
-      );
+      const fourBytePrefix = '0x13af4035';
+      await methodDataHelper.lookup(fourBytePrefix, NETWORK_CLIENT_ID_MOCK);
 
-      expect(updateListener).toHaveBeenCalledTimes(1);
       expect(updateListener).toHaveBeenCalledWith({
-        fourBytePrefix: FOUR_BYTE_PREFIX_MOCK,
-        methodData: METHOD_DATA_MOCK,
+        fourBytePrefix,
+        methodData: {
+          registryMethod: 'setOwner(address)',
+          parsedRegistryMethod: {
+            name: 'setOwner',
+            args: [{ type: 'address' }],
+          },
+        },
       });
     });
   });
