@@ -1096,4 +1096,3 @@ describe('MultichainAssetsController', () => {
     });
   });
 });
-

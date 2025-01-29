@@ -1,4 +1,3 @@
-
 export { MultichainAssetsController } from './MultichainAssetsController';
 
 export type {
