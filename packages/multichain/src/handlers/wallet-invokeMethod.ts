@@ -2,13 +2,14 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type {
+  CaipAccountId,
   CaipChainId,
   Hex,
   Json,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import { numberToHex } from '@metamask/utils';
+import { isCaipChainId, KnownCaipNamespace, numberToHex } from '@metamask/utils';
 
 import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -45,9 +46,9 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  */
 async function walletInvokeMethodHandler(
   request: WalletInvokeMethodRequest,
-  _response: PendingJsonRpcResponse<Json>,
+  response: PendingJsonRpcResponse<Json>,
   next: () => void,
-  end: (error: Error) => void,
+  end: (error?: Error) => void,
   hooks: {
     getCaveatForOrigin: (
       endowmentPermissionName: string,
@@ -56,6 +57,12 @@ async function walletInvokeMethodHandler(
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     getSelectedNetworkClientId: () => NetworkClientId;
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+    handleNonEvmRequest: (params: {
+      connectedAddresses: CaipAccountId[];
+      origin: string;
+      scope: CaipChainId;
+      request: JsonRpcRequest;
+    }) => Promise<unknown>
   },
 ) {
   const { scope, request: wrappedRequest } = request.params;
@@ -83,41 +90,52 @@ async function walletInvokeMethodHandler(
 
   const { namespace, reference } = parseScopeString(scope);
 
-  let networkClientId;
-  switch (namespace) {
-    case 'wallet':
-      networkClientId = hooks.getSelectedNetworkClientId();
-      break;
-    case 'eip155':
-      if (reference) {
-        networkClientId = hooks.findNetworkClientIdByChainId(
-          numberToHex(parseInt(reference, 10)),
-        );
-      }
-      break;
-    default:
+  const isEvmRequest = (namespace === KnownCaipNamespace.Wallet && (!reference || reference === KnownCaipNamespace.Eip155))  || namespace === KnownCaipNamespace.Eip155
+
+  if (isEvmRequest) {
+    let networkClientId;
+    switch (namespace) {
+      case 'wallet':
+        networkClientId = hooks.getSelectedNetworkClientId();
+        break;
+      case 'eip155':
+        if (reference) {
+          networkClientId = hooks.findNetworkClientIdByChainId(
+            numberToHex(parseInt(reference, 10)),
+          );
+        }
+        break;
+    }
+
+    if (!networkClientId) {
       console.error(
-        'failed to resolve namespace for wallet_invokeMethod',
+        'failed to resolve network client for wallet_invokeMethod',
         request,
       );
       return end(rpcErrors.internal());
+    }
+
+    Object.assign(request, {
+      scope,
+      networkClientId,
+      method: wrappedRequest.method,
+      params: wrappedRequest.params,
+    });
+    return next();
   }
 
-  if (!networkClientId) {
-    console.error(
-      'failed to resolve network client for wallet_invokeMethod',
-      request,
-    );
+  if (!isCaipChainId(scope)) {
     return end(rpcErrors.internal());
   }
 
-  Object.assign(request, {
+  // TODO: is it possible for this to not be JSON?...
+  response.result = await hooks.handleNonEvmRequest({
+    connectedAddresses: scopeObject.accounts,
+    origin,
     scope,
-    networkClientId,
-    method: wrappedRequest.method,
-    params: wrappedRequest.params,
-  });
-  return next();
+    request,
+  }) as Json
+  return end();
 }
 export const walletInvokeMethod = {
   methodNames: ['wallet_invokeMethod'],
@@ -126,5 +144,6 @@ export const walletInvokeMethod = {
     getCaveatForOrigin: true,
     findNetworkClientIdByChainId: true,
     getSelectedNetworkClientId: true,
+    handleNonEvmRequest: true,
   },
 };
