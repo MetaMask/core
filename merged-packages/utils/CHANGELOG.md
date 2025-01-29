@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+### Added
+- Add additional CAIP-19 types (`CaipAsset{Namespace,Reference,TokenId}` support ([#227](https://github.com/MetaMask/utils/pull/227))
+- Add CAIP-19 `CaipAssetTypeOrId` ([#229](https://github.com/MetaMask/utils/pull/229))
+  - This one combines both `CaipAssetType` and `CaipAssetId` to avoid relying on `superstruct.union`, resulting in better error messages.
+- Add `definePattern` superstruct helper ([#228](https://github.com/MetaMask/utils/pull/228))
+  - Allow to define a `superstruct.pattern` while naming the struct and enforcing its type.
+
+### Changed
+- Use named structs for all CAIP types ([#228](https://github.com/MetaMask/utils/pull/228))
+
 ## [11.0.1]
 ### Fixed
 - Improve error message for invalid JSON values ([#224](https://github.com/MetaMask/utils/pull/224))
@@ -281,7 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v11.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/utils/compare/v11.0.1...v11.1.0
 [11.0.1]: https://github.com/MetaMask/utils/compare/v11.0.0...v11.0.1
 [11.0.0]: https://github.com/MetaMask/utils/compare/v10.0.1...v11.0.0
 [10.0.1]: https://github.com/MetaMask/utils/compare/v10.0.0...v10.0.1
