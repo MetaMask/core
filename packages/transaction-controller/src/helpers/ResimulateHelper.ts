@@ -88,6 +88,7 @@ export class ResimulateHelper {
 
     const listener = async () => {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         this.#updateSimulationData(transactionMeta);
       } catch (error) {
         /* istanbul ignore next */

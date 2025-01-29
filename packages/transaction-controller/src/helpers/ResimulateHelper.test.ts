@@ -1,8 +1,5 @@
 import { NetworkType } from '@metamask/controller-utils';
-import type {
-  BlockTracker,
-  NetworkClientId,
-} from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { BN } from 'bn.js';
 
 import {
@@ -94,8 +91,6 @@ describe('ResimulateHelper', () => {
   >;
   let onStateChangeMock: jest.Mock<(listener: () => void) => void>;
 
-  let resimulateHelper: ResimulateHelper;
-
   /**
    * Triggers onStateChange callback
    */
@@ -105,6 +100,7 @@ describe('ResimulateHelper', () => {
 
   /**
    * Mocks getTransactions to return given transactions argument
+   * 
    * @param transactions - Transactions to be returned
    */
   function mockGetTransactionsOnce(transactions: TransactionMeta[]) {
@@ -119,7 +115,7 @@ describe('ResimulateHelper', () => {
     onStateChangeMock = jest.fn();
     updateSimulationDataMock = jest.fn();
 
-    resimulateHelper = new ResimulateHelper({
+    new ResimulateHelper({
       getTransactions: getTransactionsMock,
       onStateChange: onStateChangeMock,
       updateSimulationData: updateSimulationDataMock,
