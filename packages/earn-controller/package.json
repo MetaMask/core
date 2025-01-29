@@ -47,11 +47,15 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
+    "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^7.1.1",
+    "@metamask/controller-utils": "^11.4.5",
     "@metamask/stake-sdk": "^1.0.0"
   },
   "devDependencies": {
+    "@metamask/accounts-controller": "^21.0.2",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/network-controller": "^22.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -61,9 +65,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@ethersproject/providers": "^5.7.0",
     "@metamask/accounts-controller": "^21.0.0",
-    "@metamask/controller-utils": "^11.4.5",
     "@metamask/network-controller": "^22.0.0"
   },
   "engines": {
