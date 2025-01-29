@@ -212,10 +212,10 @@ export class MultichainAssetsController extends BaseController<
   /**
    * Function to update the assets list for an account
    *
-   * @param list - The list of assets to update
+   * @param event - The list of assets to update
    */
-  async updateAccountAssetsList(list: AccountAssetListUpdatedEvent) {
-    const assetsToUpdate = list.params.assets;
+  async updateAccountAssetsList(event: AccountAssetListUpdatedEvent) {
+    const assetsToUpdate = event.params.assets;
     for (const accountId in assetsToUpdate) {
       if (Object.prototype.hasOwnProperty.call(assetsToUpdate, accountId)) {
         const newAccountAssets = assetsToUpdate[accountId];
