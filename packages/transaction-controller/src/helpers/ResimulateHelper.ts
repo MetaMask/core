@@ -95,7 +95,6 @@ export class ResimulateHelper {
       }
     };
 
-    // Set an interval to call the listener every 3 seconds
     const intervalId = setInterval(listener, RESIMULATE_INTERVAL_MS);
 
     this.#intervalIds.set(transactionId, intervalId);
@@ -117,7 +116,7 @@ export class ResimulateHelper {
   #removeListener(id: string) {
     const intervalId = this.#intervalIds.get(id);
     if (intervalId) {
-      clearInterval(intervalId); // Clear the interval
+      clearInterval(intervalId);
       this.#intervalIds.delete(id);
     }
     this.#activeResimulations.delete(id);
