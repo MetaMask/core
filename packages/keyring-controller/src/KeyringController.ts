@@ -73,15 +73,31 @@ export const isCustodyKeyring = (keyringType: string): boolean => {
 };
 
 /**
- * KeyringControllerState
- *
  * The KeyringController state
  */
 export type KeyringControllerState = {
+  /**
+   * Encrypted array of serialized keyrings data.
+   */
   vault?: string;
+  /**
+   * Whether the vault has been decrypted successfully and
+   * keyrings contained within are deserialized and available.
+   */
   isUnlocked: boolean;
+  /**
+   * Representations of managed keyrings.
+   */
   keyrings: KeyringObject[];
+  /**
+   * The encryption key derived from the password and used to encrypt
+   * the vault. This is only stored if the `cacheEncryptionKey` option
+   * is enabled.
+   */
   encryptionKey?: string;
+  /**
+   * The salt used to derive the encryption key from the password.
+   */
   encryptionSalt?: string;
 };
 
@@ -232,12 +248,16 @@ export type KeyringControllerOptions = {
 );
 
 /**
- * KeyringObject
- *
- * Keyring object to return in fullUpdate
+ * A keyring object representation.
  */
 export type KeyringObject = {
+  /**
+   * Accounts associated with the keyring.
+   */
   accounts: string[];
+  /**
+   * Keyring type.
+   */
   type: string;
 };
 
