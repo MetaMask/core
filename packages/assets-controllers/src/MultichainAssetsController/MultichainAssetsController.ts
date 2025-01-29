@@ -28,7 +28,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { CaipChainId } from '@metamask/utils';
+import { hasProperty, type CaipChainId } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { parseCaipAssetType } from './utils';
@@ -218,7 +218,7 @@ export class MultichainAssetsController extends BaseController<
     const assetsToUpdate = event.params.assets;
     const assetsForMetadataRefresh: CaipAssetType[] = [];
     for (const accountId in assetsToUpdate) {
-      if (Object.prototype.hasOwnProperty.call(assetsToUpdate, accountId)) {
+      if (hasProperty(assetsToUpdate, accountId)) {
         const newAccountAssets = assetsToUpdate[accountId];
         const assets = this.state.allNonEvmTokens[accountId] || [];
 
@@ -335,7 +335,7 @@ export class MultichainAssetsController extends BaseController<
 
     let newMetadata: Record<CaipAssetType, AssetMetadata>;
     for (const chainId in assetsByScope) {
-      if (Object.prototype.hasOwnProperty.call(assetsByScope, chainId)) {
+      if (hasProperty(assetsByScope, chainId)) {
         const assetsForChain = assetsByScope[chainId as CaipChainId];
         // Now fetch metadata from the associated asset Snaps:
         const snap = this.#getAssetSnapFor(chainId as CaipChainId);
@@ -417,7 +417,9 @@ export class MultichainAssetsController extends BaseController<
    * @returns All the asset snaps
    */
   #getAllSnaps(): Snap[] {
-    return this.messagingSystem.call('SnapController:getAll') as Snap[];
+    return this.messagingSystem
+      .call('SnapController:getAll')
+      .filter((snap) => snap.enabled && !snap.blocked);
   }
 
   /**
