@@ -10,12 +10,13 @@ import {
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import type { Balance, CaipAssetType } from '@metamask/keyring-api';
+import type { Balance } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import type { CaipAssetType } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
