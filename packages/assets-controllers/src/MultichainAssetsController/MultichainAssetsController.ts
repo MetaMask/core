@@ -170,6 +170,8 @@ type AssetEndowment = {
   };
 };
 
+// TODO make this controller extends StaticIntervalPollingController and update all metadata once a day.
+
 export class MultichainAssetsController extends BaseController<
   typeof controllerName,
   MultichainAssetsControllerState,
