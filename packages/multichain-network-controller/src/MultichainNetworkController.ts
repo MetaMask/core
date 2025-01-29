@@ -16,8 +16,6 @@ import type { Draft } from 'immer';
 
 import {
   bitcoinCaip2ChainId,
-  multichainNetworkConfigurations,
-  networksMetadata,
 } from './constants';
 
 const controllerName = 'MultichainNetworkController';
@@ -185,7 +183,7 @@ export class MultichainNetworkController extends BaseController<
       state.nonEvmSelected = true;
     });
   }
-  
+
   /**
    * Sets the EVM selected network.
    */

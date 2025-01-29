@@ -1,10 +1,11 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+
 import type {
   MultichainNetworkStateControllerActions,
   MultichainNetworkControllerEvents,
 } from './MultichainNetworkController';
-import { MultichainNetworkController } from './MultichainNetworkController';
 import { bitcoinCaip2ChainId } from './constants';
+import { MultichainNetworkController } from './MultichainNetworkController';
 
 const name = 'MultichainNetworkController';
 
