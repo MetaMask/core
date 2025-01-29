@@ -158,7 +158,7 @@ export class MultichainNetworkController extends BaseController<
   }
 
   async setActiveNetwork(clientId: string, chainId?: string): Promise<void> {
-    if (chainId && Object.keys(this.state).includes(chainId)) {
+    if (chainId && Object.keys(this.state.multichainNetworkConfigurationsByChainId).includes(chainId)) {
       this.update((state: Draft<MultichainNetworkControllerState>) => {
         state.selectedMultichainNetworkChainId = chainId;
         state.nonEvmSelected = true;
@@ -175,7 +175,21 @@ export class MultichainNetworkController extends BaseController<
       clientId,
     );
 
-    // TO DO: Should emit event to notify that the network has changed
-    // so the accounts-controller can update the selected account
+  }
+  /**
+   * Sets the non-EVM selected network.
+   */
+  setNonEvmSelected() {
+    this.update((state: Draft<MultichainNetworkControllerState>) => {
+      state.nonEvmSelected = true;
+    });
+  }
+  /**
+   * Sets the EVM selected network.
+   */
+  setEvmSelected() {
+    this.update((state: Draft<MultichainNetworkControllerState>) => {
+      state.nonEvmSelected = false;
+    });
   }
 }
