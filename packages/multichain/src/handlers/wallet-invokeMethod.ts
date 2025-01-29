@@ -143,6 +143,7 @@ export const walletInvokeMethod = {
     getCaveatForOrigin: true,
     findNetworkClientIdByChainId: true,
     getSelectedNetworkClientId: true,
+    getNonEvmSupportedMethods: true,
     handleNonEvmRequest: true,
   },
 };
