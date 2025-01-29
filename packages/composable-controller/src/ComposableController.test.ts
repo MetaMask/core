@@ -361,11 +361,11 @@ describe('ComposableController', () => {
     expect(
       () =>
         new ComposableController<
-      // @ts-expect-error - Suppressing type error to test for runtime error handling
-      ComposableControllerState & {
-        JsonRpcEngine: Record<string, unknown>;
-      },
-      {
+          // @ts-expect-error - Suppressing type error to test for runtime error handling
+          ComposableControllerState & {
+            JsonRpcEngine: Record<string, unknown>;
+          },
+          {
             JsonRpcEngine: typeof notController;
             FooController: FooController;
           }
