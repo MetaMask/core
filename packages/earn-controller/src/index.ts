@@ -1,2 +1,17 @@
-export * from './EarnController';
-export { EarnController as default } from './EarnController';
+export type {
+  PooledStakingState,
+  StablecoinLendingState,
+  StablecoinVault,
+  EarnControllerState,
+  EarnControllerGetStateAction,
+  EarnControllerStateChangeEvent,
+  EarnControllerActions,
+  EarnControllerEvents,
+  EarnControllerMessenger,
+} from './EarnController';
+
+export {
+  controllerName,
+  getDefaultEarnControllerState,
+  EarnController,
+} from './EarnController';

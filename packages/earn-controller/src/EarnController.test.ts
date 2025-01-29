@@ -5,7 +5,6 @@ import { StakeSdk, StakingApiService } from '@metamask/stake-sdk';
 
 import {
   EarnController,
-  EarnProductType,
   type EarnControllerState,
   getDefaultEarnControllerState,
   type EarnControllerMessenger,
@@ -186,7 +185,7 @@ describe('EarnController', () => {
 
     it('uses provided state to initialize', () => {
       const customState: Partial<EarnControllerState> = {
-        [EarnProductType.POOLED_STAKING]: {
+        pooled_staking: {
           pooledStakes: {
             account: '0x1234',
             lifetimeRewards: '100',
@@ -316,7 +315,7 @@ describe('EarnController', () => {
       controller = new EarnController({ messenger });
       await controller.refreshPooledStakingData();
 
-      expect(controller.state[EarnProductType.POOLED_STAKING]).toStrictEqual({
+      expect(controller.state.pooled_staking).toStrictEqual({
         pooledStakes: mockPooledStakes,
         exchangeRate: '1.5',
         vaultData: mockVaultData,
@@ -369,8 +368,8 @@ describe('EarnController', () => {
       mockGetSelectedAccount.mockImplementation(() => null);
       controller = new EarnController({ messenger });
       await controller.refreshPooledStakingData();
-      expect(controller.state[EarnProductType.POOLED_STAKING]).toStrictEqual(
-        getDefaultEarnControllerState()[EarnProductType.POOLED_STAKING],
+      expect(controller.state.pooled_staking).toStrictEqual(
+        getDefaultEarnControllerState().pooled_staking,
       );
     });
   });

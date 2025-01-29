@@ -26,21 +26,14 @@ import {
 
 export const controllerName = 'EarnController';
 
-// === Enums and Identifiers ===
-export enum EarnProductType {
-  POOLED_STAKING = 'pooled_staking',
-  STABLECOIN_LENDING = 'stablecoin_lending',
-}
-
-// === Product Types ===
-export type PooledStakingProduct = {
+export type PooledStakingState = {
   pooledStakes: PooledStake;
   exchangeRate: string;
   vaultData: VaultData;
   isEligible: boolean;
 };
 
-export type StablecoinLendingProduct = {
+export type StablecoinLendingState = {
   vaults: StablecoinVault[];
 };
 
@@ -58,12 +51,12 @@ export type StablecoinVault = {
 /**
  * Metadata for the EarnController.
  */
-export const earnControllerMetadata: StateMetadata<EarnControllerState> = {
-  [EarnProductType.POOLED_STAKING]: {
+const earnControllerMetadata: StateMetadata<EarnControllerState> = {
+  pooled_staking: {
     persist: true,
     anonymous: false,
   },
-  [EarnProductType.STABLECOIN_LENDING]: {
+  stablecoin_lending: {
     persist: true,
     anonymous: false,
   },
@@ -75,8 +68,8 @@ export const earnControllerMetadata: StateMetadata<EarnControllerState> = {
 
 // === State Types ===
 export type EarnControllerState = {
-  [EarnProductType.POOLED_STAKING]: PooledStakingProduct;
-  [EarnProductType.STABLECOIN_LENDING]?: StablecoinLendingProduct;
+  pooled_staking: PooledStakingState;
+  stablecoin_lending?: StablecoinLendingState;
   lastUpdated: number;
 };
 
@@ -99,7 +92,7 @@ const DEFAULT_STABLECOIN_VAULT: StablecoinVault = {
  */
 export function getDefaultEarnControllerState(): EarnControllerState {
   return {
-    [EarnProductType.POOLED_STAKING]: {
+    pooled_staking: {
       pooledStakes: {
         account: '',
         lifetimeRewards: '0',
@@ -116,7 +109,7 @@ export function getDefaultEarnControllerState(): EarnControllerState {
       },
       isEligible: false,
     },
-    [EarnProductType.STABLECOIN_LENDING]: {
+    stablecoin_lending: {
       vaults: [DEFAULT_STABLECOIN_VAULT],
     },
     lastUpdated: 0,
@@ -303,8 +296,8 @@ export class EarnController extends BaseController<
       );
 
       this.update((state) => {
-        state[EarnProductType.POOLED_STAKING].pooledStakes = accounts[0];
-        state[EarnProductType.POOLED_STAKING].exchangeRate = exchangeRate;
+        state.pooled_staking.pooledStakes = accounts[0];
+        state.pooled_staking.exchangeRate = exchangeRate;
       });
     } catch (error) {
       console.error('Failed to fetch pooled stakes:', error);
@@ -315,7 +308,7 @@ export class EarnController extends BaseController<
         await apiService.getPooledStakingEligibility([currentAccount.address]);
 
       this.update((state) => {
-        state[EarnProductType.POOLED_STAKING].isEligible = isEligible;
+        state.pooled_staking.isEligible = isEligible;
       });
     } catch (error) {
       console.error('Failed to fetch staking eligibility:', error);
@@ -325,7 +318,7 @@ export class EarnController extends BaseController<
       const vaultData = await apiService.getVaultData(chainId);
 
       this.update((state) => {
-        state[EarnProductType.POOLED_STAKING].vaultData = vaultData;
+        state.pooled_staking.vaultData = vaultData;
       });
     } catch (error) {
       console.error('Failed to fetch vault data:', error);
