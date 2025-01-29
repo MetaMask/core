@@ -96,10 +96,17 @@ describe('ResimulateHelper', () => {
 
   let resimulateHelper: ResimulateHelper;
 
+  /**
+   * Triggers onStateChange callback
+   */
   function triggerStateChange() {
     onStateChangeMock.mock.calls[0][0]();
   }
 
+  /**
+   * Mocks getTransactions to return given transactions argument
+   * @param transactions - Transactions to be returned
+   */
   function mockGetTransactionsOnce(transactions: TransactionMeta[]) {
     getTransactionsMock.mockReturnValueOnce(
       transactions as unknown as ResimulateHelperOptions['getTransactions'],
