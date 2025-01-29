@@ -62,7 +62,7 @@ async function walletInvokeMethodHandler(
       origin: string;
       scope: CaipChainId;
       request: JsonRpcRequest;
-    }) => Promise<unknown>
+    }) => Promise<Json>
   },
 ) {
   const { scope, request: wrappedRequest } = request.params;
@@ -128,13 +128,12 @@ async function walletInvokeMethodHandler(
     return end(rpcErrors.internal());
   }
 
-  // TODO: is it possible for this to not be JSON?...
   response.result = await hooks.handleNonEvmRequest({
     connectedAddresses: scopeObject.accounts,
     origin,
     scope,
     request,
-  }) as Json
+  })
   return end();
 }
 export const walletInvokeMethod = {
