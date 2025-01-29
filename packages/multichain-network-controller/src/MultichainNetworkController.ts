@@ -1,4 +1,8 @@
-import type { AccountsControllerSetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
+  AccountsControllerSetSelectedAccountAction,
+} from '@metamask/accounts-controller';
 import {
   BaseController,
   type ControllerGetStateAction,
@@ -7,16 +11,12 @@ import {
 } from '@metamask/base-controller';
 import type {
   NetworkStatus,
-  NetworkControllerGetNetworkConfigurationByNetworkClientId,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetStateAction,
-  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type { Draft } from 'immer';
-
-import {
-  bitcoinCaip2ChainId,
-} from './constants';
+import { bitcoinCaip2ChainId } from './constants';
+import { CaipChainId } from '@metamask/utils';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -95,12 +95,8 @@ export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
   | AccountsControllerSetSelectedAccountAction
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId;
-
-/**
- * Events that this controller is allowed to subscribe.
- */
-export type AllowedEvents = NetworkControllerStateChangeEvent;
+  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction;
 
 /**
  * Messenger type for the MultichainNetworkController.
@@ -109,9 +105,9 @@ export type MultichainNetworkControllerMessenger =
   RestrictedControllerMessenger<
     typeof controllerName,
     MultichainNetworkStateControllerActions | AllowedActions,
-    MultichainNetworkControllerEvents | AllowedEvents,
+    MultichainNetworkControllerEvents,
     AllowedActions['type'],
-    AllowedEvents['type']
+    never
   >;
 
 /**
@@ -155,41 +151,100 @@ export class MultichainNetworkController extends BaseController<
     });
   }
 
-  async setActiveNetwork(clientId: string, chainId?: string): Promise<void> {
-    if (chainId && Object.keys(this.state.multichainNetworkConfigurationsByChainId).includes(chainId)) {
+  /**
+   * Handles switching between EVM and non-EVM networks.
+   *
+   * @param evmClientId - The client ID of the EVM network to set active.
+   * @param nonEvmChainId - The chain ID of the non-EVM network to set active.
+   */
+  async setActiveNetwork({
+    evmClientId,
+    nonEvmChainId,
+  }: {
+    evmClientId?: string;
+    nonEvmChainId?: CaipChainId;
+  }): Promise<void> {
+    // Throw an error if both EVM and non-EVM networks are set
+    if (evmClientId && nonEvmChainId) {
+      throw new Error('Cannot set both EVM and non-EVM networks!');
+    }
+
+    // Handle non-EVM networks
+    if (nonEvmChainId) {
+      // Prevent setting same network
+      if (nonEvmChainId === this.state.selectedMultichainNetworkChainId) {
+        // Indicate that the non-EVM network is selected
+        this.update((state: Draft<MultichainNetworkControllerState>) => {
+          state.nonEvmSelected = true;
+        });
+        return;
+      }
+
+      // Check if the non-EVM chain ID is supported
+      if (
+        !Object.keys(
+          this.state.multichainNetworkConfigurationsByChainId,
+        ).includes(nonEvmChainId)
+      ) {
+        throw new Error('Non-EVM chain ID is not supported!');
+      }
+
+      // Update selected account to non evm account
+      const lastSelectedNonEvmAccount = await this.messagingSystem.call(
+        'AccountsController:getSelectedMultichainAccount',
+        nonEvmChainId,
+      );
+
+      if (!lastSelectedNonEvmAccount?.id) {
+        throw new Error('No non-EVM account found!');
+      }
+
+      this.messagingSystem.call(
+        'AccountsController:setSelectedAccount',
+        lastSelectedNonEvmAccount.id,
+      );
+
       this.update((state: Draft<MultichainNetworkControllerState>) => {
-        state.selectedMultichainNetworkChainId = chainId;
+        state.selectedMultichainNetworkChainId = nonEvmChainId;
         state.nonEvmSelected = true;
       });
+
       return;
     }
 
-    this.update((state: Draft<MultichainNetworkControllerState>) => {
-      state.nonEvmSelected = false;
-    });
+    // Handle EVM networks
+    if (!evmClientId) {
+      throw new Error('EVM client ID is required!');
+    }
 
-    await this.messagingSystem.call(
-      'NetworkController:setActiveNetwork',
-      clientId,
+    // Update evm selected account
+    const lastSelectedEvmAccount = await this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
     );
 
-  }
+    this.messagingSystem.call(
+      'AccountsController:setSelectedAccount',
+      lastSelectedEvmAccount.id,
+    );
 
-  /**
-   * Sets the non-EVM selected network.
-   */
-  setNonEvmSelected() {
-    this.update((state: Draft<MultichainNetworkControllerState>) => {
-      state.nonEvmSelected = true;
-    });
-  }
-
-  /**
-   * Sets the EVM selected network.
-   */
-  setEvmSelected() {
+    // Indicate that the non-EVM network is not selected
     this.update((state: Draft<MultichainNetworkControllerState>) => {
       state.nonEvmSelected = false;
     });
+
+    // Prevent setting same network
+    const { selectedNetworkClientId } = await this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+
+    if (evmClientId === selectedNetworkClientId) {
+      return;
+    }
+
+    // Update evm active network
+    this.messagingSystem.call(
+      'NetworkController:setActiveNetwork',
+      evmClientId,
+    );
   }
 }
