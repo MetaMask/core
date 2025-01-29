@@ -1,6 +1,6 @@
 export type TokenSearchParams = {
   chains?: string[];
-  name?: string;
+  query?: string;
   limit?: string;
 };
 
@@ -13,4 +13,5 @@ export type TokenSearchResponseItem = {
   usdPricePercentChange: {
     oneDay: number;
   };
+  logoUrl?: string;
 };

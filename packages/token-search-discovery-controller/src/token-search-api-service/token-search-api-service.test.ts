@@ -14,6 +14,7 @@ describe('TokenSearchApiService', () => {
         tokenAddress: '0x1',
         usdPrice: 100,
         usdPricePercentChange: { oneDay: 10 },
+        logoUrl: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x1.png',
       },
       {
         name: 'Token2',
@@ -32,6 +33,7 @@ describe('TokenSearchApiService', () => {
         tokenAddress: '0x3',
         usdPrice: 300,
         usdPricePercentChange: { oneDay: 30 },
+        logoUrl: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x3.png',
       },
     ],
     onlyName: [
@@ -68,32 +70,32 @@ describe('TokenSearchApiService', () => {
   describe('searchTokens', () => {
     it.each([
       {
-        params: { chains: ['1'], name: 'Test', limit: '10' },
+        params: { chains: ['1'], query: 'Test', limit: '10' },
         expectedUrl: new URL(
-          `${baseUrl}/tokens-search/name?chains=1&name=Test&limit=10`,
+          `${baseUrl}/tokens-search?chains=1&query=Test&limit=10`,
         ),
       },
       {
-        params: { chains: ['1', '137'], name: 'Test' },
+        params: { chains: ['1', '137'], query: 'Test' },
         expectedUrl: new URL(
-          `${baseUrl}/tokens-search/name?chains=1%2C137&name=Test`,
+          `${baseUrl}/tokens-search?chains=1%2C137&query=Test`,
         ),
       },
       {
-        params: { name: 'Test' },
-        expectedUrl: new URL(`${baseUrl}/tokens-search/name?name=Test`),
+        params: { query: 'Test' },
+        expectedUrl: new URL(`${baseUrl}/tokens-search?query=Test`),
       },
       {
         params: { chains: ['1'] },
-        expectedUrl: new URL(`${baseUrl}/tokens-search/name?chains=1`),
+        expectedUrl: new URL(`${baseUrl}/tokens-search?chains=1`),
       },
       {
         params: { limit: '20' },
-        expectedUrl: new URL(`${baseUrl}/tokens-search/name?limit=20`),
+        expectedUrl: new URL(`${baseUrl}/tokens-search?limit=20`),
       },
       {
         params: {},
-        expectedUrl: new URL(`${baseUrl}/tokens-search/name`),
+        expectedUrl: new URL(`${baseUrl}/tokens-search`),
       },
     ])(
       'should construct correct URL for params: $params',
@@ -119,7 +121,7 @@ describe('TokenSearchApiService', () => {
   describe('searchTokens response handling', () => {
     it.each([
       {
-        params: { chains: ['1'], name: 'Test', limit: '2' },
+        params: { chains: ['1'], query: 'Test', limit: '2' },
         mockResponse: mockResponses.allParams,
         description: 'all parameters',
       },
@@ -129,7 +131,7 @@ describe('TokenSearchApiService', () => {
         description: 'only chain parameter',
       },
       {
-        params: { name: 'Name' },
+        params: { query: 'Name' },
         mockResponse: mockResponses.onlyName,
         description: 'only name parameter',
       },
