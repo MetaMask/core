@@ -964,10 +964,10 @@ describe('MultichainAssetsController', () => {
   });
 
   describe('updateAccountAssetsList', () => {
-    it('should update the assets list for an account when a new asset is added', () => {
+    it('should update the assets list for an account when a new asset is added', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
-      const { controller } = setupController({
+      const { controller, mockSnapHandleRequest } = setupController({
         state: {
           allNonEvmTokens: {
             [mockSolanaAccountId1]: mockGetAssetsResult,
@@ -975,6 +975,24 @@ describe('MultichainAssetsController', () => {
           metadata: mockGetMetadataReturnValue,
         } as MultichainAssetsControllerState,
       });
+
+      const mockGetMetadataReturnValue1 = {
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
+          name: 'newToken',
+          symbol: 'newToken',
+          decimals: 18,
+        },
+      };
+      const mockGetMetadataReturnValue2 = {
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3': {
+          name: 'newToken3',
+          symbol: 'newToken3',
+          decimals: 18,
+        },
+      };
+      mockSnapHandleRequest
+        .mockReturnValueOnce(mockGetMetadataReturnValue1)
+        .mockReturnValueOnce(mockGetMetadataReturnValue2);
 
       const updatedAssetsList: AccountAssetListUpdatedEvent = {
         method: 'notify:accountAssetListUpdated',
@@ -995,7 +1013,7 @@ describe('MultichainAssetsController', () => {
       };
 
       // call updateAccountAssetsList
-      controller.updateAccountAssetsList(updatedAssetsList);
+      await controller.updateAccountAssetsList(updatedAssetsList);
 
       expect(controller.state.allNonEvmTokens).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -1007,9 +1025,25 @@ describe('MultichainAssetsController', () => {
           'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
         ],
       });
+
+      expect(mockSnapHandleRequest).toHaveBeenCalledTimes(2);
+
+      expect(controller.state.metadata).toStrictEqual({
+        ...mockGetMetadataReturnValue,
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
+          name: 'newToken',
+          symbol: 'newToken',
+          decimals: 18,
+        },
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3': {
+          name: 'newToken3',
+          symbol: 'newToken3',
+          decimals: 18,
+        },
+      });
     });
 
-    it('should not add duplicate assets to state', () => {
+    it('should not add duplicate assets to state', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
       const { controller } = setupController({
@@ -1041,7 +1075,7 @@ describe('MultichainAssetsController', () => {
       };
 
       // call updateAccountAssetsList
-      controller.updateAccountAssetsList(updatedAssetsList);
+      await controller.updateAccountAssetsList(updatedAssetsList);
 
       expect(controller.state.allNonEvmTokens).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -1054,7 +1088,7 @@ describe('MultichainAssetsController', () => {
       });
     });
 
-    it('should update the assets list for an account when a an asset is removed', () => {
+    it('should update the assets list for an account when a an asset is removed', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
       const { controller } = setupController({
@@ -1084,7 +1118,7 @@ describe('MultichainAssetsController', () => {
       };
 
       // call updateAccountAssetsList
-      controller.updateAccountAssetsList(updatedAssetsList);
+      await controller.updateAccountAssetsList(updatedAssetsList);
 
       expect(controller.state.allNonEvmTokens).toStrictEqual({
         [mockSolanaAccountId1]: [

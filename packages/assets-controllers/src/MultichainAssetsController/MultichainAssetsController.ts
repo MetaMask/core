@@ -212,7 +212,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param list - The list of assets to update
    */
-  updateAccountAssetsList(list: AccountAssetListUpdatedEvent) {
+  async updateAccountAssetsList(list: AccountAssetListUpdatedEvent) {
     const assetsToUpdate = list.params.assets;
     for (const accountId in assetsToUpdate) {
       if (Object.prototype.hasOwnProperty.call(assetsToUpdate, accountId)) {
@@ -222,6 +222,8 @@ export class MultichainAssetsController extends BaseController<
         const filteredAssetsToAdd = newAccountAssets.added.filter(
           (asset) => !assets.includes(asset),
         );
+        // trigger fetching metadata for new assets
+        await this.#refreshAssetsSnapsFor(filteredAssetsToAdd);
         const newAssets = [...assets, ...filteredAssetsToAdd];
 
         const assetsAfterRemoval = newAssets.filter(
