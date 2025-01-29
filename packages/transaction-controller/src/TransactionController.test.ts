@@ -4382,9 +4382,7 @@ describe('TransactionController', () => {
                   from: ACCOUNT_MOCK,
                   to: ACCOUNT_2_MOCK,
                 },
-                // TODO: Replace `any` with type
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              } as any,
+              } as unknown as TransactionMeta,
             ],
           },
         },
