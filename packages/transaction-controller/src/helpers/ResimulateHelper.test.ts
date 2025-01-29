@@ -100,7 +100,7 @@ describe('ResimulateHelper', () => {
 
   /**
    * Mocks getTransactions to return given transactions argument
-   * 
+   *
    * @param transactions - Transactions to be returned
    */
   function mockGetTransactionsOnce(transactions: TransactionMeta[]) {
