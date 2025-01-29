@@ -1527,6 +1527,7 @@ describe('AccountsController', () => {
           ...mockAccount,
           metadata: {
             ...mockAccount.metadata,
+            name: `${keyringTypeToName(KeyringTypes.snap)} 1`,
             keyring: {
               type: KeyringTypes.snap,
             },
@@ -1544,6 +1545,7 @@ describe('AccountsController', () => {
           ...mockAccount2,
           metadata: {
             ...mockAccount2.metadata,
+            name: `${keyringTypeToName(KeyringTypes.snap)} 2`,
             keyring: {
               type: KeyringTypes.snap,
             },
@@ -1614,7 +1616,7 @@ describe('AccountsController', () => {
       );
     });
 
-    it('update accounts with Snap accounts when snap keyring is defined and has accounts', async () => {
+    it('update accounts with Snap accounts when Snap keyring is defined and has accounts', async () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
@@ -1797,7 +1799,7 @@ describe('AccountsController', () => {
           keyringType: KeyringTypes.hd,
         }),
         createExpectedInternalAccount({
-          name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
+          name: 'Snap Account 2',
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
@@ -1855,7 +1857,7 @@ describe('AccountsController', () => {
           keyringType: KeyringTypes.hd,
         }),
         createExpectedInternalAccount({
-          name: 'Snap Account 1', // it is Snap Account 1 because it is the only snap account
+          name: 'Snap Account 2',
           id: mockSnapAccount2.id,
           address: mockSnapAccount2.address,
           keyringType: KeyringTypes.snap,
@@ -2054,6 +2056,108 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it('migration: re-use existing accounts data from current state and update metadata', async () => {
+      // We add a non-existing fields to the internal state directly, like a migration would do.
+      const mockMigratedAccount: InternalAccount = {
+        ...mockAccount,
+        __migrated: 999,
+        metadata: {
+          ...mockSnapAccount.metadata,
+          // Make it undefined so that `updateAccounts` will fix it up.
+          importTime: undefined,
+        },
+      } as unknown as InternalAccount;
+      const mockMigratedSnapAccount: InternalAccount = {
+        ...mockSnapAccount,
+        __migrated: 999,
+        __snap: true,
+        metadata: {
+          ...mockSnapAccount.metadata,
+          // Make it undefined so that `updateAccounts` will fix it up.
+          lastSelected: undefined,
+        },
+      } as unknown as InternalAccount;
+
+      mockUUIDWithNormalAccounts([
+        mockMigratedAccount,
+        mockMigratedSnapAccount,
+      ]);
+
+      const messenger = buildMessenger();
+      messenger.registerActionHandler(
+        'KeyringController:getAccounts',
+        mockGetAccounts.mockResolvedValue([mockAccount.address]),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringForAccount',
+        // First time used for non-Snap accounts, second time for Snap accounts.
+        mockGetKeyringForAccount
+          .mockResolvedValue({ type: mockAccount.metadata.keyring.type })
+          .mockResolvedValue({ type: mockSnapAccount.metadata.keyring.type }),
+      );
+      messenger.registerActionHandler(
+        'KeyringController:getKeyringsByType',
+        mockGetKeyringByType.mockReturnValue([
+          {
+            type: KeyringTypes.snap,
+            listAccounts: async () => [
+              // IMPORTANT NOTE:
+              // At this point, the Snap keyring would still have the previous account state (without
+              // the new fields, keyrings state cannot easily be migrated).
+              //
+              // Since this account already exists in the internal state, we will re-use it instead
+              // of using the `InternalAccount` coming from the Snap keyring.
+              //
+              // So use the "basic" Snap account here, not the one with extra-fields.
+              mockSnapAccount,
+            ],
+          },
+        ]),
+      );
+
+      // We setup the controller with some existing accounts, meaning `updateAccounts` will re-use
+      // those when re-creating its internal state.
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockMigratedAccount.id]: mockMigratedAccount,
+              [mockMigratedSnapAccount.id]: mockMigratedSnapAccount,
+            },
+            selectedAccount: mockMigratedAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      // Now we updates all accounts from their keyrings, but we make sure existing accounts are
+      // not being overwritten!
+      await accountsController.updateAccounts();
+      expect(accountsController.state).toStrictEqual({
+        internalAccounts: {
+          accounts: {
+            [mockMigratedAccount.id]: {
+              ...mockMigratedAccount,
+              // Some metadata got updated during `updateAccounts`.
+              metadata: {
+                ...mockMigratedAccount.metadata,
+                importTime: expect.any(Number),
+              },
+            },
+            [mockMigratedSnapAccount.id]: {
+              ...mockMigratedSnapAccount,
+              // Some metadata got updated during `updateAccounts`.
+              metadata: {
+                ...mockMigratedSnapAccount.metadata,
+                lastSelected: expect.any(Number),
+              },
+            },
+          },
+          selectedAccount: mockMigratedAccount.id,
+        },
+      });
+    });
   });
 
   describe('loadBackup', () => {
