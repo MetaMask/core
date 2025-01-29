@@ -1,3 +1,4 @@
+import type { AuthorizationList } from '@ethereumjs/tx';
 import {
   add0x,
   getKnownPropertyNames,
@@ -20,6 +21,7 @@ export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
+  authorizationList: (data: AuthorizationList) => data,
   data: (data: string) => add0x(padHexToEvenLength(data)),
   from: (from: string) => add0x(from).toLowerCase(),
   gas: (gas: string) => add0x(gas),

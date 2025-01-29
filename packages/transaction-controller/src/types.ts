@@ -1,4 +1,4 @@
-import type { AccessList } from '@ethereumjs/tx';
+import type { AccessList, AuthorizationList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { TraceContext } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
@@ -559,7 +559,6 @@ export enum WalletDevice {
   OTHER = 'other_device',
 }
 
-/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * The type of the transaction.
  */
@@ -708,7 +707,6 @@ export enum TransactionType {
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
-/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
@@ -718,6 +716,8 @@ export type TransactionParams = {
    * A list of addresses and storage keys that the transaction plans to access.
    */
   accessList?: AccessList;
+
+  authorizationList?: AuthorizationList;
 
   /**
    * Network ID as per EIP-155.
@@ -1034,6 +1034,8 @@ export enum TransactionEnvelopeType {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   feeMarket = '0x2',
+
+  setCode = '0x4',
 }
 
 /**

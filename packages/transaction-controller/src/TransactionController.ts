@@ -1,7 +1,7 @@
 import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
-import { bufferToHex } from '@ethereumjs/util';
+import { bytesToHex } from '@ethereumjs/util';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
@@ -160,7 +160,7 @@ const metadata = {
   },
 };
 
-export const HARDFORK = Hardfork.London;
+export const HARDFORK = Hardfork.Prague;
 const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
@@ -1162,11 +1162,15 @@ export class TransactionController extends BaseController<
   ): Promise<TransactionBatchResult> {
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
+      getEthQuery: this.#getEthQuery.bind(this),
       messenger: this.messagingSystem,
       publishBatch: this.publishBatch,
       supportsEIP1559: this.getEIP1559Compatibility.bind(this),
       userRequest: request,
       validateNetworkClientId: this.#validateNetworkClientId.bind(this),
+    }).catch((error) => {
+      log('Error while adding transaction batch', error);
+      throw error;
     });
   }
 
@@ -1348,7 +1352,7 @@ export class TransactionController extends BaseController<
       signedTx,
     );
 
-    const rawTx = bufferToHex(signedTx.serialize());
+    const rawTx = bytesToHex(signedTx.serialize());
     const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
 
     const oldFee = newTxParams.maxFeePerGas
@@ -1906,11 +1910,12 @@ export class TransactionController extends BaseController<
     const common = this.getCommonConfiguration(chainId);
     const networkClientId = this.#getNetworkClientId({ chainId });
 
+    // @ts-expect-error Gas price not supported in EIP-7702
     const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
       common,
     });
 
-    const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
+    const initialTxAsSerializedHex = bytesToHex(initialTxAsEthTx.serialize());
 
     if (this.approvingTransactionIds.has(initialTxAsSerializedHex)) {
       return '';
@@ -2225,12 +2230,13 @@ export class TransactionController extends BaseController<
     const { from } = updatedTransactionParams;
     const common = this.getCommonConfiguration(chainId);
     const unsignedTransaction = TransactionFactory.fromTxData(
+      // @ts-expect-error Gas price not supported in EIP-7702
       updatedTransactionParams,
       { common },
     );
     const signedTransaction = await this.sign(unsignedTransaction, from);
 
-    const rawTransaction = bufferToHex(signedTransaction.serialize());
+    const rawTransaction = bytesToHex(signedTransaction.serialize());
     return rawTransaction;
   }
 
@@ -2549,7 +2555,7 @@ export class TransactionController extends BaseController<
           draftTxMeta.txParams.chainId = chainId;
           draftTxMeta.txParams.gasLimit = txParams.gas;
 
-          if (isEIP1559Transaction(txParams)) {
+          if (isEIP1559Transaction(txParams) && !txParams.type) {
             draftTxMeta.txParams.type = TransactionEnvelopeType.feeMarket;
           }
         },
@@ -2878,6 +2884,7 @@ export class TransactionController extends BaseController<
     chainId: Hex,
     txParams: TransactionParams,
   ): TypedTransaction {
+    // @ts-expect-error Gas price not supported in EIP-7702
     return TransactionFactory.fromTxData(txParams, {
       freeze: false,
       common: this.getCommonConfiguration(chainId),
@@ -2900,7 +2907,7 @@ export class TransactionController extends BaseController<
       defaultHardfork: HARDFORK,
     };
 
-    return Common.custom(customChainParams);
+    return Common.custom(customChainParams, { eips: [7702] });
   }
 
   private onIncomingTransactions(transactions: TransactionMeta[]) {
@@ -3208,7 +3215,7 @@ export class TransactionController extends BaseController<
 
     this.onTransactionStatusChange(transactionMetaWithRsv);
 
-    const rawTx = bufferToHex(signedTx.serialize());
+    const rawTx = bytesToHex(signedTx.serialize());
 
     const transactionMetaWithRawTx = merge({}, transactionMetaWithRsv, {
       rawTx,

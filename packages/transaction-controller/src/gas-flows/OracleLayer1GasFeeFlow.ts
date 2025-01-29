@@ -90,6 +90,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     const txParams = this.#buildTransactionParams(transactionMeta);
     const common = this.#buildTransactionCommon(transactionMeta);
 
+    // @ts-expect-error Gas price not supported in EIP-7702
     let unserializedTransaction = TransactionFactory.fromTxData(txParams, {
       common,
     });

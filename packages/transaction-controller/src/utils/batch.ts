@@ -1,13 +1,16 @@
 /* eslint-disable promise/always-return */
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { Contract } from '@ethersproject/contracts';
+import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
 import type { DeferredPromise } from '@metamask/utils';
 import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
 
 import { waitForTransactionFinishedRemote } from './status';
 import { normalizeTransactionParams } from './utils';
 import { validateTxParams } from './validation';
+import { SimpleDelgateContractAbi } from '../contracts/SimpleDelegateContract';
 import { projectLogger } from '../logger';
 import type {
   PublishHook,
@@ -19,6 +22,7 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   TransactionMeta,
+  TransactionParams,
 } from '../types';
 import { TransactionStatus } from '../types';
 
@@ -26,6 +30,7 @@ const log = createModuleLogger(projectLogger, 'batch');
 
 export type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
+  getEthQuery: ({ networkClientId }: { networkClientId: string }) => EthQuery;
   messenger: TransactionControllerMessenger;
   publishBatch?: (
     signedTxs: string[],
@@ -73,6 +78,18 @@ export async function addTransactionBatch(
     await createApprovalRequest(request);
   }
 
+  const params7702 = await get7702Params(request);
+
+  const finalRequests = params7702 ? [{ params: params7702 }] : requests;
+
+  const finalRequest = {
+    ...request,
+    userRequest: {
+      ...userRequest,
+      requests: finalRequests,
+    },
+  };
+
   const { publishAllPromise, publishHook, publishPromises, signedTxs } =
     await buildCollectorPublishHook(request);
 
@@ -80,8 +97,13 @@ export async function addTransactionBatch(
 
   const rawResults: ProcessTransactionResult[] = [];
 
-  for (let index = 0; index < requests.length; index++) {
-    const result = await processTransaction(request, index, finalPublishHook);
+  for (let index = 0; index < finalRequests.length; index++) {
+    const result = await processTransaction(
+      finalRequest,
+      index,
+      finalPublishHook,
+    );
+
     rawResults.push(result);
   }
 
@@ -259,7 +281,7 @@ async function createApprovalRequest(request: AddTransactionBatchRequest) {
 async function buildCollectorPublishHook(request: AddTransactionBatchRequest) {
   const { userRequest } = request;
   const { requests } = userRequest;
-  
+
   const signedTxs: string[] = [];
   const publishPromises: DeferredPromise<{ transactionHash?: string }>[] = [];
   const publishAllPromise = createDeferredPromise();
@@ -291,5 +313,40 @@ async function buildCollectorPublishHook(request: AddTransactionBatchRequest) {
     publishHook,
     publishPromises,
     signedTxs,
+  };
+}
+
+async function get7702Params(
+  request: AddTransactionBatchRequest,
+): Promise<TransactionParams | undefined> {
+  const { getEthQuery, userRequest } = request;
+  const { networkClientId, requests } = userRequest;
+
+  const { from } = requests[0].params;
+  const ethQuery = getEthQuery({ networkClientId });
+  const code = await query(ethQuery, 'eth_getCode', [from, 'latest']);
+
+  if (code === '0x') {
+    return undefined;
+  }
+
+  log('Sender has code', from, code);
+
+  const args = requests.map((entry) => {
+    const { params } = entry;
+    return [params.data ?? '0x', params.to, params.value ?? '0x0'];
+  });
+
+  log('Args', args);
+
+  const simpleDelegateContract = Contract.getInterface(SimpleDelgateContractAbi);
+  const data = simpleDelegateContract.encodeFunctionData('execute', [args]);
+
+  log('Transaction data', data);
+
+  return {
+    data,
+    from,
+    to: from,
   };
 }

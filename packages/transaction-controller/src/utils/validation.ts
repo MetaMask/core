@@ -4,8 +4,8 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString } from '@metamask/utils';
 
-import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
+import { TransactionEnvelopeType, type TransactionParams } from '../types';
 
 type GasFieldsToValidate =
   | 'gasPrice'
@@ -315,7 +315,8 @@ function ensureProperTransactionEnvelopeTypeProvided(
     case 'maxPriorityFeePerGas':
       if (
         txParams.type &&
-        txParams.type !== TransactionEnvelopeType.feeMarket
+        txParams.type !== TransactionEnvelopeType.feeMarket &&
+        txParams.type !== TransactionEnvelopeType.setCode
       ) {
         throw rpcErrors.invalidParams(
           `Invalid transaction envelope type: specified type "${txParams.type}" but including maxFeePerGas and maxPriorityFeePerGas requires type: "${TransactionEnvelopeType.feeMarket}"`,
