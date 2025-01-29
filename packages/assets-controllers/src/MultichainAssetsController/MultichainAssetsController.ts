@@ -216,6 +216,7 @@ export class MultichainAssetsController extends BaseController<
    */
   async updateAccountAssetsList(event: AccountAssetListUpdatedEvent) {
     const assetsToUpdate = event.params.assets;
+    const assetsForMetadataRefresh: CaipAssetType[] = [];
     for (const accountId in assetsToUpdate) {
       if (Object.prototype.hasOwnProperty.call(assetsToUpdate, accountId)) {
         const newAccountAssets = assetsToUpdate[accountId];
@@ -224,8 +225,7 @@ export class MultichainAssetsController extends BaseController<
         const filteredAssetsToAdd = newAccountAssets.added.filter(
           (asset) => !assets.includes(asset),
         );
-        // trigger fetching metadata for new assets
-        await this.#refreshAssetsMetadata(filteredAssetsToAdd);
+        assetsForMetadataRefresh.push(...filteredAssetsToAdd);
         const newAssets = [...assets, ...filteredAssetsToAdd];
 
         const assetsAfterRemoval = newAssets.filter(
@@ -236,6 +236,8 @@ export class MultichainAssetsController extends BaseController<
         });
       }
     }
+    // trigger fetching metadata for new assets
+    await this.#refreshAssetsMetadata(assetsForMetadataRefresh);
   }
 
   /**

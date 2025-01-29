@@ -990,10 +990,10 @@ describe('MultichainAssetsController', () => {
           decimals: 18,
         },
       };
-      mockSnapHandleRequest
-        .mockReturnValueOnce(mockGetMetadataReturnValue1)
-        .mockReturnValueOnce(mockGetMetadataReturnValue2);
-
+      mockSnapHandleRequest.mockReturnValue({
+        ...mockGetMetadataReturnValue1,
+        ...mockGetMetadataReturnValue2,
+      });
       const updatedAssetsList: AccountAssetListUpdatedEvent = {
         method: 'notify:accountAssetListUpdated',
         params: {
@@ -1026,7 +1026,7 @@ describe('MultichainAssetsController', () => {
         ],
       });
 
-      expect(mockSnapHandleRequest).toHaveBeenCalledTimes(2);
+      expect(mockSnapHandleRequest).toHaveBeenCalledTimes(1);
 
       expect(controller.state.metadata).toStrictEqual({
         ...mockGetMetadataReturnValue,
