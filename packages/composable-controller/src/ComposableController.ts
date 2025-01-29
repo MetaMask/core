@@ -174,6 +174,7 @@ export class ComposableController<
         (childState: StateConstraint) => {
           this.update((state) => {
             // Type assertion is necessary for property assignment to a generic type. This does not pollute or widen the type of the asserted variable.
+            // @ts-expect-error "Type instantiation is excessively deep"
             (state as ComposableControllerStateConstraint)[name] = childState;
           });
         },
