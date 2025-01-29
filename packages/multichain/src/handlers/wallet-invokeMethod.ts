@@ -92,6 +92,13 @@ async function walletInvokeMethodHandler(
 
   const isEvmRequest = (namespace === KnownCaipNamespace.Wallet && (!reference || reference === KnownCaipNamespace.Eip155))  || namespace === KnownCaipNamespace.Eip155
 
+  const unwrappedRequest = {
+    ...request,
+    scope,
+    method: wrappedRequest.method,
+    params: wrappedRequest.params,
+  }
+
   if (isEvmRequest) {
     let networkClientId;
     switch (namespace) {
@@ -115,11 +122,8 @@ async function walletInvokeMethodHandler(
       return end(rpcErrors.internal());
     }
 
-    Object.assign(request, {
-      scope,
+    Object.assign(unwrappedRequest, {
       networkClientId,
-      method: wrappedRequest.method,
-      params: wrappedRequest.params,
     });
     return next();
   }
@@ -132,7 +136,7 @@ async function walletInvokeMethodHandler(
     connectedAddresses: scopeObject.accounts,
     origin,
     scope,
-    request,
+    request: unwrappedRequest,
   })
   return end();
 }
