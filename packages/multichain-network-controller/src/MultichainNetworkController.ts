@@ -176,6 +176,7 @@ export class MultichainNetworkController extends BaseController<
     );
 
   }
+
   /**
    * Sets the non-EVM selected network.
    */
@@ -184,6 +185,7 @@ export class MultichainNetworkController extends BaseController<
       state.nonEvmSelected = true;
     });
   }
+  
   /**
    * Sets the EVM selected network.
    */
