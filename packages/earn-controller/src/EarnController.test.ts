@@ -97,6 +97,20 @@ const createMockInternalAccount = ({
   };
 };
 
+const mockPooledStakes = {
+  account: '0x1234',
+  lifetimeRewards: '100',
+  assets: '1000',
+  exitRequests: [],
+};
+const mockVaultData = {
+  apy: '5.5',
+  capacity: '1000000',
+  feePercent: 10,
+  totalAssets: '500000',
+  vaultAddress: '0xabcd',
+};
+
 describe('EarnController', () => {
   let messenger: EarnControllerMessenger;
 
@@ -218,6 +232,20 @@ describe('EarnController', () => {
     });
 
     it('reinitializes SDK when network changes', () => {
+      const mockedStakingApiService = {
+        getPooledStakes: jest.fn().mockResolvedValue({
+          accounts: [mockPooledStakes],
+          exchangeRate: '1.5',
+        }),
+        getPooledStakingEligibility: jest.fn().mockResolvedValue({
+          eligible: true,
+        }),
+        getVaultData: jest.fn().mockResolvedValue(mockVaultData),
+      };
+
+      (StakingApiService as jest.Mock).mockImplementation(
+        () => mockedStakingApiService,
+      );
       new EarnController({
         messenger,
       });
@@ -227,25 +255,13 @@ describe('EarnController', () => {
         selectedNetworkClientId: '2',
       });
 
-      expect(StakeSdk.create).toHaveBeenCalled();
+      expect(StakeSdk.create).toHaveBeenCalledTimes(2);
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenCalled();
     });
   });
 
   describe('fetchAndUpdateStakingData', () => {
     let controller: EarnController;
-    const mockPooledStakes = {
-      account: '0x1234',
-      lifetimeRewards: '100',
-      assets: '1000',
-      exitRequests: [],
-    };
-    const mockVaultData = {
-      apy: '5.5',
-      capacity: '1000000',
-      feePercent: 10,
-      totalAssets: '500000',
-      vaultAddress: '0xabcd',
-    };
 
     afterEach(() => {
       jest.clearAllMocks();
