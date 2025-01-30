@@ -3,8 +3,8 @@ import {
   SolAccountType,
   BtcMethod,
   SolMethod,
-  BtcScopes,
-  SolScopes,
+  BtcScope,
+  SolScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { validate, Network } from 'bitcoin-address-validation';
@@ -34,7 +34,7 @@ const mockBtcAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [BtcScopes.Namespace],
+  scopes: [BtcScope.Testnet],
   options: {},
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
@@ -59,7 +59,7 @@ const mockSolAccount = {
   options: {
     scope: 'solana-scope',
   },
-  scopes: [SolScopes.Namespace],
+  scopes: [SolScope.Testnet],
   methods: [SolMethod.SendAndConfirmTransaction],
   type: SolAccountType.DataAccount,
 };
