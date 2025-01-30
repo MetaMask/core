@@ -2307,7 +2307,7 @@ __metadata:
     "@ethereumjs/util": "npm:^8.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/eth-snap-keyring": "npm:^9.0.0"
+    "@metamask/eth-snap-keyring": "npm:^9.1.1"
     "@metamask/keyring-api": "npm:^16.1.0"
     "@metamask/keyring-controller": "npm:^19.0.4"
     "@metamask/keyring-internal-api": "npm:^4.0.1"
@@ -2922,7 +2922,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^9.0.0":
+"@metamask/eth-snap-keyring@npm:^9.1.1":
   version: 9.1.1
   resolution: "@metamask/eth-snap-keyring@npm:9.1.1"
   dependencies:
