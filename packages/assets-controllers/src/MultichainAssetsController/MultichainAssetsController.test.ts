@@ -13,6 +13,7 @@ import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
 import type {
+  AssetMetadataResponse,
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
 } from './MultichainAssetsController';
@@ -721,26 +722,26 @@ const mockGetPermissionsReturnValue = [
   },
 ];
 
-const mockGetMetadataReturnValue = {
-  'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501': {
-    name: 'Solana',
-    symbol: 'SOL',
-    native: true,
-    fungible: true,
-    iconBase64:
-      'data:image/jpeg;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCEtLSBHZW5lcmF0b3I6IEFkb2JlIElsbHVzdHJhdG9yIDI0LjAuMCwgU1ZHIEV4cG9ydCBQbHVnLUluIC4gU1ZHIFZlcnNpb246IDYuMDAgQnVpbGQgMCkgIC0tPgo8c3ZnIHZlcnNpb249IjEuMSIgaWQ9IkxheWVyXzEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IgoJIHZpZXdCb3g9IjAgMCAzOTcuNyAzMTEuNyIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMzk3LjcgMzExLjc7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4KPHN0eWxlIHR5cGU9InRleHQvY3NzIj4KCS5zdDB7ZmlsbDp1cmwoI1NWR0lEXzFfKTt9Cgkuc3Qxe2ZpbGw6dXJsKCNTVkdJRF8yXyk7fQoJLnN0MntmaWxsOnVybCgjU1ZHSURfM18pO30KPC9zdHlsZT4KPGxpbmVhckdyYWRpZW50IGlkPSJTVkdJRF8xXyIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIHgxPSIzNjAuODc5MSIgeTE9IjM1MS40NTUzIiB4Mj0iMTQxLjIxMyIgeTI9Ii02OS4yOTM2IiBncmFkaWVudFRyYW5zZm9ybT0ibWF0cml4KDEgMCAwIC0xIDAgMzE0KSI+Cgk8c3RvcCAgb2Zmc2V0PSIwIiBzdHlsZT0ic3RvcC1jb2xvcjojMDBGRkEzIi8+Cgk8c3RvcCAgb2Zmc2V0PSIxIiBzdHlsZT0ic3RvcC1jb2xvcjojREMxRkZGIi8+CjwvbGluZWFyR3JhZGllbnQ+CjxwYXRoIGNsYXNzPSJzdDAiIGQ9Ik02NC42LDIzNy45YzIuNC0yLjQsNS43LTMuOCw5LjItMy44aDMxNy40YzUuOCwwLDguNyw3LDQuNiwxMS4xbC02Mi43LDYyLjdjLTIuNCwyLjQtNS43LDMuOC05LjIsMy44SDYuNQoJYy01LjgsMC04LjctNy00LjYtMTEuMUw2NC42LDIzNy45eiIvPgo8bGluZWFyR3JhZGllbnQgaWQ9IlNWR0lEXzJfIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSIgeDE9IjI2NC44MjkxIiB5MT0iNDAxLjYwMTQiIHgyPSI0NS4xNjMiIHkyPSItMTkuMTQ3NSIgZ3JhZGllbnRUcmFuc2Zvcm09Im1hdHJpeCgxIDAgMCAtMSAwIDMxNCkiPgoJPHN0b3AgIG9mZnNldD0iMCIgc3R5bGU9InN0b3AtY29sb3I6IzAwRkZBMyIvPgoJPHN0b3AgIG9mZnNldD0iMSIgc3R5bGU9InN0b3AtY29sb3I6I0RDMUZGRiIvPgo8L2xpbmVhckdyYWRpZW50Pgo8cGF0aCBjbGFzcz0ic3QxIiBkPSJNNjQuNiwzLjhDNjcuMSwxLjQsNzAuNCwwLDczLjgsMGgzMTcuNGM1LjgsMCw4LjcsNyw0LjYsMTEuMWwtNjIuNyw2Mi43Yy0yLjQsMi40LTUuNywzLjgtOS4yLDMuOEg2LjUKCWMtNS44LDAtOC43LTctNC42LTExLjFMNjQuNiwzLjh6Ii8+CjxsaW5lYXJHcmFkaWVudCBpZD0iU1ZHSURfM18iIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4MT0iMzEyLjU0ODQiIHkxPSIzNzYuNjg4IiB4Mj0iOTIuODgyMiIgeTI9Ii00NC4wNjEiIGdyYWRpZW50VHJhbnNmb3JtPSJtYXRyaXgoMSAwIDAgLTEgMCAzMTQpIj4KCTxzdG9wICBvZmZzZXQ9IjAiIHN0eWxlPSJzdG9wLWNvbG9yOiMwMEZGQTMiLz4KCTxzdG9wICBvZmZzZXQ9IjEiIHN0eWxlPSJzdG9wLWNvbG9yOiNEQzFGRkYiLz4KPC9saW5lYXJHcmFkaWVudD4KPHBhdGggY2xhc3M9InN0MiIgZD0iTTMzMy4xLDEyMC4xYy0yLjQtMi40LTUuNy0zLjgtOS4yLTMuOEg2LjVjLTUuOCwwLTguNyw3LTQuNiwxMS4xbDYyLjcsNjIuN2MyLjQsMi40LDUuNywzLjgsOS4yLDMuOGgzMTcuNAoJYzUuOCwwLDguNy03LDQuNi0xMS4xTDMzMy4xLDEyMC4xeiIvPgo8L3N2Zz4K',
-    units: [{ name: 'Solana', symbol: 'SOL', decimals: 9 }],
-  },
-  'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr':
-    {
-      name: 'USDC',
-      symbol: 'USDC',
+const mockGetMetadataReturnValue: AssetMetadataResponse | undefined = {
+  assets: {
+    'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501': {
+      name: 'Solana',
+      symbol: 'SOL',
       native: true,
       fungible: true,
-      iconBase64:
-        'data:image/jpeg;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTAiIGhlaWdodD0iMjUwIj48cGF0aCBmaWxsPSIjMjc3NWNhIiBkPSJNMTI1IDI1MGM2OS4yNyAwIDEyNS01NS43MyAxMjUtMTI1UzE5NC4yNyAwIDEyNSAwIDAgNTUuNzMgMCAxMjVzNTUuNzMgMTI1IDEyNSAxMjV6bTAgMCIvPjxnIGZpbGw9IiNmZmYiPjxwYXRoIGQ9Ik0xNTkuMzc1IDE0NC43OTNjMC0xOC4yMy0xMC45MzgtMjQuNDgtMzIuODEzLTI3LjA4Ni0xNS42MjQtMi4wODItMTguNzUtNi4yNS0xOC43NS0xMy41MzkgMC03LjI5MyA1LjIwOC0xMS45OCAxNS42MjYtMTEuOTggOS4zNzQgMCAxNC41ODIgMy4xMjQgMTcuMTg3IDEwLjkzNy41MiAxLjU2MyAyLjA4MiAyLjYwNSAzLjY0NSAyLjYwNWg4LjMzNWMyLjA4MyAwIDMuNjQ1LTEuNTYyIDMuNjQ1LTMuNjQ4di0uNTJjLTIuMDgyLTExLjQ1Ny0xMS40NTctMjAuMzEyLTIzLjQzOC0yMS4zNTV2LTEyLjVjMC0yLjA4Mi0xLjU2Mi0zLjY0NC00LjE2Ny00LjE2NGgtNy44MTNjLTIuMDgyIDAtMy42NDQgMS41NjItNC4xNjQgNC4xNjR2MTEuOThjLTE1LjYyNSAyLjA4My0yNS41MjMgMTIuNS0yNS41MjMgMjUuNTIgMCAxNy4xODggMTAuNDE4IDIzLjk2MSAzMi4yOTMgMjYuNTYzIDE0LjU4MiAyLjYwNSAxOS4yNjkgNS43MyAxOS4yNjkgMTQuMDYyIDAgOC4zMzYtNy4yODkgMTQuMDYzLTE3LjE4NyAxNC4wNjMtMTMuNTQgMC0xOC4yMjctNS43MjctMTkuNzktMTMuNTQtLjUyMy0yLjA4NS0yLjA4NS0zLjEyNS0zLjY0OC0zLjEyNUg5My4yM2MtMi4wODUgMC0zLjY0OCAxLjU2My0zLjY0OCAzLjY0NXYuNTJjMi4wODYgMTMuMDIzIDEwLjQxOCAyMi4zOTggMjcuNjA2IDI1djEyLjVjMCAyLjA4NSAxLjU2MiAzLjY0OCA0LjE2NyA0LjE2N2g3LjgxM2MyLjA4MiAwIDMuNjQ0LTEuNTYyIDQuMTY0LTQuMTY3di0xMi41YzE1LjYyNS0yLjYwMiAyNi4wNDMtMTMuNTQgMjYuMDQzLTI3LjYwMnptMCAwIi8+PHBhdGggZD0iTTk4LjQzOCAxOTkuNDhjLTQwLjYyNi0xNC41ODUtNjEuNDU4LTU5Ljg5OC00Ni4zNTYtMTAwIDcuODEzLTIxLjg3NSAyNS0zOC41NDMgNDYuMzU1LTQ2LjM1NSAyLjA4My0xLjA0MyAzLjEyNi0yLjYwNSAzLjEyNi01LjIwN3YtNy4yOTNjMC0yLjA4Mi0xLjA0My0zLjY0NS0zLjEyNi00LjE2OC0uNTE5IDAtMS41NjIgMC0yLjA4Mi41MjMtNDkuNDggMTUuNjI1LTc2LjU2MiA2OC4yMjctNjAuOTM3IDExNy43MDggOS4zNzUgMjkuMTY3IDMxLjc3IDUxLjU2MiA2MC45MzcgNjAuOTM3IDIuMDgyIDEuMDQzIDQuMTY1IDAgNC42ODgtMi4wODIuNTItLjUyMy41Mi0xLjA0My41Mi0yLjA4NnYtNy4yODljMC0xLjU2My0xLjU2My0zLjY0OC0zLjEyNi00LjY4OHptNTUuMjA3LTE2Mi41Yy0yLjA4My0xLjA0Mi00LjE2NSAwLTQuNjg4IDIuMDgzLS41Mi41MTktLjUyIDEuMDQyLS41MiAyLjA4MnY3LjI5MmMwIDIuMDgzIDEuNTYzIDQuMTY4IDMuMTI1IDUuMjA4IDQwLjYyNSAxNC41ODUgNjEuNDU4IDU5Ljg5OCA0Ni4zNTYgMTAwLTcuODEzIDIxLjg3NS0yNSAzOC41NDItNDYuMzU2IDQ2LjM1NS0yLjA4MiAxLjA0My0zLjEyNSAyLjYwNS0zLjEyNSA1LjIwN3Y3LjI5M2MwIDIuMDgyIDEuMDQzIDMuNjQ1IDMuMTI1IDQuMTY4LjUyIDAgMS41NjMgMCAyLjA4My0uNTIzIDQ5LjQ4LTE1LjYyNSA3Ni41NjItNjguMjI3IDYwLjkzNy0xMTcuNzA4LTkuMzc1LTI5LjY4Ny0zMi4yODktNTIuMDgyLTYwLjkzNy02MS40NTd6bTAgMCIvPjwvZz48L3N2Zz4=',
-      units: [{ name: 'USDC', symbol: 'SUSDCOL', decimals: 18 }],
+      iconUrl: 'url1',
+      units: [{ name: 'Solana', symbol: 'SOL', decimals: 9 }],
     },
+    'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr':
+      {
+        name: 'USDC',
+        symbol: 'USDC',
+        native: true,
+        fungible: true,
+        iconUrl: 'url2',
+        units: [{ name: 'USDC', symbol: 'SUSDCOL', decimals: 18 }],
+      },
+  },
 };
 
 /**
@@ -904,7 +905,364 @@ describe('MultichainAssetsController', () => {
       allNonEvmTokens: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
-      metadata: mockGetMetadataReturnValue,
+      metadata: mockGetMetadataReturnValue.assets,
+    });
+  });
+
+  it('updates metadata in state successfully all calls succeed to fetch metadata', async () => {
+    const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
+      setupController();
+
+    const mockAssetsResponse = [
+      'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+      'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    ];
+    const mockSnapPermissionReturnVal = {
+      'endowment:assets': {
+        caveats: [
+          {
+            type: 'chainIds',
+            value: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            ],
+          },
+        ],
+      },
+      'endowment:cronjob': {
+        caveats: [
+          {
+            type: 'snapCronjob',
+            value: {
+              jobs: [
+                {
+                  expression: '* * * * *',
+                  request: {
+                    method: 'refreshTokenPrices',
+                    params: {},
+                  },
+                },
+                {
+                  expression: '* * * * *',
+                  request: {
+                    method: 'refreshTransactions',
+                    params: {},
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        date: 1736869806349,
+        id: 'OQ3d1RXEPbcvi3sNzP6GV',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:cronjob',
+      },
+      'endowment:keyring': {
+        caveats: [
+          {
+            type: 'keyringOrigin',
+            value: {
+              allowedOrigins: [
+                'http://localhost:3000',
+                'https://portfolio.metamask.io',
+                'https://portfolio-builds.metafi-dev.codefi.network',
+                'https://dev.portfolio.metamask.io',
+                'https://ramps-dev.portfolio.metamask.io',
+              ],
+            },
+          },
+        ],
+        date: 1736869806348,
+        id: 'WkNypQHrfAaP8VyDZZmIG',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:keyring',
+      },
+      'endowment:network-access': {
+        caveats: null,
+        date: 1736869806348,
+        id: 'wMPlAtMQCzt6TeQe4j3f-',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:network-access',
+      },
+      'endowment:rpc': {
+        caveats: [
+          {
+            type: 'rpcOrigin',
+            value: {
+              dapps: true,
+              snaps: false,
+            },
+          },
+        ],
+        date: 1736869806348,
+        id: '7j1Elw4kcL4KOnlQ6xt7A',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:rpc',
+      },
+      snap_dialog: {
+        caveats: null,
+        date: 1736869806349,
+        id: '2OtPNZTdpK1FadSM0s0rv',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_dialog',
+      },
+      snap_getBip32Entropy: {
+        caveats: [
+          {
+            type: 'permittedDerivationPaths',
+            value: [
+              {
+                curve: 'ed25519',
+                path: ['m', "44'", "501'"],
+              },
+            ],
+          },
+        ],
+        date: 1736869806348,
+        id: 'WiOkUgu4Y89p2youlm7ro',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_getBip32Entropy',
+      },
+      snap_getPreferences: {
+        caveats: null,
+        date: 1736869806349,
+        id: 'LmYGhkzdyDWmhAbM1UJfx',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_getPreferences',
+      },
+      snap_manageAccounts: {
+        caveats: null,
+        date: 1736869806349,
+        id: 'BaiVanA9U-BIfbCgYpeo6',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_manageAccounts',
+      },
+      snap_manageState: {
+        caveats: null,
+        date: 1736869806349,
+        id: 'oIJeVj2SsWh6uFam1RMi4',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_manageState',
+      },
+    };
+    const mockGetMetadataResponse: AssetMetadataResponse | undefined = {
+      assets: {
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          name: 'Solana2',
+          symbol: 'SOL',
+          native: true,
+          fungible: true,
+          iconUrl: 'url1',
+          units: [{ name: 'Solana2', symbol: 'SOL', decimals: 9 }],
+        },
+      },
+    };
+
+    mockSnapHandleRequest
+      .mockReturnValueOnce(mockAssetsResponse)
+      .mockReturnValueOnce(mockGetMetadataReturnValue)
+      .mockReturnValueOnce(mockGetMetadataResponse);
+
+    mockGetPermissions
+      .mockReturnValueOnce(mockSnapPermissionReturnVal)
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
+
+    messenger.publish(
+      'AccountsController:accountAdded',
+      mockSolanaAccount as unknown as InternalAccount,
+    );
+
+    await advanceTime({ clock, duration: 1 });
+
+    expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
+
+    expect(controller.state).toStrictEqual({
+      allNonEvmTokens: {
+        [mockSolanaAccount.id]: mockAssetsResponse,
+      },
+      metadata: {
+        ...mockGetMetadataResponse.assets,
+        ...mockGetMetadataReturnValue.assets,
+      },
+    });
+  });
+
+  it('updates metadata in state successfully one call to fetch metadata fails', async () => {
+    const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
+      setupController();
+
+    const mockAssetsResponse = [
+      'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
+      'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    ];
+    const mockSnapPermissionReturnVal = {
+      'endowment:assets': {
+        caveats: [
+          {
+            type: 'chainIds',
+            value: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1',
+              'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+            ],
+          },
+        ],
+      },
+      'endowment:cronjob': {
+        caveats: [
+          {
+            type: 'snapCronjob',
+            value: {
+              jobs: [
+                {
+                  expression: '* * * * *',
+                  request: {
+                    method: 'refreshTokenPrices',
+                    params: {},
+                  },
+                },
+                {
+                  expression: '* * * * *',
+                  request: {
+                    method: 'refreshTransactions',
+                    params: {},
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        date: 1736869806349,
+        id: 'OQ3d1RXEPbcvi3sNzP6GV',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:cronjob',
+      },
+      'endowment:keyring': {
+        caveats: [
+          {
+            type: 'keyringOrigin',
+            value: {
+              allowedOrigins: [
+                'http://localhost:3000',
+                'https://portfolio.metamask.io',
+                'https://portfolio-builds.metafi-dev.codefi.network',
+                'https://dev.portfolio.metamask.io',
+                'https://ramps-dev.portfolio.metamask.io',
+              ],
+            },
+          },
+        ],
+        date: 1736869806348,
+        id: 'WkNypQHrfAaP8VyDZZmIG',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:keyring',
+      },
+      'endowment:network-access': {
+        caveats: null,
+        date: 1736869806348,
+        id: 'wMPlAtMQCzt6TeQe4j3f-',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:network-access',
+      },
+      'endowment:rpc': {
+        caveats: [
+          {
+            type: 'rpcOrigin',
+            value: {
+              dapps: true,
+              snaps: false,
+            },
+          },
+        ],
+        date: 1736869806348,
+        id: '7j1Elw4kcL4KOnlQ6xt7A',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'endowment:rpc',
+      },
+      snap_dialog: {
+        caveats: null,
+        date: 1736869806349,
+        id: '2OtPNZTdpK1FadSM0s0rv',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_dialog',
+      },
+      snap_getBip32Entropy: {
+        caveats: [
+          {
+            type: 'permittedDerivationPaths',
+            value: [
+              {
+                curve: 'ed25519',
+                path: ['m', "44'", "501'"],
+              },
+            ],
+          },
+        ],
+        date: 1736869806348,
+        id: 'WiOkUgu4Y89p2youlm7ro',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_getBip32Entropy',
+      },
+      snap_getPreferences: {
+        caveats: null,
+        date: 1736869806349,
+        id: 'LmYGhkzdyDWmhAbM1UJfx',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_getPreferences',
+      },
+      snap_manageAccounts: {
+        caveats: null,
+        date: 1736869806349,
+        id: 'BaiVanA9U-BIfbCgYpeo6',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_manageAccounts',
+      },
+      snap_manageState: {
+        caveats: null,
+        date: 1736869806349,
+        id: 'oIJeVj2SsWh6uFam1RMi4',
+        invoker: 'local:http://localhost:8080',
+        parentCapability: 'snap_manageState',
+      },
+    };
+
+    mockSnapHandleRequest
+      .mockReturnValueOnce(mockAssetsResponse)
+      .mockReturnValueOnce(mockGetMetadataReturnValue)
+      .mockRejectedValueOnce('Error');
+
+    mockGetPermissions
+      .mockReturnValueOnce(mockSnapPermissionReturnVal)
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
+
+    messenger.publish(
+      'AccountsController:accountAdded',
+      mockSolanaAccount as unknown as InternalAccount,
+    );
+
+    await advanceTime({ clock, duration: 1 });
+
+    expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
+
+    expect(controller.state).toStrictEqual({
+      allNonEvmTokens: {
+        [mockSolanaAccount.id]: mockAssetsResponse,
+      },
+      metadata: {
+        ...mockGetMetadataReturnValue.assets,
+      },
     });
   });
 
@@ -938,7 +1296,7 @@ describe('MultichainAssetsController', () => {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
 
-      metadata: mockGetMetadataReturnValue,
+      metadata: mockGetMetadataReturnValue.assets,
     });
     // Remove an EVM account
     messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
@@ -950,7 +1308,7 @@ describe('MultichainAssetsController', () => {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
 
-      metadata: mockGetMetadataReturnValue,
+      metadata: mockGetMetadataReturnValue.assets,
     });
   });
 
@@ -984,7 +1342,7 @@ describe('MultichainAssetsController', () => {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
 
-      metadata: mockGetMetadataReturnValue,
+      metadata: mockGetMetadataReturnValue.assets,
     });
     // Remove the added solana account
     messenger.publish(
@@ -997,7 +1355,7 @@ describe('MultichainAssetsController', () => {
     expect(controller.state).toStrictEqual({
       allNonEvmTokens: {},
 
-      metadata: mockGetMetadataReturnValue,
+      metadata: mockGetMetadataReturnValue.assets,
     });
   });
 
@@ -1011,7 +1369,7 @@ describe('MultichainAssetsController', () => {
             allNonEvmTokens: {
               [mockSolanaAccountId1]: mockGetAssetsResult,
             },
-            metadata: mockGetMetadataReturnValue,
+            metadata: mockGetMetadataReturnValue.assets,
           } as MultichainAssetsControllerState,
         });
 
@@ -1030,8 +1388,10 @@ describe('MultichainAssetsController', () => {
         },
       };
       mockSnapHandleRequest.mockReturnValue({
-        ...mockGetMetadataReturnValue1,
-        ...mockGetMetadataReturnValue2,
+        assets: {
+          ...mockGetMetadataReturnValue1,
+          ...mockGetMetadataReturnValue2,
+        },
       });
 
       mockGetPermissions
@@ -1077,7 +1437,7 @@ describe('MultichainAssetsController', () => {
       expect(mockSnapHandleRequest).toHaveBeenCalledTimes(1);
 
       expect(controller.state.metadata).toStrictEqual({
-        ...mockGetMetadataReturnValue,
+        ...mockGetMetadataReturnValue.assets,
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
           name: 'newToken',
           symbol: 'newToken',

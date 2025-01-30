@@ -62,8 +62,8 @@ type FungibleAssetMetadata = {
   // Represents a fungible asset
   fungible: true;
 
-  // Base64 representation of the asset icon.
-  iconBase64: string;
+  // icon url
+  iconUrl: string;
 
   // List of asset units.
   units: FungibleAssetUnit[];
@@ -77,6 +77,13 @@ export type MultichainAssetsControllerState = {
     [asset: CaipAssetType]: AssetMetadata;
   };
   allNonEvmTokens: { [account: string]: CaipAssetType[] };
+};
+
+// Represents the response of the asset snap's onAssetLookup handler
+export type AssetMetadataResponse = {
+  assets: {
+    [asset: CaipAssetType]: AssetMetadata;
+  };
 };
 
 /**
@@ -333,8 +340,7 @@ export class MultichainAssetsController extends BaseController<
       }
       assetsByScope[chainId].push(asset);
     }
-
-    let newMetadata: Record<CaipAssetType, AssetMetadata>;
+    let newMetadata: Record<CaipAssetType, AssetMetadata> = {};
     for (const chainId in assetsByScope) {
       if (hasProperty(assetsByScope, chainId)) {
         const assetsForChain = assetsByScope[chainId as CaipChainId];
@@ -343,14 +349,17 @@ export class MultichainAssetsController extends BaseController<
         if (snap) {
           const metadata = await this.#getMetadata(assetsForChain, snap.id);
           newMetadata = {
-            ...this.state.metadata,
-            ...metadata,
+            ...newMetadata,
+            ...(metadata ? metadata.assets : {}),
           };
         }
       }
     }
     this.update((state) => {
-      state.metadata = newMetadata;
+      state.metadata = {
+        ...this.state.metadata,
+        ...newMetadata,
+      };
     });
   }
 
@@ -435,20 +444,25 @@ export class MultichainAssetsController extends BaseController<
   async #getMetadata(
     assets: CaipAssetType[],
     snapId: string,
-  ): Promise<Record<CaipAssetType, AssetMetadata>> {
-    return (await this.messagingSystem.call('SnapController:handleRequest', {
-      snapId: snapId as SnapId,
-      origin: 'metamask',
-      handler: HandlerType.OnAssetsLookup,
-      request: {
-        id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
-        jsonrpc: '2.0',
-        method: 'onAssetLookup',
-        params: {
-          assets,
+  ): Promise<AssetMetadataResponse | undefined> {
+    try {
+      return (await this.messagingSystem.call('SnapController:handleRequest', {
+        snapId: snapId as SnapId,
+        origin: 'metamask',
+        handler: HandlerType.OnAssetsLookup,
+        request: {
+          id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
+          jsonrpc: '2.0',
+          method: 'onAssetLookup',
+          params: {
+            assets,
+          },
         },
-      },
-    })) as Record<CaipAssetType, AssetMetadata>;
+      })) as Promise<AssetMetadataResponse>;
+    } catch {
+      // ignore
+      return undefined;
+    }
   }
 
   /**
