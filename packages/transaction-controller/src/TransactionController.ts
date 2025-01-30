@@ -1162,7 +1162,9 @@ export class TransactionController extends BaseController<
   ): Promise<TransactionBatchResult> {
     return await addTransactionBatch({
       addTransaction: this.addTransaction.bind(this),
+      getChainId: this.#getChainId.bind(this),
       getEthQuery: this.#getEthQuery.bind(this),
+      getNextNonce: this.#getNextNonce.bind(this),
       messenger: this.messagingSystem,
       publishBatch: this.publishBatch,
       supportsEIP1559: this.getEIP1559Compatibility.bind(this),
@@ -2533,14 +2535,11 @@ export class TransactionController extends BaseController<
 
       const lock = await this.mutex.acquire();
 
-      const [nonce, releaseNonce] = await getNextNonce(
+      const [nonce, releaseNonce] = await this.#getNextNonce({
+        address: transactionMeta.txParams.from,
+        networkClientId: transactionMeta.networkClientId,
         transactionMeta,
-        (address: string) =>
-          this.#multichainTrackingHelper.getNonceLock(
-            address,
-            transactionMeta.networkClientId,
-          ),
-      );
+      });
 
       transactionMeta = this.#updateTransactionInternal(
         {
@@ -3793,5 +3792,22 @@ export class TransactionController extends BaseController<
         `Network client not found - ${networkClientId as string}`,
       );
     }
+  }
+
+  async #getNextNonce({
+    address,
+    networkClientId,
+    transactionMeta,
+  }: {
+    address: string;
+    networkClientId: NetworkClientId;
+    transactionMeta?: TransactionMeta;
+  }) {
+    return await getNextNonce({
+      address,
+      getNonceLock: (_address: string) =>
+        this.#multichainTrackingHelper.getNonceLock(_address, networkClientId),
+      transactionMeta,
+    });
   }
 }

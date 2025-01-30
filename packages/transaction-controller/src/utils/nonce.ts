@@ -12,18 +12,27 @@ const log = createModuleLogger(projectLogger, 'nonce');
 /**
  * Determine the next nonce to be used for a transaction.
  *
- * @param txMeta - The transaction metadata.
- * @param getNonceLock - An anonymous function that acquires the nonce lock for an address
+ * @param options -
+ * @param options.address - The address of the account from which the transaction will be sent.
+ * @param options.getNonceLock - A function that returns a nonce lock for the given address.
+ * @param options.transactionMeta - The transaction meta object for the transaction.
  * @returns The next hexadecimal nonce to be used for the given transaction, and optionally a function to release the nonce lock.
  */
-export async function getNextNonce(
-  txMeta: TransactionMeta,
-  getNonceLock: (address: string) => Promise<NonceLock>,
-): Promise<[string, (() => void) | undefined]> {
+export async function getNextNonce({
+  address,
+  getNonceLock,
+  transactionMeta,
+}: {
+  address: string;
+  getNonceLock: (address: string) => Promise<NonceLock>;
+  transactionMeta?: TransactionMeta;
+}): Promise<[string, (() => void) | undefined]> {
   const {
     customNonceValue,
-    txParams: { from, nonce: existingNonce },
-  } = txMeta;
+    txParams: { nonce: existingNonce },
+  } = transactionMeta ?? {
+    txParams: {},
+  };
 
   const customNonce = customNonceValue ? toHex(customNonceValue) : undefined;
 
@@ -37,7 +46,7 @@ export async function getNextNonce(
     return [existingNonce, undefined];
   }
 
-  const nonceLock = await getNonceLock(from);
+  const nonceLock = await getNonceLock(address);
   const nonce = toHex(nonceLock.nextNonce);
   const releaseLock = nonceLock.releaseLock.bind(nonceLock);
 

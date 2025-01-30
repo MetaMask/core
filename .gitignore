@@ -35,3 +35,7 @@ scripts/coverage
 
 # typescript
 packages/*/*.tsbuildinfo
+
+# foundry
+cache
+out

@@ -1,16 +1,21 @@
 /* eslint-disable promise/always-return */
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { Contract } from '@ethersproject/contracts';
-import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
+import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
-import type { DeferredPromise } from '@metamask/utils';
+import type { DeferredPromise, Hex } from '@metamask/utils';
 import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
 
+import {
+  CONTRACT_ADDRESS_7702,
+  get7702Authorization,
+  get7702Transaction,
+  has7702Delegation,
+  supports7702,
+} from './7702';
 import { waitForTransactionFinishedRemote } from './status';
 import { normalizeTransactionParams } from './utils';
 import { validateTxParams } from './validation';
-import { SimpleDelgateContractAbi } from '../contracts/SimpleDelegateContract';
 import { projectLogger } from '../logger';
 import type {
   PublishHook,
@@ -22,15 +27,22 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   TransactionMeta,
-  TransactionParams,
 } from '../types';
-import { TransactionStatus } from '../types';
+import { TransactionEnvelopeType, TransactionStatus } from '../types';
 
 const log = createModuleLogger(projectLogger, 'batch');
 
 export type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
+  getChainId: (networkClientId: string) => Hex;
   getEthQuery: ({ networkClientId }: { networkClientId: string }) => EthQuery;
+  getNextNonce: ({
+    address,
+    networkClientId,
+  }: {
+    address: string;
+    networkClientId: string;
+  }) => Promise<[string, (() => void) | undefined]>;
   messenger: TransactionControllerMessenger;
   publishBatch?: (
     signedTxs: string[],
@@ -78,28 +90,18 @@ export async function addTransactionBatch(
     await createApprovalRequest(request);
   }
 
-  const params7702 = await get7702Params(request);
-
-  const finalRequests = params7702 ? [{ params: params7702 }] : requests;
-
-  const finalRequest = {
-    ...request,
-    userRequest: {
-      ...userRequest,
-      requests: finalRequests,
-    },
-  };
+  const normalizedRequest = await normalizeRequest(request);
 
   const { publishAllPromise, publishHook, publishPromises, signedTxs } =
-    await buildCollectorPublishHook(request);
+    await buildCollectorPublishHook(normalizedRequest);
 
   const finalPublishHook = publishBatch ? publishHook : undefined;
-
   const rawResults: ProcessTransactionResult[] = [];
+  const finalRequests = normalizedRequest.userRequest.requests;
 
   for (let index = 0; index < finalRequests.length; index++) {
     const result = await processTransaction(
-      finalRequest,
+      normalizedRequest,
       index,
       finalPublishHook,
     );
@@ -316,37 +318,48 @@ async function buildCollectorPublishHook(request: AddTransactionBatchRequest) {
   };
 }
 
-async function get7702Params(
+async function normalizeRequest(
   request: AddTransactionBatchRequest,
-): Promise<TransactionParams | undefined> {
-  const { getEthQuery, userRequest } = request;
+): Promise<AddTransactionBatchRequest> {
+  const { getChainId, getEthQuery, getNextNonce, userRequest } = request;
   const { networkClientId, requests } = userRequest;
 
   const { from } = requests[0].params;
   const ethQuery = getEthQuery({ networkClientId });
-  const code = await query(ethQuery, 'eth_getCode', [from, 'latest']);
+  const chainId = getChainId(networkClientId);
+  const isSmartAccount = await has7702Delegation(from, ethQuery);
+  const is7702Supported = await supports7702(chainId);
 
-  if (code === '0x') {
-    return undefined;
+  if (!isSmartAccount && !is7702Supported) {
+    return request;
   }
 
-  log('Sender has code', from, code);
-
-  const args = requests.map((entry) => {
-    const { params } = entry;
-    return [params.data ?? '0x', params.to, params.value ?? '0x0'];
+  const [nonce, releaseLock] = await getNextNonce({
+    address: from,
+    networkClientId,
   });
 
-  log('Args', args);
+  releaseLock?.();
 
-  const simpleDelegateContract = Contract.getInterface(SimpleDelgateContractAbi);
-  const data = simpleDelegateContract.encodeFunctionData('execute', [args]);
+  const nextNonce = toHex(parseInt(nonce, 16) + 1);
 
-  log('Transaction data', data);
+  let params7702 = get7702Transaction(userRequest);
+
+  if (!isSmartAccount) {
+    params7702 = {
+      ...params7702,
+      type: TransactionEnvelopeType.setCode,
+      authorizationList: [
+        get7702Authorization(CONTRACT_ADDRESS_7702, chainId, nextNonce),
+      ],
+    };
+  }
 
   return {
-    data,
-    from,
-    to: from,
+    ...request,
+    userRequest: {
+      ...userRequest,
+      requests: [{ params: params7702 }],
+    },
   };
 }
