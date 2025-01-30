@@ -425,7 +425,7 @@ export class AccountsController extends BaseController<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccountExpect(accountId);
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
         Date.now();
       currentState.internalAccounts.selectedAccount = account.id;
@@ -473,7 +473,7 @@ export class AccountsController extends BaseController<
       throw new Error('Account name already exists');
     }
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       const internalAccount = {
         ...account,
         metadata: { ...account.metadata, ...metadata },
@@ -509,42 +509,47 @@ export class AccountsController extends BaseController<
     const accounts: Record<string, InternalAccount> = [
       ...normalAccounts,
       ...snapAccounts,
-    ].reduce((internalAccountMap, internalAccount) => {
-      const keyringTypeName = keyringTypeToName(
-        internalAccount.metadata.keyring.type,
-      );
-      const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
-      if (keyringAccountIndex) {
-        keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
-      } else {
-        keyringTypes.set(keyringTypeName, 1);
-      }
+    ].reduce(
+      (internalAccountMap, internalAccount) => {
+        const keyringTypeName = keyringTypeToName(
+          internalAccount.metadata.keyring.type,
+        );
+        const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
+        if (keyringAccountIndex) {
+          keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
+        } else {
+          keyringTypes.set(keyringTypeName, 1);
+        }
 
-      const existingAccount = previousAccounts[internalAccount.id];
+        const existingAccount = previousAccounts[internalAccount.id];
 
-      internalAccountMap[internalAccount.id] = {
-        ...internalAccount,
+        internalAccountMap[internalAccount.id] = {
+          ...internalAccount,
 
-        metadata: {
-          ...internalAccount.metadata,
-          name:
-            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
-            `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          importTime:
-            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
-            Date.now(),
-          lastSelected:
-            this.#populateExistingMetadata(
-              existingAccount?.id,
-              'lastSelected',
-            ) ?? 0,
-        },
-      };
+          metadata: {
+            ...internalAccount.metadata,
+            name:
+              this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+              `${keyringTypeName} ${keyringAccountIndex + 1}`,
+            importTime:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'importTime',
+              ) ?? Date.now(),
+            lastSelected:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'lastSelected',
+              ) ?? 0,
+          },
+        };
 
-      return internalAccountMap;
-    }, {} as Record<string, InternalAccount>);
+        return internalAccountMap;
+      },
+      {} as Record<string, InternalAccount>,
+    );
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       currentState.internalAccounts.accounts = accounts;
 
       if (
@@ -578,7 +583,7 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState: Draft<AccountsControllerState>) => {
+      this.update((currentState) => {
         currentState.internalAccounts = backup.internalAccounts;
       });
     }
@@ -825,7 +830,7 @@ export class AccountsController extends BaseController<
         }
       }
 
-      this.update((currentState: Draft<AccountsControllerState>) => {
+      this.update((currentState) => {
         if (deletedAccounts.length > 0) {
           for (const account of deletedAccounts) {
             currentState.internalAccounts.accounts = this.#handleAccountRemoved(
@@ -887,7 +892,7 @@ export class AccountsController extends BaseController<
       (account) => account.metadata.snap,
     );
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       accounts.forEach((account) => {
         const currentAccount =
           currentState.internalAccounts.accounts[account.id];
@@ -1209,7 +1214,7 @@ export class AccountsController extends BaseController<
           );
         }
 
-        this.update((currentState: Draft<AccountsControllerState>) => {
+        this.update((currentState) => {
           currentState.internalAccounts.accounts[
             accountId
           ].metadata.lastSelected = Date.now();
