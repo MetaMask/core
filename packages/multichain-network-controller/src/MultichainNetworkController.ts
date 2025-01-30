@@ -19,6 +19,7 @@ import type {
 import type { Draft } from 'immer';
 import { bitcoinCaip2ChainId } from './constants';
 import { CaipChainId } from '@metamask/utils';
+import { isEvmAccountType } from '@metamask/keyring-api';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -269,16 +270,20 @@ export class MultichainNetworkController extends BaseController<
    * @private
    */
   #subscribeToMessageEvents() {
+    // Handle network switch when account is changed
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      async (state) => {
-        // Switch to non-EVM network
-      },
-    );
-    this.messagingSystem.subscribe(
-      'AccountsController:selectedEvmAccountChange',
-      async (state) => {
-        // Switch to EVM network
+      async ({ type: accountType }) => {
+        const isNonEvmAccount = !isEvmAccountType(accountType);
+
+        // No need to update if already on the correct network
+        if (isNonEvmAccount === this.state.nonEvmSelected) {
+          return;
+        }
+
+        this.update((state: Draft<MultichainNetworkControllerState>) => {
+          state.nonEvmSelected = isNonEvmAccount;
+        });
       },
     );
   }
