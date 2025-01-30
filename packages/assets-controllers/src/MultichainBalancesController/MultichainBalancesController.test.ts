@@ -5,8 +5,8 @@ import {
   BtcMethod,
   EthAccountType,
   EthMethod,
-  BtcScopes,
-  EthScopes,
+  BtcScope,
+  EthScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -41,7 +41,7 @@ const mockBtcAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [BtcScopes.Namespace],
+  scopes: [BtcScope.Testnet],
   options: {},
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
@@ -63,7 +63,7 @@ const mockEthAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   options: {},
   methods: [EthMethod.SignTypedDataV4, EthMethod.SignTransaction],
   type: EthAccountType.Eoa,
