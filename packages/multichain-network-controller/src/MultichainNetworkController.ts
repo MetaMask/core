@@ -285,6 +285,7 @@ export class MultichainNetworkController extends BaseController<
     );
 
     if (evmClientId === selectedNetworkClientId) {
+      // EVM network is already selected, no need to update NetworkController
       return;
     }
 
