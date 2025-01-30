@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-network-controller",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "private": true,
   "description": "Multichain network controller",
   "keywords": [
@@ -48,12 +48,11 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.1.1",
+    "@metamask/keyring-api": "^16.1.0",
     "@metamask/utils": "^11.0.1"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^21.0.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^22.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -63,6 +62,10 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
+  },
+  "peerDependencies": {
+    "@metamask/accounts-controller": "^21.0.1",
+    "@metamask/network-controller": "^22.1.1"
   },
   "engines": {
     "node": "^18.18 || >=20"
