@@ -1,10 +1,13 @@
 import type { AccountsControllerSetSelectedAccountAction } from '@metamask/accounts-controller';
 import {
   BaseController,
+  StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
+import { BtcScope } from '@metamask/keyring-api';
+
 import type {
   NetworkStatus,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
@@ -12,11 +15,9 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import type { Draft } from 'immer';
 
-import {
-  bitcoinCaip2ChainId,
-} from './constants';
+
+import {  CaipAssetType, CaipChainId, KnownCaipNamespace, parseCaipChainId } from '@metamask/utils';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -26,37 +27,70 @@ export type MultichainNetworkMetadata = {
 };
 
 export type MultichainNetworkConfiguration = {
-  chainId: string; // Should be Caip2 type
+  /**
+   * The chain ID of the network.
+   */
+  chainId: CaipChainId; 
+  /**
+   * The name of the network.
+   */
   name: string;
-  nativeCurrency: string; // Should be Caip19 type
+  /**
+   * The native asset type of the network.
+   */
+  nativeAsset: CaipAssetType;
+  /**
+   * The block explorer URLs of the network.
+   */
   blockExplorerUrls: string[];
+  /**
+   * The default block explorer URL index of the network.
+   */
   defaultBlockExplorerUrlIndex?: number;
+  /**
+   * The last updated timestamp of the network.
+   */
   lastUpdated?: number;
-  isEvm?: false;
+  /**
+   * Whether the network is an EVM network or non-evm network.
+   */
+  isEvm: boolean;
 };
 
 /**
  * State used by the {@link MultichainNetworkController} to cache network configurations.
  */
 export type MultichainNetworkControllerState = {
+  /**
+   * The network configurations by chain ID.
+   */
   multichainNetworkConfigurationsByChainId: Record<
     string,
     MultichainNetworkConfiguration
   >;
-  selectedMultichainNetworkChainId: string;
+  /**
+   * The chain ID of the selected network.
+   */
+  selectedMultichainNetworkChainId: CaipChainId;
+  /**
+   * The metadata of the networks.
+   */
   multichainNetworksMetadata: Record<string, MultichainNetworkMetadata>;
+  /**
+   * Whether the non-EVM network is selected by the wallet.
+   */
   nonEvmSelected: boolean;
 };
 
 /**
  * Default state of the {@link MultichainNetworkController}.
  */
-export const defaultState: MultichainNetworkControllerState = {
+export const getDefaultMultichainNetworkControllerState = (): MultichainNetworkControllerState => ({
   multichainNetworkConfigurationsByChainId: {},
-  selectedMultichainNetworkChainId: bitcoinCaip2ChainId,
+  selectedMultichainNetworkChainId: BtcScope.Mainnet,
   multichainNetworksMetadata: {},
   nonEvmSelected: false,
-};
+});
 
 /**
  * Returns the state of the {@link MultichainNetworkController}.
@@ -70,7 +104,7 @@ export type MultichainNetworkControllerGetStateAction =
 /**
  * Event emitted when the state of the {@link MultichainNetworkController} changes.
  */
-export type MultichainNetworkStateControllerStateChange =
+export type MultichainNetworkControllerStateChange =
   ControllerStateChangeEvent<
     typeof controllerName,
     MultichainNetworkControllerState
@@ -79,14 +113,19 @@ export type MultichainNetworkStateControllerStateChange =
 /**
  * Actions exposed by the {@link MultichainNetworkController}.
  */
-export type MultichainNetworkStateControllerActions =
+export type MultichainNetworkControllerActions =
   MultichainNetworkControllerGetStateAction;
 
 /**
  * Events emitted by {@link MultichainNetworkController}.
  */
 export type MultichainNetworkControllerEvents =
-  MultichainNetworkStateControllerStateChange;
+  MultichainNetworkControllerStateChange;
+
+export type MultichainNetworkControllerAllowedActions = MultichainNetworkControllerActions | AllowedActions;
+
+export type MultichainNetworkControllerAllowedEvents = MultichainNetworkControllerEvents | AllowedEvents;
+
 
 /**
  * Actions that this controller is allowed to call.
@@ -108,8 +147,8 @@ export type AllowedEvents = NetworkControllerStateChangeEvent;
 export type MultichainNetworkControllerMessenger =
   RestrictedControllerMessenger<
     typeof controllerName,
-    MultichainNetworkStateControllerActions | AllowedActions,
-    MultichainNetworkControllerEvents | AllowedEvents,
+    MultichainNetworkControllerAllowedActions,
+    MultichainNetworkControllerAllowedEvents,
     AllowedActions['type'],
     AllowedEvents['type']
   >;
@@ -122,11 +161,11 @@ export type MultichainNetworkControllerMessenger =
  * the `anonymous` flag.
  */
 const multichainNetworkControllerMetadata = {
-  multichainNetworkConfigurationsByChainId: { persist: true, anonymous: false },
-  selectedMultichainNetworkChainId: { persist: true, anonymous: false },
-  multichainNetworksMetadata: { persist: true, anonymous: false },
-  nonEvmSelected: { persist: true, anonymous: false },
-};
+  multichainNetworkConfigurationsByChainId: { persist: true, anonymous: true },
+  selectedMultichainNetworkChainId: { persist: true, anonymous: true },
+  multichainNetworksMetadata: { persist: true, anonymous: true },
+  nonEvmSelected: { persist: true, anonymous: true },
+} satisfies StateMetadata<MultichainNetworkControllerState>;
 
 /**
  * The MultichainNetworkController is responsible for fetching and caching account
@@ -139,57 +178,44 @@ export class MultichainNetworkController extends BaseController<
 > {
   constructor({
     messenger,
-    state,
+    state = {},
   }: {
     messenger: MultichainNetworkControllerMessenger;
-    state: MultichainNetworkControllerState;
+    state?: Partial<MultichainNetworkControllerState>;
   }) {
     super({
       messenger,
       name: controllerName,
       metadata: multichainNetworkControllerMetadata,
       state: {
-        ...defaultState,
+        ...getDefaultMultichainNetworkControllerState(),
         ...state,
       },
     });
   }
-
-  async setActiveNetwork(clientId: string, chainId?: string): Promise<void> {
-    if (chainId && Object.keys(this.state.multichainNetworkConfigurationsByChainId).includes(chainId)) {
-      this.update((state: Draft<MultichainNetworkControllerState>) => {
-        state.selectedMultichainNetworkChainId = chainId;
+  /**
+   * Sets the active network.
+   *
+   * @param clientId - The client ID of the evm network.
+   * @param caipChainId - The chain ID of the non-evm network.
+   */
+  async setActiveNetwork(clientId: string, caipChainId?: CaipChainId): Promise<void> {
+    if (caipChainId && Object.keys(this.state.multichainNetworkConfigurationsByChainId).includes(caipChainId)) {
+      this.update((state) => {
+        state.selectedMultichainNetworkChainId = caipChainId;
         state.nonEvmSelected = true;
       });
       return;
     }
-
-    this.update((state: Draft<MultichainNetworkControllerState>) => {
-      state.nonEvmSelected = false;
-    });
 
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
       clientId,
     );
 
-  }
-
-  /**
-   * Sets the non-EVM selected network.
-   */
-  setNonEvmSelected() {
-    this.update((state: Draft<MultichainNetworkControllerState>) => {
-      state.nonEvmSelected = true;
-    });
-  }
-
-  /**
-   * Sets the EVM selected network.
-   */
-  setEvmSelected() {
-    this.update((state: Draft<MultichainNetworkControllerState>) => {
+    this.update((state) => {
       state.nonEvmSelected = false;
     });
   }
 }
+

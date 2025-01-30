@@ -4,41 +4,43 @@ import type {
   MultichainNetworkConfiguration,
   MultichainNetworkMetadata,
 } from './MultichainNetworkController';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 
-export const bitcoinCaip2ChainId = 'bip122:000000000019d6689c085ae165831e93';
-export const solanaCaip2ChainId = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+
+export const btcNativeAsset = `${BtcScope.Mainnet}/slip44:0`;
+export const solNativeAsset = `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
 
 export const multichainNetworkConfigurations: Record<string, MultichainNetworkConfiguration> = {
-  bitcoinCaip2ChainId: {
-    chainId: bitcoinCaip2ChainId,
+ [BtcScope.Mainnet] : {
+    chainId: BtcScope.Mainnet,
 
     name: 'Bitcoin Mainnet',
 
     blockExplorerUrls: [],
 
-    nativeCurrency: 'BTC',
+    nativeAsset: btcNativeAsset,
 
     isEvm: false,
   },
-  solanaCaip2ChainId: {
-    chainId: solanaCaip2ChainId,
+  [SolScope.Mainnet]: {
+    chainId: SolScope.Mainnet,
 
     name: 'Solana Mainnet',
 
     blockExplorerUrls: [],
 
-    nativeCurrency: 'SOL',
+    nativeAsset: solNativeAsset,
 
     isEvm: false,
   },
 };
 
 export const networksMetadata: Record<string, MultichainNetworkMetadata> = {
-  bitcoinCaip2ChainId: {
+  [BtcScope.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
-  solanaCaip2ChainId: {
+  [SolScope.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
   },

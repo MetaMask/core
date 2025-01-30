@@ -1,20 +1,12 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-
 import type {
-  MultichainNetworkStateControllerActions,
-  MultichainNetworkControllerEvents,
+  AllowedActions,
+  AllowedEvents,
 } from './MultichainNetworkController';
-import { bitcoinCaip2ChainId } from './constants';
+
 import { MultichainNetworkController } from './MultichainNetworkController';
 
 const name = 'MultichainNetworkController';
-
-type AllowedActions = MultichainNetworkStateControllerActions | {
-  type: 'NetworkController:setActiveNetwork';
-  handler: (clientId: string) => void;
-};
-
-type AllowedEvents = MultichainNetworkControllerEvents;
 
 const buildMessenger = () => {
   return new ControllerMessenger<AllowedActions, AllowedEvents>();
