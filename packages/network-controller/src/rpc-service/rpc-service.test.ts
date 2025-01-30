@@ -1,9 +1,14 @@
+// We use conditions exclusively in this file.
+/* eslint-disable jest/no-conditional-in-test */
+
 import { rpcErrors } from '@metamask/rpc-errors';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
+import type { AbstractRpcService } from './abstract-rpc-service';
 import { NETWORK_UNREACHABLE_ERRORS, RpcService } from './rpc-service';
+import { DEFAULT_CIRCUIT_BREAK_DURATION } from '../../../controller-utils/src/create-service-policy';
 
 describe('RpcService', () => {
   let clock: SinonFakeTimers;
@@ -76,6 +81,29 @@ describe('RpcService', () => {
         expect(mockFetch).toHaveBeenCalledTimes(1);
       });
 
+      it('does not forward the request to a failover service if given one', async () => {
+        const error = new Error('oops');
+        const mockFetch = jest.fn(() => {
+          throw error;
+        });
+        const failoverService = buildMockRpcService();
+        const service = new RpcService({
+          fetch: mockFetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+          failoverService,
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await ignoreRejection(service.request(jsonRpcRequest));
+        expect(failoverService.request).not.toHaveBeenCalled();
+      });
+
       it('does not call onBreak', async () => {
         const error = new Error('oops');
         const mockFetch = jest.fn(() => {
@@ -141,6 +169,33 @@ describe('RpcService', () => {
         );
       });
 
+      it('does not forward the request to a failover service if given one', async () => {
+        nock('https://rpc.example.chain')
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_unknownMethod',
+            params: [],
+          })
+          .reply(405);
+        const failoverService = buildMockRpcService();
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+          failoverService,
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await ignoreRejection(service.request(jsonRpcRequest));
+        expect(failoverService.request).not.toHaveBeenCalled();
+      });
+
       it('does not call onBreak', async () => {
         nock('https://rpc.example.chain')
           .post('/', {
@@ -192,6 +247,33 @@ describe('RpcService', () => {
           params: [],
         });
         await expect(promise).rejects.toThrow('Request is being rate limited.');
+      });
+
+      it('does not forward the request to a failover service if given one', async () => {
+        nock('https://rpc.example.chain')
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_unknownMethod',
+            params: [],
+          })
+          .reply(429);
+        const failoverService = buildMockRpcService();
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+          failoverService,
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await ignoreRejection(service.request(jsonRpcRequest));
+        expect(failoverService.request).not.toHaveBeenCalled();
       });
 
       it('does not call onBreak', async () => {
@@ -258,6 +340,37 @@ describe('RpcService', () => {
             },
           }),
         );
+      });
+
+      it('does not forward the request to a failover service if given one', async () => {
+        nock('https://rpc.example.chain')
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_unknownMethod',
+            params: [],
+          })
+          .reply(500, {
+            id: 1,
+            jsonrpc: '2.0',
+            error: 'oops',
+          });
+        const failoverService = buildMockRpcService();
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+          failoverService,
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await ignoreRejection(service.request(jsonRpcRequest));
+        expect(failoverService.request).not.toHaveBeenCalled();
       });
 
       it('does not call onBreak', async () => {
@@ -743,6 +856,196 @@ function testsForRetriableFetchErrors({
       expect(onBreakListener).toHaveBeenCalledWith({ error: expectedError });
     });
   });
+
+  describe('if a failover service is provided', () => {
+    it('still retries a constantly failing request up to 4 more times before re-throwing the error, if `request` is only called once', async () => {
+      const clock = getClock();
+      const mockFetch = jest.fn(() => {
+        throw producedError;
+      });
+      const failoverService = buildMockRpcService();
+      const service = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        failoverService,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expectedError,
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+    });
+
+    it('forwards the request to the failover service in addition to the primary endpoint while the circuit is broken, stopping when the primary endpoint recovers', async () => {
+      const clock = getClock();
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      let invocationCounter = 0;
+      const mockFetch = jest.fn(async () => {
+        invocationCounter += 1;
+        if (invocationCounter === 17) {
+          return new Response(
+            JSON.stringify({
+              id: jsonRpcRequest.id,
+              jsonrpc: jsonRpcRequest.jsonrpc,
+              result: 'ok',
+            }),
+          );
+        }
+        throw producedError;
+      });
+      const failoverService = buildMockRpcService();
+      const service = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        fetchOptions: {
+          headers: {
+            'X-Foo': 'bar',
+          },
+        },
+        failoverService,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expectedError,
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(5);
+
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expectedError,
+      );
+      expect(mockFetch).toHaveBeenCalledTimes(10);
+
+      // The last retry breaks the circuit
+      await service.request(jsonRpcRequest);
+      expect(mockFetch).toHaveBeenCalledTimes(15);
+      expect(failoverService.request).toHaveBeenCalledTimes(1);
+      expect(failoverService.request).toHaveBeenNthCalledWith(
+        1,
+        jsonRpcRequest,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Foo': 'bar',
+          },
+          method: 'POST',
+          body: JSON.stringify(jsonRpcRequest),
+        },
+      );
+
+      await service.request(jsonRpcRequest);
+      // The circuit is broken, so the `fetch` is not attempted
+      expect(mockFetch).toHaveBeenCalledTimes(15);
+      expect(failoverService.request).toHaveBeenCalledTimes(2);
+      expect(failoverService.request).toHaveBeenNthCalledWith(
+        2,
+        jsonRpcRequest,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Foo': 'bar',
+          },
+          method: 'POST',
+          body: JSON.stringify(jsonRpcRequest),
+        },
+      );
+
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      await service.request(jsonRpcRequest);
+      expect(mockFetch).toHaveBeenCalledTimes(16);
+      // The circuit breaks again
+      expect(failoverService.request).toHaveBeenCalledTimes(3);
+      expect(failoverService.request).toHaveBeenNthCalledWith(
+        2,
+        jsonRpcRequest,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Foo': 'bar',
+          },
+          method: 'POST',
+          body: JSON.stringify(jsonRpcRequest),
+        },
+      );
+
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      // Finally the request succeeds
+      const response = await service.request(jsonRpcRequest);
+      expect(response).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0',
+        result: 'ok',
+      });
+      expect(mockFetch).toHaveBeenCalledTimes(17);
+      expect(failoverService.request).toHaveBeenCalledTimes(3);
+    });
+
+    it('still calls onBreak each time the circuit breaks from the perspective of the primary endpoint', async () => {
+      const clock = getClock();
+      const mockFetch = jest.fn(() => {
+        throw producedError;
+      });
+      const failoverService = buildMockRpcService();
+      const onBreakListener = jest.fn();
+      const service = new RpcService({
+        fetch: mockFetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        failoverService,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+      service.onBreak(onBreakListener);
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      // The last retry breaks the circuit
+      await service.request(jsonRpcRequest);
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      // The circuit breaks again
+      await service.request(jsonRpcRequest);
+
+      expect(onBreakListener).toHaveBeenCalledTimes(2);
+      expect(onBreakListener).toHaveBeenCalledWith({ error: expectedError });
+    });
+  });
 }
 
 /**
@@ -886,5 +1189,230 @@ function testsForRetriableResponses({
     });
   });
 
+  describe('if a failover service is provided', () => {
+    it('still retries a constantly failing request up to 4 more times before re-throwing the error, if `request` is only called once', async () => {
+      const clock = getClock();
+      const scope = nock('https://rpc.example.chain')
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(5)
+        .reply(httpStatus, responseBody);
+      const failoverService = buildMockRpcService();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        failoverService,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expectedError,
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('forwards the request to the failover service in addition to the primary endpoint while the circuit is broken, stopping when the primary endpoint recovers', async () => {
+      const clock = getClock();
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      let invocationCounter = 0;
+      nock('https://rpc.example.chain')
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(17)
+        .reply(() => {
+          invocationCounter += 1;
+          if (invocationCounter === 17) {
+            return [
+              200,
+              JSON.stringify({
+                id: jsonRpcRequest.id,
+                jsonrpc: jsonRpcRequest.jsonrpc,
+                result: 'ok',
+              }),
+            ];
+          }
+          return [httpStatus, responseBody];
+        });
+      const failoverService = buildMockRpcService();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        fetchOptions: {
+          headers: {
+            'X-Foo': 'bar',
+          },
+        },
+        failoverService,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expectedError,
+      );
+      expect(invocationCounter).toBe(5);
+
+      await expect(service.request(jsonRpcRequest)).rejects.toThrow(
+        expectedError,
+      );
+      expect(invocationCounter).toBe(10);
+
+      // The last retry breaks the circuit
+      await service.request(jsonRpcRequest);
+      expect(invocationCounter).toBe(15);
+      expect(failoverService.request).toHaveBeenCalledTimes(1);
+      expect(failoverService.request).toHaveBeenNthCalledWith(
+        1,
+        jsonRpcRequest,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Foo': 'bar',
+          },
+          method: 'POST',
+          body: JSON.stringify(jsonRpcRequest),
+        },
+      );
+
+      await service.request(jsonRpcRequest);
+      // The circuit is broken, so the `fetch` is not attempted
+      expect(invocationCounter).toBe(15);
+      expect(failoverService.request).toHaveBeenCalledTimes(2);
+      expect(failoverService.request).toHaveBeenNthCalledWith(
+        2,
+        jsonRpcRequest,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Foo': 'bar',
+          },
+          method: 'POST',
+          body: JSON.stringify(jsonRpcRequest),
+        },
+      );
+
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      await service.request(jsonRpcRequest);
+      expect(invocationCounter).toBe(16);
+      // The circuit breaks again
+      expect(failoverService.request).toHaveBeenCalledTimes(3);
+      expect(failoverService.request).toHaveBeenNthCalledWith(
+        2,
+        jsonRpcRequest,
+        {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-Foo': 'bar',
+          },
+          method: 'POST',
+          body: JSON.stringify(jsonRpcRequest),
+        },
+      );
+
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      // Finally the request succeeds
+      const response = await service.request(jsonRpcRequest);
+      expect(response).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0',
+        result: 'ok',
+      });
+      expect(invocationCounter).toBe(17);
+      expect(failoverService.request).toHaveBeenCalledTimes(3);
+    });
+
+    it('still calls onBreak each time the circuit breaks from the perspective of the primary endpoint', async () => {
+      const clock = getClock();
+      nock('https://rpc.example.chain')
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .times(16)
+        .reply(httpStatus, responseBody);
+      const failoverService = buildMockRpcService();
+      const onBreakListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl: 'https://rpc.example.chain',
+        failoverService,
+      });
+      service.onRetry(() => {
+        // We don't need to await this promise; adding it to the promise
+        // queue is enough to continue.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        clock.nextAsync();
+      });
+      service.onBreak(onBreakListener);
+
+      const jsonRpcRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      };
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      await ignoreRejection(() => service.request(jsonRpcRequest));
+      // The last retry breaks the circuit
+      await service.request(jsonRpcRequest);
+      clock.tick(DEFAULT_CIRCUIT_BREAK_DURATION);
+      // The circuit breaks again
+      await service.request(jsonRpcRequest);
+
+      expect(onBreakListener).toHaveBeenCalledTimes(2);
+      expect(onBreakListener).toHaveBeenCalledWith({ error: expectedError });
+    });
+  });
+
   /* eslint-enable jest/no-identical-title */
+}
+
+/**
+ * Constructs a fake RPC service for use as a failover in tests.
+ *
+ * @returns The fake failover service.
+ */
+function buildMockRpcService(): AbstractRpcService {
+  return {
+    request: jest.fn(),
+    onRetry: jest.fn(),
+    onBreak: jest.fn(),
+    onDegraded: jest.fn(),
+  };
 }
