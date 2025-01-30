@@ -1408,5 +1408,7 @@ export type TransactionBatchResult = {
 
 export type TransactionBatchApprovalData = {
   accountUpgradeRequired?: boolean;
+  chainId: Hex;
+  networkClientId: string;
   transactions: TransactionParams[];
 };

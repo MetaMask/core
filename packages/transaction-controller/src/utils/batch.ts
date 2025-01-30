@@ -264,15 +264,21 @@ async function waitForConfirmation(
 }
 
 async function createApprovalRequest(request: AddTransactionBatchRequest) {
-  const { getEthQuery, messenger, userRequest } = request;
+  const { getChainId, getEthQuery, messenger, userRequest } = request;
   const { networkClientId, origin, requests } = userRequest;
+
   const transactions = requests.map((entry) => entry.params);
   const { from } = transactions[0];
   const ethQuery = getEthQuery({ networkClientId });
-  const accountUpgradeRequired = !(await has7702Delegation(from, ethQuery));
+  const isSmartAccount = await has7702Delegation(from, ethQuery);
+  const chainId = getChainId(networkClientId);
+  const is7702Supported = await supports7702(chainId);
+  const accountUpgradeRequired = !isSmartAccount && is7702Supported;
 
   const requestData: TransactionBatchApprovalData = {
     accountUpgradeRequired,
+    chainId,
+    networkClientId,
     transactions,
   };
 
