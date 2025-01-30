@@ -66,3 +66,8 @@ export type TokenTrendingResponseItem = {
     '1M': number | null;
   };
 };
+
+export interface TrendingTokensParams {
+  chains?: string[];
+  limit?: string;
+}

@@ -1,5 +1,5 @@
 import { AbstractTokenDiscoveryApiService } from './abstract-token-discovery-api-service';
-import type { TokenTrendingResponseItem } from '../types';
+import type { TokenTrendingResponseItem, TrendingTokensParams } from '../types';
 
 export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
   readonly #baseUrl: string;
@@ -12,17 +12,16 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
     this.#baseUrl = baseUrl;
   }
 
-  async getTrendingTokensByChains(params: {
-    chains?: string[];
-    limit?: string;
-  }): Promise<TokenTrendingResponseItem[]> {
+  async getTrendingTokensByChains(
+    trendingTokensParams: TrendingTokensParams,
+  ): Promise<TokenTrendingResponseItem[]> {
     const url = new URL('/tokens-search/trending-by-chains', this.#baseUrl);
 
-    if (params.chains && params.chains.length > 0) {
-      url.searchParams.append('chains', params.chains.join());
+    if (trendingTokensParams.chains && trendingTokensParams.chains.length > 0) {
+      url.searchParams.append('chains', trendingTokensParams.chains.join());
     }
-    if (params.limit) {
-      url.searchParams.append('limit', params.limit);
+    if (trendingTokensParams.limit) {
+      url.searchParams.append('limit', trendingTokensParams.limit);
     }
 
     const response = await fetch(url, {
