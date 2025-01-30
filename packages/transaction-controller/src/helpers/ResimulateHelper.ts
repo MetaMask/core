@@ -96,6 +96,7 @@ export class ResimulateHelper {
       }
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     const intervalId = setInterval(listener, RESIMULATE_INTERVAL_MS);
 
     this.#intervalIds.set(transactionId, intervalId);
