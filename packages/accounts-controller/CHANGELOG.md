@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+
+### Added
+
+- Add `AccountsController:account{AssetList,Balances,Transactions}Updated` events ([#5190](https://github.com/MetaMask/core/pull/5190))
+  - Those events are being sent from Account Snaps (through the Snap keyring) and are being re-published by the `AccountController`.
+
+### Changed
+
+- **BREAKING:** Now requires `SnapKeyring:account{AssetList,Balances,Transactions}Updated` events to be registered on the messenger ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/eth-snap-keyring` from `^8.1.1` to `^9.1.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+
 ## [21.0.2]
 
 ### Changed
@@ -402,7 +416,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.2...@metamask/accounts-controller@22.0.0
 [21.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.1...@metamask/accounts-controller@21.0.2
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.0...@metamask/accounts-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.2...@metamask/accounts-controller@21.0.0

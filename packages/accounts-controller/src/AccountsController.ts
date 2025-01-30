@@ -14,7 +14,7 @@ import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   EthAccountType,
   EthMethod,
-  EthScopes,
+  EthScope,
   isEvmAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -233,7 +233,7 @@ export const EMPTY_ACCOUNT = {
   options: {},
   methods: [],
   type: EthAccountType.Eoa,
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   metadata: {
     name: '',
     keyring: {
@@ -640,7 +640,7 @@ export class AccountsController extends BaseController<
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ],
-      scopes: [EthScopes.Namespace],
+      scopes: [EthScope.Eoa],
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
@@ -715,7 +715,7 @@ export class AccountsController extends BaseController<
           EthMethod.SignTypedDataV3,
           EthMethod.SignTypedDataV4,
         ],
-        scopes: [EthScopes.Namespace],
+        scopes: [EthScope.Eoa],
         type: EthAccountType.Eoa,
         metadata: {
           name: this.#populateExistingMetadata(id, 'name') ?? '',
