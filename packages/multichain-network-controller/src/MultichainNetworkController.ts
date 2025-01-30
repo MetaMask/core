@@ -1,10 +1,4 @@
-import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerGetSelectedMultichainAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-  AccountsControllerSelectedEvmAccountChangeEvent,
-  AccountsControllerSetSelectedAccountAction,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
 import {
   BaseController,
   type ControllerGetStateAction,
@@ -113,17 +107,12 @@ export type MultichainNetworkControllerEvents =
  */
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction
-  | AccountsControllerSetSelectedAccountAction
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetSelectedMultichainAccountAction;
+  | NetworkControllerSetActiveNetworkAction;
 
 /**
  * Events that this controller is allowed to subscribe.
  */
-export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+export type AllowedEvents = AccountsControllerSelectedAccountChangeEvent;
 
 /**
  * Messenger type for the MultichainNetworkController.
