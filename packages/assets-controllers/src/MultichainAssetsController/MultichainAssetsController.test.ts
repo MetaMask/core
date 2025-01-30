@@ -727,7 +727,6 @@ const mockGetMetadataReturnValue: AssetMetadataResponse | undefined = {
     'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501': {
       name: 'Solana',
       symbol: 'SOL',
-      native: true,
       fungible: true,
       iconUrl: 'url1',
       units: [{ name: 'Solana', symbol: 'SOL', decimals: 9 }],
@@ -736,7 +735,6 @@ const mockGetMetadataReturnValue: AssetMetadataResponse | undefined = {
       {
         name: 'USDC',
         symbol: 'USDC',
-        native: true,
         fungible: true,
         iconUrl: 'url2',
         units: [{ name: 'USDC', symbol: 'SUSDCOL', decimals: 18 }],
@@ -1052,7 +1050,6 @@ describe('MultichainAssetsController', () => {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
           name: 'Solana2',
           symbol: 'SOL',
-          native: true,
           fungible: true,
           iconUrl: 'url1',
           units: [{ name: 'Solana2', symbol: 'SOL', decimals: 9 }],

@@ -27,7 +27,7 @@ import type {
   GetAllSnaps,
   HandleSnapRequest,
 } from '@metamask/snaps-controllers';
-import type { Snap, SnapId } from '@metamask/snaps-sdk';
+import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import { hasProperty, type CaipChainId } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
@@ -36,45 +36,9 @@ import { parseCaipAssetType } from './utils';
 
 const controllerName = 'MultichainAssetsController';
 
-// Represents an asset unit.
-type FungibleAssetUnit = {
-  // Human-friendly name of the asset unit.
-  name: string;
-
-  // Ticker symbol of the asset unit.
-  symbol: string;
-
-  // Number of decimals of the asset unit.
-  decimals: number;
-};
-
-// Fungible asset metadata.
-type FungibleAssetMetadata = {
-  // Human-friendly name of the asset.
-  name: string;
-
-  // Ticker symbol of the asset's main unit.
-  symbol: string;
-
-  // Whether the asset is native to the chain.
-  native: boolean;
-
-  // Represents a fungible asset
-  fungible: true;
-
-  // icon url
-  iconUrl: string;
-
-  // List of asset units.
-  units: FungibleAssetUnit[];
-};
-
-// Represents the metadata of an asset.
-export type AssetMetadata = FungibleAssetMetadata;
-
 export type MultichainAssetsControllerState = {
   metadata: {
-    [asset: CaipAssetType]: AssetMetadata;
+    [asset: CaipAssetType]: FungibleAssetMetadata;
   };
   allNonEvmTokens: { [account: string]: CaipAssetType[] };
 };
@@ -82,7 +46,7 @@ export type MultichainAssetsControllerState = {
 // Represents the response of the asset snap's onAssetLookup handler
 export type AssetMetadataResponse = {
   assets: {
-    [asset: CaipAssetType]: AssetMetadata;
+    [asset: CaipAssetType]: FungibleAssetMetadata;
   };
 };
 
@@ -340,7 +304,7 @@ export class MultichainAssetsController extends BaseController<
       }
       assetsByScope[chainId].push(asset);
     }
-    let newMetadata: Record<CaipAssetType, AssetMetadata> = {};
+    let newMetadata: Record<CaipAssetType, FungibleAssetMetadata> = {};
     for (const chainId in assetsByScope) {
       if (hasProperty(assetsByScope, chainId)) {
         const assetsForChain = assetsByScope[chainId as CaipChainId];
