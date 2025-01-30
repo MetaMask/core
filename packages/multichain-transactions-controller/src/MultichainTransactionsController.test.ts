@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType, Transaction } from '@metamask/keyring-api';
 import {
   BtcAccountType,
@@ -68,16 +69,26 @@ const mockTransactionResult = {
     {
       id: '123',
       account: mockBtcAccount.id,
-      chain: 'bip122:000000000019d6689c085ae165831e93',
-      type: 'send',
-      status: 'confirmed',
+      chain: 'bip122:000000000019d6689c085ae165831e93' as CaipChainId,
+      type: 'send' as const,
+      status: 'confirmed' as const,
       timestamp: Date.now(),
-      from: [],
-      to: [],
-      fees: [],
+      from: [{ address: 'from-address', asset: null }],
+      to: [{ address: 'to-address', asset: null }],
+      fees: [
+        {
+          type: 'base' as const,
+          asset: {
+            unit: 'BTC',
+            type: 'bip122:000000000019d6689c085ae165831e93/slip44:0' as CaipAssetType,
+            amount: '1000',
+            fungible: true as const,
+          },
+        },
+      ],
       events: [
         {
-          status: 'confirmed',
+          status: 'confirmed' as const,
           timestamp: Date.now(),
         },
       ],
@@ -111,6 +122,7 @@ const setupController = ({
       allowedEvents: [
         'AccountsController:accountAdded',
         'AccountsController:accountRemoved',
+        'AccountsController:accountTransactionsUpdated',
       ],
     });
 
@@ -159,6 +171,8 @@ describe('MultichainTransactionsController', () => {
 
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
     messenger.publish('AccountsController:accountAdded', mockBtcAccount);
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {
@@ -287,15 +301,37 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('should handle errors gracefully when updating transactions', async () => {
-    const { controller, mockSnapHandleRequest } = setupController();
-    mockSnapHandleRequest.mockRejectedValue(new Error('Failed to fetch'));
+    const { controller, mockSnapHandleRequest, mockListMultichainAccounts } =
+      setupController({
+        mocks: {
+          listMultichainAccounts: [],
+        },
+      });
+
+    mockSnapHandleRequest.mockReset();
+    mockSnapHandleRequest.mockImplementation(() =>
+      Promise.reject(new Error('Failed to fetch')),
+    );
+    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     expect(controller.state.nonEvmTransactions).toStrictEqual({});
   });
 
-  it('updates transactions when receiving accountTransactionsUpdated event', () => {
-    const { controller, messenger } = setupController();
+  it('updates transactions when receiving accountTransactionsUpdated event', async () => {
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [mockBtcAccount.id]: {
+            transactions: [],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
     const transactionUpdate = {
       transactions: {
         [mockBtcAccount.id]: mockTransactionResult.data,
@@ -306,6 +342,8 @@ describe('MultichainTransactionsController', () => {
       'AccountsController:accountTransactionsUpdated',
       transactionUpdate,
     );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(
       controller.state.nonEvmTransactions[mockBtcAccount.id],

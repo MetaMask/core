@@ -2,7 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
-  AccountsControllerAccountBalancesUpdatesEvent,
+  AccountsControllerEvents,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -24,8 +24,8 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { BalancesTracker, NETWORK_ASSETS_MAP } from '.';
-import { getScopeForAccount, getBlockTimeForAccount } from './utils';
+import { NETWORK_ASSETS_MAP } from '.';
+import { getScopeForAccount } from './utils';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -98,7 +98,13 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountBalancesUpdatesEvent;
+  | {
+      type: Extract<
+        AccountsControllerEvents['type'],
+        'AccountsController:accountBalancesUpdated'
+      >;
+      payload: [AccountBalancesUpdatedEventPayload];
+    };
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -134,8 +140,6 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
-  #tracker: BalancesTracker;
-
   constructor({
     messenger,
     state = {},
@@ -184,25 +188,32 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID.
    */
   async updateBalance(accountId: string): Promise<void> {
-    const account = this.#getAccount(accountId);
+    try {
+      const account = this.#getAccount(accountId);
 
-    if (!account) {
-      return;
-    }
+      if (!account) {
+        return;
+      }
 
-    if (account.metadata.snap) {
-      const scope = getScopeForAccount(account);
-      const assetTypes = NETWORK_ASSETS_MAP[scope];
+      if (account.metadata.snap) {
+        const scope = getScopeForAccount(account);
+        const assetTypes = NETWORK_ASSETS_MAP[scope];
 
-      const accountBalance = await this.#getBalances(
-        account.id,
-        account.metadata.snap.id,
-        assetTypes,
+        const accountBalance = await this.#getBalances(
+          account.id,
+          account.metadata.snap.id,
+          assetTypes,
+        );
+
+        this.update((state: Draft<MultichainBalancesControllerState>) => {
+          state.balances[accountId] = accountBalance;
+        });
+      }
+    } catch (error) {
+      console.error(
+        `Failed to fetch balances for account ${accountId}:`,
+        error,
       );
-
-      this.update((state: Draft<MultichainBalancesControllerState>) => {
-        state.balances[accountId] = accountBalance;
-      });
     }
   }
 

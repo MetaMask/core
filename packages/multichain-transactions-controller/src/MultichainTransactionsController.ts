@@ -2,7 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
-  AccountsControllerAccountTransactionsUpdatedEvent,
+  AccountsControllerEvents,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -114,7 +114,13 @@ export type AllowedActions =
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountTransactionsUpdatedEvent;
+  | {
+      type: Extract<
+        AccountsControllerEvents['type'],
+        'AccountsController:accountTransactionsUpdated'
+      >;
+      payload: [AccountTransactionsUpdatedEventPayload];
+    };
 
 /**
  * {@link MultichainTransactionsController}'s metadata.
@@ -240,38 +246,45 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
-    const account = this.#listAccounts().find(
-      (accountItem) => accountItem.id === accountId,
-    );
-
-    if (account?.metadata.snap) {
-      const response = await this.#getTransactions(
-        account.id,
-        account.metadata.snap.id,
-        { limit: 10 },
+    try {
+      const account = this.#listAccounts().find(
+        (accountItem) => accountItem.id === accountId,
       );
 
-      /**
-       * Filter only Solana transactions to ensure they're mainnet
-       * All other chain transactions are included as-is
-       */
-      const transactions = response.data.filter((tx) => {
-        const chain = tx.chain as MultichainNetwork;
-        if (chain.startsWith(MultichainNetwork.Solana)) {
-          return chain === MultichainNetwork.Solana;
-        }
-        return true;
-      });
+      if (account?.metadata.snap) {
+        const response = await this.#getTransactions(
+          account.id,
+          account.metadata.snap.id,
+          { limit: 10 },
+        );
 
-      this.update((state: Draft<MultichainTransactionsControllerState>) => {
-        const entry: TransactionStateEntry = {
-          transactions,
-          next: response.next,
-          lastUpdated: Date.now(),
-        };
+        /**
+         * Filter only Solana transactions to ensure they're mainnet
+         * All other chain transactions are included as-is
+         */
+        const transactions = response.data.filter((tx) => {
+          const chain = tx.chain as MultichainNetwork;
+          if (chain.startsWith(MultichainNetwork.Solana)) {
+            return chain === MultichainNetwork.Solana;
+          }
+          return true;
+        });
 
-        Object.assign(state.nonEvmTransactions, { [account.id]: entry });
-      });
+        this.update((state: Draft<MultichainTransactionsControllerState>) => {
+          const entry: TransactionStateEntry = {
+            transactions,
+            next: response.next,
+            lastUpdated: Date.now(),
+          };
+
+          Object.assign(state.nonEvmTransactions, { [account.id]: entry });
+        });
+      }
+    } catch (error) {
+      console.error(
+        `Failed to fetch transactions for account ${accountId}:`,
+        error,
+      );
     }
   }
 

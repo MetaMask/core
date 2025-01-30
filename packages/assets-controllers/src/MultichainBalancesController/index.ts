@@ -1,4 +1,3 @@
-export { BalancesTracker } from './BalancesTracker';
 export { MultichainBalancesController } from './MultichainBalancesController';
 export {
   BALANCE_UPDATE_INTERVALS,
@@ -9,7 +8,6 @@ export {
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
-  MultichainBalancesControllerUpdateBalancesAction,
   MultichainBalancesControllerStateChange,
   MultichainBalancesControllerActions,
   MultichainBalancesControllerEvents,

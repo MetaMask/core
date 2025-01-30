@@ -121,6 +121,7 @@ const setupController = ({
       allowedEvents: [
         'AccountsController:accountAdded',
         'AccountsController:accountRemoved',
+        'AccountsController:accountBalancesUpdated',
       ],
     });
 
@@ -179,6 +180,8 @@ describe('BalancesController', () => {
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
     messenger.publish('AccountsController:accountAdded', mockBtcAccount);
 
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     expect(controller.state).toStrictEqual({
       balances: {
         [mockBtcAccount.id]: mockBalanceResult,
@@ -220,14 +223,26 @@ describe('BalancesController', () => {
   });
 
   it('should handle errors gracefully when updating balance', async () => {
-    const { controller, mockSnapHandleRequest } = setupController();
-    mockSnapHandleRequest.mockRejectedValue(new Error('Failed to fetch'));
+    const { controller, mockSnapHandleRequest, mockListMultichainAccounts } =
+      setupController({
+        mocks: {
+          listMultichainAccounts: [],
+        },
+      });
+
+    mockSnapHandleRequest.mockReset();
+    mockSnapHandleRequest.mockImplementation(() =>
+      Promise.reject(new Error('Failed to fetch')),
+    );
+    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
 
     await controller.updateBalance(mockBtcAccount.id);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     expect(controller.state.balances).toStrictEqual({});
   });
 
-  it('updates balances when receiving accountBalancesUpdated event', () => {
+  it('updates balances when receiving accountBalancesUpdated event', async () => {
     const { controller, messenger } = setupController();
     const balanceUpdate = {
       balances: {
@@ -240,6 +255,8 @@ describe('BalancesController', () => {
       balanceUpdate,
     );
 
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
@@ -251,6 +268,8 @@ describe('BalancesController', () => {
         listMultichainAccounts: [mockBtcAccount],
       },
     });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
