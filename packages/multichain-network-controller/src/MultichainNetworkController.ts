@@ -14,6 +14,7 @@ import type {
 } from '@metamask/network-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import { CaipAssetType, CaipChainId } from '@metamask/utils';
+import { nonEvmNetworkChainIdByAccountAddress } from './utils';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -302,16 +303,47 @@ export class MultichainNetworkController extends BaseController<
     // Handle network switch when account is changed
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      async ({ type: accountType }) => {
-        const isNonEvmAccount = !isEvmAccountType(accountType);
+      async ({ type: accountType, address: accountAddress }) => {
+        const isEvmAccount = isEvmAccountType(accountType);
 
-        // No need to update if already on the correct network
-        if (isNonEvmAccount === this.state.nonEvmSelected) {
+        // Handle switching to EVM network
+        if (isEvmAccount) {
+          if (!this.state.nonEvmSelected) {
+            // No need to update if already on evm network
+            return;
+          }
+
+          // Otherwise, switch to EVM network
+          const { selectedNetworkClientId } = await this.messagingSystem.call(
+            'NetworkController:getState',
+          );
+
+          this.messagingSystem.call(
+            'NetworkController:setActiveNetwork',
+            selectedNetworkClientId,
+          );
+
+          this.update((state) => {
+            state.nonEvmSelected = false;
+          });
+
+          return;
+        }
+
+        // Handle switching to non-EVM network
+        const nonEvmChainId =
+          nonEvmNetworkChainIdByAccountAddress(accountAddress);
+        const isSameNonEvmNetwork =
+          nonEvmChainId === this.state.selectedMultichainNetworkChainId;
+
+        if (isSameNonEvmNetwork) {
+          // No need to update if already on the same non-EVM network
           return;
         }
 
         this.update((state) => {
-          state.nonEvmSelected = isNonEvmAccount;
+          state.selectedMultichainNetworkChainId = nonEvmChainId;
+          state.nonEvmSelected = true;
         });
       },
     );
