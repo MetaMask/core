@@ -50,6 +50,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import { shouldResimulate } from './helpers/ResimulateHelper';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -79,7 +80,6 @@ import {
   TransactionType,
   WalletDevice,
 } from './types';
-import { shouldResimulate } from './helpers/ResimulateHelper';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
