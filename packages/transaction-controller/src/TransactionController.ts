@@ -1873,6 +1873,7 @@ export class TransactionController extends BaseController<
 
   /**
    * Update the isFocus state of a transaction.
+
    * @param transactionId - The ID of the transaction to update.
    * @param isFocused - The new focus state.
    */
