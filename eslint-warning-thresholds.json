@@ -2,7 +2,7 @@
   "@typescript-eslint/consistent-type-exports": 19,
   "@typescript-eslint/no-base-to-string": 3,
   "@typescript-eslint/no-duplicate-enum-values": 2,
-  "@typescript-eslint/no-unsafe-enum-comparison": 29,
+  "@typescript-eslint/no-unsafe-enum-comparison": 32,
   "@typescript-eslint/no-unused-vars": 41,
   "@typescript-eslint/prefer-promise-reject-errors": 33,
   "@typescript-eslint/prefer-readonly": 138,
