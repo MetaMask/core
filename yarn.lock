@@ -2308,14 +2308,14 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/eth-snap-keyring": "npm:^9.0.0"
-    "@metamask/keyring-api": "npm:^16.0.0"
+    "@metamask/keyring-api": "npm:^15.0.0"
     "@metamask/keyring-controller": "npm:^19.0.4"
-    "@metamask/keyring-internal-api": "npm:^4.0.0"
+    "@metamask/keyring-internal-api": "npm:^3.0.0"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/snaps-controllers": "npm:^9.10.0"
     "@metamask/snaps-sdk": "npm:^6.7.0"
     "@metamask/snaps-utils": "npm:^8.3.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
     deepmerge: "npm:^4.2.2"
@@ -2354,7 +2354,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.4.5"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -2395,7 +2395,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -2428,10 +2428,10 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.4.5"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
-    "@metamask/keyring-api": "npm:^16.0.0"
+    "@metamask/keyring-api": "npm:^15.0.0"
     "@metamask/keyring-controller": "npm:^19.0.4"
-    "@metamask/keyring-internal-api": "npm:^4.0.0"
-    "@metamask/keyring-snap-client": "npm:^3.0.2"
+    "@metamask/keyring-internal-api": "npm:^3.0.0"
+    "@metamask/keyring-snap-client": "npm:^3.0.1"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/polling-controller": "npm:^12.0.2"
@@ -2441,7 +2441,7 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^9.10.0"
     "@metamask/snaps-sdk": "npm:^6.7.0"
     "@metamask/snaps-utils": "npm:^8.3.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
     "@types/lodash": "npm:^4.14.191"
@@ -2513,7 +2513,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/json-rpc-engine": "npm:^10.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/sinon": "npm:^9.0.10"
     deepmerge: "npm:^4.2.2"
@@ -2541,7 +2541,7 @@ __metadata:
   resolution: "@metamask/build-utils@workspace:packages/build-utils"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/eslint": "npm:^8.44.7"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -2588,7 +2588,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-unit": "npm:^0.3.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@spruceid/siwe-parser": "npm:2.1.0"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
@@ -2628,7 +2628,7 @@ __metadata:
     "@metamask/eth-block-tracker": "npm:^11.0.3"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.7"
     "@metamask/json-rpc-engine": "npm:^10.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
     "@types/lodash": "npm:^4.14.191"
@@ -2700,7 +2700,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.4.5"
     "@metamask/network-controller": "npm:^22.1.1"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -2858,7 +2858,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     ethers: "npm:^6.12.0"
@@ -2922,24 +2922,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^9.0.0":
-  version: 9.1.0
-  resolution: "@metamask/eth-snap-keyring@npm:9.1.0"
+"@metamask/eth-snap-keyring@npm:@metamask-previews/eth-snap-keyring@9.0.0-30e933c":
+  version: 9.0.0-30e933c
+  resolution: "@metamask-previews/eth-snap-keyring@npm:9.0.0-30e933c"
   dependencies:
     "@ethereumjs/tx": "npm:^4.2.0"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/eth-sig-util": "npm:^8.1.2"
-    "@metamask/keyring-api": "npm:^16.0.0"
-    "@metamask/keyring-internal-api": "npm:^4.0.0"
-    "@metamask/keyring-internal-snap-client": "npm:^3.0.2"
-    "@metamask/keyring-utils": "npm:^1.3.1"
+    "@metamask/keyring-api": "npm:15.0.0"
+    "@metamask/keyring-internal-api": "npm:3.0.0"
+    "@metamask/keyring-internal-snap-client": "npm:3.0.1"
+    "@metamask/keyring-utils": "npm:1.3.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/uuid": "npm:^9.0.8"
     uuid: "npm:^9.0.1"
-  peerDependencies:
-    "@metamask/keyring-api": ^16.0.0
-  checksum: 10/eb811f6c95d203d062c8d7eeae934fd35cf642a385bcd05fd00377b6c7ec0d57ab791d53b3131240f137768d01e218daea098a000bc8d562a6cb67998a303e70
+  checksum: 10/2adcda7eacf1a811f426c1d56141f7d2379bda874a5cd1d21abff312af0910858e0ded74aedb8be3e7af7e57a9033633a8621a72fd6b0d284fe06cdd8a517084
   languageName: node
   linkType: hard
 
@@ -3094,7 +3092,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.4.5"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -3118,7 +3116,7 @@ __metadata:
     "@metamask/ethjs-unit": "npm:^0.3.0"
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/polling-controller": "npm:^12.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
     "@types/jest-when": "npm:^2.7.3"
@@ -3149,7 +3147,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -3167,7 +3165,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
     deepmerge: "npm:^4.2.2"
@@ -3196,15 +3194,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^16.0.0":
-  version: 16.0.0
-  resolution: "@metamask/keyring-api@npm:16.0.0"
+"@metamask/keyring-api@npm:@metamask-previews/keyring-api@15.0.0-30e933c":
+  version: 15.0.0-30e933c
+  resolution: "@metamask-previews/keyring-api@npm:15.0.0-30e933c"
   dependencies:
-    "@metamask/keyring-utils": "npm:^1.3.1"
+    "@metamask/keyring-utils": "npm:1.3.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     bech32: "npm:^2.0.0"
-  checksum: 10/9421786cb62985fb7e2dab19f2b9e35932d9c000a111dd84da29fc6172850faf7386b3fc901f83dc5888cd22f3c13b56dd98a95cfe10cc62d6c49f42f2fb38e0
+  checksum: 10/e84ae22eb5bf33ca007737285d988fa27e0051007bae625a438fdd08312dc1bcc7623567e280e8b7b3e34eb72d3e54dd2de72ab10c93623dfb5c5431bbc086cc
   languageName: node
   linkType: hard
 
@@ -3225,11 +3223,11 @@ __metadata:
     "@metamask/eth-hd-keyring": "npm:^7.0.4"
     "@metamask/eth-sig-util": "npm:^8.0.0"
     "@metamask/eth-simple-keyring": "npm:^6.0.5"
-    "@metamask/keyring-api": "npm:^16.0.0"
-    "@metamask/keyring-internal-api": "npm:^4.0.0"
+    "@metamask/keyring-api": "npm:^15.0.0"
+    "@metamask/keyring-internal-api": "npm:^3.0.0"
     "@metamask/message-manager": "npm:^12.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
@@ -3246,54 +3244,54 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/keyring-internal-api@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "@metamask/keyring-internal-api@npm:4.0.0"
+"@metamask/keyring-internal-api@npm:@metamask-previews/keyring-internal-api@3.0.0-30e933c":
+  version: 3.0.0-30e933c
+  resolution: "@metamask-previews/keyring-internal-api@npm:3.0.0-30e933c"
   dependencies:
-    "@metamask/keyring-api": "npm:^16.0.0"
-    "@metamask/keyring-utils": "npm:^1.3.1"
+    "@metamask/keyring-api": "npm:15.0.0"
+    "@metamask/keyring-utils": "npm:1.3.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.1.0"
-  checksum: 10/5f378bc36c7d05f42397f3b30947503b4fe890cccecc93fcc2a2199aeb029e91dee2479bdaaeedb17075b50b5d53954994473646d93db5baa1782302141110e4
+    "@metamask/utils": "npm:^11.0.1"
+  checksum: 10/562e427eb56e8beaab292aa0614ac70c8aaa788b4dcacc26abd34b9f8c6b01bb8d48683102782a92ba5a1a7411278ea169e3f48a76c8c00205407827d4d50ec9
   languageName: node
   linkType: hard
 
-"@metamask/keyring-internal-snap-client@npm:^3.0.2":
-  version: 3.0.2
-  resolution: "@metamask/keyring-internal-snap-client@npm:3.0.2"
+"@metamask/keyring-internal-snap-client@npm:@metamask-previews/keyring-internal-snap-client@3.0.1-30e933c":
+  version: 3.0.1-30e933c
+  resolution: "@metamask-previews/keyring-internal-snap-client@npm:3.0.1-30e933c"
   dependencies:
     "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/keyring-api": "npm:^16.0.0"
-    "@metamask/keyring-snap-client": "npm:^3.0.2"
-    "@metamask/keyring-utils": "npm:^1.3.1"
-  checksum: 10/df21c7eb25e616edeff7b737e88fae2772ad56c46fcee0731078043dd86725568771b2a0b48c8c72c2dc53e21afa95167f19facb8bba3343a7d68ec339a78caf
+    "@metamask/keyring-api": "npm:15.0.0"
+    "@metamask/keyring-snap-client": "npm:3.0.1"
+    "@metamask/keyring-utils": "npm:1.3.0"
+  checksum: 10/55378ba1f4b87f9000c88976439301e5e3d7ca72201e9c43b441bfe295869782e50d8c92f3855db6b33bf67bfe87d35096a078b7d17110a7e5ae350448648b60
   languageName: node
   linkType: hard
 
-"@metamask/keyring-snap-client@npm:^3.0.2":
-  version: 3.0.2
-  resolution: "@metamask/keyring-snap-client@npm:3.0.2"
+"@metamask/keyring-snap-client@npm:@metamask-previews/keyring-snap-client@3.0.1-30e933c":
+  version: 3.0.1-30e933c
+  resolution: "@metamask-previews/keyring-snap-client@npm:3.0.1-30e933c"
   dependencies:
-    "@metamask/keyring-api": "npm:^16.0.0"
-    "@metamask/keyring-utils": "npm:^1.3.1"
+    "@metamask/keyring-api": "npm:15.0.0"
+    "@metamask/keyring-utils": "npm:1.3.0"
     "@metamask/superstruct": "npm:^3.1.0"
     "@types/uuid": "npm:^9.0.8"
     uuid: "npm:^9.0.1"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
     "@metamask/providers": ^18.3.1
-  checksum: 10/94efaf7894887d0f3f422778591262b4b88902c57db6d93d1931619fcddaf9c7b2538a66a044bdf77bf23db85f2cad1e642941fe62a5bdb3c1933e6cffdc30f4
+  checksum: 10/f31dcfd81cac6e1c48cf2756f40720f3fb9eb2ac84f8bf3bade067553671f3229696013816f6ea0e717dadf47f361257fd74e54aa2d35cd8287b236f99ad7cdc
   languageName: node
   linkType: hard
 
-"@metamask/keyring-utils@npm:^1.3.1":
-  version: 1.3.1
-  resolution: "@metamask/keyring-utils@npm:1.3.1"
+"@metamask/keyring-utils@npm:@metamask-previews/keyring-utils@1.3.0-30e933c":
+  version: 1.3.0-30e933c
+  resolution: "@metamask-previews/keyring-utils@npm:1.3.0-30e933c"
   dependencies:
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     bitcoin-address-validation: "npm:^2.2.3"
-  checksum: 10/9072791320108218875bdbcc7823a4ab4d8c29675deab3163373d31a997ae6fc23995a74ffa085e06534d14b72c2edb5e7192d371cd1ef69ac7fae70fa50d8d0
+  checksum: 10/92477af918911fe8e853659d4f0a43f759c92d61f5165f02eb84456463b743edc3e40818c12676758b726f7efbfbe58b5ec8344b45a90ac1cc80935bd7b8ba34
   languageName: node
   linkType: hard
 
@@ -3323,7 +3321,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.4.5"
     "@metamask/eth-sig-util": "npm:^8.0.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
@@ -3351,15 +3349,15 @@ __metadata:
     "@metamask/accounts-controller": "npm:^21.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/keyring-api": "npm:^16.0.0"
+    "@metamask/keyring-api": "npm:^15.0.0"
     "@metamask/keyring-controller": "npm:^19.0.4"
-    "@metamask/keyring-internal-api": "npm:^4.0.0"
-    "@metamask/keyring-snap-client": "npm:^3.0.2"
+    "@metamask/keyring-internal-api": "npm:^3.0.0"
+    "@metamask/keyring-snap-client": "npm:^3.0.1"
     "@metamask/polling-controller": "npm:^12.0.2"
     "@metamask/snaps-controllers": "npm:^9.10.0"
     "@metamask/snaps-sdk": "npm:^6.7.0"
     "@metamask/snaps-utils": "npm:^8.3.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
@@ -3389,7 +3387,7 @@ __metadata:
     "@metamask/permission-controller": "npm:^11.0.5"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@open-rpc/meta-schema": "npm:^1.14.6"
     "@open-rpc/schema-utils-js": "npm:^2.0.5"
     "@types/jest": "npm:^27.4.1"
@@ -3414,7 +3412,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.4.5"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
@@ -3442,7 +3440,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/jest-when": "npm:^2.7.3"
     "@types/lodash": "npm:^4.14.191"
@@ -3490,7 +3488,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.4.5"
     "@metamask/keyring-controller": "npm:^19.0.4"
     "@metamask/profile-sync-controller": "npm:^4.1.1"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
     bignumber.js: "npm:^9.1.2"
@@ -3552,7 +3550,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.4.5"
     "@metamask/json-rpc-engine": "npm:^10.0.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^27.4.1"
     deep-freeze-strict: "npm:^1.1.1"
@@ -3576,7 +3574,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/json-rpc-engine": "npm:^10.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^27.4.1"
     deep-freeze-strict: "npm:^1.1.1"
@@ -3622,7 +3620,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.4.5"
     "@metamask/network-controller": "npm:^22.1.1"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
@@ -3679,9 +3677,9 @@ __metadata:
     "@metamask/accounts-controller": "npm:^21.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/keyring-api": "npm:^16.0.0"
+    "@metamask/keyring-api": "npm:^15.0.0"
     "@metamask/keyring-controller": "npm:^19.0.4"
-    "@metamask/keyring-internal-api": "npm:^4.0.0"
+    "@metamask/keyring-internal-api": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/snaps-controllers": "npm:^9.10.0"
@@ -3746,7 +3744,7 @@ __metadata:
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/selected-network-controller": "npm:^21.0.0"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
@@ -3771,7 +3769,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -3790,7 +3788,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.4.5"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -3840,7 +3838,7 @@ __metadata:
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/permission-controller": "npm:^11.0.5"
     "@metamask/swappable-obj-proxy": "npm:^2.3.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
@@ -3870,7 +3868,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^19.0.4"
     "@metamask/logging-controller": "npm:^6.0.3"
     "@metamask/network-controller": "npm:^22.1.1"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -4026,7 +4024,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -4062,7 +4060,7 @@ __metadata:
     "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/nonce-tracker": "npm:^6.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
     "@types/node": "npm:^16.18.54"
@@ -4108,7 +4106,7 @@ __metadata:
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^43.0.0"
-    "@metamask/utils": "npm:^11.1.0"
+    "@metamask/utils": "npm:^11.0.1"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
     deepmerge: "npm:^4.2.2"
@@ -4161,23 +4159,6 @@ __metadata:
     semver: "npm:^7.5.4"
     uuid: "npm:^9.0.1"
   checksum: 10/3949d16c8021bfb5f70e3b1c99f097ffaf43158116734197b039b32be6aabecb12178deb62c0b182e45295b0865618636324020059821c5b053029d8bdc90d70
-  languageName: node
-  linkType: hard
-
-"@metamask/utils@npm:^11.1.0":
-  version: 11.1.0
-  resolution: "@metamask/utils@npm:11.1.0"
-  dependencies:
-    "@ethereumjs/tx": "npm:^4.2.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@noble/hashes": "npm:^1.3.1"
-    "@scure/base": "npm:^1.1.3"
-    "@types/debug": "npm:^4.1.7"
-    debug: "npm:^4.3.4"
-    pony-cause: "npm:^2.1.10"
-    semver: "npm:^7.5.4"
-    uuid: "npm:^9.0.1"
-  checksum: 10/756f13987881fe26adaa0a54354bc5af20cedee4dd228a736d481697dc634adb9e6e54d8f1dcc1d487b2376ab4ba8c576ecbb24beab2fb63aff721d0d5c0f5fe
   languageName: node
   linkType: hard
 
