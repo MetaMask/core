@@ -67,7 +67,7 @@ export type TokenTrendingResponseItem = {
   };
 };
 
-export interface TrendingTokensParams {
+export type TrendingTokensParams {
   chains?: string[];
   limit?: string;
 }
