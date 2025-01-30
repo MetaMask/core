@@ -2300,7 +2300,32 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@npm:^21.0.2, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@npm:^22.0.0":
+  version: 22.0.0
+  resolution: "@metamask/accounts-controller@npm:22.0.0"
+  dependencies:
+    "@ethereumjs/util": "npm:^8.1.0"
+    "@metamask/base-controller": "npm:^7.1.1"
+    "@metamask/eth-snap-keyring": "npm:^9.1.1"
+    "@metamask/keyring-api": "npm:^16.1.0"
+    "@metamask/keyring-internal-api": "npm:^4.0.1"
+    "@metamask/snaps-sdk": "npm:^6.7.0"
+    "@metamask/snaps-utils": "npm:^8.9.0"
+    "@metamask/utils": "npm:^11.0.1"
+    deepmerge: "npm:^4.2.2"
+    ethereum-cryptography: "npm:^2.1.2"
+    immer: "npm:^9.0.6"
+    uuid: "npm:^8.3.2"
+  peerDependencies:
+    "@metamask/keyring-controller": ^19.0.0
+    "@metamask/providers": ^18.1.0
+    "@metamask/snaps-controllers": ^9.7.0
+    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
+  checksum: 10/5002d57e07ed009c106490965e1e8655b54b20d5ac0689ce3d38ad131dab421cab83667979ff5cea3fbdf663b375ff7ebc70eaf6e5c8c4bdf72f21d10057f2af
+  languageName: node
+  linkType: hard
+
+"@metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -2335,31 +2360,6 @@ __metadata:
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
   languageName: unknown
   linkType: soft
-
-"@metamask/accounts-controller@npm:^22.0.0":
-  version: 22.0.0
-  resolution: "@metamask/accounts-controller@npm:22.0.0"
-  dependencies:
-    "@ethereumjs/util": "npm:^8.1.0"
-    "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/eth-snap-keyring": "npm:^9.1.1"
-    "@metamask/keyring-api": "npm:^16.1.0"
-    "@metamask/keyring-internal-api": "npm:^4.0.1"
-    "@metamask/snaps-sdk": "npm:^6.7.0"
-    "@metamask/snaps-utils": "npm:^8.9.0"
-    "@metamask/utils": "npm:^11.0.1"
-    deepmerge: "npm:^4.2.2"
-    ethereum-cryptography: "npm:^2.1.2"
-    immer: "npm:^9.0.6"
-    uuid: "npm:^8.3.2"
-  peerDependencies:
-    "@metamask/keyring-controller": ^19.0.0
-    "@metamask/providers": ^18.1.0
-    "@metamask/snaps-controllers": ^9.7.0
-    webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
-  checksum: 10/5002d57e07ed009c106490965e1e8655b54b20d5ac0689ce3d38ad131dab421cab83667979ff5cea3fbdf663b375ff7ebc70eaf6e5c8c4bdf72f21d10057f2af
-  languageName: node
-  linkType: hard
 
 "@metamask/action-utils@npm:^1.0.0":
   version: 1.1.1
@@ -3798,7 +3798,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/accounts-controller": "npm:^21.0.2"
+    "@metamask/accounts-controller": "npm:^22.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/keyring-api": "npm:^15.0.0"
@@ -3826,7 +3826,7 @@ __metadata:
     typescript: "npm:~5.2.2"
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
-    "@metamask/accounts-controller": ^21.0.0
+    "@metamask/accounts-controller": ^22.0.0
     "@metamask/keyring-controller": ^19.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/providers": ^18.1.0
@@ -4254,7 +4254,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/accounts-controller": "npm:^21.0.2"
+    "@metamask/accounts-controller": "npm:^22.0.0"
     "@metamask/approval-controller": "npm:^7.1.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
@@ -4289,7 +4289,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@babel/runtime": ^7.0.0
-    "@metamask/accounts-controller": ^21.0.0
+    "@metamask/accounts-controller": ^22.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^22.0.0

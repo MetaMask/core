@@ -1,5 +1,4 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType, Transaction } from '@metamask/keyring-api';
 import {
   BtcAccountType,
@@ -9,6 +8,7 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
