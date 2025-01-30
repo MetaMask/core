@@ -439,7 +439,7 @@ export class MultichainAssetsController extends BaseController<
     return (await this.messagingSystem.call('SnapController:handleRequest', {
       snapId: snapId as SnapId,
       origin: 'metamask',
-      handler: HandlerType.OnRpcRequest,
+      handler: HandlerType.OnAssetsLookup,
       request: {
         id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
         jsonrpc: '2.0',

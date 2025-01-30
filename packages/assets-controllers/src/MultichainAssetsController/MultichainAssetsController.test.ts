@@ -3,7 +3,7 @@ import type {
   AccountAssetListUpdatedEvent,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod, EthScopes } from '@metamask/keyring-api';
+import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { PermissionConstraint } from '@metamask/permission-controller';
@@ -65,7 +65,7 @@ const mockEthAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   options: {},
   methods: [EthMethod.SignTypedDataV4, EthMethod.SignTransaction],
   type: EthAccountType.Eoa,
