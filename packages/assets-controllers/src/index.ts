@@ -149,7 +149,6 @@ export type {
   RatesControllerPollingStoppedEvent,
 } from './RatesController';
 export {
-  BalancesTracker,
   MultichainBalancesController,
   // constants
   BALANCE_UPDATE_INTERVALS,
@@ -160,7 +159,6 @@ export {
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
-  MultichainBalancesControllerUpdateBalancesAction,
   MultichainBalancesControllerStateChange,
   MultichainBalancesControllerActions,
   MultichainBalancesControllerEvents,
