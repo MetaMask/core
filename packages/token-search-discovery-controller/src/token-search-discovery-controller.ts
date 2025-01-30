@@ -11,6 +11,7 @@ import type {
   TokenSearchParams,
   TokenSearchResponseItem,
   TokenTrendingResponseItem,
+  TrendingTokensParams,
 } from './types';
 
 // === GENERAL ===
@@ -152,10 +153,9 @@ export class TokenSearchDiscoveryController extends BaseController<
     return results;
   }
 
-  async getTrendingTokens(params: {
-    chains?: string[];
-    limit?: string;
-  }): Promise<TokenTrendingResponseItem[]> {
+  async getTrendingTokens(
+    params: TrendingTokensParams,
+  ): Promise<TokenTrendingResponseItem[]> {
     return this.#tokenDiscoveryService.getTrendingTokensByChains(params);
   }
 }

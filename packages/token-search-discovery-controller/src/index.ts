@@ -3,8 +3,9 @@ export type { TokenSearchDiscoveryControllerState } from './token-search-discove
 export type {
   TokenSearchResponseItem,
   TokenTrendingResponseItem,
+  TokenSearchParams,
+  TrendingTokensParams,
 } from './types';
-export type { TokenSearchParams, TrendingTokensParams } from './types';
 
 export { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
 export { TokenSearchApiService } from './token-search-api-service/token-search-api-service';
