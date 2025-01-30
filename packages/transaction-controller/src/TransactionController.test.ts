@@ -79,6 +79,7 @@ import {
   TransactionType,
   WalletDevice,
 } from './types';
+import { shouldResimulate } from './helpers/ResimulateHelper';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -86,7 +87,6 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
-import { shouldResimulate } from './helpers/ResimulateHelper';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
