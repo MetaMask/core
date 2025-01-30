@@ -144,7 +144,8 @@ describe('RpcService', () => {
 
     describe('if the endpoint has a 405 response', () => {
       it('throws a non-existent method error without retrying the request', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -155,7 +156,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
         });
 
         const promise = service.request({
@@ -170,7 +171,8 @@ describe('RpcService', () => {
       });
 
       it('does not forward the request to a failover service if given one', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -182,7 +184,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
           failoverService,
         });
 
@@ -197,7 +199,8 @@ describe('RpcService', () => {
       });
 
       it('does not call onBreak', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -209,7 +212,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
         });
         service.onBreak(onBreakListener);
 
@@ -226,7 +229,8 @@ describe('RpcService', () => {
 
     describe('if the endpoint has a 429 response', () => {
       it('throws a rate-limiting error without retrying the request', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -237,7 +241,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
         });
 
         const promise = service.request({
@@ -250,7 +254,8 @@ describe('RpcService', () => {
       });
 
       it('does not forward the request to a failover service if given one', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -262,7 +267,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
           failoverService,
         });
 
@@ -277,7 +282,8 @@ describe('RpcService', () => {
       });
 
       it('does not call onBreak', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -289,7 +295,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
         });
         service.onBreak(onBreakListener);
 
@@ -306,7 +312,8 @@ describe('RpcService', () => {
 
     describe('when the endpoint has a response that is neither 2xx, nor 405, 429, 503, or 504', () => {
       it('throws a generic error without retrying the request', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -321,7 +328,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
         });
 
         const promise = service.request({
@@ -343,7 +350,8 @@ describe('RpcService', () => {
       });
 
       it('does not forward the request to a failover service if given one', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -359,7 +367,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
           failoverService,
         });
 
@@ -374,7 +382,8 @@ describe('RpcService', () => {
       });
 
       it('does not call onBreak', async () => {
-        nock('https://rpc.example.chain')
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
@@ -390,7 +399,7 @@ describe('RpcService', () => {
         const service = new RpcService({
           fetch,
           btoa,
-          endpointUrl: 'https://rpc.example.chain',
+          endpointUrl,
         });
         service.onBreak(onBreakListener);
 
@@ -417,7 +426,8 @@ describe('RpcService', () => {
     });
 
     it('removes non-JSON-RPC-compliant properties from the request body before sending it to the endpoint', async () => {
-      nock('https://rpc.example.chain')
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
         .post('/', {
           id: 1,
           jsonrpc: '2.0',
@@ -432,7 +442,7 @@ describe('RpcService', () => {
       const service = new RpcService({
         fetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
       });
 
       // @ts-expect-error Intentionally passing bad input.
@@ -566,7 +576,8 @@ describe('RpcService', () => {
     });
 
     it('returns the JSON-decoded response if the request succeeds', async () => {
-      nock('https://rpc.example.chain')
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
         .post('/', {
           id: 1,
           jsonrpc: '2.0',
@@ -593,7 +604,7 @@ describe('RpcService', () => {
       const service = new RpcService({
         fetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
       });
 
       const response = await service.request({
@@ -623,7 +634,8 @@ describe('RpcService', () => {
     });
 
     it('does not throw if the endpoint returns an unsuccessful JSON-RPC response', async () => {
-      nock('https://rpc.example.chain')
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
         .post('/', {
           id: 1,
           jsonrpc: '2.0',
@@ -641,7 +653,7 @@ describe('RpcService', () => {
       const service = new RpcService({
         fetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
       });
 
       const response = await service.request({
@@ -662,7 +674,8 @@ describe('RpcService', () => {
     });
 
     it('interprets a "Not Found" response for eth_getBlockByNumber as an empty result', async () => {
-      nock('https://rpc.example.chain')
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
         .post('/', {
           id: 1,
           jsonrpc: '2.0',
@@ -673,7 +686,7 @@ describe('RpcService', () => {
       const service = new RpcService({
         fetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
       });
 
       const response = await service.request({
@@ -691,7 +704,8 @@ describe('RpcService', () => {
     });
 
     it('calls the onDegraded callback if the endpoint takes more than 5 seconds to respond', async () => {
-      nock('https://rpc.example.chain')
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
         .post('/', {
           id: 1,
           jsonrpc: '2.0',
@@ -710,7 +724,7 @@ describe('RpcService', () => {
       const service = new RpcService({
         fetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
       });
       service.onDegraded(onDegradedListener);
 
@@ -827,11 +841,12 @@ function testsForRetriableFetchErrors({
       const mockFetch = jest.fn(() => {
         throw producedError;
       });
+      const endpointUrl = 'https://rpc.example.chain';
       const onBreakListener = jest.fn();
       const service = new RpcService({
         fetch: mockFetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
       });
       service.onRetry(() => {
         // We don't need to await this promise; adding it to the promise
@@ -853,7 +868,10 @@ function testsForRetriableFetchErrors({
       await ignoreRejection(service.request(jsonRpcRequest));
 
       expect(onBreakListener).toHaveBeenCalledTimes(1);
-      expect(onBreakListener).toHaveBeenCalledWith({ error: expectedError });
+      expect(onBreakListener).toHaveBeenCalledWith({
+        error: expectedError,
+        endpointUrl: `${endpointUrl}/`,
+      });
     });
   });
 
@@ -1012,12 +1030,13 @@ function testsForRetriableFetchErrors({
       const mockFetch = jest.fn(() => {
         throw producedError;
       });
+      const endpointUrl = 'https://rpc.example.chain';
       const failoverService = buildMockRpcService();
       const onBreakListener = jest.fn();
       const service = new RpcService({
         fetch: mockFetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
         failoverService,
       });
       service.onRetry(() => {
@@ -1043,7 +1062,10 @@ function testsForRetriableFetchErrors({
       await service.request(jsonRpcRequest);
 
       expect(onBreakListener).toHaveBeenCalledTimes(2);
-      expect(onBreakListener).toHaveBeenCalledWith({ error: expectedError });
+      expect(onBreakListener).toHaveBeenCalledWith({
+        error: expectedError,
+        endpointUrl: `${endpointUrl}/`,
+      });
     });
   });
 }
@@ -1150,7 +1172,8 @@ function testsForRetriableResponses({
 
     it('calls the onBreak callback once after the circuit breaks', async () => {
       const clock = getClock();
-      nock('https://rpc.example.chain')
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
         .post('/', {
           id: 1,
           jsonrpc: '2.0',
@@ -1163,7 +1186,7 @@ function testsForRetriableResponses({
       const service = new RpcService({
         fetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
       });
       service.onRetry(() => {
         // We don't need to await this promise; adding it to the promise
@@ -1185,7 +1208,10 @@ function testsForRetriableResponses({
       await ignoreRejection(service.request(jsonRpcRequest));
 
       expect(onBreakListener).toHaveBeenCalledTimes(1);
-      expect(onBreakListener).toHaveBeenCalledWith({ error: expectedError });
+      expect(onBreakListener).toHaveBeenCalledWith({
+        error: expectedError,
+        endpointUrl: `${endpointUrl}/`,
+      });
     });
   });
 
@@ -1365,12 +1391,13 @@ function testsForRetriableResponses({
         })
         .times(16)
         .reply(httpStatus, responseBody);
+      const endpointUrl = 'https://rpc.example.chain';
       const failoverService = buildMockRpcService();
       const onBreakListener = jest.fn();
       const service = new RpcService({
         fetch,
         btoa,
-        endpointUrl: 'https://rpc.example.chain',
+        endpointUrl,
         failoverService,
       });
       service.onRetry(() => {
@@ -1396,7 +1423,10 @@ function testsForRetriableResponses({
       await service.request(jsonRpcRequest);
 
       expect(onBreakListener).toHaveBeenCalledTimes(2);
-      expect(onBreakListener).toHaveBeenCalledWith({ error: expectedError });
+      expect(onBreakListener).toHaveBeenCalledWith({
+        error: expectedError,
+        endpointUrl: `${endpointUrl}/`,
+      });
     });
   });
 
