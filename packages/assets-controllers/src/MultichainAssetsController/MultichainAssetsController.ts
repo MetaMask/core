@@ -18,6 +18,7 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type {
+  CaveatConstraint,
   GetPermissions,
   PermissionConstraint,
   SubjectPermissions,
@@ -166,7 +167,7 @@ const assetsControllerMetadata = {
 // Define a temporary interface for the permission structure
 type AssetEndowment = {
   'endowment:assets'?: {
-    scopes: CaipChainId[];
+    caveats: CaveatConstraint[];
   };
 };
 
@@ -364,32 +365,19 @@ export class MultichainAssetsController extends BaseController<
     const allPermissions = allSnaps.map((snap) =>
       this.#getSnapsPermissions(snap.id),
     );
-    // start mock
-    allPermissions.forEach((singlePermission) => {
-      (singlePermission as unknown as AssetEndowment) = {
-        ...singlePermission,
-        'endowment:assets': {
-          scopes: ['bip122:000000000019d6689c085ae165831e93'],
-        },
-      };
-    });
-    (allPermissions[0] as unknown as AssetEndowment) = {
-      ...allPermissions[0],
-      'endowment:assets': {
-        scopes: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
-      },
-    };
-    // end mock
 
     for (const [index, permission] of allPermissions.entries() as unknown as [
       number,
       AssetEndowment,
     ][]) {
-      const scopes = permission['endowment:assets']?.scopes;
+      const chainIdsCaveatPermission = permission[
+        'endowment:assets'
+      ]?.caveats.find((value) => value.type === 'chainIds');
+      const scopes = chainIdsCaveatPermission?.value;
       if (!scopes) {
         continue;
       }
-      for (const scope of scopes) {
+      for (const scope of scopes as CaipChainId[]) {
         if (!snaps[scope]) {
           snaps[scope] = [];
         }

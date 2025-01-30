@@ -263,6 +263,14 @@ const mockGetAllSnapsReturnValue = [
 
 const mockGetPermissionsReturnValue = [
   {
+    'endowment:assets': {
+      caveats: [
+        {
+          type: 'chainIds',
+          value: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1'],
+        },
+      ],
+    },
     'endowment:cronjob': {
       caveats: [
         {
@@ -815,7 +823,7 @@ const setupController = ({
   controllerMessenger.registerActionHandler(
     'PermissionController:getPermissions',
     mockGetPermissions.mockReturnValue(
-      mocks?.getPermissionsReturnValue ?? mockGetPermissionsReturnValue,
+      mocks?.getPermissionsReturnValue ?? mockGetPermissionsReturnValue[0],
     ),
   );
 
@@ -869,11 +877,21 @@ describe('MultichainAssetsController', () => {
   });
 
   it('updates allNonEvmTokens when "AccountsController:accountAdded" is fired', async () => {
-    const { controller, messenger, mockSnapHandleRequest } = setupController();
+    const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
+      setupController();
 
     mockSnapHandleRequest
       .mockReturnValueOnce(mockGetAssetsResult)
       .mockReturnValueOnce(mockGetMetadataReturnValue);
+
+    mockGetPermissions
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[0])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
     messenger.publish(
       'AccountsController:accountAdded',
@@ -891,11 +909,21 @@ describe('MultichainAssetsController', () => {
   });
 
   it('should not delete account from allNonEvmTokens when "AccountsController:accountRemoved" is fired with EVM account', async () => {
-    const { controller, messenger, mockSnapHandleRequest } = setupController();
+    const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
+      setupController();
 
     mockSnapHandleRequest
       .mockReturnValueOnce(mockGetAssetsResult)
       .mockReturnValueOnce(mockGetMetadataReturnValue);
+
+    mockGetPermissions
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[0])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
     // Add a solana account first
     messenger.publish(
@@ -927,11 +955,21 @@ describe('MultichainAssetsController', () => {
   });
 
   it('updates allNonEvmTokens when "AccountsController:accountRemoved" is fired', async () => {
-    const { controller, messenger, mockSnapHandleRequest } = setupController();
+    const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
+      setupController();
 
     mockSnapHandleRequest
       .mockReturnValueOnce(mockGetAssetsResult)
       .mockReturnValueOnce(mockGetMetadataReturnValue);
+
+    mockGetPermissions
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[0])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+      .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
 
     // Add a solana account first
     messenger.publish(
@@ -967,14 +1005,15 @@ describe('MultichainAssetsController', () => {
     it('should update the assets list for an account when a new asset is added', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
-      const { controller, mockSnapHandleRequest } = setupController({
-        state: {
-          allNonEvmTokens: {
-            [mockSolanaAccountId1]: mockGetAssetsResult,
-          },
-          metadata: mockGetMetadataReturnValue,
-        } as MultichainAssetsControllerState,
-      });
+      const { controller, mockSnapHandleRequest, mockGetPermissions } =
+        setupController({
+          state: {
+            allNonEvmTokens: {
+              [mockSolanaAccountId1]: mockGetAssetsResult,
+            },
+            metadata: mockGetMetadataReturnValue,
+          } as MultichainAssetsControllerState,
+        });
 
       const mockGetMetadataReturnValue1 = {
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
@@ -994,6 +1033,15 @@ describe('MultichainAssetsController', () => {
         ...mockGetMetadataReturnValue1,
         ...mockGetMetadataReturnValue2,
       });
+
+      mockGetPermissions
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[0])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[1])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[2])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[3])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
+        .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
       const updatedAssetsList: AccountAssetListUpdatedEvent = {
         method: 'notify:accountAssetListUpdated',
         params: {
