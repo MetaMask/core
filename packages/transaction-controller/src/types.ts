@@ -1407,5 +1407,6 @@ export type TransactionBatchResult = {
 };
 
 export type TransactionBatchApprovalData = {
+  accountUpgradeRequired?: boolean;
   transactions: TransactionParams[];
 };

@@ -23,12 +23,15 @@ import type {
   TransactionControllerMessenger,
 } from '../TransactionController';
 import type {
+  TransactionBatchApprovalData,
   TransactionBatchEntryResult,
   TransactionBatchRequest,
   TransactionBatchResult,
   TransactionMeta,
 } from '../types';
 import { TransactionEnvelopeType, TransactionStatus } from '../types';
+
+export const APPROVAL_TYPE_TRANSACTION_BATCH = 'transaction_batch';
 
 const log = createModuleLogger(projectLogger, 'batch');
 
@@ -261,11 +264,15 @@ async function waitForConfirmation(
 }
 
 async function createApprovalRequest(request: AddTransactionBatchRequest) {
-  const { messenger, userRequest } = request;
-  const { origin, requests } = userRequest;
+  const { getEthQuery, messenger, userRequest } = request;
+  const { networkClientId, origin, requests } = userRequest;
   const transactions = requests.map((entry) => entry.params);
+  const { from } = transactions[0];
+  const ethQuery = getEthQuery({ networkClientId });
+  const accountUpgradeRequired = !(await has7702Delegation(from, ethQuery));
 
-  const requestData = {
+  const requestData: TransactionBatchApprovalData = {
+    accountUpgradeRequired,
     transactions,
   };
 
@@ -273,7 +280,7 @@ async function createApprovalRequest(request: AddTransactionBatchRequest) {
     'ApprovalController:addRequest',
     {
       origin: origin || ORIGIN_METAMASK,
-      type: 'TransactionBatch',
+      type: APPROVAL_TYPE_TRANSACTION_BATCH,
       requestData,
     },
     true,
