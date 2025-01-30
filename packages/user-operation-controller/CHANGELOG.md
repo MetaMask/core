@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 287.0.0 ([#5182](https://github.com/MetaMask/core/pull/5182))
+- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+
 ## [22.0.0]
 
 ### Changed

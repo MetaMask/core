@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump `@metamask/keyring-*` dependencies ([#5208](https://github.com/MetaMask/core/pull/5208))
+- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
+
 ## [0.0.1]
 
 ### Added

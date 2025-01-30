@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add logo url to token search api service and update searchTokens path ([#5195](https://github.com/MetaMask/core/pull/5195))
+
 ### Added
 
 - Introduce the logoUrl property to the TokenSearchApiService response

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump `@metamask/keyring-*` dependencies ([#5208](https://github.com/MetaMask/core/pull/5208))
+- chore(assets-controllers): re-add the as a direct dependency ([#5206](https://github.com/MetaMask/core/pull/5206))
+- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
+
 ### Added
 
 - Add `onBreak` and `onDegraded` methods to `CodefiTokenPricesServiceV2` ([#5109](https://github.com/MetaMask/core/pull/5109))
