@@ -25,6 +25,7 @@ import type {
   KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import type { MultichainNetworkSetActiveNetworkEvent } from '@metamask/multichain-network-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   SnapControllerState,
@@ -187,7 +188,8 @@ export type AllowedEvents =
   | KeyringControllerStateChangeEvent
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
-  | SnapKeyringAccountTransactionsUpdatedEvent;
+  | SnapKeyringAccountTransactionsUpdatedEvent
+  | MultichainNetworkSetActiveNetworkEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
@@ -280,43 +282,7 @@ export class AccountsController extends BaseController<
       },
     });
 
-    this.messagingSystem.subscribe(
-      'SnapController:stateChange',
-      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
-    );
-
-    this.messagingSystem.subscribe(
-      'KeyringController:stateChange',
-      (keyringState) => this.#handleOnKeyringStateChange(keyringState),
-    );
-
-    this.messagingSystem.subscribe(
-      'SnapKeyring:accountAssetListUpdated',
-      (snapAccountEvent) =>
-        this.#handleOnSnapKeyringAccountEvent(
-          'AccountsController:accountAssetListUpdated',
-          snapAccountEvent,
-        ),
-    );
-
-    this.messagingSystem.subscribe(
-      'SnapKeyring:accountBalancesUpdated',
-      (snapAccountEvent) =>
-        this.#handleOnSnapKeyringAccountEvent(
-          'AccountsController:accountBalancesUpdated',
-          snapAccountEvent,
-        ),
-    );
-
-    this.messagingSystem.subscribe(
-      'SnapKeyring:accountTransactionsUpdated',
-      (snapAccountEvent) =>
-        this.#handleOnSnapKeyringAccountEvent(
-          'AccountsController:accountTransactionsUpdated',
-          snapAccountEvent,
-        ),
-    );
-
+    this.#subscribeToMessageEvents();
     this.#registerMessageHandlers();
   }
 
@@ -1167,6 +1133,90 @@ export class AccountsController extends BaseController<
   ): InternalAccount['metadata'][T] | undefined {
     const internalAccount = account ?? this.getAccount(accountId);
     return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
+  }
+
+  /**
+   * Subscribes to message events.
+   * @private
+   */
+  #subscribeToMessageEvents() {
+    this.messagingSystem.subscribe(
+      'SnapController:stateChange',
+      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
+    );
+
+    this.messagingSystem.subscribe(
+      'KeyringController:stateChange',
+      (keyringState) => this.#handleOnKeyringStateChange(keyringState),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountAssetListUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountAssetListUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountBalancesUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountBalancesUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountTransactionsUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountTransactionsUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    // Handle account change when multichain network is changed
+    this.messagingSystem.subscribe(
+      'MultichainNetworkController:setActiveNetwork',
+      ({ evmClientId, nonEvmChainId }) => {
+        if (evmClientId && nonEvmChainId) {
+          throw new Error(
+            'Cannot set accounts from both EVM and non-EVM networks!',
+          );
+        }
+
+        let accountId: string | undefined;
+
+        if (nonEvmChainId) {
+          // Update selected account to non evm account
+          const lastSelectedNonEvmAccount =
+            this.getSelectedMultichainAccount(nonEvmChainId);
+          if (!lastSelectedNonEvmAccount?.id) {
+            throw new Error('No non-EVM account found!');
+          }
+          accountId = lastSelectedNonEvmAccount?.id;
+        } else if (evmClientId) {
+          // Update selected account to evm account
+          const lastSelectedEvmAccount = this.getSelectedAccount();
+          accountId = lastSelectedEvmAccount.id;
+        }
+
+        if (!accountId) {
+          throw new Error(
+            `No account found when switching multichain network! evmClientId - ${evmClientId}, nonEvmChainId - ${nonEvmChainId}`,
+          );
+        }
+
+        this.update((currentState: Draft<AccountsControllerState>) => {
+          currentState.internalAccounts.accounts[
+            accountId
+          ].metadata.lastSelected = Date.now();
+          currentState.internalAccounts.selectedAccount = accountId;
+        });
+      },
+    );
   }
 
   /**

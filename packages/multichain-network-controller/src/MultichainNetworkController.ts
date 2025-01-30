@@ -1,6 +1,8 @@
 import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetSelectedMultichainAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerSetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import {
@@ -81,6 +83,16 @@ export type MultichainNetworkStateControllerStateChange =
     MultichainNetworkControllerState
   >;
 
+export type MultichainNetworkSetActiveNetworkEvent = {
+  type: `${typeof controllerName}:setActiveNetwork`;
+  payload: [
+    {
+      evmClientId?: string;
+      nonEvmChainId?: CaipChainId;
+    },
+  ];
+};
+
 /**
  * Actions exposed by the {@link MultichainNetworkController}.
  */
@@ -92,7 +104,8 @@ export type MultichainNetworkStateControllerActions =
  * Events emitted by {@link MultichainNetworkController}.
  */
 export type MultichainNetworkControllerEvents =
-  MultichainNetworkStateControllerStateChange;
+  | MultichainNetworkStateControllerStateChange
+  | MultichainNetworkSetActiveNetworkEvent;
 
 /**
  * Actions that this controller is allowed to call.
@@ -105,15 +118,22 @@ export type AllowedActions =
   | AccountsControllerGetSelectedMultichainAccountAction;
 
 /**
+ * Events that this controller is allowed to subscribe.
+ */
+export type AllowedEvents =
+  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
+
+/**
  * Messenger type for the MultichainNetworkController.
  */
 export type MultichainNetworkControllerMessenger =
   RestrictedControllerMessenger<
     typeof controllerName,
     MultichainNetworkStateControllerActions | AllowedActions,
-    MultichainNetworkControllerEvents,
+    MultichainNetworkControllerEvents | AllowedEvents,
     AllowedActions['type'],
-    never
+    AllowedEvents['type']
   >;
 
 /**
@@ -156,6 +176,7 @@ export class MultichainNetworkController extends BaseController<
       },
     });
 
+    this.#subscribeToMessageEvents();
     this.#registerMessageHandlers();
   }
 
@@ -197,19 +218,9 @@ export class MultichainNetworkController extends BaseController<
         throw new Error('Non-EVM chain ID is not supported!');
       }
 
-      // Update selected account to non evm account
-      const lastSelectedNonEvmAccount = await this.messagingSystem.call(
-        'AccountsController:getSelectedMultichainAccount',
-        nonEvmChainId,
-      );
-
-      if (!lastSelectedNonEvmAccount?.id) {
-        throw new Error('No non-EVM account found!');
-      }
-
-      this.messagingSystem.call(
-        'AccountsController:setSelectedAccount',
-        lastSelectedNonEvmAccount.id,
+      this.messagingSystem.publish(
+        'MultichainNetworkController:setActiveNetwork',
+        { nonEvmChainId },
       );
 
       this.update((state: Draft<MultichainNetworkControllerState>) => {
@@ -225,14 +236,11 @@ export class MultichainNetworkController extends BaseController<
       throw new Error('EVM client ID is required!');
     }
 
-    // Update evm selected account
-    const lastSelectedEvmAccount = await this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    );
-
-    this.messagingSystem.call(
-      'AccountsController:setSelectedAccount',
-      lastSelectedEvmAccount.id,
+    this.messagingSystem.publish(
+      'MultichainNetworkController:setActiveNetwork',
+      {
+        evmClientId,
+      },
     );
 
     // Indicate that the non-EVM network is not selected
@@ -253,6 +261,25 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
       evmClientId,
+    );
+  }
+
+  /**
+   * Subscribes to message events.
+   * @private
+   */
+  #subscribeToMessageEvents() {
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedAccountChange',
+      async (state) => {
+        // Switch to non-EVM network
+      },
+    );
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      async (state) => {
+        // Switch to EVM network
+      },
     );
   }
 

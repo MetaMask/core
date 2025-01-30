@@ -3,6 +3,7 @@ export type {
   MultichainNetworkMetadata,
   MultichainNetworkControllerState,
   MultichainNetworkControllerGetStateAction,
+  MultichainNetworkSetActiveNetworkEvent,
   AllowedActions,
   AllowedEvents,
   MultichainNetworkControllerMessenger,
