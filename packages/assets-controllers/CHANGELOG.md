@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [47.0.0]
 
-### Uncategorized
-
-- chore: bump `@metamask/keyring-*` dependencies ([#5208](https://github.com/MetaMask/core/pull/5208))
-- chore(assets-controllers): re-add the as a direct dependency ([#5206](https://github.com/MetaMask/core/pull/5206))
-- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
-
 ### Added
 
 - Add `onBreak` and `onDegraded` methods to `CodefiTokenPricesServiceV2` ([#5109](https://github.com/MetaMask/core/pull/5109))
@@ -22,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#TODO](https://github.com/MetaMask/core/pull/TODO))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
 - Deprecate `ClientConfigApiService` constructor options `onBreak` and `onDegraded` in favor of methods ([#5109](https://github.com/MetaMask/core/pull/5109))
 - Add `@metamask/controller-utils@^11.4.5` as a dependency ([#5109](https://github.com/MetaMask/core/pull/5109))
   - `cockatiel` should still be in the dependency tree because it's now a dependency of `@metamask/controller-utils`

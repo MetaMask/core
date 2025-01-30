@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.0.5]
 
-### Uncategorized
+### Changed
 
-- chore: bump `@metamask/keyring-*` dependencies ([#5208](https://github.com/MetaMask/core/pull/5208))
-- feat(accounts-controller): re-publish Snap keyring events ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
 
 ## [19.0.4]
 
