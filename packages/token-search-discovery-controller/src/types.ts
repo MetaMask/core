@@ -67,7 +67,7 @@ export type TokenTrendingResponseItem = {
   };
 };
 
-export type TrendingTokensParams {
+export type TrendingTokensParams = {
   chains?: string[];
   limit?: string;
-}
+};
