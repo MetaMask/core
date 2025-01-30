@@ -29,7 +29,7 @@ export type ResimulateResponse = {
 export type ResimulateHelperOptions = {
   getTransactions: () => TransactionMeta[];
   onStateChange: (listener: () => void) => void;
-  updateSimulationData: (transactionMeta: TransactionMeta) => void;
+  updateSimulationData: (transactionMeta: TransactionMeta) => Promise<void>;
 };
 
 export class ResimulateHelper {
@@ -41,7 +41,7 @@ export class ResimulateHelper {
 
   readonly #getTransactions: () => TransactionMeta[];
 
-  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => void;
+  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => Promise<void>;
 
   constructor({
     getTransactions,
