@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "277.0.0",
+  "version": "290.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -14,7 +14,8 @@
   ],
   "scripts": {
     "build": "yarn ts-bridge --project tsconfig.build.json --verbose",
-    "build:clean": "rimraf dist '**/*.tsbuildinfo' && yarn build",
+    "build:clean": "yarn build:only-clean && yarn build",
+    "build:only-clean": "rimraf -g 'packages/*/dist'",
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
     "build:types": "tsc --build tsconfig.build.json --verbose",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
@@ -23,7 +24,7 @@
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams",
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
-    "lint:eslint": "eslint . --cache",
+    "lint:eslint": "yarn build:only-clean && yarn ts-node ./scripts/run-eslint.ts --cache",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix",
     "lint:misc": "prettier --no-error-on-unmatched-pattern '**/*.json' '**/*.md' '**/*.yml' '!.yarnrc.yml' '!merged-packages/**' --ignore-path .gitignore",
     "lint:teams": "ts-node scripts/lint-teams-json.ts",
@@ -61,7 +62,7 @@
     "@metamask/eth-block-tracker": "^11.0.3",
     "@metamask/eth-json-rpc-provider": "^4.1.7",
     "@metamask/json-rpc-engine": "^10.0.2",
-    "@metamask/utils": "^11.0.1",
+    "@metamask/utils": "^11.1.0",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",

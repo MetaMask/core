@@ -22,6 +22,7 @@ import type { Hex } from '@metamask/utils';
 import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 import type { Draft } from 'immer';
+import { cloneDeep } from 'lodash';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
@@ -589,6 +590,16 @@ export function getDefaultNetworkControllerState(): NetworkState {
 }
 
 /**
+ * Redux selector for getting all network configurations from NetworkController
+ * state, keyed by chain ID.
+ *
+ * @param state - NetworkController state
+ * @returns All registered network configurations, keyed by chain ID.
+ */
+const selectNetworkConfigurationsByChainId = (state: NetworkState) =>
+  state.networkConfigurationsByChainId;
+
+/**
  * Get a list of all network configurations.
  *
  * @param state - NetworkController state
@@ -601,8 +612,22 @@ export function getNetworkConfigurations(
 }
 
 /**
- * Get a list of all available client IDs from a list of
- * network configurations
+ * Redux selector for getting a list of all network configurations from
+ * NetworkController state.
+ *
+ * @param state - NetworkController state
+ * @returns A list of all available network configurations
+ */
+export const selectNetworkConfigurations = createSelector(
+  selectNetworkConfigurationsByChainId,
+  (networkConfigurationsByChainId) =>
+    Object.values(networkConfigurationsByChainId),
+);
+
+/**
+ * Get a list of all available network client IDs from a list of network
+ * configurations.
+ *
  * @param networkConfigurations - The array of network configurations
  * @returns A list of all available client IDs
  */
@@ -616,8 +641,15 @@ export function getAvailableNetworkClientIds(
   );
 }
 
+/**
+ * Redux selector for getting a list of all available network client IDs
+ * from NetworkController state.
+ *
+ * @param state - NetworkController state
+ * @returns A list of all available network client IDs.
+ */
 export const selectAvailableNetworkClientIds = createSelector(
-  [getNetworkConfigurations],
+  selectNetworkConfigurations,
   getAvailableNetworkClientIds,
 );
 
@@ -772,7 +804,9 @@ function validateNetworkControllerState(state: NetworkState) {
   const networkConfigurationEntries = Object.entries(
     state.networkConfigurationsByChainId,
   );
-  const networkClientIds = selectAvailableNetworkClientIds(state);
+  const networkClientIds = getAvailableNetworkClientIds(
+    getNetworkConfigurations(state),
+  );
 
   if (networkConfigurationEntries.length === 0) {
     throw new Error(
@@ -1300,10 +1334,30 @@ export class NetworkController extends BaseController<
     let networkChanged = false;
     const listener = () => {
       networkChanged = true;
-      this.messagingSystem.unsubscribe(
-        'NetworkController:networkDidChange',
-        listener,
-      );
+      try {
+        this.messagingSystem.unsubscribe(
+          'NetworkController:networkDidChange',
+          listener,
+        );
+      } catch (error) {
+        // In theory, this `catch` should not be necessary given that this error
+        // would occur "inside" of the call to `#determineEIP1559Compatibility`
+        // below and so it should be caught by the `try`/`catch` below (it is
+        // impossible to reproduce in tests for that reason). However, somehow
+        // it occurs within Mobile and so we have to add our own `try`/`catch`
+        // here.
+        /* istanbul ignore next */
+        if (
+          !(error instanceof Error) ||
+          error.message !==
+            'Subscription not found for event: NetworkController:networkDidChange'
+        ) {
+          // Again, this error should not happen and is impossible to reproduce
+          // in tests.
+          /* istanbul ignore next */
+          throw error;
+        }
+      }
     };
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
@@ -1370,10 +1424,21 @@ export class NetworkController extends BaseController<
       // in the process of being called, so we don't need to go further.
       return;
     }
-    this.messagingSystem.unsubscribe(
-      'NetworkController:networkDidChange',
-      listener,
-    );
+
+    try {
+      this.messagingSystem.unsubscribe(
+        'NetworkController:networkDidChange',
+        listener,
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        error.message !==
+          'Subscription not found for event: NetworkController:networkDidChange'
+      ) {
+        throw error;
+      }
+    }
 
     this.update((state) => {
       const meta = state.networksMetadata[state.selectedNetworkClientId];
@@ -1635,11 +1700,6 @@ export class NetworkController extends BaseController<
         networkConfigurationToPersist: newNetworkConfiguration,
       });
     });
-
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
 
     this.messagingSystem.publish(
       `${controllerName}:networkAdded`,
@@ -1919,11 +1979,6 @@ export class NetworkController extends BaseController<
       });
     }
 
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
-
     this.#unregisterNetworkClientsAsNeeded({
       networkClientOperations,
       autoManagedNetworkClientRegistry,
@@ -1982,11 +2037,6 @@ export class NetworkController extends BaseController<
         existingNetworkConfiguration,
       });
     });
-
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
 
     this.messagingSystem.publish(
       'NetworkController:networkRemoved',
@@ -2500,6 +2550,11 @@ export class NetworkController extends BaseController<
       state.networkConfigurationsByChainId[args.networkFields.chainId] =
         args.networkConfigurationToPersist;
     }
+
+    this.#networkConfigurationsByNetworkClientId =
+      buildNetworkConfigurationsByNetworkClientId(
+        cloneDeep(state.networkConfigurationsByChainId),
+      );
   }
 
   /**

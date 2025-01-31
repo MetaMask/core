@@ -324,6 +324,7 @@ function removeScope(
   }
 
   const updatedCaveatValue = {
+    ...caip25CaveatValue,
     requiredScopes: Object.fromEntries(newRequiredScopes),
     optionalScopes: Object.fromEntries(newOptionalScopes),
   };

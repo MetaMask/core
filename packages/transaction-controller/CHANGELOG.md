@@ -7,10 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [44.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
+
+## [43.0.0]
+
 ### Added
 
 - Add `gasLimitNoBuffer` property to `TransactionMeta` type ([#5113](https://github.com/MetaMask/core/pull/5113))
   - `gasLimitNoBuffer` is the estimated gas for the transaction without any buffer applied.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^20.0.0` to `^21.0.0` ([#5140](https://github.com/MetaMask/core/pull/5140))
+- Bump `@metamask/base-controller` from `7.1.0` to `^7.1.1` ([#5135](https://github.com/MetaMask/core/pull/5135))
 
 ## [42.1.0]
 
@@ -1231,7 +1244,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...HEAD
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@43.0.0...@metamask/transaction-controller@44.0.0
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.1.0...@metamask/transaction-controller@43.0.0
 [42.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.0.0...@metamask/transaction-controller@42.1.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.1.0...@metamask/transaction-controller@42.0.0
 [41.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@41.0.0...@metamask/transaction-controller@41.1.0

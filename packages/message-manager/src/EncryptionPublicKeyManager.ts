@@ -1,13 +1,52 @@
+import type {
+  ActionConstraint,
+  EventConstraint,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
+  MessageManagerState,
   OriginalRequest,
+  SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { validateEncryptionPublicKeyMessageData } from './utils';
+
+const managerName = 'EncryptionPublicKeyManager';
+
+export type EncryptionPublicKeyManagerState =
+  MessageManagerState<EncryptionPublicKey>;
+
+export type EncryptionPublicKeyManagerUnapprovedMessageAddedEvent = {
+  type: `${typeof managerName}:unapprovedMessage`;
+  payload: [AbstractMessageParamsMetamask];
+};
+
+export type EncryptionPublicKeyManagerUpdateBadgeEvent = {
+  type: `${typeof managerName}:updateBadge`;
+  payload: [];
+};
+
+export type EncryptionPublicKeyManagerMessenger = RestrictedControllerMessenger<
+  string,
+  ActionConstraint,
+  | EventConstraint
+  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
+  | EncryptionPublicKeyManagerUpdateBadgeEvent,
+  string,
+  string
+>;
+
+type EncryptionPublicKeyManagerOptions = {
+  messenger: EncryptionPublicKeyManagerMessenger;
+  securityProviderRequest?: SecurityProviderRequest;
+  state?: MessageManagerState<EncryptionPublicKey>;
+  additionalFinishStatuses?: string[];
+};
 
 /**
  * @type EncryptionPublicKey
@@ -20,12 +59,9 @@ import { validateEncryptionPublicKeyMessageData } from './utils';
  * A 'Message' which always has a 'eth_getEncryptionPublicKey' type
  * @property rawSig - Encryption public key
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface EncryptionPublicKey extends AbstractMessage {
+export type EncryptionPublicKey = AbstractMessage & {
   messageParams: EncryptionPublicKeyParams;
-}
+};
 
 /**
  * @type EncryptionPublicKeyParams
@@ -46,13 +82,10 @@ export type EncryptionPublicKeyParams = AbstractMessageParams;
  * @property from - Address from which to extract the encryption public key
  * @property origin? - Added for request origin identification
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface EncryptionPublicKeyParamsMetamask
-  extends AbstractMessageParamsMetamask {
-  data: string;
-}
+export type EncryptionPublicKeyParamsMetamask =
+  AbstractMessageParamsMetamask & {
+    data: string;
+  };
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
@@ -60,12 +93,26 @@ export interface EncryptionPublicKeyParamsMetamask
 export class EncryptionPublicKeyManager extends AbstractMessageManager<
   EncryptionPublicKey,
   EncryptionPublicKeyParams,
-  EncryptionPublicKeyParamsMetamask
+  EncryptionPublicKeyParamsMetamask,
+  ActionConstraint,
+  | EventConstraint
+  | EncryptionPublicKeyManagerUnapprovedMessageAddedEvent
+  | EncryptionPublicKeyManagerUpdateBadgeEvent
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'EncryptionPublicKeyManager' as const;
+  constructor({
+    additionalFinishStatuses,
+    messenger,
+    securityProviderRequest,
+    state,
+  }: EncryptionPublicKeyManagerOptions) {
+    super({
+      additionalFinishStatuses,
+      messenger,
+      name: managerName,
+      securityProviderRequest,
+      state,
+    });
+  }
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -83,26 +130,29 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = await this.addUnapprovedMessage(messageParams, req);
 
     return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: EncryptionPublicKey) => {
-        switch (data.status) {
-          case 'received':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask EncryptionPublicKey: User denied message EncryptionPublicKey.',
-              ),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask EncryptionPublicKey: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
+      this.internalEvents.once(
+        `${messageId}:finished`,
+        (data: EncryptionPublicKey) => {
+          switch (data.status) {
+            case 'received':
+              return resolve(data.rawSig as string);
+            case 'rejected':
+              return reject(
+                new Error(
+                  'MetaMask EncryptionPublicKey: User denied message EncryptionPublicKey.',
+                ),
+              );
+            default:
+              return reject(
+                new Error(
+                  `MetaMask EncryptionPublicKey: Unknown problem: ${JSON.stringify(
+                    messageParams,
+                  )}`,
+                ),
+              );
+          }
+        },
+      );
     });
   }
 
@@ -134,7 +184,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, {
+    this.messagingSystem.publish(`${this.name as string}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

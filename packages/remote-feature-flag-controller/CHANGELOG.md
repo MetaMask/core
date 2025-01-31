@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `onBreak` and `onDegraded` methods to `ClientConfigApiService` ([#5109](https://github.com/MetaMask/core/pull/5109))
+  - These serve the same purpose as the `onBreak` and `onDegraded` constructor options, but align more closely with the Cockatiel policy API.
+
 ### Changed
 
+- Deprecate `ClientConfigApiService` constructor options `onBreak` and `onDegraded` in favor of methods ([#5109](https://github.com/MetaMask/core/pull/5109))
+- Add `@metamask/controller-utils@^11.4.5` as a dependency ([#5109](https://github.com/MetaMask/core/pull/5109))
+  - `cockatiel` should still be in the dependency tree because it's now a dependency of `@metamask/controller-utils`
+
+## [1.3.0]
+
+### Changed
+
+- Improve user segmentation with BigInt-based random generation ([#5110](https://github.com/MetaMask/core/pull/5110))
+- Change getMetaMetricsId to only sync func type ([#5108](https://github.com/MetaMask/core/pull/5108))
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
 ## [1.2.0]
@@ -38,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.3.0...HEAD
+[1.3.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.2.0...@metamask/remote-feature-flag-controller@1.3.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.1.0...@metamask/remote-feature-flag-controller@1.2.0
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.0.0...@metamask/remote-feature-flag-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/remote-feature-flag-controller@1.0.0
