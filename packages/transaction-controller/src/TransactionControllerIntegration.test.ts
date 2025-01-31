@@ -95,7 +95,7 @@ const createMockInternalAccount = ({
     options: {},
     methods: [],
     type: 'eip155:eoa',
-    scopes: ['eip155'],
+    scopes: ['eip155:0'],
     metadata: {
       name,
       keyring: { type: 'HD Key Tree' },
