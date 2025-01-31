@@ -2,7 +2,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   ExtractEventPayload,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
@@ -200,7 +200,7 @@ export type AccountsControllerEvents =
   | AccountsControllerAccountTransactionsUpdatedEvent
   | AccountsControllerAccountAssetListUpdatedEvent;
 
-export type AccountsControllerMessenger = RestrictedControllerMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AccountsControllerActions | AllowedActions,
   AccountsControllerEvents | AllowedEvents,
