@@ -621,7 +621,7 @@ export class NameController extends BaseController<
         variation !== FALLBACK_VARIATION)
     ) {
       errorMessages.push(
-        `Must specify a chain ID in hexidecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
+        `Must specify a chain ID in hexadecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
       );
     }
   }
