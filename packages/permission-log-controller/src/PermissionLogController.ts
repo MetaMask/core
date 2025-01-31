@@ -1,6 +1,6 @@
 import {
   BaseController,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import {
@@ -70,7 +70,7 @@ export type PermissionLogControllerOptions = {
   messenger: PermissionLogControllerMessenger;
 };
 
-export type PermissionLogControllerMessenger = RestrictedControllerMessenger<
+export type PermissionLogControllerMessenger = RestrictedMessenger<
   typeof name,
   never,
   never,
