@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import type {
   RateLimitControllerActions,
@@ -22,27 +22,25 @@ const implementations = {
 type RateLimitedApis = typeof implementations;
 
 /**
- * Constructs a unrestricted controller messenger.
+ * Constructs a unrestricted messenger.
  *
- * @returns A unrestricted controller messenger.
+ * @returns A unrestricted messenger.
  */
 function getUnrestrictedMessenger() {
-  return new ControllerMessenger<
+  return new Messenger<
     RateLimitControllerActions<RateLimitedApis>,
     RateLimitControllerEvents<RateLimitedApis>
   >();
 }
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a restricted messenger.
  *
- * @param controllerMessenger - An optional unrestricted messenger
- * @returns A restricted controller messenger.
+ * @param messenger - An optional unrestricted messenger
+ * @returns A restricted messenger.
  */
-function getRestrictedMessenger(
-  controllerMessenger = getUnrestrictedMessenger(),
-) {
-  return controllerMessenger.getRestricted({
+function getRestrictedMessenger(messenger = getUnrestrictedMessenger()) {
+  return messenger.getRestricted({
     name,
     allowedActions: [],
     allowedEvents: [],
