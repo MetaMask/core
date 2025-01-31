@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
@@ -268,7 +268,7 @@ export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type PhishingControllerEvents = PhishingControllerStateChangeEvent;
 
-export type PhishingControllerMessenger = RestrictedControllerMessenger<
+export type PhishingControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   PhishingControllerActions,
   PhishingControllerEvents,
