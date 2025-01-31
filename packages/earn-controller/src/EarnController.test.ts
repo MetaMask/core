@@ -175,8 +175,6 @@ describe('EarnController', () => {
       },
     }));
 
-    (StakeSdk.create as jest.Mock).mockClear();
-
     mockedStakingApiService = {
       getPooledStakes: jest.fn().mockResolvedValue({
         accounts: [mockPooledStakes],
@@ -191,8 +189,6 @@ describe('EarnController', () => {
     StakingApiServiceMock.mockImplementation(
       () => mockedStakingApiService as StakingApiService,
     );
-
-    jest.spyOn(console, 'error').mockImplementation();
   });
 
   describe('constructor', () => {
@@ -256,20 +252,6 @@ describe('EarnController', () => {
     });
 
     it('reinitializes SDK when network changes', () => {
-      mockedStakingApiService = {
-        getPooledStakes: jest.fn().mockResolvedValue({
-          accounts: [mockPooledStakes],
-          exchangeRate: '1.5',
-        }),
-        getPooledStakingEligibility: jest.fn().mockResolvedValue({
-          eligible: true,
-        }),
-        getVaultData: jest.fn().mockResolvedValue(mockVaultData),
-      };
-
-      StakingApiServiceMock.mockImplementation(
-        () => mockedStakingApiService as StakingApiService,
-      );
       const { messenger } = setupController();
 
       messenger.publish(
@@ -289,6 +271,7 @@ describe('EarnController', () => {
       setupController({
         mockGetNetworkClientById: jest.fn(() => ({
           provider: null,
+          configuration: { chainId: '0x1' },
         })),
       });
       expect(StakeSdk.create).not.toHaveBeenCalled();
@@ -310,6 +293,7 @@ describe('EarnController', () => {
     });
 
     it('handles API errors gracefully', async () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       mockedStakingApiService = {
         getPooledStakes: jest.fn().mockImplementation(() => {
           throw new Error('API Error');
@@ -331,24 +315,12 @@ describe('EarnController', () => {
       await expect(controller.refreshPooledStakingData()).rejects.toThrow(
         'Failed to refresh some staking data: API Error, API Error, API Error',
       );
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
     });
 
     // if no account is selected, it should not fetch stakes data but still updates vault data
     it('does not fetch staking data if no account is selected', async () => {
-      mockedStakingApiService = {
-        getPooledStakes: jest.fn().mockResolvedValue({
-          accounts: [mockPooledStakes],
-          exchangeRate: '1.5',
-        }),
-        getPooledStakingEligibility: jest.fn().mockResolvedValue({
-          eligible: true,
-        }),
-        getVaultData: jest.fn().mockResolvedValue(mockVaultData),
-      };
-
-      StakingApiServiceMock.mockImplementation(
-        () => mockedStakingApiService as StakingApiService,
-      );
       const { controller } = setupController({
         mockGetSelectedAccount: jest.fn(() => null),
       });
