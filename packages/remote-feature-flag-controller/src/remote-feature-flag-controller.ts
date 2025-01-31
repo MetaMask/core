@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
@@ -62,14 +62,13 @@ export type RemoteFeatureFlagControllerEvents =
 
 export type AllowedEvents = never;
 
-export type RemoteFeatureFlagControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    RemoteFeatureFlagControllerActions | AllowedActions,
-    RemoteFeatureFlagControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type RemoteFeatureFlagControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  RemoteFeatureFlagControllerActions | AllowedActions,
+  RemoteFeatureFlagControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Returns the default state for the RemoteFeatureFlagController.
@@ -108,7 +107,7 @@ export class RemoteFeatureFlagController extends BaseController<
    * Constructs a new RemoteFeatureFlagController instance.
    *
    * @param options - The controller options.
-   * @param options.messenger - The controller messenger used for communication.
+   * @param options.messenger - The messenger used for communication.
    * @param options.state - The initial state of the controller.
    * @param options.clientConfigApiService - The service instance to fetch remote feature flags.
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
