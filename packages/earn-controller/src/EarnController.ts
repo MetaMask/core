@@ -11,7 +11,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import type { NetworkControllerNetworkDidChangeEvent } from '@metamask/network-controller';
+import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
@@ -156,8 +156,8 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  * All events that EarnController subscribes to internally.
  */
 export type AllowedEvents =
-  | NetworkControllerNetworkDidChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | NetworkControllerStateChangeEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -183,6 +183,8 @@ export class EarnController extends BaseController<
 > {
   #stakeSDK: StakeSdk | null = null;
 
+  #selectedNetworkClientId?: string;
+
   readonly #stakingApiService: StakingApiService = new StakingApiService();
 
   constructor({
@@ -202,15 +204,26 @@ export class EarnController extends BaseController<
       },
     });
 
-    // Initialize with current network
     this.#initializeSDK();
+    this.refreshPooledStakingData().catch(console.error);
 
-    // Listen for network changes
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    this.#selectedNetworkClientId = selectedNetworkClientId;
+
     this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      ({ selectedNetworkClientId }) => {
-        this.#initializeSDK(selectedNetworkClientId);
-        this.refreshPooledStakingData().catch(console.error);
+      'NetworkController:stateChange',
+      (networkControllerState) => {
+        if (
+          networkControllerState.selectedNetworkClientId !==
+          this.#selectedNetworkClientId
+        ) {
+          this.#initializeSDK(networkControllerState.selectedNetworkClientId);
+          this.refreshPooledStakingData().catch(console.error);
+        }
+        this.#selectedNetworkClientId =
+          networkControllerState.selectedNetworkClientId;
       },
     );
 
@@ -280,48 +293,73 @@ export class EarnController extends BaseController<
     return convertHexToDecimal(chainId);
   }
 
-  async refreshPooledStakingData(): Promise<void> {
+  async refreshPooledStakes(): Promise<void> {
     const currentAccount = this.#getCurrentAccount();
     if (!currentAccount?.address) {
       return;
     }
 
     const chainId = this.#getCurrentChainId();
-    const apiService = this.#stakingApiService;
 
-    try {
-      const { accounts, exchangeRate } = await apiService.getPooledStakes(
+    const { accounts, exchangeRate } =
+      await this.#stakingApiService.getPooledStakes(
         [currentAccount.address],
         chainId,
       );
 
-      this.update((state) => {
-        state.pooled_staking.pooledStakes = accounts[0];
-        state.pooled_staking.exchangeRate = exchangeRate;
-      });
-    } catch (error) {
-      console.error('Failed to fetch pooled stakes:', error);
+    this.update((state) => {
+      state.pooled_staking.pooledStakes = accounts[0];
+      state.pooled_staking.exchangeRate = exchangeRate;
+    });
+  }
+
+  async refreshStakingEligibility(): Promise<void> {
+    const currentAccount = this.#getCurrentAccount();
+    if (!currentAccount?.address) {
+      return;
     }
 
-    try {
-      const { eligible: isEligible } =
-        await apiService.getPooledStakingEligibility([currentAccount.address]);
+    const { eligible: isEligible } =
+      await this.#stakingApiService.getPooledStakingEligibility([
+        currentAccount.address,
+      ]);
 
-      this.update((state) => {
-        state.pooled_staking.isEligible = isEligible;
-      });
-    } catch (error) {
-      console.error('Failed to fetch staking eligibility:', error);
-    }
+    this.update((state) => {
+      state.pooled_staking.isEligible = isEligible;
+    });
+  }
 
-    try {
-      const vaultData = await apiService.getVaultData(chainId);
+  async refreshVaultData(): Promise<void> {
+    const chainId = this.#getCurrentChainId();
+    const vaultData = await this.#stakingApiService.getVaultData(chainId);
 
-      this.update((state) => {
-        state.pooled_staking.vaultData = vaultData;
-      });
-    } catch (error) {
-      console.error('Failed to fetch vault data:', error);
+    this.update((state) => {
+      state.pooled_staking.vaultData = vaultData;
+    });
+  }
+
+  // Initial load helper that allows partial success
+  async refreshPooledStakingData(): Promise<void> {
+    const errors: Error[] = [];
+
+    await Promise.all([
+      this.refreshPooledStakes().catch((error) => {
+        errors.push(error);
+      }),
+      this.refreshStakingEligibility().catch((error) => {
+        errors.push(error);
+      }),
+      this.refreshVaultData().catch((error) => {
+        errors.push(error);
+      }),
+    ]);
+
+    if (errors.length > 0) {
+      throw new Error(
+        `Failed to refresh some staking data: ${errors
+          .map((e) => e.message)
+          .join(', ')}`,
+      );
     }
   }
 }

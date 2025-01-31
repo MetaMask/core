@@ -59,7 +59,7 @@ function getEarnControllerMessenger(
       'AccountsController:getSelectedAccount',
     ],
     allowedEvents: [
-      'NetworkController:networkDidChange',
+      'NetworkController:stateChange',
       'AccountsController:selectedAccountChange',
     ],
   });
@@ -110,104 +110,110 @@ const mockVaultData = {
   vaultAddress: '0xabcd',
 };
 
-describe('EarnController', () => {
-  let messenger: EarnControllerMessenger;
-  let baseMessenger: ControllerMessenger<
-    EarnControllerActions | AllowedActions,
-    EarnControllerEvents | AllowedEvents
-  >;
-  let mockGetNetworkClient: jest.Mock;
-  let mockGetState: jest.Mock;
-  let mockGetSelectedAccount: jest.Mock;
+const setupController = ({
+  options = {},
 
+  mockGetNetworkClientById = jest.fn(() => ({
+    configuration: { chainId: '0x1' },
+    provider: {
+      request: jest.fn(),
+      on: jest.fn(),
+      removeListener: jest.fn(),
+    },
+  })),
+
+  mockGetNetworkControllerState = jest.fn(() => ({
+    selectedNetworkClientId: '1',
+    networkConfigurations: {
+      '1': { chainId: '0x1' },
+    },
+  })),
+
+  mockGetSelectedAccount = jest.fn(() => ({
+    address: '0x1234',
+  })),
+}: {
+  options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
+  mockGetNetworkClientById?: jest.Mock;
+  mockGetNetworkControllerState?: jest.Mock;
+  mockGetSelectedAccount?: jest.Mock;
+} = {}) => {
+  const messenger = buildMessenger();
+
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    mockGetNetworkClientById,
+  );
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    mockGetNetworkControllerState,
+  );
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount,
+  );
+
+  const earnControllerMessenger = getEarnControllerMessenger(messenger);
+
+  const controller = new EarnController({
+    messenger: earnControllerMessenger,
+    ...options,
+  });
+
+  return { controller, messenger };
+};
+
+const StakingApiServiceMock = jest.mocked(StakingApiService);
+let mockedStakingApiService: Partial<StakingApiService>;
+
+describe('EarnController', () => {
   beforeEach(() => {
     // Apply StakeSdk mock before initializing EarnController
     (StakeSdk.create as jest.Mock).mockImplementation(() => ({
       pooledStakingContract: {
-        connectSignerOrProvider: jest.fn(), // Prevent undefined error
+        connectSignerOrProvider: jest.fn(),
       },
     }));
 
     (StakeSdk.create as jest.Mock).mockClear();
 
-    // Create a fresh messenger for each test
-    baseMessenger = buildMessenger();
+    mockedStakingApiService = {
+      getPooledStakes: jest.fn().mockResolvedValue({
+        accounts: [mockPooledStakes],
+        exchangeRate: '1.5',
+      }),
+      getPooledStakingEligibility: jest.fn().mockResolvedValue({
+        eligible: true,
+      }),
+      getVaultData: jest.fn().mockResolvedValue(mockVaultData),
+    } as Partial<StakingApiService>;
 
-    // Create mocks but with default implementations
-    mockGetNetworkClient = jest.fn().mockImplementation(() => ({
-      configuration: { chainId: '0x1' },
-      provider: {
-        request: jest.fn(),
-        on: jest.fn(),
-        removeListener: jest.fn(),
-      },
-    }));
-
-    mockGetState = jest.fn().mockImplementation(() => ({
-      selectedNetworkClientId: '1',
-      networkConfigurations: {
-        '1': { chainId: '0x1' },
-      },
-    }));
-
-    mockGetSelectedAccount = jest.fn().mockImplementation(() => ({
-      address: '0x1234',
-    }));
-
-    // Register handlers once
-    baseMessenger.registerActionHandler(
-      'NetworkController:getNetworkClientById',
-      mockGetNetworkClient,
-    );
-    baseMessenger.registerActionHandler(
-      'NetworkController:getState',
-      mockGetState,
-    );
-    baseMessenger.registerActionHandler(
-      'AccountsController:getSelectedAccount',
-      mockGetSelectedAccount,
+    StakingApiServiceMock.mockImplementation(
+      () => mockedStakingApiService as StakingApiService,
     );
 
-    messenger = getEarnControllerMessenger(baseMessenger);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation();
   });
 
   describe('constructor', () => {
     it('initializes with default state when no state is provided', () => {
-      const controller = new EarnController({
-        messenger,
-      });
+      const { controller } = setupController();
       expect(controller.state).toStrictEqual(getDefaultEarnControllerState());
     });
 
     it('uses provided state to initialize', () => {
       const customState: Partial<EarnControllerState> = {
         pooled_staking: {
-          pooledStakes: {
-            account: '0x1234',
-            lifetimeRewards: '100',
-            assets: '1000',
-            exitRequests: [],
-          },
+          pooledStakes: mockPooledStakes,
           exchangeRate: '1.5',
-          vaultData: {
-            apy: '5.5',
-            capacity: '1000000',
-            feePercent: 10,
-            totalAssets: '500000',
-            vaultAddress: '0xabcd',
-          },
+          vaultData: mockVaultData,
           isEligible: true,
         },
         lastUpdated: 1234567890,
       };
 
-      const controller = new EarnController({
-        messenger,
-        state: customState,
+      const { controller } = setupController({
+        options: { state: customState },
       });
 
       expect(controller.state).toStrictEqual({
@@ -219,8 +225,7 @@ describe('EarnController', () => {
 
   describe('SDK initialization', () => {
     it('initializes SDK with correct chain ID on construction', () => {
-      new EarnController({ messenger });
-
+      setupController();
       expect(StakeSdk.create).toHaveBeenCalledWith({
         chainId: 1,
       });
@@ -233,7 +238,7 @@ describe('EarnController', () => {
       });
 
       // Unsupported chain id should not result in console error statement
-      new EarnController({ messenger });
+      setupController();
       expect(consoleErrorSpy).not.toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
     });
@@ -245,13 +250,13 @@ describe('EarnController', () => {
       });
 
       // Unexpected error should be logged
-      new EarnController({ messenger });
+      setupController();
       expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
     });
 
     it('reinitializes SDK when network changes', () => {
-      const mockedStakingApiService = {
+      mockedStakingApiService = {
         getPooledStakes: jest.fn().mockResolvedValue({
           accounts: [mockPooledStakes],
           exchangeRate: '1.5',
@@ -262,57 +267,37 @@ describe('EarnController', () => {
         getVaultData: jest.fn().mockResolvedValue(mockVaultData),
       };
 
-      (StakingApiService as jest.Mock).mockImplementation(
-        () => mockedStakingApiService,
+      StakingApiServiceMock.mockImplementation(
+        () => mockedStakingApiService as StakingApiService,
       );
-      new EarnController({
-        messenger,
-      });
+      const { messenger } = setupController();
 
-      baseMessenger.publish('NetworkController:networkDidChange', {
-        ...getDefaultNetworkControllerState(),
-        selectedNetworkClientId: '2',
-      });
+      messenger.publish(
+        'NetworkController:stateChange',
+        {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '2',
+        },
+        [],
+      );
 
       expect(StakeSdk.create).toHaveBeenCalledTimes(2);
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenCalled();
     });
 
     it('does not initialize sdk if the provider is null', () => {
-      // Override implementation for this specific test
-      mockGetNetworkClient.mockImplementation(() => ({
-        provider: null,
-      }));
-
-      new EarnController({ messenger });
+      setupController({
+        mockGetNetworkClientById: jest.fn(() => ({
+          provider: null,
+        })),
+      });
       expect(StakeSdk.create).not.toHaveBeenCalled();
     });
   });
 
-  describe('fetchAndUpdateStakingData', () => {
-    let controller: EarnController;
-
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
-
+  describe('refreshPooledStakingData', () => {
     it('updates state with fetched staking data', async () => {
-      const mockedStakingApiService = {
-        getPooledStakes: jest.fn().mockResolvedValue({
-          accounts: [mockPooledStakes],
-          exchangeRate: '1.5',
-        }),
-        getPooledStakingEligibility: jest.fn().mockResolvedValue({
-          eligible: true,
-        }),
-        getVaultData: jest.fn().mockResolvedValue(mockVaultData),
-      };
-
-      (StakingApiService as jest.Mock).mockImplementation(
-        () => mockedStakingApiService,
-      );
-
-      controller = new EarnController({ messenger });
+      const { controller } = setupController();
       await controller.refreshPooledStakingData();
 
       expect(controller.state.pooled_staking).toStrictEqual({
@@ -325,9 +310,7 @@ describe('EarnController', () => {
     });
 
     it('handles API errors gracefully', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
-      const mockedStakingApiService = {
+      mockedStakingApiService = {
         getPooledStakes: jest.fn().mockImplementation(() => {
           throw new Error('API Error');
         }),
@@ -339,64 +322,74 @@ describe('EarnController', () => {
         }),
       };
 
-      (StakingApiService as jest.Mock).mockImplementation(
-        () => mockedStakingApiService,
+      StakingApiServiceMock.mockImplementation(
+        () => mockedStakingApiService as StakingApiService,
       );
 
-      controller = new EarnController({ messenger });
+      const { controller } = setupController();
 
-      await controller.refreshPooledStakingData();
-
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to fetch pooled stakes:',
-        expect.any(Error),
+      await expect(controller.refreshPooledStakingData()).rejects.toThrow(
+        'Failed to refresh some staking data: API Error, API Error, API Error',
       );
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to fetch staking eligibility:',
-        expect.any(Error),
-      );
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Failed to fetch vault data:',
-        expect.any(Error),
-      );
-
-      consoleErrorSpy.mockRestore();
     });
 
-    // if no account is selected, it should not fetch staking data
+    // if no account is selected, it should not fetch stakes data but still updates vault data
     it('does not fetch staking data if no account is selected', async () => {
-      mockGetSelectedAccount.mockImplementation(() => null);
-      controller = new EarnController({ messenger });
-      await controller.refreshPooledStakingData();
-      expect(controller.state.pooled_staking).toStrictEqual(
-        getDefaultEarnControllerState().pooled_staking,
+      mockedStakingApiService = {
+        getPooledStakes: jest.fn().mockResolvedValue({
+          accounts: [mockPooledStakes],
+          exchangeRate: '1.5',
+        }),
+        getPooledStakingEligibility: jest.fn().mockResolvedValue({
+          eligible: true,
+        }),
+        getVaultData: jest.fn().mockResolvedValue(mockVaultData),
+      };
+
+      StakingApiServiceMock.mockImplementation(
+        () => mockedStakingApiService as StakingApiService,
       );
+      const { controller } = setupController({
+        mockGetSelectedAccount: jest.fn(() => null),
+      });
+
+      expect(mockedStakingApiService.getPooledStakes).not.toHaveBeenCalled();
+      await controller.refreshPooledStakingData();
+
+      expect(controller.state.pooled_staking.pooledStakes).toStrictEqual(
+        getDefaultEarnControllerState().pooled_staking.pooledStakes,
+      );
+      expect(controller.state.pooled_staking.vaultData).toStrictEqual(
+        mockVaultData,
+      );
+      expect(controller.state.pooled_staking.isEligible).toBe(false);
     });
   });
 
   describe('subscription handlers', () => {
-    let controller: EarnController;
-
     const firstAccount = createMockInternalAccount({
       address: '0x1234',
     });
 
-    beforeEach(() => {
-      controller = new EarnController({ messenger });
-      jest.spyOn(controller, 'refreshPooledStakingData').mockResolvedValue();
-    });
-
     it('updates staking data when network changes', () => {
-      baseMessenger.publish('NetworkController:networkDidChange', {
-        ...getDefaultNetworkControllerState(),
-        selectedNetworkClientId: '2',
-      });
+      const { controller, messenger } = setupController();
+      jest.spyOn(controller, 'refreshPooledStakingData').mockResolvedValue();
+      messenger.publish(
+        'NetworkController:stateChange',
+        {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: '2',
+        },
+        [],
+      );
 
       expect(controller.refreshPooledStakingData).toHaveBeenCalled();
     });
 
     it('updates staking data when selected account changes', () => {
-      baseMessenger.publish(
+      const { controller, messenger } = setupController();
+      jest.spyOn(controller, 'refreshPooledStakingData').mockResolvedValue();
+      messenger.publish(
         'AccountsController:selectedAccountChange',
         firstAccount,
       );
