@@ -2,7 +2,7 @@ import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import HDKeyring from '@metamask/eth-hd-keyring';
 import {
   normalize,
@@ -3538,22 +3538,19 @@ function stubKeyringClassWithAccount(
 }
 
 /**
- * Build a controller messenger that includes all events used by the keyring
+ * Build a messenger that includes all events used by the keyring
  * controller.
  *
- * @returns The controller messenger.
+ * @returns The messenger.
  */
 function buildMessenger() {
-  return new ControllerMessenger<
-    KeyringControllerActions,
-    KeyringControllerEvents
-  >();
+  return new Messenger<KeyringControllerActions, KeyringControllerEvents>();
 }
 
 /**
- * Build a restricted controller messenger for the keyring controller.
+ * Build a restricted messenger for the keyring controller.
  *
- * @param messenger - A controller messenger.
+ * @param messenger - A messenger.
  * @returns The keyring controller restricted messenger.
  */
 function buildKeyringControllerMessenger(messenger = buildMessenger()) {
