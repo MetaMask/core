@@ -15,7 +15,7 @@ import {
  * and that an empty object is returned for the `sessionScopes` result rather than throwing an error if there
  * is no active session for the origin.
  *
- * @param request - The request object.
+ * @param _request - The request object.
  * @param response - The response object.
  * @param _next - The next middleware function. Unused.
  * @param end - The end function.
@@ -24,7 +24,7 @@ import {
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 async function walletGetSessionHandler(
-  request: JsonRpcRequest & { origin: string },
+  _request: JsonRpcRequest & { origin: string },
   response: JsonRpcSuccess<{ sessionScopes: NormalizedScopesObject }>,
   _next: () => void,
   end: () => void,

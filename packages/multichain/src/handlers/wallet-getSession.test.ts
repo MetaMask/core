@@ -25,6 +25,7 @@ const baseRequest: JsonRpcRequest & { origin: string } = {
 const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
+  const getNonEvmSupportedMethods = jest.fn()
   const getCaveatForOrigin = jest.fn().mockReturnValue({
     value: {
       requiredScopes: {
@@ -55,6 +56,7 @@ const createMockedHandler = () => {
   const handler = (request: JsonRpcRequest & { origin: string }) =>
     walletGetSession.implementation(request, response, next, end, {
       getCaveatForOrigin,
+      getNonEvmSupportedMethods
     });
 
   return {
@@ -62,6 +64,7 @@ const createMockedHandler = () => {
     response,
     end,
     getCaveatForOrigin,
+    getNonEvmSupportedMethods,
     handler,
   };
 };
@@ -90,7 +93,7 @@ describe('wallet_getSession', () => {
   });
 
   it('gets the session scopes from the CAIP-25 caveat value', async () => {
-    const { handler } = createMockedHandler();
+    const { handler, getNonEvmSupportedMethods } = createMockedHandler();
 
     await handler(baseRequest);
     expect(
@@ -112,6 +115,8 @@ describe('wallet_getSession', () => {
           accounts: [],
         },
       },
+    },{
+      getNonEvmSupportedMethods
     });
   });
 
