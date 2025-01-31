@@ -38,7 +38,7 @@ export type MultichainNetworkConfiguration = {
   /**
    * The native asset type of the network.
    */
-  nativeAsset: CaipAssetType;
+  nativeCurrency: CaipAssetType;
   /**
    * The block explorer URLs of the network.
    */
