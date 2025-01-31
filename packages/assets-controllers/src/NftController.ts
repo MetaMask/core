@@ -6,7 +6,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import {
@@ -259,7 +259,7 @@ export type NftControllerEvents = NftControllerStateChangeEvent;
 /**
  * The messenger of the {@link NftController}.
  */
-export type NftControllerMessenger = RestrictedControllerMessenger<
+export type NftControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   NftControllerActions | AllowedActions,
   NftControllerEvents | AllowedEvents,
@@ -321,7 +321,7 @@ export class NftController extends BaseController<
    * @param options.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    * @param options.state - Initial state to set on this controller.
    */
   constructor({

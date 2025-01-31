@@ -1,5 +1,5 @@
 import * as providersModule from '@ethersproject/providers';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
   toHex,
@@ -54,7 +54,7 @@ jest.mock('@ethersproject/providers', () => {
   };
 });
 
-type RootMessenger = ControllerMessenger<
+type RootMessenger = Messenger<
   ExtractAvailableAction<EnsControllerMessenger>,
   ExtractAvailableEvent<EnsControllerMessenger>
 >;
@@ -76,10 +76,10 @@ const name = 'EnsController';
 /**
  * Constructs the root messenger.
  *
- * @returns A restricted controller messenger.
+ * @returns A restricted messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new ControllerMessenger<
+  return new Messenger<
     ExtractAvailableAction<EnsControllerMessenger> | AllowedActions,
     ExtractAvailableEvent<EnsControllerMessenger> | never
   >();
@@ -91,7 +91,7 @@ function getRootMessenger(): RootMessenger {
  * @param rootMessenger - The root messenger to base the restricted messenger
  * off of.
  * @param getNetworkClientByIdMock - Optional mock version of `getNetworkClientById`.
- * @returns A restricted controller messenger.
+ * @returns A restricted messenger.
  */
 function getRestrictedMessenger(
   rootMessenger: RootMessenger,
