@@ -37,6 +37,8 @@ describe('CAIP-25 session scopes adapters', () => {
   });
 
   describe('getSessionScopes', () => {
+    const getNonEvmSupportedMethods = jest.fn()
+
     it('returns a NormalizedScopesObject for the wallet scope', () => {
       const result = getSessionScopes({
         requiredScopes: {},
@@ -45,6 +47,8 @@ describe('CAIP-25 session scopes adapters', () => {
             accounts: [],
           },
         },
+      }, {
+        getNonEvmSupportedMethods
       });
 
       expect(result).toStrictEqual({
@@ -64,6 +68,8 @@ describe('CAIP-25 session scopes adapters', () => {
             accounts: ['wallet:eip155:0xdeadbeef'],
           },
         },
+      }, {
+        getNonEvmSupportedMethods
       });
 
       expect(result).toStrictEqual({
@@ -75,7 +81,9 @@ describe('CAIP-25 session scopes adapters', () => {
       });
     });
 
-    it('returns a NormalizedScopesObject with empty methods and notifications for scope with wallet namespace and unknown reference', () => {
+    it('gets methods from getNonEvmSupportedMethods for scope with wallet namespace and non-evm reference', () => {
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+
       const result = getSessionScopes({
         requiredScopes: {},
         optionalScopes: {
@@ -83,18 +91,39 @@ describe('CAIP-25 session scopes adapters', () => {
             accounts: ['wallet:foobar:0xdeadbeef'],
           },
         },
+      }, {
+        getNonEvmSupportedMethods
+      });
+
+      expect(getNonEvmSupportedMethods).toHaveBeenCalledWith('wallet:foobar')
+    });
+
+    it('returns a NormalizedScopesObject with methods from getNonEvmSupportedMethods and empty notifications for scope with wallet namespace and non-evm reference', () => {
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+
+      const result = getSessionScopes({
+        requiredScopes: {},
+        optionalScopes: {
+          'wallet:foobar': {
+            accounts: ['wallet:foobar:0xdeadbeef'],
+          },
+        },
+      }, {
+        getNonEvmSupportedMethods
       });
 
       expect(result).toStrictEqual({
         'wallet:foobar': {
-          methods: [],
+          methods: ['nonEvmMethod'],
           notifications: [],
           accounts: ['wallet:foobar:0xdeadbeef'],
         },
       });
     });
 
-    it('returns a NormalizedScopesObject with empty methods and notifications for scope not wallet namespace and unknown reference', () => {
+    it('gets methods from getNonEvmSupportedMethods for scope non-evm namespace', () => {
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+
       const result = getSessionScopes({
         requiredScopes: {},
         optionalScopes: {
@@ -102,11 +131,30 @@ describe('CAIP-25 session scopes adapters', () => {
             accounts: ['foo:1:0xdeadbeef'],
           },
         },
+      }, {
+        getNonEvmSupportedMethods
+      });
+
+      expect(getNonEvmSupportedMethods).toHaveBeenCalledWith('foo:1')
+    });
+
+    it('returns a NormalizedScopesObject with methods from getNonEvmSupportedMethods and empty notifications for scope non-evm namespace', () => {
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+
+      const result = getSessionScopes({
+        requiredScopes: {},
+        optionalScopes: {
+          'foo:1': {
+            accounts: ['foo:1:0xdeadbeef'],
+          },
+        },
+      }, {
+        getNonEvmSupportedMethods
       });
 
       expect(result).toStrictEqual({
         'foo:1': {
-          methods: [],
+          methods: ['nonEvmMethod'],
           notifications: [],
           accounts: ['foo:1:0xdeadbeef'],
         },
@@ -121,6 +169,8 @@ describe('CAIP-25 session scopes adapters', () => {
             accounts: ['eip155:1:0xdeadbeef'],
           },
         },
+      }, {
+        getNonEvmSupportedMethods
       });
 
       expect(result).toStrictEqual({
