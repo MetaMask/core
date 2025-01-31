@@ -2,7 +2,7 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -45,7 +45,7 @@ const metadata = {
 /**
  * Token balances controller options
  * @property interval - Polling interval used to fetch new token balances.
- * @property messenger - A controller messenger.
+ * @property messenger - A messenger.
  * @property state - Initial state for the controller.
  */
 type TokenBalancesControllerOptions = {
@@ -96,7 +96,7 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent;
 
-export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
+export type TokenBalancesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TokenBalancesControllerActions | AllowedActions,
   TokenBalancesControllerEvents | AllowedEvents,
