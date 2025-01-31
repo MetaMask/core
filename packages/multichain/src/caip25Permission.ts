@@ -23,13 +23,14 @@ import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
-import { isSupportedScopeString } from './scope/supported';
+import { isSupportedAccount, isSupportedScopeString } from './scope/supported';
 import {
   parseScopeString,
   type ExternalScopeString,
   type InternalScopeObject,
   type InternalScopesObject,
 } from './scope/types';
+import { mergeScopes } from './scope/transform';
 
 /**
  * The CAIP-25 permission caveat value.
@@ -67,8 +68,9 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
 
 type Caip25EndowmentCaveatSpecificationBuilderOptions = {
   findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
-  listAccounts: () => { address: Hex }[];
+  listAccounts: () => {type: string; address: Hex}[];
   isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
+  getNonEvmAccountAddresses: (scope: CaipChainId) => string[]
 };
 
 /**
@@ -84,6 +86,7 @@ export const caip25CaveatBuilder = ({
   findNetworkClientIdByChainId,
   listAccounts,
   isNonEvmScopeSupported,
+  getNonEvmAccountAddresses,
 }: Caip25EndowmentCaveatSpecificationBuilderOptions): EndowmentCaveatSpecificationConstraint &
   Required<Pick<EndowmentCaveatSpecificationConstraint, 'validator'>> => {
   return {
@@ -133,22 +136,21 @@ export const caip25CaveatBuilder = ({
         );
       }
 
-      // Fetch EVM accounts from native wallet keyring
-      // These addresses are lowercased already
-      const existingEvmAddresses = listAccounts().map(
-        (account) => account.address,
+      const allRequiredAccountsSupported = Object.values(requiredScopes).every(
+        (scopeObject) =>
+          scopeObject.accounts.every(
+            (account) => isSupportedAccount(account, {getEvmInternalAccounts: listAccounts, getNonEvmAccountAddresses })
+          )
       );
-      const ethAccounts = getEthAccounts({
-        requiredScopes,
-        optionalScopes,
-      }).map((address) => address.toLowerCase() as Hex);
-
-      const allEthAccountsSupported = ethAccounts.every((address) =>
-        existingEvmAddresses.includes(address),
+      const allOptionalAccountsSupported = Object.values(optionalScopes).every(
+        (scopeObject) =>
+          scopeObject.accounts.every(
+            (account) => isSupportedAccount(account, {getEvmInternalAccounts: listAccounts, getNonEvmAccountAddresses })
+          )
       );
-      if (!allEthAccountsSupported) {
+      if (!allRequiredAccountsSupported || !allOptionalAccountsSupported) {
         throw new Error(
-          `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
+          `${Caip25EndowmentPermissionName} error: Received account value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
         );
       }
     },

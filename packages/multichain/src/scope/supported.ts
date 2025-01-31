@@ -62,7 +62,7 @@ export const isSupportedAccount = (
     getEvmInternalAccounts,
     getNonEvmAccountAddresses
   }: {
-    getEvmInternalAccounts: () => { type: string; address: string }[],
+    getEvmInternalAccounts: () => { type: string; address: Hex }[],
     getNonEvmAccountAddresses: (scope: CaipChainId) => string[]
   }
 ) => {
