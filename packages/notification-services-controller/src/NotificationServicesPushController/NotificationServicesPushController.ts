@@ -1,5 +1,5 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
@@ -81,14 +81,13 @@ export type Events =
 
 export type AllowedEvents = never;
 
-export type NotificationServicesPushControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    Actions | AllowedActions,
-    Events | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type NotificationServicesPushControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  Actions | AllowedActions,
+  Events | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 export const defaultState: NotificationServicesPushControllerState = {
   fcmToken: '',

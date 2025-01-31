@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
@@ -518,7 +518,7 @@ export type NetworkControllerActions =
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerUpdateNetworkAction;
 
-export type NetworkControllerMessenger = RestrictedControllerMessenger<
+export type NetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   NetworkControllerActions,
   NetworkControllerEvents,
