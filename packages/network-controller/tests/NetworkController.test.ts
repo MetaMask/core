@@ -43,6 +43,7 @@ import {
   NetworkController,
   RpcEndpointType,
   selectAvailableNetworkClientIds,
+  selectNetworkConfigurations,
 } from '../src/NetworkController';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
@@ -1579,6 +1580,111 @@ describe('NetworkController', () => {
           });
         });
 
+        describe('if all subscriptions are removed from the messenger before the call to lookupNetwork completes', () => {
+          it('does not throw an error', async () => {
+            const infuraProjectId = 'some-infura-project-id';
+
+            await withController(
+              {
+                state: {
+                  selectedNetworkClientId: infuraNetworkType,
+                },
+                infuraProjectId,
+              },
+              async ({ controller, messenger }) => {
+                const fakeProvider = buildFakeProvider([
+                  // Called during provider initialization
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                  },
+                  // Called via `lookupNetwork` directly
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                  },
+                ]);
+                const fakeNetworkClient = buildFakeClient(fakeProvider);
+                mockCreateNetworkClient()
+                  .calledWith({
+                    chainId: ChainId[infuraNetworkType],
+                    infuraProjectId,
+                    network: infuraNetworkType,
+                    ticker: NetworksTicker[infuraNetworkType],
+                    type: NetworkClientType.Infura,
+                  })
+                  .mockReturnValue(fakeNetworkClient);
+                await controller.initializeProvider();
+
+                const lookupNetworkPromise = controller.lookupNetwork();
+                messenger.clearSubscriptions();
+                expect(await lookupNetworkPromise).toBeUndefined();
+              },
+            );
+          });
+        });
+
+        describe('if removing the networkDidChange subscription fails for an unknown reason', () => {
+          it('re-throws the error', async () => {
+            const infuraProjectId = 'some-infura-project-id';
+
+            await withController(
+              {
+                state: {
+                  selectedNetworkClientId: infuraNetworkType,
+                },
+                infuraProjectId,
+              },
+              async ({ controller, messenger }) => {
+                const fakeProvider = buildFakeProvider([
+                  // Called during provider initialization
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                  },
+                  // Called via `lookupNetwork` directly
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                  },
+                ]);
+                const fakeNetworkClient = buildFakeClient(fakeProvider);
+                mockCreateNetworkClient()
+                  .calledWith({
+                    chainId: ChainId[infuraNetworkType],
+                    infuraProjectId,
+                    network: infuraNetworkType,
+                    ticker: NetworksTicker[infuraNetworkType],
+                    type: NetworkClientType.Infura,
+                  })
+                  .mockReturnValue(fakeNetworkClient);
+                await controller.initializeProvider();
+
+                const lookupNetworkPromise = controller.lookupNetwork();
+                const error = new Error('oops');
+                jest
+                  .spyOn(messenger, 'unsubscribe')
+                  .mockImplementation((eventType) => {
+                    // This is okay.
+                    // eslint-disable-next-line jest/no-conditional-in-test
+                    if (eventType === 'NetworkController:networkDidChange') {
+                      throw error;
+                    }
+                  });
+                await expect(lookupNetworkPromise).rejects.toThrow(error);
+              },
+            );
+          });
+        });
+
         lookupNetworkTests({
           expectedNetworkClientType: NetworkClientType.Infura,
           initialState: {
@@ -1884,6 +1990,133 @@ describe('NetworkController', () => {
 
               await expect(promiseForNoInfuraIsUnblockedEvents).toBeFulfilled();
               await expect(promiseForInfuraIsBlockedEvents).toBeFulfilled();
+            },
+          );
+        });
+      });
+
+      describe('if all subscriptions are removed from the messenger before the call to lookupNetwork completes', () => {
+        it('does not throw an error', async () => {
+          const infuraProjectId = 'some-infura-project-id';
+
+          await withController(
+            {
+              state: {
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                networkConfigurationsByChainId: {
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    nativeCurrency: 'TEST',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        url: 'https://test.network',
+                      }),
+                    ],
+                  }),
+                },
+              },
+              infuraProjectId,
+            },
+            async ({ controller, messenger }) => {
+              const fakeProvider = buildFakeProvider([
+                // Called during provider initialization
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                  },
+                  response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                },
+                // Called via `lookupNetwork` directly
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                  },
+                  response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                },
+              ]);
+              const fakeNetworkClient = buildFakeClient(fakeProvider);
+              mockCreateNetworkClient()
+                .calledWith({
+                  chainId: '0x1337',
+                  rpcUrl: 'https://test.network',
+                  ticker: 'TEST',
+                  type: NetworkClientType.Custom,
+                })
+                .mockReturnValue(fakeNetworkClient);
+              await controller.initializeProvider();
+
+              const lookupNetworkPromise = controller.lookupNetwork();
+              messenger.clearSubscriptions();
+              expect(await lookupNetworkPromise).toBeUndefined();
+            },
+          );
+        });
+      });
+
+      describe('if removing the networkDidChange subscription fails for an unknown reason', () => {
+        it('re-throws the error', async () => {
+          const infuraProjectId = 'some-infura-project-id';
+
+          await withController(
+            {
+              state: {
+                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                networkConfigurationsByChainId: {
+                  '0x1337': buildCustomNetworkConfiguration({
+                    chainId: '0x1337',
+                    nativeCurrency: 'TEST',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                        url: 'https://test.network',
+                      }),
+                    ],
+                  }),
+                },
+              },
+              infuraProjectId,
+            },
+            async ({ controller, messenger }) => {
+              const fakeProvider = buildFakeProvider([
+                // Called during provider initialization
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                  },
+                  response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                },
+                // Called via `lookupNetwork` directly
+                {
+                  request: {
+                    method: 'eth_getBlockByNumber',
+                  },
+                  response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                },
+              ]);
+              const fakeNetworkClient = buildFakeClient(fakeProvider);
+              mockCreateNetworkClient()
+                .calledWith({
+                  chainId: '0x1337',
+                  rpcUrl: 'https://test.network',
+                  ticker: 'TEST',
+                  type: NetworkClientType.Custom,
+                })
+                .mockReturnValue(fakeNetworkClient);
+              await controller.initializeProvider();
+
+              const lookupNetworkPromise = controller.lookupNetwork();
+              const error = new Error('oops');
+              jest
+                .spyOn(messenger, 'unsubscribe')
+                .mockImplementation((eventType) => {
+                  // This is okay.
+                  // eslint-disable-next-line jest/no-conditional-in-test
+                  if (eventType === 'NetworkController:networkDidChange') {
+                    throw error;
+                  }
+                });
+              await expect(lookupNetworkPromise).rejects.toThrow(error);
             },
           );
         });
@@ -11363,14 +11596,17 @@ describe('NetworkController', () => {
           },
         },
         async ({ controller, messenger }) => {
-
-          const stateChangePromise = new Promise<NetworkConfiguration | undefined>((resolve) => {
+          const stateChangePromise = new Promise<
+            NetworkConfiguration | undefined
+          >((resolve) => {
             messenger.subscribe('NetworkController:stateChange', (state) => {
               const { networkClientId } =
                 state.networkConfigurationsByChainId['0x1'].rpcEndpoints[1];
 
               resolve(
-                controller.getNetworkConfigurationByNetworkClientId(networkClientId),
+                controller.getNetworkConfigurationByNetworkClientId(
+                  networkClientId,
+                ),
               );
             });
           });
@@ -13020,6 +13256,24 @@ describe('getNetworkConfigurations', () => {
 
     expect(getNetworkConfigurations(state)).toStrictEqual(
       Object.values(state.networkConfigurationsByChainId),
+    );
+  });
+});
+
+describe('selectNetworkConfigurations', () => {
+  it('returns network configurations available in the state', () => {
+    const state = getDefaultNetworkControllerState();
+
+    expect(selectNetworkConfigurations(state)).toStrictEqual(
+      Object.values(state.networkConfigurationsByChainId),
+    );
+  });
+
+  it('is memoized', () => {
+    const state = getDefaultNetworkControllerState();
+
+    expect(selectNetworkConfigurations(state)).toBe(
+      selectNetworkConfigurations(state),
     );
   });
 });
