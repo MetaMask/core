@@ -293,6 +293,13 @@ export class EarnController extends BaseController<
     return convertHexToDecimal(chainId);
   }
 
+  /**
+   * Refreshes the pooled stakes data for the current account.
+   * Fetches updated stake information including lifetime rewards, assets, and exit requests
+   * from the staking API service and updates the state.
+   *
+   * @returns A promise that resolves when the stakes data has been updated
+   */
   async refreshPooledStakes(): Promise<void> {
     const currentAccount = this.#getCurrentAccount();
     if (!currentAccount?.address) {
@@ -313,6 +320,12 @@ export class EarnController extends BaseController<
     });
   }
 
+  /**
+   * Refreshes the staking eligibility status for the current account.
+   * Updates the eligibility status in the controller state based on the location and address blocklist for compliance.
+   *
+   * @returns A promise that resolves when the eligibility status has been updated
+   */
   async refreshStakingEligibility(): Promise<void> {
     const currentAccount = this.#getCurrentAccount();
     if (!currentAccount?.address) {
@@ -329,6 +342,13 @@ export class EarnController extends BaseController<
     });
   }
 
+  /**
+   * Refreshes vault data for the current chain.
+   * Updates the vault data in the controller state including APY, capacity,
+   * fee percentage, total assets, and vault address.
+   *
+   * @returns A promise that resolves when the vault data has been updated
+   */
   async refreshVaultData(): Promise<void> {
     const chainId = this.#getCurrentChainId();
     const vaultData = await this.#stakingApiService.getVaultData(chainId);
@@ -338,7 +358,14 @@ export class EarnController extends BaseController<
     });
   }
 
-  // Initial load helper that allows partial success
+  /**
+   * Refreshes all pooled staking related data including stakes, eligibility, and vault data.
+   * This method allows partial success, meaning some data may update while other requests fail.
+   * All errors are collected and thrown as a single error message.
+   *
+   * @returns A promise that resolves when all possible data has been updated
+   * @throws {Error} If any of the refresh operations fail, with concatenated error messages
+   */
   async refreshPooledStakingData(): Promise<void> {
     const errors: Error[] = [];
 
