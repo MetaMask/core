@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
   convertHexToDecimal,
@@ -240,7 +240,7 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetEIP1559CompatibilityAction;
 
-type GasFeeMessenger = RestrictedControllerMessenger<
+type GasFeeMessenger = RestrictedMessenger<
   typeof name,
   GasFeeControllerActions | AllowedActions,
   GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
