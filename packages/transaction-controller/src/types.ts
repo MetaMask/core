@@ -221,6 +221,11 @@ type TransactionMetaBase = {
   layer1GasFee?: Hex;
 
   /**
+   * Nested transaction parameters, used by batch transactions via EIP-7702 delegation.
+   */
+  nestedTransactions?: NestedTransactionParams[];
+
+  /**
    * The ID of the network client used by the transaction.
    */
   networkClientId: NetworkClientId;
@@ -563,6 +568,11 @@ export enum WalletDevice {
  * The type of the transaction.
  */
 export enum TransactionType {
+  /**
+   * Transaction is a batch of multiple logical transactions, supported by an EIP-7702 delegation.
+   */
+  batch = 'batch',
+
   /**
    * A transaction that bridges tokens to a different chain through Metamask Bridge.
    */
@@ -1377,7 +1387,14 @@ export type InternalAccount = ReturnType<
   AccountsController['getSelectedAccount']
 >;
 
+export type NestedTransactionParams = {
+  data?: string;
+  to?: string;
+  value?: string;
+};
+
 export type TransactionBatchEntryRequest = {
+  nestedTransactions?: NestedTransactionParams[];
   params: TransactionParams;
   required?: boolean;
   swaps?: {
@@ -1407,7 +1424,6 @@ export type TransactionBatchResult = {
 };
 
 export type TransactionBatchApprovalData = {
-  accountUpgradeRequired?: boolean;
   chainId: Hex;
   networkClientId: string;
   transactions: TransactionParams[];

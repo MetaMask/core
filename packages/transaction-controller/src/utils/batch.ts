@@ -29,7 +29,11 @@ import type {
   TransactionBatchResult,
   TransactionMeta,
 } from '../types';
-import { TransactionEnvelopeType, TransactionStatus } from '../types';
+import {
+  TransactionEnvelopeType,
+  TransactionStatus,
+  TransactionType,
+} from '../types';
 
 export const APPROVAL_TYPE_TRANSACTION_BATCH = 'transaction_batch';
 
@@ -89,18 +93,18 @@ export async function addTransactionBatch(
 
   log('Validated', requests);
 
-  if (requireApproval !== false) {
-    await createApprovalRequest(request);
-  }
-
   const normalizedRequest = await normalizeRequest(request);
+  const finalRequests = normalizedRequest.userRequest.requests;
+
+  if (requireApproval !== false && finalRequests.length > 1) {
+    await createApprovalRequest(normalizedRequest);
+  }
 
   const { publishAllPromise, publishHook, publishPromises, signedTxs } =
     await buildCollectorPublishHook(normalizedRequest);
 
   const finalPublishHook = publishBatch ? publishHook : undefined;
   const rawResults: ProcessTransactionResult[] = [];
-  const finalRequests = normalizedRequest.userRequest.requests;
 
   for (let index = 0; index < finalRequests.length; index++) {
     const result = await processTransaction(
@@ -212,15 +216,19 @@ async function addTransaction(
   const { addTransaction: controllerAddTransaction, userRequest } = request;
   const { networkClientId, requests, traceContext } = userRequest;
   const entry = requests[index];
-  const { params, swaps, type } = entry;
+  const { nestedTransactions, params, swaps, type: originalType } = entry;
 
   log('Adding transaction', index, params);
 
+  const requireApproval = requests.length === 1;
+  const type = requireApproval ? TransactionType.batch : originalType;
+
   try {
     const addResult = await controllerAddTransaction(params, {
+      nestedTransactions,
       networkClientId,
       publishHook,
-      requireApproval: false,
+      requireApproval,
       swaps,
       traceContext,
       type,
@@ -264,19 +272,13 @@ async function waitForConfirmation(
 }
 
 async function createApprovalRequest(request: AddTransactionBatchRequest) {
-  const { getChainId, getEthQuery, messenger, userRequest } = request;
+  const { getChainId, messenger, userRequest } = request;
   const { networkClientId, origin, requests } = userRequest;
 
   const transactions = requests.map((entry) => entry.params);
-  const { from } = transactions[0];
-  const ethQuery = getEthQuery({ networkClientId });
-  const isSmartAccount = await has7702Delegation(from, ethQuery);
   const chainId = getChainId(networkClientId);
-  const is7702Supported = await supports7702(chainId);
-  const accountUpgradeRequired = !isSmartAccount && is7702Supported;
 
   const requestData: TransactionBatchApprovalData = {
-    accountUpgradeRequired,
     chainId,
     networkClientId,
     transactions,
@@ -355,6 +357,7 @@ async function normalizeRequest(
   releaseLock?.();
 
   const nextNonce = toHex(parseInt(nonce, 16) + 1);
+  const nestedTransactions = requests.map((entry) => entry.params);
 
   let params7702 = get7702Transaction(userRequest);
 
@@ -372,7 +375,12 @@ async function normalizeRequest(
     ...request,
     userRequest: {
       ...userRequest,
-      requests: [{ params: params7702 }],
+      requests: [
+        {
+          nestedTransactions,
+          params: params7702,
+        },
+      ],
     },
   };
 }

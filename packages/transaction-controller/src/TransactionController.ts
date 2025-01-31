@@ -89,6 +89,7 @@ import type {
   SubmitHistoryEntry,
   TransactionBatchRequest,
   TransactionBatchResult,
+  NestedTransactionParams,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -974,6 +975,7 @@ export class TransactionController extends BaseController<
    * @param options.actionId - Unique ID to prevent duplicate requests.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.method - RPC method that requested the transaction.
+   * @param options.nestedTransactions - Nested transactions.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
    * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param options.securityAlertResponse - Response from security validator.
@@ -993,6 +995,7 @@ export class TransactionController extends BaseController<
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
       method?: string;
+      nestedTransactions?: NestedTransactionParams[];
       networkClientId: NetworkClientId;
       origin?: string;
       publishHook?: PublishHook;
@@ -1014,6 +1017,7 @@ export class TransactionController extends BaseController<
       deviceConfirmedOn,
       method,
       networkClientId,
+      nestedTransactions,
       origin,
       publishHook,
       requireApproval,
@@ -1070,6 +1074,7 @@ export class TransactionController extends BaseController<
           id: random(),
           isFirstTimeInteraction: undefined,
           networkClientId,
+          nestedTransactions,
           origin,
           securityAlertResponse,
           status: TransactionStatus.unapproved as const,
