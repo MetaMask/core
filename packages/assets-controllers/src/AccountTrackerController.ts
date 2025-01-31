@@ -7,7 +7,7 @@ import type {
 import type {
   ControllerStateChangeEvent,
   ControllerGetStateAction,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
   query,
@@ -119,7 +119,7 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link AccountTrackerController}.
  */
-export type AccountTrackerControllerMessenger = RestrictedControllerMessenger<
+export type AccountTrackerControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AccountTrackerControllerActions | AllowedActions,
   AccountTrackerControllerEvents | AllowedEvents,

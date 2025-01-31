@@ -85,7 +85,7 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
     });
   });
 
-  it(`should emit a warning if controller messenger is missing the NetworkController:networkRemoved event`, async () => {
+  it(`should emit a warning if messenger is missing the NetworkController:networkRemoved event`, async () => {
     // arrange without setting event permissions
     const { props } = arrangeMocks();
     const { messenger } = mockUserStorageMessenger(

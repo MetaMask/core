@@ -11,7 +11,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -262,7 +262,7 @@ export type PendingTransactionOptions = {
  * @property getSelectedAddress - Gets the address of the currently selected account.
  * @property incomingTransactions - Configuration options for incoming transaction support.
  * @property isSimulationEnabled - Whether new transactions will be automatically simulated.
- * @property messenger - The controller messenger.
+ * @property messenger - The messenger.
  * @property pendingTransactions - Configuration options for pending transaction support.
  * @property securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
  * @property sign - Function used to sign transactions.
@@ -539,7 +539,7 @@ export type TransactionControllerEvents =
 /**
  * The messenger of the {@link TransactionController}.
  */
-export type TransactionControllerMessenger = RestrictedControllerMessenger<
+export type TransactionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TransactionControllerActions | AllowedActions,
   TransactionControllerEvents | AllowedEvents,
@@ -745,7 +745,7 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isFirstTimeInteractionEnabled - Whether first time interaction checks are enabled.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    * @param options.pendingTransactions - Configuration options for pending transaction support.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.sign - Function used to sign transactions.
@@ -1016,9 +1016,8 @@ export class TransactionController extends BaseController<
       );
     }
 
-    const isEIP1559Compatible = await this.getEIP1559Compatibility(
-      networkClientId,
-    );
+    const isEIP1559Compatible =
+      await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
 

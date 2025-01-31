@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
@@ -956,7 +956,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('is callable from the controller messenger', async () => {
+    it('is callable from the messenger', async () => {
       await withController(
         { infuraProjectId: 'some-infura-project-id' },
         async ({ messenger }) => {
@@ -2267,7 +2267,7 @@ describe('NetworkController', () => {
       });
     });
 
-    it('is callable from the controller messenger', async () => {
+    it('is callable from the messenger', async () => {
       await withController({}, async ({ controller, messenger }) => {
         const fakeProvider = buildFakeProvider();
         const fakeNetworkClient = buildFakeClient(fakeProvider);
@@ -2923,10 +2923,7 @@ describe('NetworkController', () => {
         messenger,
         chainId,
       }: {
-        messenger: ControllerMessenger<
-          NetworkControllerActions,
-          NetworkControllerEvents
-        >;
+        messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
         chainId: Hex;
       }) =>
         messenger.call(
@@ -3041,10 +3038,7 @@ describe('NetworkController', () => {
         messenger,
         networkClientId,
       }: {
-        messenger: ControllerMessenger<
-          NetworkControllerActions,
-          NetworkControllerEvents
-        >;
+        messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
         networkClientId: NetworkClientId;
       }) =>
         messenger.call(
@@ -4091,7 +4085,7 @@ describe('NetworkController', () => {
         });
       });
 
-      it('is callable from the controller messenger', async () => {
+      it('is callable from the messenger', async () => {
         uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
 
         await withController(({ messenger }) => {
@@ -4831,7 +4825,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('is callable from the controller messenger', async () => {
+    it('is callable from the messenger', async () => {
       const originalNetwork = buildCustomNetworkConfiguration({
         chainId: '0x1337',
         rpcEndpoints: [
@@ -11840,7 +11834,7 @@ describe('NetworkController', () => {
         );
       });
 
-      it('is callable from the controller messenger', async () => {
+      it('is callable from the messenger', async () => {
         await withController(
           {
             state: {
@@ -14384,22 +14378,19 @@ function lookupNetworkTests({
 }
 
 /**
- * Build a controller messenger that includes all events used by the network
+ * Build a messenger that includes all events used by the network
  * controller.
  *
- * @returns The controller messenger.
+ * @returns The messenger.
  */
 function buildMessenger() {
-  return new ControllerMessenger<
-    NetworkControllerActions,
-    NetworkControllerEvents
-  >();
+  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
 }
 
 /**
- * Build a restricted controller messenger for the network controller.
+ * Build a restricted messenger for the network controller.
  *
- * @param messenger - A controller messenger.
+ * @param messenger - A messenger.
  * @returns The network controller restricted messenger.
  */
 function buildNetworkControllerMessenger(messenger = buildMessenger()) {
@@ -14414,10 +14405,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
   controller: NetworkController;
-  messenger: ControllerMessenger<
-    NetworkControllerActions,
-    NetworkControllerEvents
-  >;
+  messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<NetworkControllerOptions>;
@@ -14589,10 +14577,7 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
     // do nothing
   },
 }: {
-  messenger: ControllerMessenger<
-    NetworkControllerActions,
-    NetworkControllerEvents
-  >;
+  messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
   eventType: E['type'];
   count?: number;
   filter?: (payload: E['payload']) => boolean;
@@ -14723,10 +14708,7 @@ async function waitForStateChanges({
   operation,
   beforeResolving,
 }: {
-  messenger: ControllerMessenger<
-    NetworkControllerActions,
-    NetworkControllerEvents
-  >;
+  messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
   propertyPath?: string[];
   count?: number;
   wait?: number;

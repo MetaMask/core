@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
   convertHexToDecimal,
@@ -240,7 +240,7 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetEIP1559CompatibilityAction;
 
-type GasFeeMessenger = RestrictedControllerMessenger<
+type GasFeeMessenger = RestrictedMessenger<
   typeof name,
   GasFeeControllerActions | AllowedActions,
   GasFeeControllerEvents | NetworkControllerNetworkDidChangeEvent,
@@ -300,7 +300,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
    *
    * @param options - The controller options.
    * @param options.interval - The time in milliseconds to wait between polls.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    * @param options.state - The initial state.
    * @param options.getCurrentNetworkEIP1559Compatibility - Determines whether or not the current
    * network is EIP-1559 compatible.

@@ -2,7 +2,7 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   ExtractEventPayload,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
@@ -200,7 +200,7 @@ export type AccountsControllerEvents =
   | AccountsControllerAccountTransactionsUpdatedEvent
   | AccountsControllerAccountAssetListUpdatedEvent;
 
-export type AccountsControllerMessenger = RestrictedControllerMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AccountsControllerActions | AllowedActions,
   AccountsControllerEvents | AllowedEvents,
@@ -543,40 +543,45 @@ export class AccountsController extends BaseController<
     const accounts: Record<string, InternalAccount> = [
       ...normalAccounts,
       ...snapAccounts,
-    ].reduce((internalAccountMap, internalAccount) => {
-      const keyringTypeName = keyringTypeToName(
-        internalAccount.metadata.keyring.type,
-      );
-      const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
-      if (keyringAccountIndex) {
-        keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
-      } else {
-        keyringTypes.set(keyringTypeName, 1);
-      }
+    ].reduce(
+      (internalAccountMap, internalAccount) => {
+        const keyringTypeName = keyringTypeToName(
+          internalAccount.metadata.keyring.type,
+        );
+        const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
+        if (keyringAccountIndex) {
+          keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
+        } else {
+          keyringTypes.set(keyringTypeName, 1);
+        }
 
-      const existingAccount = previousAccounts[internalAccount.id];
+        const existingAccount = previousAccounts[internalAccount.id];
 
-      internalAccountMap[internalAccount.id] = {
-        ...internalAccount,
+        internalAccountMap[internalAccount.id] = {
+          ...internalAccount,
 
-        metadata: {
-          ...internalAccount.metadata,
-          name:
-            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
-            `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          importTime:
-            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
-            Date.now(),
-          lastSelected:
-            this.#populateExistingMetadata(
-              existingAccount?.id,
-              'lastSelected',
-            ) ?? 0,
-        },
-      };
+          metadata: {
+            ...internalAccount.metadata,
+            name:
+              this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+              `${keyringTypeName} ${keyringAccountIndex + 1}`,
+            importTime:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'importTime',
+              ) ?? Date.now(),
+            lastSelected:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'lastSelected',
+              ) ?? 0,
+          },
+        };
 
-      return internalAccountMap;
-    }, {} as Record<string, InternalAccount>);
+        return internalAccountMap;
+      },
+      {} as Record<string, InternalAccount>,
+    );
 
     this.update((currentState: Draft<AccountsControllerState>) => {
       currentState.internalAccounts.accounts = accounts;

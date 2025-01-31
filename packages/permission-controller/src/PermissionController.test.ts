@@ -4,7 +4,7 @@ import type {
   HasApprovalRequest,
   RejectRequest as RejectApprovalRequest,
 } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
@@ -566,19 +566,19 @@ type AddPermissionRequestParams = {
 type AddPermissionRequestArgs = [string, AddPermissionRequestParams];
 
 /**
- * Gets a unrestricted controller messenger. Used for tests.
+ * Gets a unrestricted messenger. Used for tests.
  *
  * @returns The unrestricted messenger.
  */
 function getUnrestrictedMessenger() {
-  return new ControllerMessenger<
+  return new Messenger<
     PermissionControllerActions | AllowedActions,
     PermissionControllerEvents
   >();
 }
 
 /**
- * Gets a restricted controller messenger.
+ * Gets a restricted messenger.
  * Used as a default in {@link getPermissionControllerOptions}.
  *
  * @param messenger - Optional parameter to pass in a messenger

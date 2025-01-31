@@ -2,7 +2,7 @@ import {
   BaseController,
   type ControllerStateChangeEvent,
   type ControllerGetStateAction,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
@@ -174,7 +174,7 @@ export type PreferencesControllerEvents = PreferencesControllerStateChangeEvent;
 
 export type AllowedEvents = KeyringControllerStateChangeEvent;
 
-export type PreferencesControllerMessenger = RestrictedControllerMessenger<
+export type PreferencesControllerMessenger = RestrictedMessenger<
   typeof name,
   PreferencesControllerActions,
   PreferencesControllerEvents | AllowedEvents,
@@ -248,7 +248,7 @@ export class PreferencesController extends BaseController<
    * Creates a PreferencesController instance.
    *
    * @param args - Arguments
-   * @param args.messenger - The preferences controller messenger.
+   * @param args.messenger - The preferences messenger.
    * @param args.state - Preferences controller state.
    */
   constructor({

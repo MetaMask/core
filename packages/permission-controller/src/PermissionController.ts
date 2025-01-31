@@ -7,7 +7,7 @@ import type {
 } from '@metamask/approval-controller';
 import type {
   StateMetadata,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ActionConstraint,
   EventConstraint,
   ControllerGetStateAction,
@@ -356,7 +356,7 @@ export type GetEndowments = {
 };
 
 /**
- * The {@link ControllerMessenger} actions of the {@link PermissionController}.
+ * The {@link Messenger} actions of the {@link PermissionController}.
  */
 export type PermissionControllerActions =
   | ClearPermissions
@@ -384,7 +384,7 @@ export type PermissionControllerStateChange = ControllerStateChangeEvent<
 >;
 
 /**
- * The {@link ControllerMessenger} events of the {@link PermissionController}.
+ * The {@link Messenger} events of the {@link PermissionController}.
  *
  * The permission controller only emits its generic state change events.
  * Consumers should use selector subscriptions to subscribe to relevant
@@ -393,7 +393,7 @@ export type PermissionControllerStateChange = ControllerStateChangeEvent<
 export type PermissionControllerEvents = PermissionControllerStateChange;
 
 /**
- * The external {@link ControllerMessenger} actions available to the
+ * The external {@link Messenger} actions available to the
  * {@link PermissionController}.
  */
 type AllowedActions =
@@ -406,7 +406,7 @@ type AllowedActions =
 /**
  * The messenger of the {@link PermissionController}.
  */
-export type PermissionControllerMessenger = RestrictedControllerMessenger<
+export type PermissionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   PermissionControllerActions | AllowedActions,
   PermissionControllerEvents,
@@ -417,7 +417,7 @@ export type PermissionControllerMessenger = RestrictedControllerMessenger<
 export type SideEffectMessenger<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
-> = RestrictedControllerMessenger<
+> = RestrictedMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events,
@@ -487,12 +487,13 @@ type MergeCaveatResult<CaveatType extends CaveatConstraint | undefined> =
 export type ExtractPermission<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint,
   ControllerCaveatSpecification extends CaveatSpecificationConstraint,
-> = ControllerPermissionSpecification extends ValidPermissionSpecification<ControllerPermissionSpecification>
-  ? ValidPermission<
-      ControllerPermissionSpecification['targetName'],
-      ExtractCaveats<ControllerCaveatSpecification>
-    >
-  : never;
+> =
+  ControllerPermissionSpecification extends ValidPermissionSpecification<ControllerPermissionSpecification>
+    ? ValidPermission<
+        ControllerPermissionSpecification['targetName'],
+        ExtractCaveats<ControllerCaveatSpecification>
+      >
+    : never;
 
 /**
  * Extracts the restricted method permission(s) specified by the given
@@ -565,7 +566,7 @@ export type PermissionControllerOptions<
  * document for details.
  *
  * Assumes the existence of an {@link ApprovalController} reachable via the
- * {@link ControllerMessenger}.
+ * {@link Messenger}.
  *
  * @template ControllerPermissionSpecification - A union of the types of all
  * permission specifications available to the controller. Any referenced caveats
@@ -629,7 +630,7 @@ export class PermissionController<
    * {@link PermissionSpecificationMap} and the README for more details.
    * @param options.unrestrictedMethods - The callable names of all JSON-RPC
    * methods ignored by the new controller.
-   * @param options.messenger - The controller messenger. See
+   * @param options.messenger - The messenger. See
    * {@link BaseController} for more information.
    * @param options.state - Existing state to hydrate the controller with at
    * initialization.
@@ -1198,7 +1199,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): boolean {
     return Boolean(this.getCaveat(origin, target, caveatType));
   }
@@ -1223,7 +1225,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1263,7 +1266,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1300,7 +1304,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
     CaveatValue extends ExtractCaveatValue<
       ControllerCaveatSpecification,
       CaveatType
@@ -1341,7 +1346,8 @@ export class PermissionController<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
     >['parentCapability'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(
     origin: OriginString,
     target: TargetName,
@@ -1512,7 +1518,8 @@ export class PermissionController<
    */
   removeCaveat<
     TargetName extends ControllerPermissionSpecification['targetName'],
-    CaveatType extends ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
+    CaveatType extends
+      ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
   >(origin: OriginString, target: TargetName, caveatType: CaveatType): void {
     this.update((draftState) => {
       const permission = draftState.subjects[origin]?.permissions[target];

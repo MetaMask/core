@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
@@ -45,7 +45,7 @@ const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
 /**
  * Creates a controller instance with default parameters for testing
  * @param options - The controller configuration options
- * @param options.messenger - The controller messenger instance
+ * @param options.messenger - The messenger instance
  * @param options.state - The initial controller state
  * @param options.clientConfigApiService - The client config API service instance
  * @param options.disabled - Whether the controller should start disabled
@@ -61,7 +61,7 @@ function createController(
   }> = {},
 ) {
   return new RemoteFeatureFlagController({
-    messenger: getControllerMessenger(),
+    messenger: getMessenger(),
     state: options.state,
     clientConfigApiService:
       options.clientConfigApiService ?? buildClientConfigApiService(),
@@ -346,22 +346,19 @@ type RootAction = RemoteFeatureFlagControllerActions;
 type RootEvent = RemoteFeatureFlagControllerStateChangeEvent;
 
 /**
- * Creates and returns a root controller messenger for testing
- * @returns A controller messenger instance
+ * Creates and returns a root messenger for testing
+ * @returns A messenger instance
  */
-function getRootControllerMessenger(): ControllerMessenger<
-  RootAction,
-  RootEvent
-> {
-  return new ControllerMessenger<RootAction, RootEvent>();
+function getRootControllerMessenger(): Messenger<RootAction, RootEvent> {
+  return new Messenger<RootAction, RootEvent>();
 }
 
 /**
- * Creates a restricted controller messenger for testing
+ * Creates a restricted messenger for testing
  * @param rootMessenger - The root messenger to restrict
- * @returns A restricted controller messenger instance
+ * @returns A restricted messenger instance
  */
-function getControllerMessenger(
+function getMessenger(
   rootMessenger = getRootControllerMessenger(),
 ): RemoteFeatureFlagControllerMessenger {
   return rootMessenger.getRestricted({

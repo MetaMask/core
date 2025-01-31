@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -122,7 +122,7 @@ export const getDefaultAddressBookControllerState =
 /**
  * The messenger of the {@link AddressBookController} for communication.
  */
-export type AddressBookControllerMessenger = RestrictedControllerMessenger<
+export type AddressBookControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AddressBookControllerActions,
   AddressBookControllerEvents,
@@ -142,7 +142,7 @@ export class AddressBookController extends BaseController<
    * Creates an AddressBookController instance.
    *
    * @param args - The {@link AddressBookController} arguments.
-   * @param args.messenger - The controller messenger instance for communication.
+   * @param args.messenger - The messenger instance for communication.
    * @param args.state - Initial state to set on this controller.
    */
   constructor({
