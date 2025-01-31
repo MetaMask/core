@@ -18,7 +18,7 @@ export const multichainNetworkConfigurations: Record<string, MultichainNetworkCo
 
     blockExplorerUrls: [],
 
-    nativeAsset: btcNativeAsset,
+    nativeCurrency: btcNativeAsset,
 
     isEvm: false,
   },
@@ -29,7 +29,7 @@ export const multichainNetworkConfigurations: Record<string, MultichainNetworkCo
 
     blockExplorerUrls: [],
 
-    nativeAsset: solNativeAsset,
+    nativeCurrency: solNativeAsset,
 
     isEvm: false,
   },
