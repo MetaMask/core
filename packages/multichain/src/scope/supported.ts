@@ -125,10 +125,7 @@ export const isSupportedMethod = (
 
   if (namespace === KnownCaipNamespace.Wallet) {
     if (reference) {
-      if ( reference === KnownCaipNamespace.Wallet
-      ) {
-        return false;
-      } else if (reference === KnownCaipNamespace.Eip155) {
+      if (reference === KnownCaipNamespace.Eip155) {
         return KnownWalletNamespaceRpcMethods[reference].includes(method);
       } else {
         return isSupportedNonEvmMethod()
