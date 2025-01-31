@@ -82,7 +82,6 @@ export function AbstractPollingControllerBaseMixin<
         const callbacks = this.#callbacks.get(keyToDelete);
         if (callbacks) {
           for (const callback of callbacks) {
-            // eslint-disable-next-line n/callback-return
             callback(JSON.parse(keyToDelete));
           }
           callbacks.clear();

@@ -2,13 +2,19 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
+  ExtractEventPayload,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  SnapKeyringAccountAssetListUpdatedEvent,
+  SnapKeyringAccountBalancesUpdatedEvent,
+  SnapKeyringAccountTransactionsUpdatedEvent,
+} from '@metamask/eth-snap-keyring';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   EthAccountType,
   EthMethod,
-  EthScopes,
+  EthScope,
   isEvmAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -161,7 +167,27 @@ export type AccountsControllerAccountRenamedEvent = {
   payload: [InternalAccount];
 };
 
-export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
+export type AccountsControllerAccountBalancesUpdatesEvent = {
+  type: `${typeof controllerName}:accountBalancesUpdated`;
+  payload: SnapKeyringAccountBalancesUpdatedEvent['payload'];
+};
+
+export type AccountsControllerAccountTransactionsUpdatedEvent = {
+  type: `${typeof controllerName}:accountTransactionsUpdated`;
+  payload: SnapKeyringAccountTransactionsUpdatedEvent['payload'];
+};
+
+export type AccountsControllerAccountAssetListUpdatedEvent = {
+  type: `${typeof controllerName}:accountAssetListUpdated`;
+  payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
+};
+
+export type AllowedEvents =
+  | SnapStateChange
+  | KeyringControllerStateChangeEvent
+  | SnapKeyringAccountAssetListUpdatedEvent
+  | SnapKeyringAccountBalancesUpdatedEvent
+  | SnapKeyringAccountTransactionsUpdatedEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
@@ -169,7 +195,10 @@ export type AccountsControllerEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountRenamedEvent;
+  | AccountsControllerAccountRenamedEvent
+  | AccountsControllerAccountBalancesUpdatesEvent
+  | AccountsControllerAccountTransactionsUpdatedEvent
+  | AccountsControllerAccountAssetListUpdatedEvent;
 
 export type AccountsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -204,7 +233,7 @@ export const EMPTY_ACCOUNT = {
   options: {},
   methods: [],
   type: EthAccountType.Eoa,
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   metadata: {
     name: '',
     keyring: {
@@ -259,6 +288,33 @@ export class AccountsController extends BaseController<
     this.messagingSystem.subscribe(
       'KeyringController:stateChange',
       (keyringState) => this.#handleOnKeyringStateChange(keyringState),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountAssetListUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountAssetListUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountBalancesUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountBalancesUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountTransactionsUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountTransactionsUpdated',
+          snapAccountEvent,
+        ),
     );
 
     this.#registerMessageHandlers();
@@ -487,40 +543,45 @@ export class AccountsController extends BaseController<
     const accounts: Record<string, InternalAccount> = [
       ...normalAccounts,
       ...snapAccounts,
-    ].reduce((internalAccountMap, internalAccount) => {
-      const keyringTypeName = keyringTypeToName(
-        internalAccount.metadata.keyring.type,
-      );
-      const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
-      if (keyringAccountIndex) {
-        keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
-      } else {
-        keyringTypes.set(keyringTypeName, 1);
-      }
+    ].reduce(
+      (internalAccountMap, internalAccount) => {
+        const keyringTypeName = keyringTypeToName(
+          internalAccount.metadata.keyring.type,
+        );
+        const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
+        if (keyringAccountIndex) {
+          keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
+        } else {
+          keyringTypes.set(keyringTypeName, 1);
+        }
 
-      const existingAccount = previousAccounts[internalAccount.id];
+        const existingAccount = previousAccounts[internalAccount.id];
 
-      internalAccountMap[internalAccount.id] = {
-        ...internalAccount,
+        internalAccountMap[internalAccount.id] = {
+          ...internalAccount,
 
-        metadata: {
-          ...internalAccount.metadata,
-          name:
-            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
-            `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          importTime:
-            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
-            Date.now(),
-          lastSelected:
-            this.#populateExistingMetadata(
-              existingAccount?.id,
-              'lastSelected',
-            ) ?? 0,
-        },
-      };
+          metadata: {
+            ...internalAccount.metadata,
+            name:
+              this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+              `${keyringTypeName} ${keyringAccountIndex + 1}`,
+            importTime:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'importTime',
+              ) ?? Date.now(),
+            lastSelected:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'lastSelected',
+              ) ?? 0,
+          },
+        };
 
-      return internalAccountMap;
-    }, {} as Record<string, InternalAccount>);
+        return internalAccountMap;
+      },
+      {} as Record<string, InternalAccount>,
+    );
 
     this.update((currentState: Draft<AccountsControllerState>) => {
       currentState.internalAccounts.accounts = accounts;
@@ -584,7 +645,7 @@ export class AccountsController extends BaseController<
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ],
-      scopes: [EthScopes.Namespace],
+      scopes: [EthScope.Eoa],
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
@@ -659,7 +720,7 @@ export class AccountsController extends BaseController<
           EthMethod.SignTypedDataV3,
           EthMethod.SignTypedDataV4,
         ],
-        scopes: [EthScopes.Namespace],
+        scopes: [EthScope.Eoa],
         type: EthAccountType.Eoa,
         metadata: {
           name: this.#populateExistingMetadata(id, 'name') ?? '',
@@ -675,6 +736,23 @@ export class AccountsController extends BaseController<
     }
 
     return internalAccounts;
+  }
+
+  /**
+   * Re-publish an account event.
+   *
+   * @param event - The event type. This is a unique identifier for this event.
+   * @param payload - The event payload. The type of the parameters for each event handler must
+   * match the type of this payload.
+   * @template EventType - A Snap keyring event type.
+   */
+  #handleOnSnapKeyringAccountEvent<
+    EventType extends AccountsControllerEvents['type'],
+  >(
+    event: EventType,
+    ...payload: ExtractEventPayload<AccountsControllerEvents, EventType>
+  ): void {
+    this.messagingSystem.publish(event, ...payload);
   }
 
   /**
