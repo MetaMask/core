@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -18,16 +18,16 @@ import { CurrencyRateController } from './CurrencyRateController';
 const name = 'CurrencyRateController' as const;
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a restricted messenger.
  *
- * @returns A restricted controller messenger.
+ * @returns A restricted messenger.
  */
 function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     GetCurrencyRateState | NetworkControllerGetNetworkClientByIdAction,
     CurrencyRateStateChange
   >();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     jest.fn().mockImplementation((networkClientId) => {
       switch (networkClientId) {
@@ -52,7 +52,7 @@ function getRestrictedMessenger() {
       }
     }),
   );
-  const messenger = controllerMessenger.getRestricted<
+  return messenger.getRestricted<
     typeof name,
     NetworkControllerGetNetworkClientByIdAction['type']
   >({
@@ -60,7 +60,6 @@ function getRestrictedMessenger() {
     allowedActions: ['NetworkController:getNetworkClientById'],
     allowedEvents: [],
   });
-  return messenger;
 }
 
 const getStubbedDate = () => {

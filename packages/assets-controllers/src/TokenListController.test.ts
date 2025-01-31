@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -494,25 +494,21 @@ const expiredCacheExistingState: TokenListState = {
   preventPollingOnNetworkRestart: false,
 };
 
-type MainControllerMessenger = ControllerMessenger<
+type MainMessenger = Messenger<
   ExtractAvailableAction<TokenListControllerMessenger>,
   ExtractAvailableEvent<TokenListControllerMessenger>
 >;
 
-const getControllerMessenger = (): MainControllerMessenger => {
-  return new ControllerMessenger();
+const getMessenger = (): MainMessenger => {
+  return new Messenger();
 };
 
-const getRestrictedMessenger = (
-  controllerMessenger: MainControllerMessenger,
-) => {
-  const messenger = controllerMessenger.getRestricted({
+const getRestrictedMessenger = (messenger: MainMessenger) => {
+  return messenger.getRestricted({
     name,
     allowedActions: ['NetworkController:getNetworkClientById'],
     allowedEvents: ['NetworkController:stateChange'],
   });
-
-  return messenger;
 };
 
 describe('TokenListController', () => {
@@ -522,12 +518,12 @@ describe('TokenListController', () => {
   });
 
   it('should set default state', async () => {
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
     });
 
     expect(controller.state).toStrictEqual({
@@ -537,18 +533,16 @@ describe('TokenListController', () => {
     });
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions(
-      'NetworkController:stateChange',
-    );
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should initialize with initial state', () => {
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       state: existingState,
     });
     expect(controller.state).toStrictEqual({
@@ -586,17 +580,15 @@ describe('TokenListController', () => {
     });
 
     controller.destroy();
-    controllerMessenger.clearEventSubscriptions(
-      'NetworkController:stateChange',
-    );
+    messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should initiate without preventPollingOnNetworkRestart', async () => {
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      messenger,
+      messenger: restrictedMessenger,
     });
 
     expect(controller.state).toStrictEqual({
@@ -609,13 +601,13 @@ describe('TokenListController', () => {
   });
 
   it('should not poll before being started', async () => {
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
-      messenger,
+      messenger: restrictedMessenger,
     });
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
@@ -630,24 +622,24 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .persist();
     const selectedNetworkClientId = 'selectedNetworkClientId';
-    const controllerMessenger = getControllerMessenger();
+    const messenger = getMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById({
       [selectedNetworkClientId]: buildCustomNetworkClientConfiguration({
         chainId: toHex(1337),
       }),
     });
-    controllerMessenger.registerActionHandler(
+    messenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientById,
     );
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
       preventPollingOnNetworkRestart: false,
       interval: 100,
-      messenger,
+      messenger: restrictedMessenger,
     });
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -675,13 +667,13 @@ describe('TokenListController', () => {
       'fetchTokenList',
     );
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
-      messenger,
+      messenger: restrictedMessenger,
     });
     await controller.start();
 
@@ -700,13 +692,13 @@ describe('TokenListController', () => {
       'fetchTokenList',
     );
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
-      messenger,
+      messenger: restrictedMessenger,
     });
     await controller.start();
     controller.stop();
@@ -727,14 +719,14 @@ describe('TokenListController', () => {
       'fetchTokenList',
     );
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
 
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
-      messenger,
+      messenger: restrictedMessenger,
     });
     await controller.start();
     controller.stop();
@@ -758,13 +750,13 @@ describe('TokenListController', () => {
       'fetchTokenList',
     );
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
       interval: 100,
-      messenger,
+      messenger: restrictedMessenger,
     });
     await controller.start();
     controller.stop();
@@ -780,13 +772,13 @@ describe('TokenListController', () => {
       'fetchTokenList',
     );
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.sepolia,
       preventPollingOnNetworkRestart: false,
       interval: 100,
-      messenger,
+      messenger: restrictedMessenger,
     });
     await controller.start();
     controller.stop();
@@ -804,12 +796,12 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .persist();
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       interval: 750,
     });
     await controller.start();
@@ -847,12 +839,12 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .persist();
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       interval: 100,
       state: existingState,
     });
@@ -869,12 +861,12 @@ describe('TokenListController', () => {
   });
 
   it('should update token list from cache before reaching the threshold time', async () => {
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       state: existingState,
     });
     expect(controller.state).toStrictEqual(existingState);
@@ -897,12 +889,12 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .persist();
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       state: outdatedExistingState,
     });
     expect(controller.state).toStrictEqual(outdatedExistingState);
@@ -925,12 +917,12 @@ describe('TokenListController', () => {
       .reply(200, sampleMainnetTokenList)
       .persist();
 
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       state: expiredCacheExistingState,
     });
     expect(controller.state).toStrictEqual(expiredCacheExistingState);
@@ -959,7 +951,7 @@ describe('TokenListController', () => {
       .reply(200, sampleBinanceTokenList)
       .persist();
     const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
-    const controllerMessenger = getControllerMessenger();
+    const messenger = getMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById({
       [InfuraNetworkType.goerli]: buildInfuraNetworkClientConfiguration(
         InfuraNetworkType.goerli,
@@ -968,15 +960,15 @@ describe('TokenListController', () => {
         chainId: toHex(56),
       }),
     });
-    controllerMessenger.registerActionHandler(
+    messenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientById,
     );
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       state: existingState,
       interval: 100,
     });
@@ -992,7 +984,7 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
 
-    controllerMessenger.publish(
+    messenger.publish(
       'NetworkController:stateChange',
       {
         selectedNetworkClientId: InfuraNetworkType.goerli,
@@ -1013,7 +1005,7 @@ describe('TokenListController', () => {
       sampleTwoChainState.tokensChainsCache[ChainId.mainnet].data,
     );
 
-    controllerMessenger.publish(
+    messenger.publish(
       'NetworkController:stateChange',
       {
         selectedNetworkClientId: selectedCustomNetworkClientId,
@@ -1044,12 +1036,12 @@ describe('TokenListController', () => {
   });
 
   it('should clear the tokenList and tokensChainsCache', async () => {
-    const controllerMessenger = getControllerMessenger();
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
       preventPollingOnNetworkRestart: false,
-      messenger,
+      messenger: restrictedMessenger,
       state: existingState,
     });
     expect(controller.state).toStrictEqual(existingState);
@@ -1072,7 +1064,7 @@ describe('TokenListController', () => {
       .persist();
 
     const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
-    const controllerMessenger = getControllerMessenger();
+    const messenger = getMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById({
       [InfuraNetworkType.mainnet]: buildInfuraNetworkClientConfiguration(
         InfuraNetworkType.mainnet,
@@ -1081,19 +1073,19 @@ describe('TokenListController', () => {
         chainId: toHex(56),
       }),
     });
-    controllerMessenger.registerActionHandler(
+    messenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
       getNetworkClientById,
     );
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.goerli,
       preventPollingOnNetworkRestart: true,
-      messenger,
+      messenger: restrictedMessenger,
       interval: 100,
     });
     await controller.start();
-    controllerMessenger.publish(
+    messenger.publish(
       'NetworkController:stateChange',
       {
         selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -1139,8 +1131,8 @@ describe('TokenListController', () => {
         tokenService,
         'fetchTokenListByChainId',
       );
-      const controllerMessenger = getControllerMessenger();
-      controllerMessenger.registerActionHandler(
+      const messenger = getMessenger();
+      messenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
         jest.fn().mockReturnValue({
           configuration: {
@@ -1149,11 +1141,11 @@ describe('TokenListController', () => {
           },
         }),
       );
-      const messenger = getRestrictedMessenger(controllerMessenger);
+      const restrictedMessenger = getRestrictedMessenger(messenger);
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
         preventPollingOnNetworkRestart: false,
-        messenger,
+        messenger: restrictedMessenger,
         state: expiredCacheExistingState,
         interval: pollingIntervalTime,
       });
@@ -1189,8 +1181,8 @@ describe('TokenListController', () => {
           }
         });
 
-      const controllerMessenger = getControllerMessenger();
-      controllerMessenger.registerActionHandler(
+      const messenger = getMessenger();
+      messenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
         jest.fn().mockImplementation((networkClientId) => {
           switch (networkClientId) {
@@ -1213,11 +1205,11 @@ describe('TokenListController', () => {
           }
         }),
       );
-      const messenger = getRestrictedMessenger(controllerMessenger);
+      const restrictedMessenger = getRestrictedMessenger(messenger);
       const controller = new TokenListController({
         chainId: ChainId.sepolia,
         preventPollingOnNetworkRestart: false,
-        messenger,
+        messenger: restrictedMessenger,
         state: startingState,
         interval: pollingIntervalTime,
       });

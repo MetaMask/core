@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
@@ -911,7 +911,7 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     ExtractAvailableAction<AccountTrackerControllerMessenger> | AllowedActions,
     ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
   >();
