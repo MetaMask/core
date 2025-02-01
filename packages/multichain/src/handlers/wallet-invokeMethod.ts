@@ -57,9 +57,8 @@ async function walletInvokeMethodHandler(
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     getSelectedNetworkClientId: () => NetworkClientId;
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
-    handleNonEvmRequest: (params: {
+    handleNonEvmRequestForOrigin: (params: {
       connectedAddresses: CaipAccountId[];
-      origin: string;
       scope: CaipChainId;
       request: JsonRpcRequest;
     }) => Promise<Json>
@@ -122,7 +121,9 @@ async function walletInvokeMethodHandler(
       return end(rpcErrors.internal());
     }
 
-    Object.assign(unwrappedRequest, {
+
+    Object.assign(request, {
+      ...unwrappedRequest,
       networkClientId,
     });
     return next();
@@ -132,12 +133,15 @@ async function walletInvokeMethodHandler(
     return end(rpcErrors.internal());
   }
 
-  response.result = await hooks.handleNonEvmRequest({
-    connectedAddresses: scopeObject.accounts,
-    origin,
-    scope,
-    request: unwrappedRequest,
-  })
+  try {
+    response.result = await hooks.handleNonEvmRequestForOrigin({
+      connectedAddresses: scopeObject.accounts,
+      scope,
+      request: unwrappedRequest,
+    })
+  } catch (err) {
+    return end(err as Error);
+  }
   return end();
 }
 export const walletInvokeMethod = {
