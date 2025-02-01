@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
 import type { HasPermissions } from './PermissionController';
@@ -14,27 +14,24 @@ import {
 const controllerName = 'SubjectMetadataController';
 
 /**
- * Utility function for creating a controller messenger.
+ * Utility function for creating a messenger.
  *
  * @returns A tuple containing the messenger and a spy for the "hasPermission" action handler
  */
 function getSubjectMetadataControllerMessenger() {
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     SubjectMetadataControllerActions | HasPermissions,
     SubjectMetadataControllerEvents
   >();
 
   const hasPermissionsSpy = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'PermissionController:hasPermissions',
     hasPermissionsSpy,
   );
 
   return [
-    controllerMessenger.getRestricted<
-      typeof controllerName,
-      HasPermissions['type']
-    >({
+    messenger.getRestricted<typeof controllerName, HasPermissions['type']>({
       name: controllerName,
       allowedActions: ['PermissionController:hasPermissions'],
       allowedEvents: [],
