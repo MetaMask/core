@@ -1450,7 +1450,7 @@ describe('QueuedRequestController', () => {
       expect(request3).not.toHaveBeenCalled();
     });
 
-    it('calls clearPendingConfirmations when the SelectedNetworkController "domains" state for that origin has been removed', async () => {
+    it('calls clearPendingConfirmations when a domain is removed from the selectedNetworkController state', async () => {
       const { messenger } = buildControllerMessenger();
 
       const options: QueuedRequestControllerOptions = {
@@ -1488,6 +1488,43 @@ describe('QueuedRequestController', () => {
         request1,
       );
       expect(options.clearPendingConfirmations).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call clearPendingConfirmations when a domain is removed from the selectedNetworkController state', async () => {
+      const { messenger } = buildControllerMessenger();
+
+      const options: QueuedRequestControllerOptions = {
+        messenger: buildQueuedRequestControllerMessenger(messenger),
+        methodsRequiringNetworkSwitch: ['eth_sendTransaction'],
+        clearPendingConfirmations: jest.fn(),
+      };
+
+      const controller = new QueuedRequestController(options);
+
+      const request1 = jest.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        messenger.publish(
+          'SelectedNetworkController:stateChange',
+          { domains: {} },
+          [
+            {
+              op: 'remove',
+              path: ['domains', 'https://abc.123'],
+            },
+          ],
+        );
+      });
+
+      await controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          method: 'wallet_revokePermissions',
+          origin: 'https://foo.com',
+        },
+        request1,
+      );
+      expect(options.clearPendingConfirmations).not.toHaveBeenCalled();
     });
   });
 });
