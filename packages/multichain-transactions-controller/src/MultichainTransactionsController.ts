@@ -7,7 +7,7 @@ import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType, type Transaction } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -97,14 +97,13 @@ export type MultichainTransactionsControllerEvents =
 /**
  * Messenger type for the MultichainTransactionsController.
  */
-export type MultichainTransactionsControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    MultichainTransactionsControllerActions | AllowedActions,
-    MultichainTransactionsControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  MultichainTransactionsControllerActions | AllowedActions,
+  MultichainTransactionsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Actions that this controller is allowed to call.

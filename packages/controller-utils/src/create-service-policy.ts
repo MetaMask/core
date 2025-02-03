@@ -1,6 +1,7 @@
 import {
   BrokenCircuitError,
   CircuitState,
+  EventEmitter as CockatielEventEmitter,
   ConsecutiveBreaker,
   ExponentialBackoff,
   circuitBreaker,
@@ -11,12 +12,15 @@ import {
 } from 'cockatiel';
 import type {
   CircuitBreakerPolicy,
+  Event as CockatielEvent,
   IPolicy,
   Policy,
   RetryPolicy,
 } from 'cockatiel';
 
 export { CircuitState, BrokenCircuitError, handleAll, handleWhen };
+
+export type { CockatielEvent };
 
 /**
  * The options for `createServicePolicy`.
@@ -76,7 +80,7 @@ export type ServicePolicy = IPolicy & {
    * never succeeds before the retry policy gives up and before the maximum
    * number of consecutive failures has been reached.
    */
-  onDegraded: (fn: () => void) => void;
+  onDegraded: CockatielEvent<void>;
   /**
    * A function which will be called by the retry policy each time the service
    * fails and the policy kicks off a timer to re-run the service. This is
@@ -203,12 +207,10 @@ export function createServicePolicy({
   });
   const onBreak = circuitBreakerPolicy.onBreak.bind(circuitBreakerPolicy);
 
-  const onDegradedListeners: (() => void)[] = [];
+  const onDegradedEventEmitter = new CockatielEventEmitter<void>();
   retryPolicy.onGiveUp(() => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
-      for (const listener of onDegradedListeners) {
-        listener();
-      }
+      onDegradedEventEmitter.emit();
     }
   });
   retryPolicy.onSuccess(({ duration }) => {
@@ -216,14 +218,10 @@ export function createServicePolicy({
       circuitBreakerPolicy.state === CircuitState.Closed &&
       duration > degradedThreshold
     ) {
-      for (const listener of onDegradedListeners) {
-        listener();
-      }
+      onDegradedEventEmitter.emit();
     }
   });
-  const onDegraded = (listener: () => void) => {
-    onDegradedListeners.push(listener);
-  };
+  const onDegraded = onDegradedEventEmitter.addListener;
 
   // Every time the retry policy makes an attempt, it executes the circuit
   // breaker policy, which executes the service.

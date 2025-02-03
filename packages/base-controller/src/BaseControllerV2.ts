@@ -8,8 +8,8 @@ import type {
 } from './BaseControllerV1';
 import type { ActionConstraint, EventConstraint } from './Messenger';
 import type {
-  RestrictedControllerMessenger,
-  RestrictedControllerMessengerConstraint,
+  RestrictedMessenger,
+  RestrictedMessengerConstraint,
 } from './RestrictedMessenger';
 
 enablePatches();
@@ -135,11 +135,7 @@ export type StateMetadataConstraint = Record<
  */
 export type BaseControllerInstance = Omit<
   PublicInterface<
-    BaseController<
-      string,
-      StateConstraint,
-      RestrictedControllerMessengerConstraint
-    >
+    BaseController<string, StateConstraint, RestrictedMessengerConstraint>
   >,
   'metadata'
 > & {
@@ -189,7 +185,7 @@ export class BaseController<
   ControllerState extends StateConstraint,
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  messenger extends RestrictedControllerMessenger<
+  messenger extends RestrictedMessenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,
     EventConstraint | ControllerEvents<ControllerName, ControllerState>,
