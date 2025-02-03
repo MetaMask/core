@@ -29,6 +29,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
+- [`@metamask/earn-controller`](packages/earn-controller)
 - [`@metamask/ens-controller`](packages/ens-controller)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
@@ -74,6 +75,7 @@ linkStyle default opacity:0.5
   build_utils(["@metamask/build-utils"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
+  earn_controller(["@metamask/earn-controller"]);
   ens_controller(["@metamask/ens-controller"]);
   eth_json_rpc_provider(["@metamask/eth-json-rpc-provider"]);
   gas_fee_controller(["@metamask/gas-fee-controller"]);

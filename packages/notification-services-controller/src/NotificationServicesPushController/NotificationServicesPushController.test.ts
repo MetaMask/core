@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
@@ -134,10 +134,7 @@ describe('NotificationServicesPushController', () => {
 
 // Test helper functions
 const buildPushPlatformNotificationsControllerMessenger = () => {
-  const globalMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
+  const globalMessenger = new Messenger<AllowedActions, AllowedEvents>();
 
   return globalMessenger.getRestricted<
     'NotificationServicesPushController',

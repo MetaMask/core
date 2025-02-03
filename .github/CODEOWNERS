@@ -26,6 +26,8 @@
 /packages/transaction-controller            @MetaMask/confirmations
 /packages/user-operation-controller         @MetaMask/confirmations
 
+## Earn Team
+/packages/earn-controller                   @MetaMask/earn
 ## Notifications Team
 /packages/notification-services-controller     @MetaMask/notifications
 
@@ -74,6 +76,8 @@
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
 /packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
+/packages/earn-controller/package.json            @MetaMask/earn @MetaMask/wallet-framework-engineers
+/packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/wallet-framework-engineers
 /packages/ens-controller/package.json             @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/ens-controller/CHANGELOG.md             @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/gas-fee-controller/package.json         @MetaMask/confirmations @MetaMask/wallet-framework-engineers
@@ -108,3 +112,4 @@
 /packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/token-search-discovery-controller/package.json      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
 /packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
+
