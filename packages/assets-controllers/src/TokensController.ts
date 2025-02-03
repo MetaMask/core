@@ -496,7 +496,7 @@ export class TokensController extends BaseController<
     const { allTokens, ignoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
 
-    let interactingChainId;
+    let interactingChainId: Hex = this.#chainId;
     if (networkClientId) {
       interactingChainId = this.messagingSystem.call(
         'NetworkController:getNetworkClientById',
@@ -506,9 +506,8 @@ export class TokensController extends BaseController<
 
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[interactingChainId ?? this.#chainId]?.[
-        this.#getSelectedAccount().address
-      ] || []),
+      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
+        []),
       ...tokensToImport,
     ].reduce(
       (output, token) => {
@@ -557,11 +556,13 @@ export class TokensController extends BaseController<
         });
 
       this.update((state) => {
-        state.tokens = newTokens;
+        if (interactingChainId === this.#chainId) {
+          state.tokens = newTokens;
+          state.detectedTokens = newDetectedTokens;
+          state.ignoredTokens = newIgnoredTokens;
+        }
         state.allTokens = newAllTokens;
-        state.detectedTokens = newDetectedTokens;
         state.allDetectedTokens = newAllDetectedTokens;
-        state.ignoredTokens = newIgnoredTokens;
         state.allIgnoredTokens = newAllIgnoredTokens;
       });
     } finally {
