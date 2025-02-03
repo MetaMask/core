@@ -12,6 +12,7 @@ import {
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   AccountAssetListUpdatedEvent,
+  AccountAssetListUpdatedEventPayload,
   CaipAssetType,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
@@ -33,6 +34,7 @@ import { hasProperty, type CaipChainId } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import { parseCaipAssetType } from './utils';
+import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../accounts-controller/src/AccountsController';
 
 const controllerName = 'MultichainAssetsController';
 
@@ -104,7 +106,8 @@ type AllowedActions =
  */
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountAssetListUpdatedEvent;
 
 /**
  * Messenger type for the MultichainAssetsController.
@@ -179,6 +182,10 @@ export class MultichainAssetsController extends BaseController<
       'AccountsController:accountRemoved',
       async (account) => await this.#handleOnAccountRemoved(account),
     );
+    this.messagingSystem.subscribe(
+      'AccountsController:accountAssetListUpdated',
+      async (event) => await this.#updateAccountAssetsList(event),
+    );
   }
 
   /**
@@ -186,8 +193,8 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param event - The list of assets to update
    */
-  async updateAccountAssetsList(event: AccountAssetListUpdatedEvent) {
-    const assetsToUpdate = event.params.assets;
+  async #updateAccountAssetsList(event: AccountAssetListUpdatedEventPayload) {
+    const assetsToUpdate = event.assets;
     const assetsForMetadataRefresh: CaipAssetType[] = [];
     for (const accountId in assetsToUpdate) {
       if (hasProperty(assetsToUpdate, accountId)) {

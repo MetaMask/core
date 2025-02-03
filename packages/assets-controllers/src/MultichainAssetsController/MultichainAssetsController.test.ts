@@ -1,6 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
   AccountAssetListUpdatedEvent,
+  AccountAssetListUpdatedEventPayload,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
 import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
@@ -791,6 +792,7 @@ const setupController = ({
       allowedEvents: [
         'AccountsController:accountAdded',
         'AccountsController:accountRemoved',
+        'AccountsController:accountAssetListUpdated',
       ],
     });
 
@@ -1360,15 +1362,19 @@ describe('MultichainAssetsController', () => {
     it('should update the assets list for an account when a new asset is added', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
-      const { controller, mockSnapHandleRequest, mockGetPermissions } =
-        setupController({
-          state: {
-            allNonEvmTokens: {
-              [mockSolanaAccountId1]: mockGetAssetsResult,
-            },
-            metadata: mockGetMetadataReturnValue.assets,
-          } as MultichainAssetsControllerState,
-        });
+      const {
+        messenger,
+        controller,
+        mockSnapHandleRequest,
+        mockGetPermissions,
+      } = setupController({
+        state: {
+          allNonEvmTokens: {
+            [mockSolanaAccountId1]: mockGetAssetsResult,
+          },
+          metadata: mockGetMetadataReturnValue.assets,
+        } as MultichainAssetsControllerState,
+      });
 
       const mockGetMetadataReturnValue1 = {
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
@@ -1399,26 +1405,25 @@ describe('MultichainAssetsController', () => {
         .mockReturnValueOnce(mockGetPermissionsReturnValue[4])
         .mockReturnValueOnce(mockGetPermissionsReturnValue[5])
         .mockReturnValueOnce(mockGetPermissionsReturnValue[6]);
-      const updatedAssetsList: AccountAssetListUpdatedEvent = {
-        method: 'notify:accountAssetListUpdated',
-        params: {
-          assets: {
-            [mockSolanaAccountId1]: {
-              added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
-              removed: [],
-            },
-            [mockSolanaAccountId2]: {
-              added: [
-                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
-              ],
-              removed: [],
-            },
+      const updatedAssetsList: AccountAssetListUpdatedEventPayload = {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken'],
+            removed: [],
+          },
+          [mockSolanaAccountId2]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+            removed: [],
           },
         },
       };
 
-      // call updateAccountAssetsList
-      await controller.updateAccountAssetsList(updatedAssetsList);
+      messenger.publish(
+        'AccountsController:accountAssetListUpdated',
+        updatedAssetsList,
+      );
+
+      await advanceTime({ clock, duration: 1 });
 
       expect(controller.state.allNonEvmTokens).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -1451,7 +1456,7 @@ describe('MultichainAssetsController', () => {
     it('should not add duplicate assets to state', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
-      const { controller } = setupController({
+      const { controller, messenger } = setupController({
         state: {
           allNonEvmTokens: {
             [mockSolanaAccountId1]: mockGetAssetsResult,
@@ -1460,27 +1465,25 @@ describe('MultichainAssetsController', () => {
         } as MultichainAssetsControllerState,
       });
 
-      const updatedAssetsList: AccountAssetListUpdatedEvent = {
-        method: 'notify:accountAssetListUpdated',
-        params: {
-          assets: {
-            [mockSolanaAccountId1]: {
-              added:
-                mockGetAssetsResult as `${string}:${string}/${string}:${string}`[],
-              removed: [],
-            },
-            [mockSolanaAccountId2]: {
-              added: [
-                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
-              ],
-              removed: [],
-            },
+      const updatedAssetsList: AccountAssetListUpdatedEventPayload = {
+        assets: {
+          [mockSolanaAccountId1]: {
+            added:
+              mockGetAssetsResult as `${string}:${string}/${string}:${string}`[],
+            removed: [],
+          },
+          [mockSolanaAccountId2]: {
+            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3'],
+            removed: [],
           },
         },
       };
 
-      // call updateAccountAssetsList
-      await controller.updateAccountAssetsList(updatedAssetsList);
+      messenger.publish(
+        'AccountsController:accountAssetListUpdated',
+        updatedAssetsList,
+      );
+      await advanceTime({ clock, duration: 1 });
 
       expect(controller.state.allNonEvmTokens).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -1496,7 +1499,7 @@ describe('MultichainAssetsController', () => {
     it('should update the assets list for an account when a an asset is removed', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
-      const { controller } = setupController({
+      const { controller, messenger } = setupController({
         state: {
           allNonEvmTokens: {
             [mockSolanaAccountId1]: mockGetAssetsResult,
@@ -1508,22 +1511,22 @@ describe('MultichainAssetsController', () => {
         } as MultichainAssetsControllerState,
       });
 
-      const updatedAssetsList: AccountAssetListUpdatedEvent = {
-        method: 'notify:accountAssetListUpdated',
-        params: {
-          assets: {
-            [mockSolanaAccountId2]: {
-              added: [],
-              removed: [
-                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
-              ],
-            },
+      const updatedAssetsList: AccountAssetListUpdatedEventPayload = {
+        assets: {
+          [mockSolanaAccountId2]: {
+            added: [],
+            removed: [
+              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
+            ],
           },
         },
       };
 
-      // call updateAccountAssetsList
-      await controller.updateAccountAssetsList(updatedAssetsList);
+      messenger.publish(
+        'AccountsController:accountAssetListUpdated',
+        updatedAssetsList,
+      );
+      await advanceTime({ clock, duration: 1 });
 
       expect(controller.state.allNonEvmTokens).toStrictEqual({
         [mockSolanaAccountId1]: [
