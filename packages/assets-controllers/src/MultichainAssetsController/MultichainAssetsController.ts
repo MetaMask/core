@@ -351,10 +351,10 @@ export class MultichainAssetsController extends BaseController<
     }
     let newMetadata: Record<CaipAssetType, FungibleAssetMetadata> = {};
 
-    for (const chainId of Object.keys(assetsByScope)) {
-      const assetsForChain = assetsByScope[chainId as CaipChainId];
+    for (const chainId of Object.keys(assetsByScope) as CaipChainId[]) {
+      const assetsForChain = assetsByScope[chainId];
       // Now fetch metadata from the associated asset Snaps:
-      const snap = this.#getAssetSnapFor(chainId as CaipChainId);
+      const snap = this.#getAssetSnapFor(chainId);
       if (snap) {
         const metadata = await this.#getAssetsMetadataFrom(
           assetsForChain,
