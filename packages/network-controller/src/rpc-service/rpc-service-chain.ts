@@ -26,7 +26,7 @@ type RpcServiceConfiguration = {
 
 /**
  * This class constructs a chain of RpcService objects which represent a
- * particular network. The first object in the chain is intended to the primary
+ * particular network. The first object in the chain is intended to be the primary
  * way of reaching the network and the remaining objects are used as failovers.
  */
 export class RpcServiceChain implements AbstractRpcService {
