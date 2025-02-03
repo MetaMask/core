@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type {
   NetworkState,
   NetworkControllerActions,
@@ -85,10 +85,7 @@ describe('network-syncing/controller-integration - dispatchUpdateNetwork()', () 
   };
 
   const arrangeNetworkController = (networkState: NetworkState) => {
-    const baseMessenger = new ControllerMessenger<
-      NetworkControllerActions,
-      never
-    >();
+    const baseMessenger = new Messenger<NetworkControllerActions, never>();
     const networkControllerMessenger = baseMessenger.getRestricted({
       name: 'NetworkController',
       allowedActions: [],
