@@ -4,7 +4,7 @@ import type {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import HDKeyring from '@metamask/eth-hd-keyring';
@@ -227,7 +227,7 @@ export type KeyringControllerEvents =
   | KeyringControllerAccountRemovedEvent
   | KeyringControllerQRKeyringStateChangeEvent;
 
-export type KeyringControllerMessenger = RestrictedControllerMessenger<
+export type KeyringControllerMessenger = RestrictedMessenger<
   typeof name,
   KeyringControllerActions,
   KeyringControllerEvents,
@@ -635,7 +635,7 @@ export class KeyringController extends BaseController<
    * @param options.encryptor - An optional object for defining encryption schemes.
    * @param options.keyringBuilders - Set a new name for account.
    * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
   constructor(options: KeyringControllerOptions) {

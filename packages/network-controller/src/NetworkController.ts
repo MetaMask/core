@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
@@ -518,7 +518,7 @@ export type NetworkControllerActions =
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerUpdateNetworkAction;
 
-export type NetworkControllerMessenger = RestrictedControllerMessenger<
+export type NetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   NetworkControllerActions,
   NetworkControllerEvents,
@@ -1334,10 +1334,30 @@ export class NetworkController extends BaseController<
     let networkChanged = false;
     const listener = () => {
       networkChanged = true;
-      this.messagingSystem.unsubscribe(
-        'NetworkController:networkDidChange',
-        listener,
-      );
+      try {
+        this.messagingSystem.unsubscribe(
+          'NetworkController:networkDidChange',
+          listener,
+        );
+      } catch (error) {
+        // In theory, this `catch` should not be necessary given that this error
+        // would occur "inside" of the call to `#determineEIP1559Compatibility`
+        // below and so it should be caught by the `try`/`catch` below (it is
+        // impossible to reproduce in tests for that reason). However, somehow
+        // it occurs within Mobile and so we have to add our own `try`/`catch`
+        // here.
+        /* istanbul ignore next */
+        if (
+          !(error instanceof Error) ||
+          error.message !==
+            'Subscription not found for event: NetworkController:networkDidChange'
+        ) {
+          // Again, this error should not happen and is impossible to reproduce
+          // in tests.
+          /* istanbul ignore next */
+          throw error;
+        }
+      }
     };
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
@@ -1404,10 +1424,21 @@ export class NetworkController extends BaseController<
       // in the process of being called, so we don't need to go further.
       return;
     }
-    this.messagingSystem.unsubscribe(
-      'NetworkController:networkDidChange',
-      listener,
-    );
+
+    try {
+      this.messagingSystem.unsubscribe(
+        'NetworkController:networkDidChange',
+        listener,
+      );
+    } catch (error) {
+      if (
+        !(error instanceof Error) ||
+        error.message !==
+          'Subscription not found for event: NetworkController:networkDidChange'
+      ) {
+        throw error;
+      }
+    }
 
     this.update((state) => {
       const meta = state.networksMetadata[state.selectedNetworkClientId];

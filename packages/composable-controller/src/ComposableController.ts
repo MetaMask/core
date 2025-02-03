@@ -1,5 +1,5 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateConstraint,
   StateConstraintV1,
   StateMetadata,
@@ -86,17 +86,18 @@ export type ComposableControllerEvents<
  */
 export type ChildControllerStateChangeEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
-> = ComposableControllerState extends Record<
-  infer ControllerName extends string,
-  infer ControllerState
->
-  ? ControllerState extends StateConstraint
-    ? ControllerStateChangeEvent<ControllerName, ControllerState>
-    : // TODO: Remove this conditional branch once `BaseControllerV2` migrations are completed for all controllers.
-    ControllerState extends StateConstraintV1
-    ? LegacyControllerStateChangeEvent<ControllerName, ControllerState>
-    : never
-  : never;
+> =
+  ComposableControllerState extends Record<
+    infer ControllerName extends string,
+    infer ControllerState
+  >
+    ? ControllerState extends StateConstraint
+      ? ControllerStateChangeEvent<ControllerName, ControllerState>
+      : // TODO: Remove this conditional branch once `BaseControllerV2` migrations are completed for all controllers.
+        ControllerState extends StateConstraintV1
+        ? LegacyControllerStateChangeEvent<ControllerName, ControllerState>
+        : never
+    : never;
 
 /**
  * A union type of external event types available to the {@link ComposableControllerMessenger}.
@@ -114,7 +115,7 @@ export type AllowedEvents<
  */
 export type ComposableControllerMessenger<
   ComposableControllerState extends ComposableControllerStateConstraint,
-> = RestrictedControllerMessenger<
+> = RestrictedMessenger<
   typeof controllerName,
   never,
   | ComposableControllerEvents<ComposableControllerState>
@@ -145,7 +146,7 @@ export class ComposableController<
    *
    * @param options - Initial options used to configure this controller
    * @param options.controllers - An object that contains child controllers keyed by their names.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.messenger - A restricted messenger.
    */
   constructor({
     controllers,

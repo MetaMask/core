@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
@@ -41,7 +41,7 @@ const initController = ({
   restrictedMethods: Set<string>;
   state?: Partial<PermissionLogControllerState>;
 }): PermissionLogController => {
-  const messenger = new ControllerMessenger().getRestricted({
+  const messenger = new Messenger().getRestricted({
     name,
     allowedActions: [],
     allowedEvents: [],

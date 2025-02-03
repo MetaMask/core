@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
 import nock from 'nock';
 import * as sinon from 'sinon';
@@ -21,23 +21,18 @@ import { getHostnameFromUrl } from './utils';
 const controllerName = 'PhishingController';
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a restricted messenger.
  *
- * @returns A restricted controller messenger.
+ * @returns A restricted messenger.
  */
 function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    PhishingControllerActions,
-    never
-  >();
+  const messenger = new Messenger<PhishingControllerActions, never>();
 
-  const messenger = controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name: controllerName,
     allowedActions: [],
     allowedEvents: [],
   });
-
-  return messenger;
 }
 
 /**

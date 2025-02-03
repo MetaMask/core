@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import {
   MOCK_ACCESS_TOKEN,
@@ -339,10 +339,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
  * @returns Auth Messenger
  */
 function createAuthenticationMessenger() {
-  const messenger = new ControllerMessenger<
-    Actions | AllowedActions,
-    AllowedEvents
-  >();
+  const messenger = new Messenger<Actions | AllowedActions, AllowedEvents>();
   return messenger.getRestricted({
     name: 'AuthenticationController',
     allowedActions: [

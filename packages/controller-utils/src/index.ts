@@ -10,6 +10,7 @@ export {
   handleWhen,
 } from './create-service-policy';
 export type {
+  CockatielEvent,
   CreateServicePolicyOptions,
   ServicePolicy,
 } from './create-service-policy';
