@@ -1171,7 +1171,6 @@ export class TransactionController extends BaseController<
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: this.#getEthQuery.bind(this),
-      getNextNonce: this.#getNextNonce.bind(this),
       messenger: this.messagingSystem,
       publishBatch: this.publishBatch,
       supportsEIP1559: this.getEIP1559Compatibility.bind(this),

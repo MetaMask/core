@@ -90,3 +90,4 @@ export {
 export { CHAIN_IDS } from './constants';
 export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
 export { APPROVAL_TYPE_TRANSACTION_BATCH } from './utils/batch';
+export { CONTRACT_ADDRESS_7702 } from './utils/7702';

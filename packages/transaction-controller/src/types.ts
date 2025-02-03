@@ -633,6 +633,8 @@ export enum TransactionType {
 
   revokeDelegation = 'revokeDelegation',
 
+  setDelegation = 'setDelegation',
+
   /**
    * A transaction sending a network's native asset to a recipient.
    */
