@@ -22,9 +22,9 @@ const implementations = {
 type RateLimitedApis = typeof implementations;
 
 /**
- * Constructs a unrestricted messenger.
+ * Constructs an unrestricted messenger.
  *
- * @returns A unrestricted messenger.
+ * @returns An unrestricted messenger.
  */
 function getUnrestrictedMessenger() {
   return new Messenger<
