@@ -1,3 +1,5 @@
+import type { CaipAssetId } from '@metamask/utils';
+
 /**
  * Represents the rate details for a given token conversion.
  */
@@ -12,7 +14,7 @@ export type RateData = {
  * and the value is a RateData object.
  */
 export type TokenConversionRates = {
-  [currency: string]: RateData;
+  [currency: CaipAssetId]: RateData;
 };
 
 /**
@@ -22,7 +24,7 @@ export type TokenConversionRates = {
  * and the value is a mapping of currency identifiers to RateData.
  */
 export type AccountConversionRates = {
-  [tokenId: string]: TokenConversionRates;
+  [tokenId: CaipAssetId]: TokenConversionRates;
 };
 
 /**
