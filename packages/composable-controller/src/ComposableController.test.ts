@@ -1,8 +1,5 @@
-// `ComposableControllerState` type objects are keyed with controller names written in PascalCase.
-/* eslint-disable @typescript-eslint/naming-convention */
-
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
-import { BaseController, ControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
+import { BaseController, Messenger } from '@metamask/base-controller';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
@@ -241,10 +238,7 @@ describe('ComposableController', () => {
       });
 
       const listener = sinon.stub();
-      controllerMessenger.subscribe(
-        'ComposableController:stateChange',
-        listener,
-      );
+      messenger.subscribe('ComposableController:stateChange', listener);
       fooController.updateFoo('qux');
 
       expect(listener.calledOnce).toBe(true);
@@ -261,24 +255,24 @@ describe('ComposableController', () => {
       QuzController: QuzControllerState;
       FooController: FooControllerState;
     };
-    const controllerMessenger = new ControllerMessenger<
+    const messenger = new Messenger<
       never,
       | ComposableControllerEvents<ComposableControllerState>
       | ChildControllerStateChangeEvents<ComposableControllerState>
     >();
-    const quzControllerMessenger = controllerMessenger.getRestricted({
+    const quzControllerMessenger = messenger.getRestricted({
       name: 'QuzController',
       allowedActions: [],
       allowedEvents: [],
     });
     const quzController = new QuzController(quzControllerMessenger);
-    const fooControllerMessenger = controllerMessenger.getRestricted({
+    const fooControllerMessenger = messenger.getRestricted({
       name: 'FooController',
       allowedActions: [],
       allowedEvents: [],
     });
     const fooController = new FooController(fooControllerMessenger);
-    const composableControllerMessenger = controllerMessenger.getRestricted({
+    const composableControllerMessenger = messenger.getRestricted({
       name: 'ComposableController',
       allowedActions: [],
       allowedEvents: ['QuzController:stateChange', 'FooController:stateChange'],
@@ -295,7 +289,7 @@ describe('ComposableController', () => {
     });
 
     const listener = sinon.stub();
-    controllerMessenger.subscribe('ComposableController:stateChange', listener);
+    messenger.subscribe('ComposableController:stateChange', listener);
     fooController.updateFoo('qux');
 
     expect(listener.calledOnce).toBe(true);
@@ -310,17 +304,14 @@ describe('ComposableController', () => {
   });
 
   it('should throw if controller messenger not provided', () => {
-    const controllerMessenger = new ControllerMessenger<
-      never,
-      FooControllerEvent
-    >();
-    const quzControllerMessenger = controllerMessenger.getRestricted({
+    const messenger = new Messenger<never, FooControllerEvent>();
+    const quzControllerMessenger = messenger.getRestricted({
       name: 'QuzController',
       allowedActions: [],
       allowedEvents: [],
     });
     const quzController = new QuzController(quzControllerMessenger);
-    const fooControllerMessenger = controllerMessenger.getRestricted({
+    const fooControllerMessenger = messenger.getRestricted({
       name: 'FooController',
       allowedActions: [],
       allowedEvents: [],
@@ -343,17 +334,17 @@ describe('ComposableController', () => {
       FooController: FooControllerState;
     };
     const notController = new JsonRpcEngine();
-    const controllerMessenger = new ControllerMessenger<
+    const messenger = new Messenger<
       never,
       ComposableControllerEvents<ComposableControllerState> | FooControllerEvent
     >();
-    const fooControllerMessenger = controllerMessenger.getRestricted({
+    const fooControllerMessenger = messenger.getRestricted({
       name: 'FooController',
       allowedActions: [],
       allowedEvents: [],
     });
     const fooController = new FooController(fooControllerMessenger);
-    const composableControllerMessenger = controllerMessenger.getRestricted({
+    const composableControllerMessenger = messenger.getRestricted({
       name: 'ComposableController',
       allowedActions: [],
       allowedEvents: ['FooController:stateChange'],
