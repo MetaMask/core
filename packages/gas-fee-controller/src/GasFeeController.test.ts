@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   convertHexToDecimal,
@@ -47,7 +47,7 @@ const mockedDetermineGasFeeCalculations =
 
 const name = 'GasFeeController';
 
-type MainControllerMessenger = ControllerMessenger<
+type MainMessenger = Messenger<
   | GetGasFeeState
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
@@ -55,8 +55,8 @@ type MainControllerMessenger = ControllerMessenger<
   GasFeeStateChange | NetworkControllerNetworkDidChangeEvent
 >;
 
-const getControllerMessenger = (): MainControllerMessenger => {
-  return new ControllerMessenger();
+const getMessenger = (): MainMessenger => {
+  return new Messenger();
 };
 
 const setupNetworkController = async ({
@@ -65,7 +65,7 @@ const setupNetworkController = async ({
   clock,
   initializeProvider = true,
 }: {
-  unrestrictedMessenger: MainControllerMessenger;
+  unrestrictedMessenger: MainMessenger;
   state: Partial<NetworkState>;
   clock: sinon.SinonFakeTimers;
   initializeProvider?: boolean;
@@ -96,10 +96,8 @@ const setupNetworkController = async ({
   return networkController;
 };
 
-const getRestrictedMessenger = (
-  controllerMessenger: MainControllerMessenger,
-) => {
-  const messenger = controllerMessenger.getRestricted({
+const getRestrictedMessenger = (messenger: MainMessenger) => {
+  return messenger.getRestricted({
     name,
     allowedActions: [
       'NetworkController:getState',
@@ -108,8 +106,6 @@ const getRestrictedMessenger = (
     ],
     allowedEvents: ['NetworkController:networkDidChange'],
   });
-
-  return messenger;
 };
 
 /**
@@ -265,19 +261,19 @@ describe('GasFeeController', () => {
     interval?: number;
     initializeNetworkProvider?: boolean;
   } = {}) {
-    const controllerMessenger = getControllerMessenger();
+    const messenger = getMessenger();
     networkController = await setupNetworkController({
-      unrestrictedMessenger: controllerMessenger,
+      unrestrictedMessenger: messenger,
       state: networkControllerState,
       clock,
       initializeProvider: initializeNetworkProvider,
     });
-    const messenger = getRestrictedMessenger(controllerMessenger);
+    const restrictedMessenger = getRestrictedMessenger(messenger);
     gasFeeController = new GasFeeController({
       getProvider: jest.fn(),
       getChainId,
       onNetworkDidChange,
-      messenger,
+      messenger: restrictedMessenger,
       getCurrentNetworkLegacyGasAPICompatibility,
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkDetails.state.networkDetails.isEIP1559Compatible ???
       legacyAPIEndpoint,
