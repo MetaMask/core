@@ -457,8 +457,9 @@ export class MultichainAssetsController extends BaseController<
           },
         },
       })) as Promise<AssetMetadataResponse>;
-    } catch {
+    } catch (error) {
       // ignore
+      console.error(error);
       return undefined;
     }
   }
