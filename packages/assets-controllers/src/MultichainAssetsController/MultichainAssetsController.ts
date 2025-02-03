@@ -35,6 +35,7 @@ import {
   type CaipChainId,
 } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
+import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 import { v4 as uuid } from 'uuid';
 
@@ -98,6 +99,18 @@ export type MultichainAssetsControllerEvents =
   MultichainAssetsControllerStateChange;
 
 /**
+ * A function executed within a mutually exclusive lock, with
+ * a mutex releaser in its option bag.
+ *
+ * @param releaseLock - A function to release the lock.
+ */
+type MutuallyExclusiveCallback<Result> = ({
+  releaseLock,
+}: {
+  releaseLock: MutexInterface.Releaser;
+}) => Promise<Result>;
+
+/**
  * Actions that this controller is allowed to call.
  */
 type AllowedActions =
@@ -153,7 +166,7 @@ export class MultichainAssetsController extends BaseController<
   // Mapping of CAIP-2 Chain ID to Asset Snaps.
   #snaps: Record<CaipChainId, Snap[]>;
 
-  readonly #mutex = new Mutex();
+  readonly #controllerOperationMutex = new Mutex();
 
   constructor({
     messenger,
@@ -176,15 +189,29 @@ export class MultichainAssetsController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      async (account) => await this.#handleOnAccountAdded(account),
+      async (account) => await this.#handleOnAccountAddedEvent(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      async (account) => await this.#handleOnAccountRemoved(account),
+      async (account) => await this.#handleOnAccountRemovedEvent(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountAssetListUpdated',
-      async (event) => await this.#handleAccountAssetListUpdated(event),
+      async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
+    );
+  }
+
+  async #handleAccountAssetListUpdatedEvent(
+    event: AccountAssetListUpdatedEventPayload,
+  ) {
+    return this.#withControllerLock(async () =>
+      this.#handleAccountAssetListUpdated(event),
+    );
+  }
+
+  async #handleOnAccountAddedEvent(account: InternalAccount) {
+    return this.#withControllerLock(async () =>
+      this.#handleOnAccountAdded(account),
     );
   }
 
@@ -196,41 +223,37 @@ export class MultichainAssetsController extends BaseController<
   async #handleAccountAssetListUpdated(
     event: AccountAssetListUpdatedEventPayload,
   ) {
-    const releaseLock = await this.#mutex.acquire();
-    try {
-      const assetsToUpdate = event.assets;
-      let assetsForMetadataRefresh = new Set<CaipAssetType>([]);
-      for (const accountId in assetsToUpdate) {
-        if (hasProperty(assetsToUpdate, accountId)) {
-          const newAccountAssets = assetsToUpdate[accountId];
-          if (
-            newAccountAssets.added.length !== 0 ||
-            newAccountAssets.removed.length !== 0
-          ) {
-            const { added, removed } = newAccountAssets;
-            const existing = this.state.allNonEvmTokens[accountId] || [];
-            const assets = new Set<CaipAssetType>([
-              ...existing,
-              ...added.filter((asset) => isCaipAssetType(asset)),
-            ]);
-            for (const removedAsset of removed) {
-              assets.delete(removedAsset);
-            }
-            assetsForMetadataRefresh = new Set([
-              ...assetsForMetadataRefresh,
-              ...assets,
-            ]);
-            this.update((state) => {
-              state.allNonEvmTokens[accountId] = Array.from(assets);
-            });
+    this.#assertControllerMutexIsLocked();
+    const assetsToUpdate = event.assets;
+    let assetsForMetadataRefresh = new Set<CaipAssetType>([]);
+    for (const accountId in assetsToUpdate) {
+      if (hasProperty(assetsToUpdate, accountId)) {
+        const newAccountAssets = assetsToUpdate[accountId];
+        if (
+          newAccountAssets.added.length !== 0 ||
+          newAccountAssets.removed.length !== 0
+        ) {
+          const { added, removed } = newAccountAssets;
+          const existing = this.state.allNonEvmTokens[accountId] || [];
+          const assets = new Set<CaipAssetType>([
+            ...existing,
+            ...added.filter((asset) => isCaipAssetType(asset)),
+          ]);
+          for (const removedAsset of removed) {
+            assets.delete(removedAsset);
           }
+          assetsForMetadataRefresh = new Set([
+            ...assetsForMetadataRefresh,
+            ...assets,
+          ]);
+          this.update((state) => {
+            state.allNonEvmTokens[accountId] = Array.from(assets);
+          });
         }
       }
-      // trigger fetching metadata for new assets
-      await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
-    } finally {
-      releaseLock();
     }
+    // trigger fetching metadata for new assets
+    await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
   }
 
   /**
@@ -257,22 +280,18 @@ export class MultichainAssetsController extends BaseController<
       // Nothing to do here for EVM accounts
       return;
     }
-    const releaseLock = await this.#mutex.acquire();
+    this.#assertControllerMutexIsLocked();
 
-    try {
-      // Get assets list
-      if (account.metadata.snap) {
-        const assets = await this.#getAssetsList(
-          account.id,
-          account.metadata.snap.id,
-        );
-        await this.#refreshAssetsMetadata(assets);
-        this.update((state) => {
-          state.allNonEvmTokens[account.id] = assets;
-        });
-      }
-    } finally {
-      releaseLock();
+    // Get assets list
+    if (account.metadata.snap) {
+      const assets = await this.#getAssetsList(
+        account.id,
+        account.metadata.snap.id,
+      );
+      await this.#refreshAssetsMetadata(assets);
+      this.update((state) => {
+        state.allNonEvmTokens[account.id] = assets;
+      });
     }
   }
 
@@ -281,7 +300,7 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param accountId - The new account id being removed.
    */
-  async #handleOnAccountRemoved(accountId: string): Promise<void> {
+  async #handleOnAccountRemovedEvent(accountId: string): Promise<void> {
     // Check if accountId is in allNonEvmTokens and if it is, remove it
     if (this.state.allNonEvmTokens[accountId]) {
       this.update((state) => {
@@ -486,5 +505,58 @@ export class MultichainAssetsController extends BaseController<
           request,
         })) as Promise<Json>,
     });
+  }
+
+  /**
+   * Assert that the controller mutex is locked.
+   *
+   * @throws If the controller mutex is not locked.
+   */
+  #assertControllerMutexIsLocked() {
+    if (!this.#controllerOperationMutex.isLocked()) {
+      throw new Error(
+        'MultichainAssetsControllerError- Attempt to update state',
+      );
+    }
+  }
+
+  /**
+   * Lock the controller mutex before executing the given function,
+   * and release it after the function is resolved or after an
+   * error is thrown.
+   *
+   * This wrapper ensures that each mutable operation that interacts with the
+   * controller and that changes its state is executed in a mutually exclusive way,
+   * preventing unsafe concurrent access that could lead to unpredictable behavior.
+   *
+   * @param callback - The function to execute while the controller mutex is locked.
+   * @returns The result of the function.
+   */
+  async #withControllerLock<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
+    return withLock(this.#controllerOperationMutex, callback);
+  }
+}
+
+/**
+ * Lock the given mutex before executing the given function,
+ * and release it after the function is resolved or after an
+ * error is thrown.
+ *
+ * @param mutex - The mutex to lock.
+ * @param callback - The function to execute while the mutex is locked.
+ * @returns The result of the function.
+ */
+async function withLock<Result>(
+  mutex: Mutex,
+  callback: MutuallyExclusiveCallback<Result>,
+): Promise<Result> {
+  const releaseLock = await mutex.acquire();
+
+  try {
+    return await callback({ releaseLock });
+  } finally {
+    releaseLock();
   }
 }
