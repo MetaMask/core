@@ -18,7 +18,6 @@ import type {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type {
-  CaveatConstraint,
   GetPermissions,
   PermissionConstraint,
   SubjectPermissions,
@@ -39,6 +38,7 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { v4 as uuid } from 'uuid';
 
+import { getChainIdsCaveat } from './utils';
 import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../accounts-controller/src/AccountsController';
 
 const controllerName = 'MultichainAssetsController';
@@ -141,13 +141,6 @@ const assetsControllerMetadata = {
     persist: true,
     anonymous: false,
   },
-};
-
-// Define a temporary interface for the permission structure
-type AssetEndowment = {
-  'endowment:assets'?: {
-    caveats: CaveatConstraint[];
-  };
 };
 
 // TODO make this controller extends StaticIntervalPollingController and update all metadata once a day.
@@ -374,22 +367,19 @@ export class MultichainAssetsController extends BaseController<
       this.#getSnapsPermissions(snap.id),
     );
 
-    for (const [index, permission] of allPermissions.entries() as unknown as [
-      number,
-      AssetEndowment,
-    ][]) {
-      const chainIdsCaveatPermission = permission[
-        'endowment:assets'
-      ]?.caveats.find((value) => value.type === 'chainIds');
-      const scopes = chainIdsCaveatPermission?.value;
-      if (!scopes) {
-        continue;
-      }
-      for (const scope of scopes as CaipChainId[]) {
-        if (!snaps[scope]) {
-          snaps[scope] = [];
+    for (const [index, permission] of allPermissions.entries()) {
+      let scopes;
+      for (const singlePermissionConstraint of Object.values(permission)) {
+        scopes = getChainIdsCaveat(singlePermissionConstraint);
+        if (!scopes) {
+          continue;
         }
-        snaps[scope].push(allSnaps[index]);
+        for (const scope of scopes as CaipChainId[]) {
+          if (!snaps[scope]) {
+            snaps[scope] = [];
+          }
+          snaps[scope].push(allSnaps[index]);
+        }
       }
     }
     return snaps;
