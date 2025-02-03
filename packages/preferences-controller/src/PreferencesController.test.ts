@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { getDefaultKeyringState } from '@metamask/keyring-controller';
 import { cloneDeep } from 'lodash';
 
@@ -48,7 +48,7 @@ describe('PreferencesController', () => {
 
   describe('KeyringController:stateChange', () => {
     it('should update identities state to reflect new keyring accounts', () => {
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -89,7 +89,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update identities state to reflect removed keyring accounts', () => {
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -119,7 +119,7 @@ describe('PreferencesController', () => {
     });
 
     it('should update selected address to first identity if the selected address was removed', () => {
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -152,7 +152,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -181,7 +181,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -212,7 +212,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -244,7 +244,7 @@ describe('PreferencesController', () => {
         '0x01': { address: '0x01', importTime: 2, name: 'Account 2' },
         '0x02': { address: '0x02', importTime: 3, name: 'Account 3' },
       };
-      const messenger = getControllerMessenger();
+      const messenger = getMessenger();
       const controller = setupPreferencesController({
         options: {
           state: {
@@ -478,18 +478,18 @@ describe('PreferencesController', () => {
 });
 
 /**
- * Construct a controller messenger for use in PreferencesController tests.
+ * Construct a messenger for use in PreferencesController tests.
  *
  * This is a utility function that saves us from manually entering the correct
- * type parameters for the ControllerMessenger each time we construct it.
+ * type parameters for the Messenger each time we construct it.
  *
- * @returns A controller messenger
+ * @returns A messenger
  */
-function getControllerMessenger(): ControllerMessenger<
+function getMessenger(): Messenger<
   PreferencesControllerActions,
   PreferencesControllerEvents | AllowedEvents
 > {
-  return new ControllerMessenger<
+  return new Messenger<
     PreferencesControllerActions,
     PreferencesControllerEvents | AllowedEvents
   >();
@@ -500,21 +500,20 @@ function getControllerMessenger(): ControllerMessenger<
  *
  * @param args - Arguments
  * @param args.options - PreferencesController options.
- * @param args.messenger - A controller messenger.
+ * @param args.messenger - A messenger.
  * @returns A PreferencesController instance.
  */
 function setupPreferencesController({
   options = {},
-  messenger,
+  messenger = getMessenger(),
 }: {
   options?: Partial<ConstructorParameters<typeof PreferencesController>[0]>;
-  messenger?: ControllerMessenger<
+  messenger?: Messenger<
     PreferencesControllerActions,
     PreferencesControllerEvents | AllowedEvents
   >;
 } = {}) {
-  const controllerMessenger = messenger ?? getControllerMessenger();
-  const preferencesControllerMessenger = controllerMessenger.getRestricted<
+  const preferencesControllerMessenger = messenger.getRestricted<
     'PreferencesController',
     never,
     AllowedEvents['type']

@@ -3,7 +3,7 @@ import type {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
@@ -117,7 +117,7 @@ export type UserOperationControllerActions =
 
 export type UserOperationControllerEvents = UserOperationStateChange;
 
-export type UserOperationControllerMessenger = RestrictedControllerMessenger<
+export type UserOperationControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   UserOperationControllerActions,
   UserOperationControllerEvents,
@@ -211,7 +211,7 @@ export class UserOperationController extends BaseController<
    * @param options - Controller options.
    * @param options.entrypoint - Address of the entrypoint contract.
    * @param options.getGasFeeEstimates - Callback to get gas fee estimates.
-   * @param options.messenger - Restricted controller messenger for the user operation controller.
+   * @param options.messenger - Restricted messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
    */
   constructor({
