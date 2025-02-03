@@ -181,12 +181,10 @@ describe('KeyringController', () => {
       it('should not add a new account if called twice with the same accountCount param', async () => {
         await withController(async ({ controller, initialState }) => {
           const accountCount = initialState.keyrings[0].accounts.length;
-          const firstAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
-          const secondAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
+          const firstAccountAdded =
+            await controller.addNewAccount(accountCount);
+          const secondAccountAdded =
+            await controller.addNewAccount(accountCount);
           expect(firstAccountAdded).toBe(secondAccountAdded);
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
@@ -220,13 +218,11 @@ describe('KeyringController', () => {
 
           const accountCount = initialState.keyrings[0].accounts.length;
           // We add a new account for "index 1" (not existing yet)
-          const firstAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
+          const firstAccountAdded =
+            await controller.addNewAccount(accountCount);
           // Adding an account for an existing index will return the existing account's address
-          const secondAccountAdded = await controller.addNewAccount(
-            accountCount,
-          );
+          const secondAccountAdded =
+            await controller.addNewAccount(accountCount);
           expect(firstAccountAdded).toBe(secondAccountAdded);
           expect(controller.state.keyrings[0].accounts).toHaveLength(
             accountCount + 1,
@@ -258,9 +254,8 @@ describe('KeyringController', () => {
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
           ) as Keyring<Json>[];
-          const addedAccountAddress = await controller.addNewAccountForKeyring(
-            primaryKeyring,
-          );
+          const addedAccountAddress =
+            await controller.addNewAccountForKeyring(primaryKeyring);
           expect(initialState.keyrings).toHaveLength(1);
           expect(initialState.keyrings[0].accounts).not.toStrictEqual(
             controller.state.keyrings[0].accounts,
@@ -306,9 +301,8 @@ describe('KeyringController', () => {
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
           ) as Keyring<Json>[];
-          const addedAccountAddress = await controller.addNewAccountForKeyring(
-            primaryKeyring,
-          );
+          const addedAccountAddress =
+            await controller.addNewAccountForKeyring(primaryKeyring);
           expect(initialState.keyrings).toHaveLength(1);
           expect(initialState.keyrings[0].accounts).not.toStrictEqual(
             controller.state.keyrings[0].accounts,
@@ -407,9 +401,8 @@ describe('KeyringController', () => {
           await withController(
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
-              const currentSeedWord = await controller.exportSeedPhrase(
-                password,
-              );
+              const currentSeedWord =
+                await controller.exportSeedPhrase(password);
 
               await controller.createNewVaultAndRestore(
                 password,
@@ -475,9 +468,8 @@ describe('KeyringController', () => {
               async ({ controller }) => {
                 await controller.createNewVaultAndKeychain(password);
 
-                const currentSeedPhrase = await controller.exportSeedPhrase(
-                  password,
-                );
+                const currentSeedPhrase =
+                  await controller.exportSeedPhrase(password);
 
                 expect(currentSeedPhrase.length).toBeGreaterThan(0);
                 expect(
@@ -565,17 +557,15 @@ describe('KeyringController', () => {
             await withController(
               { cacheEncryptionKey },
               async ({ controller, initialState }) => {
-                const initialSeedWord = await controller.exportSeedPhrase(
-                  password,
-                );
+                const initialSeedWord =
+                  await controller.exportSeedPhrase(password);
                 expect(initialSeedWord).toBeDefined();
                 const initialVault = controller.state.vault;
 
                 await controller.createNewVaultAndKeychain(password);
 
-                const currentSeedWord = await controller.exportSeedPhrase(
-                  password,
-                );
+                const currentSeedWord =
+                  await controller.exportSeedPhrase(password);
                 expect(initialState).toStrictEqual(controller.state);
                 expect(initialSeedWord).toBe(currentSeedWord);
                 expect(initialVault).toStrictEqual(controller.state.vault);
@@ -2467,6 +2457,47 @@ describe('KeyringController', () => {
         );
       });
     });
+
+    describe('when fingerprint is provided', () => {
+      it('should return the result of the function', async () => {
+        await withController(async ({ controller }) => {
+          const keyrings = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as EthKeyring<Json>[];
+          const hdKeyring = keyrings[0];
+          const fingerprint = await hdKeyring
+            // @ts-expect-error need to update type to add getFingerprint
+            .getFingerprint();
+          const selector = { fingerprint };
+          const previousAccounts = await hdKeyring.getAccounts();
+
+          const newAccounts = await controller.withKeyring(
+            selector,
+            async (keyring) => {
+              await keyring.addAccounts(1);
+              return await keyring.getAccounts();
+            },
+          );
+
+          expect(newAccounts).toHaveLength(previousAccounts.length + 1);
+          for (const account of previousAccounts) {
+            expect(newAccounts).toContain(account);
+          }
+        });
+      });
+
+      it('returns undefined if there is no keyring matches the given fingerprint', async () => {
+        await withController(async ({ controller }) => {
+          const mockFingerprint = '0x1234';
+          const selector = { fingerprint: mockFingerprint };
+          const fn = jest.fn();
+          await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
+            'KeyringController - Keyring not found.',
+          );
+          expect(fn).not.toHaveBeenCalled();
+        });
+      });
+    });
   });
 
   describe('QR keyring', () => {
@@ -2556,21 +2587,18 @@ describe('KeyringController', () => {
           ),
         );
 
-        const firstPage = await signProcessKeyringController.connectQRHardware(
-          0,
-        );
+        const firstPage =
+          await signProcessKeyringController.connectQRHardware(0);
         expect(firstPage).toHaveLength(5);
         expect(firstPage[0].index).toBe(0);
 
-        const secondPage = await signProcessKeyringController.connectQRHardware(
-          1,
-        );
+        const secondPage =
+          await signProcessKeyringController.connectQRHardware(1);
         expect(secondPage).toHaveLength(5);
         expect(secondPage[0].index).toBe(5);
 
-        const goBackPage = await signProcessKeyringController.connectQRHardware(
-          -1,
-        );
+        const goBackPage =
+          await signProcessKeyringController.connectQRHardware(-1);
         expect(goBackPage).toStrictEqual(firstPage);
 
         await signProcessKeyringController.unlockQRHardwareWalletAccount(0);
