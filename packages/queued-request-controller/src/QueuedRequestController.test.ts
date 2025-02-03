@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   getDefaultNetworkControllerState,
   type NetworkControllerGetStateAction,
@@ -35,7 +35,7 @@ describe('QueuedRequestController', () => {
   });
 
   it('updates queuedRequestCount when flushing requests for an origin', async () => {
-    const { messenger } = buildControllerMessenger();
+    const { messenger } = buildMessenger();
     const controller = new QueuedRequestController({
       messenger: buildQueuedRequestControllerMessenger(messenger),
       shouldRequestSwitchNetwork: () => false,
@@ -134,7 +134,7 @@ describe('QueuedRequestController', () => {
 
     it('switches network if a request comes in for a different network client and shouldRequestSwitchNetwork returns true', async () => {
       const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
@@ -172,7 +172,7 @@ describe('QueuedRequestController', () => {
 
     it('does not switch networks if shouldRequestSwitchNetwork returns false', async () => {
       const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
@@ -201,7 +201,7 @@ describe('QueuedRequestController', () => {
 
     it('does not switch networks if a request comes in for the same network client', async () => {
       const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
@@ -621,7 +621,7 @@ describe('QueuedRequestController', () => {
 
     it('switches network if a new batch has a different network client', async () => {
       const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
@@ -674,7 +674,7 @@ describe('QueuedRequestController', () => {
     it('does not switch networks if a new batch has the same network client', async () => {
       const networkClientId = 'selectedNetworkClientId';
       const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: networkClientId,
@@ -752,7 +752,7 @@ describe('QueuedRequestController', () => {
 
     it('processes requests from different origins but same networkClientId in separate batches without network switch', async () => {
       const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'network1',
@@ -796,7 +796,7 @@ describe('QueuedRequestController', () => {
 
     it('switches networks between batches with different networkClientIds', async () => {
       const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'network1',
@@ -851,7 +851,7 @@ describe('QueuedRequestController', () => {
         return Promise.resolve();
       });
 
-      const { messenger } = buildControllerMessenger({
+      const { messenger } = buildMessenger({
         networkControllerGetState: jest
           .fn()
           .mockReturnValueOnce({
@@ -960,7 +960,7 @@ describe('QueuedRequestController', () => {
     describe('when the network switch for a single request fails', () => {
       it('throws error', async () => {
         const switchError = new Error('switch error');
-        const { messenger } = buildControllerMessenger({
+        const { messenger } = buildMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
@@ -990,7 +990,7 @@ describe('QueuedRequestController', () => {
 
       it('correctly processes the next item in the queue', async () => {
         const switchError = new Error('switch error');
-        const { messenger } = buildControllerMessenger({
+        const { messenger } = buildMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
@@ -1037,7 +1037,7 @@ describe('QueuedRequestController', () => {
       it('throws error', async () => {
         const switchError = new Error('switch error');
 
-        const { messenger } = buildControllerMessenger({
+        const { messenger } = buildMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'mainnet',
@@ -1087,7 +1087,7 @@ describe('QueuedRequestController', () => {
 
       it('correctly processes the next item in the queue', async () => {
         const switchError = new Error('switch error');
-        const { messenger } = buildControllerMessenger({
+        const { messenger } = buildMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'mainnet',
@@ -1152,7 +1152,7 @@ describe('QueuedRequestController', () => {
 
     describe('when the first request in a batch can switch the network', () => {
       it('waits on processing the request first in the current batch', async () => {
-        const { messenger } = buildControllerMessenger({
+        const { messenger } = buildMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'mainnet',
@@ -1220,7 +1220,7 @@ describe('QueuedRequestController', () => {
           ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'mainnet',
         });
-        const { messenger } = buildControllerMessenger({
+        const { messenger } = buildMessenger({
           networkControllerGetState,
         });
         const controller = buildQueuedRequestController({
@@ -1367,7 +1367,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('rejects requests for an origin when the SelectedNetworkController "domains" state for that origin has changed, but preserves requests for other origins', async () => {
-      const { messenger } = buildControllerMessenger();
+      const { messenger } = buildMessenger();
 
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(messenger),
@@ -1451,7 +1451,7 @@ describe('QueuedRequestController', () => {
     });
 
     it('calls clearPendingConfirmations when the SelectedNetworkController "domains" state for that origin has been removed', async () => {
-      const { messenger } = buildControllerMessenger();
+      const { messenger } = buildMessenger();
 
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(messenger),
@@ -1493,24 +1493,24 @@ describe('QueuedRequestController', () => {
 });
 
 /**
- * Build a controller messenger setup with QueuedRequestController types.
+ * Build a messenger setup with QueuedRequestController types.
  *
  * @param options - Options
  * @param options.networkControllerGetState - A handler for the `NetworkController:getState`
  * action.
  * @param options.networkControllerSetActiveNetwork - A handler for the
  * `NetworkController:setActiveNetwork` action.
- * @returns A controller messenger with QueuedRequestController types, and
+ * @returns A messenger with QueuedRequestController types, and
  * mocks for all allowed actions.
  */
-function buildControllerMessenger({
+function buildMessenger({
   networkControllerGetState,
   networkControllerSetActiveNetwork,
 }: {
   networkControllerGetState?: NetworkControllerGetStateAction['handler'];
   networkControllerSetActiveNetwork?: NetworkControllerSetActiveNetworkAction['handler'];
 } = {}): {
-  messenger: ControllerMessenger<
+  messenger: Messenger<
     QueuedRequestControllerActions | AllowedActions,
     QueuedRequestControllerEvents | AllowedEvents
   >;
@@ -1521,7 +1521,7 @@ function buildControllerMessenger({
     NetworkControllerSetActiveNetworkAction['handler']
   >;
 } {
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     QueuedRequestControllerActions | AllowedActions,
     QueuedRequestControllerEvents | AllowedEvents
   >();
@@ -1551,13 +1551,13 @@ function buildControllerMessenger({
 }
 
 /**
- * Builds a restricted controller messenger for the queued request controller.
+ * Builds a restricted messenger for the queued request controller.
  *
- * @param messenger - A controller messenger.
- * @returns The restricted controller messenger.
+ * @param messenger - A messenger.
+ * @returns The restricted messenger.
  */
 function buildQueuedRequestControllerMessenger(
-  messenger = buildControllerMessenger().messenger,
+  messenger = buildMessenger().messenger,
 ): QueuedRequestControllerMessenger {
   return messenger.getRestricted({
     name: controllerName,
