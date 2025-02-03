@@ -15,7 +15,7 @@ import {
 import deepmerge from 'deepmerge';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
-import type { FetchOptions } from './shared';
+import type { AddToCockatielEventData, FetchOptions } from './shared';
 
 /**
  * The list of error messages that represent a failure to reach the network.
@@ -107,8 +107,8 @@ export class RpcService implements AbstractRpcService {
    * If your JavaScript environment supports `fetch` natively, you'll probably
    * want to pass that; otherwise you can pass an equivalent (such as `fetch`
    * via `node-fetch`).
-   * @param args.btoa - A function that can be used to encode a binary string
-   * into base 64. Used to encode authorization credentials.
+   * @param args.btoa - A function that can be used to convert a binary string
+   * into base-64. Used to encode authorization credentials.
    * @param args.endpointUrl - The URL of the RPC endpoint.
    * @param args.fetchOptions - A common set of options that will be used to
    * make every request. Can be overridden on the request level (e.g. to add
@@ -159,27 +159,40 @@ export class RpcService implements AbstractRpcService {
   }
 
   /**
-   * Listens for when the retry policy underlying this RPC service retries the
-   * request.
+   * Listens for when the RPC service retries the request.
    *
    * @param listener - The callback to be called when the retry occurs.
    * @returns What {@link ServicePolicy.onRetry} returns.
    * @see {@link createServicePolicy}
    */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]) {
-    return this.#policy.onRetry(listener);
+  onRetry(
+    listener: AddToCockatielEventData<
+      Parameters<ServicePolicy['onRetry']>[0],
+      { endpointUrl: string }
+    >,
+  ) {
+    return this.#policy.onRetry((data) => {
+      listener({ ...data, endpointUrl: this.#endpointUrl.toString() });
+    });
   }
 
   /**
-   * Listens for when the circuit breaker policy underlying this RPC service
-   * detects a broken circuit.
+   * Listens for when the RPC service retries the request too many times in a
+   * row.
    *
    * @param listener - The callback to be called when the circuit is broken.
    * @returns What {@link ServicePolicy.onBreak} returns.
    * @see {@link createServicePolicy}
    */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]) {
-    return this.#policy.onBreak(listener);
+  onBreak(
+    listener: AddToCockatielEventData<
+      Parameters<ServicePolicy['onBreak']>[0],
+      { endpointUrl: string }
+    >,
+  ) {
+    return this.#policy.onBreak((data) => {
+      listener({ ...data, endpointUrl: this.#endpointUrl.toString() });
+    });
   }
 
   /**
@@ -190,8 +203,15 @@ export class RpcService implements AbstractRpcService {
    * @returns What {@link ServicePolicy.onDegraded} returns.
    * @see {@link createServicePolicy}
    */
-  onDegraded(listener: Parameters<ServicePolicy['onDegraded']>[0]) {
-    return this.#policy.onDegraded(listener);
+  onDegraded(
+    listener: AddToCockatielEventData<
+      Parameters<ServicePolicy['onDegraded']>[0],
+      { endpointUrl: string }
+    >,
+  ) {
+    return this.#policy.onDegraded(() => {
+      listener({ endpointUrl: this.#endpointUrl.toString() });
+    });
   }
 
   /**
