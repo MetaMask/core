@@ -1,12 +1,5 @@
 import log from 'loglevel';
 
-import { MOCK_STORAGE_KEY } from '../__fixtures__';
-import {
-  createCustomUserStorageMessenger,
-  mockUserStorageMessenger,
-} from '../__fixtures__/mockMessenger';
-import { waitFor } from '../__fixtures__/test-utils';
-import type { UserStorageBaseOptions } from '../services';
 import {
   createMockNetworkConfiguration,
   createMockRemoteNetworkConfiguration,
@@ -19,6 +12,13 @@ import * as ControllerIntegrationModule from './controller-integration';
 import * as ServicesModule from './services';
 import * as SyncAllModule from './sync-all';
 import * as SyncMutationsModule from './sync-mutations';
+import { MOCK_STORAGE_KEY } from '../__fixtures__';
+import {
+  createCustomUserStorageMessenger,
+  mockUserStorageMessenger,
+} from '../__fixtures__/mockMessenger';
+import { waitFor } from '../__fixtures__/test-utils';
+import type { UserStorageBaseOptions } from '../services';
 
 jest.mock('loglevel', () => {
   const actual = jest.requireActual('loglevel');
@@ -29,7 +29,7 @@ jest.mock('loglevel', () => {
       warn: jest.fn(),
     },
     // Mocking an ESModule.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+
     __esModule: true,
   };
 });
@@ -143,6 +143,7 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
 
   /**
    * Test Utility - arrange mocks and parameters
+   *
    * @returns the mocks and parameters used when testing `startNetworkSyncing()`
    */
   function arrangeMocks() {
@@ -338,6 +339,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
 
   /**
    * Jest Mock Utility - create suite of mocks for tests
+   *
    * @returns mocks for tests
    */
   function arrangeMocks() {
