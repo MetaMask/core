@@ -36,6 +36,7 @@ import {
 } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import { v4 as uuid } from 'uuid';
 
 import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../accounts-controller/src/AccountsController';
 
@@ -189,7 +190,7 @@ export class MultichainAssetsController extends BaseController<
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountAssetListUpdated',
-      async (event) => await this.#updateAccountAssetsList(event),
+      async (event) => await this.#handleAccountAssetListUpdated(event),
     );
   }
 
@@ -198,7 +199,9 @@ export class MultichainAssetsController extends BaseController<
    *
    * @param event - The list of assets to update
    */
-  async #updateAccountAssetsList(event: AccountAssetListUpdatedEventPayload) {
+  async #handleAccountAssetListUpdated(
+    event: AccountAssetListUpdatedEventPayload,
+  ) {
     const releaseLock = await this.#mutex.acquire();
     try {
       const assetsToUpdate = event.assets;
@@ -305,8 +308,8 @@ export class MultichainAssetsController extends BaseController<
       // check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
       if (
         !assetsWithoutMetadata.every((asset: CaipAssetType) => {
-          const chainIdResponse = parseCaipAssetType(asset);
-          return Boolean(this.#getAssetSnapFor(chainIdResponse.chainId));
+          const { chainId } = parseCaipAssetType(asset);
+          return Boolean(this.#getAssetSnapFor(chainId));
         })
       ) {
         this.#snaps = this.#getAssetSnaps();
@@ -324,23 +327,27 @@ export class MultichainAssetsController extends BaseController<
     // Creates a mapping of scope to their respective assets list.
     const assetsByScope: Record<CaipChainId, CaipAssetType[]> = {};
     for (const asset of assets) {
-      const chainIdResponse = parseCaipAssetType(asset);
-      if (!assetsByScope[chainIdResponse.chainId]) {
-        assetsByScope[chainIdResponse.chainId] = [];
+      const { chainId } = parseCaipAssetType(asset);
+      if (!assetsByScope[chainId]) {
+        assetsByScope[chainId] = [];
       }
-      assetsByScope[chainIdResponse.chainId].push(asset);
+      assetsByScope[chainId].push(asset);
     }
     let newMetadata: Record<CaipAssetType, FungibleAssetMetadata> = {};
+
     for (const chainId in assetsByScope) {
       if (hasProperty(assetsByScope, chainId)) {
         const assetsForChain = assetsByScope[chainId as CaipChainId];
         // Now fetch metadata from the associated asset Snaps:
         const snap = this.#getAssetSnapFor(chainId as CaipChainId);
         if (snap) {
-          const metadata = await this.#getMetadata(assetsForChain, snap.id);
+          const metadata = await this.#getAssetsMetadataFrom(
+            assetsForChain,
+            snap.id,
+          );
           newMetadata = {
             ...newMetadata,
-            ...(metadata ? metadata.assets : {}),
+            ...(metadata?.assets ?? {}),
           };
         }
       }
@@ -404,6 +411,7 @@ export class MultichainAssetsController extends BaseController<
    * @returns All the asset snaps
    */
   #getAllSnaps(): Snap[] {
+    // TODO: Use dedicated SnapController's action once available for this:
     return this.messagingSystem
       .call('SnapController:getAll')
       .filter((snap) => snap.enabled && !snap.blocked);
@@ -431,7 +439,7 @@ export class MultichainAssetsController extends BaseController<
    * @param snapId - The snap ID to get metadata from
    * @returns The metadata for the assets
    */
-  async #getMetadata(
+  async #getAssetsMetadataFrom(
     assets: CaipAssetType[],
     snapId: string,
   ): Promise<AssetMetadataResponse | undefined> {
@@ -441,7 +449,7 @@ export class MultichainAssetsController extends BaseController<
         origin: 'metamask',
         handler: HandlerType.OnAssetsLookup,
         request: {
-          id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
+          id: uuid(),
           jsonrpc: '2.0',
           method: 'onAssetLookup',
           params: {

@@ -1357,7 +1357,7 @@ describe('MultichainAssetsController', () => {
     });
   });
 
-  describe('updateAccountAssetsList', () => {
+  describe('handleAccountAssetListUpdated', () => {
     it('should update the assets list for an account when a new asset is added', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
