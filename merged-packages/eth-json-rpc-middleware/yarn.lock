@@ -957,7 +957,7 @@ __metadata:
     "@metamask/eth-sig-util": ^8.1.2
     "@metamask/json-rpc-engine": ^10.0.2
     "@metamask/rpc-errors": ^7.0.2
-    "@metamask/utils": ^11.0.1
+    "@metamask/utils": ^11.1.0
     "@types/bn.js": ^5.1.5
     "@types/btoa": ^1.2.3
     "@types/jest": ^27.4.1
@@ -1049,9 +1049,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^11.0.1":
-  version: 11.0.1
-  resolution: "@metamask/utils@npm:11.0.1"
+"@metamask/utils@npm:^11.0.1, @metamask/utils@npm:^11.1.0":
+  version: 11.1.0
+  resolution: "@metamask/utils@npm:11.1.0"
   dependencies:
     "@ethereumjs/tx": ^4.2.0
     "@metamask/superstruct": ^3.1.0
@@ -1062,7 +1062,7 @@ __metadata:
     pony-cause: ^2.1.10
     semver: ^7.5.4
     uuid: ^9.0.1
-  checksum: a5072f87157f6763328767bf1ddc01deb94e13f32af58d0993e0450e7e211fb29882280a1013cbdc7752b152a662be3d9beef8129a9097dba7d465389c398b3c
+  checksum: 41ec84e9198969bb5a0e7a1f5426ca886a62f6d47456a1575f60b2712b9078829d0c3a947bbfffd47ca832447591b36b64a4ce767e56a6fc0304e4a1b9ec5231
   languageName: node
   linkType: hard
 
