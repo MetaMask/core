@@ -7,7 +7,7 @@ import type {
 } from '@metamask/approval-controller';
 import type {
   StateMetadata,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ActionConstraint,
   EventConstraint,
   ControllerGetStateAction,
@@ -356,7 +356,7 @@ export type GetEndowments = {
 };
 
 /**
- * The {@link ControllerMessenger} actions of the {@link PermissionController}.
+ * The {@link Messenger} actions of the {@link PermissionController}.
  */
 export type PermissionControllerActions =
   | ClearPermissions
@@ -384,7 +384,7 @@ export type PermissionControllerStateChange = ControllerStateChangeEvent<
 >;
 
 /**
- * The {@link ControllerMessenger} events of the {@link PermissionController}.
+ * The {@link Messenger} events of the {@link PermissionController}.
  *
  * The permission controller only emits its generic state change events.
  * Consumers should use selector subscriptions to subscribe to relevant
@@ -393,7 +393,7 @@ export type PermissionControllerStateChange = ControllerStateChangeEvent<
 export type PermissionControllerEvents = PermissionControllerStateChange;
 
 /**
- * The external {@link ControllerMessenger} actions available to the
+ * The external {@link Messenger} actions available to the
  * {@link PermissionController}.
  */
 type AllowedActions =
@@ -406,7 +406,7 @@ type AllowedActions =
 /**
  * The messenger of the {@link PermissionController}.
  */
-export type PermissionControllerMessenger = RestrictedControllerMessenger<
+export type PermissionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   PermissionControllerActions | AllowedActions,
   PermissionControllerEvents,
@@ -417,7 +417,7 @@ export type PermissionControllerMessenger = RestrictedControllerMessenger<
 export type SideEffectMessenger<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
-> = RestrictedControllerMessenger<
+> = RestrictedMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events,
@@ -565,7 +565,7 @@ export type PermissionControllerOptions<
  * document for details.
  *
  * Assumes the existence of an {@link ApprovalController} reachable via the
- * {@link ControllerMessenger}.
+ * {@link Messenger}.
  *
  * @template ControllerPermissionSpecification - A union of the types of all
  * permission specifications available to the controller. Any referenced caveats
@@ -629,7 +629,7 @@ export class PermissionController<
    * {@link PermissionSpecificationMap} and the README for more details.
    * @param options.unrestrictedMethods - The callable names of all JSON-RPC
    * methods ignored by the new controller.
-   * @param options.messenger - The controller messenger. See
+   * @param options.messenger - The messenger. See
    * {@link BaseController} for more information.
    * @param options.state - Existing state to hydrate the controller with at
    * initialization.
@@ -1982,7 +1982,6 @@ export class PermissionController<
     target: string,
   ): void {
     if (!isPlainObject(caveat)) {
-      // eslint-disable-next-line @typescript-eslint/no-throw-literal
       throw new InvalidCaveatError(caveat, origin, target);
     }
 

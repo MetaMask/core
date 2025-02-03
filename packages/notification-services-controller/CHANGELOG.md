@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0]
+
 ### Changed
 
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` from `^4.0.0` to `^5.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
+
+## [0.17.0]
+
+### Changed
+
+- **BREAKING:** Bump depenency `firebase` from `^10.11.0` to `^11.2.0` ([#5196](https://github.com/MetaMask/core/pull/5196))
+
+## [0.16.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/profile-sync-controller` from `^3.0.0` to `^4.0.0` ([#5140](https://github.com/MetaMask/core/pull/5140))
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
 
 ## [0.15.0]
@@ -41,12 +56,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.12.1]
 
-### Uncategorized
+### Changed
 
-- fix: disable notifications ([#4890](https://github.com/MetaMask/core/pull/4890))
-- Release 236.0.0 ([#4870](https://github.com/MetaMask/core/pull/4870))
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- chore: Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+### Fixed
+
+- fix: allow snap notifications to be visbible when controller is disabled ([#4890](https://github.com/MetaMask/core/pull/4890))
+  - Most notification services are switched off when the controller is disabled, but since snaps are "local notifications", they need to be visible irrespective to the controller disabled state.
 
 ## [0.12.0]
 
@@ -271,7 +288,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.15.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.18.0...HEAD
+[0.18.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.17.0...@metamask/notification-services-controller@0.18.0
+[0.17.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.16.0...@metamask/notification-services-controller@0.17.0
+[0.16.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.15.0...@metamask/notification-services-controller@0.16.0
 [0.15.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.14.0...@metamask/notification-services-controller@0.15.0
 [0.14.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.13.0...@metamask/notification-services-controller@0.14.0
 [0.13.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.12.1...@metamask/notification-services-controller@0.13.0

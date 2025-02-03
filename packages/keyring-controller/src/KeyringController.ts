@@ -4,7 +4,7 @@ import type {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import HDKeyring from '@metamask/eth-hd-keyring';
@@ -52,32 +52,19 @@ const name = 'KeyringController';
  * Available keyring types
  */
 export enum KeyringTypes {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   simple = 'Simple Key Pair',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   hd = 'HD Key Tree',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   qr = 'QR Hardware Wallet Device',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   trezor = 'Trezor Hardware',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ledger = 'Ledger Hardware',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   lattice = 'Lattice Hardware',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   snap = 'Snap Keyring',
 }
 
 /**
  * Custody keyring types are a special case, as they are not a single type
  * but they all start with the prefix "Custody".
+ *
  * @param keyringType - The type of the keyring.
  * @returns Whether the keyring type is a custody keyring.
  */
@@ -86,21 +73,31 @@ export const isCustodyKeyring = (keyringType: string): boolean => {
 };
 
 /**
- * @type KeyringControllerState
- *
- * Keyring controller state
- * @property vault - Encrypted string representing keyring data
- * @property isUnlocked - Whether vault is unlocked
- * @property keyringTypes - Account types
- * @property keyrings - Group of accounts
- * @property encryptionKey - Keyring encryption key
- * @property encryptionSalt - Keyring encryption salt
+ * The KeyringController state
  */
 export type KeyringControllerState = {
+  /**
+   * Encrypted array of serialized keyrings data.
+   */
   vault?: string;
+  /**
+   * Whether the vault has been decrypted successfully and
+   * keyrings contained within are deserialized and available.
+   */
   isUnlocked: boolean;
+  /**
+   * Representations of managed keyrings.
+   */
   keyrings: KeyringObject[];
+  /**
+   * The encryption key derived from the password and used to encrypt
+   * the vault. This is only stored if the `cacheEncryptionKey` option
+   * is enabled.
+   */
   encryptionKey?: string;
+  /**
+   * The salt used to derive the encryption key from the password.
+   */
   encryptionSalt?: string;
 };
 
@@ -227,7 +224,7 @@ export type KeyringControllerEvents =
   | KeyringControllerAccountRemovedEvent
   | KeyringControllerQRKeyringStateChangeEvent;
 
-export type KeyringControllerMessenger = RestrictedControllerMessenger<
+export type KeyringControllerMessenger = RestrictedMessenger<
   typeof name,
   KeyringControllerActions,
   KeyringControllerEvents,
@@ -251,14 +248,16 @@ export type KeyringControllerOptions = {
 );
 
 /**
- * @type KeyringObject
- *
- * Keyring object to return in fullUpdate
- * @property type - Keyring type
- * @property accounts - Associated accounts
+ * A keyring object representation.
  */
 export type KeyringObject = {
+  /**
+   * Accounts associated with the keyring.
+   */
   accounts: string[];
+  /**
+   * Keyring type.
+   */
   type: string;
 };
 
@@ -266,11 +265,7 @@ export type KeyringObject = {
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   privateKey = 'privateKey',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   json = 'json',
 }
 
@@ -404,13 +399,11 @@ export type KeyringSelector =
  *
  * @param releaseLock - A function to release the lock.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-type MutuallyExclusiveCallback<T> = ({
+type MutuallyExclusiveCallback<Result> = ({
   releaseLock,
 }: {
   releaseLock: MutexInterface.Releaser;
-}) => Promise<T>;
+}) => Promise<Result>;
 
 /**
  * Get builder function for `Keyring`
@@ -586,17 +579,17 @@ export class KeyringController extends BaseController<
 
   readonly #vaultOperationMutex = new Mutex();
 
-  #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
+  readonly #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
+
+  readonly #unsupportedKeyrings: SerializedKeyring[];
+
+  readonly #encryptor: GenericEncryptor | ExportableKeyEncryptor;
+
+  readonly #cacheEncryptionKey: boolean;
 
   #keyrings: EthKeyring<Json>[];
 
-  #unsupportedKeyrings: SerializedKeyring[];
-
   #password?: string;
-
-  #encryptor: GenericEncryptor | ExportableKeyEncryptor;
-
-  #cacheEncryptionKey: boolean;
 
   #qrKeyringStateListener?: (
     state: ReturnType<IQRKeyringState['getState']>,
@@ -609,7 +602,7 @@ export class KeyringController extends BaseController<
    * @param options.encryptor - An optional object for defining encryption schemes.
    * @param options.keyringBuilders - Set a new name for account.
    * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
   constructor(options: KeyringControllerOptions) {
@@ -765,6 +758,7 @@ export class KeyringController extends BaseController<
    * If there is a pre-existing locked vault, it will be replaced.
    *
    * @param password - Password to unlock the new vault.
+   * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndKeychain(password: string) {
     return this.#persistOrRollback(async () => {
@@ -989,7 +983,7 @@ export class KeyringController extends BaseController<
     return this.#persistOrRollback(async () => {
       let privateKey;
       switch (strategy) {
-        case 'privateKey':
+        case AccountImportStrategy.privateKey:
           const [importedKey] = args;
           if (!importedKey) {
             throw new Error('Cannot import an empty key.');
@@ -1013,7 +1007,7 @@ export class KeyringController extends BaseController<
 
           privateKey = remove0x(prefixed);
           break;
-        case 'json':
+        case AccountImportStrategy.json:
           let wallet;
           const [input, password] = args;
           try {
@@ -1024,7 +1018,7 @@ export class KeyringController extends BaseController<
           privateKey = bytesToHex(wallet.getPrivateKey());
           break;
         default:
-          throw new Error(`Unexpected import strategy: '${strategy}'`);
+          throw new Error(`Unexpected import strategy: '${String(strategy)}'`);
       }
       const newKeyring = (await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
@@ -1054,7 +1048,6 @@ export class KeyringController extends BaseController<
 
       // The `removeAccount` method of snaps keyring is async. We have to update
       // the interface of the other keyrings to be async as well.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       // FIXME: We do cast to `Hex` to makes the type checker happy here, and
       // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
       // type would need to be updated for a full non-EVM support.
@@ -1580,7 +1573,6 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async cancelQRSynchronization(): Promise<void> {
-    // eslint-disable-next-line n/no-sync
     (await this.getOrAddQRKeyring()).cancelSync();
   }
 
@@ -2202,9 +2194,6 @@ export class KeyringController extends BaseController<
       // NOTE: Not all keyrings implement this method in a asynchronous-way. Using `await` for
       // non-thenable will still be valid (despite not being really useful). It allows us to cover both
       // cases and allow retro-compatibility too.
-      // FIXME: For some reason, it seems that eslint is complaining about this call being non-thenable
-      // even though it is... For now, we just disable it:
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       await keyring.generateRandomMnemonic();
       await keyring.addAccounts(1);
     }
@@ -2354,14 +2343,14 @@ export class KeyringController extends BaseController<
    * and save the keyrings to state after it, or rollback to their
    * previous state in case of error.
    *
-   * @param fn - The function to execute.
+   * @param callback - The function to execute.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+  async #persistOrRollback<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const callbackResult = await fn({ releaseLock });
+      const callbackResult = await callback({ releaseLock });
       // State is committed only if the operation is successful
       await this.#updateVault();
 
@@ -2373,18 +2362,18 @@ export class KeyringController extends BaseController<
    * Execute the given function after acquiring the controller lock
    * and rollback keyrings and password states in case of error.
    *
-   * @param fn - The function to execute atomically.
+   * @param callback - The function to execute atomically.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #withRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+  async #withRollback<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
 
       try {
-        return await fn({ releaseLock });
+        return await callback({ releaseLock });
       } catch (e) {
         // Keyrings and password are restored to their previous state
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
@@ -2415,13 +2404,13 @@ export class KeyringController extends BaseController<
    * controller and that changes its state is executed in a mutually exclusive way,
    * preventing unsafe concurrent access that could lead to unpredictable behavior.
    *
-   * @param fn - The function to execute while the controller mutex is locked.
+   * @param callback - The function to execute while the controller mutex is locked.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #withControllerLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
-    return withLock(this.#controllerOperationMutex, fn);
+  async #withControllerLock<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
+    return withLock(this.#controllerOperationMutex, callback);
   }
 
   /**
@@ -2432,15 +2421,15 @@ export class KeyringController extends BaseController<
    * This ensures that each operation that interacts with the vault
    * is executed in a mutually exclusive way.
    *
-   * @param fn - The function to execute while the vault mutex is locked.
+   * @param callback - The function to execute while the vault mutex is locked.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #withVaultLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+  async #withVaultLock<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
     this.#assertControllerMutexIsLocked();
 
-    return withLock(this.#vaultOperationMutex, fn);
+    return withLock(this.#vaultOperationMutex, callback);
   }
 }
 
@@ -2450,19 +2439,17 @@ export class KeyringController extends BaseController<
  * error is thrown.
  *
  * @param mutex - The mutex to lock.
- * @param fn - The function to execute while the mutex is locked.
+ * @param callback - The function to execute while the mutex is locked.
  * @returns The result of the function.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-async function withLock<T>(
+async function withLock<Result>(
   mutex: Mutex,
-  fn: MutuallyExclusiveCallback<T>,
-): Promise<T> {
+  callback: MutuallyExclusiveCallback<Result>,
+): Promise<Result> {
   const releaseLock = await mutex.acquire();
 
   try {
-    return await fn({ releaseLock });
+    return await callback({ releaseLock });
   } finally {
     releaseLock();
   }

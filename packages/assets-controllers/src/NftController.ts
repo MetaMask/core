@@ -6,7 +6,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import {
@@ -100,12 +100,11 @@ type SuggestedNftMeta = {
  * @property isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * @property transactionId - Transaction Id associated with the NFT
  */
-export type Nft =
-  | {
-      tokenId: string;
-      address: string;
-      isCurrentlyOwned?: boolean;
-    } & NftMetadata;
+export type Nft = {
+  tokenId: string;
+  address: string;
+  isCurrentlyOwned?: boolean;
+} & NftMetadata;
 
 type NftUpdate = {
   nft: Nft;
@@ -260,7 +259,7 @@ export type NftControllerEvents = NftControllerStateChangeEvent;
 /**
  * The messenger of the {@link NftController}.
  */
-export type NftControllerMessenger = RestrictedControllerMessenger<
+export type NftControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   NftControllerActions | AllowedActions,
   NftControllerEvents | AllowedEvents,
@@ -273,6 +272,8 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   allNfts: {},
   ignoredNfts: [],
 });
+
+const NFT_UPDATE_THRESHOLD = 500;
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -320,7 +321,7 @@ export class NftController extends BaseController<
    * @param options.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    * @param options.state - Initial state to set on this controller.
    */
   constructor({
@@ -421,15 +422,21 @@ export class NftController extends BaseController<
       'AccountsController:getSelectedAccount',
     );
     this.#selectedAccountId = selectedAccount.id;
-    this.#ipfsGateway = ipfsGateway;
-    this.#openSeaEnabled = openSeaEnabled;
-    this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+    // Get current state values
+    if (
+      this.#ipfsGateway !== ipfsGateway ||
+      this.#openSeaEnabled !== openSeaEnabled ||
+      this.#isIpfsGatewayEnabled !== isIpfsGatewayEnabled
+    ) {
+      this.#ipfsGateway = ipfsGateway;
+      this.#openSeaEnabled = openSeaEnabled;
+      this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
+      const needsUpdateNftMetadata =
+        (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
-    const needsUpdateNftMetadata =
-      (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
-
-    if (needsUpdateNftMetadata && selectedAccount) {
-      await this.#updateNftUpdateForAccount(selectedAccount);
+      if (needsUpdateNftMetadata && selectedAccount) {
+        await this.#updateNftUpdateForAccount(selectedAccount);
+      }
     }
   }
 
@@ -2053,7 +2060,10 @@ export class NftController extends BaseController<
       (singleNft) =>
         !singleNft.name && !singleNft.description && !singleNft.image,
     );
-    if (nftsToUpdate.length !== 0) {
+    if (
+      nftsToUpdate.length !== 0 &&
+      nftsToUpdate.length < NFT_UPDATE_THRESHOLD
+    ) {
       await this.updateNftMetadata({
         nfts: nftsToUpdate,
         userAddress: account.address,

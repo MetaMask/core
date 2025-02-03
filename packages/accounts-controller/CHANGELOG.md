@@ -7,9 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+
+### Added
+
+- Add `AccountsController:account{AssetList,Balances,Transactions}Updated` events ([#5190](https://github.com/MetaMask/core/pull/5190))
+  - Those events are being sent from Account Snaps (through the Snap keyring) and are being re-published by the `AccountController`.
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- **BREAKING:** Now requires `SnapKeyring:account{AssetList,Balances,Transactions}Updated` events to be registered on the messenger ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/eth-snap-keyring` from `^8.1.1` to `^9.1.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+
+## [21.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^13.0.0` to `^14.0.0` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/keyring-internal-api` from `^2.0.0` to `^2.0.1` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/eth-snap-keyring` from `^8.1.0` to `^8.1.1` ([#5177](https://github.com/MetaMask/core/pull/5177))
+
+## [21.0.1]
+
+### Changed
+
+- Bump `@metamask/eth-snap-keyring` from `^8.0.0` to `^8.1.0` ([#5167](https://github.com/MetaMask/core/pull/5167))
+
+## [21.0.0]
+
+### Changed
+
+- **BREAKING:** Add `scopes` field to `KeyringAccount` ([#5066](https://github.com/MetaMask/core/pull/5066)), ([#5136](https://github.com/MetaMask/core/pull/5136))
+  - This field is now required and will be used to identify the supported chains (using CAIP-2 chain IDs) for every accounts.
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
 
 ## [20.0.2]
 
@@ -382,7 +416,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.2...@metamask/accounts-controller@22.0.0
+[21.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.1...@metamask/accounts-controller@21.0.2
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.0...@metamask/accounts-controller@21.0.1
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.2...@metamask/accounts-controller@21.0.0
 [20.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.1...@metamask/accounts-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.0...@metamask/accounts-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@19.0.0...@metamask/accounts-controller@20.0.0

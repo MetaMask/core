@@ -1,13 +1,51 @@
+import type {
+  ActionConstraint,
+  EventConstraint,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
+  MessageManagerState,
   OriginalRequest,
+  SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { normalizeMessageData, validateDecryptedMessageData } from './utils';
+
+const managerName = 'DecryptMessageManager';
+
+export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
+
+export type DecryptMessageManagerUnapprovedMessageAddedEvent = {
+  type: `${typeof managerName}:unapprovedMessage`;
+  payload: [AbstractMessageParamsMetamask];
+};
+
+export type DecryptMessageManagerUpdateBadgeEvent = {
+  type: `${typeof managerName}:updateBadge`;
+  payload: [];
+};
+
+export type DecryptMessageManagerMessenger = RestrictedControllerMessenger<
+  string,
+  ActionConstraint,
+  | EventConstraint
+  | DecryptMessageManagerUnapprovedMessageAddedEvent
+  | DecryptMessageManagerUpdateBadgeEvent,
+  string,
+  string
+>;
+
+type DecryptMessageManagerOptions = {
+  messenger: DecryptMessageManagerMessenger;
+  securityProviderRequest?: SecurityProviderRequest;
+  state?: MessageManagerState<DecryptMessage>;
+  additionalFinishStatuses?: string[];
+};
 
 /**
  * @type DecryptMessage
@@ -19,12 +57,9 @@ import { normalizeMessageData, validateDecryptedMessageData } from './utils';
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'DecryptMessage' which always has a 'eth_decrypt' type
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessage extends AbstractMessage {
+export type DecryptMessage = AbstractMessage & {
   messageParams: DecryptMessageParams;
-}
+};
 
 /**
  * @type DecryptMessageParams
@@ -32,12 +67,9 @@ export interface DecryptMessage extends AbstractMessage {
  * Represents the parameters to pass to the eth_decrypt method once the request is approved.
  * @property data - A hex string conversion of the raw buffer data of the signature request
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessageParams extends AbstractMessageParams {
+export type DecryptMessageParams = AbstractMessageParams & {
   data: string;
-}
+};
 
 /**
  * @type DecryptMessageParamsMetamask
@@ -63,12 +95,26 @@ export interface DecryptMessageParamsMetamask
 export class DecryptMessageManager extends AbstractMessageManager<
   DecryptMessage,
   DecryptMessageParams,
-  DecryptMessageParamsMetamask
+  DecryptMessageParamsMetamask,
+  ActionConstraint,
+  | EventConstraint
+  | DecryptMessageManagerUnapprovedMessageAddedEvent
+  | DecryptMessageManagerUpdateBadgeEvent
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'DecryptMessageManager' as const;
+  constructor({
+    additionalFinishStatuses,
+    messenger,
+    securityProviderRequest,
+    state,
+  }: DecryptMessageManagerOptions) {
+    super({
+      additionalFinishStatuses,
+      messenger,
+      name: managerName,
+      securityProviderRequest,
+      state,
+    });
+  }
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -86,32 +132,35 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = await this.addUnapprovedMessage(messageParams, req);
 
     return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: DecryptMessage) => {
-        switch (data.status) {
-          case 'decrypted':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask DecryptMessage: User denied message decryption.',
-              ),
-            );
-          case 'errored':
-            return reject(
-              new Error(
-                'MetaMask DecryptMessage: This message cannot be decrypted.',
-              ),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask DecryptMessage: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
+      this.internalEvents.once(
+        `${messageId}:finished`,
+        (data: DecryptMessage) => {
+          switch (data.status) {
+            case 'decrypted':
+              return resolve(data.rawSig as string);
+            case 'rejected':
+              return reject(
+                new Error(
+                  'MetaMask DecryptMessage: User denied message decryption.',
+                ),
+              );
+            case 'errored':
+              return reject(
+                new Error(
+                  'MetaMask DecryptMessage: This message cannot be decrypted.',
+                ),
+              );
+            default:
+              return reject(
+                new Error(
+                  `MetaMask DecryptMessage: Unknown problem: ${JSON.stringify(
+                    messageParams,
+                  )}`,
+                ),
+              );
+          }
+        },
+      );
     });
   }
 
@@ -144,7 +193,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const messageId = messageData.id;
 
     await this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, {
+    this.messagingSystem.publish(`${managerName}:unapprovedMessage`, {
       ...updatedMessageParams,
       metamaskId: messageId,
     });

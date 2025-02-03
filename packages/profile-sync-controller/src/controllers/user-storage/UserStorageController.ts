@@ -7,7 +7,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -126,7 +126,7 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: false,
   },
   isAccountSyncingReadyToBeDispatched: {
-    persist: false,
+    persist: true,
     anonymous: false,
   },
   isAccountSyncingInProgress: {
@@ -161,6 +161,7 @@ type ControllerConfig = {
     onAccountSyncErroneousSituation?: (
       profileId: string,
       situationMessage: string,
+      sentryContext?: Record<string, unknown>,
     ) => void;
   };
 
@@ -285,7 +286,7 @@ export type AllowedEvents =
   | NetworkControllerNetworkRemovedEvent;
 
 // Messenger
-export type UserStorageControllerMessenger = RestrictedControllerMessenger<
+export type UserStorageControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events | AllowedEvents,
@@ -864,10 +865,11 @@ export default class UserStorageController extends BaseController<
           this.#config?.accountSyncing?.onAccountAdded?.(profileId),
         onAccountNameUpdated: () =>
           this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
-        onAccountSyncErroneousSituation: (situationMessage) =>
+        onAccountSyncErroneousSituation: (situationMessage, sentryContext) =>
           this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
             profileId,
             situationMessage,
+            sentryContext,
           ),
       },
       {

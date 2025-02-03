@@ -6,7 +6,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
@@ -30,7 +30,7 @@ import {
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
-// eslint-disable-next-line import/no-nodejs-modules
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 import { v1 as random } from 'uuid';
 
@@ -134,7 +134,7 @@ export type SignatureControllerActions = GetSignatureState;
 
 export type SignatureControllerEvents = SignatureStateChange;
 
-export type SignatureControllerMessenger = RestrictedControllerMessenger<
+export type SignatureControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   SignatureControllerActions | AllowedActions,
   SignatureControllerEvents,
@@ -144,7 +144,7 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 
 export type SignatureControllerOptions = {
   /**
-   * Restricted controller messenger required by the signature controller.
+   * Restricted messenger required by the signature controller.
    */
   messenger: SignatureControllerMessenger;
 
@@ -201,7 +201,7 @@ export class SignatureController extends BaseController<
    * @param options - The controller options.
    * @param options.decodingApiUrl - Api used to get decoded data for permits.
    * @param options.isDecodeSignatureRequestEnabled - Function to check is decoding signature request is enabled.
-   * @param options.messenger - The restricted controller messenger for the sign controller.
+   * @param options.messenger - The restricted messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
    */
@@ -782,7 +782,6 @@ export class SignatureController extends BaseController<
 
       const originalStatus = metadata.status;
 
-      // eslint-disable-next-line n/callback-return
       callback(metadata);
 
       statusChanged = metadata.status !== originalStatus;
@@ -802,7 +801,6 @@ export class SignatureController extends BaseController<
 
   #updateState(callback: (state: SignatureControllerState) => void) {
     return this.update((state) => {
-      // eslint-disable-next-line n/callback-return, n/no-callback-literal
       callback(state as unknown as SignatureControllerState);
 
       const unapprovedRequests = Object.values(state.signatureRequests).filter(

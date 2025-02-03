@@ -6,7 +6,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC1155,
@@ -203,7 +203,7 @@ function setupController({
   >;
   defaultSelectedAccount?: InternalAccount;
 } = {}) {
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     | ExtractAvailableAction<NftControllerMessenger>
     | NftControllerAllowedActions
     | ExtractAvailableAction<ApprovalControllerMessenger>,
@@ -4471,6 +4471,49 @@ describe('NftController', () => {
   });
 
   describe('updateNftMetadata', () => {
+    it('should not update Nft metadata when preferences change and current and incoming state are the same', async () => {
+      const {
+        nftController,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController();
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+      });
+
+      expect(spy).toHaveBeenCalledTimes(0);
+    });
+
+    it('should call update Nft metadata when preferences change is triggered and at least ipfsGateway, openSeaEnabled or isIpfsGatewayEnabled change', async () => {
+      const {
+        nftController,
+        mockGetAccount,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController({
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+      const spy = jest.spyOn(nftController, 'updateNftMetadata');
+      const testNetworkClientId = 'mainnet';
+      mockGetAccount.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0xtest', '3', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+        networkClientId: testNetworkClientId,
+      });
+
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
+      // trigger preference change
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        ipfsGateway: 'https://toto/ipfs/',
+      });
+
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
     it('should update Nft metadata successfully', async () => {
       const tokenURI = 'https://api.pudgypenguins.io/lil/4';
       const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
