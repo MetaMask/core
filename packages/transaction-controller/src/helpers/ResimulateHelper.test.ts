@@ -126,15 +126,13 @@ describe('ResimulateHelper', () => {
     jest.clearAllTimers();
   });
 
-  it(`resimulates unapproved focused transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, async () => {
+  it(`resimulates unapproved active transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, async () => {
     mockGetTransactionsOnce([mockTransactionMeta]);
     triggerStateChange();
   
-    // Advance time to trigger the first execution
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
-    await Promise.resolve(); // flush microtasks
+    await Promise.resolve();
   
-    // Process any pending timers (including the rescheduled listener)
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
     await Promise.resolve();
 
@@ -161,19 +159,19 @@ describe('ResimulateHelper', () => {
     expect(simulateTransactionMock).toHaveBeenCalledTimes(1);
   });
 
-  it('does not resimulate a transaction that is no longer focused', () => {
+  it('does not resimulate a transaction that is no longer active', () => {
     mockGetTransactionsOnce([mockTransactionMeta]);
     triggerStateChange();
 
     // Halfway through the interval
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
-    const unfocusedTransactionMeta = {
+    const inactiveTransactionMeta = {
       ...mockTransactionMeta,
       isActive: false,
     } as TransactionMeta;
 
-    mockGetTransactionsOnce([unfocusedTransactionMeta]);
+    mockGetTransactionsOnce([inactiveTransactionMeta]);
     triggerStateChange();
 
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
@@ -181,13 +179,13 @@ describe('ResimulateHelper', () => {
     expect(simulateTransactionMock).toHaveBeenCalledTimes(0);
   });
 
-  it('does not resimulate a transaction that is not focused', () => {
-    const unfocusedTransactionMeta = {
+  it('does not resimulate a transaction that is not active', () => {
+    const inactiveTransactionMeta = {
       ...mockTransactionMeta,
       isActive: false,
     } as TransactionMeta;
 
-    mockGetTransactionsOnce([unfocusedTransactionMeta]);
+    mockGetTransactionsOnce([inactiveTransactionMeta]);
     triggerStateChange();
 
     jest.advanceTimersByTime(2 * RESIMULATE_INTERVAL_MS);
