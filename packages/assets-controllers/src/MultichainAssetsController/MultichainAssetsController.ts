@@ -31,6 +31,7 @@ import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import {
   hasProperty,
+  isCaipAssetType,
   parseCaipAssetType,
   type CaipChainId,
 } from '@metamask/utils';
@@ -205,7 +206,7 @@ export class MultichainAssetsController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
     try {
       const assetsToUpdate = event.assets;
-      const assetsForMetadataRefresh: CaipAssetType[] = [];
+      let assetsForMetadataRefresh = new Set<CaipAssetType>([]);
       for (const accountId in assetsToUpdate) {
         if (hasProperty(assetsToUpdate, accountId)) {
           const newAccountAssets = assetsToUpdate[accountId];
@@ -213,24 +214,27 @@ export class MultichainAssetsController extends BaseController<
             newAccountAssets.added.length !== 0 ||
             newAccountAssets.removed.length !== 0
           ) {
-            const assets = this.state.allNonEvmTokens[accountId] || [];
-            const filteredAssetsToAdd = newAccountAssets.added.filter(
-              (asset) => !assets.includes(asset),
-            );
-            assetsForMetadataRefresh.push(...filteredAssetsToAdd);
-            const newAssets = [...assets, ...filteredAssetsToAdd];
-
-            const assetsAfterRemoval = newAssets.filter(
-              (asset) => !newAccountAssets.removed.includes(asset),
-            );
+            const { added, removed } = newAccountAssets;
+            const existing = this.state.allNonEvmTokens[accountId] || [];
+            const assets = new Set<CaipAssetType>([
+              ...existing,
+              ...added.filter((asset) => isCaipAssetType(asset)),
+            ]);
+            for (const removedAsset of removed) {
+              assets.delete(removedAsset);
+            }
+            assetsForMetadataRefresh = new Set([
+              ...assetsForMetadataRefresh,
+              ...assets,
+            ]);
             this.update((state) => {
-              state.allNonEvmTokens[accountId] = assetsAfterRemoval;
+              state.allNonEvmTokens[accountId] = Array.from(assets);
             });
           }
         }
       }
       // trigger fetching metadata for new assets
-      await this.#refreshAssetsMetadata(assetsForMetadataRefresh);
+      await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
     } finally {
       releaseLock();
     }
