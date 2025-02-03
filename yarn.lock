@@ -2692,6 +2692,30 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/earn-controller@workspace:packages/earn-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/earn-controller@workspace:packages/earn-controller"
+  dependencies:
+    "@ethersproject/providers": "npm:^5.7.0"
+    "@metamask/accounts-controller": "npm:^22.0.0"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^7.1.1"
+    "@metamask/controller-utils": "npm:^11.4.5"
+    "@metamask/network-controller": "npm:^22.1.1"
+    "@metamask/stake-sdk": "npm:^1.0.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^22.0.0
+    "@metamask/network-controller": ^22.1.1
+  languageName: unknown
+  linkType: soft
+
 "@metamask/ens-controller@workspace:packages/ens-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/ens-controller@workspace:packages/ens-controller"
@@ -4017,6 +4041,13 @@ __metadata:
     ses: "npm:^1.1.0"
     validate-npm-package-name: "npm:^5.0.0"
   checksum: 10/2917fbdccb23c831b613857c3a5738d34352697dae84173a3d24dbcb4c38edf23989fb089870187885dcf867a55ec731c1ac05e9809a7d6804dbe28c57e6da50
+  languageName: node
+  linkType: hard
+
+"@metamask/stake-sdk@npm:^1.0.0":
+  version: 1.0.0
+  resolution: "@metamask/stake-sdk@npm:1.0.0"
+  checksum: 10/96e3fff677aab96e9d26a98c719623ccac59a13e367f2a8fe66174fb00a36fbe32dd6b4664335801a690b2f3744010e6c8e88a4db678742dc6c0d04c0caaf9bb
   languageName: node
   linkType: hard
 

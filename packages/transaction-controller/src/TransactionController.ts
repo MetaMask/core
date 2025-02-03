@@ -11,7 +11,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -539,7 +539,7 @@ export type TransactionControllerEvents =
 /**
  * The messenger of the {@link TransactionController}.
  */
-export type TransactionControllerMessenger = RestrictedControllerMessenger<
+export type TransactionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TransactionControllerActions | AllowedActions,
   TransactionControllerEvents | AllowedEvents,
