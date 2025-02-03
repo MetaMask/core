@@ -664,14 +664,14 @@ describe('RpcServiceChain', () => {
 
       const onDegradedListenerCallCountsByEndpointUrl =
         onDegradedListener.mock.calls.reduce(
-          (memo, call) => {
+          (memo: Record<string, number>, call) => {
             const { endpointUrl } = call[0];
             // There is nothing wrong with this.
             // eslint-disable-next-line jest/no-conditional-in-test
             memo[endpointUrl] = (memo[endpointUrl] ?? 0) + 1;
             return memo;
           },
-          {} as Record<string, number>,
+          {},
         );
 
       expect(onDegradedListenerCallCountsByEndpointUrl).toStrictEqual({
