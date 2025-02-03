@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
@@ -66,7 +66,7 @@ const metadata = {
   },
 };
 
-export type AnnouncementControllerMessenger = RestrictedControllerMessenger<
+export type AnnouncementControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AnnouncementControllerActions,
   AnnouncementControllerEvents,

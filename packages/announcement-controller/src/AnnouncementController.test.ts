@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import type {
   AnnouncementControllerState,
@@ -17,11 +17,11 @@ const name = 'AnnouncementController';
  * @returns A restricted controller messenger.
  */
 function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
+  const messenger = new Messenger<
     AnnouncementControllerActions,
     AnnouncementControllerEvents
   >();
-  return controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name,
     allowedActions: [],
     allowedEvents: [],

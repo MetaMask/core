@@ -7,7 +7,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -286,7 +286,7 @@ export type AllowedEvents =
   | NetworkControllerNetworkRemovedEvent;
 
 // Messenger
-export type UserStorageControllerMessenger = RestrictedControllerMessenger<
+export type UserStorageControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events | AllowedEvents,

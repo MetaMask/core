@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import type {
   KeyringControllerGetAccountsAction,
@@ -946,10 +946,7 @@ const typedMockAction = <Action extends { handler: AnyFunc }>() =>
  * @returns mock notification messenger and other messenger mocks
  */
 function mockNotificationMessenger() {
-  const globalMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
+  const globalMessenger = new Messenger<AllowedActions, AllowedEvents>();
 
   const messenger = globalMessenger.getRestricted({
     name: 'NotificationServicesController',
