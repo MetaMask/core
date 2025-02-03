@@ -35,7 +35,7 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  * and instead uses the singular session for the origin if available.
  *
  * @param request - The request object.
- * @param _response - The response object. Unused.
+ * @param response - The response object. Unused.
  * @param next - The next middleware function.
  * @param end - The end function.
  * @param hooks - The hooks object.
@@ -43,6 +43,7 @@ export type WalletInvokeMethodRequest = JsonRpcRequest & {
  * @param hooks.findNetworkClientIdByChainId - the hook for finding the networkClientId for a chainId.
  * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
  * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
+ * @param hooks.handleNonEvmRequestForOrigin - A function that sends a request to the MultichainRouter for processing.
  */
 async function walletInvokeMethodHandler(
   request: WalletInvokeMethodRequest,
@@ -100,17 +101,15 @@ async function walletInvokeMethodHandler(
 
   if (isEvmRequest) {
     let networkClientId;
-    switch (namespace) {
-      case 'wallet':
+    if (namespace === KnownCaipNamespace.Wallet) {
         networkClientId = hooks.getSelectedNetworkClientId();
-        break;
-      case 'eip155':
-        if (reference) {
-          networkClientId = hooks.findNetworkClientIdByChainId(
-            numberToHex(parseInt(reference, 10)),
-          );
-        }
-        break;
+    }
+    else if (namespace === KnownCaipNamespace.Eip155) {
+      if (reference) {
+        networkClientId = hooks.findNetworkClientIdByChainId(
+          numberToHex(parseInt(reference, 10)),
+        );
+      }
     }
 
     if (!networkClientId) {

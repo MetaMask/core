@@ -1,5 +1,5 @@
 import {
-  CaipChainId,
+  type CaipChainId,
   hasProperty,
   isCaipAccountId,
   isCaipChainId,

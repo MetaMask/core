@@ -1,4 +1,4 @@
-import { CaipChainId, type Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { assertIsInternalScopeString, assertScopeSupported } from './assert';
 import { isSupportedMethod, isSupportedNotification } from './supported';

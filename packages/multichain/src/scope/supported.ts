@@ -34,9 +34,8 @@ export const isSupportedScopeString = (
     case KnownCaipNamespace.Wallet:
       if (!reference || reference === KnownCaipNamespace.Eip155) {
         return true
-      } else {
-        return isCaipChainId(scopeString) ? isNonEvmScopeSupported(scopeString) : false
       }
+      return isCaipChainId(scopeString) ? isNonEvmScopeSupported(scopeString) : false
     case KnownCaipNamespace.Eip155:
       return (
         !reference ||
@@ -86,9 +85,8 @@ export const isSupportedAccount = (
     case KnownCaipNamespace.Wallet:
       if(reference === KnownCaipNamespace.Eip155) {
         return isSupportedEip155Account()
-      } else {
-        return isSupportedNonEvmAccount()
       }
+      return isSupportedNonEvmAccount()
     case KnownCaipNamespace.Eip155:
       return isSupportedEip155Account();
     default:
@@ -127,17 +125,15 @@ export const isSupportedMethod = (
     if (reference) {
       if (reference === KnownCaipNamespace.Eip155) {
         return KnownWalletNamespaceRpcMethods[reference].includes(method);
-      } else {
-        return isSupportedNonEvmMethod()
       }
+      return isSupportedNonEvmMethod()
     }
 
     return KnownWalletRpcMethods.includes(method);
   } else if ( namespace === KnownCaipNamespace.Eip155) {
     return KnownRpcMethods[namespace].includes(method);
-  } else {
-    return isSupportedNonEvmMethod()
   }
+  return isSupportedNonEvmMethod()
 };
 
 /**

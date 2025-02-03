@@ -80,6 +80,8 @@ type Caip25EndowmentCaveatSpecificationBuilderOptions = {
  * @param options - The specification builder options.
  * @param options.findNetworkClientIdByChainId - The hook for getting the networkClientId that serves a chainId.
  * @param options.listAccounts - The hook for getting internalAccount objects for all evm accounts.
+ * @param options.isNonEvmScopeSupported - The hook that determines if an non EVM scopeString is supported.
+ * @param options.getNonEvmAccountAddresses - The hook that returns the supported CAIP-10 account addresses for a non EVM scope.
  * @returns The specification for the `caip25` caveat.
  */
 export const caip25CaveatBuilder = ({

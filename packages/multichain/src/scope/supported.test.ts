@@ -372,10 +372,10 @@ describe('Scope Support', () => {
     });
 
     it('gets the non-evm account addresses for the scope if wallet namespace with non-evm reference', () => {
-        isSupportedAccount('wallet:nonevm:0xdeadbeef',  {
-          getEvmInternalAccounts,
-          getNonEvmAccountAddresses
-        }),
+      isSupportedAccount('wallet:nonevm:0xdeadbeef',  {
+        getEvmInternalAccounts,
+        getNonEvmAccountAddresses
+      })
 
       expect(getNonEvmAccountAddresses).toHaveBeenCalledWith('wallet:nonevm')
     });
@@ -404,7 +404,7 @@ describe('Scope Support', () => {
       isSupportedAccount('foo:bar:0xdeadbeef',  {
         getEvmInternalAccounts,
         getNonEvmAccountAddresses
-      }),
+      })
 
       expect(getNonEvmAccountAddresses).toHaveBeenCalledWith('foo:bar')
     });
