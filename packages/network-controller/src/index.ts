@@ -52,3 +52,4 @@ export type {
 } from './types';
 export { NetworkClientType } from './types';
 export type { NetworkClient } from './create-network-client';
+export type { AbstractRpcService } from './rpc-service/abstract-rpc-service';
