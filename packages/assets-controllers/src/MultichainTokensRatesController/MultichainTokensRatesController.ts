@@ -342,7 +342,7 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
     conversions: { from: CaipAssetTypeOrId; to: string }[];
   }): Promise<{ conversionRates: AccountConversionRates }> {
     return this.messagingSystem.call('SnapController:handleRequest', {
-      snapId: snapId as SnapId,
+      snapId,
       origin: 'metamask',
       handler,
       request: {
