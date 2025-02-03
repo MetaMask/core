@@ -2641,6 +2641,7 @@ __metadata:
     "@yarnpkg/fslib": "npm:^3.1.1"
     "@yarnpkg/types": "npm:^4.0.0"
     babel-jest: "npm:^29.7.0"
+    chalk: "npm:^4.1.2"
     depcheck: "npm:^1.4.7"
     eslint: "npm:^9.11.0"
     eslint-config-prettier: "npm:^9.1.0"

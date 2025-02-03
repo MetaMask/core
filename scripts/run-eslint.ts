@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { ESLint } from 'eslint';
 import fs from 'fs';
 import path from 'path';
@@ -154,25 +155,36 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
     if (changes.length > 0) {
       if (regressions.length > 0) {
         console.log(
-          '🛑 New ESLint warnings have been introduced and need to be resolved for linting to pass:\n',
+          chalk.red(
+            '🛑 New ESLint warnings have been introduced and need to be resolved for linting to pass:\n',
+          ),
         );
+
+        for (const { ruleId, threshold, count, difference } of changes) {
+          console.log(
+            `- ${chalk.blue(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
+          );
+        }
+
         process.exitCode = 1;
       } else {
         console.log(
-          'The overall number of ESLint warnings have decreased, good work! ❤️ \n',
+          chalk.green(
+            'The overall number of ESLint warnings has decreased, good work! ❤️ \n',
+          ),
         );
-        // We are still seeing differences on CI when it comes to linting
-        // results. Never write the thresholds file in that case.
-        // eslint-disable-next-line n/no-process-env
-        if (!process.env.CI) {
-          saveWarningThresholds(warningCounts);
-        }
-      }
 
-      for (const { ruleId, threshold, count, difference } of changes) {
+        for (const { ruleId, threshold, count, difference } of changes) {
+          console.log(
+            `- ${chalk.blue(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
+          );
+        }
+
         console.log(
-          `- ${ruleId}: ${threshold} -> ${count} (${difference > 0 ? '+' : ''}${difference})`,
+          `\n${chalk.yellow(`\`${path.basename(EXISTING_WARNINGS_FILE)}\` has been updated with the new counts. Please make sure to commit the changes.`)}`,
         );
+
+        saveWarningThresholds(warningCounts);
       }
     }
   }
