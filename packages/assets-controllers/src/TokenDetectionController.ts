@@ -4,7 +4,7 @@ import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -144,7 +144,7 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent;
 
-export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
+export type TokenDetectionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TokenDetectionControllerActions | AllowedActions,
   TokenDetectionControllerEvents | AllowedEvents,
@@ -836,7 +836,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         );
         this.#tokensChainsCache = isTokenDetectionInactiveInMainnet
           ? this.#getConvertedStaticMainnetTokenList()
-          : tokensChainsCache ?? {};
+          : (tokensChainsCache ?? {});
 
         // Generate token candidates based on chainId and selectedAddress
         const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
