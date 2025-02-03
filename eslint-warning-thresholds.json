@@ -19,7 +19,7 @@
   "n/no-unsupported-features/node-builtins": 4,
   "n/prefer-global/text-encoder": 4,
   "n/prefer-global/text-decoder": 4,
-  "prettier/prettier": 81,
+  "prettier/prettier": 80,
   "promise/always-return": 3,
   "promise/catch-or-return": 2,
   "promise/param-names": 8,

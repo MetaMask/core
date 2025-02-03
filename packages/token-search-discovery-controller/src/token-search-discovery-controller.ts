@@ -5,8 +5,14 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
+import type { AbstractTokenDiscoveryApiService } from './token-discovery-api-service/abstract-token-discovery-api-service';
 import type { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
-import type { TokenSearchParams, TokenSearchResponseItem } from './types';
+import type {
+  TokenSearchParams,
+  TokenSearchResponseItem,
+  TokenTrendingResponseItem,
+  TrendingTokensParams,
+} from './types';
 
 // === GENERAL ===
 
@@ -99,7 +105,7 @@ export function getDefaultTokenSearchDiscoveryControllerState(): TokenSearchDisc
 
 /**
  * The TokenSearchDiscoveryController manages the retrieval of token search results and token discovery.
- * It fetches token search results from the portfolio API.
+ * It fetches token search results and discovery data from the Portfolio API.
  */
 export class TokenSearchDiscoveryController extends BaseController<
   typeof controllerName,
@@ -108,12 +114,16 @@ export class TokenSearchDiscoveryController extends BaseController<
 > {
   readonly #tokenSearchService: AbstractTokenSearchApiService;
 
+  readonly #tokenDiscoveryService: AbstractTokenDiscoveryApiService;
+
   constructor({
     tokenSearchService,
+    tokenDiscoveryService,
     state = {},
     messenger,
   }: {
     tokenSearchService: AbstractTokenSearchApiService;
+    tokenDiscoveryService: AbstractTokenDiscoveryApiService;
     state?: Partial<TokenSearchDiscoveryControllerState>;
     messenger: TokenSearchDiscoveryControllerMessenger;
   }) {
@@ -125,6 +135,7 @@ export class TokenSearchDiscoveryController extends BaseController<
     });
 
     this.#tokenSearchService = tokenSearchService;
+    this.#tokenDiscoveryService = tokenDiscoveryService;
   }
 
   async searchTokens(
@@ -139,5 +150,11 @@ export class TokenSearchDiscoveryController extends BaseController<
     });
 
     return results;
+  }
+
+  async getTrendingTokens(
+    params: TrendingTokensParams,
+  ): Promise<TokenTrendingResponseItem[]> {
+    return this.#tokenDiscoveryService.getTrendingTokensByChains(params);
   }
 }
