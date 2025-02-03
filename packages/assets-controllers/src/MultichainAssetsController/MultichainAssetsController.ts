@@ -11,7 +11,6 @@ import {
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
-  AccountAssetListUpdatedEvent,
   AccountAssetListUpdatedEventPayload,
   CaipAssetType,
   CaipAssetTypeOrId,
