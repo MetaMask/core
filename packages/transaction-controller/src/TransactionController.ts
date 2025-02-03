@@ -49,6 +49,7 @@ import { Mutex } from 'async-mutex';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
+import type { Patch } from 'immer';
 import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
@@ -931,11 +932,18 @@ export class TransactionController extends BaseController<
     );
 
     new ResimulateHelper({
-      updateSimulationData: this.#updateSimulationData.bind(this),
-      onStateChange: (listener) => {
+      simulateTransaction: this.#updateSimulationData.bind(this),
+      onTransactionsUpdate: (listener) => {
         this.messagingSystem.subscribe(
           'TransactionController:stateChange',
-          listener,
+          (_newState, patches: Patch[]) => {
+            const hasTransactionPatches = patches.some((patch) => {
+              return patch.path.includes('transactions');
+            });
+            if (hasTransactionPatches) {
+              listener();
+            }
+          },
         );
       },
       getTransactions: () => this.state.transactions,
@@ -1872,26 +1880,29 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Update the isFocus state of a transaction.
+   * Update the isActive state of a transaction.
    *
    * @param transactionId - The ID of the transaction to update.
-   * @param isFocused - The new focus state.
+   * @param isActive - The active state.
    */
-  updateTransactionFocus(transactionId: string, isFocused: boolean) {
+  setTransactionActive(transactionId: string, isActive: boolean) {
     const transactionMeta = this.getTransaction(transactionId);
 
     if (!transactionMeta) {
       throw new Error(`Transaction with id ${transactionId} not found`);
     }
 
-    const updatedTransactionMeta = {
-      ...transactionMeta,
-      isFocused,
-    };
-
-    this.updateTransaction(
-      updatedTransactionMeta,
-      'TransactionController#updateTransactionFocus - Transaction focus updated',
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#setTransactionActive - Transaction isActive updated',
+        skipHistory: true,
+        skipValidation: true,
+        skipResimulateCheck: true,
+      },
+      (updatedTransactionMeta) => {
+        updatedTransactionMeta.isActive = isActive;
+      },
     );
   }
 

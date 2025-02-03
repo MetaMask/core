@@ -78,7 +78,7 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
 const mockTransactionMeta = {
   id: '1',
   networkClientId: 'network1' as NetworkClientId,
-  isFocused: true,
+  isActive: true,
   status: TransactionStatus.unapproved,
 } as TransactionMeta;
 
@@ -86,16 +86,16 @@ jest.mock('../utils/utils');
 
 describe('ResimulateHelper', () => {
   let getTransactionsMock: jest.Mock<() => TransactionMeta[]>;
-  let updateSimulationDataMock: jest.Mock<
-    (transactionMeta: TransactionMeta) => void
+  let simulateTransactionMock: jest.Mock<
+    (transactionMeta: TransactionMeta) => Promise<void>
   >;
-  let onStateChangeMock: jest.Mock<(listener: () => void) => void>;
+  let onTransactionsUpdateMock: jest.Mock<(listener: () => void) => void>;
 
   /**
    * Triggers onStateChange callback
    */
   function triggerStateChange() {
-    onStateChangeMock.mock.calls[0][0]();
+    onTransactionsUpdateMock.mock.calls[0][0]();
   }
 
   /**
@@ -112,26 +112,28 @@ describe('ResimulateHelper', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     getTransactionsMock = jest.fn();
-    onStateChangeMock = jest.fn();
-    updateSimulationDataMock = jest.fn();
+    onTransactionsUpdateMock = jest.fn();
+    simulateTransactionMock = jest.fn();
 
     new ResimulateHelper({
       getTransactions: getTransactionsMock,
-      onStateChange: onStateChangeMock,
-      updateSimulationData: updateSimulationDataMock,
+      onTransactionsUpdate: onTransactionsUpdateMock,
+      simulateTransaction: simulateTransactionMock,
     } as unknown as ResimulateHelperOptions);
   });
 
-  it(`resimulates unapproved focused transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, () => {
+  it(`resimulates unapproved focused transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, async () => {
     mockGetTransactionsOnce([mockTransactionMeta]);
     triggerStateChange();
 
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await Promise.resolve();
 
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await Promise.resolve();
 
-    expect(updateSimulationDataMock).toHaveBeenCalledWith(mockTransactionMeta);
-    expect(updateSimulationDataMock).toHaveBeenCalledTimes(2);
+    expect(simulateTransactionMock).toHaveBeenCalledWith(mockTransactionMeta);
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(2);
   });
 
   it(`does not resimulate twice the same transaction even if state change is triggered twice`, () => {
@@ -148,7 +150,7 @@ describe('ResimulateHelper', () => {
     // Halfway through the interval
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
-    expect(updateSimulationDataMock).toHaveBeenCalledTimes(1);
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not resimulate a transaction that is no longer focused', () => {
@@ -160,7 +162,7 @@ describe('ResimulateHelper', () => {
 
     const unfocusedTransactionMeta = {
       ...mockTransactionMeta,
-      isFocused: false,
+      isActive: false,
     } as TransactionMeta;
 
     mockGetTransactionsOnce([unfocusedTransactionMeta]);
@@ -168,13 +170,13 @@ describe('ResimulateHelper', () => {
 
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS / 2);
 
-    expect(updateSimulationDataMock).toHaveBeenCalledTimes(0);
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(0);
   });
 
   it('does not resimulate a transaction that is not focused', () => {
     const unfocusedTransactionMeta = {
       ...mockTransactionMeta,
-      isFocused: false,
+      isActive: false,
     } as TransactionMeta;
 
     mockGetTransactionsOnce([unfocusedTransactionMeta]);
@@ -182,7 +184,7 @@ describe('ResimulateHelper', () => {
 
     jest.advanceTimersByTime(2 * RESIMULATE_INTERVAL_MS);
 
-    expect(updateSimulationDataMock).toHaveBeenCalledTimes(0);
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(0);
   });
 
   it('stops resimulating a transaction that is no longer in the transaction list', () => {
@@ -196,7 +198,7 @@ describe('ResimulateHelper', () => {
 
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
 
-    expect(updateSimulationDataMock).toHaveBeenCalledTimes(1);
+    expect(simulateTransactionMock).toHaveBeenCalledTimes(1);
   });
 });
 

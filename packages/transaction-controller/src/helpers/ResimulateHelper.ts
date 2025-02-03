@@ -28,86 +28,95 @@ export type ResimulateResponse = {
 
 export type ResimulateHelperOptions = {
   getTransactions: () => TransactionMeta[];
-  onStateChange: (listener: () => void) => void;
-  updateSimulationData: (transactionMeta: TransactionMeta) => Promise<void>;
+  onTransactionsUpdate: (listener: () => void) => void;
+  simulateTransaction: (transactionMeta: TransactionMeta) => Promise<void>;
 };
 
 export class ResimulateHelper {
-  // Map of transactionId <=> isActive
-  readonly #activeResimulations: Map<string, boolean> = new Map();
-
   // Map of transactionId <=> intervalId
   readonly #intervalIds: Map<string, NodeJS.Timeout> = new Map();
 
   readonly #getTransactions: () => TransactionMeta[];
 
-  readonly #updateSimulationData: (transactionMeta: TransactionMeta) => Promise<void>;
+  readonly #simulateTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<void>;
 
   constructor({
     getTransactions,
-    updateSimulationData,
-    onStateChange,
+    simulateTransaction,
+    onTransactionsUpdate,
   }: ResimulateHelperOptions) {
     this.#getTransactions = getTransactions;
-    this.#updateSimulationData = updateSimulationData;
+    this.#simulateTransaction = simulateTransaction;
 
-    onStateChange(() => {
-      const unapprovedTransactions = this.#getUnapprovedTransactions();
-      const unapprovedTransactionIds = new Set(
-        unapprovedTransactions.map((tx) => tx.id),
+    onTransactionsUpdate(this.#onTransactionsUpdate.bind(this));
+  }
+
+  #onTransactionsUpdate() {
+    const unapprovedTransactions = this.#getTransactions().filter(
+      (tx) => tx.status === TransactionStatus.unapproved,
+    );
+
+    const unapprovedTransactionIds = new Set(
+      unapprovedTransactions.map((tx) => tx.id),
+    );
+
+    // Combine unapproved transaction IDs and currently active resimulations
+    const allTransactionIds = new Set([
+      ...unapprovedTransactionIds,
+      ...this.#intervalIds.keys(),
+    ]);
+
+    allTransactionIds.forEach((transactionId) => {
+      const transactionMeta = unapprovedTransactions.find(
+        (tx) => tx.id === transactionId,
       );
 
-      // Start or stop resimulation based on the current isFocused state
-      unapprovedTransactions.forEach((transactionMeta) => {
-        if (transactionMeta.isFocused) {
-          this.#start(transactionMeta);
-        } else {
-          this.#stop(transactionMeta);
-        }
-      });
-
-      // Force stop any running active resimulation that are no longer unapproved transactions list
-      this.#activeResimulations.forEach((isActive, transactionId) => {
-        if (isActive && !unapprovedTransactionIds.has(transactionId)) {
-          this.#stop({
-            id: transactionId,
-            // Forcing this to false to ensure the resimulation is stopped
-            isFocused: false,
-          } as unknown as TransactionMeta);
-        }
-      });
+      if (transactionMeta && transactionMeta.isActive) {
+        this.#start(transactionMeta);
+      } else {
+        this.#stop({
+          id: transactionId,
+          isActive: false,
+        } as unknown as TransactionMeta);
+      }
     });
   }
 
   #start(transactionMeta: TransactionMeta) {
     const { id: transactionId } = transactionMeta;
-    const isActive = this.#activeResimulations.get(transactionId);
-    if (!transactionMeta.isFocused || isActive) {
+    if (!transactionMeta.isActive || this.#intervalIds.has(transactionId)) {
       return;
     }
 
-    const listener = async () => {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.#updateSimulationData(transactionMeta);
-      } catch (error) {
-        /* istanbul ignore next */
-        log('Error during transaction resimulation', error);
-      }
+    const listener = () => {
+      // eslint-disable-next-line promise/catch-or-return
+      this.#simulateTransaction(transactionMeta)
+        .catch((error) => {
+          /* istanbul ignore next */
+          log('Error during transaction resimulation', error);
+        })
+        .finally(() => {
+          // Schedule the next execution
+          if (this.#intervalIds.has(transactionId)) {
+            const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
+            this.#intervalIds.set(transactionId, timeoutId);
+          }
+        });
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    const intervalId = setInterval(listener, RESIMULATE_INTERVAL_MS);
-
-    this.#intervalIds.set(transactionId, intervalId);
-    this.#activeResimulations.set(transactionId, true);
-    log(`Started resimulating transaction ${transactionId} every 3 seconds`);
+    // Start the first execution
+    const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
+    this.#intervalIds.set(transactionId, timeoutId);
+    log(
+      `Started resimulating transaction ${transactionId} every ${RESIMULATE_INTERVAL_MS} milliseconds`,
+    );
   }
 
   #stop(transactionMeta: TransactionMeta) {
     const { id: transactionId } = transactionMeta;
-    const isActive = this.#activeResimulations.get(transactionId);
-    if (transactionMeta.isFocused || !isActive) {
+    if (transactionMeta.isActive || !this.#intervalIds.has(transactionId)) {
       return;
     }
 
@@ -121,13 +130,6 @@ export class ResimulateHelper {
       clearInterval(intervalId);
       this.#intervalIds.delete(id);
     }
-    this.#activeResimulations.delete(id);
-  }
-
-  #getUnapprovedTransactions() {
-    return this.#getTransactions().filter(
-      (tx) => tx.status === TransactionStatus.unapproved,
-    );
   }
 }
 

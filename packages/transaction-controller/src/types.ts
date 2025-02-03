@@ -174,14 +174,14 @@ type TransactionMetaBase = {
   firstRetryBlockNumber?: string;
 
   /**
+   * Whether the transaction is active.
+   */
+  isActive?: boolean;
+
+  /**
    * Whether the transaction is the first time interaction.
    */
   isFirstTimeInteraction?: boolean;
-
-  /**
-   * Whether the transaction confirmation window is focused.
-   */
-  isFocused?: boolean;
 
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;

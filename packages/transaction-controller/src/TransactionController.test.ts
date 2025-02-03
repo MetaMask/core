@@ -6080,15 +6080,15 @@ describe('TransactionController', () => {
     });
   });
 
-  describe('updateTransactionFocus', () => {
+  describe('setTransactionActive', () => {
     it('throws if transaction does not exist', async () => {
       const { controller } = setupController();
-      expect(() => controller.updateTransactionFocus('123', true)).toThrow(
+      expect(() => controller.setTransactionActive('123', true)).toThrow(
         'Transaction with id 123 not found',
       );
     });
 
-    it('updates the isFocused state of a transaction', async () => {
+    it('updates the isActive state of a transaction', async () => {
       const transactionId = '123';
       const { controller } = setupController({
         options: {
@@ -6109,11 +6109,11 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateTransactionFocus(transactionId, true);
+      controller.setTransactionActive(transactionId, true);
 
       const transaction = controller.state.transactions[0];
 
-      expect(transaction?.isFocused).toBe(true);
+      expect(transaction?.isActive).toBe(true);
     });
   });
 });
