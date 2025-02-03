@@ -115,6 +115,10 @@ const setupController = ({
   };
 };
 
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'mocked-uuid'),
+}));
+
 describe('MultiChainTokensRatesController', () => {
   let clock: sinon.SinonFakeTimers;
 
@@ -166,14 +170,14 @@ describe('MultiChainTokensRatesController', () => {
         handler: 'onAssetsConversion',
         origin: 'metamask',
         request: {
-          id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
+          id: undefined,
           jsonrpc: '2.0',
           method: 'onAssetsConversion',
           params: {
             conversions: [
               {
                 from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-                to: 'swift:0/iso4217:USD',
+                to: 'swift:0/iso4217:SOL',
               },
             ],
           },
@@ -337,12 +341,5 @@ describe('MultiChainTokensRatesController', () => {
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
     expect(updateSpy).toHaveBeenCalledWith('account3');
-  });
-
-  it('should not update conversion rates for a non-solana account', async () => {
-    const { controller } = setupController();
-
-    await controller.updateTokensRates('account3');
-    expect(controller.state.conversionRates).toStrictEqual({});
   });
 });

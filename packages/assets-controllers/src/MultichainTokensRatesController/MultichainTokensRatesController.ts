@@ -13,6 +13,7 @@ import type {
 import {
   type CaipAssetTypeOrId,
   isEvmAccountType,
+  type KeyringAccountType,
 } from '@metamask/keyring-api';
 import type {
   KeyringControllerLockEvent,
@@ -30,15 +31,15 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
+import { v4 as uuidv4 } from 'uuid';
 
+import { MAP_SWIFT_ISO4217 } from './constant';
 import type { AccountConversionRates, ConversionRatesWrapper } from './types';
 
 /**
  * The name of the MultiChainTokensRatesController.
  */
 const controllerName = 'MultiChainTokensRatesController';
-
-const SWIFT_ISO4217_USD = 'swift:0/iso4217:USD';
 
 /**
  * State used by the MultiChainTokensRatesController to cache token conversion rates.
@@ -295,20 +296,17 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
         return;
       }
 
-      // TODO: Remove this condition when additional Snap support is implemented.
-      if (account.type !== 'solana:data-account') {
-        return;
-      }
-
       // Retrieve assets from the assets controller.
       const assets = await this.#getAssetsList(
         accountId,
         account.metadata.snap.id as SnapId,
       );
 
+      const accountType = account.type as KeyringAccountType;
+
       const conversions = assets.map((asset) => ({
         from: asset,
-        to: SWIFT_ISO4217_USD,
+        to: MAP_SWIFT_ISO4217[accountType],
       }));
 
       const accountRates = await this.#handleSnapRequest({
@@ -349,7 +347,7 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
       origin: 'metamask',
       handler,
       request: {
-        id: '4dbf133d-9ce3-4d3f-96ac-bfc88d351046',
+        id: uuidv4(),
         jsonrpc: '2.0',
         method: handler,
         params: { conversions },
