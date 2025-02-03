@@ -195,7 +195,7 @@ export class RpcServiceChain implements AbstractRpcService {
   }): RpcService[] {
     return [...serviceConfigurations]
       .reverse()
-      .reduce((workingServices, serviceConfiguration, index) => {
+      .reduce((workingServices: RpcService[], serviceConfiguration, index) => {
         const failoverService = index > 0 ? workingServices[0] : undefined;
         const service = new RpcService({
           fetch: givenFetch,
@@ -204,6 +204,6 @@ export class RpcServiceChain implements AbstractRpcService {
           failoverService,
         });
         return [service, ...workingServices];
-      }, [] as RpcService[]);
+      }, []);
   }
 }
