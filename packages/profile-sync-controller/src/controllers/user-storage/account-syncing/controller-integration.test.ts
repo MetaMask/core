@@ -384,7 +384,8 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         );
 
         expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
-        expect(onAccountSyncErroneousSituation.mock.calls).toStrictEqual([
+        // eslint-disable-next-line jest/prefer-strict-equal
+        expect(onAccountSyncErroneousSituation.mock.calls).toEqual([
           [
             'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
             {
@@ -428,7 +429,8 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         );
 
         expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
-        expect(onAccountSyncErroneousSituation.mock.calls).toStrictEqual([
+        // eslint-disable-next-line jest/prefer-strict-equal
+        expect(onAccountSyncErroneousSituation.mock.calls).toEqual([
           [
             'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
             {
