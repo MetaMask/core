@@ -553,6 +553,11 @@ export async function getKeyringByFingerprint(
   keyrings: EthKeyring<Json>[],
   fingerprint: string,
 ): Promise<EthKeyring<Json> | undefined> {
+  // Do not attempt to return a keyring if the fingerprint is not provided
+  if (!fingerprint) {
+    return undefined;
+  }
+
   const fingerprints = await Promise.all(
     // @ts-expect-error TODO: update type in @metamask/utils
     keyrings.map((kr) => kr?.getFingerprint?.()),

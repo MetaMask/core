@@ -44,6 +44,8 @@ import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
+  displayForKeyring,
+  getKeyringByFingerprint,
   isCustodyKeyring,
   keyringBuilderFactory,
 } from './KeyringController';
@@ -672,6 +674,43 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    describe('when fingerprint is provided', () => {
+      it('should export seed phrase for specific keyring', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+          // @ts-expect-error TODO: fix type and add getFingerprint
+          const fingerprint = await keyring.getFingerprint();
+
+          const seed = await controller.exportSeedPhrase(password, fingerprint);
+          expect(seed).not.toBe('');
+        });
+      });
+
+      it('should throw error if keyring is not found', async () => {
+        await withController(async ({ controller }) => {
+          await expect(
+            controller.exportSeedPhrase(password, 'non-existent-fingerprint'),
+          ).rejects.toThrow('KeyringController - Keyring not found.');
+        });
+      });
+
+      it('should throw error if fingerprint method is not available', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+          // @ts-expect-error TODO: fix type and remove getFingerprint
+          delete keyring.getFingerprint;
+
+          await expect(
+            controller.exportSeedPhrase(password, 'some-fingerprint'),
+          ).rejects.toThrow('KeyringController - Keyring not found.');
+        });
+      });
+    });
   });
 
   describe('exportAccount', () => {
@@ -978,6 +1017,7 @@ describe('KeyringController', () => {
             const newKeyring = {
               accounts: [address],
               type: 'Simple Key Pair',
+              fingerprint: undefined,
             };
             const importedAccountAddress =
               await controller.importAccountWithStrategy(
@@ -1056,6 +1096,7 @@ describe('KeyringController', () => {
             const newKeyring = {
               accounts: [address],
               type: 'Simple Key Pair',
+              fingerprint: undefined,
             };
             const modifiedState = {
               ...initialState,
@@ -3521,6 +3562,130 @@ describe('KeyringController', () => {
             );
           },
         );
+      });
+    });
+  });
+
+  describe('utils', () => {
+    describe('displayForKeyring', () => {
+      it('should return keyring info with fingerprint if available', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+
+          // @ts-expect-error TODO: fix type and add getFingerprint
+          const fingerprint = await keyring.getFingerprint();
+
+          const info = await displayForKeyring(keyring);
+
+          expect(info).toStrictEqual({
+            type: KeyringTypes.hd,
+            accounts: controller.state.keyrings[0].accounts,
+            fingerprint,
+          });
+        });
+      });
+
+      it('handles keyrings without the method', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+          jest
+            // @ts-expect-error TODO: fix type and add getFingerprint
+            .spyOn(keyring, 'getFingerprint')
+            .mockImplementation(undefined);
+
+          const info = await displayForKeyring(keyring);
+
+          expect(info).toStrictEqual({
+            type: KeyringTypes.hd,
+            accounts: controller.state.keyrings[0].accounts,
+            fingerprint: undefined,
+          });
+        });
+      });
+    });
+
+    describe('getKeyringByFingerprint', () => {
+      it('should find keyring by fingerprint', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+          // @ts-expect-error TODO: fix type and add getFingerprint
+          const fingerprint = await keyring.getFingerprint();
+
+          const found = await getKeyringByFingerprint([keyring], fingerprint);
+
+          expect(found).toBe(keyring);
+        });
+      });
+
+      it('should return undefined if no keyring matches fingerprint', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+          const mockFingerprint = '0x123456';
+          jest
+            // @ts-expect-error TODO: fix type and add getFingerprint
+            .spyOn(keyring, 'getFingerprint')
+            // @ts-expect-error TODO: fix type and add getFingerprint
+            .mockResolvedValue(mockFingerprint);
+
+          const found = await getKeyringByFingerprint([keyring], '0xdifferent');
+
+          expect(found).toBeUndefined();
+        });
+      });
+
+      it('should handle keyrings without getFingerprint method', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+          // @ts-expect-error mock missing method
+          delete keyring.getFingerprint;
+
+          const dummyFingerprint = '0x123456';
+
+          const found = await getKeyringByFingerprint(
+            [keyring],
+            dummyFingerprint,
+          );
+
+          expect(found).toBeUndefined();
+        });
+      });
+
+      it('should handle empty keyring array', async () => {
+        const dummyFingerprint = '0x123456';
+        const found = await getKeyringByFingerprint([], dummyFingerprint);
+        expect(found).toBeUndefined();
+      });
+
+      it('should handle undefined fingerprint from keyring', async () => {
+        await withController(async ({ controller }) => {
+          const keyring = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          )[0] as EthKeyring<Json>;
+          const mockFingerprint = undefined;
+          jest
+            // @ts-expect-error TODO: fix type and add getFingerprint
+            .spyOn(keyring, 'getFingerprint')
+            // @ts-expect-error TODO: fix type and add getFingerprint
+            .mockResolvedValue(mockFingerprint);
+
+          const found = await getKeyringByFingerprint(
+            [keyring],
+            // @ts-expect-error forcing an undefined
+            mockFingerprint,
+          );
+
+          expect(found).toBeUndefined();
+        });
       });
     });
   });
