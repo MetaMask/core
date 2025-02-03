@@ -1,14 +1,13 @@
 /* eslint-disable promise/always-return */
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { ORIGIN_METAMASK, toHex } from '@metamask/controller-utils';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { DeferredPromise, Hex } from '@metamask/utils';
 import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
 
 import {
   CONTRACT_ADDRESS_7702,
-  get7702Authorization,
   get7702Transaction,
   has7702Delegation,
   supports7702,
@@ -43,13 +42,6 @@ export type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: ({ networkClientId }: { networkClientId: string }) => EthQuery;
-  getNextNonce: ({
-    address,
-    networkClientId,
-  }: {
-    address: string;
-    networkClientId: string;
-  }) => Promise<[string, (() => void) | undefined]>;
   messenger: TransactionControllerMessenger;
   publishBatch?: (
     signedTxs: string[],
@@ -336,7 +328,7 @@ async function buildCollectorPublishHook(request: AddTransactionBatchRequest) {
 async function normalizeRequest(
   request: AddTransactionBatchRequest,
 ): Promise<AddTransactionBatchRequest> {
-  const { getChainId, getEthQuery, getNextNonce, userRequest } = request;
+  const { getChainId, getEthQuery, userRequest } = request;
   const { networkClientId, requests } = userRequest;
 
   const { from } = requests[0].params;
@@ -349,14 +341,6 @@ async function normalizeRequest(
     return request;
   }
 
-  const [nonce, releaseLock] = await getNextNonce({
-    address: from,
-    networkClientId,
-  });
-
-  releaseLock?.();
-
-  const nextNonce = toHex(parseInt(nonce, 16) + 1);
   const nestedTransactions = requests.map((entry) => entry.params);
 
   let params7702 = get7702Transaction(userRequest);
@@ -365,9 +349,7 @@ async function normalizeRequest(
     params7702 = {
       ...params7702,
       type: TransactionEnvelopeType.setCode,
-      authorizationList: [
-        get7702Authorization(CONTRACT_ADDRESS_7702, chainId, nextNonce),
-      ],
+      authorizationList: [{ address: CONTRACT_ADDRESS_7702 }],
     };
   }
 

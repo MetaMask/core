@@ -97,6 +97,7 @@ import {
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
+import { normalizeAuthorizationList } from './utils/7702';
 import { addTransactionBatch } from './utils/batch';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
@@ -3170,9 +3171,21 @@ export class TransactionController extends BaseController<
   ): Promise<string | undefined> {
     log('Signing transaction', txParams);
 
+    const finalParams = { ...txParams };
+    const { authorizationList, nonce: nextNonce } = finalParams;
+    const { chainId: transactionChainId } = transactionMeta;
+
+    if (authorizationList) {
+      finalParams.authorizationList = normalizeAuthorizationList({
+        authorizationList,
+        nextNonce: nextNonce as Hex,
+        transactionChainId,
+      });
+    }
+
     const unsignedEthTx = this.prepareUnsignedEthTx(
       transactionMeta.chainId,
-      txParams,
+      finalParams,
     );
 
     this.approvingTransactionIds.add(transactionMeta.id);
@@ -3180,7 +3193,7 @@ export class TransactionController extends BaseController<
     const signedTx = await new Promise<TypedTransaction>((resolve, reject) => {
       this.sign?.(
         unsignedEthTx,
-        txParams.from,
+        finalParams.from,
         ...this.getAdditionalSignArguments(transactionMeta),
       ).then(resolve, reject);
 

@@ -1,4 +1,4 @@
-import type { AccessList, AuthorizationList } from '@ethereumjs/tx';
+import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { TraceContext } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
@@ -631,6 +631,8 @@ export enum TransactionType {
    */
   retry = 'retry',
 
+  revokeDelegation = 'revokeDelegation',
+
   /**
    * A transaction sending a network's native asset to a recipient.
    */
@@ -717,6 +719,17 @@ export enum TransactionType {
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
+
+export type Authorization = {
+  address: Hex;
+  chainId?: Hex;
+  nonce?: Hex;
+  r?: Hex;
+  s?: Hex;
+  yParity?: Hex;
+};
+
+export type AuthorizationList = Authorization[];
 
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
