@@ -33,8 +33,8 @@ export type ResimulateHelperOptions = {
 };
 
 export class ResimulateHelper {
-  // Map of transactionId <=> intervalId
-  readonly #intervalIds: Map<string, NodeJS.Timeout> = new Map();
+  // Map of transactionId <=> timeoutId
+  readonly #timeoutIds: Map<string, NodeJS.Timeout> = new Map();
 
   readonly #getTransactions: () => TransactionMeta[];
 
@@ -65,7 +65,7 @@ export class ResimulateHelper {
     // Combine unapproved transaction IDs and currently active resimulations
     const allTransactionIds = new Set([
       ...unapprovedTransactionIds,
-      ...this.#intervalIds.keys(),
+      ...this.#timeoutIds.keys(),
     ]);
 
     allTransactionIds.forEach((transactionId) => {
@@ -86,7 +86,7 @@ export class ResimulateHelper {
 
   #start(transactionMeta: TransactionMeta) {
     const { id: transactionId } = transactionMeta;
-    if (!transactionMeta.isActive || this.#intervalIds.has(transactionId)) {
+    if (!transactionMeta.isActive || this.#timeoutIds.has(transactionId)) {
       return;
     }
 
@@ -99,16 +99,16 @@ export class ResimulateHelper {
         })
         .finally(() => {
           // Schedule the next execution
-          if (this.#intervalIds.has(transactionId)) {
+          if (this.#timeoutIds.has(transactionId)) {
             const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
-            this.#intervalIds.set(transactionId, timeoutId);
+            this.#timeoutIds.set(transactionId, timeoutId);
           }
         });
     };
 
     // Start the first execution
     const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
-    this.#intervalIds.set(transactionId, timeoutId);
+    this.#timeoutIds.set(transactionId, timeoutId);
     log(
       `Started resimulating transaction ${transactionId} every ${RESIMULATE_INTERVAL_MS} milliseconds`,
     );
@@ -116,7 +116,7 @@ export class ResimulateHelper {
 
   #stop(transactionMeta: TransactionMeta) {
     const { id: transactionId } = transactionMeta;
-    if (transactionMeta.isActive || !this.#intervalIds.has(transactionId)) {
+    if (transactionMeta.isActive || !this.#timeoutIds.has(transactionId)) {
       return;
     }
 
@@ -125,10 +125,10 @@ export class ResimulateHelper {
   }
 
   #removeListener(id: string) {
-    const intervalId = this.#intervalIds.get(id);
-    if (intervalId) {
-      clearInterval(intervalId);
-      this.#intervalIds.delete(id);
+    const timeoutId = this.#timeoutIds.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.#timeoutIds.delete(id);
     }
   }
 }
