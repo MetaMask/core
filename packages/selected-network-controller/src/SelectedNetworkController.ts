@@ -1,4 +1,4 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   BlockTrackerProxy,
@@ -91,7 +91,7 @@ export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | PermissionControllerStateChange;
 
-export type SelectedNetworkControllerMessenger = RestrictedControllerMessenger<
+export type SelectedNetworkControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   SelectedNetworkControllerActions | AllowedActions,
   SelectedNetworkControllerEvents | AllowedEvents,
@@ -130,7 +130,7 @@ export class SelectedNetworkController extends BaseController<
    * Construct a SelectedNetworkController controller.
    *
    * @param options - The controller options.
-   * @param options.messenger - The restricted controller messenger for the EncryptionPublicKey controller.
+   * @param options.messenger - The restricted messenger for the EncryptionPublicKey controller.
    * @param options.state - The controllers initial state.
    * @param options.useRequestQueuePreference - A boolean indicating whether to use the request queue preference.
    * @param options.onPreferencesStateChange - A callback that is called when the preference state changes.

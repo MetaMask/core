@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import { AbstractTokenDiscoveryApiService } from './token-discovery-api-service/abstract-token-discovery-api-service';
 import { AbstractTokenSearchApiService } from './token-search-api-service/abstract-token-search-api-service';
@@ -20,8 +20,8 @@ const controllerName = 'TokenSearchDiscoveryController';
  * @returns A restricted messenger for the TokenSearchDiscoveryController
  */
 function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<never, never>();
-  return controllerMessenger.getRestricted({
+  const messenger = new Messenger<never, never>();
+  return messenger.getRestricted({
     name: controllerName,
     allowedActions: [],
     allowedEvents: [],

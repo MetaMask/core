@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 
@@ -80,14 +80,13 @@ type AllowedEvents = never;
  * The messenger which is restricted to actions and events accessed by
  * {@link TokenSearchDiscoveryController}.
  */
-export type TokenSearchDiscoveryControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    TokenSearchDiscoveryControllerActions | AllowedActions,
-    TokenSearchDiscoveryControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type TokenSearchDiscoveryControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  TokenSearchDiscoveryControllerActions | AllowedActions,
+  TokenSearchDiscoveryControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Constructs the default {@link TokenSearchDiscoveryController} state. This allows

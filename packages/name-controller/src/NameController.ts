@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
@@ -89,7 +89,7 @@ export type NameControllerActions = GetNameState;
 
 export type NameControllerEvents = NameStateChange;
 
-export type NameControllerMessenger = RestrictedControllerMessenger<
+export type NameControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   NameControllerActions,
   NameControllerEvents,
@@ -141,7 +141,7 @@ export class NameController extends BaseController<
    * Construct a Name controller.
    *
    * @param options - Controller options.
-   * @param options.messenger - Restricted controller messenger for the name controller.
+   * @param options.messenger - Restricted messenger for the name controller.
    * @param options.providers - Array of name provider instances to propose names.
    * @param options.state - Initial state to set on the controller.
    * @param options.updateDelay - The delay in seconds before a new request to a source should be made.
@@ -398,7 +398,9 @@ export class NameController extends BaseController<
   ): NameProviderSourceResult | undefined {
     const error = result?.error ?? responseError ?? undefined;
     const updateDelay = result?.updateDelay ?? undefined;
-    let proposedNames = error ? undefined : result?.proposedNames ?? undefined;
+    let proposedNames = error
+      ? undefined
+      : (result?.proposedNames ?? undefined);
 
     if (proposedNames) {
       proposedNames = proposedNames.filter(
