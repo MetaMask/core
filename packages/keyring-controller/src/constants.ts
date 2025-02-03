@@ -15,6 +15,7 @@ export enum KeyringControllerError {
   UnsupportedSignTransaction = 'KeyringController - The keyring for the current address does not support the method signTransaction.',
   UnsupportedSignMessage = 'KeyringController - The keyring for the current address does not support the method signMessage.',
   UnsupportedSignPersonalMessage = 'KeyringController - The keyring for the current address does not support the method signPersonalMessage.',
+  UnsupportedSignEip7702Authorization = 'KeyringController - The keyring for the current address does not support the method signEip7702Authorization.',
   UnsupportedGetEncryptionPublicKey = 'KeyringController - The keyring for the current address does not support the method getEncryptionPublicKey.',
   UnsupportedDecryptMessage = 'KeyringController - The keyring for the current address does not support the method decryptMessage.',
   UnsupportedSignTypedMessage = 'KeyringController - The keyring for the current address does not support the method signTypedMessage.',

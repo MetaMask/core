@@ -21,6 +21,7 @@ import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
+  Eip7702AuthorizationMessageParams,
 } from '@metamask/message-manager';
 import type {
   Eip1024EncryptedData,
@@ -116,6 +117,11 @@ export type KeyringControllerSignMessageAction = {
   handler: KeyringController['signMessage'];
 };
 
+export type KeyringControllerSignAuthorizationMessageAction = {
+  type: `${typeof name}:signEIP7702AuthorizationMessage`;
+  handler: KeyringController['signEip7702Authorization'];
+};
+
 export type KeyringControllerSignPersonalMessageAction = {
   type: `${typeof name}:signPersonalMessage`;
   handler: KeyringController['signPersonalMessage'];
@@ -204,6 +210,7 @@ export type KeyringControllerQRKeyringStateChangeEvent = {
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerSignMessageAction
+  | KeyringControllerSignAuthorizationMessageAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
   | KeyringControllerDecryptMessageAction
@@ -1130,6 +1137,48 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Signs EIP-7702 Authorization message by calling down into a specific keyring.
+   *
+   * @param messageParams - EIP7702AuthorizationMessageParams object to sign.
+   * @returns Promise resolving to an EIP-7702 Authorization signature.
+   * @throws Will throw UnsupportedSignEIP7702Authorization if the keyring does not support signing EIP-7702 Authorization messages.
+   */
+  async signEip7702Authorization(
+    messageParams: Eip7702AuthorizationMessageParams,
+  ): Promise<string> {
+    const from = ethNormalize(messageParams.from) as Hex;
+
+    const keyring = (await this.getKeyringForAccount(from)) as EthKeyring<Json>;
+
+    if (!keyring.signEip7702Authorization) {
+      throw new Error(
+        KeyringControllerError.UnsupportedSignEip7702Authorization,
+      );
+    }
+
+    const { chainId, nonce } = messageParams;
+    const contractAddress = ethNormalize(messageParams.contractAddress) as
+      | Hex
+      | undefined;
+
+    if (!contractAddress === undefined) {
+      throw new Error('Contract address must be a 20-byte hex string');
+    }
+    if (typeof chainId !== 'number' || chainId < 0) {
+      throw new Error('Chain ID must be a non-negative number');
+    }
+    if (typeof nonce !== 'number' || nonce < 0) {
+      throw new Error('Nonce must be a non-negativenumber');
+    }
+
+    return await keyring.signEip7702Authorization(from, [
+      chainId,
+      contractAddress as Hex,
+      nonce,
+    ]);
+  }
+
+  /**
    * Signs personal message by calling down into a specific keyring.
    *
    * @param messageParams - PersonalMessageParams object to sign.
@@ -1734,6 +1783,11 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:signMessage`,
       this.signMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:signEIP7702AuthorizationMessage`,
+      this.signEip7702Authorization.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(

@@ -10,8 +10,9 @@ import {
   recoverTypedSignature,
   SignTypedDataVersion,
   encrypt,
+  recoverEIP7702Authorization,
 } from '@metamask/eth-sig-util';
-import SimpleKeyring from '@metamask/eth-simple-keyring/dist/simple-keyring';
+import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import type { KeyringClass } from '@metamask/utils';
@@ -104,7 +105,6 @@ describe('KeyringController', () => {
 
     it('allows overwriting the built-in Simple keyring builder', async () => {
       const mockSimpleKeyringBuilder =
-        // @ts-expect-error The simple keyring doesn't yet conform to the KeyringClass type
         buildKeyringBuilderWithSpy(SimpleKeyring);
       await withController(
         { keyringBuilders: [mockSimpleKeyringBuilder] },
@@ -1557,6 +1557,74 @@ describe('KeyringController', () => {
             origin: 'https://metamask.github.io',
           }),
         ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+      });
+    });
+  });
+
+  describe('signEip7702Authorization', () => {
+    const from = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
+    stubKeyringClassWithAccount(MockKeyring, from);
+    const chainId = 1;
+    const contractAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
+    const nonce = 1;
+
+    describe('when the keyring for the given address supports signEip7702Authorization', () => {
+      it('should sign EIP-7702 authorization message', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const account = initialState.keyrings[0].accounts[0];
+          const signature = await controller.signEip7702Authorization({
+            from: account,
+            chainId,
+            contractAddress,
+            nonce,
+          });
+
+          const recovered = recoverEIP7702Authorization({
+            authorization: [chainId, contractAddress, nonce],
+            signature,
+          });
+
+          expect(recovered).toBe(account);
+        });
+      });
+
+      it('should not sign EIP-7702 authorization message if from account is not passed', async () => {
+        await withController(async ({ controller }) => {
+          await expect(
+            controller.signEip7702Authorization({
+              chainId,
+              contractAddress,
+              nonce,
+              from: '',
+            }),
+          ).rejects.toThrow(
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
+          );
+        });
+      });
+    });
+
+    describe('when the keyring for the given address does not support signEip7702Authorization', () => {
+      it('should throw error', async () => {
+        stubKeyringClassWithAccount(MockKeyring, from);
+
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            await expect(
+              controller.signEip7702Authorization({
+                from,
+                chainId,
+                contractAddress,
+                nonce,
+              }),
+            ).rejects.toThrow(
+              KeyringControllerError.UnsupportedSignEip7702Authorization,
+            );
+          },
+        );
       });
     });
   });

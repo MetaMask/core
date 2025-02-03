@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
     "@metamask/controller-utils": "^11.5.0",
-    "@metamask/eth-sig-util": "^8.0.0",
+    "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/utils": "^11.1.0",
     "jsonschema": "^1.4.1",
     "lodash": "^4.17.21",

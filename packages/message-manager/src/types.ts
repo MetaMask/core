@@ -19,3 +19,9 @@ export type PersonalMessageParams = {
 export type TypedMessageParams = {
   data: Record<string, unknown>[] | string | SignTypedDataMessageV3V4;
 } & AbstractMessageParams;
+
+export type Eip7702AuthorizationMessageParams = {
+  chainId: number;
+  contractAddress: string;
+  nonce: number;
+} & AbstractMessageParams;
