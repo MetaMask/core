@@ -29,10 +29,13 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { FungibleAssetMetadata, Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import { hasProperty, type CaipChainId } from '@metamask/utils';
+import {
+  hasProperty,
+  parseCaipAssetType,
+  type CaipChainId,
+} from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { parseCaipAssetType } from './utils';
 import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../accounts-controller/src/AccountsController';
 
 const controllerName = 'MultichainAssetsController';
@@ -289,8 +292,8 @@ export class MultichainAssetsController extends BaseController<
       // check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
       if (
         !assetsWithoutMetadata.every((asset: CaipAssetType) => {
-          const chainId = parseCaipAssetType(asset);
-          return Boolean(this.#getAssetSnapFor(chainId));
+          const chainIdResponse = parseCaipAssetType(asset);
+          return Boolean(this.#getAssetSnapFor(chainIdResponse.chainId));
         })
       ) {
         this.#snaps = this.#getAssetSnaps();
@@ -308,11 +311,11 @@ export class MultichainAssetsController extends BaseController<
     // Creates a mapping of scope to their respective assets list.
     const assetsByScope: Record<CaipChainId, CaipAssetType[]> = {};
     for (const asset of assets) {
-      const chainId = parseCaipAssetType(asset);
-      if (!assetsByScope[chainId]) {
-        assetsByScope[chainId] = [];
+      const chainIdResponse = parseCaipAssetType(asset);
+      if (!assetsByScope[chainIdResponse.chainId]) {
+        assetsByScope[chainIdResponse.chainId] = [];
       }
-      assetsByScope[chainId].push(asset);
+      assetsByScope[chainIdResponse.chainId].push(asset);
     }
     let newMetadata: Record<CaipAssetType, FungibleAssetMetadata> = {};
     for (const chainId in assetsByScope) {
