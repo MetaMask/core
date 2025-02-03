@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { v1 as random } from 'uuid';
@@ -54,7 +54,7 @@ export type LoggingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type LoggingControllerEvents = LoggingControllerStateChangeEvent;
 
-export type LoggingControllerMessenger = RestrictedControllerMessenger<
+export type LoggingControllerMessenger = RestrictedMessenger<
   typeof name,
   LoggingControllerActions,
   LoggingControllerEvents,
@@ -82,7 +82,7 @@ export class LoggingController extends BaseController<
    * Creates a LoggingController instance.
    *
    * @param options - Constructor options
-   * @param options.messenger - An instance of the ControllerMessenger
+   * @param options.messenger - An instance of the Messenger
    * @param options.state - Initial state to set on this controller.
    */
   constructor({

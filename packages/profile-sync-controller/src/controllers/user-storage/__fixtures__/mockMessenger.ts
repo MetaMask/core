@@ -1,5 +1,5 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import { MOCK_STORAGE_KEY_SIGNATURE } from '.';
 import type {
@@ -45,10 +45,7 @@ type ExternalEvents = NotNamespacedBy<
 export function createCustomUserStorageMessenger(props?: {
   overrideEvents?: ExternalEvents[];
 }) {
-  const baseMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
+  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
   const messenger = baseMessenger.getRestricted({
     name: 'UserStorageController',
     allowedActions: [
@@ -85,7 +82,7 @@ export function createCustomUserStorageMessenger(props?: {
 }
 
 type OverrideMessengers = {
-  baseMessenger: ControllerMessenger<AllowedActions, AllowedEvents>;
+  baseMessenger: Messenger<AllowedActions, AllowedEvents>;
   messenger: UserStorageControllerMessenger;
 };
 
