@@ -31,7 +31,6 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
-import { v4 as uuidv4 } from 'uuid';
 
 import { MAP_SWIFT_ISO4217 } from './constant';
 import type { AccountConversionRates, ConversionRatesWrapper } from './types';
@@ -347,7 +346,6 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
       origin: 'metamask',
       handler,
       request: {
-        id: uuidv4(),
         jsonrpc: '2.0',
         method: handler,
         params: { conversions },

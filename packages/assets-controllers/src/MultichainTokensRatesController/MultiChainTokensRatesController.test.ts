@@ -115,10 +115,6 @@ const setupController = ({
   };
 };
 
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'mocked-uuid'),
-}));
-
 describe('MultiChainTokensRatesController', () => {
   let clock: sinon.SinonFakeTimers;
 
@@ -170,7 +166,6 @@ describe('MultiChainTokensRatesController', () => {
         handler: 'onAssetsConversion',
         origin: 'metamask',
         request: {
-          id: undefined,
           jsonrpc: '2.0',
           method: 'onAssetsConversion',
           params: {
