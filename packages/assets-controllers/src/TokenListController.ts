@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
@@ -69,7 +69,7 @@ type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
-export type TokenListControllerMessenger = RestrictedControllerMessenger<
+export type TokenListControllerMessenger = RestrictedMessenger<
   typeof name,
   TokenListControllerActions | AllowedActions,
   TokenListControllerEvents | AllowedEvents,
@@ -124,7 +124,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
    */

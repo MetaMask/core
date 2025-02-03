@@ -4,7 +4,7 @@ import {
   ApprovalController,
   type ApprovalControllerState,
 } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import contractMaps from '@metamask/contract-metadata';
 import {
   ApprovalType,
@@ -55,7 +55,7 @@ jest.mock('uuid', () => ({
 jest.mock('./Standards/ERC20Standard');
 jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
 
-type UnrestrictedMessenger = ControllerMessenger<
+type UnrestrictedMessenger = Messenger<
   ExtractAvailableAction<TokensControllerMessenger>,
   ExtractAvailableEvent<TokensControllerMessenger> | ApprovalStateChange
 >;
@@ -2901,7 +2901,7 @@ async function withController<ReturnValue>(
     fn,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
@@ -2914,7 +2914,7 @@ async function withController<ReturnValue>(
     typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
   });
 
-  const controllerMessenger = messenger.getRestricted({
+  const restrictedMessenger = messenger.getRestricted({
     name: 'TokensController',
     allowedActions: [
       'ApprovalController:addRequest',
@@ -2953,7 +2953,7 @@ async function withController<ReturnValue>(
     // where the provider can possibly be `undefined` if `networkClientId` is
     // not specified.
     provider: new FakeProvider(),
-    messenger: controllerMessenger,
+    messenger: restrictedMessenger,
     ...options,
   });
 
