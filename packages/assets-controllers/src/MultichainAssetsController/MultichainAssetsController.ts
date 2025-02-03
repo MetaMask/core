@@ -198,20 +198,24 @@ export class MultichainAssetsController extends BaseController<
     for (const accountId in assetsToUpdate) {
       if (hasProperty(assetsToUpdate, accountId)) {
         const newAccountAssets = assetsToUpdate[accountId];
-        const assets = this.state.allNonEvmTokens[accountId] || [];
+        if (
+          newAccountAssets.added.length !== 0 ||
+          newAccountAssets.removed.length !== 0
+        ) {
+          const assets = this.state.allNonEvmTokens[accountId] || [];
+          const filteredAssetsToAdd = newAccountAssets.added.filter(
+            (asset) => !assets.includes(asset),
+          );
+          assetsForMetadataRefresh.push(...filteredAssetsToAdd);
+          const newAssets = [...assets, ...filteredAssetsToAdd];
 
-        const filteredAssetsToAdd = newAccountAssets.added.filter(
-          (asset) => !assets.includes(asset),
-        );
-        assetsForMetadataRefresh.push(...filteredAssetsToAdd);
-        const newAssets = [...assets, ...filteredAssetsToAdd];
-
-        const assetsAfterRemoval = newAssets.filter(
-          (asset) => !newAccountAssets.removed.includes(asset),
-        );
-        this.update((state) => {
-          state.allNonEvmTokens[accountId] = assetsAfterRemoval;
-        });
+          const assetsAfterRemoval = newAssets.filter(
+            (asset) => !newAccountAssets.removed.includes(asset),
+          );
+          this.update((state) => {
+            state.allNonEvmTokens[accountId] = assetsAfterRemoval;
+          });
+        }
       }
     }
     // trigger fetching metadata for new assets
