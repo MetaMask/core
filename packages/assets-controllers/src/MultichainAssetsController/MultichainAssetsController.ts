@@ -35,6 +35,7 @@ import {
   type CaipChainId,
 } from '@metamask/utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 
 import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../accounts-controller/src/AccountsController';
 
@@ -157,6 +158,8 @@ export class MultichainAssetsController extends BaseController<
   // Mapping of CAIP-2 Chain ID to Asset Snaps.
   #snaps: Record<CaipChainId, Snap[]>;
 
+  readonly #mutex = new Mutex();
+
   constructor({
     messenger,
     state = {},
@@ -196,33 +199,38 @@ export class MultichainAssetsController extends BaseController<
    * @param event - The list of assets to update
    */
   async #updateAccountAssetsList(event: AccountAssetListUpdatedEventPayload) {
-    const assetsToUpdate = event.assets;
-    const assetsForMetadataRefresh: CaipAssetType[] = [];
-    for (const accountId in assetsToUpdate) {
-      if (hasProperty(assetsToUpdate, accountId)) {
-        const newAccountAssets = assetsToUpdate[accountId];
-        if (
-          newAccountAssets.added.length !== 0 ||
-          newAccountAssets.removed.length !== 0
-        ) {
-          const assets = this.state.allNonEvmTokens[accountId] || [];
-          const filteredAssetsToAdd = newAccountAssets.added.filter(
-            (asset) => !assets.includes(asset),
-          );
-          assetsForMetadataRefresh.push(...filteredAssetsToAdd);
-          const newAssets = [...assets, ...filteredAssetsToAdd];
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      const assetsToUpdate = event.assets;
+      const assetsForMetadataRefresh: CaipAssetType[] = [];
+      for (const accountId in assetsToUpdate) {
+        if (hasProperty(assetsToUpdate, accountId)) {
+          const newAccountAssets = assetsToUpdate[accountId];
+          if (
+            newAccountAssets.added.length !== 0 ||
+            newAccountAssets.removed.length !== 0
+          ) {
+            const assets = this.state.allNonEvmTokens[accountId] || [];
+            const filteredAssetsToAdd = newAccountAssets.added.filter(
+              (asset) => !assets.includes(asset),
+            );
+            assetsForMetadataRefresh.push(...filteredAssetsToAdd);
+            const newAssets = [...assets, ...filteredAssetsToAdd];
 
-          const assetsAfterRemoval = newAssets.filter(
-            (asset) => !newAccountAssets.removed.includes(asset),
-          );
-          this.update((state) => {
-            state.allNonEvmTokens[accountId] = assetsAfterRemoval;
-          });
+            const assetsAfterRemoval = newAssets.filter(
+              (asset) => !newAccountAssets.removed.includes(asset),
+            );
+            this.update((state) => {
+              state.allNonEvmTokens[accountId] = assetsAfterRemoval;
+            });
+          }
         }
       }
+      // trigger fetching metadata for new assets
+      await this.#refreshAssetsMetadata(assetsForMetadataRefresh);
+    } finally {
+      releaseLock();
     }
-    // trigger fetching metadata for new assets
-    await this.#refreshAssetsMetadata(assetsForMetadataRefresh);
   }
 
   /**
@@ -249,17 +257,22 @@ export class MultichainAssetsController extends BaseController<
       // Nothing to do here for EVM accounts
       return;
     }
+    const releaseLock = await this.#mutex.acquire();
 
-    // Get assets list
-    if (account.metadata.snap) {
-      const assets = await this.#getAssetsList(
-        account.id,
-        account.metadata.snap.id,
-      );
-      await this.#refreshAssetsMetadata(assets);
-      this.update((state) => {
-        state.allNonEvmTokens[account.id] = assets;
-      });
+    try {
+      // Get assets list
+      if (account.metadata.snap) {
+        const assets = await this.#getAssetsList(
+          account.id,
+          account.metadata.snap.id,
+        );
+        await this.#refreshAssetsMetadata(assets);
+        this.update((state) => {
+          state.allNonEvmTokens[account.id] = assets;
+        });
+      }
+    } finally {
+      releaseLock();
     }
   }
 
