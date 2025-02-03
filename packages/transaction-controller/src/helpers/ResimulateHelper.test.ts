@@ -113,7 +113,7 @@ describe('ResimulateHelper', () => {
     jest.useFakeTimers();
     getTransactionsMock = jest.fn();
     onTransactionsUpdateMock = jest.fn();
-    simulateTransactionMock = jest.fn();
+    simulateTransactionMock = jest.fn().mockResolvedValue(undefined);
 
     new ResimulateHelper({
       getTransactions: getTransactionsMock,
@@ -122,21 +122,29 @@ describe('ResimulateHelper', () => {
     } as unknown as ResimulateHelperOptions);
   });
 
+  afterEach(() => {
+    jest.clearAllTimers();
+  });
+
   it(`resimulates unapproved focused transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, async () => {
     mockGetTransactionsOnce([mockTransactionMeta]);
     triggerStateChange();
-
+  
+    // Advance time to trigger the first execution
+    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
+    await Promise.resolve(); // flush microtasks
+  
+    // Process any pending timers (including the rescheduled listener)
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
     await Promise.resolve();
 
-    jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
-    await Promise.resolve();
+    jest.runAllTimers();
 
     expect(simulateTransactionMock).toHaveBeenCalledWith(mockTransactionMeta);
     expect(simulateTransactionMock).toHaveBeenCalledTimes(2);
   });
 
-  it(`does not resimulate twice the same transaction even if state change is triggered twice`, () => {
+  it(`does not resimulate twice the same transaction even if state change is triggered twice`, async () => {
     mockGetTransactionsOnce([mockTransactionMeta]);
     triggerStateChange();
 
