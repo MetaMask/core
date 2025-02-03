@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Remove deprecated messenger-related exports and simplify `RestrictedMessenger` constructor ([#5260](https://github.com/MetaMask/core/pull/5260))
+  - Remove `ControllerMessenger` export which was an alias for `Messenger`. Consumers should import `Messenger` directly
+  - Remove `RestrictedControllerMessenger` export which was an alias for `RestrictedMessenger`. Consumers should import `RestrictedMessenger` directly
+  - Remove `RestrictedControllerMessengerConstraint` type export which was an alias for `RestrictedMessengerConstraint`. Consumers should use `RestrictedMessengerConstraint` type directly
+  - Simplify `RestrictedMessenger` constructor by removing deprecated `controllerMessenger` parameter. The messenger instance should now be passed using only the `messenger` parameter instead of supporting both options
+
 ## [7.1.1]
 
 ### Changed
