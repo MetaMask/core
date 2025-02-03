@@ -1,5 +1,5 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -147,20 +147,21 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   },
 };
 
-type MainControllerMessenger = ControllerMessenger<
+type MainMessenger = Messenger<
   AllowedActions | AddApprovalRequest,
   AllowedEvents
 >;
 
 /**
  * Builds a messenger that `TokenDetectionController` can use to communicate with other controllers.
- * @param controllerMessenger - The main controller messenger.
+ *
+ * @param messenger - The main messenger.
  * @returns The restricted messenger.
  */
 function buildTokenDetectionControllerMessenger(
-  controllerMessenger: MainControllerMessenger = new ControllerMessenger(),
+  messenger: MainMessenger = new Messenger(),
 ): TokenDetectionControllerMessenger {
-  return controllerMessenger.getRestricted({
+  return messenger.getRestricted({
     name: controllerName,
     allowedActions: [
       'AccountsController:getAccount',
@@ -348,7 +349,7 @@ describe('TokenDetectionController', () => {
             () =>
               ({
                 configuration: { chainId: '0x5' },
-              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
           await controller.start();
 
@@ -520,7 +521,7 @@ describe('TokenDetectionController', () => {
             () =>
               ({
                 configuration: { chainId: '0x89' },
-              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
 
           mockTokenListGetState({
@@ -3070,7 +3071,6 @@ type WithControllerCallback<ReturnValue> = ({
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
   isKeyringUnlocked?: boolean;
-  messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
   mocks?: {
     getAccount?: InternalAccount;
     getSelectedAccount?: InternalAccount;
@@ -3094,12 +3094,11 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, isKeyringUnlocked, messenger, mocks } = rest;
-  const controllerMessenger =
-    messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
+  const { options, isKeyringUnlocked, mocks } = rest;
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getAccount',
     mockGetAccount.mockReturnValue(
       mocks?.getAccount ?? createMockInternalAccount({ address: '0x1' }),
@@ -3107,7 +3106,7 @@ async function withController<ReturnValue>(
   );
 
   const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount.mockReturnValue(
       mocks?.getSelectedAccount ??
@@ -3115,7 +3114,7 @@ async function withController<ReturnValue>(
     ),
   );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'KeyringController:getState',
     mockKeyringState.mockReturnValue({
       isUnlocked: isKeyringUnlocked ?? true,
@@ -3125,7 +3124,7 @@ async function withController<ReturnValue>(
     ReturnType<NetworkController['getNetworkClientById']>,
     Parameters<NetworkController['getNetworkClientById']>
   >();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById.mockImplementation(() => {
       return {
@@ -3140,7 +3139,7 @@ async function withController<ReturnValue>(
     ReturnType<NetworkController['getNetworkConfigurationByNetworkClientId']>,
     Parameters<NetworkController['getNetworkConfigurationByNetworkClientId']>
   >();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByNetworkClientId',
     mockGetNetworkConfigurationByNetworkClientId.mockImplementation(
       (networkClientId: NetworkClientId) => {
@@ -3149,28 +3148,28 @@ async function withController<ReturnValue>(
     ),
   );
   const mockNetworkState = jest.fn<NetworkState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'NetworkController:getState',
     mockNetworkState.mockReturnValue({ ...getDefaultNetworkControllerState() }),
   );
   const mockTokensState = jest.fn<TokensControllerState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokensController:getState',
     mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
   );
   const mockTokenListState = jest.fn<TokenListState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokenListController:getState',
     mockTokenListState.mockReturnValue({ ...getDefaultTokenListState() }),
   );
   const mockPreferencesState = jest.fn<PreferencesState, []>();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'PreferencesController:getState',
     mockPreferencesState.mockReturnValue({
       ...getDefaultPreferencesState(),
     }),
   );
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'TokensController:addDetectedTokens',
     jest
       .fn<
@@ -3179,12 +3178,12 @@ async function withController<ReturnValue>(
       >()
       .mockResolvedValue(undefined),
   );
-  const callActionSpy = jest.spyOn(controllerMessenger, 'call');
+  const callActionSpy = jest.spyOn(messenger, 'call');
 
   const controller = new TokenDetectionController({
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
-    messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
+    messenger: buildTokenDetectionControllerMessenger(messenger),
     useAccountsAPI: false,
     platform: 'extension',
     ...options,
@@ -3229,36 +3228,25 @@ async function withController<ReturnValue>(
       },
       callActionSpy,
       triggerKeyringUnlock: () => {
-        controllerMessenger.publish('KeyringController:unlock');
+        messenger.publish('KeyringController:unlock');
       },
       triggerKeyringLock: () => {
-        controllerMessenger.publish('KeyringController:lock');
+        messenger.publish('KeyringController:lock');
       },
       triggerTokenListStateChange: (state: TokenListState) => {
-        controllerMessenger.publish(
-          'TokenListController:stateChange',
-          state,
-          [],
-        );
+        messenger.publish('TokenListController:stateChange', state, []);
       },
       triggerPreferencesStateChange: (state: PreferencesState) => {
-        controllerMessenger.publish(
-          'PreferencesController:stateChange',
-          state,
-          [],
-        );
+        messenger.publish('PreferencesController:stateChange', state, []);
       },
       triggerSelectedAccountChange: (account: InternalAccount) => {
-        controllerMessenger.publish(
+        messenger.publish(
           'AccountsController:selectedEvmAccountChange',
           account,
         );
       },
       triggerNetworkDidChange: (state: NetworkState) => {
-        controllerMessenger.publish(
-          'NetworkController:networkDidChange',
-          state,
-        );
+        messenger.publish('NetworkController:networkDidChange', state);
       },
     });
   } finally {
