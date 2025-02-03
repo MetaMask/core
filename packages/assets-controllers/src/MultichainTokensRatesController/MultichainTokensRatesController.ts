@@ -4,6 +4,7 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerSelectedAccountChangeEvent,
   AccountsControllerAccountRemovedEvent,
+  AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
   RestrictedControllerMessenger,
@@ -34,6 +35,11 @@ import type { Draft } from 'immer';
 
 import { MAP_SWIFT_ISO4217 } from './constant';
 import type { AccountConversionRates, ConversionRatesWrapper } from './types';
+import type {
+  CurrencyRateState,
+  CurrencyRateStateChange,
+  GetCurrencyRateState,
+} from '../CurrencyRateController';
 
 /**
  * The name of the MultiChainTokensRatesController.
@@ -91,6 +97,7 @@ export type AllowedActions =
   | GetAllSnaps
   | HandleSnapRequest
   | AccountsControllerListMultichainAccountsAction
+  | GetCurrencyRateState
   | AccountsControllerGetStateAction;
 
 /**
@@ -100,7 +107,8 @@ export type AllowedEvents =
   | AccountsControllerAccountRemovedEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerAccountAddedEvent
+  | CurrencyRateStateChange;
 
 /**
  * Messenger type for the MultiChainTokensRatesController.
@@ -138,6 +146,8 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
   readonly #mutex = new Mutex();
 
   #accountId: AccountsControllerState['internalAccounts']['selectedAccount'];
+
+  #currentCurrency: CurrencyRateState['currentCurrency'];
 
   #isUnlocked = true;
 
@@ -184,16 +194,20 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
     } = this.messagingSystem.call('AccountsController:getState'));
 
     this.messagingSystem.subscribe(
-      'AccountsController:selectedAccountChange',
-      async (account) => {
-        this.#accountId = account.id;
-        await this.updateTokensRates(this.#accountId);
-      },
+      'AccountsController:accountAdded',
+      (account) => this.#handleOnAccountAdded(account),
     );
 
+    ({ currentCurrency: this.#currentCurrency } = this.messagingSystem.call(
+      'CurrencyRateController:getState',
+    ));
+
+    console.log('this.#currentCurrency ......', this.#currentCurrency);
+
     this.messagingSystem.subscribe(
-      'AccountsController:accountRemoved',
-      (account) => this.#handleOnAccountRemoved(account),
+      'CurrencyRateController:stateChange',
+      (currencyRatesState) =>
+        (this.#currentCurrency = currencyRatesState.currentCurrency),
     );
   }
 
@@ -274,6 +288,17 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
   }
 
   /**
+   * Handles the addition of an account by updating its token conversion rates.
+   *
+   * @param account - The added account.
+   */
+  async #handleOnAccountAdded(account: InternalAccount): Promise<void> {
+    if (this.#isNonEvmAccount(account)) {
+      await this.updateTokensRates(account.id);
+    }
+  }
+
+  /**
    * Updates the token conversion rates for a given account.
    *
    * This method acquires a mutex lock to ensure thread safety.
@@ -301,6 +326,8 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
         account.metadata.snap.id as SnapId,
       );
 
+      console.log('this.#currentCurrency salim ......', this.#currentCurrency);
+
       const accountType = account.type as KeyringAccountType;
 
       const conversions = assets.map((asset) => ({
@@ -318,6 +345,7 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
       this.update((state: Draft<MultichainTokensRatesControllerState>) => {
         state.conversionRates[accountId] = accountRates.conversionRates;
       });
+      console.log('this.state ......', this.state);
     })().finally(() => {
       releaseLock();
     });

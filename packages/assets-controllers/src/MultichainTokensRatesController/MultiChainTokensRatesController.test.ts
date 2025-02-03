@@ -97,12 +97,14 @@ const setupController = ({
       'AccountsController:getState',
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
+      'CurrencyRateController:getState',
     ],
     allowedEvents: [
-      'AccountsController:selectedAccountChange',
+      'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'KeyringController:lock',
       'KeyringController:unlock',
+      'CurrencyRateController:stateChange',
     ],
   });
 
@@ -312,7 +314,7 @@ describe('MultiChainTokensRatesController', () => {
     expect(controller.state.conversionRates.account1).toBeUndefined();
   });
 
-  it('should call updateTokensRates when the selected account changes', async () => {
+  it('should call updateTokensRates when an account is added', async () => {
     const { controller, messenger } = setupController();
     // Create a new non‑EVM account.
     const newAccount = {
@@ -332,7 +334,7 @@ describe('MultiChainTokensRatesController', () => {
 
     // Publish a selectedAccountChange event.
     // @ts-expect-error-next-line
-    messenger.publish('AccountsController:selectedAccountChange', newAccount);
+    messenger.publish('AccountsController:accountAdded', newAccount);
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
     expect(updateSpy).toHaveBeenCalledWith('account3');
