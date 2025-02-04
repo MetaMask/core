@@ -181,8 +181,6 @@ describe('Bridge utils', () => {
         headers: { 'X-Client-Id': 'extension' },
       });
 
-      console.log(result);
-
       expect(result).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           address: '0x0000000000000000000000000000000000000000',
