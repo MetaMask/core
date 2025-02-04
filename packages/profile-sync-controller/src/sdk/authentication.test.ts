@@ -1,4 +1,3 @@
-import { Env, Platform } from '../shared/env';
 import {
   MOCK_ACCESS_JWT,
   MOCK_SRP_LOGIN_RESPONSE,
@@ -16,6 +15,7 @@ import {
   ValidationError,
 } from './errors';
 import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider';
+import { Env, Platform } from '../shared/env';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -86,7 +86,7 @@ describe('Identifier Pairing', () => {
           '0xc89a614e873c2c1f08fc8d72590e13c961ea856cc7a9cd08af4bf3d3fca11111',
         identifierType: 'SRP',
         signMessage: async (message: string): Promise<string> => {
-          return new Promise((_, reject) => {
+          return new Promise((_resolve, reject) => {
             reject(new Error(`unable to sign message: ${message}`));
           });
         },
@@ -246,7 +246,7 @@ describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () =
           status: 400,
           body: {
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             error_description: 'invalid JWT token',
             error: 'invalid_request',
           },
@@ -423,7 +423,7 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
           status: 400,
           body: {
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             error_description: 'invalid JWT token',
             error: 'invalid_request',
           },

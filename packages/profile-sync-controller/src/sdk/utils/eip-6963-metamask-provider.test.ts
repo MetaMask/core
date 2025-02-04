@@ -1,11 +1,11 @@
 import type { Eip1193Provider } from 'ethers';
 
-import type { MockVariable } from '../__fixtures__/test-utils';
 import type { AnnounceProviderEvent } from './eip-6963-metamask-provider';
 import {
   getMetaMaskProviderEIP6963,
   metamaskClientsRdns,
 } from './eip-6963-metamask-provider';
+import type { MockVariable } from '../__fixtures__/test-utils';
 
 describe('getMetaMaskProviderEIP6963() tests', () => {
   let unsubscribe: undefined | (() => void);
@@ -16,6 +16,7 @@ describe('getMetaMaskProviderEIP6963() tests', () => {
 
   /**
    * Mock Utility to create and emit EIP event
+   *
    * @param rdns - mock rdns for provider
    * @returns an unsubscribe event listener
    */
@@ -24,6 +25,7 @@ describe('getMetaMaskProviderEIP6963() tests', () => {
       request: jest.fn(),
     };
 
+    // eslint-disable-next-line n/no-unsupported-features/node-builtins
     const announceEvent: AnnounceProviderEvent = new CustomEvent(
       'eip6963:announceProvider',
       {

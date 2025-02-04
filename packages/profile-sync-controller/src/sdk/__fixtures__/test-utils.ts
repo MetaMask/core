@@ -15,7 +15,7 @@ export type MockVariable = any;
 
 // Utility for mocking, the generics will constrain values
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/naming-convention
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const typedMockFn = <Fn extends (...args: any[]) => any>() =>
   jest.fn<ReturnType<Fn>, Parameters<Fn>>();
 
@@ -112,6 +112,7 @@ export function arrangeAuth(
 
 /**
  * Mock utility - creates a mock provider
+ *
  * @returns mock provider
  */
 export const arrangeMockProvider = () => {
