@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(remote-feature-flag): Rename `ControllerMessenger` to `Messenger` ([#5253](https://github.com/MetaMask/core/pull/5253))
+- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+
 ### Added
 
 - Add `onBreak` and `onDegraded` methods to `ClientConfigApiService` ([#5109](https://github.com/MetaMask/core/pull/5109))
