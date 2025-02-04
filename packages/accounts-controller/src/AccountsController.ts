@@ -38,12 +38,15 @@ import {
   type Json,
   isCaipChainId,
   parseCaipChainId,
+  createProjectLogger,
 } from '@metamask/utils';
 import {
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
   keyringTypeToName,
 } from './utils';
+
+export const logger = createProjectLogger('accounts-controller');
 
 const controllerName = 'AccountsController';
 
@@ -488,7 +491,7 @@ export class AccountsController extends BaseController<
       };
       // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
       // See: https://github.com/MetaMask/utils/issues/168
-      // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
+      // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
       currentState.internalAccounts.accounts[accountId] = internalAccount;
 
       if (metadata.name) {
@@ -1137,7 +1140,7 @@ export class AccountsController extends BaseController<
    * @param args.evmClientId - The ID of the EVM client.
    * @param args.nonEvmChainId - The CAIP2 of the non-EVM chain.
    */
-  #handleOnMultichainNetworkChange({
+  #handleMultichainNetworkChange({
     evmClientId,
     nonEvmChainId,
   }: {
@@ -1145,31 +1148,27 @@ export class AccountsController extends BaseController<
     nonEvmChainId?: CaipChainId;
   }) {
     if (evmClientId && nonEvmChainId) {
-      throw new Error(
-        'Cannot set accounts from both EVM and non-EVM networks!',
-      );
+      const errorMessage = `Cannot set accounts from both EVM and non-EVM networks! evmClientId - ${evmClientId}, nonEvmChainId - ${nonEvmChainId}`;
+      logger(errorMessage);
+      return;
     }
 
-    let accountId: string | undefined;
+    let accountId: string;
 
     if (nonEvmChainId) {
       // Update selected account to non evm account
       const lastSelectedNonEvmAccount =
         this.getSelectedMultichainAccount(nonEvmChainId);
       if (!lastSelectedNonEvmAccount?.id) {
-        throw new Error('No non-EVM account found!');
+        const errorMessage = `No non-EVM account found for non-EVM chain ID - ${nonEvmChainId}!`;
+        logger(errorMessage);
+        return;
       }
       accountId = lastSelectedNonEvmAccount?.id;
     } else if (evmClientId) {
       // Update selected account to evm account
       const lastSelectedEvmAccount = this.getSelectedAccount();
       accountId = lastSelectedEvmAccount.id;
-    }
-
-    if (!accountId) {
-      throw new Error(
-        `No account found when switching multichain network! evmClientId - ${evmClientId}, nonEvmChainId - ${nonEvmChainId}`,
-      );
     }
 
     this.update((currentState) => {
@@ -1242,7 +1241,7 @@ export class AccountsController extends BaseController<
     // Handle account change when multichain network is changed
     this.messagingSystem.subscribe(
       'MultichainNetworkController:setActiveNetwork',
-      this.#handleOnMultichainNetworkChange,
+      this.#handleMultichainNetworkChange.bind(this),
     );
   }
 
