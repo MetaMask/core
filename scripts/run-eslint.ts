@@ -161,9 +161,9 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
       ),
     );
     for (const [filePath, ruleCounts] of Object.entries(warningCounts)) {
-      console.log(`- ${filePath}`);
+      console.log(chalk.underline(filePath));
       for (const [ruleId, count] of Object.entries(ruleCounts)) {
-        console.log(`  - ${chalk.cyan(ruleId)}: ${count}`);
+        console.log(`  ${chalk.cyan(ruleId)}: ${count}`);
       }
     }
     saveWarningThresholds(warningCounts);
@@ -198,7 +198,7 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
             } of fileChanges) {
               if (difference > 0) {
                 console.log(
-                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
+                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
                 );
               }
             }
@@ -226,7 +226,7 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
             } of fileChanges) {
               if (difference !== 0) {
                 console.log(
-                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.green(`+${difference}`) : chalk.red(difference)})`,
+                  `  ${chalk.cyan(ruleId)}: ${threshold} -> ${count} (${difference > 0 ? chalk.red(`+${difference}`) : chalk.green(difference)})`,
                 );
               }
             }
@@ -234,7 +234,7 @@ function evaluateWarnings(results: ESLint.LintResult[]) {
         }
 
         console.log(
-          `\n${chalk.yellow(`\`${path.basename(WARNING_THRESHOLDS_FILE)}\` has been updated with the new counts. Please make sure to commit the changes.`)}`,
+          `\n${chalk.yellow.bold(path.basename(WARNING_THRESHOLDS_FILE))}${chalk.yellow(' has been updated with the new counts. Please make sure to commit the changes.')}`,
         );
 
         saveWarningThresholds(warningCounts);
