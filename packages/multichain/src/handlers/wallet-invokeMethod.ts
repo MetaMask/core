@@ -9,7 +9,11 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import { isCaipChainId, KnownCaipNamespace, numberToHex } from '@metamask/utils';
+import {
+  isCaipChainId,
+  KnownCaipNamespace,
+  numberToHex,
+} from '@metamask/utils';
 
 import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -57,12 +61,12 @@ async function walletInvokeMethodHandler(
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     getSelectedNetworkClientId: () => NetworkClientId;
-    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
     handleNonEvmRequestForOrigin: (params: {
       connectedAddresses: CaipAccountId[];
       scope: CaipChainId;
       request: JsonRpcRequest;
-    }) => Promise<Json>
+    }) => Promise<Json>;
   },
 ) {
   const { scope, request: wrappedRequest } = request.params;
@@ -82,7 +86,9 @@ async function walletInvokeMethodHandler(
     return end(providerErrors.unauthorized());
   }
 
-  const scopeObject = getSessionScopes(caveat.value, { getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods })[scope];
+  const scopeObject = getSessionScopes(caveat.value, {
+    getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
+  })[scope];
 
   if (!scopeObject?.methods?.includes(wrappedRequest.method)) {
     return end(providerErrors.unauthorized());
@@ -90,21 +96,23 @@ async function walletInvokeMethodHandler(
 
   const { namespace, reference } = parseScopeString(scope);
 
-  const isEvmRequest = (namespace === KnownCaipNamespace.Wallet && (!reference || reference === KnownCaipNamespace.Eip155))  || namespace === KnownCaipNamespace.Eip155
+  const isEvmRequest =
+    (namespace === KnownCaipNamespace.Wallet &&
+      (!reference || reference === KnownCaipNamespace.Eip155)) ||
+    namespace === KnownCaipNamespace.Eip155;
 
   const unwrappedRequest = {
     ...request,
     scope,
     method: wrappedRequest.method,
     params: wrappedRequest.params,
-  }
+  };
 
   if (isEvmRequest) {
     let networkClientId;
     if (namespace === KnownCaipNamespace.Wallet) {
-        networkClientId = hooks.getSelectedNetworkClientId();
-    }
-    else if (namespace === KnownCaipNamespace.Eip155) {
+      networkClientId = hooks.getSelectedNetworkClientId();
+    } else if (namespace === KnownCaipNamespace.Eip155) {
       if (reference) {
         networkClientId = hooks.findNetworkClientIdByChainId(
           numberToHex(parseInt(reference, 10)),
@@ -119,7 +127,6 @@ async function walletInvokeMethodHandler(
       );
       return end(rpcErrors.internal());
     }
-
 
     Object.assign(request, {
       ...unwrappedRequest,
@@ -137,7 +144,7 @@ async function walletInvokeMethodHandler(
       connectedAddresses: scopeObject.accounts,
       scope,
       request: unwrappedRequest,
-    })
+    });
   } catch (err) {
     return end(err as Error);
   }

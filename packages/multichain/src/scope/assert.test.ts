@@ -45,25 +45,24 @@ describe('Scope Assert', () => {
   });
 
   describe('assertScopeSupported', () => {
-    const isEvmChainIdSupported = jest.fn()
-    const isNonEvmScopeSupported = jest.fn()
-    const getNonEvmSupportedMethods = jest.fn()
+    const isEvmChainIdSupported = jest.fn();
+    const isNonEvmScopeSupported = jest.fn();
+    const getNonEvmSupportedMethods = jest.fn();
 
     describe('scopeString', () => {
       it('checks if the scopeString is supported', () => {
         try {
-          assertScopeSupported('scopeString', validScopeObject,   {
+          assertScopeSupported('scopeString', validScopeObject, {
             isEvmChainIdSupported,
             isNonEvmScopeSupported,
-            getNonEvmSupportedMethods
+            getNonEvmSupportedMethods,
           });
         } catch (err) {
           // noop
         }
         expect(MockSupported.isSupportedScopeString).toHaveBeenCalledWith(
           'scopeString',
-          { isEvmChainIdSupported,
-            isNonEvmScopeSupported }
+          { isEvmChainIdSupported, isNonEvmScopeSupported },
         );
       });
 
@@ -73,7 +72,7 @@ describe('Scope Assert', () => {
           assertScopeSupported('scopeString', validScopeObject, {
             isEvmChainIdSupported,
             isNonEvmScopeSupported,
-            getNonEvmSupportedMethods
+            getNonEvmSupportedMethods,
           });
         }).toThrow(Caip25Errors.requestedChainsNotSupportedError());
       });
@@ -95,7 +94,7 @@ describe('Scope Assert', () => {
             {
               isEvmChainIdSupported,
               isNonEvmScopeSupported,
-              getNonEvmSupportedMethods
+              getNonEvmSupportedMethods,
             },
           );
         } catch (err) {
@@ -106,8 +105,8 @@ describe('Scope Assert', () => {
           'scopeString',
           'eth_chainId',
           {
-            getNonEvmSupportedMethods
-          }
+            getNonEvmSupportedMethods,
+          },
         );
       });
 
@@ -123,7 +122,7 @@ describe('Scope Assert', () => {
             {
               isEvmChainIdSupported,
               isNonEvmScopeSupported,
-              getNonEvmSupportedMethods
+              getNonEvmSupportedMethods,
             },
           );
         }).toThrow(Caip25Errors.requestedMethodsNotSupportedError());
@@ -141,7 +140,7 @@ describe('Scope Assert', () => {
             {
               isEvmChainIdSupported,
               isNonEvmScopeSupported,
-              getNonEvmSupportedMethods
+              getNonEvmSupportedMethods,
             },
           );
         } catch (err) {
@@ -167,7 +166,7 @@ describe('Scope Assert', () => {
             {
               isEvmChainIdSupported,
               isNonEvmScopeSupported,
-              getNonEvmSupportedMethods
+              getNonEvmSupportedMethods,
             },
           );
         }).toThrow(Caip25Errors.requestedNotificationsNotSupportedError());
@@ -188,7 +187,7 @@ describe('Scope Assert', () => {
             {
               isEvmChainIdSupported,
               isNonEvmScopeSupported,
-              getNonEvmSupportedMethods
+              getNonEvmSupportedMethods,
             },
           ),
         ).toBeUndefined();
@@ -208,7 +207,7 @@ describe('Scope Assert', () => {
           {
             isEvmChainIdSupported,
             isNonEvmScopeSupported,
-            getNonEvmSupportedMethods
+            getNonEvmSupportedMethods,
           },
         ),
       ).toBeUndefined();
@@ -225,7 +224,7 @@ describe('Scope Assert', () => {
           {
             isEvmChainIdSupported,
             isNonEvmScopeSupported,
-            getNonEvmSupportedMethods
+            getNonEvmSupportedMethods,
           },
         );
       }).toThrow(Caip25Errors.requestedChainsNotSupportedError());
@@ -243,7 +242,7 @@ describe('Scope Assert', () => {
           {
             isEvmChainIdSupported,
             isNonEvmScopeSupported,
-            getNonEvmSupportedMethods
+            getNonEvmSupportedMethods,
           },
         ),
       ).toBeUndefined();

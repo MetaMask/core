@@ -24,13 +24,13 @@ import { cloneDeep, isEqual } from 'lodash';
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
 import { isSupportedAccount, isSupportedScopeString } from './scope/supported';
+import { mergeScopes } from './scope/transform';
 import {
   parseScopeString,
   type ExternalScopeString,
   type InternalScopeObject,
   type InternalScopesObject,
 } from './scope/types';
-import { mergeScopes } from './scope/transform';
 
 /**
  * The CAIP-25 permission caveat value.
@@ -56,6 +56,7 @@ export const Caip25EndowmentPermissionName = 'endowment:caip25';
 
 /**
  * Creates a CAIP-25 permission caveat.
+ *
  * @param value - The CAIP-25 permission caveat value.
  * @returns The CAIP-25 permission caveat (now including the type).
  */
@@ -68,9 +69,9 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
 
 type Caip25EndowmentCaveatSpecificationBuilderOptions = {
   findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
-  listAccounts: () => {type: string; address: Hex}[];
-  isNonEvmScopeSupported: (scope: CaipChainId) => boolean,
-  getNonEvmAccountAddresses: (scope: CaipChainId) => string[]
+  listAccounts: () => { type: string; address: Hex }[];
+  isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+  getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
 };
 
 /**
@@ -126,11 +127,17 @@ export const caip25CaveatBuilder = ({
 
       const allRequiredScopesSupported = Object.keys(requiredScopes).every(
         (scopeString) =>
-          isSupportedScopeString(scopeString, {isEvmChainIdSupported, isNonEvmScopeSupported}),
+          isSupportedScopeString(scopeString, {
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+          }),
       );
       const allOptionalScopesSupported = Object.keys(optionalScopes).every(
         (scopeString) =>
-          isSupportedScopeString(scopeString, {isEvmChainIdSupported, isNonEvmScopeSupported}),
+          isSupportedScopeString(scopeString, {
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+          }),
       );
       if (!allRequiredScopesSupported || !allOptionalScopesSupported) {
         throw new Error(
@@ -140,15 +147,21 @@ export const caip25CaveatBuilder = ({
 
       const allRequiredAccountsSupported = Object.values(requiredScopes).every(
         (scopeObject) =>
-          scopeObject.accounts.every(
-            (account) => isSupportedAccount(account, {getEvmInternalAccounts: listAccounts, getNonEvmAccountAddresses })
-          )
+          scopeObject.accounts.every((account) =>
+            isSupportedAccount(account, {
+              getEvmInternalAccounts: listAccounts,
+              getNonEvmAccountAddresses,
+            }),
+          ),
       );
       const allOptionalAccountsSupported = Object.values(optionalScopes).every(
         (scopeObject) =>
-          scopeObject.accounts.every(
-            (account) => isSupportedAccount(account, {getEvmInternalAccounts: listAccounts, getNonEvmAccountAddresses })
-          )
+          scopeObject.accounts.every((account) =>
+            isSupportedAccount(account, {
+              getEvmInternalAccounts: listAccounts,
+              getNonEvmAccountAddresses,
+            }),
+          ),
       );
       if (!allRequiredAccountsSupported || !allOptionalAccountsSupported) {
         throw new Error(

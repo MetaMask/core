@@ -1,12 +1,12 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
+import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
+import { walletInvokeMethod } from './wallet-invokeMethod';
 import * as PermissionAdapterSessionScopes from '../adapters/caip-permission-adapter-session-scopes';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
-import { walletInvokeMethod } from './wallet-invokeMethod';
 
 jest.mock('../adapters/caip-permission-adapter-session-scopes', () => ({
   getSessionScopes: jest.fn(),
@@ -59,23 +59,17 @@ const createMockedHandler = () => {
   const getSelectedNetworkClientId = jest
     .fn()
     .mockReturnValue('selectedNetworkClientId');
-  const getNonEvmSupportedMethods = jest.fn().mockReturnValue([])
-  const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null)
-  const response = { jsonrpc: '2.0' as const, id: 1 }
+  const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
+  const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null);
+  const response = { jsonrpc: '2.0' as const, id: 1 };
   const handler = (request: WalletInvokeMethodRequest) =>
-    walletInvokeMethod.implementation(
-      request,
-      response,
-      next,
-      end,
-      {
-        getCaveatForOrigin,
-        findNetworkClientIdByChainId,
-        getSelectedNetworkClientId,
-        getNonEvmSupportedMethods,
-        handleNonEvmRequestForOrigin,
-      },
-    );
+    walletInvokeMethod.implementation(request, response, next, end, {
+      getCaveatForOrigin,
+      findNetworkClientIdByChainId,
+      getSelectedNetworkClientId,
+      getNonEvmSupportedMethods,
+      handleNonEvmRequestForOrigin,
+    });
 
   return {
     response,
@@ -132,27 +126,30 @@ describe('wallet_invokeMethod', () => {
     await handler(request);
     expect(
       MockPermissionAdapterSessionScopes.getSessionScopes,
-    ).toHaveBeenCalledWith({
-      requiredScopes: {
-        'eip155:1': {
-          accounts: [],
+    ).toHaveBeenCalledWith(
+      {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+          'eip155:5': {
+            accounts: [],
+          },
         },
-        'eip155:5': {
-          accounts: [],
+        optionalScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+          wallet: {
+            accounts: [],
+          },
         },
+        isMultichainOrigin: true,
       },
-      optionalScopes: {
-        'eip155:1': {
-          accounts: [],
-        },
-        wallet: {
-          accounts: [],
-        },
+      {
+        getNonEvmSupportedMethods,
       },
-      isMultichainOrigin: true,
-    }, {
-      getNonEvmSupportedMethods
-    });
+    );
   });
 
   it('throws an unauthorized error when there is no CAIP-25 endowment permission', async () => {
@@ -317,9 +314,9 @@ describe('wallet_invokeMethod', () => {
     });
   });
 
-  describe("'wallet:eip155' scope", () => {})
+  describe("'wallet:eip155' scope", () => {});
 
-  describe("non-evm scope", () => {
+  describe('non-evm scope', () => {
     it('forwards the unwrapped CAIP-27 request for authorized non-evm scopes to handleNonEvmRequestForOrigin', async () => {
       const request = createMockedRequest();
       const { handler, handleNonEvmRequestForOrigin } = createMockedHandler();
@@ -340,22 +337,23 @@ describe('wallet_invokeMethod', () => {
         connectedAddresses: ['nonevm:scope:0x1'],
         scope: 'nonevm:scope',
         request: {
-          "id": 0,
-          "jsonrpc": "2.0",
-          "method": "foobar",
-          "origin": "http://test.com",
-          "params": {
-          "foo": "bar",
+          id: 0,
+          jsonrpc: '2.0',
+          method: 'foobar',
+          origin: 'http://test.com',
+          params: {
+            foo: 'bar',
           },
-          "scope": "nonevm:scope",
+          scope: 'nonevm:scope',
         },
       });
     });
 
     it('sets response.result to the return value from handleNonEvmRequestForOrigin', async () => {
       const request = createMockedRequest();
-      const { handler, handleNonEvmRequestForOrigin, end, response } = createMockedHandler();
-      handleNonEvmRequestForOrigin.mockResolvedValue('nonEvmResult')
+      const { handler, handleNonEvmRequestForOrigin, end, response } =
+        createMockedHandler();
+      handleNonEvmRequestForOrigin.mockResolvedValue('nonEvmResult');
       await handler({
         ...request,
         params: {
@@ -371,15 +369,18 @@ describe('wallet_invokeMethod', () => {
       expect(response).toStrictEqual({
         jsonrpc: '2.0',
         id: 1,
-        result: 'nonEvmResult'
-      })
-      expect(end).toHaveBeenCalledWith()
+        result: 'nonEvmResult',
+      });
+      expect(end).toHaveBeenCalledWith();
     });
 
     it('returns an error if handleNonEvmRequestForOrigin throws', async () => {
       const request = createMockedRequest();
-      const { handler, handleNonEvmRequestForOrigin, end } = createMockedHandler();
-      handleNonEvmRequestForOrigin.mockRejectedValue(new Error('handleNonEvemRequest failed'))
+      const { handler, handleNonEvmRequestForOrigin, end } =
+        createMockedHandler();
+      handleNonEvmRequestForOrigin.mockRejectedValue(
+        new Error('handleNonEvemRequest failed'),
+      );
       await handler({
         ...request,
         params: {
@@ -392,7 +393,9 @@ describe('wallet_invokeMethod', () => {
         },
       });
 
-      expect(end).toHaveBeenCalledWith(new Error('handleNonEvemRequest failed'))
+      expect(end).toHaveBeenCalledWith(
+        new Error('handleNonEvemRequest failed'),
+      );
     });
-  })
+  });
 });

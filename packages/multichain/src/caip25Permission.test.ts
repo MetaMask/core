@@ -476,8 +476,8 @@ describe('caip25EndowmentBuilder', () => {
 describe('caip25CaveatBuilder', () => {
   const findNetworkClientIdByChainId = jest.fn();
   const listAccounts = jest.fn();
-  const isNonEvmScopeSupported = jest.fn()
-  const getNonEvmAccountAddresses = jest.fn()
+  const isNonEvmScopeSupported = jest.fn();
+  const getNonEvmAccountAddresses = jest.fn();
   const { validator } = caip25CaveatBuilder({
     findNetworkClientIdByChainId,
     listAccounts,
@@ -533,7 +533,7 @@ describe('caip25CaveatBuilder', () => {
   });
 
   it('asserts the internal required scopeStrings are supported', () => {
-    MockScopeSupported.isSupportedScopeString.mockReturnValue(true)
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
 
     try {
       validator({
@@ -566,22 +566,24 @@ describe('caip25CaveatBuilder', () => {
       {
         isEvmChainIdSupported: expect.any(Function),
         isNonEvmScopeSupported: expect.any(Function),
-      }
+      },
     );
     expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
       'bip122:000000000019d6689c085ae165831e93',
       {
         isEvmChainIdSupported: expect.any(Function),
         isNonEvmScopeSupported: expect.any(Function),
-      }
+      },
     );
 
-    MockScopeSupported.isSupportedScopeString.mock.calls[0][1].isEvmChainIdSupported('0x1');
+    MockScopeSupported.isSupportedScopeString.mock.calls[0][1].isEvmChainIdSupported(
+      '0x1',
+    );
     expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
   });
 
   it('asserts the internal optional scopeStrings are supported', () => {
-    MockScopeSupported.isSupportedScopeString.mockReturnValue(true)
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
 
     try {
       validator({
@@ -615,17 +617,19 @@ describe('caip25CaveatBuilder', () => {
       {
         isEvmChainIdSupported: expect.any(Function),
         isNonEvmScopeSupported: expect.any(Function),
-      }
+      },
     );
     expect(MockScopeSupported.isSupportedScopeString).toHaveBeenCalledWith(
       'bip122:12a765e31ffd4059bada1e25190f6e98',
       {
         isEvmChainIdSupported: expect.any(Function),
         isNonEvmScopeSupported: expect.any(Function),
-      }
+      },
     );
 
-    MockScopeSupported.isSupportedScopeString.mock.calls[1][1].isEvmChainIdSupported('0x5');
+    MockScopeSupported.isSupportedScopeString.mock.calls[1][1].isEvmChainIdSupported(
+      '0x5',
+    );
     expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x5');
   });
 
@@ -655,7 +659,9 @@ describe('caip25CaveatBuilder', () => {
     }
 
     expect(
-      MockScopeSupported.isSupportedScopeString.mock.calls[0][1].isEvmChainIdSupported('0x1'),
+      MockScopeSupported.isSupportedScopeString.mock.calls[0][1].isEvmChainIdSupported(
+        '0x1',
+      ),
     ).toBe(false);
     expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
   });
@@ -670,7 +676,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: [],
             },
             'bip122:000000000019d6689c085ae165831e93': {
-              accounts: []
+              accounts: [],
             },
           },
           optionalScopes: {
@@ -692,8 +698,8 @@ describe('caip25CaveatBuilder', () => {
   });
 
   it('asserts the required accounts are supported', () => {
-    MockScopeSupported.isSupportedScopeString.mockReturnValue(true)
-    MockScopeSupported.isSupportedAccount.mockReturnValue(true)
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
+    MockScopeSupported.isSupportedAccount.mockReturnValue(true);
 
     try {
       validator({
@@ -726,20 +732,20 @@ describe('caip25CaveatBuilder', () => {
       {
         getEvmInternalAccounts: expect.any(Function),
         getNonEvmAccountAddresses: expect.any(Function),
-      }
+      },
     );
     expect(MockScopeSupported.isSupportedAccount).toHaveBeenCalledWith(
       'bip122:000000000019d6689c085ae165831e93:123',
       {
         getEvmInternalAccounts: expect.any(Function),
         getNonEvmAccountAddresses: expect.any(Function),
-      }
+      },
     );
   });
 
   it('asserts the optional accounts are supported', () => {
-    MockScopeSupported.isSupportedScopeString.mockReturnValue(true)
-    MockScopeSupported.isSupportedAccount.mockReturnValue(true)
+    MockScopeSupported.isSupportedScopeString.mockReturnValue(true);
+    MockScopeSupported.isSupportedAccount.mockReturnValue(true);
 
     try {
       validator({
@@ -772,14 +778,14 @@ describe('caip25CaveatBuilder', () => {
       {
         getEvmInternalAccounts: expect.any(Function),
         getNonEvmAccountAddresses: expect.any(Function),
-      }
+      },
     );
     expect(MockScopeSupported.isSupportedAccount).toHaveBeenCalledWith(
       'bip122:000000000019d6689c085ae165831e93:123',
       {
         getEvmInternalAccounts: expect.any(Function),
         getNonEvmAccountAddresses: expect.any(Function),
-      }
+      },
     );
   });
 

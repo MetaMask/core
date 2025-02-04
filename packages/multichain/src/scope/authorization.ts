@@ -28,6 +28,7 @@ export type Caip25Authorization = (
 
 /**
  * Validates and normalizes a set of scopes according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
+ *
  * @param requiredScopes - The required scopes to validate and normalize.
  * @param optionalScopes - The optional scopes to validate and normalize.
  * @returns An object containing the normalized required scopes and normalized optional scopes.
@@ -57,6 +58,7 @@ export const validateAndNormalizeScopes = (
  * Groups a NormalizedScopesObject into three separate
  * NormalizedScopesObjects for supported scopes,
  * supportable scopes, and unsupportable scopes.
+ *
  * @param scopes - The NormalizedScopesObject to group.
  * @param hooks - The hooks.
  * @param hooks.isEvmChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
@@ -71,7 +73,7 @@ export const bucketScopes = (
     isEvmChainIdSupported,
     isEvmChainIdSupportable,
     isNonEvmScopeSupported,
-    getNonEvmSupportedMethods
+    getNonEvmSupportedMethods,
   }: {
     isEvmChainIdSupported: (chainId: Hex) => boolean;
     isEvmChainIdSupportable: (chainId: Hex) => boolean;
@@ -94,9 +96,9 @@ export const bucketScopes = (
     supportedScopes: supportableScopes,
     unsupportedScopes: unsupportableScopes,
   } = bucketScopesBySupport(maybeSupportableScopes, {
-      isEvmChainIdSupported: isEvmChainIdSupportable,
-      isNonEvmScopeSupported,
-      getNonEvmSupportedMethods,
+    isEvmChainIdSupported: isEvmChainIdSupportable,
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods,
   });
 
   return { supportedScopes, supportableScopes, unsupportableScopes };

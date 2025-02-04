@@ -1,13 +1,13 @@
 import {
+  getInternalScopesObject,
+  getSessionScopes,
+} from './caip-permission-adapter-session-scopes';
+import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from '../scope/constants';
-import {
-  getInternalScopesObject,
-  getSessionScopes,
-} from './caip-permission-adapter-session-scopes';
 
 describe('CAIP-25 session scopes adapters', () => {
   describe('getInternalScopesObject', () => {
@@ -37,19 +37,22 @@ describe('CAIP-25 session scopes adapters', () => {
   });
 
   describe('getSessionScopes', () => {
-    const getNonEvmSupportedMethods = jest.fn()
+    const getNonEvmSupportedMethods = jest.fn();
 
     it('returns a NormalizedScopesObject for the wallet scope', () => {
-      const result = getSessionScopes({
-        requiredScopes: {},
-        optionalScopes: {
-          wallet: {
-            accounts: [],
+      const result = getSessionScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            wallet: {
+              accounts: [],
+            },
           },
         },
-      }, {
-        getNonEvmSupportedMethods
-      });
+        {
+          getNonEvmSupportedMethods,
+        },
+      );
 
       expect(result).toStrictEqual({
         wallet: {
@@ -61,16 +64,19 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('returns a NormalizedScopesObject for the wallet:eip155 scope', () => {
-      const result = getSessionScopes({
-        requiredScopes: {},
-        optionalScopes: {
-          'wallet:eip155': {
-            accounts: ['wallet:eip155:0xdeadbeef'],
+      const result = getSessionScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'wallet:eip155': {
+              accounts: ['wallet:eip155:0xdeadbeef'],
+            },
           },
         },
-      }, {
-        getNonEvmSupportedMethods
-      });
+        {
+          getNonEvmSupportedMethods,
+        },
+      );
 
       expect(result).toStrictEqual({
         'wallet:eip155': {
@@ -82,35 +88,41 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('gets methods from getNonEvmSupportedMethods for scope with wallet namespace and non-evm reference', () => {
-      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod']);
 
-      const result = getSessionScopes({
-        requiredScopes: {},
-        optionalScopes: {
-          'wallet:foobar': {
-            accounts: ['wallet:foobar:0xdeadbeef'],
+      const result = getSessionScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'wallet:foobar': {
+              accounts: ['wallet:foobar:0xdeadbeef'],
+            },
           },
         },
-      }, {
-        getNonEvmSupportedMethods
-      });
+        {
+          getNonEvmSupportedMethods,
+        },
+      );
 
-      expect(getNonEvmSupportedMethods).toHaveBeenCalledWith('wallet:foobar')
+      expect(getNonEvmSupportedMethods).toHaveBeenCalledWith('wallet:foobar');
     });
 
     it('returns a NormalizedScopesObject with methods from getNonEvmSupportedMethods and empty notifications for scope with wallet namespace and non-evm reference', () => {
-      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod']);
 
-      const result = getSessionScopes({
-        requiredScopes: {},
-        optionalScopes: {
-          'wallet:foobar': {
-            accounts: ['wallet:foobar:0xdeadbeef'],
+      const result = getSessionScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'wallet:foobar': {
+              accounts: ['wallet:foobar:0xdeadbeef'],
+            },
           },
         },
-      }, {
-        getNonEvmSupportedMethods
-      });
+        {
+          getNonEvmSupportedMethods,
+        },
+      );
 
       expect(result).toStrictEqual({
         'wallet:foobar': {
@@ -122,35 +134,41 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('gets methods from getNonEvmSupportedMethods for scope non-evm namespace', () => {
-      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod']);
 
-      const result = getSessionScopes({
-        requiredScopes: {},
-        optionalScopes: {
-          'foo:1': {
-            accounts: ['foo:1:0xdeadbeef'],
+      const result = getSessionScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'foo:1': {
+              accounts: ['foo:1:0xdeadbeef'],
+            },
           },
         },
-      }, {
-        getNonEvmSupportedMethods
-      });
+        {
+          getNonEvmSupportedMethods,
+        },
+      );
 
-      expect(getNonEvmSupportedMethods).toHaveBeenCalledWith('foo:1')
+      expect(getNonEvmSupportedMethods).toHaveBeenCalledWith('foo:1');
     });
 
     it('returns a NormalizedScopesObject with methods from getNonEvmSupportedMethods and empty notifications for scope non-evm namespace', () => {
-      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod'])
+      getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod']);
 
-      const result = getSessionScopes({
-        requiredScopes: {},
-        optionalScopes: {
-          'foo:1': {
-            accounts: ['foo:1:0xdeadbeef'],
+      const result = getSessionScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'foo:1': {
+              accounts: ['foo:1:0xdeadbeef'],
+            },
           },
         },
-      }, {
-        getNonEvmSupportedMethods
-      });
+        {
+          getNonEvmSupportedMethods,
+        },
+      );
 
       expect(result).toStrictEqual({
         'foo:1': {
@@ -162,16 +180,19 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('returns a NormalizedScopesObject for a eip155 namespaced scope', () => {
-      const result = getSessionScopes({
-        requiredScopes: {},
-        optionalScopes: {
-          'eip155:1': {
-            accounts: ['eip155:1:0xdeadbeef'],
+      const result = getSessionScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdeadbeef'],
+            },
           },
         },
-      }, {
-        getNonEvmSupportedMethods
-      });
+        {
+          getNonEvmSupportedMethods,
+        },
+      );
 
       expect(result).toStrictEqual({
         'eip155:1': {

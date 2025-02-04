@@ -96,10 +96,10 @@ describe('Scope Authorization', () => {
   });
 
   describe('bucketScopes', () => {
-    const isEvmChainIdSupported = jest.fn()
-    const isEvmChainIdSupportable = jest.fn()
-    const isNonEvmScopeSupported = jest.fn()
-    const getNonEvmSupportedMethods = jest.fn()
+    const isEvmChainIdSupported = jest.fn();
+    const isEvmChainIdSupportable = jest.fn();
+    const isNonEvmScopeSupported = jest.fn();
+    const getNonEvmSupportedMethods = jest.fn();
 
     beforeEach(() => {
       let callCount = 0;
@@ -138,7 +138,7 @@ describe('Scope Authorization', () => {
           isEvmChainIdSupported,
           isEvmChainIdSupportable,
           isNonEvmScopeSupported,
-          getNonEvmSupportedMethods
+          getNonEvmSupportedMethods,
         },
       );
 
@@ -153,7 +153,7 @@ describe('Scope Authorization', () => {
         {
           isEvmChainIdSupported,
           isNonEvmScopeSupported,
-          getNonEvmSupportedMethods
+          getNonEvmSupportedMethods,
         },
       );
     });
@@ -172,7 +172,7 @@ describe('Scope Authorization', () => {
           isEvmChainIdSupported,
           isEvmChainIdSupportable,
           isNonEvmScopeSupported,
-          getNonEvmSupportedMethods
+          getNonEvmSupportedMethods,
         },
       );
 
@@ -187,7 +187,7 @@ describe('Scope Authorization', () => {
         {
           isEvmChainIdSupported: isEvmChainIdSupportable,
           isNonEvmScopeSupported,
-          getNonEvmSupportedMethods
+          getNonEvmSupportedMethods,
         },
       );
     });
@@ -206,7 +206,7 @@ describe('Scope Authorization', () => {
             isEvmChainIdSupported,
             isEvmChainIdSupportable,
             isNonEvmScopeSupported,
-            getNonEvmSupportedMethods
+            getNonEvmSupportedMethods,
           },
         ),
       ).toStrictEqual({

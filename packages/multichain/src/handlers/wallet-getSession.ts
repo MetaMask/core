@@ -1,5 +1,9 @@
 import type { Caveat } from '@metamask/permission-controller';
-import type { CaipChainId, JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
+import type {
+  CaipChainId,
+  JsonRpcRequest,
+  JsonRpcSuccess,
+} from '@metamask/utils';
 import type { NormalizedScopesObject } from 'src/scope/types';
 
 import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
@@ -33,7 +37,7 @@ async function walletGetSessionHandler(
       endowmentPermissionName: string,
       caveatType: string,
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
-    getNonEvmSupportedMethods: (scope: CaipChainId) => string[]
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
   },
 ) {
   let caveat;
@@ -52,7 +56,9 @@ async function walletGetSessionHandler(
   }
 
   response.result = {
-    sessionScopes: getSessionScopes(caveat.value, { getNonEvmSupportedMethods: hooks. getNonEvmSupportedMethods} ),
+    sessionScopes: getSessionScopes(caveat.value, {
+      getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
+    }),
   };
   return end();
 }
