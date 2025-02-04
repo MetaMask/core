@@ -5,10 +5,8 @@ import {
   EthMethod,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
-import type {
-  InternalAccount,
-  InternalAccountType,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringAccountType } from '@metamask/keyring-api';
 import { v4 } from 'uuid';
 
 export const createMockInternalAccount = ({
@@ -23,7 +21,7 @@ export const createMockInternalAccount = ({
 }: {
   id?: string;
   address?: string;
-  type?: InternalAccountType;
+  type?: KeyringAccountType;
   name?: string;
   keyringType?: KeyringTypes;
   snap?: {

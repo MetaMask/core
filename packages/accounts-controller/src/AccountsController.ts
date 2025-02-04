@@ -25,7 +25,6 @@ import type {
   KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
-import type { MultichainNetworkSetActiveNetworkEvent } from '@metamask/multichain-network-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   SnapControllerState,
@@ -40,8 +39,6 @@ import {
   isCaipChainId,
   parseCaipChainId,
 } from '@metamask/utils';
-import type { Draft } from 'immer';
-
 import {
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
@@ -181,6 +178,17 @@ export type AccountsControllerAccountTransactionsUpdatedEvent = {
 export type AccountsControllerAccountAssetListUpdatedEvent = {
   type: `${typeof controllerName}:accountAssetListUpdated`;
   payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
+};
+
+// Re-define event here to avoid circular dependency with MultichainNetworkController
+type MultichainNetworkSetActiveNetworkEvent = {
+  type: `MultichainNetworkController:setActiveNetwork`;
+  payload: [
+    {
+      evmClientId?: string;
+      nonEvmChainId?: CaipChainId;
+    },
+  ];
 };
 
 export type AllowedEvents =
@@ -1123,6 +1131,55 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Handles the change in multichain network by updating the selected account.
+   *
+   * @param args - The arguments to handle the multichain network change.
+   * @param args.evmClientId - The ID of the EVM client.
+   * @param args.nonEvmChainId - The CAIP2 of the non-EVM chain.
+   */
+  #handleOnMultichainNetworkChange({
+    evmClientId,
+    nonEvmChainId,
+  }: {
+    evmClientId?: string;
+    nonEvmChainId?: CaipChainId;
+  }) {
+    if (evmClientId && nonEvmChainId) {
+      throw new Error(
+        'Cannot set accounts from both EVM and non-EVM networks!',
+      );
+    }
+
+    let accountId: string | undefined;
+
+    if (nonEvmChainId) {
+      // Update selected account to non evm account
+      const lastSelectedNonEvmAccount =
+        this.getSelectedMultichainAccount(nonEvmChainId);
+      if (!lastSelectedNonEvmAccount?.id) {
+        throw new Error('No non-EVM account found!');
+      }
+      accountId = lastSelectedNonEvmAccount?.id;
+    } else if (evmClientId) {
+      // Update selected account to evm account
+      const lastSelectedEvmAccount = this.getSelectedAccount();
+      accountId = lastSelectedEvmAccount.id;
+    }
+
+    if (!accountId) {
+      throw new Error(
+        `No account found when switching multichain network! evmClientId - ${evmClientId}, nonEvmChainId - ${nonEvmChainId}`,
+      );
+    }
+
+    this.update((currentState) => {
+      currentState.internalAccounts.accounts[accountId].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = accountId;
+    });
+  }
+
+  /**
    * Retrieves the value of a specific metadata key for an existing account.
    * @param accountId - The ID of the account.
    * @param metadataKey - The key of the metadata to retrieve.
@@ -1185,42 +1242,7 @@ export class AccountsController extends BaseController<
     // Handle account change when multichain network is changed
     this.messagingSystem.subscribe(
       'MultichainNetworkController:setActiveNetwork',
-      ({ evmClientId, nonEvmChainId }) => {
-        if (evmClientId && nonEvmChainId) {
-          throw new Error(
-            'Cannot set accounts from both EVM and non-EVM networks!',
-          );
-        }
-
-        let accountId: string | undefined;
-
-        if (nonEvmChainId) {
-          // Update selected account to non evm account
-          const lastSelectedNonEvmAccount =
-            this.getSelectedMultichainAccount(nonEvmChainId);
-          if (!lastSelectedNonEvmAccount?.id) {
-            throw new Error('No non-EVM account found!');
-          }
-          accountId = lastSelectedNonEvmAccount?.id;
-        } else if (evmClientId) {
-          // Update selected account to evm account
-          const lastSelectedEvmAccount = this.getSelectedAccount();
-          accountId = lastSelectedEvmAccount.id;
-        }
-
-        if (!accountId) {
-          throw new Error(
-            `No account found when switching multichain network! evmClientId - ${evmClientId}, nonEvmChainId - ${nonEvmChainId}`,
-          );
-        }
-
-        this.update((currentState) => {
-          currentState.internalAccounts.accounts[
-            accountId
-          ].metadata.lastSelected = Date.now();
-          currentState.internalAccounts.selectedAccount = accountId;
-        });
-      },
+      this.#handleOnMultichainNetworkChange,
     );
   }
 
