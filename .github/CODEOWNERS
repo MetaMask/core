@@ -4,34 +4,6 @@
 # Note: Please keep this synchronized with the `teams.json` file in the repository root.
 # That file is used for some automated workflows, and maps controller to owning team(s).
 
-## Wallet Framework Team
-**/tsconfig.*.json                     @MetaMask/wallet-framework-engineers
-**/tsconfig.json                       @MetaMask/wallet-framework-engineers
-**/typedoc.json                        @MetaMask/wallet-framework-engineers
-/.*                                    @MetaMask/wallet-framework-engineers
-/README.md                             @MetaMask/wallet-framework-engineers
-/babel.config.js                       @MetaMask/wallet-framework-engineers
-/docs                                  @MetaMask/wallet-framework-engineers
-/eslint.config.mjs                     @MetaMask/wallet-framework-engineers
-/examples                              @MetaMask/wallet-framework-engineers
-/jest.config.*.js                      @MetaMask/wallet-framework-engineers
-/package.json                          @MetaMask/wallet-framework-engineers
-/release.config.json                   @MetaMask/wallet-framework-engineers
-/scripts                               @MetaMask/wallet-framework-engineers
-/teams.json                            @MetaMask/wallet-framework-engineers
-/tests/fake-block-tracker.ts           @MetaMask/wallet-framework-engineers
-/tests/fake-provider.ts                @MetaMask/wallet-framework-engineers
-/tests/mock-network.ts                 @MetaMask/wallet-framework-engineers
-/tests/scripts-setup.ts                @MetaMask/wallet-framework-engineers
-/tsconfig.*.json                       @MetaMask/wallet-framework-engineers
-/yarn.config.cjs                       @MetaMask/wallet-framework-engineers
-/packages/base-controller              @MetaMask/wallet-framework-engineers
-/packages/build-utils                  @MetaMask/wallet-framework-engineers
-/packages/composable-controller        @MetaMask/wallet-framework-engineers
-/packages/controller-utils             @MetaMask/wallet-framework-engineers
-/packages/polling-controller           @MetaMask/wallet-framework-engineers
-/packages/preferences-controller       @MetaMask/wallet-framework-engineers
-
 ## Accounts Team
 /packages/accounts-controller                @MetaMask/accounts-engineers
 /packages/keyring-controller                 @MetaMask/accounts-engineers
@@ -84,3 +56,29 @@
 /packages/selected-network-controller     @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/profile-sync-controller         @MetaMask/notifications @MetaMask/identity
 /packages/remote-feature-flag-controller  @MetaMask/extension-platform @MetaMask/mobile-platform
+
+## Wallet Framework Team
+**/CHANGELOG.md                        @MetaMask/wallet-framework-engineers
+**/package.json                        @MetaMask/wallet-framework-engineers
+**/tsconfig.*.json                     @MetaMask/wallet-framework-engineers
+**/tsconfig.json                       @MetaMask/wallet-framework-engineers
+**/typedoc.json                        @MetaMask/wallet-framework-engineers
+/*.js                                  @MetaMask/wallet-framework-engineers
+/*.json                                @MetaMask/wallet-framework-engineers
+/*.mjs                                 @MetaMask/wallet-framework-engineers
+/.*                                    @MetaMask/wallet-framework-engineers
+/README.md                             @MetaMask/wallet-framework-engineers
+/docs                                  @MetaMask/wallet-framework-engineers
+/examples                              @MetaMask/wallet-framework-engineers
+/packages/base-controller              @MetaMask/wallet-framework-engineers
+/packages/build-utils                  @MetaMask/wallet-framework-engineers
+/packages/composable-controller        @MetaMask/wallet-framework-engineers
+/packages/controller-utils             @MetaMask/wallet-framework-engineers
+/packages/polling-controller           @MetaMask/wallet-framework-engineers
+/packages/preferences-controller       @MetaMask/wallet-framework-engineers
+/scripts                               @MetaMask/wallet-framework-engineers
+/tests/fake-block-tracker.ts           @MetaMask/wallet-framework-engineers
+/tests/fake-provider.ts                @MetaMask/wallet-framework-engineers
+/tests/mock-network.ts                 @MetaMask/wallet-framework-engineers
+/tests/scripts-setup.ts                @MetaMask/wallet-framework-engineers
+/yarn.config.cjs                       @MetaMask/wallet-framework-engineers
