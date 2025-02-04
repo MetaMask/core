@@ -318,6 +318,45 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
+   * Handles switching between EVM and non-EVM networks when an account is changed
+   *
+   * @param account - The account that was changed
+   */
+  #handleSelectedAccountChange = (account: InternalAccount) => {
+    const { type: accountType, address: accountAddress } = account;
+    const isEvmAccount = isEvmAccountType(accountType);
+
+    // Handle switching to EVM network
+    if (isEvmAccount) {
+      if (!this.state.nonEvmSelected) {
+        // No need to update if already on evm network
+        return;
+      }
+
+      // Make EVM network active
+      this.update((state) => {
+        state.nonEvmSelected = false;
+      });
+      return;
+    }
+
+    // Handle switching to non-EVM network
+    const nonEvmChainId = nonEvmNetworkChainIdByAccountAddress(accountAddress);
+    const isSameNonEvmNetwork =
+      nonEvmChainId === this.state.selectedMultichainNetworkChainId;
+
+    if (isSameNonEvmNetwork) {
+      // No need to update if already on the same non-EVM network
+      return;
+    }
+
+    this.update((state) => {
+      state.selectedMultichainNetworkChainId = nonEvmChainId;
+      state.nonEvmSelected = true;
+    });
+  };
+
+  /**
    * Subscribes to message events.
    * @private
    */
@@ -325,39 +364,7 @@ export class MultichainNetworkController extends BaseController<
     // Handle network switch when account is changed
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      async ({ type: accountType, address: accountAddress }) => {
-        const isEvmAccount = isEvmAccountType(accountType);
-
-        // Handle switching to EVM network
-        if (isEvmAccount) {
-          if (!this.state.nonEvmSelected) {
-            // No need to update if already on evm network
-            return;
-          }
-
-          // Make EVM network active
-          this.update((state) => {
-            state.nonEvmSelected = false;
-          });
-          return;
-        }
-
-        // Handle switching to non-EVM network
-        const nonEvmChainId =
-          nonEvmNetworkChainIdByAccountAddress(accountAddress);
-        const isSameNonEvmNetwork =
-          nonEvmChainId === this.state.selectedMultichainNetworkChainId;
-
-        if (isSameNonEvmNetwork) {
-          // No need to update if already on the same non-EVM network
-          return;
-        }
-
-        this.update((state) => {
-          state.selectedMultichainNetworkChainId = nonEvmChainId;
-          state.nonEvmSelected = true;
-        });
-      },
+      this.#handleSelectedAccountChange.bind(this),
     );
   }
 

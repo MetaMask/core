@@ -13,7 +13,10 @@ import type {
   MultichainNetworkControllerAllowedActions,
   MultichainNetworkControllerAllowedEvents,
 } from './MultichainNetworkController';
-import { MultichainNetworkController } from './MultichainNetworkController';
+import {
+  getDefaultMultichainNetworkControllerState,
+  MultichainNetworkController,
+} from './MultichainNetworkController';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
@@ -135,6 +138,15 @@ function setupController({
 }
 
 describe('MultichainNetworkController', () => {
+  describe('constructor', () => {
+    it('should set default state', () => {
+      const { controller } = setupController();
+      expect(controller.state).toStrictEqual(
+        getDefaultMultichainNetworkControllerState(),
+      );
+    });
+  });
+
   describe('setActiveNetwork', () => {
     it('should throw error when both EVM and non-EVM networks are provided', async () => {
       const { controller } = setupController();
