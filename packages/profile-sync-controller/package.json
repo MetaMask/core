@@ -119,7 +119,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-internal-api": "^4.0.1",
     "@metamask/providers": "^18.1.1",
-    "@metamask/snaps-controllers": "^9.19.1",
+    "@metamask/snaps-controllers": "^9.19.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "ethers": "^6.12.0",

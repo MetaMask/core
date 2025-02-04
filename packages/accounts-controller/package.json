@@ -64,7 +64,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.0.5",
     "@metamask/providers": "^18.1.1",
-    "@metamask/snaps-controllers": "^9.19.1",
+    "@metamask/snaps-controllers": "^9.19.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
