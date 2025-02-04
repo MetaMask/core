@@ -364,7 +364,7 @@ export class MultichainNetworkController extends BaseController<
     // Handle network switch when account is changed
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      this.#handleSelectedAccountChange.bind(this),
+      this.#handleSelectedAccountChange,
     );
   }
 

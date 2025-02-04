@@ -15,11 +15,11 @@ import type {
 import type { CaipChainId } from '@metamask/utils';
 
 import { multichainNetworkConfigurations } from './constants';
-import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainNetworkControllerAllowedActions,
-  MultichainNetworkControllerAllowedEvents,
+import {
+  type AllowedActions,
+  type AllowedEvents,
+  type MultichainNetworkControllerAllowedActions,
+  type MultichainNetworkControllerAllowedEvents,
   getDefaultMultichainNetworkControllerState,
   MultichainNetworkController,
 } from './MultichainNetworkController';
@@ -139,7 +139,9 @@ function setupController({
 describe('MultichainNetworkController', () => {
   describe('constructor', () => {
     it('should set default state', () => {
-      const { controller } = setupController();
+      const { controller } = setupController({
+        options: { state: getDefaultMultichainNetworkControllerState() },
+      });
       expect(controller.state).toStrictEqual(
         getDefaultMultichainNetworkControllerState(),
       );

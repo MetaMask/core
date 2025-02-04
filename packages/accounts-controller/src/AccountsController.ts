@@ -1142,13 +1142,13 @@ export class AccountsController extends BaseController<
    * @param args.evmClientId - The ID of the EVM client.
    * @param args.nonEvmChainId - The CAIP2 of the non-EVM chain.
    */
-  #handleMultichainNetworkChange({
+  readonly #handleMultichainNetworkChange = ({
     evmClientId,
     nonEvmChainId,
   }: {
     evmClientId?: string;
     nonEvmChainId?: CaipChainId;
-  }) {
+  }) => {
     let accountId: string;
 
     if (nonEvmChainId) {
@@ -1168,7 +1168,7 @@ export class AccountsController extends BaseController<
         Date.now();
       currentState.internalAccounts.selectedAccount = accountId;
     });
-  }
+  };
 
   /**
    * Retrieves the value of a specific metadata key for an existing account.
@@ -1232,7 +1232,7 @@ export class AccountsController extends BaseController<
     // Handle account change when multichain network is changed
     this.messagingSystem.subscribe(
       'MultichainNetworkController:setActiveNetwork',
-      this.#handleMultichainNetworkChange.bind(this),
+      this.#handleMultichainNetworkChange,
     );
   }
 
