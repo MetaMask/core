@@ -12,7 +12,6 @@ import {
   EthMethod,
   EthScopes,
   BtcScopes,
-  SolScopes,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
