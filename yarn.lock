@@ -3377,7 +3377,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/keyring-api": "npm:^16.1.0"
     "@metamask/keyring-controller": "npm:^19.0.5"
-    "@metamask/utils": "npm:^11.0.1"
+    "@metamask/utils": "npm:^11.1.0"
     "@solana/addresses": "npm:^2.0.0"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
