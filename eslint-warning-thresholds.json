@@ -9,7 +9,7 @@
   "import-x/namespace": 189,
   "import-x/no-named-as-default": 1,
   "import-x/no-named-as-default-member": 8,
-  "import-x/order": 206,
+  "import-x/order": 202,
   "jest/no-conditional-in-test": 113,
   "jest/prefer-lowercase-title": 2,
   "jest/prefer-strict-equal": 2,
