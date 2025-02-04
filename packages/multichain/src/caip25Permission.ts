@@ -24,8 +24,10 @@ import { cloneDeep, isEqual } from 'lodash';
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
 import { isSupportedScopeString } from './scope/supported';
+import { getUniqueArrayItems } from './scope/transform';
 import {
   parseScopeString,
+  type InternalScopeString,
   type ExternalScopeString,
   type InternalScopeObject,
   type InternalScopesObject,
@@ -186,6 +188,78 @@ const specificationBuilder: PermissionSpecificationBuilder<
           `${Caip25EndowmentPermissionName} error: Invalid caveats. There must be a single caveat of type "${Caip25CaveatType}".`,
         );
       }
+    },
+    merger: (leftValue: Caip25CaveatValue, rightValue: Caip25CaveatValue) => {
+      const newValue = cloneDeep(leftValue);
+
+      // TODO: util function
+      // TODO: address type assertion
+      Object.entries(rightValue.requiredScopes).forEach(
+        ([scopeString, rightScopeObject]) => {
+          const leftRequiredScopeObject =
+            newValue.requiredScopes[scopeString as InternalScopeString];
+          if (!leftRequiredScopeObject) {
+            newValue.requiredScopes[scopeString as InternalScopeString] =
+              rightScopeObject;
+          } else {
+            newValue.requiredScopes[scopeString as InternalScopeString] = {
+              accounts: getUniqueArrayItems([
+                ...leftRequiredScopeObject.accounts,
+                ...rightScopeObject.accounts,
+              ]),
+            };
+          }
+        },
+      );
+
+      Object.entries(rightValue.optionalScopes).forEach(
+        ([scopeString, rightScopeObject]) => {
+          const leftRequiredScopeObject =
+            newValue.optionalScopes[scopeString as InternalScopeString];
+          if (!leftRequiredScopeObject) {
+            newValue.optionalScopes[scopeString as InternalScopeString] =
+              rightScopeObject;
+          } else {
+            newValue.optionalScopes[scopeString as InternalScopeString] = {
+              accounts: getUniqueArrayItems([
+                ...leftRequiredScopeObject.accounts,
+                ...rightScopeObject.accounts,
+              ]),
+            };
+          }
+        },
+      );
+
+      const diff = cloneDeep(leftValue);
+
+      // TODO: same for requiredScopes, util function, type assertion address
+      for (const [scopeString, mergedScopeObject] of Object.entries(
+        newValue.optionalScopes,
+      )) {
+        const originalScopeObject =
+          diff.optionalScopes[scopeString as InternalScopeString];
+        console.log(scopeString);
+        if (originalScopeObject) {
+          const newAccounts = mergedScopeObject.accounts.filter(
+            (account) =>
+              !diff.optionalScopes[
+                scopeString as InternalScopeString
+              ]?.accounts.includes(account),
+          );
+          if (newAccounts.length > 0) {
+            diff.optionalScopes[scopeString as InternalScopeString] = {
+              accounts: newAccounts,
+            };
+            continue;
+          }
+          delete diff.optionalScopes[scopeString as InternalScopeString];
+        } else {
+          diff.optionalScopes[scopeString as InternalScopeString] =
+            mergedScopeObject;
+        }
+      }
+
+      return [newValue, diff];
     },
   };
 };
