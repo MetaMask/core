@@ -67,6 +67,85 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
   };
 };
 
+/**
+ *
+ * @param leftValue - The existing CAIP-25 permission caveat value.
+ * @param rightValue - The incoming CAIP-25 permission caveat value.
+ * @param scopeToMerge - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
+ * @returns The combined CAIP-25 permission caveat value.
+ */
+const mergeScopesForCaip25CaveatValue = (
+  leftValue: Caip25CaveatValue,
+  rightValue: Caip25CaveatValue,
+  scopeToMerge: keyof Pick<
+    Caip25CaveatValue,
+    'optionalScopes' | 'requiredScopes'
+  >,
+): Caip25CaveatValue => {
+  const newValue = cloneDeep(leftValue);
+  Object.entries(rightValue[scopeToMerge]).forEach(
+    ([scopeString, rightScopeObject]) => {
+      const internalScopeString = scopeString as InternalScopeString;
+      const leftRequiredScopeObject =
+        newValue[scopeToMerge][internalScopeString];
+      if (!leftRequiredScopeObject) {
+        newValue[scopeToMerge][internalScopeString] = rightScopeObject;
+      } else {
+        newValue[scopeToMerge][internalScopeString] = {
+          accounts: getUniqueArrayItems([
+            ...leftRequiredScopeObject.accounts,
+            ...rightScopeObject.accounts,
+          ]),
+        };
+      }
+    },
+  );
+  return newValue;
+};
+
+/**
+ *
+ * @param originalValue - The existing CAIP-25 permission caveat value.
+ * @param mergedValue - The result from merging existing and incoming CAIP-25 permission caveat values.
+ * @param scopeToMerge - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
+ * @returns The differential between original and merged CAIP-25 permission caveat values.
+ */
+const diffScopesForCaip25CaveatValue = (
+  originalValue: Caip25CaveatValue,
+  mergedValue: Caip25CaveatValue,
+  scopeToMerge: keyof Pick<
+    Caip25CaveatValue,
+    'optionalScopes' | 'requiredScopes'
+  >,
+): Caip25CaveatValue => {
+  const diff = cloneDeep(originalValue);
+  for (const [scopeString, mergedScopeObject] of Object.entries(
+    mergedValue[scopeToMerge],
+  )) {
+    const internalScopeString = scopeString as InternalScopeString;
+    const originalScopeObject = diff[scopeToMerge][internalScopeString];
+
+    if (originalScopeObject) {
+      const newAccounts = mergedScopeObject.accounts.filter(
+        (account) =>
+          !diff[scopeToMerge][
+            scopeString as InternalScopeString
+          ]?.accounts.includes(account),
+      );
+      if (newAccounts.length > 0) {
+        diff[scopeToMerge][internalScopeString] = {
+          accounts: newAccounts,
+        };
+        continue;
+      }
+      delete diff[scopeToMerge][internalScopeString];
+    } else {
+      diff[scopeToMerge][internalScopeString] = mergedScopeObject;
+    }
+  }
+  return diff;
+};
+
 type Caip25EndowmentCaveatSpecificationBuilderOptions = {
   findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
   listAccounts: () => { address: Hex }[];
@@ -190,76 +269,33 @@ const specificationBuilder: PermissionSpecificationBuilder<
       }
     },
     merger: (leftValue: Caip25CaveatValue, rightValue: Caip25CaveatValue) => {
-      const newValue = cloneDeep(leftValue);
-
-      // TODO: util function
-      // TODO: address type assertion
-      Object.entries(rightValue.requiredScopes).forEach(
-        ([scopeString, rightScopeObject]) => {
-          const leftRequiredScopeObject =
-            newValue.requiredScopes[scopeString as InternalScopeString];
-          if (!leftRequiredScopeObject) {
-            newValue.requiredScopes[scopeString as InternalScopeString] =
-              rightScopeObject;
-          } else {
-            newValue.requiredScopes[scopeString as InternalScopeString] = {
-              accounts: getUniqueArrayItems([
-                ...leftRequiredScopeObject.accounts,
-                ...rightScopeObject.accounts,
-              ]),
-            };
-          }
-        },
+      // TODO: proper name for this guy
+      const partiallyMergedValue = mergeScopesForCaip25CaveatValue(
+        leftValue,
+        rightValue,
+        'requiredScopes',
       );
 
-      Object.entries(rightValue.optionalScopes).forEach(
-        ([scopeString, rightScopeObject]) => {
-          const leftRequiredScopeObject =
-            newValue.optionalScopes[scopeString as InternalScopeString];
-          if (!leftRequiredScopeObject) {
-            newValue.optionalScopes[scopeString as InternalScopeString] =
-              rightScopeObject;
-          } else {
-            newValue.optionalScopes[scopeString as InternalScopeString] = {
-              accounts: getUniqueArrayItems([
-                ...leftRequiredScopeObject.accounts,
-                ...rightScopeObject.accounts,
-              ]),
-            };
-          }
-        },
+      const mergedValue = mergeScopesForCaip25CaveatValue(
+        partiallyMergedValue,
+        rightValue,
+        'optionalScopes',
       );
 
-      const diff = cloneDeep(leftValue);
+      // TODO: proper name for this guy
+      const partialDiff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'requiredScopes',
+      );
 
-      // TODO: same for requiredScopes, util function, type assertion address
-      for (const [scopeString, mergedScopeObject] of Object.entries(
-        newValue.optionalScopes,
-      )) {
-        const originalScopeObject =
-          diff.optionalScopes[scopeString as InternalScopeString];
-        console.log(scopeString);
-        if (originalScopeObject) {
-          const newAccounts = mergedScopeObject.accounts.filter(
-            (account) =>
-              !diff.optionalScopes[
-                scopeString as InternalScopeString
-              ]?.accounts.includes(account),
-          );
-          if (newAccounts.length > 0) {
-            diff.optionalScopes[scopeString as InternalScopeString] = {
-              accounts: newAccounts,
-            };
-            continue;
-          }
-          delete diff.optionalScopes[scopeString as InternalScopeString];
-        } else {
-          diff.optionalScopes[scopeString as InternalScopeString] =
-            mergedScopeObject;
-        }
-      }
+      const diff = diffScopesForCaip25CaveatValue(
+        partialDiff,
+        mergedValue,
+        'optionalScopes',
+      );
 
-      return [newValue, diff];
+      return [mergedValue, diff];
     },
   };
 };
