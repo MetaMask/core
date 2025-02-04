@@ -1,7 +1,4 @@
-import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
-import { TransactionFactory } from '@ethereumjs/tx';
-import { bufferToHex } from '@ethereumjs/util';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
@@ -132,6 +129,7 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+import { prepareTransaction, serializeTransaction } from './utils/prepare';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -156,7 +154,6 @@ const metadata = {
   },
 };
 
-export const HARDFORK = Hardfork.London;
 const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
@@ -1016,9 +1013,8 @@ export class TransactionController extends BaseController<
       );
     }
 
-    const isEIP1559Compatible = await this.getEIP1559Compatibility(
-      networkClientId,
-    );
+    const isEIP1559Compatible =
+      await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
 
@@ -1309,7 +1305,7 @@ export class TransactionController extends BaseController<
 
     prepareTransactionParams?.(newTxParams);
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(
+    const unsignedEthTx = prepareTransaction(
       transactionMeta.chainId,
       newTxParams,
     );
@@ -1324,7 +1320,7 @@ export class TransactionController extends BaseController<
       signedTx,
     );
 
-    const rawTx = bufferToHex(signedTx.serialize());
+    const rawTx = serializeTransaction(signedTx);
     const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
 
     const oldFee = newTxParams.maxFeePerGas
@@ -1879,18 +1875,14 @@ export class TransactionController extends BaseController<
 
     const initialTx = listOfTxParams[0];
     const { chainId } = initialTx;
-    const common = this.getCommonConfiguration(chainId);
     const networkClientId = this.#getNetworkClientId({ chainId });
-
-    const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
-      common,
-    });
-
-    const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
+    const initialTxAsEthTx = prepareTransaction(chainId, initialTx);
+    const initialTxAsSerializedHex = serializeTransaction(initialTxAsEthTx);
 
     if (this.approvingTransactionIds.has(initialTxAsSerializedHex)) {
       return '';
     }
+
     this.approvingTransactionIds.add(initialTxAsSerializedHex);
 
     let rawTransactions, nonceLock;
@@ -2199,14 +2191,15 @@ export class TransactionController extends BaseController<
     };
 
     const { from } = updatedTransactionParams;
-    const common = this.getCommonConfiguration(chainId);
-    const unsignedTransaction = TransactionFactory.fromTxData(
-      updatedTransactionParams,
-      { common },
-    );
-    const signedTransaction = await this.sign(unsignedTransaction, from);
 
-    const rawTransaction = bufferToHex(signedTransaction.serialize());
+    const unsignedTransaction = prepareTransaction(
+      chainId,
+      updatedTransactionParams,
+    );
+
+    const signedTransaction = await this.sign(unsignedTransaction, from);
+    const rawTransaction = serializeTransaction(signedTransaction);
+
     return rawTransaction;
   }
 
@@ -2873,35 +2866,6 @@ export class TransactionController extends BaseController<
     }).provider;
   }
 
-  private prepareUnsignedEthTx(
-    chainId: Hex,
-    txParams: TransactionParams,
-  ): TypedTransaction {
-    return TransactionFactory.fromTxData(txParams, {
-      freeze: false,
-      common: this.getCommonConfiguration(chainId),
-    });
-  }
-
-  /**
-   * `@ethereumjs/tx` uses `@ethereumjs/common` as a configuration tool for
-   * specifying which chain, network, hardfork and EIPs to support for
-   * a transaction. By referencing this configuration, and analyzing the fields
-   * specified in txParams, @ethereumjs/tx is able to determine which EIP-2718
-   * transaction type to use.
-   *
-   * @param chainId - The chainId to use for the configuration.
-   * @returns common configuration object
-   */
-  private getCommonConfiguration(chainId: Hex): Common {
-    const customChainParams: Partial<ChainConfig> = {
-      chainId: parseInt(chainId, 16),
-      defaultHardfork: HARDFORK,
-    };
-
-    return Common.custom(customChainParams);
-  }
-
   private onIncomingTransactions(transactions: TransactionMeta[]) {
     if (!transactions.length) {
       return;
@@ -3157,10 +3121,7 @@ export class TransactionController extends BaseController<
   ): Promise<string | undefined> {
     log('Signing transaction', txParams);
 
-    const unsignedEthTx = this.prepareUnsignedEthTx(
-      transactionMeta.chainId,
-      txParams,
-    );
+    const unsignedEthTx = prepareTransaction(transactionMeta.chainId, txParams);
 
     this.approvingTransactionIds.add(transactionMeta.id);
 
@@ -3207,7 +3168,7 @@ export class TransactionController extends BaseController<
 
     this.onTransactionStatusChange(transactionMetaWithRsv);
 
-    const rawTx = bufferToHex(signedTx.serialize());
+    const rawTx = serializeTransaction(signedTx);
 
     const transactionMetaWithRawTx = merge({}, transactionMetaWithRsv, {
       rawTx,

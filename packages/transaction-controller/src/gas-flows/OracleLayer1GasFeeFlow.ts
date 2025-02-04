@@ -13,6 +13,7 @@ import type {
   Layer1GasFeeFlowResponse,
   TransactionMeta,
 } from '../types';
+import { prepareTransaction } from '../utils/prepare';
 
 const log = createModuleLogger(projectLogger, 'oracle-layer1-gas-fee-flow');
 
@@ -33,9 +34,9 @@ const GAS_PRICE_ORACLE_ABI = [
  * Layer 1 gas fee flow that obtains gas fee estimate using an oracle smart contract.
  */
 export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
-  #oracleAddress: Hex;
+  readonly #oracleAddress: Hex;
 
-  #signTransaction: boolean;
+  readonly #signTransaction: boolean;
 
   constructor(oracleAddress: Hex, signTransaction?: boolean) {
     this.#oracleAddress = oracleAddress;
@@ -88,11 +89,9 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     sign: boolean,
   ) {
     const txParams = this.#buildTransactionParams(transactionMeta);
-    const common = this.#buildTransactionCommon(transactionMeta);
+    const { chainId } = transactionMeta;
 
-    let unserializedTransaction = TransactionFactory.fromTxData(txParams, {
-      common,
-    });
+    let unserializedTransaction = prepareTransaction(chainId, txParams);
 
     if (sign) {
       const keyBuffer = Buffer.from(DUMMY_KEY, 'hex');
@@ -109,14 +108,5 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
       ...omit(transactionMeta.txParams, 'gas'),
       gasLimit: transactionMeta.txParams.gas,
     };
-  }
-
-  #buildTransactionCommon(transactionMeta: TransactionMeta) {
-    const chainId = Number(transactionMeta.chainId);
-
-    return Common.custom({
-      chainId,
-      defaultHardfork: Hardfork.London,
-    });
   }
 }
