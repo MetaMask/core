@@ -3390,7 +3390,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/accounts-controller": ^21.0.1
+    "@metamask/accounts-controller": ^22.0.0
     "@metamask/network-controller": ^22.1.1
   languageName: unknown
   linkType: soft
