@@ -9,5 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0]
 
+### Added
+
+- Initial release ([#5210](https://github.com/MetaMask/core/pull/5210))
+
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.1.0...HEAD
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/earn-controller@0.1.0
