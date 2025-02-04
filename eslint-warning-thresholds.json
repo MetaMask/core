@@ -16,11 +16,6 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/accounts-controller/src/AccountsController.ts": {
-    "jsdoc/check-tag-names": 2,
-    "jsdoc/tag-lines": 9,
-    "prettier/prettier": 29
-  },
   "packages/accounts-controller/src/utils.ts": {
     "jsdoc/tag-lines": 3
   },
@@ -643,180 +638,6 @@
   "packages/preferences-controller/src/PreferencesController.test.ts": {
     "prettier/prettier": 4
   },
-  "packages/profile-sync-controller/jest.environment.js": {
-    "n/no-unsupported-features/node-builtins": 1,
-    "n/prefer-global/text-encoder": 1,
-    "n/prefer-global/text-decoder": 1,
-    "no-shadow": 2
-  },
-  "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
-    "jest/no-conditional-in-test": 4
-  },
-  "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.ts": {
-    "@typescript-eslint/prefer-readonly": 2
-  },
-  "packages/profile-sync-controller/src/controllers/authentication/services.ts": {
-    "jsdoc/check-tag-names": 3
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.ts": {
-    "@typescript-eslint/prefer-readonly": 6,
-    "import-x/order": 4,
-    "jsdoc/require-returns": 1,
-    "jsdoc/tag-lines": 4
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockResponses.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 4
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockServices.ts": {
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/test-utils.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 3
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/__fixtures__/mockAccounts.ts": {
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/__fixtures__/test-utils.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/controller-integration.test.ts": {
-    "import-x/order": 4,
-    "jest/no-conditional-in-test": 2,
-    "jest/prefer-lowercase-title": 2,
-    "jest/prefer-strict-equal": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/controller-integration.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 3,
-    "prettier/prettier": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/setup-subscriptions.ts": {
-    "jsdoc/tag-lines": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/sync-utils.test.ts": {
-    "jest/no-conditional-in-test": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/sync-utils.ts": {
-    "import-x/order": 1,
-    "jsdoc/require-returns": 2,
-    "jsdoc/tag-lines": 3
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/types.ts": {
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/account-syncing/utils.ts": {
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/add-network-utils.test.ts": {
-    "jsdoc/tag-lines": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/add-network-utils.ts": {
-    "jsdoc/tag-lines": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/controller-integration.test.ts": {
-    "import-x/order": 4,
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/controller-integration.ts": {
-    "import-x/order": 2,
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/controller-integration.update-network.test.ts": {
-    "import-x/no-named-as-default-member": 1,
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/services.test.ts": {
-    "import-x/order": 3,
-    "jest/no-conditional-in-test": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/services.ts": {
-    "import-x/order": 1,
-    "jsdoc/require-returns": 1,
-    "jsdoc/tag-lines": 4
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/sync-all.test.ts": {
-    "jest/no-conditional-in-test": 14,
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/sync-all.ts": {
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/sync-mutations.test.ts": {
-    "import-x/order": 2
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/sync-mutations.ts": {
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/network-syncing/update-network-utils.ts": {
-    "jsdoc/tag-lines": 3
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/services.test.ts": {
-    "import-x/order": 4,
-    "jest/no-conditional-in-test": 6
-  },
-  "packages/profile-sync-controller/src/controllers/user-storage/utils.ts": {
-    "jsdoc/tag-lines": 2
-  },
-  "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
-    "jsdoc/tag-lines": 1
-  },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-siwe.ts": {
-    "@typescript-eslint/prefer-readonly": 2,
-    "import-x/order": 2
-  },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/flow-srp.ts": {
-    "@typescript-eslint/prefer-readonly": 2,
-    "import-x/order": 2
-  },
-  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/services.ts": {
-    "import-x/order": 2
-  },
-  "packages/profile-sync-controller/src/sdk/authentication.test.ts": {
-    "import-x/order": 1,
-    "promise/param-names": 1
-  },
-  "packages/profile-sync-controller/src/sdk/authentication.ts": {
-    "@typescript-eslint/prefer-readonly": 3,
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/sdk/user-storage.test.ts": {
-    "import-x/order": 5,
-    "jest/no-conditional-in-test": 4
-  },
-  "packages/profile-sync-controller/src/sdk/user-storage.ts": {
-    "import-x/order": 2
-  },
-  "packages/profile-sync-controller/src/sdk/utils/eip-6963-metamask-provider.test.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 1,
-    "n/no-unsupported-features/node-builtins": 1
-  },
-  "packages/profile-sync-controller/src/sdk/utils/eip-6963-metamask-provider.ts": {
-    "promise/param-names": 1
-  },
-  "packages/profile-sync-controller/src/sdk/utils/messaging-signing-snap-requests.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/sdk/utils/validate-login-response.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/profile-sync-controller/src/shared/encryption/encryption.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/profile-sync-controller/src/shared/env.test.ts": {
-    "import-x/order": 1
-  },
   "packages/queued-request-controller/src/QueuedRequestController.ts": {
     "@typescript-eslint/prefer-readonly": 2
   },
@@ -974,16 +795,13 @@
   "packages/transaction-controller/src/helpers/MultichainTrackingHelper.ts": {
     "@typescript-eslint/no-unused-vars": 2,
     "@typescript-eslint/prefer-readonly": 1,
-    "import-x/order": 1,
     "no-unused-private-class-members": 1
   },
   "packages/transaction-controller/src/helpers/PendingTransactionTracker.test.ts": {
-    "import-x/order": 2,
     "jsdoc/tag-lines": 3
   },
   "packages/transaction-controller/src/helpers/PendingTransactionTracker.ts": {
-    "@typescript-eslint/prefer-readonly": 12,
-    "import-x/order": 1
+    "@typescript-eslint/prefer-readonly": 12
   },
   "packages/transaction-controller/src/helpers/TransactionPoller.test.ts": {
     "import-x/order": 1,

@@ -3,13 +3,14 @@ import type EthQuery from '@metamask/eth-query';
 import type { BlockTracker } from '@metamask/network-controller';
 import { freeze } from 'immer';
 
-import type { TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
 import { PendingTransactionTracker } from './PendingTransactionTracker';
 import { TransactionPoller } from './TransactionPoller';
+import type { TransactionMeta } from '../types';
+import { TransactionStatus } from '../types';
 
 const ID_MOCK = 'testId';
 const CHAIN_ID_MOCK = '0x1';
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const NONCE_MOCK = '0x2';
 const BLOCK_NUMBER_MOCK = '0x123';
 
@@ -18,6 +19,7 @@ const ETH_QUERY_MOCK = {} as unknown as EthQuery;
 const TRANSACTION_SUBMITTED_MOCK = {
   id: ID_MOCK,
   chainId: CHAIN_ID_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   hash: '0x1',
   rawTx: '0x987',
   status: TransactionStatus.submitted,
@@ -114,6 +116,7 @@ describe('PendingTransactionTracker', () => {
       blockTracker,
       getChainId: jest.fn(() => CHAIN_ID_MOCK),
       getEthQuery: jest.fn(() => ETH_QUERY_MOCK),
+      getNetworkClientId: jest.fn(() => NETWORK_CLIENT_ID_MOCK),
       getTransactions: jest.fn(),
       getGlobalLock: jest.fn(() => Promise.resolve(jest.fn())),
       publishTransaction: jest.fn(),
@@ -223,7 +226,7 @@ describe('PendingTransactionTracker', () => {
             },
             {
               ...TRANSACTION_SUBMITTED_MOCK,
-              chainId: '0x2',
+              networkClientId: 'other-network-client-id',
             },
             {
               ...TRANSACTION_SUBMITTED_MOCK,

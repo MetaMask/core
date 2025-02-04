@@ -8,6 +8,7 @@ import { mapInternalAccountToUserStorageAccount } from '../utils';
 /**
  * Map an array of internal accounts to an array of user storage accounts
  * Only used for testing purposes
+ *
  * @param internalAccounts - An array of internal accounts
  * @returns An array of user storage accounts
  */
@@ -17,6 +18,7 @@ const mapInternalAccountsListToUserStorageAccountsList = (
 
 /**
  * Get a random default account name from the list of localized default account names
+ *
  * @returns A random default account name
  */
 export const getMockRandomDefaultAccountName = () =>

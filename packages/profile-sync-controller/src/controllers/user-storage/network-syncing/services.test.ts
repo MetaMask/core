@@ -1,3 +1,10 @@
+import { createMockRemoteNetworkConfiguration } from './__fixtures__/mockNetwork';
+import {
+  batchUpsertRemoteNetworks,
+  getAllRemoteNetworks,
+  upsertRemoteNetwork,
+} from './services';
+import type { RemoteNetworkConfiguration } from './types';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import {
   MOCK_STORAGE_KEY,
@@ -9,13 +16,6 @@ import {
   mockEndpointUpsertUserStorage,
 } from '../__fixtures__/mockServices';
 import type { UserStorageBaseOptions } from '../services';
-import { createMockRemoteNetworkConfiguration } from './__fixtures__/mockNetwork';
-import {
-  batchUpsertRemoteNetworks,
-  getAllRemoteNetworks,
-  upsertRemoteNetwork,
-} from './services';
-import type { RemoteNetworkConfiguration } from './types';
 
 const storageOpts: UserStorageBaseOptions = {
   bearerToken: 'MOCK_TOKEN',
@@ -78,6 +78,7 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
     const { mockGetAllAPI } = await arrangeMockGetAllAPI(mockNetwork);
     const realParse = JSON.parse;
     jest.spyOn(JSON, 'parse').mockImplementation((data) => {
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (data === JSON.stringify(mockNetwork)) {
         throw new Error('MOCK FAIL TO PARSE STRING');
       }

@@ -1,3 +1,5 @@
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
+import { NotFoundError, UserStorageError } from './errors';
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import { SHARED_SALT } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
@@ -9,8 +11,6 @@ import type {
   UserStoragePathWithFeatureOnly,
 } from '../shared/storage-schema';
 import { createEntryPath } from '../shared/storage-schema';
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { NotFoundError, UserStorageError } from './errors';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
   `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;
@@ -30,9 +30,8 @@ export type UserStorageOptions = {
 };
 
 export type GetUserStorageAllFeatureEntriesResponse = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   HashedKey: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   Data: string;
 }[];
 
@@ -493,7 +492,7 @@ export class UserStorage {
           'Content-Type': 'application/json',
           ...headers,
         },
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         body: JSON.stringify({ batch_delete: encryptedData }),
       });
 
@@ -522,7 +521,7 @@ export class UserStorage {
   }
 
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.config.auth.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };

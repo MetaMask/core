@@ -1,7 +1,6 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type nock from 'nock';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 import { mockUserStorageMessenger } from './__fixtures__/mockMessenger';
 import {
   mockEndpointBatchUpsertUserStorage,
@@ -22,6 +21,7 @@ import * as AccountSyncControllerIntegrationModule from './account-syncing/contr
 import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
 import type { UserStorageBaseOptions } from './services';
 import UserStorageController, { defaultState } from './UserStorageController';
+import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 
 describe('user-storage/user-storage-controller - constructor() tests', () => {
   const arrangeMocks = () => {
