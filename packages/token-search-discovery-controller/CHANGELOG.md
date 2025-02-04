@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: MMPD-1522 add fetch trending token data ([#5214](https://github.com/MetaMask/core/pull/5214))
+- chore(token-search-discovery): Rename `ControllerMessenger` to `Messenger` ([#5243](https://github.com/MetaMask/core/pull/5243))
+- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+- feat: add logo url to token search api service and update searchTokens path ([#5195](https://github.com/MetaMask/core/pull/5195))
+
 ### Added
 
 - Introduce the `logoUrl` property to the `TokenSearchApiService` response
