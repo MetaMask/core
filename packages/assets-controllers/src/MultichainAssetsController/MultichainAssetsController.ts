@@ -37,7 +37,6 @@ import {
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
-import { v4 as uuid } from 'uuid';
 
 import { getChainIdsCaveat } from './utils';
 import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../accounts-controller/src/AccountsController';
@@ -48,7 +47,7 @@ export type MultichainAssetsControllerState = {
   metadata: {
     [asset: CaipAssetType]: FungibleAssetMetadata;
   };
-  allNonEvmTokens: { [account: string]: CaipAssetType[] };
+  allNonEvmAssets: { [account: string]: CaipAssetType[] };
 };
 
 // Represents the response of the asset snap's onAssetLookup handler
@@ -67,7 +66,7 @@ export type AssetMetadataResponse = {
  * @returns The default {@link MultichainAssetsController} state.
  */
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
-  return { allNonEvmTokens: {}, metadata: {} };
+  return { allNonEvmAssets: {}, metadata: {} };
 }
 
 /**
@@ -150,7 +149,7 @@ const assetsControllerMetadata = {
     persist: true,
     anonymous: false,
   },
-  allNonEvmTokens: {
+  allNonEvmAssets: {
     persist: true,
     anonymous: false,
   },
@@ -234,7 +233,7 @@ export class MultichainAssetsController extends BaseController<
           newAccountAssets.removed.length !== 0
         ) {
           const { added, removed } = newAccountAssets;
-          const existing = this.state.allNonEvmTokens[accountId] || [];
+          const existing = this.state.allNonEvmAssets[accountId] || [];
           const assets = new Set<CaipAssetType>([
             ...existing,
             ...added.filter((asset) => isCaipAssetType(asset)),
@@ -247,7 +246,7 @@ export class MultichainAssetsController extends BaseController<
             ...assets,
           ]);
           this.update((state) => {
-            state.allNonEvmTokens[accountId] = Array.from(assets);
+            state.allNonEvmAssets[accountId] = Array.from(assets);
           });
         }
       }
@@ -290,7 +289,7 @@ export class MultichainAssetsController extends BaseController<
       );
       await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
-        state.allNonEvmTokens[account.id] = assets;
+        state.allNonEvmAssets[account.id] = assets;
       });
     }
   }
@@ -301,10 +300,10 @@ export class MultichainAssetsController extends BaseController<
    * @param accountId - The new account id being removed.
    */
   async #handleOnAccountRemovedEvent(accountId: string): Promise<void> {
-    // Check if accountId is in allNonEvmTokens and if it is, remove it
-    if (this.state.allNonEvmTokens[accountId]) {
+    // Check if accountId is in allNonEvmAssets and if it is, remove it
+    if (this.state.allNonEvmAssets[accountId]) {
       this.update((state) => {
-        delete state.allNonEvmTokens[accountId];
+        delete state.allNonEvmAssets[accountId];
       });
     }
   }
@@ -460,7 +459,6 @@ export class MultichainAssetsController extends BaseController<
         origin: 'metamask',
         handler: HandlerType.OnAssetsLookup,
         request: {
-          id: uuid(),
           jsonrpc: '2.0',
           method: 'onAssetLookup',
           params: {
