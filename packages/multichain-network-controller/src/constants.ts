@@ -4,15 +4,17 @@ import type {
   MultichainNetworkConfiguration,
   MultichainNetworkMetadata,
 } from './MultichainNetworkController';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScopes, SolScopes } from '@metamask/keyring-api';
 
+export const btcNativeAsset = `${BtcScopes.Mainnet}/slip44:0`;
+export const solNativeAsset = `${SolScopes.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
 
-export const btcNativeAsset = `${BtcScope.Mainnet}/slip44:0`;
-export const solNativeAsset = `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
-
-export const multichainNetworkConfigurations: Record<string, MultichainNetworkConfiguration> = {
- [BtcScope.Mainnet] : {
-    chainId: BtcScope.Mainnet,
+export const multichainNetworkConfigurations: Record<
+  string,
+  MultichainNetworkConfiguration
+> = {
+  [BtcScopes.Mainnet]: {
+    chainId: BtcScopes.Mainnet,
 
     name: 'Bitcoin Mainnet',
 
@@ -22,8 +24,8 @@ export const multichainNetworkConfigurations: Record<string, MultichainNetworkCo
 
     isEvm: false,
   },
-  [SolScope.Mainnet]: {
-    chainId: SolScope.Mainnet,
+  [SolScopes.Mainnet]: {
+    chainId: SolScopes.Mainnet,
 
     name: 'Solana Mainnet',
 
@@ -36,11 +38,11 @@ export const multichainNetworkConfigurations: Record<string, MultichainNetworkCo
 };
 
 export const networksMetadata: Record<string, MultichainNetworkMetadata> = {
-  [BtcScope.Mainnet]: {
+  [BtcScopes.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
-  [SolScope.Mainnet]: {
+  [SolScopes.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
