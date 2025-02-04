@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "resolveJsonModule": true
+  },
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../polling-controller" },
+    { "path": "../network-controller" },
+    { "path": "../transaction-controller" }
+  ],
+  "include": ["../../types", "./src", "tsconfig.build.json", "tsconfig.json"]
+}
