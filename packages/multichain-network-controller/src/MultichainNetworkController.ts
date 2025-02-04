@@ -5,7 +5,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { isEvmAccountType, SolScopes } from '@metamask/keyring-api';
+import { isEvmAccountType, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
@@ -87,7 +87,7 @@ export type MultichainNetworkControllerState = {
 export const getDefaultMultichainNetworkControllerState =
   (): MultichainNetworkControllerState => ({
     multichainNetworkConfigurationsByChainId: {},
-    selectedMultichainNetworkChainId: SolScopes.Mainnet,
+    selectedMultichainNetworkChainId: SolScope.Mainnet,
     multichainNetworksMetadata: {},
     nonEvmSelected: false,
   });

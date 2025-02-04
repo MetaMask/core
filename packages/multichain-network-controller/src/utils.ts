@@ -1,4 +1,4 @@
-import { BtcScopes, SolScopes } from '@metamask/keyring-api';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 /**
@@ -12,7 +12,7 @@ export function nonEvmNetworkChainIdByAccountAddress(
 ): CaipChainId {
   // This condition is not the most robust. Once we support more networks, we will need to update this logic.
   if (isSolanaAddress(address)) {
-    return SolScopes.Mainnet;
+    return SolScope.Mainnet;
   }
-  return BtcScopes.Mainnet;
+  return BtcScope.Mainnet;
 }

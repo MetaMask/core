@@ -1,8 +1,8 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import {
-  BtcScopes,
-  SolScopes,
+  BtcScope,
+  SolScope,
   EthAccountType,
   BtcAccountType,
   SolAccountType,
@@ -100,7 +100,7 @@ function setupController({
   const controller = new MultichainNetworkController({
     messenger: options.messenger || controllerMessenger,
     state: {
-      selectedMultichainNetworkChainId: SolScopes.Mainnet,
+      selectedMultichainNetworkChainId: SolScope.Mainnet,
       multichainNetworkConfigurationsByChainId: multichainNetworkConfigurations,
       multichainNetworksMetadata: {},
       nonEvmSelected: false,
@@ -154,7 +154,7 @@ describe('MultichainNetworkController', () => {
       await expect(
         controller.setActiveNetwork({
           evmClientId: InfuraNetworkType.mainnet,
-          nonEvmChainId: SolScopes.Mainnet,
+          nonEvmChainId: SolScope.Mainnet,
         }),
       ).rejects.toThrow('Cannot set both EVM and non-EVM networks!');
     });
@@ -183,12 +183,12 @@ describe('MultichainNetworkController', () => {
 
       // Set active network to Solana
       await controller.setActiveNetwork({
-        nonEvmChainId: SolScopes.Mainnet,
+        nonEvmChainId: SolScope.Mainnet,
       });
 
       // Check that the Solana is now the selected network
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
-        SolScopes.Mainnet,
+        SolScope.Mainnet,
       );
 
       // Check that the a non evm network is now active
@@ -197,7 +197,7 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:setActiveNetwork',
-        { nonEvmChainId: SolScopes.Mainnet },
+        { nonEvmChainId: SolScope.Mainnet },
       );
     });
 
@@ -220,12 +220,12 @@ describe('MultichainNetworkController', () => {
 
       // Set active network to Bitcoin
       await controller.setActiveNetwork({
-        nonEvmChainId: BtcScopes.Mainnet,
+        nonEvmChainId: BtcScope.Mainnet,
       });
 
       // Check that the Solana is now the selected network
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
-        BtcScopes.Mainnet,
+        BtcScope.Mainnet,
       );
 
       // Check that BTC network is now active
@@ -234,7 +234,7 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:setActiveNetwork',
-        { nonEvmChainId: BtcScopes.Mainnet },
+        { nonEvmChainId: BtcScope.Mainnet },
       );
     });
 
@@ -329,7 +329,7 @@ describe('MultichainNetworkController', () => {
         options: {
           state: {
             nonEvmSelected: false,
-            selectedMultichainNetworkChainId: SolScopes.Mainnet,
+            selectedMultichainNetworkChainId: SolScope.Mainnet,
           },
         },
       });
@@ -338,7 +338,7 @@ describe('MultichainNetworkController', () => {
       expect(controller.state.nonEvmSelected).toBe(false);
 
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
-        SolScopes.Mainnet,
+        SolScope.Mainnet,
       );
 
       // Switching to Solana account
@@ -346,7 +346,7 @@ describe('MultichainNetworkController', () => {
 
       // Solana is still the selected network
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
-        SolScopes.Mainnet,
+        SolScope.Mainnet,
       );
       expect(controller.state.nonEvmSelected).toBe(true);
     });
@@ -357,7 +357,7 @@ describe('MultichainNetworkController', () => {
         options: {
           state: {
             nonEvmSelected: true,
-            selectedMultichainNetworkChainId: SolScopes.Mainnet,
+            selectedMultichainNetworkChainId: SolScope.Mainnet,
           },
         },
       });
@@ -365,7 +365,7 @@ describe('MultichainNetworkController', () => {
       // Solana is currently active
       expect(controller.state.nonEvmSelected).toBe(true);
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
-        SolScopes.Mainnet,
+        SolScope.Mainnet,
       );
 
       // Switching to Bitcoin account
@@ -373,7 +373,7 @@ describe('MultichainNetworkController', () => {
 
       // Bitcoin is now the selected network
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
-        BtcScopes.Mainnet,
+        BtcScope.Mainnet,
       );
       expect(controller.state.nonEvmSelected).toBe(true);
     });
