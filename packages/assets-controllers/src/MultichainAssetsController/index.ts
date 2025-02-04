@@ -1,9 +1,12 @@
-export { MultichainAssetsController } from './MultichainAssetsController';
+export {
+  MultichainAssetsController,
+  getDefaultMultichainAssetsControllerState,
+} from './MultichainAssetsController';
 
 export type {
   MultichainAssetsControllerState,
   MultichainAssetsControllerGetStateAction,
-  MultichainAssetsControllerStateChange,
+  MultichainAssetsControllerStateChangeEvent,
   MultichainAssetsControllerActions,
   MultichainAssetsControllerEvents,
   MultichainAssetsControllerMessenger,

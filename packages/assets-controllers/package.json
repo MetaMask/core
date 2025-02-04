@@ -85,6 +85,7 @@
     "@metamask/keyring-internal-api": "^4.0.1",
     "@metamask/keyring-snap-client": "^3.0.3",
     "@metamask/network-controller": "^22.1.1",
+    "@metamask/permission-controller": "^11.0.5",
     "@metamask/preferences-controller": "^15.0.1",
     "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.19.0",
@@ -108,8 +109,10 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/network-controller": "^22.0.0",
+    "@metamask/permission-controller": "^11.0.5",
     "@metamask/preferences-controller": "^15.0.0",
     "@metamask/providers": "^18.1.0",
+    "@metamask/snaps-controllers": "^9.19.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {

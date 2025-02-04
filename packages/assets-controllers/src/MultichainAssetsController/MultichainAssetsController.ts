@@ -80,10 +80,11 @@ export type MultichainAssetsControllerGetStateAction = ControllerGetStateAction<
 /**
  * Event emitted when the state of the {@link MultichainAssetsController} changes.
  */
-export type MultichainAssetsControllerStateChange = ControllerStateChangeEvent<
-  typeof controllerName,
-  MultichainAssetsControllerState
->;
+export type MultichainAssetsControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    MultichainAssetsControllerState
+  >;
 
 /**
  * Actions exposed by the {@link MultichainAssetsController}.
@@ -95,7 +96,7 @@ export type MultichainAssetsControllerActions =
  * Events emitted by {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerEvents =
-  MultichainAssetsControllerStateChange;
+  MultichainAssetsControllerStateChangeEvent;
 
 /**
  * A function executed within a mutually exclusive lock, with
