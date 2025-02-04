@@ -2,10 +2,16 @@ import { Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import { isStrictHexString } from '@metamask/utils';
+import { isStrictHexString, remove0x } from '@metamask/utils';
 
-import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
+import type { Authorization } from '../types';
+import { TransactionEnvelopeType, type TransactionParams } from '../types';
+
+const TRANSACTION_ENVELOPE_TYPES_FEE_MARKET = [
+  TransactionEnvelopeType.feeMarket,
+  TransactionEnvelopeType.setCode,
+];
 
 type GasFieldsToValidate =
   | 'gasPrice'
@@ -69,6 +75,7 @@ export function validateTxParams(
   validateParamData(txParams.data);
   validateParamChainId(txParams.chainId);
   validateGasFeeParams(txParams);
+  validateAuthorizationList(txParams);
 }
 
 /**
@@ -308,28 +315,41 @@ function validateGasFeeParams(txParams: TransactionParams) {
  */
 function ensureProperTransactionEnvelopeTypeProvided(
   txParams: TransactionParams,
-  field: GasFieldsToValidate,
+  field: keyof TransactionParams,
 ) {
+  const type = txParams.type as TransactionEnvelopeType | undefined;
+
   switch (field) {
+    case 'authorizationList':
+      if (type && type !== TransactionEnvelopeType.setCode) {
+        throw rpcErrors.invalidParams(
+          `Invalid transaction envelope type: specified type "${type}" but including authorizationList requires type: "${TransactionEnvelopeType.setCode}"`,
+        );
+      }
+      break;
     case 'maxFeePerGas':
     case 'maxPriorityFeePerGas':
       if (
-        txParams.type &&
-        txParams.type !== TransactionEnvelopeType.feeMarket
+        type &&
+        !TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(
+          type as TransactionEnvelopeType,
+        )
       ) {
         throw rpcErrors.invalidParams(
-          `Invalid transaction envelope type: specified type "${txParams.type}" but including maxFeePerGas and maxPriorityFeePerGas requires type: "${TransactionEnvelopeType.feeMarket}"`,
+          `Invalid transaction envelope type: specified type "${type}" but including maxFeePerGas and maxPriorityFeePerGas requires type: "${TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.join(', ')}"`,
         );
       }
       break;
     case 'gasPrice':
     default:
       if (
-        txParams.type &&
-        txParams.type === TransactionEnvelopeType.feeMarket
+        type &&
+        TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(
+          type as TransactionEnvelopeType,
+        )
       ) {
         throw rpcErrors.invalidParams(
-          `Invalid transaction envelope type: specified type "${txParams.type}" but included a gasPrice instead of maxFeePerGas and maxPriorityFeePerGas`,
+          `Invalid transaction envelope type: specified type "${type}" but included a gasPrice instead of maxFeePerGas and maxPriorityFeePerGas`,
         );
       }
   }
@@ -361,20 +381,79 @@ function ensureMutuallyExclusiveFieldsNotProvided(
  * Ensures that the provided value for field is a valid hexadecimal.
  * Throws an invalidParams error if field is not a valid hexadecimal.
  *
- * @param txParams - The transaction parameters object
+ * @param data - The object containing the field
  * @param field - The current field being validated
  * @throws {rpcErrors.invalidParams} Throws if field is not a valid hexadecimal
  */
-function ensureFieldIsValidHex(
-  txParams: TransactionParams,
-  field: GasFieldsToValidate,
-) {
-  const value = txParams[field];
+function ensureFieldIsValidHex<T>(data: T, field: keyof T) {
+  const value = data[field];
   if (typeof value !== 'string' || !isStrictHexString(value)) {
     throw rpcErrors.invalidParams(
-      `Invalid transaction params: ${field} is not a valid hexadecimal. got: (${String(
+      `Invalid transaction params: ${String(field)} is not a valid hexadecimal string. got: (${String(
         value,
       )})`,
+    );
+  }
+}
+
+/**
+ * Validate the authorization list property in the transaction parameters.
+ *
+ * @param txParams - The transaction parameters containing the authorization list to validate.
+ */
+function validateAuthorizationList(txParams: TransactionParams) {
+  const { authorizationList } = txParams;
+
+  if (!authorizationList) {
+    return;
+  }
+
+  ensureProperTransactionEnvelopeTypeProvided(txParams, 'authorizationList');
+
+  if (!Array.isArray(authorizationList)) {
+    throw rpcErrors.invalidParams(
+      `Invalid transaction params: authorizationList must be an array`,
+    );
+  }
+
+  for (const authorization of authorizationList) {
+    validateAuthorization(authorization);
+  }
+}
+
+/**
+ * Validate an authorization object.
+ *
+ * @param authorization - The authorization object to validate.
+ */
+function validateAuthorization(authorization: Authorization) {
+  ensureFieldIsValidHex(authorization, 'address');
+  validateHexLength(authorization.address, 20, 'address');
+
+  for (const field of ['chainId', 'nonce', 'r', 's', 'yParity'] as const) {
+    if (authorization[field]) {
+      ensureFieldIsValidHex(authorization, field);
+    }
+  }
+}
+
+/**
+ * Validate the number of bytes in a hex string.
+ *
+ * @param value - The hex string to validate.
+ * @param lengthBytes  - The expected length in bytes.
+ * @param fieldName - The name of the field being validated.
+ */
+function validateHexLength(
+  value: string,
+  lengthBytes: number,
+  fieldName: string,
+) {
+  const actualLengthBytes = remove0x(value).length / 2;
+
+  if (actualLengthBytes !== lengthBytes) {
+    throw rpcErrors.invalidParams(
+      `Invalid transaction params: ${fieldName} must be ${lengthBytes} bytes. got: ${actualLengthBytes} bytes`,
     );
   }
 }
