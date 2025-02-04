@@ -3375,8 +3375,8 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.1.1"
-    "@metamask/keyring-api": "npm:^15.0.0"
-    "@metamask/keyring-controller": "npm:^19.0.4"
+    "@metamask/keyring-api": "npm:^16.1.0"
+    "@metamask/keyring-controller": "npm:^19.0.5"
     "@metamask/utils": "npm:^11.0.1"
     "@solana/addresses": "npm:^2.0.0"
     "@types/jest": "npm:^27.4.1"
