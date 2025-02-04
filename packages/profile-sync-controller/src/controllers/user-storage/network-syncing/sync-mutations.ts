@@ -1,8 +1,8 @@
 import type { NetworkConfiguration } from '@metamask/network-controller';
 
-import type { UserStorageBaseOptions } from '../services';
 import { batchUpsertRemoteNetworks, upsertRemoteNetwork } from './services';
 import type { RemoteNetworkConfiguration } from './types';
+import type { UserStorageBaseOptions } from '../services';
 
 export const updateNetwork = async (
   network: NetworkConfiguration,

@@ -1,7 +1,5 @@
 import { SiweMessage } from 'siwe';
 
-import { ValidationError } from '../errors';
-import { validateLoginResponse } from '../utils/validate-login-response';
 import {
   SIWE_LOGIN_URL,
   authenticate,
@@ -16,15 +14,17 @@ import type {
   LoginResponse,
   UserProfile,
 } from './types';
+import { ValidationError } from '../errors';
+import { validateLoginResponse } from '../utils/validate-login-response';
 
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;
 };
 
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 type JwtBearerAuth_SIWE_Signer = {
   address: string;
   chainId: number;
@@ -33,9 +33,9 @@ type JwtBearerAuth_SIWE_Signer = {
 };
 
 export class SIWEJwtBearerAuth implements IBaseAuth {
-  #config: AuthConfig;
+  readonly #config: AuthConfig;
 
-  #options: JwtBearerAuth_SIWE_Options;
+  readonly #options: JwtBearerAuth_SIWE_Options;
 
   #signer: JwtBearerAuth_SIWE_Signer | undefined;
 

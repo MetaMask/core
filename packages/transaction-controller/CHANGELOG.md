@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [44.1.0]
+
+### Changed
+
+- Rename `ControllerMessenger` to `Messenger` ([#5234](https://github.com/MetaMask/core/pull/5234))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Fixed
+
+- Prevent transaction resubmit on multiple endpoints ([#5262](https://github.com/MetaMask/core/pull/5262))
+
 ## [44.0.0]
 
 ### Changed
@@ -1244,7 +1255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.1.0...HEAD
+[44.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...@metamask/transaction-controller@44.1.0
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@43.0.0...@metamask/transaction-controller@44.0.0
 [43.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.1.0...@metamask/transaction-controller@43.0.0
 [42.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.0.0...@metamask/transaction-controller@42.1.0

@@ -38,6 +38,7 @@ type ExternalEvents = NotNamespacedBy<
 
 /**
  * creates a custom user storage messenger, in case tests need different permissions
+ *
  * @param props - overrides
  * @param props.overrideEvents - override events
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
@@ -88,6 +89,7 @@ type OverrideMessengers = {
 
 /**
  * Jest Mock Utility to generate a mock User Storage Messenger
+ *
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
  * @returns series of mocks to actions that can be called
  */
