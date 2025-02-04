@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Introduce the logoUrl property to the TokenSearchApiService response
+- Introduce the `logoUrl` property to the `TokenSearchApiService` response
   - Specifically in the `TokenSearchResponseItem` type
+- Introduce `TokenDiscoveryApiService` to keep discovery and search responsibilities separate
+  - This service is responsible for fetching discover related data
+  - Add `getTrendingTokens` method to fetch trending tokens by chain
+  - Add `TokenTrendingResponseItem` type for trending token responses
+- Export `TokenSearchResponseItem` type from the package index
 
 ### Changed
 
@@ -26,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Introduce the TokenSearchDiscoveryController ([#5142](https://github.com/MetaMask/core/pull/5142/))
   - This controller manages token search and discovery through the Portfolio API
 - Introduce the TokenSearchApiService ([#5142](https://github.com/MetaMask/core/pull/5142/))
-  - This service is responsible for making requests to the Portfolio API
+  - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@1.0.0...HEAD

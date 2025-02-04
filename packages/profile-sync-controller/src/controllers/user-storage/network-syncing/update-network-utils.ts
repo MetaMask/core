@@ -52,6 +52,7 @@ export const getMappedNetworkConfiguration = (props: {
 /**
  * Will insert any missing infura RPCs, as we cannot remove infura RPC
  * Exported for testability
+ *
  * @param props - properties
  * @param props.originalNetworkConfiguration - original network configuration
  * @param props.updateNetworkConfiguration - the updated network configuration to use when dispatching `NetworkController:updateNetwork`
@@ -97,6 +98,7 @@ export const appendMissingInfuraNetworks = (props: {
 
 /**
  * The `NetworkController:updateNetwork` method will require us to pass in a `replacementSelectedRpcEndpointIndex` if the selected RPC is removed or modified
+ *
  * @param props - properties
  * @param props.originalNetworkConfiguration - the original network configuration
  * @param props.updateNetworkConfiguration - the new network configuration we will use to update
@@ -150,6 +152,7 @@ export const getNewRPCIndex = (props: {
 
 /**
  * create the correct `NetworkController:updateNetwork` parameters
+ *
  * @param props - properties
  * @param props.originalNetworkConfiguration - original config
  * @param props.newNetworkConfiguration - new config (from remote)
