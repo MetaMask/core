@@ -1576,7 +1576,7 @@ describe('AccountsController', () => {
 
       // Triggered from network switch to Bitcoin mainnet
       triggerMultichainNetworkChange({
-        nonEvmChainId: BtcScopes.Mainnet,
+        nonEvmChainId: BtcScope.Mainnet,
       });
 
       // BTC account is now selected
@@ -1603,7 +1603,7 @@ describe('AccountsController', () => {
 
       // Triggered from network switch to Bitcoin mainnet
       triggerMultichainNetworkChange({
-        evmClientId: EthScopes.Mainnet,
+        evmClientId: EthScope.Mainnet,
       });
 
       // ETH mainnet account is now selected
