@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
-- Start extracting service policy boilerplate to common function ([#5141](https://github.com/MetaMask/core/pull/5141))
-
 ### Added
 
 - Add utility function for reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143), [#5149](https://github.com/MetaMask/core/pull/5149), [#5188](https://github.com/MetaMask/core/pull/5188), [#5192](https://github.com/MetaMask/core/pull/5192), [#5225](https://github.com/MetaMask/core/pull/5225))
