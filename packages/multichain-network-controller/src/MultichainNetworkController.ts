@@ -1,19 +1,18 @@
-import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
 import {
   BaseController,
-  StateMetadata,
+  type StateMetadata,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BtcScope } from '@metamask/keyring-api';
+import { isEvmAccountType, SolScopes } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import { isEvmAccountType } from '@metamask/keyring-api';
-import { CaipAssetType, CaipChainId } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 import { nonEvmNetworkChainIdByAccountAddress } from './utils';
 
 const controllerName = 'MultichainNetworkController';
@@ -81,11 +80,13 @@ export type MultichainNetworkControllerState = {
 
 /**
  * Default state of the {@link MultichainNetworkController}.
+ *
+ * @returns The default state of the {@link MultichainNetworkController}.
  */
 export const getDefaultMultichainNetworkControllerState =
   (): MultichainNetworkControllerState => ({
     multichainNetworkConfigurationsByChainId: {},
-    selectedMultichainNetworkChainId: BtcScope.Mainnet,
+    selectedMultichainNetworkChainId: SolScopes.Mainnet,
     multichainNetworksMetadata: {},
     nonEvmSelected: false,
   });
@@ -141,6 +142,12 @@ export type MultichainNetworkControllerEvents =
 export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction;
+
+// Re-define event here to avoid circular dependency with AccountsController
+type AccountsControllerSelectedAccountChangeEvent = {
+  type: `AccountsController:selectedAccountChange`;
+  payload: [InternalAccount];
+};
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -214,8 +221,9 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Handles switching between EVM and non-EVM networks.
    *
-   * @param evmClientId - The client ID of the EVM network to set active.
-   * @param nonEvmChainId - The chain ID of the non-EVM network to set active.
+   * @param args - The arguments to set the active network.
+   * @param args.evmClientId - The client ID of the EVM network to set active.
+   * @param args.nonEvmChainId - The chain ID of the non-EVM network to set active.
    */
   async setActiveNetwork({
     evmClientId,
@@ -225,18 +233,29 @@ export class MultichainNetworkController extends BaseController<
     nonEvmChainId?: CaipChainId;
   }): Promise<void> {
     // Throw an error if both EVM and non-EVM networks are set
-    if (evmClientId && nonEvmChainId) {
+    if (evmClientId !== undefined && nonEvmChainId !== undefined) {
       throw new Error('Cannot set both EVM and non-EVM networks!');
     }
 
     // Handle non-EVM networks
-    if (nonEvmChainId) {
+    if (nonEvmChainId !== undefined) {
+      // Handle EVM networks
+      if (nonEvmChainId.length === 0) {
+        throw new Error('Non-EVM chain ID is required!');
+      }
+
       // Prevent setting same network
       if (nonEvmChainId === this.state.selectedMultichainNetworkChainId) {
         // Indicate that the non-EVM network is selected
         this.update((state) => {
           state.nonEvmSelected = true;
         });
+
+        // Notify listeners that setActiveNetwork was called
+        this.messagingSystem.publish(
+          'MultichainNetworkController:setActiveNetwork',
+          { nonEvmChainId },
+        );
         return;
       }
 
@@ -249,6 +268,7 @@ export class MultichainNetworkController extends BaseController<
         throw new Error('Non-EVM chain ID is not supported!');
       }
 
+      // Notify listeners that setActiveNetwork was called
       this.messagingSystem.publish(
         'MultichainNetworkController:setActiveNetwork',
         { nonEvmChainId },
@@ -267,6 +287,7 @@ export class MultichainNetworkController extends BaseController<
       throw new Error('EVM client ID is required!');
     }
 
+    // Notify listeners that setActiveNetwork was called
     this.messagingSystem.publish(
       'MultichainNetworkController:setActiveNetwork',
       {
@@ -280,7 +301,7 @@ export class MultichainNetworkController extends BaseController<
     });
 
     // Prevent setting same network
-    const { selectedNetworkClientId } = await this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
 
@@ -290,7 +311,7 @@ export class MultichainNetworkController extends BaseController<
     }
 
     // Update evm active network
-    this.messagingSystem.call(
+    await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
       evmClientId,
     );
@@ -314,20 +335,10 @@ export class MultichainNetworkController extends BaseController<
             return;
           }
 
-          // Otherwise, switch to EVM network
-          const { selectedNetworkClientId } = await this.messagingSystem.call(
-            'NetworkController:getState',
-          );
-
-          this.messagingSystem.call(
-            'NetworkController:setActiveNetwork',
-            selectedNetworkClientId,
-          );
-
+          // Make EVM network active
           this.update((state) => {
             state.nonEvmSelected = false;
           });
-
           return;
         }
 
@@ -352,7 +363,6 @@ export class MultichainNetworkController extends BaseController<
 
   /**
    * Registers message handlers.
-   * @private
    */
   #registerMessageHandlers() {
     this.messagingSystem.registerActionHandler(
