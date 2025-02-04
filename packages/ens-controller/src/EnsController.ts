@@ -1,5 +1,5 @@
 import { Web3Provider } from '@ethersproject/providers';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {
@@ -73,7 +73,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction;
 
-export type EnsControllerMessenger = RestrictedControllerMessenger<
+export type EnsControllerMessenger = RestrictedMessenger<
   typeof name,
   AllowedActions,
   never,

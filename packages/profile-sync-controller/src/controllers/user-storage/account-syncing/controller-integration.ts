@@ -1,7 +1,6 @@
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import {
   canPerformAccountSyncing,
   getInternalAccountsList,
@@ -13,9 +12,11 @@ import {
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './utils';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
 /**
  * Saves an individual internal account to the user storage.
+ *
  * @param internalAccount - The internal account to save
  * @param config - parameters used for saving the internal account
  * @param options - parameters used for saving the internal account
@@ -44,7 +45,7 @@ export async function saveInternalAccountToUserStorage(
 
     await getUserStorageControllerInstance().performSetStorage(
       // ESLint is confused here.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
       JSON.stringify(mappedAccount),
     );
@@ -59,6 +60,7 @@ export async function saveInternalAccountToUserStorage(
 
 /**
  * Saves the list of internal accounts to the user storage.
+ *
  * @param config - parameters used for saving the list of internal accounts
  * @param options - parameters used for saving the list of internal accounts
  */
@@ -106,6 +108,7 @@ type SyncInternalAccountsWithUserStorageConfig = AccountSyncingConfig & {
  * Syncs the internal accounts list with the user storage accounts list.
  * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
  * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
+ *
  * @param config - parameters used for syncing the internal accounts list with the user storage accounts list
  * @param options - parameters used for syncing the internal accounts list with the user storage accounts list
  */
@@ -178,9 +181,8 @@ export async function syncInternalAccountsWithUserStorage(
 
     // Second step: compare account names
     // Get the internal accounts list again since new accounts might have been added in the previous step
-    const refreshedInternalAccountsList = await getInternalAccountsList(
-      options,
-    );
+    const refreshedInternalAccountsList =
+      await getInternalAccountsList(options);
 
     const newlyAddedAccounts = refreshedInternalAccountsList.filter(
       (account) =>

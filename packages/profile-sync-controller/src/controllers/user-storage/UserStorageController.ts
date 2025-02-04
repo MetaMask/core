@@ -7,7 +7,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -27,21 +27,6 @@ import type {
 } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
-import { createSHA256Hash } from '../../shared/encryption';
-import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
-import {
-  type UserStoragePathWithFeatureAndKey,
-  type UserStoragePathWithFeatureOnly,
-} from '../../shared/storage-schema';
-import type { NativeScrypt } from '../../shared/types/encryption';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
-import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-  AuthenticationControllerPerformSignOut,
-} from '../authentication/AuthenticationController';
 import {
   saveInternalAccountToUserStorage,
   syncInternalAccountsWithUserStorage,
@@ -60,6 +45,21 @@ import {
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
+import { createSHA256Hash } from '../../shared/encryption';
+import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
+import {
+  type UserStoragePathWithFeatureAndKey,
+  type UserStoragePathWithFeatureOnly,
+} from '../../shared/storage-schema';
+import type { NativeScrypt } from '../../shared/types/encryption';
+import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
+import type {
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerGetSessionProfile,
+  AuthenticationControllerIsSignedIn,
+  AuthenticationControllerPerformSignIn,
+  AuthenticationControllerPerformSignOut,
+} from '../authentication/AuthenticationController';
 
 // TODO: fix external dependencies
 export declare type NotificationServicesControllerDisableNotificationServices =
@@ -170,6 +170,7 @@ type ControllerConfig = {
     /**
      * Callback that fires when network sync adds a network
      * This is used for analytics.
+     *
      * @param profileId - ID for a given User (shared cross devices once authenticated)
      * @param chainId - Chain ID for the network added (in hex)
      */
@@ -177,6 +178,7 @@ type ControllerConfig = {
     /**
      * Callback that fires when network sync updates a network
      * This is used for analytics.
+     *
      * @param profileId - ID for a given User (shared cross devices once authenticated)
      * @param chainId - Chain ID for the network added (in hex)
      */
@@ -184,6 +186,7 @@ type ControllerConfig = {
     /**
      * Callback that fires when network sync deletes a network
      * This is used for analytics.
+     *
      * @param profileId - ID for a given User (shared cross devices once authenticated)
      * @param chainId - Chain ID for the network added (in hex)
      */
@@ -286,7 +289,7 @@ export type AllowedEvents =
   | NetworkControllerNetworkRemovedEvent;
 
 // Messenger
-export type UserStorageControllerMessenger = RestrictedControllerMessenger<
+export type UserStorageControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events | AllowedEvents,
@@ -309,12 +312,12 @@ export default class UserStorageController extends BaseController<
 > {
   // This is replaced with the actual value in the constructor
   // We will remove this once the feature will be released
-  #env = {
+  readonly #env = {
     isAccountSyncingEnabled: false,
     isNetworkSyncingEnabled: false,
   };
 
-  #auth = {
+  readonly #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
         'AuthenticationController:getBearerToken',
@@ -341,9 +344,9 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  #config?: ControllerConfig;
+  readonly #config?: ControllerConfig;
 
-  #notificationServices = {
+  readonly #notificationServices = {
     disableNotificationServices: async () => {
       return await this.messagingSystem.call(
         'NotificationServicesController:disableNotificationServices',
@@ -358,7 +361,7 @@ export default class UserStorageController extends BaseController<
 
   #isUnlocked = false;
 
-  #keyringController = {
+  readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
@@ -375,7 +378,7 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+  readonly #nativeScryptCrypto: NativeScrypt | undefined = undefined;
 
   getMetaMetricsState: () => boolean;
 
@@ -755,6 +758,8 @@ export default class UserStorageController extends BaseController<
 
   /**
    * Utility to get the bearer token and storage key
+   *
+   * @returns the bearer token and storage key
    */
   async #getStorageKeyAndBearerToken(): Promise<{
     bearerToken: string;
@@ -881,6 +886,7 @@ export default class UserStorageController extends BaseController<
 
   /**
    * Saves an individual internal account to the user storage.
+   *
    * @param internalAccount - The internal account to save
    */
   async saveInternalAccountToUserStorage(

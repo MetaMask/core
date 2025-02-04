@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -9,8 +9,8 @@ import {
   EthAccountType,
   BtcMethod,
   EthMethod,
-  EthScopes,
-  BtcScopes,
+  EthScope,
+  BtcScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
@@ -73,7 +73,7 @@ const mockAccount: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   metadata: {
     name: 'Account 1',
     keyring: { type: KeyringTypes.hd },
@@ -89,7 +89,7 @@ const mockAccount2: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   metadata: {
     name: 'Account 2',
     keyring: { type: KeyringTypes.hd },
@@ -104,7 +104,7 @@ const mockAccount3: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   metadata: {
     name: '',
     keyring: { type: KeyringTypes.snap },
@@ -124,7 +124,7 @@ const mockAccount4: InternalAccount = {
   options: {},
   methods: [...ETH_EOA_METHODS],
   type: EthAccountType.Eoa,
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   metadata: {
     name: 'Custom Name',
     keyring: { type: KeyringTypes.snap },
@@ -213,19 +213,19 @@ function createExpectedInternalAccount({
 }): InternalAccount {
   const accountTypeToInfo: Record<
     string,
-    { methods: string[]; scopes: string[] }
+    { methods: string[]; scopes: CaipChainId[] }
   > = {
     [`${EthAccountType.Eoa}`]: {
       methods: [...Object.values(ETH_EOA_METHODS)],
-      scopes: [EthScopes.Namespace],
+      scopes: [EthScope.Eoa],
     },
     [`${EthAccountType.Erc4337}`]: {
       methods: [...Object.values(ETH_ERC_4337_METHODS)],
-      scopes: [EthScopes.Mainnet], // Assuming we are using mainnet for those Smart Accounts
+      scopes: [EthScope.Mainnet], // Assuming we are using mainnet for those Smart Accounts
     },
     [`${BtcAccountType.P2wpkh}`]: {
       methods: [...Object.values(BtcMethod)],
-      scopes: [BtcScopes.Mainnet],
+      scopes: [BtcScope.Mainnet],
     },
   };
 
@@ -281,12 +281,12 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
 }
 
 /**
- * Builds a new instance of the ControllerMessenger class for the AccountsController.
+ * Builds a new instance of the Messenger class for the AccountsController.
  *
- * @returns A new instance of the ControllerMessenger class for the AccountsController.
+ * @returns A new instance of the Messenger class for the AccountsController.
  */
 function buildMessenger() {
-  return new ControllerMessenger<
+  return new Messenger<
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >();
@@ -330,13 +330,13 @@ function setupAccountsController({
   messenger = buildMessenger(),
 }: {
   initialState?: Partial<AccountsControllerState>;
-  messenger?: ControllerMessenger<
+  messenger?: Messenger<
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;
 }): {
   accountsController: AccountsController;
-  messenger: ControllerMessenger<
+  messenger: Messenger<
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;

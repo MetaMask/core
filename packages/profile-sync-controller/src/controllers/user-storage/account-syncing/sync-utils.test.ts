@@ -76,13 +76,12 @@ describe('user-storage/account-syncing/sync-utils', () => {
 
       const options: AccountSyncingOptions = {
         getMessenger: jest.fn().mockReturnValue({
-          call: jest
-            .fn()
-            .mockImplementation((controllerAndActionName) =>
-              controllerAndActionName === 'AccountsController:listAccounts'
-                ? internalAccounts
-                : null,
-            ),
+          call: jest.fn().mockImplementation((controllerAndActionName) =>
+            // eslint-disable-next-line jest/no-conditional-in-test
+            controllerAndActionName === 'AccountsController:listAccounts'
+              ? internalAccounts
+              : null,
+          ),
         }),
         getUserStorageControllerInstance: jest.fn(),
       };
@@ -90,7 +89,8 @@ describe('user-storage/account-syncing/sync-utils', () => {
       jest
         .spyOn(utils, 'doesInternalAccountHaveCorrectKeyringType')
         .mockImplementation(
-          (account) => account.metadata.keyring.type === KeyringTypes.hd,
+          (account) =>
+            account.metadata.keyring.type === String(KeyringTypes.hd),
         );
 
       const result = await getInternalAccountsList(options);

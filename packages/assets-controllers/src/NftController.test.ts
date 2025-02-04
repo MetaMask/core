@@ -6,7 +6,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   IPFS_DEFAULT_GATEWAY_URL,
   ERC1155,
@@ -203,7 +203,7 @@ function setupController({
   >;
   defaultSelectedAccount?: InternalAccount;
 } = {}) {
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     | ExtractAvailableAction<NftControllerMessenger>
     | NftControllerAllowedActions
     | ExtractAvailableAction<ApprovalControllerMessenger>,

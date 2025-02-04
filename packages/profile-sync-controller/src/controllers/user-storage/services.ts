@@ -19,16 +19,12 @@ export const USER_STORAGE_ENDPOINT = `${USER_STORAGE_API}/api/v1/userstorage`;
  * This is the Server Response shape for a feature entry.
  */
 export type GetUserStorageResponse = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   HashedKey: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   Data: string;
 };
 
 export type GetUserStorageAllFeatureEntriesResponse = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   HashedKey: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   Data: string;
 }[];
 
@@ -379,7 +375,7 @@ export async function batchDeleteUserStorage(
       'Content-Type': 'application/json',
       Authorization: `Bearer ${bearerToken}`,
     },
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+
     body: JSON.stringify({ batch_delete: encryptedData }),
   });
 

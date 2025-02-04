@@ -5,7 +5,7 @@ import type {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -93,7 +93,7 @@ import {
   updateSwapsTransaction,
 } from './utils/swaps';
 
-type UnrestrictedControllerMessenger = ControllerMessenger<
+type UnrestrictedMessenger = Messenger<
   TransactionControllerActions | AllowedActions,
   TransactionControllerEvents | AllowedEvents
 >;
@@ -291,7 +291,7 @@ function buildMockGasFeeFlow(): jest.Mocked<GasFeeFlow> {
  * @returns A promise that resolves with the transaction meta when the transaction is finished.
  */
 function waitForTransactionFinished(
-  messenger: ControllerMessenger<
+  messenger: Messenger<
     TransactionControllerActions | AllowedActions,
     TransactionControllerEvents | AllowedEvents
   >,
@@ -388,7 +388,7 @@ const INTERNAL_ACCOUNT_MOCK: InternalAccount = {
   id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
   address: ACCOUNT_MOCK,
   type: 'eip155:eoa',
-  scopes: ['eip155'],
+  scopes: ['eip155:0'],
   options: {},
   methods: [],
   metadata: {
@@ -591,8 +591,7 @@ describe('TransactionController', () => {
         listener(networkState);
       });
     };
-    const unrestrictedMessenger: UnrestrictedControllerMessenger =
-      new ControllerMessenger();
+    const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
     const getNetworkClientById = buildMockGetNetworkClientById(
       mockNetworkClientConfigurationsByNetworkClientId,
     );
@@ -694,7 +693,7 @@ describe('TransactionController', () => {
    * finally the mocked version of the action handler itself.
    */
   function mockAddTransactionApprovalRequest(
-    messenger: UnrestrictedControllerMessenger,
+    messenger: UnrestrictedMessenger,
     options:
       | {
           state: 'approved';

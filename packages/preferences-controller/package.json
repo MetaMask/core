@@ -48,11 +48,11 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.1.1",
-    "@metamask/controller-utils": "^11.4.5"
+    "@metamask/controller-utils": "^11.5.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.0.4",
+    "@metamask/keyring-controller": "^19.0.5",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
