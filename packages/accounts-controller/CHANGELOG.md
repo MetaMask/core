@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Update Release 292.0.0
+- Initialize Release 292.0.0
+- chore: mark `@metamask/snaps-controllers` peer dependency bump as breaking in CHANGELOG ([#5267](https://github.com/MetaMask/core/pull/5267))
+- chore(accounts): fix AccountsController eslint warnings & errors ([#5266](https://github.com/MetaMask/core/pull/5266))
+- chore(accounts): Rename `ControllerMessenger` to `Messenger` ([#5090](https://github.com/MetaMask/core/pull/5090))
+- fix(accounts-controller): export `*` in index ([#5224](https://github.com/MetaMask/core/pull/5224))
+- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+- feat: bump snaps-sdk to v6.16.0 ([#5220](https://github.com/MetaMask/core/pull/5220))
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.7.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))

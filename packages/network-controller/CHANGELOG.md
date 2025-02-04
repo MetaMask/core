@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Update Release 292.0.0
+- Initialize Release 292.0.0
+- Export AbstractRpcService ([#5263](https://github.com/MetaMask/core/pull/5263))
+- Add ability to create RPC service chain ([#5226](https://github.com/MetaMask/core/pull/5226))
+- chore(network): Rename `ControllerMessenger` to `Messenger` ([#5241](https://github.com/MetaMask/core/pull/5241))
+- Include endpointUrl in RpcService event listener data ([#5225](https://github.com/MetaMask/core/pull/5225))
+- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Add failover support to RpcService ([#5202](https://github.com/MetaMask/core/pull/5202))
+- NetworkController: Add RPC service class ([#5163](https://github.com/MetaMask/core/pull/5163))
+- fix: Network controller race condition after state update ([#5122](https://github.com/MetaMask/core/pull/5122))
+- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Release 274.0.0 ([#5082](https://github.com/MetaMask/core/pull/5082))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
 ### Added
 
 - Export `AbstractRpcService` type

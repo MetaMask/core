@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Update Release 292.0.0
+- Initialize Release 292.0.0
+- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `eslint` to `^9.11.1` and migrate to flat config ([#4727](https://github.com/MetaMask/core/pull/4727))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
 ## [3.0.2]
 
 ### Changed
