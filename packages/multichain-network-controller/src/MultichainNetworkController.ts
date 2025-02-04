@@ -13,6 +13,7 @@ import type {
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
+
 import { nonEvmNetworkChainIdByAccountAddress } from './utils';
 
 const controllerName = 'MultichainNetworkController';
@@ -322,7 +323,7 @@ export class MultichainNetworkController extends BaseController<
    *
    * @param account - The account that was changed
    */
-  #handleSelectedAccountChange = (account: InternalAccount) => {
+  readonly #handleSelectedAccountChange = (account: InternalAccount) => {
     const { type: accountType, address: accountAddress } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
@@ -358,7 +359,6 @@ export class MultichainNetworkController extends BaseController<
 
   /**
    * Subscribes to message events.
-   * @private
    */
   #subscribeToMessageEvents() {
     // Handle network switch when account is changed

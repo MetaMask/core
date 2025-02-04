@@ -39,6 +39,7 @@ import {
   isCaipChainId,
   parseCaipChainId,
 } from '@metamask/utils';
+
 import {
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
@@ -416,6 +417,7 @@ export class AccountsController extends BaseController<
   /**
    * Returns the account with the specified address.
    * ! This method will only return the first account that matches the address
+   *
    * @param address - The address of the account to retrieve.
    * @returns The account with the specified address, or undefined if not found.
    */
@@ -599,6 +601,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Generates an internal account for a non-Snap account.
+   *
    * @param address - The address of the account.
    * @param type - The type of the account.
    * @returns The generated internal account.
@@ -918,6 +921,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Returns the list of accounts for a given keyring type.
+   *
    * @param keyringType - The type of keyring.
    * @param accounts - Accounts to filter by keyring type.
    * @returns The list of accounts associcated with this keyring type.
@@ -964,6 +968,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Returns the next account number for a given keyring type.
+   *
    * @param keyringType - The type of keyring.
    * @param accounts - Existing accounts to check for the next available account number.
    * @returns An object containing the account prefix and index to use.
@@ -1001,8 +1006,6 @@ export class AccountsController extends BaseController<
 
     const index = Math.max(
       keyringAccounts.length + 1,
-      // ESLint is confused; this is a number.
-      // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       lastDefaultIndexUsedForKeyringType + 1,
     );
 
@@ -1011,7 +1014,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Checks if an account is compatible with a given chain namespace.
-   * @private
+   *
    * @param account - The account to check compatibility for.
    * @param chainId - The CAIP2 to check compatibility with.
    * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
@@ -1040,6 +1043,7 @@ export class AccountsController extends BaseController<
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
+   *
    * @param accountsState - AccountsController accounts state that is to be mutated.
    * @param account - The address and keyring type object of the new account.
    * @returns The updated AccountsController accounts state.
@@ -1112,6 +1116,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Handles the removal of an account from the internal accounts list.
+   *
    * @param accountsState - AccountsController accounts state that is to be mutated.
    * @param accountId - The ID of the account to be removed.
    * @returns The updated AccountsController state.
@@ -1150,7 +1155,8 @@ export class AccountsController extends BaseController<
       // Update selected account to non evm account
       const lastSelectedNonEvmAccount =
         this.getSelectedMultichainAccount(nonEvmChainId);
-      accountId = lastSelectedNonEvmAccount!.id;
+      // @ts-expect-error - This should never be undefined, otherwise it's a bug that should be handled
+      accountId = lastSelectedNonEvmAccount.id;
     } else if (evmClientId) {
       // Update selected account to evm account
       const lastSelectedEvmAccount = this.getSelectedAccount();
@@ -1166,13 +1172,13 @@ export class AccountsController extends BaseController<
 
   /**
    * Retrieves the value of a specific metadata key for an existing account.
+   *
    * @param accountId - The ID of the account.
    * @param metadataKey - The key of the metadata to retrieve.
    * @param account - The account object to retrieve the metadata key from.
    * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
     accountId: string,
     metadataKey: T,
@@ -1184,7 +1190,6 @@ export class AccountsController extends BaseController<
 
   /**
    * Subscribes to message events.
-   * @private
    */
   #subscribeToMessageEvents() {
     this.messagingSystem.subscribe(
@@ -1233,7 +1238,6 @@ export class AccountsController extends BaseController<
 
   /**
    * Registers message handlers for the AccountsController.
-   * @private
    */
   #registerMessageHandlers() {
     this.messagingSystem.registerActionHandler(

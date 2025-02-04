@@ -1,10 +1,10 @@
+import { BtcScopes, SolScopes } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
 import type {
   MultichainNetworkConfiguration,
   MultichainNetworkMetadata,
 } from './MultichainNetworkController';
-import { BtcScopes, SolScopes } from '@metamask/keyring-api';
 
 export const btcNativeAsset = `${BtcScopes.Mainnet}/slip44:0`;
 export const solNativeAsset = `${SolScopes.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;

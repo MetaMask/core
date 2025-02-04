@@ -1,6 +1,6 @@
-import { CaipChainId } from '@metamask/utils';
-import { isAddress as isSolanaAddress } from '@solana/addresses';
 import { BtcScopes, SolScopes } from '@metamask/keyring-api';
+import type { CaipChainId } from '@metamask/utils';
+import { isAddress as isSolanaAddress } from '@solana/addresses';
 /**
  * Returns the chain id of the non-EVM network based on the account address.
  *

@@ -7,8 +7,8 @@ import {
   SolMethod,
   type KeyringAccountType,
 } from '@metamask/keyring-api';
-import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 } from 'uuid';
 
 /**
@@ -22,6 +22,9 @@ import { v4 } from 'uuid';
  * @param args.name - The name of the account.
  * @param args.keyringType - The keyring type of the account.
  * @param args.snap - The snap of the account.
+ * @param args.snap.id - The ID of the snap.
+ * @param args.snap.enabled - Whether the snap is enabled.
+ * @param args.snap.name - The name of the snap.
  * @param args.importTime - The import time of the account.
  * @param args.lastSelected - The last selected time of the account.
  * @returns A mock internal account.

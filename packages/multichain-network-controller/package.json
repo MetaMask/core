@@ -56,6 +56,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.0.4",
     "@types/jest": "^27.4.1",
+    "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
     "jest": "^27.5.1",

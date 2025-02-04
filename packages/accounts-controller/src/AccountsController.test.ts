@@ -1,5 +1,4 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import { InfuraNetworkType } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -23,6 +22,7 @@ import { SnapStatus } from '@metamask/snaps-utils';
 import { type CaipChainId } from '@metamask/utils';
 import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
+
 import type {
   AccountsControllerActions,
   AccountsControllerEvents,
@@ -2310,29 +2310,6 @@ describe('AccountsController', () => {
   });
 
   describe('getSelectedMultichainAccount', () => {
-    const mockNonEvmAccount = createExpectedInternalAccount({
-      id: 'mock-non-evm',
-      name: 'non-evm',
-      address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
-      keyringType: KeyringTypes.snap,
-      type: BtcAccountType.P2wpkh,
-    });
-
-    const mockOlderEvmAccount = createExpectedInternalAccount({
-      id: 'mock-id-1',
-      name: 'mock account 1',
-      address: 'mock-address-1',
-      keyringType: KeyringTypes.hd,
-      lastSelected: 11111,
-    });
-    const mockNewerEvmAccount = createExpectedInternalAccount({
-      id: 'mock-id-2',
-      name: 'mock account 2',
-      address: 'mock-address-2',
-      keyringType: KeyringTypes.hd,
-      lastSelected: 22222,
-    });
-
     it.each([
       {
         chainId: undefined,
@@ -2341,18 +2318,18 @@ describe('AccountsController', () => {
       },
       {
         chainId: undefined,
-        selectedAccount: mockNonEvmAccount,
-        expected: mockNonEvmAccount,
+        selectedAccount: mockBtcAccount,
+        expected: mockBtcAccount,
       },
       {
         chainId: 'eip155:1',
-        selectedAccount: mockNonEvmAccount,
+        selectedAccount: mockBtcAccount,
         expected: mockNewerEvmAccount,
       },
       {
         chainId: 'bip122:000000000019d6689c085ae165831e93',
-        selectedAccount: mockNonEvmAccount,
-        expected: mockNonEvmAccount,
+        selectedAccount: mockBtcAccount,
+        expected: mockBtcAccount,
       },
     ])(
       "chainId $chainId with selectedAccount '$selectedAccount.id' should return $expected.id",
@@ -2363,7 +2340,7 @@ describe('AccountsController', () => {
               accounts: {
                 [mockOlderEvmAccount.id]: mockOlderEvmAccount,
                 [mockNewerEvmAccount.id]: mockNewerEvmAccount,
-                [mockNonEvmAccount.id]: mockNonEvmAccount,
+                [mockBtcAccount.id]: mockBtcAccount,
               },
               selectedAccount: selectedAccount.id,
             },
@@ -2388,9 +2365,9 @@ describe('AccountsController', () => {
               accounts: {
                 [mockOlderEvmAccount.id]: mockOlderEvmAccount,
                 [mockNewerEvmAccount.id]: mockNewerEvmAccount,
-                [mockNonEvmAccount.id]: mockNonEvmAccount,
+                [mockBtcAccount.id]: mockBtcAccount,
               },
-              selectedAccount: mockNonEvmAccount.id,
+              selectedAccount: mockBtcAccount.id,
             },
           },
         });

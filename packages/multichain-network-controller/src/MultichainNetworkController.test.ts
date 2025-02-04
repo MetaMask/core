@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { InfuraNetworkType } from '@metamask/controller-utils';
 import {
   BtcScopes,
   SolScopes,
@@ -8,23 +9,21 @@ import {
   type KeyringAccountType,
 } from '@metamask/keyring-api';
 import type {
+  NetworkControllerGetStateAction,
+  NetworkControllerSetActiveNetworkAction,
+} from '@metamask/network-controller';
+import type { CaipChainId } from '@metamask/utils';
+
+import { multichainNetworkConfigurations } from './constants';
+import type {
   AllowedActions,
   AllowedEvents,
   MultichainNetworkControllerAllowedActions,
   MultichainNetworkControllerAllowedEvents,
-} from './MultichainNetworkController';
-import {
   getDefaultMultichainNetworkControllerState,
   MultichainNetworkController,
 } from './MultichainNetworkController';
-import type {
-  NetworkControllerGetStateAction,
-  NetworkControllerSetActiveNetworkAction,
-} from '@metamask/network-controller';
-import { InfuraNetworkType } from '@metamask/controller-utils';
-import type { CaipChainId } from '@metamask/utils';
 import { createMockInternalAccount } from './test/utils';
-import { multichainNetworkConfigurations } from './constants';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -32,7 +31,7 @@ const controllerName = 'MultichainNetworkController';
  * Setup a test controller instance.
  *
  * @param args - Arguments to this function.
- * @param args.state - Initial state for controller.
+ * @param args.options - The constructor options for the controller.
  * @param args.getNetworkState - Mock for NetworkController:getState action.
  * @param args.setActiveNetwork - Mock for NetworkController:setActiveNetwork action.
  * @returns A collection of test controllers and mocks.

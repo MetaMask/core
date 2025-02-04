@@ -3355,6 +3355,7 @@ __metadata:
     "@metamask/utils": "npm:^11.0.1"
     "@solana/addresses": "npm:^2.0.0"
     "@types/jest": "npm:^27.4.1"
+    "@types/uuid": "npm:^8.3.0"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^27.5.1"
