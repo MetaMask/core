@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(permission-log): Rename `ControllerMessenger` to `Messenger` ([#5247](https://github.com/MetaMask/core/pull/5247))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
-- Release 274.0.0 ([#5082](https://github.com/MetaMask/core/pull/5082))
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- chore: bump nanoid dependency ([#5073](https://github.com/MetaMask/core/pull/5073))
-
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))

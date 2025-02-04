@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(profile-sync): Rename `ControllerMessenger` to `Messenger` ([#5244](https://github.com/MetaMask/core/pull/5244))
-- feat: bump snaps-sdk to v6.16.0 ([#5220](https://github.com/MetaMask/core/pull/5220))
-
 ## [5.0.0]
 
 ### Changed

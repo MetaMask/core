@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(multichain-transactions): Rename `RestrictedControllerMessenger` to `RestrictedMessenger` ([#5240](https://github.com/MetaMask/core/pull/5240))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- feat: bump snaps-sdk to v6.16.0 ([#5220](https://github.com/MetaMask/core/pull/5220))
-
 ## [0.1.0]
 
 ### Changed

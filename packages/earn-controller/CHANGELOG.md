@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add earn controller package ([#5210](https://github.com/MetaMask/core/pull/5210))
-
 [Unreleased]: https://github.com/MetaMask/core/
