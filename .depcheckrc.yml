@@ -12,6 +12,7 @@ ignores:
   - '@metamask/create-release-branch'
   - 'depcheck'
   - 'eslint-interactive'
+  - 'github-codeowners'
   - 'rimraf'
   - 'simple-git-hooks'
   - 'ts-node'
