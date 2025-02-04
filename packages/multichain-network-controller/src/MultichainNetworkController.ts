@@ -200,10 +200,10 @@ export class MultichainNetworkController extends BaseController<
 > {
   constructor({
     messenger,
-    state = {},
+    state,
   }: {
     messenger: MultichainNetworkControllerMessenger;
-    state?: Partial<MultichainNetworkControllerState>;
+    state: Partial<MultichainNetworkControllerState>;
   }) {
     super({
       messenger,
