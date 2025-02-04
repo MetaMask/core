@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Update Release 292.0.0
-- Initialize Release 292.0.0
-- chore(phishing): Rename `ControllerMessenger` to `Messenger` ([#5248](https://github.com/MetaMask/core/pull/5248))
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
-
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))

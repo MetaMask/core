@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Update Release 292.0.0
-- Initialize Release 292.0.0
-- fix: fix tokens state ([#5257](https://github.com/MetaMask/core/pull/5257))
-- chore(assets): Rename `ControllerMessenger` to `Messenger` ([#5229](https://github.com/MetaMask/core/pull/5229))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- feat: bump snaps-sdk to v6.16.0 ([#5220](https://github.com/MetaMask/core/pull/5220))
-
 ### Changed
 
 - Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))

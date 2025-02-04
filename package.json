@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "292.0.0",
+  "version": "293.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
