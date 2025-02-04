@@ -4,9 +4,9 @@ import {
   BtcMethod,
   EthMethod,
 } from '@metamask/keyring-api';
+import type { KeyringAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { KeyringAccountType } from '@metamask/keyring-api';
 import { v4 } from 'uuid';
 
 export const createMockInternalAccount = ({

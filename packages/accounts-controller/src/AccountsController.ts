@@ -38,15 +38,12 @@ import {
   type Json,
   isCaipChainId,
   parseCaipChainId,
-  createProjectLogger,
 } from '@metamask/utils';
 import {
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
   keyringTypeToName,
 } from './utils';
-
-export const logger = createProjectLogger('accounts-controller');
 
 const controllerName = 'AccountsController';
 
@@ -1147,24 +1144,13 @@ export class AccountsController extends BaseController<
     evmClientId?: string;
     nonEvmChainId?: CaipChainId;
   }) {
-    if (evmClientId && nonEvmChainId) {
-      const errorMessage = `Cannot set accounts from both EVM and non-EVM networks! evmClientId - ${evmClientId}, nonEvmChainId - ${nonEvmChainId}`;
-      logger(errorMessage);
-      return;
-    }
-
     let accountId: string;
 
     if (nonEvmChainId) {
       // Update selected account to non evm account
       const lastSelectedNonEvmAccount =
         this.getSelectedMultichainAccount(nonEvmChainId);
-      if (!lastSelectedNonEvmAccount?.id) {
-        const errorMessage = `No non-EVM account found for non-EVM chain ID - ${nonEvmChainId}!`;
-        logger(errorMessage);
-        return;
-      }
-      accountId = lastSelectedNonEvmAccount?.id;
+      accountId = lastSelectedNonEvmAccount!.id;
     } else if (evmClientId) {
       // Update selected account to evm account
       const lastSelectedEvmAccount = this.getSelectedAccount();

@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { InfuraNetworkType } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -18,21 +19,11 @@ import type {
   InternalAccount,
   InternalAccountType,
 } from '@metamask/keyring-internal-api';
-import { InfuraNetworkType } from '@metamask/controller-utils';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import { type CaipChainId } from '@metamask/utils';
 import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
-
-// Mock logger before importing AccountsController
-var mockLogger = jest.fn();
-jest.mock('@metamask/utils', () => ({
-  ...jest.requireActual('@metamask/utils'),
-  createModuleLogger: () => jest.fn(),
-  createProjectLogger: () => mockLogger,
-}));
-
 import type {
   AccountsControllerActions,
   AccountsControllerEvents,
@@ -1567,59 +1558,6 @@ describe('AccountsController', () => {
   });
 
   describe('handle MultichainNetworkController:setActiveNetwork event', () => {
-    it('should log warning if both evmClientId and nonEvmChainId are provided', () => {
-      const messenger = buildMessenger();
-      const { accountsController, triggerMultichainNetworkChange } =
-        setupAccountsController({
-          initialState: {
-            internalAccounts: {
-              accounts: { [mockAccount.id]: mockAccount },
-              selectedAccount: mockAccount.id,
-            },
-          },
-          messenger,
-        });
-
-      // Publish multichain network change event
-      triggerMultichainNetworkChange({
-        evmClientId: InfuraNetworkType.mainnet,
-        nonEvmChainId: SolScopes.Mainnet,
-      });
-
-      // Warning is logged
-      expect(mockLogger).toHaveBeenCalledWith(
-        `Cannot set accounts from both EVM and non-EVM networks! evmClientId - ${InfuraNetworkType.mainnet}, nonEvmChainId - ${SolScopes.Mainnet}`,
-      );
-
-      // Selected account is not changed
-      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
-        mockAccount.id,
-      );
-    });
-
-    it('should log warning if no non-EVM account is found', () => {
-      const messenger = buildMessenger();
-      const { triggerMultichainNetworkChange } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            // BTC account does not exist
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-        messenger,
-      });
-
-      // Triggered from network switch to Bitcoin mainnet
-      triggerMultichainNetworkChange({
-        nonEvmChainId: BtcScopes.Mainnet,
-      });
-
-      expect(mockLogger).toHaveBeenCalledWith(
-        `No non-EVM account found for non-EVM chain ID - ${BtcScopes.Mainnet}!`,
-      );
-    });
-
     it('should update selected account to non-EVM account when switching to non-EVM network', () => {
       const messenger = buildMessenger();
       const { accountsController, triggerMultichainNetworkChange } =
