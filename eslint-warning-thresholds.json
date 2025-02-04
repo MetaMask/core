@@ -962,6 +962,7 @@
     "jsdoc/tag-lines": 2
   },
   "packages/user-operation-controller/src/utils/validation.test.ts": {
+    "import-x/order": 1,
     "jsdoc/tag-lines": 2
   },
   "packages/user-operation-controller/src/utils/validation.ts": {
