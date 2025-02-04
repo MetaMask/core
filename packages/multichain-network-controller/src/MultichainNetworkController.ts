@@ -348,6 +348,9 @@ export class MultichainNetworkController extends BaseController<
 
     if (isSameNonEvmNetwork) {
       // No need to update if already on the same non-EVM network
+      this.update((state) => {
+        state.nonEvmSelected = true;
+      });
       return;
     }
 

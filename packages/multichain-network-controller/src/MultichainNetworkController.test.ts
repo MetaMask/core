@@ -304,6 +304,7 @@ describe('MultichainNetworkController', () => {
       // EVM network is still active
       expect(controller.state.nonEvmSelected).toBe(false);
     });
+
     it('should switch to EVM network if non-EVM network is previously active', async () => {
       // By default, Solana is selected and active
       const { controller, triggerSelectedAccountChange } = setupController({
@@ -322,19 +323,20 @@ describe('MultichainNetworkController', () => {
       // EVM network is now active
       expect(controller.state.nonEvmSelected).toBe(false);
     });
-    it('non-EVM network should be active when switching to account of same non-EVM network', async () => {
+    it('non-EVM network should be active when switching to account of same selected non-EVM network', async () => {
       // By default, Solana is selected and active
       const { controller, triggerSelectedAccountChange } = setupController({
         options: {
           state: {
-            nonEvmSelected: true,
+            nonEvmSelected: false,
             selectedMultichainNetworkChainId: SolScopes.Mainnet,
           },
         },
       });
 
-      // non-EVM network is currently active
-      expect(controller.state.nonEvmSelected).toBe(true);
+      // EVM network is currently active
+      expect(controller.state.nonEvmSelected).toBe(false);
+
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
         SolScopes.Mainnet,
       );
@@ -348,6 +350,7 @@ describe('MultichainNetworkController', () => {
       );
       expect(controller.state.nonEvmSelected).toBe(true);
     });
+
     it('non-EVM network should change when switching to account on different non-EVM network', async () => {
       // By default, Solana is selected and active
       const { controller, triggerSelectedAccountChange } = setupController({
