@@ -73,6 +73,40 @@ type SuggestedAssetMeta = {
 };
 
 /**
+ * @type NotFoundSearchedTokenResult
+ *
+ * Result of a token search that did not find a token.
+ * @property found - Whether the token was found.
+ * @property chainId - The chain ID of the token.
+ * @property address - The address of the token.
+ */
+type NotFoundSearchedTokenResult = {
+  found: false;
+  chainId: Hex;
+  address: string;
+};
+
+/**
+ * @type FoundSearchedTokenResult
+ *
+ * Result of a token search that found a token.
+ * @property found - Whether the token was found.
+ * @property chainId - The chain ID of the token.
+ * @property address - The address of the token.
+ * @property token - The token found.
+ */
+type FoundSearchedTokenResult = {
+  found: true;
+  chainId: Hex;
+  address: string;
+  token: Token;
+};
+
+type SearchedTokenResult =
+  | NotFoundSearchedTokenResult
+  | FoundSearchedTokenResult;
+
+/**
  * @type TokensControllerState
  *
  * Assets controller state
@@ -82,6 +116,7 @@ type SuggestedAssetMeta = {
  * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
+ * @property allSearchedTokens - List of searched tokens
  */
 export type TokensControllerState = {
   tokens: Token[];
@@ -90,7 +125,11 @@ export type TokensControllerState = {
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   allIgnoredTokens: { [chainId: Hex]: { [key: string]: string[] } };
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
+  allSearchedTokens: SearchedTokenResult[];
 };
+
+// To avoid bloating the state with too many tokens, we limit the number of searched tokens to 50.
+const MAX_SEARCHED_TOKENS = 50;
 
 const metadata = {
   tokens: {
@@ -114,6 +153,10 @@ const metadata = {
     anonymous: false,
   },
   allDetectedTokens: {
+    persist: true,
+    anonymous: false,
+  },
+  allSearchedTokens: {
     persist: true,
     anonymous: false,
   },
@@ -176,6 +219,7 @@ export const getDefaultTokensState = (): TokensControllerState => {
     allTokens: {},
     allIgnoredTokens: {},
     allDetectedTokens: {},
+    allSearchedTokens: [],
   };
 };
 
@@ -334,14 +378,16 @@ export class TokensController extends BaseController<
    * Fetch metadata for a token.
    *
    * @param tokenAddress - The address of the token.
+   * @param chainId - The chain ID of the token. Optional, defaults to the current chain ID.
    * @returns The token metadata.
    */
   async #fetchTokenMetadata(
     tokenAddress: string,
+    chainId: Hex = this.#chainId,
   ): Promise<TokenListToken | undefined> {
     try {
       const token = await fetchTokenMetadata<TokenListToken>(
-        this.#chainId,
+        chainId,
         tokenAddress,
         this.#abortController.signal,
       );
@@ -483,6 +529,47 @@ export class TokensController extends BaseController<
     } finally {
       releaseLock();
     }
+  }
+
+  /**
+   * Add a token found through token search & discovery.
+   *
+   * @param address - The address of the token.
+   * @param chainId - The chain ID of the token.
+   */
+  async addSearchedToken(address: string, chainId: Hex) {
+    const [isERC721, tokenMetadata] = await Promise.all([
+      this.#detectIsERC721(address),
+      this.#fetchTokenMetadata(address, chainId),
+    ]);
+
+    if (!tokenMetadata) {
+      return;
+    }
+
+    const { symbol, decimals, name } = tokenMetadata;
+
+    const searchedToken: Token = {
+      address,
+      symbol,
+      decimals,
+      name,
+      image: formatIconUrlWithProxy({
+        chainId,
+        tokenAddress: address,
+      }),
+      isERC721,
+      aggregators: formatAggregatorNames(tokenMetadata.aggregators),
+    };
+
+    this.update((state) => {
+      Object.assign(state, {
+        allSearchedTokens: [searchedToken, ...state.allSearchedTokens].slice(
+          0,
+          MAX_SEARCHED_TOKENS,
+        ),
+      });
+    });
   }
 
   /**
