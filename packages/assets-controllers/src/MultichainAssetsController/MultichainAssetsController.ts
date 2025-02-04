@@ -1,5 +1,6 @@
 import type {
   AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountAssetListUpdatedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
 } from '@metamask/accounts-controller';
@@ -39,7 +40,6 @@ import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
 import { getChainIdsCaveat } from './utils';
-import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../accounts-controller/src/AccountsController';
 
 const controllerName = 'MultichainAssetsController';
 
@@ -228,12 +228,8 @@ export class MultichainAssetsController extends BaseController<
     let assetsForMetadataRefresh = new Set<CaipAssetType>([]);
     for (const accountId in assetsToUpdate) {
       if (hasProperty(assetsToUpdate, accountId)) {
-        const newAccountAssets = assetsToUpdate[accountId];
-        if (
-          newAccountAssets.added.length !== 0 ||
-          newAccountAssets.removed.length !== 0
-        ) {
-          const { added, removed } = newAccountAssets;
+        const { added, removed } = assetsToUpdate[accountId];
+        if (added.length > 0 || removed.length > 0) {
           const existing = this.state.accountsAssets[accountId] || [];
           const assets = new Set<CaipAssetType>([
             ...existing,
@@ -304,7 +300,8 @@ export class MultichainAssetsController extends BaseController<
     // Check if accountId is in accountsAssets and if it is, remove it
     if (this.state.accountsAssets[accountId]) {
       this.update((state) => {
-        // We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController and update all assetsMetadata once a day.
+        // TODO: We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController
+        // and update all assetsMetadata once a day.
         delete state.accountsAssets[accountId];
       });
     }
