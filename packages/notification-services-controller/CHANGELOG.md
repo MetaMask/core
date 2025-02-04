@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(notification-services): Rename `ControllerMessenger` to `Messenger` ([#5242](https://github.com/MetaMask/core/pull/5242))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-
 ## [0.18.0]
 
 ### Changed

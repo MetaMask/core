@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: fix lint warnings in `KeyringController` ([#5170](https://github.com/MetaMask/core/pull/5170))
-- chore(keyring): Rename `RestrictedControllerMessenger` to `RestrictedMessenger` ([#5239](https://github.com/MetaMask/core/pull/5239))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-
 ## [19.0.5]
 
 ### Changed
