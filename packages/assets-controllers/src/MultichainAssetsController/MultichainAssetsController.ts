@@ -155,7 +155,7 @@ const assetsControllerMetadata = {
   },
 };
 
-// TODO make this controller extends StaticIntervalPollingController and update all metadata once a day.
+// TODO: make this controller extends StaticIntervalPollingController and update all metadata once a day.
 
 export class MultichainAssetsController extends BaseController<
   typeof controllerName,
@@ -251,7 +251,7 @@ export class MultichainAssetsController extends BaseController<
         }
       }
     }
-    // trigger fetching metadata for new assets
+    // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
   }
 
@@ -318,9 +318,9 @@ export class MultichainAssetsController extends BaseController<
       (asset) => !this.state.metadata[asset],
     );
 
-    // call the snap to get the metadata
+    // Call the snap to get the metadata
     if (assetsWithoutMetadata.length > 0) {
-      // check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
+      // Check if for every asset in assetsWithoutMetadata there is a snap in snaps by chainId else call getAssetSnaps
       if (
         !assetsWithoutMetadata.every((asset: CaipAssetType) => {
           const { chainId } = parseCaipAssetType(asset);
@@ -467,7 +467,7 @@ export class MultichainAssetsController extends BaseController<
         },
       })) as Promise<AssetMetadataResponse>;
     } catch (error) {
-      // ignore
+      // Ignore
       console.error(error);
       return undefined;
     }
