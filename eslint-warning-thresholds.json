@@ -9,7 +9,7 @@
   "import-x/namespace": 189,
   "import-x/no-named-as-default": 1,
   "import-x/no-named-as-default-member": 7,
-  "import-x/order": 151,
+  "import-x/order": 147,
   "jest/no-conditional-in-test": 81,
   "jsdoc/check-tag-names": 362,
   "jsdoc/require-returns": 20,
