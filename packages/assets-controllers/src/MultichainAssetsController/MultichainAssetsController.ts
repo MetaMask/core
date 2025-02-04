@@ -44,10 +44,10 @@ import type { AccountsControllerAccountAssetListUpdatedEvent } from '../../../ac
 const controllerName = 'MultichainAssetsController';
 
 export type MultichainAssetsControllerState = {
-  metadata: {
+  assetsMetadata: {
     [asset: CaipAssetType]: FungibleAssetMetadata;
   };
-  allNonEvmAssets: { [account: string]: CaipAssetType[] };
+  accountsAssets: { [account: string]: CaipAssetType[] };
 };
 
 // Represents the response of the asset snap's onAssetLookup handler
@@ -66,7 +66,7 @@ export type AssetMetadataResponse = {
  * @returns The default {@link MultichainAssetsController} state.
  */
 export function getDefaultMultichainAssetsControllerState(): MultichainAssetsControllerState {
-  return { allNonEvmAssets: {}, metadata: {} };
+  return { accountsAssets: {}, assetsMetadata: {} };
 }
 
 /**
@@ -145,17 +145,17 @@ export type MultichainAssetsControllerMessenger = RestrictedControllerMessenger<
  * the `anonymous` flag.
  */
 const assetsControllerMetadata = {
-  metadata: {
+  assetsMetadata: {
     persist: true,
     anonymous: false,
   },
-  allNonEvmAssets: {
+  accountsAssets: {
     persist: true,
     anonymous: false,
   },
 };
 
-// TODO: make this controller extends StaticIntervalPollingController and update all metadata once a day.
+// TODO: make this controller extends StaticIntervalPollingController and update all assetsMetadata once a day.
 
 export class MultichainAssetsController extends BaseController<
   typeof controllerName,
@@ -223,6 +223,7 @@ export class MultichainAssetsController extends BaseController<
     event: AccountAssetListUpdatedEventPayload,
   ) {
     this.#assertControllerMutexIsLocked();
+
     const assetsToUpdate = event.assets;
     let assetsForMetadataRefresh = new Set<CaipAssetType>([]);
     for (const accountId in assetsToUpdate) {
@@ -233,7 +234,7 @@ export class MultichainAssetsController extends BaseController<
           newAccountAssets.removed.length !== 0
         ) {
           const { added, removed } = newAccountAssets;
-          const existing = this.state.allNonEvmAssets[accountId] || [];
+          const existing = this.state.accountsAssets[accountId] || [];
           const assets = new Set<CaipAssetType>([
             ...existing,
             ...added.filter((asset) => isCaipAssetType(asset)),
@@ -246,7 +247,7 @@ export class MultichainAssetsController extends BaseController<
             ...assets,
           ]);
           this.update((state) => {
-            state.allNonEvmAssets[accountId] = Array.from(assets);
+            state.accountsAssets[accountId] = Array.from(assets);
           });
         }
       }
@@ -289,7 +290,7 @@ export class MultichainAssetsController extends BaseController<
       );
       await this.#refreshAssetsMetadata(assets);
       this.update((state) => {
-        state.allNonEvmAssets[account.id] = assets;
+        state.accountsAssets[account.id] = assets;
       });
     }
   }
@@ -300,10 +301,11 @@ export class MultichainAssetsController extends BaseController<
    * @param accountId - The new account id being removed.
    */
   async #handleOnAccountRemovedEvent(accountId: string): Promise<void> {
-    // Check if accountId is in allNonEvmAssets and if it is, remove it
-    if (this.state.allNonEvmAssets[accountId]) {
+    // Check if accountId is in accountsAssets and if it is, remove it
+    if (this.state.accountsAssets[accountId]) {
       this.update((state) => {
-        delete state.allNonEvmAssets[accountId];
+        // We are not deleting the assetsMetadata because we will soon make this controller extends StaticIntervalPollingController and update all assetsMetadata once a day.
+        delete state.accountsAssets[accountId];
       });
     }
   }
@@ -314,8 +316,10 @@ export class MultichainAssetsController extends BaseController<
    * @param assets - The assets to refresh
    */
   async #refreshAssetsMetadata(assets: CaipAssetType[]) {
+    this.#assertControllerMutexIsLocked();
+
     const assetsWithoutMetadata: CaipAssetType[] = assets.filter(
-      (asset) => !this.state.metadata[asset],
+      (asset) => !this.state.assetsMetadata[asset],
     );
 
     // Call the snap to get the metadata
@@ -348,8 +352,8 @@ export class MultichainAssetsController extends BaseController<
       }
       assetsByScope[chainId].push(asset);
     }
-    let newMetadata: Record<CaipAssetType, FungibleAssetMetadata> = {};
 
+    let newMetadata: Record<CaipAssetType, FungibleAssetMetadata> = {};
     for (const chainId of Object.keys(assetsByScope) as CaipChainId[]) {
       const assetsForChain = assetsByScope[chainId];
       // Now fetch metadata from the associated asset Snaps:
@@ -366,8 +370,8 @@ export class MultichainAssetsController extends BaseController<
       }
     }
     this.update((state) => {
-      state.metadata = {
-        ...this.state.metadata,
+      state.assetsMetadata = {
+        ...this.state.assetsMetadata,
         ...newMetadata,
       };
     });
@@ -513,7 +517,7 @@ export class MultichainAssetsController extends BaseController<
   #assertControllerMutexIsLocked() {
     if (!this.#controllerOperationMutex.isLocked()) {
       throw new Error(
-        'MultichainAssetsControllerError- Attempt to update state',
+        'MultichainAssetsControllerError - Attempt to update state',
       );
     }
   }

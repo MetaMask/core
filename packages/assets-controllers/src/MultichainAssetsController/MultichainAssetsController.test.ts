@@ -855,8 +855,8 @@ describe('MultichainAssetsController', () => {
   it('initialize with default state', () => {
     const { controller } = setupController({});
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {},
-      metadata: {},
+      accountsAssets: {},
+      assetsMetadata: {},
     });
   });
 
@@ -871,12 +871,12 @@ describe('MultichainAssetsController', () => {
     await advanceTime({ clock, duration: 1 });
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {},
-      metadata: {},
+      accountsAssets: {},
+      assetsMetadata: {},
     });
   });
 
-  it('updates allNonEvmAssets when "AccountsController:accountAdded" is fired', async () => {
+  it('updates accountsAssets when "AccountsController:accountAdded" is fired', async () => {
     const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
       setupController();
 
@@ -901,10 +901,10 @@ describe('MultichainAssetsController', () => {
     await advanceTime({ clock, duration: 1 });
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {
+      accountsAssets: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
-      metadata: mockGetMetadataReturnValue.assets,
+      assetsMetadata: mockGetMetadataReturnValue.assets,
     });
   });
 
@@ -1082,10 +1082,10 @@ describe('MultichainAssetsController', () => {
     expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {
+      accountsAssets: {
         [mockSolanaAccount.id]: mockAssetsResponse,
       },
-      metadata: {
+      assetsMetadata: {
         ...mockGetMetadataResponse.assets,
         ...mockGetMetadataReturnValue.assets,
       },
@@ -1255,16 +1255,16 @@ describe('MultichainAssetsController', () => {
     expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {
+      accountsAssets: {
         [mockSolanaAccount.id]: mockAssetsResponse,
       },
-      metadata: {
+      assetsMetadata: {
         ...mockGetMetadataReturnValue.assets,
       },
     });
   });
 
-  it('should not delete account from allNonEvmAssets when "AccountsController:accountRemoved" is fired with EVM account', async () => {
+  it('should not delete account from accountsAssets when "AccountsController:accountRemoved" is fired with EVM account', async () => {
     const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
       setupController();
 
@@ -1290,11 +1290,11 @@ describe('MultichainAssetsController', () => {
     await advanceTime({ clock, duration: 1 });
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {
+      accountsAssets: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
 
-      metadata: mockGetMetadataReturnValue.assets,
+      assetsMetadata: mockGetMetadataReturnValue.assets,
     });
     // Remove an EVM account
     messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
@@ -1302,15 +1302,15 @@ describe('MultichainAssetsController', () => {
     await advanceTime({ clock, duration: 1 });
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {
+      accountsAssets: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
 
-      metadata: mockGetMetadataReturnValue.assets,
+      assetsMetadata: mockGetMetadataReturnValue.assets,
     });
   });
 
-  it('updates allNonEvmAssets when "AccountsController:accountRemoved" is fired', async () => {
+  it('updates accountsAssets when "AccountsController:accountRemoved" is fired', async () => {
     const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
       setupController();
 
@@ -1336,11 +1336,11 @@ describe('MultichainAssetsController', () => {
     await advanceTime({ clock, duration: 1 });
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {
+      accountsAssets: {
         [mockSolanaAccount.id]: mockGetAssetsResult,
       },
 
-      metadata: mockGetMetadataReturnValue.assets,
+      assetsMetadata: mockGetMetadataReturnValue.assets,
     });
     // Remove the added solana account
     messenger.publish(
@@ -1351,9 +1351,9 @@ describe('MultichainAssetsController', () => {
     await advanceTime({ clock, duration: 1 });
 
     expect(controller.state).toStrictEqual({
-      allNonEvmAssets: {},
+      accountsAssets: {},
 
-      metadata: mockGetMetadataReturnValue.assets,
+      assetsMetadata: mockGetMetadataReturnValue.assets,
     });
   });
 
@@ -1368,10 +1368,10 @@ describe('MultichainAssetsController', () => {
         mockGetPermissions,
       } = setupController({
         state: {
-          allNonEvmAssets: {
+          accountsAssets: {
             [mockSolanaAccountId1]: mockGetAssetsResult,
           },
-          metadata: mockGetMetadataReturnValue.assets,
+          assetsMetadata: mockGetMetadataReturnValue.assets,
         } as MultichainAssetsControllerState,
       });
 
@@ -1424,7 +1424,7 @@ describe('MultichainAssetsController', () => {
 
       await advanceTime({ clock, duration: 1 });
 
-      expect(controller.state.allNonEvmAssets).toStrictEqual({
+      expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
           'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
           'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
@@ -1437,7 +1437,7 @@ describe('MultichainAssetsController', () => {
 
       expect(mockSnapHandleRequest).toHaveBeenCalledTimes(1);
 
-      expect(controller.state.metadata).toStrictEqual({
+      expect(controller.state.assetsMetadata).toStrictEqual({
         ...mockGetMetadataReturnValue.assets,
         'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken': {
           name: 'newToken',
@@ -1457,10 +1457,10 @@ describe('MultichainAssetsController', () => {
       const mockSolanaAccountId2 = 'account2';
       const { controller, messenger } = setupController({
         state: {
-          allNonEvmAssets: {
+          accountsAssets: {
             [mockSolanaAccountId1]: mockGetAssetsResult,
           },
-          metadata: mockGetMetadataReturnValue,
+          assetsMetadata: mockGetMetadataReturnValue,
         } as MultichainAssetsControllerState,
       });
 
@@ -1484,7 +1484,7 @@ describe('MultichainAssetsController', () => {
       );
       await advanceTime({ clock, duration: 1 });
 
-      expect(controller.state.allNonEvmAssets).toStrictEqual({
+      expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
           'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
           'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
@@ -1500,13 +1500,13 @@ describe('MultichainAssetsController', () => {
       const mockSolanaAccountId2 = 'account2';
       const { controller, messenger } = setupController({
         state: {
-          allNonEvmAssets: {
+          accountsAssets: {
             [mockSolanaAccountId1]: mockGetAssetsResult,
             [mockSolanaAccountId2]: [
               'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
             ],
           },
-          metadata: mockGetMetadataReturnValue,
+          assetsMetadata: mockGetMetadataReturnValue,
         } as MultichainAssetsControllerState,
       });
 
@@ -1527,7 +1527,7 @@ describe('MultichainAssetsController', () => {
       );
       await advanceTime({ clock, duration: 1 });
 
-      expect(controller.state.allNonEvmAssets).toStrictEqual({
+      expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
           'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
           'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
