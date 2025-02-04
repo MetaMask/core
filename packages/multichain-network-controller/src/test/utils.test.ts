@@ -1,4 +1,8 @@
-import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
+import {
+  BtcAccountType,
+  EthAccountType,
+  SolAccountType,
+} from '@metamask/keyring-api';
 
 import { createMockInternalAccount } from './utils';
 
@@ -50,12 +54,32 @@ describe('createMockInternalAccount', () => {
     });
   });
 
-  it('create a non-EVM account', () => {
+  it('create a BTC account', () => {
     const account = createMockInternalAccount({ type: BtcAccountType.P2wpkh });
     expect(account).toStrictEqual({
       id: expect.any(String),
       address: expect.any(String),
       type: BtcAccountType.P2wpkh,
+      options: expect.any(Object),
+      methods: expect.any(Array),
+      metadata: {
+        name: expect.any(String),
+        keyring: { type: expect.any(String) },
+        importTime: expect.any(Number),
+        lastSelected: expect.any(Number),
+        snap: undefined,
+      },
+    });
+  });
+
+  it('create a Solana account', () => {
+    const account = createMockInternalAccount({
+      type: SolAccountType.DataAccount,
+    });
+    expect(account).toStrictEqual({
+      id: expect.any(String),
+      address: expect.any(String),
+      type: SolAccountType.DataAccount,
       options: expect.any(Object),
       methods: expect.any(Array),
       metadata: {
