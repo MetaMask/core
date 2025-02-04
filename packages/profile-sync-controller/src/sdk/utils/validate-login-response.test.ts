@@ -1,5 +1,5 @@
-import type { LoginResponse } from '../authentication';
 import { validateLoginResponse } from './validate-login-response';
+import type { LoginResponse } from '../authentication';
 
 describe('validateLoginResponse() tests', () => {
   it('validates if a shape is of type LoginResponse', () => {

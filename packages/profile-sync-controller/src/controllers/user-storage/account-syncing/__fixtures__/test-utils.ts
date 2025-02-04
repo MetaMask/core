@@ -1,9 +1,9 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { MOCK_INTERNAL_ACCOUNTS } from './mockAccounts';
 import { createSHA256Hash } from '../../../../shared/encryption';
 import { mockUserStorageMessenger } from '../../__fixtures__/mockMessenger';
 import { mapInternalAccountToUserStorageAccount } from '../utils';
-import { MOCK_INTERNAL_ACCOUNTS } from './mockAccounts';
 
 /**
  * Test Utility - create a mock user storage messenger for account syncing tests
@@ -38,6 +38,7 @@ export function mockUserStorageMessengerForAccountSyncing(options?: {
 
 /**
  * Test Utility - creates a realistic expected batch upsert payload
+ *
  * @param data - data supposed to be upserted
  * @param storageKey - storage key
  * @returns expected body
@@ -54,6 +55,7 @@ export function createExpectedAccountSyncBatchUpsertBody(
 
 /**
  * Test Utility - creates a realistic expected batch delete payload
+ *
  * @param data - data supposed to be deleted
  * @param storageKey - storage key
  * @returns expected body
