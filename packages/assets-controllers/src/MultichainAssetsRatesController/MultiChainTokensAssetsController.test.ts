@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import { useFakeTimers } from 'sinon';
@@ -8,6 +8,7 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './MultichainAssetsRatesController';
+import { HandlerType } from '@metamask/snaps-utils';
 
 // A fake non‑EVM account (with Snap metadata) that meets the controller’s criteria.
 const fakeNonEvmAccount: InternalAccount = {
@@ -50,6 +51,20 @@ const fakeEvmAccount2: InternalAccount = {
   methods: [],
 };
 
+const fakeEvmAccountWithoutMetadata: InternalAccount = {
+  id: 'account4',
+  type: 'bip122:p2wpkh',
+  address: '0x789',
+  metadata: {
+    name: 'EVM Account',
+    importTime: 0,
+    keyring: { type: 'bip122' },
+  },
+  scopes: [],
+  options: {},
+  methods: [],
+};
+
 // A fake conversion rates response returned by the SnapController.
 const fakeAccountRates = {
   conversionRates: {
@@ -64,31 +79,38 @@ const fakeAccountRates = {
 
 const setupController = ({
   config,
+  accountsAssets = [fakeNonEvmAccount, fakeEvmAccount, fakeEvmAccount2],
 }: {
   config?: Partial<
     ConstructorParameters<typeof MultiChainAssetsRatesController>[0]
   >;
+  accountsAssets?: InternalAccount[];
 } = {}) => {
-  const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
-  // messenger.registerActionHandler('AccountsController:getState', () => ({
-  //   accounts: {
-  //     account1: {
-  //       type: 'eip155:eoa',
-  //       id: 'account1',
-  //       options: {},
-  //       metadata: { name: 'Test Account' },
-  //       address: '0x123',
-  //       methods: [],
-  //     },
-  //   },
-  //   selectedAccount: 'account1',
-  //   internalAccounts: { accounts: {}, selectedAccount: 'account1' },
-  // }));
+  messenger.registerActionHandler(
+    'MultichainAssetsController:getState',
+    () => ({
+      accountsAssets: {
+        account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+        account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+        account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      },
+      assetsMetadata: {
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          name: 'Solana',
+          symbol: 'SOL',
+          fungible: true,
+          iconUrl: 'https://example.com/solana.png',
+          units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
+        },
+      },
+    }),
+  );
 
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
-    () => [fakeNonEvmAccount, fakeEvmAccount, fakeEvmAccount2],
+    () => accountsAssets,
   );
 
   messenger.registerActionHandler('CurrencyRateController:getState', () => ({
@@ -102,12 +124,14 @@ const setupController = ({
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
       'CurrencyRateController:getState',
+      'MultichainAssetsController:getState',
     ],
     allowedEvents: [
       'AccountsController:accountAdded',
       'KeyringController:lock',
       'KeyringController:unlock',
       'CurrencyRateController:stateChange',
+      'MultichainAssetsController:stateChange',
     ],
   });
 
@@ -160,24 +184,19 @@ describe('MultiChainAssetsRatesController', () => {
     // Call updateAssetsRates for the valid non-EVM account.
     await controller.updateAssetsRates();
 
-    // Verify that listAccountAssets was called with the correct account.
-    expect(KeyringClient.prototype.listAccountAssets).toHaveBeenCalledWith(
-      'account1',
-    );
-
     // Check that the Snap request was made with the expected parameters.
     expect(snapHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        handler: 'onAssetsConversion',
+        handler: HandlerType.OnAssetsConversion,
         origin: 'metamask',
         request: {
           jsonrpc: '2.0',
-          method: 'onAssetsConversion',
+          method: HandlerType.OnAssetsConversion,
           params: {
             conversions: [
               {
                 from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-                to: 'swift:0/iso4217:SOL',
+                to: undefined,
               },
             ],
           },
@@ -190,13 +209,9 @@ describe('MultiChainAssetsRatesController', () => {
     expect(controller.state.conversionRates).toStrictEqual(
       // fakeAccountRates.conversionRates,
       {
-        account1: {
-          token1: {
-            'swift:0/iso4217:USD': {
-              rate: '202.11',
-              conversionTime: 1738539923277,
-            },
-          },
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+          rate: null,
+          conversionTime: null,
         },
       },
     );
@@ -248,13 +263,6 @@ describe('MultiChainAssetsRatesController', () => {
     expect(controller.isActive).toBe(true);
   });
 
-  it('should not update conversion rates for an unknown account', async () => {
-    const { controller } = setupController();
-    // Calling updateAssetsRates for an account that does not exist should leave state unchanged.
-    await controller.updateAssetsRates();
-    expect(controller.state.conversionRates).toStrictEqual({});
-  });
-
   it('should call updateTokensRates when _executePoll is invoked', async () => {
     const { controller, messenger } = setupController();
 
@@ -281,21 +289,11 @@ describe('MultiChainAssetsRatesController', () => {
     // Spy on updateAssetsRates.
     const updateSpy = jest.spyOn(controller, 'updateAssetsRates');
     await controller._executePoll();
-    expect(updateSpy).toHaveBeenCalledWith(fakeNonEvmAccount.id);
+    expect(updateSpy).toHaveBeenCalled();
   });
 
-  it('should call updateTokensRates when an account is added', async () => {
+  it('should call updateTokensRates when an multichain assets state is updated', async () => {
     const { controller, messenger } = setupController();
-    // Create a new non‑EVM account.
-    const newAccount = {
-      id: 'account3',
-      type: 'solana:data-account',
-      address: '0x789',
-      metadata: { name: 'New Account', snap: { id: 'new-snap' } },
-      scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
-      options: {},
-      methods: [],
-    };
 
     // Spy on updateTokensRates.
     const updateSpy = jest
@@ -304,9 +302,54 @@ describe('MultiChainAssetsRatesController', () => {
 
     // Publish a selectedAccountChange event.
     // @ts-expect-error-next-line
-    messenger.publish('AccountsController:accountAdded', newAccount);
+    messenger.publish('MultichainAssetsController:stateChange', {
+      accountsAssets: {
+        account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      },
+    });
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
-    expect(updateSpy).toHaveBeenCalledWith('account3');
+    expect(updateSpy).toHaveBeenCalled();
+  });
+
+  it('should handle partial or empty Snap responses gracefully', async () => {
+    const { controller, messenger } = setupController();
+
+    messenger.registerActionHandler('SnapController:handleRequest', () => {
+      return Promise.resolve({
+        conversionRates: {
+          // Only returning a rate for one asset
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+            'swift:0/iso4217:USD': {
+              rate: '250.50',
+              conversionTime: 1738539923277,
+            },
+          },
+        },
+      });
+    });
+
+    await controller.updateAssetsRates();
+
+    expect(controller.state.conversionRates).toMatchObject({
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+        rate: '250.50',
+        conversionTime: 1738539923277,
+      },
+    });
+  });
+
+  it('should skip all accounts that lack Snap metadata or are EVM', async () => {
+    const { controller, messenger } = setupController({
+      accountsAssets: [fakeEvmAccountWithoutMetadata],
+    });
+
+    const snapSpy = jest.fn().mockResolvedValue({ conversionRates: {} });
+    messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
+
+    await controller.updateAssetsRates();
+
+    expect(snapSpy).not.toHaveBeenCalled();
+    expect(controller.state.conversionRates).toStrictEqual({});
   });
 });

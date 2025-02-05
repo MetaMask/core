@@ -96,21 +96,3 @@ export const MAP_CAIP_CURRENCIES: {
   bits: undefined, // no official CAIP reference for bits
   sats: undefined, // no official CAIP reference for satoshis
 };
-
-export const MOCKED_ASSETS_DATA: CaipAssetType[] = [
-  // ──────────────── MAINNET ────────────────
-  // Native SOL
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-  // USDC
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  // TRUMP token (example mint)
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:DezU7m9dLkS68rJ39grMGaXw1rC1HC98Jyv5Z5iPq7yX',
-  // Jupiter (JUP) token
-  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:JUP4Fb2g3AGLYFQVDPGLFzqdGrPx8S7qNtT9mU1FC4f',
-
-  // ──────────────── DEVNET ────────────────
-  // Native SOL (Devnet)
-  'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
-  // USDC (Devnet) - Placeholder mint address
-  'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:7BH7JMTP48enEmNbzZHqWU5UihYBTCS523ZY2b9izcHV',
-];

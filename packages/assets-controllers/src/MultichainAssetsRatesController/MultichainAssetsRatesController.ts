@@ -3,7 +3,7 @@ import type {
   AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerStateChangeEvent,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
@@ -23,13 +23,18 @@ import type { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
-import { MAP_CAIP_CURRENCIES, MOCKED_ASSETS_DATA } from './constant';
+import { MAP_CAIP_CURRENCIES } from './constant';
 import type { AccountConversionRates, ConversionRatesWrapper } from './types';
 import type {
   CurrencyRateState,
   CurrencyRateStateChange,
   GetCurrencyRateState,
 } from '../CurrencyRateController';
+import type {
+  MultichainAssetsControllerGetStateAction,
+  MultichainAssetsControllerState,
+  MultichainAssetsControllerStateChangeEvent,
+} from '../MultichainAssetsController';
 
 /**
  * The name of the MultiChainAssetsRatesController.
@@ -98,8 +103,8 @@ export type MultichainAssetsRatesControllerEvents =
 export type AllowedActions =
   | HandleSnapRequest
   | AccountsControllerListMultichainAccountsAction
-  | GetCurrencyRateState;
-
+  | GetCurrencyRateState
+  | MultichainAssetsControllerGetStateAction;
 /**
  * Events that this controller is allowed to subscribe to.
  */
@@ -107,19 +112,19 @@ export type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | AccountsControllerAccountAddedEvent
-  | CurrencyRateStateChange;
+  | CurrencyRateStateChange
+  | MultichainAssetsControllerStateChangeEvent;
 
 /**
  * Messenger type for the MultiChainAssetsRatesController.
  */
-export type MultichainAssetsRatesControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    MultichainAssetsRatesControllerActions | AllowedActions,
-    MultichainAssetsRatesControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type MultichainAssetsRatesControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  MultichainAssetsRatesControllerActions | AllowedActions,
+  MultichainAssetsRatesControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * The input for starting polling in MultiChainAssetsRatesController.
@@ -146,6 +151,8 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
 
   #currentCurrency: CurrencyRateState['currentCurrency'];
 
+  #accountsAssets: MultichainAssetsControllerState['accountsAssets'];
+
   #isUnlocked = true;
 
   /**
@@ -158,7 +165,7 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
    */
   constructor({
     interval = 18000,
-    state,
+    state = {},
     messenger,
   }: {
     interval?: number;
@@ -168,7 +175,10 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
     super({
       name: controllerName,
       messenger,
-      state: getDefaultMultichainAssetsRatesControllerState(),
+      state: {
+        ...getDefaultMultichainAssetsRatesControllerState(),
+        ...state,
+      },
       metadata,
     });
 
@@ -182,10 +192,9 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
       this.#isUnlocked = true;
     });
 
-    this.messagingSystem.subscribe(
-      'AccountsController:accountAdded',
-      (account) => this.#handleOnAccountAdded(account),
-    );
+    ({ accountsAssets: this.#accountsAssets } = this.messagingSystem.call(
+      'MultichainAssetsController:getState',
+    ));
 
     ({ currentCurrency: this.#currentCurrency } = this.messagingSystem.call(
       'CurrencyRateController:getState',
@@ -193,8 +202,16 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'CurrencyRateController:stateChange',
-      async (currencyRatesState) => {
+      async (currencyRatesState: CurrencyRateState) => {
         this.#currentCurrency = currencyRatesState.currentCurrency;
+        await this.updateAssetsRates();
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'MultichainAssetsController:stateChange',
+      async (multiChainAssetsState: MultichainAssetsControllerState) => {
+        this.#accountsAssets = multiChainAssetsState.accountsAssets;
         await this.updateAssetsRates();
       },
     );
@@ -252,17 +269,6 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
   }
 
   /**
-   * Handles the addition of an account by updating its token conversion rates.
-   *
-   * @param account - The added account.
-   */
-  async #handleOnAccountAdded(account: InternalAccount): Promise<void> {
-    if (this.#isNonEvmAccount(account)) {
-      await this.updateAssetsRates();
-    }
-  }
-
-  /**
    * Updates the token conversion rates for a given account.
    *
    * This method acquires a mutex lock to ensure thread safety.
@@ -283,12 +289,11 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
         if (!account?.metadata.snap) {
           continue;
         }
-
         // Retrieve assets from the assets controller.
-        const assets = MOCKED_ASSETS_DATA;
+        const assets = this.#accountsAssets?.[account.id] ?? [];
 
         const conversions = assets.map((asset) => ({
-          from: asset,
+          from: asset as CaipAssetTypeOrId,
           to: MAP_CAIP_CURRENCIES?.[this.#currentCurrency],
         }));
 
@@ -315,7 +320,8 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
           string,
           { rate: string | null; conversionTime: number | null }
         > = {};
-        for (const asset of MOCKED_ASSETS_DATA) {
+
+        for (const asset of assets) {
           // If the request returned data for this asset, use it.
           if (flattenedRates[asset]) {
             updatedRates[asset] = flattenedRates[asset];
