@@ -331,7 +331,7 @@ describe('BridgeController', function () {
     // After first fetch
     jest.advanceTimersByTime(10000);
     await flushPromises();
-    expect(bridgeController.state.bridgeState).toEqual(
+    expect(bridgeController.state.bridgeState).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: mockBridgeQuotesNativeErc20Eth,
@@ -345,7 +345,7 @@ describe('BridgeController', function () {
     // After 2nd fetch
     jest.advanceTimersByTime(50000);
     await flushPromises();
-    expect(bridgeController.state.bridgeState).toEqual(
+    expect(bridgeController.state.bridgeState).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: [
@@ -366,7 +366,7 @@ describe('BridgeController', function () {
     jest.advanceTimersByTime(50000);
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
-    expect(bridgeController.state.bridgeState).toEqual(
+    expect(bridgeController.state.bridgeState).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: [
@@ -471,7 +471,7 @@ describe('BridgeController', function () {
       bridgeController.state.bridgeState.quotesLastFetched,
     ).toBeUndefined();
 
-    expect(bridgeController.state.bridgeState).toEqual(
+    expect(bridgeController.state.bridgeState).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: [],
@@ -482,7 +482,7 @@ describe('BridgeController', function () {
     // After first fetch
     jest.advanceTimersByTime(10000);
     await flushPromises();
-    expect(bridgeController.state.bridgeState).toEqual(
+    expect(bridgeController.state.bridgeState).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: mockBridgeQuotesNativeErc20Eth,
@@ -499,7 +499,7 @@ describe('BridgeController', function () {
     jest.advanceTimersByTime(50000);
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
-    expect(bridgeController.state.bridgeState).toEqual(
+    expect(bridgeController.state.bridgeState).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: mockBridgeQuotesNativeErc20Eth,
@@ -668,7 +668,7 @@ describe('BridgeController', function () {
         bridgeController.state.bridgeState.quotesLastFetched,
       ).toBeUndefined();
 
-      expect(bridgeController.state.bridgeState).toEqual(
+      expect(bridgeController.state.bridgeState).toStrictEqual(
         expect.objectContaining({
           quoteRequest: { ...quoteRequest, insufficientBal: true },
           quotes: [],
@@ -680,7 +680,7 @@ describe('BridgeController', function () {
       jest.advanceTimersByTime(1500);
       await flushPromises();
       const { quotes } = bridgeController.state.bridgeState;
-      expect(bridgeController.state.bridgeState).toEqual(
+      expect(bridgeController.state.bridgeState).toStrictEqual(
         expect.objectContaining({
           quoteRequest: { ...quoteRequest, insufficientBal: true },
           quotesLoadingStatus: 1,
