@@ -171,7 +171,8 @@ export class MultichainBalancesController extends BaseController<
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountBalancesUpdated',
-      (balanceUpdate: AccountBalancesUpdatedEventPayload) => this.#handleOnAccountBalancesUpdated(balanceUpdate),
+      (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
+        this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
   }
 
