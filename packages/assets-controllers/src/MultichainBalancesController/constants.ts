@@ -1,5 +1,3 @@
-import { BtcAccountType, SolAccountType } from '@metamask/keyring-api';
-
 /**
  * The network identifiers for supported networks in CAIP-2 format.
  * Note: This is a temporary workaround until we have a more robust

@@ -14,6 +14,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
+import { MultichainNetwork } from './constants';
 import {
   MultichainTransactionsController,
   getDefaultMultichainTransactionsControllerState,
@@ -22,7 +23,6 @@ import {
   type MultichainTransactionsControllerState,
   type MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
-import { MultichainNetwork } from './constants';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
