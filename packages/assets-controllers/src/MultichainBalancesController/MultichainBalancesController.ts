@@ -2,7 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
-  AccountsControllerEvents,
+  AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -98,13 +98,7 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | {
-      type: Extract<
-        AccountsControllerEvents['type'],
-        'AccountsController:accountBalancesUpdated'
-      >;
-      payload: [AccountBalancesUpdatedEventPayload];
-    };
+  | AccountsControllerAccountBalancesUpdatesEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -169,15 +163,15 @@ export class MultichainBalancesController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      (account) => this.#handleOnAccountAdded(account),
+      (account: InternalAccount) => this.#handleOnAccountAdded(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      (account) => this.#handleOnAccountRemoved(account),
+      (account: string) => this.#handleOnAccountRemoved(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountBalancesUpdated',
-      (balanceUpdate) => this.#handleOnAccountBalancesUpdated(balanceUpdate),
+      (balanceUpdate: AccountBalancesUpdatedEventPayload) => this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
   }
 

@@ -2,7 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
-  AccountsControllerEvents,
+  AccountsControllerAccountTransactionsUpdatedEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -114,13 +114,7 @@ export type AllowedActions =
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | {
-      type: Extract<
-        AccountsControllerEvents['type'],
-        'AccountsController:accountTransactionsUpdated'
-      >;
-      payload: [AccountTransactionsUpdatedEventPayload];
-    };
+  | AccountsControllerAccountTransactionsUpdatedEvent;
 
 /**
  * {@link MultichainTransactionsController}'s metadata.
