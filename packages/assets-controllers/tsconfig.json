@@ -12,7 +12,8 @@
     { "path": "../keyring-controller" },
     { "path": "../network-controller" },
     { "path": "../preferences-controller" },
-    { "path": "../polling-controller" }
+    { "path": "../polling-controller" },
+    { "path": "../permission-controller" }
   ],
   "include": ["../../types", "./src", "../../tests"]
 }
