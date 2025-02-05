@@ -34,7 +34,7 @@ describe('Bridge utils', () => {
     });
 
     it('throws for invalid hex strings', () => {
-      expect(() => sumHexes('0xg')).toThrow();
+      expect(() => sumHexes('0xg')).toThrow('Cannot convert 0xg to a BigInt');
     });
   });
 });
