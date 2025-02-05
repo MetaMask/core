@@ -1,7 +1,7 @@
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -251,7 +251,7 @@ type AllowedEvents = never;
 /**
  * The messenger for the BridgeController.
  */
-export type BridgeControllerMessenger = RestrictedControllerMessenger<
+export type BridgeControllerMessenger = RestrictedMessenger<
   typeof BRIDGE_CONTROLLER_NAME,
   | BridgeControllerActions
   | AccountsControllerGetSelectedAccountAction
