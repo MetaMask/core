@@ -19,7 +19,7 @@ export const multichainNetworkConfigurations: Record<
     name: 'Bitcoin Mainnet',
 
     blockExplorers: {
-      urls: [],
+      urls: ['https://blockstream.info'],
       defaultIndex: 0,
     },
 
@@ -33,7 +33,7 @@ export const multichainNetworkConfigurations: Record<
     name: 'Solana Mainnet',
 
     blockExplorers: {
-      urls: [],
+      urls: ['https://explorer.solana.com'],
       defaultIndex: 0,
     },
 
