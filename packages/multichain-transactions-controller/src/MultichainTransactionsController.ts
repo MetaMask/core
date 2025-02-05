@@ -263,6 +263,7 @@ export class MultichainTransactionsController extends BaseController<
         const transactions = response.data.filter((tx) => {
           const chain = tx.chain as MultichainNetwork;
           const { namespace } = parseCaipChainId(chain);
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
           if (namespace === KnownCaipNamespace.Solana) {
             return chain === MultichainNetwork.Solana;
           }
