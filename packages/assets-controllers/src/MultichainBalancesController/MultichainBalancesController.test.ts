@@ -154,13 +154,20 @@ const setupController = ({
   };
 };
 
+async function waitForAllPromises(): Promise<void> {
+  // Wait for next tick to flush all pending promises. It's requires since
+  // we are testing some asynchronous execution flows that are started by
+  // synchronous calls.
+  await new Promise(process.nextTick);
+}
+
 describe('BalancesController', () => {
   it('initialize with default state', () => {
     const { controller } = setupController({});
     expect(controller.state).toStrictEqual({ balances: {} });
   });
 
-  it('should update balance for a specific account', async () => {
+  it('updates the balance for a specific account', async () => {
     const { controller } = setupController();
     await controller.updateBalance(mockBtcAccount.id);
 
@@ -180,7 +187,7 @@ describe('BalancesController', () => {
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
     messenger.publish('AccountsController:accountAdded', mockBtcAccount);
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForAllPromises();
 
     expect(controller.state).toStrictEqual({
       balances: {
@@ -222,7 +229,7 @@ describe('BalancesController', () => {
     });
   });
 
-  it('should handle errors gracefully when updating balance', async () => {
+  it('handles errors gracefully when updating balance', async () => {
     const { controller, mockSnapHandleRequest, mockListMultichainAccounts } =
       setupController({
         mocks: {
@@ -237,7 +244,7 @@ describe('BalancesController', () => {
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
 
     await controller.updateBalance(mockBtcAccount.id);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForAllPromises();
 
     expect(controller.state.balances).toStrictEqual({});
   });
@@ -255,7 +262,7 @@ describe('BalancesController', () => {
       balanceUpdate,
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForAllPromises();
 
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
@@ -269,7 +276,7 @@ describe('BalancesController', () => {
       },
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForAllPromises();
 
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,

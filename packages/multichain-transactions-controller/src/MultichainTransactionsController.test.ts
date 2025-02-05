@@ -155,13 +155,20 @@ const setupController = ({
   };
 };
 
+async function waitForAllPromises(): Promise<void> {
+  // Wait for next tick to flush all pending promises. It's requires since
+  // we are testing some asynchronous execution flows that are started by
+  // synchronous calls.
+  await new Promise(process.nextTick);
+}
+
 describe('MultichainTransactionsController', () => {
   it('initialize with default state', () => {
     const { controller } = setupController({});
     expect(controller.state).toStrictEqual({ nonEvmTransactions: {} });
   });
 
-  it('update transactions when "AccountsController:accountAdded" is fired', async () => {
+  it('updates transactions when "AccountsController:accountAdded" is fired', async () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController({
         mocks: {
@@ -172,7 +179,7 @@ describe('MultichainTransactionsController', () => {
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
     messenger.publish('AccountsController:accountAdded', mockBtcAccount);
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForAllPromises();
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {
@@ -185,7 +192,7 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('update transactions when "AccountsController:accountRemoved" is fired', async () => {
+  it('updates transactions when "AccountsController:accountRemoved" is fired', async () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController();
 
@@ -224,7 +231,7 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('should update transactions for a specific account', async () => {
+  it('updates transactions for a specific account', async () => {
     const { controller } = setupController();
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
 
@@ -237,7 +244,7 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('should handle pagination when fetching transactions', async () => {
+  it('handles pagination when fetching transactions', async () => {
     const firstPage = {
       data: [
         {
@@ -300,7 +307,7 @@ describe('MultichainTransactionsController', () => {
     );
   });
 
-  it('should handle errors gracefully when updating transactions', async () => {
+  it('handles errors gracefully when updating transactions', async () => {
     const { controller, mockSnapHandleRequest, mockListMultichainAccounts } =
       setupController({
         mocks: {
@@ -315,7 +322,7 @@ describe('MultichainTransactionsController', () => {
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForAllPromises();
 
     expect(controller.state.nonEvmTransactions).toStrictEqual({});
   });
@@ -343,7 +350,7 @@ describe('MultichainTransactionsController', () => {
       transactionUpdate,
     );
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForAllPromises();
 
     expect(
       controller.state.nonEvmTransactions[mockBtcAccount.id],
