@@ -45,11 +45,18 @@ export async function signAuthorizationList({
   }
 
   const signedAuthorizationList: Required<AuthorizationList> = [];
+  let index = 0;
 
   for (const authorization of authorizationList) {
-    signedAuthorizationList.push(
-      await signAuthorization(authorization, transactionMeta, messenger),
+    const signedAuthorization = await signAuthorization(
+      authorization,
+      transactionMeta,
+      messenger,
+      index,
     );
+
+    signedAuthorizationList.push(signedAuthorization);
+    index += 1;
   }
 
   return signedAuthorizationList;
@@ -61,16 +68,19 @@ export async function signAuthorizationList({
  * @param authorization - The authorization to sign.
  * @param transactionMeta - The associated transaction metadata.
  * @param messenger - The messenger to use for signing.
+ * @param index - The index of the authorization in the list.
  * @returns The signed authorization.
  */
 async function signAuthorization(
   authorization: Authorization,
   transactionMeta: TransactionMeta,
   messenger: TransactionControllerMessenger,
+  index: number,
 ): Promise<Required<Authorization>> {
   const finalAuthorization = prepareAuthorization(
     authorization,
     transactionMeta,
+    index,
   );
 
   const { address, chainId, nonce } = finalAuthorization;
@@ -107,11 +117,13 @@ async function signAuthorization(
  *
  * @param authorization - The authorization to prepare.
  * @param transactionMeta - The associated transaction metadata.
+ * @param index - The index of the authorization in the list.
  * @returns The prepared authorization.
  */
 function prepareAuthorization(
   authorization: Authorization,
   transactionMeta: TransactionMeta,
+  index: number,
 ): Authorization & { chainId: Hex; nonce: Hex } {
   const { chainId: existingChainId, nonce: existingNonce } = authorization;
   const { txParams, chainId: transactionChainId } = transactionMeta;
@@ -121,7 +133,7 @@ function prepareAuthorization(
   let nonce = existingNonce;
 
   if (nonce === undefined) {
-    nonce = toHex(parseInt(transactionNonce as string, 16) + 1);
+    nonce = toHex(parseInt(transactionNonce as string, 16) + 1 + index);
   }
 
   const result = {

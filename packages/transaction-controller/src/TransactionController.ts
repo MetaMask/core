@@ -2510,18 +2510,17 @@ export class TransactionController extends BaseController<
           note: 'TransactionController#approveTransaction - Transaction approved',
         },
         (draftTxMeta) => {
-          const { txParams, chainId } = draftTxMeta;
+          const { chainId, txParams } = draftTxMeta;
+          const { gas, type } = txParams;
 
           draftTxMeta.status = TransactionStatus.approved;
-          draftTxMeta.txParams = {
-            ...txParams,
-            nonce,
-            chainId,
-            gasLimit: txParams.gas,
-            ...(isEIP1559Transaction(txParams) && {
-              type: TransactionEnvelopeType.feeMarket,
-            }),
-          };
+          draftTxMeta.txParams.chainId = chainId;
+          draftTxMeta.txParams.gasLimit = gas;
+          draftTxMeta.txParams.nonce = nonce;
+
+          if (!type && isEIP1559Transaction(txParams)) {
+            draftTxMeta.txParams.type = TransactionEnvelopeType.feeMarket;
+          }
         },
       );
 
