@@ -1,24 +1,24 @@
-import { Web3Provider } from '@ethersproject/providers';
-import type { Provider } from '@metamask/network-controller';
-import { Hex } from '@metamask/utils';
 import { Contract } from '@ethersproject/contracts';
-import { zeroAddress } from 'ethereumjs-util';
-import { getAddress } from 'ethers/lib/utils';
+import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { BigNumber } from 'ethers';
+import type { Provider } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
+import { zeroAddress } from 'ethereumjs-util';
+import type { BigNumber } from 'ethers';
+import { getAddress } from 'ethers/lib/utils';
 
-export async function fetchTokenBalance(
+export const fetchTokenBalance = async (
   address: string,
   userAddress: string,
   provider: Provider,
-): Promise<BigNumber> {
+): Promise<BigNumber> => {
   const ethersProvider = new Web3Provider(provider);
   const tokenContract = new Contract(address, abiERC20, ethersProvider);
   const tokenBalancePromise = tokenContract
     ? tokenContract.balanceOf(userAddress)
     : Promise.resolve();
   return await tokenBalancePromise;
-}
+};
 
 export const calcLatestSrcBalance = async (
   provider: Provider,
@@ -29,7 +29,7 @@ export const calcLatestSrcBalance = async (
   if (tokenAddress && chainId) {
     if (tokenAddress === zeroAddress()) {
       const ethersProvider = new Web3Provider(provider);
-      return await ethersProvider.getBalance(getAddress(selectedAddress))
+      return await ethersProvider.getBalance(getAddress(selectedAddress));
     }
     return await fetchTokenBalance(tokenAddress, selectedAddress, provider);
   }
@@ -50,7 +50,5 @@ export const hasSufficientBalance = async (
     chainId,
   );
 
-  return (
-    srcTokenBalance?.gte(fromTokenAmount) ?? false
-  );
+  return srcTokenBalance?.gte(fromTokenAmount) ?? false;
 };
