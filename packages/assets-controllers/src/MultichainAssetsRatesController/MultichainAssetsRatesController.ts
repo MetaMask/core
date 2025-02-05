@@ -270,6 +270,8 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
 
   /**
    * Updates token conversion rates for each non-EVM account.
+   *
+   * @returns A promise that resolves when the rates are updated.
    */
   async updateAssetsRates(): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
@@ -278,13 +280,9 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
       if (!this.isActive) {
         return;
       }
-
       const accounts = this.#listAccounts();
-      for (const account of accounts) {
-        if (!account?.metadata.snap) {
-          continue;
-        }
 
+      for (const account of accounts) {
         const assets = this.#getAssetsForAccount(account.id);
 
         // Build the conversions array
@@ -292,7 +290,7 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
 
         // Retrieve rates from Snap
         const accountRates = await this.#handleSnapRequest({
-          snapId: account.metadata.snap.id as SnapId,
+          snapId: account?.metadata.snap?.id as SnapId,
           handler: HandlerType.OnAssetsConversion,
           conversions,
         });

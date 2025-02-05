@@ -352,4 +352,27 @@ describe('MultiChainAssetsRatesController', () => {
     expect(snapSpy).not.toHaveBeenCalled();
     expect(controller.state.conversionRates).toStrictEqual({});
   });
+
+  it('should update state when currency is updated', async () => {
+    const { controller, messenger } = setupController();
+
+    const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+    messenger.registerActionHandler(
+      'SnapController:handleRequest',
+      snapHandler,
+    );
+
+    const updateSpy = jest.spyOn(controller, 'updateAssetsRates');
+
+    messenger.publish(
+      'CurrencyRateController:stateChange',
+      {
+        currentCurrency: 'EUR',
+        currencyRates: {},
+      },
+      [],
+    );
+
+    expect(updateSpy).toHaveBeenCalled();
+  });
 });
