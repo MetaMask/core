@@ -600,13 +600,6 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
     const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
     });
 
     messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
