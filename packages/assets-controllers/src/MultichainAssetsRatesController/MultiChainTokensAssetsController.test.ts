@@ -3,11 +3,11 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import { useFakeTimers } from 'sinon';
 
-import { MultiChainTokensRatesController } from '.';
+import { MultiChainAssetsRatesController } from '.';
 import {
   type AllowedActions,
   type AllowedEvents,
-} from './MultichainTokensRatesController';
+} from './MultichainAssetsRatesController';
 
 // A fake non‑EVM account (with Snap metadata) that meets the controller’s criteria.
 const fakeNonEvmAccount: InternalAccount = {
@@ -66,42 +66,45 @@ const setupController = ({
   config,
 }: {
   config?: Partial<
-    ConstructorParameters<typeof MultiChainTokensRatesController>[0]
+    ConstructorParameters<typeof MultiChainAssetsRatesController>[0]
   >;
 } = {}) => {
   const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
 
-  messenger.registerActionHandler('AccountsController:getState', () => ({
-    accounts: {
-      account1: {
-        type: 'eip155:eoa',
-        id: 'account1',
-        options: {},
-        metadata: { name: 'Test Account' },
-        address: '0x123',
-        methods: [],
-      },
-    },
-    selectedAccount: 'account1',
-    internalAccounts: { accounts: {}, selectedAccount: 'account1' },
-  }));
+  // messenger.registerActionHandler('AccountsController:getState', () => ({
+  //   accounts: {
+  //     account1: {
+  //       type: 'eip155:eoa',
+  //       id: 'account1',
+  //       options: {},
+  //       metadata: { name: 'Test Account' },
+  //       address: '0x123',
+  //       methods: [],
+  //     },
+  //   },
+  //   selectedAccount: 'account1',
+  //   internalAccounts: { accounts: {}, selectedAccount: 'account1' },
+  // }));
 
   messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     () => [fakeNonEvmAccount, fakeEvmAccount, fakeEvmAccount2],
   );
 
-  const multiChainTokensRatesControllerMessenger = messenger.getRestricted({
-    name: 'MultiChainTokensRatesController',
+  messenger.registerActionHandler('CurrencyRateController:getState', () => ({
+    currencyRates: {},
+    currentCurrency: 'USD',
+  }));
+
+  const multiChainAssetsRatesControllerMessenger = messenger.getRestricted({
+    name: 'MultiChainAssetsRatesController',
     allowedActions: [
-      'AccountsController:getState',
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
       'CurrencyRateController:getState',
     ],
     allowedEvents: [
       'AccountsController:accountAdded',
-      'AccountsController:accountRemoved',
       'KeyringController:lock',
       'KeyringController:unlock',
       'CurrencyRateController:stateChange',
@@ -109,15 +112,15 @@ const setupController = ({
   });
 
   return {
-    controller: new MultiChainTokensRatesController({
-      messenger: multiChainTokensRatesControllerMessenger,
+    controller: new MultiChainAssetsRatesController({
+      messenger: multiChainAssetsRatesControllerMessenger,
       ...config,
     }),
     messenger,
   };
 };
 
-describe('MultiChainTokensRatesController', () => {
+describe('MultiChainAssetsRatesController', () => {
   let clock: sinon.SinonFakeTimers;
 
   const mockedDate = 1705760550000;
@@ -154,8 +157,8 @@ describe('MultiChainTokensRatesController', () => {
       snapHandler,
     );
 
-    // Call updateTokensRates for the valid non-EVM account.
-    await controller.updateTokensRates('account1');
+    // Call updateAssetsRates for the valid non-EVM account.
+    await controller.updateAssetsRates();
 
     // Verify that listAccountAssets was called with the correct account.
     expect(KeyringClient.prototype.listAccountAssets).toHaveBeenCalledWith(
@@ -216,7 +219,7 @@ describe('MultiChainTokensRatesController', () => {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       ]);
 
-    await controller.updateTokensRates('account1');
+    await controller.updateAssetsRates();
     // Since the controller is locked, no update should occur.
     expect(controller.state.conversionRates).toStrictEqual({});
     expect(snapHandler).not.toHaveBeenCalled();
@@ -236,19 +239,19 @@ describe('MultiChainTokensRatesController', () => {
       .mockResolvedValue([
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
       ]);
-    await controller.updateTokensRates('account1');
+    await controller.updateAssetsRates();
     expect(controller.isActive).toBe(false);
 
     messenger.publish('KeyringController:unlock');
-    await controller.updateTokensRates('account1');
+    await controller.updateAssetsRates();
 
     expect(controller.isActive).toBe(true);
   });
 
   it('should not update conversion rates for an unknown account', async () => {
     const { controller } = setupController();
-    // Calling updateTokensRates for an account that does not exist should leave state unchanged.
-    await controller.updateTokensRates('nonexistent');
+    // Calling updateAssetsRates for an account that does not exist should leave state unchanged.
+    await controller.updateAssetsRates();
     expect(controller.state.conversionRates).toStrictEqual({});
   });
 
@@ -275,43 +278,10 @@ describe('MultiChainTokensRatesController', () => {
       }),
     );
 
-    // Spy on updateTokensRates.
-    const updateSpy = jest.spyOn(controller, 'updateTokensRates');
+    // Spy on updateAssetsRates.
+    const updateSpy = jest.spyOn(controller, 'updateAssetsRates');
     await controller._executePoll();
     expect(updateSpy).toHaveBeenCalledWith(fakeNonEvmAccount.id);
-  });
-
-  it('should remove conversion rates when an account is removed', async () => {
-    const { controller, messenger } = setupController();
-
-    jest
-      .spyOn(KeyringClient.prototype, 'listAccountAssets')
-      .mockResolvedValue([
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-      ]);
-
-    messenger.registerActionHandler(
-      'SnapController:handleRequest',
-      async () => ({
-        conversionRates: {
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-            'swift:0/iso4217:USD': {
-              rate: '202.11',
-              conversionTime: 1738539923277,
-            },
-          },
-        },
-      }),
-    );
-
-    await controller.updateTokensRates('account1');
-    expect(controller.state.conversionRates.account1).toBeDefined();
-
-    // Simulate an account removal event.
-    messenger.publish('AccountsController:accountRemoved', 'account1');
-    // Wait a tick so that asynchronous event handlers finish.
-    await Promise.resolve();
-    expect(controller.state.conversionRates.account1).toBeUndefined();
   });
 
   it('should call updateTokensRates when an account is added', async () => {
@@ -329,7 +299,7 @@ describe('MultiChainTokensRatesController', () => {
 
     // Spy on updateTokensRates.
     const updateSpy = jest
-      .spyOn(controller, 'updateTokensRates')
+      .spyOn(controller, 'updateAssetsRates')
       .mockResolvedValue();
 
     // Publish a selectedAccountChange event.

@@ -1,9 +1,5 @@
 import type {
-  AccountsControllerState,
-  AccountsControllerGetStateAction,
   AccountsControllerListMultichainAccountsAction,
-  AccountsControllerSelectedAccountChangeEvent,
-  AccountsControllerAccountRemovedEvent,
   AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
@@ -14,26 +10,20 @@ import type {
 import {
   type CaipAssetTypeOrId,
   isEvmAccountType,
-  type KeyringAccountType,
 } from '@metamask/keyring-api';
 import type {
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { KeyringClient } from '@metamask/keyring-snap-client';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type {
-  GetAllSnaps,
-  HandleSnapRequest,
-} from '@metamask/snaps-controllers';
+import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
+import type { HandlerType } from '@metamask/snaps-utils';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
-import { MAP_SWIFT_ISO4217 } from './constant';
+import { MAP_CAIP_CURRENCIES, MOCKED_ASSETS_DATA } from './constant';
 import type { AccountConversionRates, ConversionRatesWrapper } from './types';
 import type {
   CurrencyRateState,
@@ -42,90 +32,99 @@ import type {
 } from '../CurrencyRateController';
 
 /**
- * The name of the MultiChainTokensRatesController.
+ * The name of the MultiChainAssetsRatesController.
  */
-const controllerName = 'MultiChainTokensRatesController';
+const controllerName = 'MultiChainAssetsRatesController';
 
 /**
- * State used by the MultiChainTokensRatesController to cache token conversion rates.
+ * State used by the MultiChainAssetsRatesController to cache token conversion rates.
  */
-export type MultichainTokensRatesControllerState = ConversionRatesWrapper;
+export type MultichainAssetsRatesControllerState = ConversionRatesWrapper;
 
 /**
- * Returns the state of the MultiChainTokensRatesController.
+ * Returns the state of the MultiChainAssetsRatesController.
  */
-export type MultichainTokensRatesControllerGetStateAction =
+export type MultichainAssetsRatesControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
-    MultichainTokensRatesControllerState
+    MultichainAssetsRatesControllerState
   >;
 
 /**
  * Action to update the rates of all supported tokens.
  */
-export type MultichainTokensRatesControllerUpdateRatesAction = {
-  type: `${typeof controllerName}:updateTokensRates`;
-  handler: MultiChainTokensRatesController['updateTokensRates'];
+export type MultichainAssetsRatesControllerUpdateRatesAction = {
+  type: `${typeof controllerName}:updateAssetsRates`;
+  handler: MultiChainAssetsRatesController['updateAssetsRates'];
 };
 
 /**
- * Event emitted when the state of the MultiChainTokensRatesController changes.
+ * Constructs the default {@link MultichainAssetsRatesController} state. This allows
+ * consumers to provide a partial state object when initializing the controller
+ * and also helps in constructing complete state objects for this controller in
+ * tests.
+ *
+ * @returns The default {@link MultichainAssetsRatesController} state.
  */
-export type MultichainTokensRatesControllerStateChange =
+export function getDefaultMultichainAssetsRatesControllerState(): MultichainAssetsRatesControllerState {
+  return { conversionRates: {} };
+}
+
+/**
+ * Event emitted when the state of the MultiChainAssetsRatesController changes.
+ */
+export type MultichainAssetsRatesControllerStateChange =
   ControllerStateChangeEvent<
     typeof controllerName,
-    MultichainTokensRatesControllerState
+    MultichainAssetsRatesControllerState
   >;
 
 /**
- * Actions exposed by the MultiChainTokensRatesController.
+ * Actions exposed by the MultiChainAssetsRatesController.
  */
-export type MultichainTokensRatesControllerActions =
-  | MultichainTokensRatesControllerGetStateAction
-  | MultichainTokensRatesControllerUpdateRatesAction;
+export type MultichainAssetsRatesControllerActions =
+  | MultichainAssetsRatesControllerGetStateAction
+  | MultichainAssetsRatesControllerUpdateRatesAction;
 
 /**
- * Events emitted by MultiChainTokensRatesController.
+ * Events emitted by MultiChainAssetsRatesController.
  */
-export type MultichainTokensRatesControllerEvents =
-  MultichainTokensRatesControllerStateChange;
+export type MultichainAssetsRatesControllerEvents =
+  MultichainAssetsRatesControllerStateChange;
 
 /**
  * Actions that this controller is allowed to call.
  */
 export type AllowedActions =
-  | GetAllSnaps
   | HandleSnapRequest
   | AccountsControllerListMultichainAccountsAction
-  | GetCurrencyRateState
-  | AccountsControllerGetStateAction;
+  | GetCurrencyRateState;
 
 /**
  * Events that this controller is allowed to subscribe to.
  */
 export type AllowedEvents =
-  | AccountsControllerAccountRemovedEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | AccountsControllerAccountAddedEvent
   | CurrencyRateStateChange;
 
 /**
- * Messenger type for the MultiChainTokensRatesController.
+ * Messenger type for the MultiChainAssetsRatesController.
  */
-export type MultichainTokensRatesControllerMessenger =
+export type MultichainAssetsRatesControllerMessenger =
   RestrictedControllerMessenger<
     typeof controllerName,
-    MultichainTokensRatesControllerActions | AllowedActions,
-    MultichainTokensRatesControllerEvents | AllowedEvents,
+    MultichainAssetsRatesControllerActions | AllowedActions,
+    MultichainAssetsRatesControllerEvents | AllowedEvents,
     AllowedActions['type'],
     AllowedEvents['type']
   >;
 
 /**
- * The input for starting polling in MultiChainTokensRatesController.
+ * The input for starting polling in MultiChainAssetsRatesController.
  */
-export type MultiChainRatesPollingInput = {
+export type MultiChainAssetsRatesPollingInput = {
   accountId: string;
 };
 
@@ -138,21 +137,19 @@ const metadata = {
  *
  * This controller polls for token conversion rates and updates its state.
  */
-export class MultiChainTokensRatesController extends StaticIntervalPollingController<MultiChainRatesPollingInput>()<
+export class MultiChainAssetsRatesController extends StaticIntervalPollingController<MultiChainAssetsRatesPollingInput>()<
   typeof controllerName,
-  MultichainTokensRatesControllerState,
-  MultichainTokensRatesControllerMessenger
+  MultichainAssetsRatesControllerState,
+  MultichainAssetsRatesControllerMessenger
 > {
   readonly #mutex = new Mutex();
-
-  #accountId: AccountsControllerState['internalAccounts']['selectedAccount'];
 
   #currentCurrency: CurrencyRateState['currentCurrency'];
 
   #isUnlocked = true;
 
   /**
-   * Creates an instance of MultiChainTokensRatesController.
+   * Creates an instance of MultiChainAssetsRatesController.
    *
    * @param options - Constructor options.
    * @param options.interval - The polling interval in milliseconds.
@@ -165,16 +162,13 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
     messenger,
   }: {
     interval?: number;
-    state?: Partial<MultichainTokensRatesControllerState>;
-    messenger: MultichainTokensRatesControllerMessenger;
+    state?: Partial<MultichainAssetsRatesControllerState>;
+    messenger: MultichainAssetsRatesControllerMessenger;
   }) {
     super({
       name: controllerName,
       messenger,
-      state: {
-        conversionRates: {},
-        ...state,
-      },
+      state: getDefaultMultichainAssetsRatesControllerState(),
       metadata,
     });
 
@@ -188,11 +182,6 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
       this.#isUnlocked = true;
     });
 
-    // Set the initial account and subscribe to account changes.
-    ({
-      internalAccounts: { selectedAccount: this.#accountId },
-    } = this.messagingSystem.call('AccountsController:getState'));
-
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
       (account) => this.#handleOnAccountAdded(account),
@@ -202,12 +191,12 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
       'CurrencyRateController:getState',
     ));
 
-    console.log('this.#currentCurrency ......', this.#currentCurrency);
-
     this.messagingSystem.subscribe(
       'CurrencyRateController:stateChange',
-      (currencyRatesState) =>
-        (this.#currentCurrency = currencyRatesState.currentCurrency),
+      async (currencyRatesState) => {
+        this.#currentCurrency = currencyRatesState.currentCurrency;
+        await this.updateAssetsRates();
+      },
     );
   }
 
@@ -217,9 +206,7 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
    * @returns A promise that resolves when the polling completes.
    */
   async _executePoll(): Promise<void> {
-    if (this.#accountId) {
-      await this.updateTokensRates(this.#accountId);
-    }
+    await this.updateAssetsRates();
   }
 
   /**
@@ -265,36 +252,13 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
   }
 
   /**
-   * Retrieves a non-EVM account by its ID.
-   *
-   * @param accountId - The account ID.
-   * @returns The corresponding internal account, or undefined if not found.
-   */
-  #getAccount(accountId: string): InternalAccount | undefined {
-    return this.#listAccounts().find((account) => account.id === accountId);
-  }
-
-  /**
-   * Handles the removal of an account by deleting its conversion rates.
-   *
-   * @param accountId - The ID of the removed account.
-   */
-  async #handleOnAccountRemoved(accountId: string): Promise<void> {
-    if (accountId in this.state.conversionRates) {
-      this.update((state: Draft<MultichainTokensRatesControllerState>) => {
-        delete state.conversionRates[accountId];
-      });
-    }
-  }
-
-  /**
    * Handles the addition of an account by updating its token conversion rates.
    *
    * @param account - The added account.
    */
   async #handleOnAccountAdded(account: InternalAccount): Promise<void> {
     if (this.#isNonEvmAccount(account)) {
-      await this.updateTokensRates(account.id);
+      await this.updateAssetsRates();
     }
   }
 
@@ -303,10 +267,9 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
    *
    * This method acquires a mutex lock to ensure thread safety.
    *
-   * @param accountId - The account ID for which to update rates.
    * @returns A promise that resolves when the rates have been updated.
    */
-  async updateTokensRates(accountId: string): Promise<void> {
+  async updateAssetsRates(): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
 
     return (async () => {
@@ -314,38 +277,62 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
         return;
       }
 
-      const account = this.#getAccount(accountId);
+      const listAccounts = this.#listAccounts();
 
-      if (!account?.metadata.snap) {
-        return;
+      for (const account of listAccounts) {
+        if (!account?.metadata.snap) {
+          continue;
+        }
+
+        // Retrieve assets from the assets controller.
+        const assets = MOCKED_ASSETS_DATA;
+
+        const conversions = assets.map((asset) => ({
+          from: asset,
+          to: MAP_CAIP_CURRENCIES?.[this.#currentCurrency],
+        }));
+
+        const accountRates = await this.#handleSnapRequest({
+          snapId: account.metadata.snap.id as SnapId,
+          handler: 'onAssetsConversion' as HandlerType,
+          conversions,
+        });
+
+        // 1. Flatten the returned rates if there’s an extra currency layer.
+        //    (If your handleSnapRequest output is already flattened, skip this.)
+        const flattenedRates = Object.fromEntries(
+          Object.entries(accountRates.conversionRates).map(
+            ([asset, nestedObj]) => {
+              // e.g., nestedObj might look like: { "swift:0/iso4217:EUR": { rate, conversionTime } }
+              const singleValue = Object.values(nestedObj)[0];
+              return [asset, singleValue];
+            },
+          ),
+        );
+
+        // 2. Construct a complete object that has entries for *all* assets.
+        const updatedRates: Record<
+          string,
+          { rate: string | null; conversionTime: number | null }
+        > = {};
+        for (const asset of MOCKED_ASSETS_DATA) {
+          // If the request returned data for this asset, use it.
+          if (flattenedRates[asset]) {
+            updatedRates[asset] = flattenedRates[asset];
+          } else {
+            // Otherwise, explicitly set `rate: null` (and/or `conversionTime: null`).
+            updatedRates[asset] = { rate: null, conversionTime: null };
+          }
+        }
+
+        // Update the state with new conversion rates.
+        this.update((state: Draft<MultichainAssetsRatesControllerState>) => {
+          state.conversionRates = {
+            ...state.conversionRates,
+            ...updatedRates,
+          };
+        });
       }
-
-      // Retrieve assets from the assets controller.
-      const assets = await this.#getAssetsList(
-        accountId,
-        account.metadata.snap.id as SnapId,
-      );
-
-      console.log('this.#currentCurrency salim ......', this.#currentCurrency);
-
-      const accountType = account.type as KeyringAccountType;
-
-      const conversions = assets.map((asset) => ({
-        from: asset,
-        to: MAP_SWIFT_ISO4217[accountType],
-      }));
-
-      const accountRates = await this.#handleSnapRequest({
-        snapId: account.metadata.snap.id as SnapId,
-        handler: 'onAssetsConversion' as HandlerType,
-        conversions,
-      });
-
-      // Update the state with new conversion rates.
-      this.update((state: Draft<MultichainTokensRatesControllerState>) => {
-        state.conversionRates[accountId] = accountRates.conversionRates;
-      });
-      console.log('this.state ......', this.state);
     })().finally(() => {
       releaseLock();
     });
@@ -367,7 +354,7 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
   }: {
     snapId: SnapId;
     handler: HandlerType;
-    conversions: { from: CaipAssetTypeOrId; to: string }[];
+    conversions: { from: CaipAssetTypeOrId; to?: string }[];
   }): Promise<{ conversionRates: AccountConversionRates }> {
     return this.messagingSystem.call('SnapController:handleRequest', {
       snapId,
@@ -379,37 +366,5 @@ export class MultiChainTokensRatesController extends StaticIntervalPollingContro
         params: { conversions },
       },
     }) as Promise<{ conversionRates: AccountConversionRates }>;
-  }
-
-  /**
-   * Retrieves the list of assets for a given account.
-   *
-   * @param accountId - The account ID.
-   * @param snapId - The Snap ID associated with the account.
-   * @returns A promise that resolves with an array of assets.
-   */
-  async #getAssetsList(
-    accountId: string,
-    snapId: string,
-  ): Promise<CaipAssetTypeOrId[]> {
-    return this.#getClient(snapId).listAccountAssets(accountId);
-  }
-
-  /**
-   * Returns a KeyringClient instance for the specified Snap.
-   *
-   * @param snapId - The Snap ID.
-   * @returns A KeyringClient instance.
-   */
-  #getClient(snapId: string): KeyringClient {
-    return new KeyringClient({
-      send: async (request: JsonRpcRequest) =>
-        (await this.messagingSystem.call('SnapController:handleRequest', {
-          snapId: snapId as SnapId,
-          origin: 'metamask',
-          handler: HandlerType.OnKeyringRequest,
-          request,
-        })) as Promise<Json>,
-    });
   }
 }

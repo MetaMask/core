@@ -178,4 +178,16 @@ export type {
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
 
-export { MultiChainTokensRatesController } from './MultichainTokensRatesController';
+export {
+  MultiChainAssetsRatesController,
+  getDefaultMultichainAssetsRatesControllerState,
+} from './MultichainAssetsRatesController';
+
+export type {
+  MultichainAssetsRatesControllerState,
+  MultichainAssetsRatesControllerActions,
+  MultichainAssetsRatesControllerEvents,
+  MultichainAssetsRatesControllerGetStateAction,
+  MultichainAssetsRatesControllerStateChange,
+  MultichainAssetsRatesControllerMessenger,
+} from './MultichainAssetsRatesController';
