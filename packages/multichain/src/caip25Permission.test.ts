@@ -37,6 +37,7 @@ describe('caip25EndowmentBuilder', () => {
         endowmentGetter: expect.any(Function),
         allowedCaveats: [Caip25CaveatType],
         validator: expect.any(Function),
+        factory: expect.any(Function),
       });
 
       expect(specification.endowmentGetter()).toBeNull();
