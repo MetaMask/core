@@ -1,16 +1,20 @@
-import nock from 'nock';
 import { bigIntToHex } from '@metamask/utils';
-import { BRIDGE_API_BASE_URL, DEFAULT_BRIDGE_CONTROLLER_STATE } from './constants';
+import nock from 'nock';
+
+import BridgeController from './bridge-controller';
+import {
+  BRIDGE_API_BASE_URL,
+  DEFAULT_BRIDGE_CONTROLLER_STATE,
+} from './constants';
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
-import { flushPromises } from './test/utils';
-import * as fetchUtils from './utils/fetch';
-import * as balanceUtils from './utils/balance';
 import mockBridgeQuotesErc20Native from './test/mock-quotes-erc20-native.json';
-import mockBridgeQuotesNativeErc20 from './test/mock-quotes-native-erc20.json';
 import mockBridgeQuotesNativeErc20Eth from './test/mock-quotes-native-erc20-eth.json';
-import BridgeController from './bridge-controller';
-import { BridgeControllerMessenger, QuoteResponse } from './types';
+import mockBridgeQuotesNativeErc20 from './test/mock-quotes-native-erc20.json';
+import { flushPromises } from './test/utils';
+import type { BridgeControllerMessenger, QuoteResponse } from './types';
+import * as balanceUtils from './utils/balance';
+import * as fetchUtils from './utils/fetch';
 
 const EMPTY_INIT_STATE = {
   bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
@@ -314,9 +318,9 @@ describe('BridgeController', function () {
       },
       expect.any(AbortSignal),
     );
-    expect(bridgeController.state.bridgeState.quotesLastFetched).toStrictEqual(
-      undefined,
-    );
+    expect(
+      bridgeController.state.bridgeState.quotesLastFetched,
+    ).toBeUndefined();
 
     expect(bridgeController.state.bridgeState).toEqual(
       expect.objectContaining({
@@ -465,9 +469,9 @@ describe('BridgeController', function () {
       },
       expect.any(AbortSignal),
     );
-    expect(bridgeController.state.bridgeState.quotesLastFetched).toStrictEqual(
-      undefined,
-    );
+    expect(
+      bridgeController.state.bridgeState.quotesLastFetched,
+    ).toBeUndefined();
 
     expect(bridgeController.state.bridgeState).toEqual(
       expect.objectContaining({
@@ -660,7 +664,7 @@ describe('BridgeController', function () {
       );
       expect(
         bridgeController.state.bridgeState.quotesLastFetched,
-      ).toStrictEqual(undefined);
+      ).toBeUndefined();
 
       expect(bridgeController.state.bridgeState).toEqual(
         expect.objectContaining({
