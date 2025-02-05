@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Uncategorized
 
 - feat: MMPD-1522 add fetch trending token data ([#5214](https://github.com/MetaMask/core/pull/5214))
@@ -41,5 +43,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@1.0.0...@metamask/token-search-discovery-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/token-search-discovery-controller@1.0.0

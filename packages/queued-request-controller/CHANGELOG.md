@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(queued-request): Rename `ControllerMessenger` to `Messenger` ([#5254](https://github.com/MetaMask/core/pull/5254))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-
 ## [9.0.0]
 
 ### Added
