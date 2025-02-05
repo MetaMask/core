@@ -163,5 +163,27 @@ describe('balance', () => {
         ),
       ).toBe(false);
     });
+
+    it('should return false if source token balance is undefined', async () => {
+      const mockBalanceOf = jest.fn().mockResolvedValueOnce(undefined);
+      (Contract as unknown as jest.Mock).mockImplementation(() => ({
+        balanceOf: mockBalanceOf,
+      }));
+
+      expect(
+        await balanceUtils.hasSufficientBalance(
+          global.ethereumProvider,
+          '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
+          '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
+          '10000000000000000000',
+          '0x1',
+        ),
+      ).toBe(false);
+
+      expect(mockBalanceOf).toHaveBeenCalledTimes(1);
+      expect(mockBalanceOf).toHaveBeenCalledWith(
+        '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
+      );
+    });
   });
 });
