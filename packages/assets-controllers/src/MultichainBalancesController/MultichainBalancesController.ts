@@ -185,10 +185,6 @@ export class MultichainBalancesController extends BaseController<
     try {
       const account = this.#getAccount(accountId);
 
-      if (!account) {
-        return;
-      }
-
       if (account.metadata.snap) {
         const scope = getScopeForAccount(account);
         const assetTypes = NETWORK_ASSETS_MAP[scope];
