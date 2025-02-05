@@ -1,12 +1,5 @@
 import type { NetworkConfiguration } from '@metamask/network-controller';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import { MOCK_STORAGE_KEY } from '../__fixtures__';
-import {
-  mockEndpointBatchUpsertUserStorage,
-  mockEndpointUpsertUserStorage,
-} from '../__fixtures__/mockServices';
-import type { UserStorageBaseOptions } from '../services';
 import { createMockNetworkConfiguration } from './__fixtures__/mockNetwork';
 import {
   addNetwork,
@@ -14,6 +7,13 @@ import {
   deleteNetwork,
   updateNetwork,
 } from './sync-mutations';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { MOCK_STORAGE_KEY } from '../__fixtures__';
+import {
+  mockEndpointBatchUpsertUserStorage,
+  mockEndpointUpsertUserStorage,
+} from '../__fixtures__/mockServices';
+import type { UserStorageBaseOptions } from '../services';
 
 const storageOpts: UserStorageBaseOptions = {
   bearerToken: 'MOCK_TOKEN',

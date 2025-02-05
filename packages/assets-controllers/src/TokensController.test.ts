@@ -1457,7 +1457,9 @@ describe('TokensController', () => {
             }),
           },
         },
-        async ({ controller }) => {
+        async ({ controller, changeNetwork }) => {
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
+
           const dummyTokens: Token[] = [
             {
               address: '0x01',
