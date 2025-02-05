@@ -18,7 +18,10 @@ export const multichainNetworkConfigurations: Record<
 
     name: 'Bitcoin Mainnet',
 
-    blockExplorerUrls: [],
+    blockExplorers: {
+      urls: [],
+      defaultIndex: 0,
+    },
 
     nativeCurrency: btcNativeAsset,
 
@@ -29,7 +32,10 @@ export const multichainNetworkConfigurations: Record<
 
     name: 'Solana Mainnet',
 
-    blockExplorerUrls: [],
+    blockExplorers: {
+      urls: [],
+      defaultIndex: 0,
+    },
 
     nativeCurrency: solNativeAsset,
 
