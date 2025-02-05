@@ -7,7 +7,7 @@ import type {
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -160,7 +160,7 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link TokensController}.
  */
-export type TokensControllerMessenger = RestrictedControllerMessenger<
+export type TokensControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TokensControllerActions | AllowedActions,
   TokensControllerEvents | AllowedEvents,
@@ -203,7 +203,7 @@ export class TokensController extends BaseController<
    * @param options.chainId - The chain ID of the current network.
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    */
   constructor({
     chainId: initialChainId,
@@ -496,7 +496,7 @@ export class TokensController extends BaseController<
     const { allTokens, ignoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
 
-    let interactingChainId;
+    let interactingChainId: Hex = this.#chainId;
     if (networkClientId) {
       interactingChainId = this.messagingSystem.call(
         'NetworkController:getNetworkClientById',
@@ -506,14 +506,16 @@ export class TokensController extends BaseController<
 
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[interactingChainId ?? this.#chainId]?.[
-        this.#getSelectedAccount().address
-      ] || []),
+      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
+        []),
       ...tokensToImport,
-    ].reduce((output, token) => {
-      output[token.address] = token;
-      return output;
-    }, {} as { [address: string]: Token });
+    ].reduce(
+      (output, token) => {
+        output[token.address] = token;
+        return output;
+      },
+      {} as { [address: string]: Token },
+    );
     try {
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =
@@ -554,11 +556,13 @@ export class TokensController extends BaseController<
         });
 
       this.update((state) => {
-        state.tokens = newTokens;
+        if (interactingChainId === this.#chainId) {
+          state.tokens = newTokens;
+          state.detectedTokens = newDetectedTokens;
+          state.ignoredTokens = newIgnoredTokens;
+        }
         state.allTokens = newAllTokens;
-        state.detectedTokens = newDetectedTokens;
         state.allDetectedTokens = newAllDetectedTokens;
-        state.ignoredTokens = newIgnoredTokens;
         state.allIgnoredTokens = newAllIgnoredTokens;
       });
     } finally {

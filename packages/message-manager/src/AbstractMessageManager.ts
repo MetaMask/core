@@ -2,7 +2,7 @@ import { BaseController } from '@metamask/base-controller';
 import type {
   ActionConstraint,
   EventConstraint,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { ApprovalType } from '@metamask/controller-utils';
 import type { Json } from '@metamask/utils';
@@ -126,7 +126,7 @@ export type AbstractMessageManagerOptions<
   Event extends EventConstraint,
 > = {
   additionalFinishStatuses?: string[];
-  messenger: RestrictedControllerMessenger<
+  messenger: RestrictedMessenger<
     string,
     Action,
     Event | UpdateBadgeEvent,
@@ -150,13 +150,7 @@ export abstract class AbstractMessageManager<
 > extends BaseController<
   string,
   MessageManagerState<Message>,
-  RestrictedControllerMessenger<
-    string,
-    Action,
-    Event | UpdateBadgeEvent,
-    string,
-    string
-  >
+  RestrictedMessenger<string, Action, Event | UpdateBadgeEvent, string, string>
 > {
   protected messages: Message[];
 

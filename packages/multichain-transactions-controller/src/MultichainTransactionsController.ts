@@ -8,7 +8,7 @@ import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
   isEvmAccountType,
@@ -92,14 +92,13 @@ export type MultichainTransactionsControllerEvents =
 /**
  * Messenger type for the MultichainTransactionsController.
  */
-export type MultichainTransactionsControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    MultichainTransactionsControllerActions | AllowedActions,
-    MultichainTransactionsControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  MultichainTransactionsControllerActions | AllowedActions,
+  MultichainTransactionsControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Actions that this controller is allowed to call.

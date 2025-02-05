@@ -1,6 +1,6 @@
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
@@ -49,7 +49,7 @@ export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerStateChangeEvent;
 
-export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
+export type NftDetectionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AllowedActions,
   AllowedEvents,

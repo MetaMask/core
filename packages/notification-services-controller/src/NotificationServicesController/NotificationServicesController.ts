@@ -1,5 +1,5 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
@@ -271,14 +271,13 @@ export type AllowedEvents =
   | NotificationServicesPushControllerOnNewNotification;
 
 // Type for the messenger of NotificationServicesController
-export type NotificationServicesControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    Actions | AllowedActions,
-    Events | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type NotificationServicesControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  Actions | AllowedActions,
+  Events | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 type FeatureAnnouncementEnv = {
   spaceId: string;

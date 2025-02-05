@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type { CaipAssetType, Transaction } from '@metamask/keyring-api';
 import {
   BtcAccountType,
@@ -107,13 +107,10 @@ const setupController = ({
     handleRequestReturnValue?: Record<CaipAssetType, Transaction>;
   };
 } = {}) => {
-  const controllerMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
   const multichainTransactionsControllerMessenger: MultichainTransactionsControllerMessenger =
-    controllerMessenger.getRestricted({
+    messenger.getRestricted({
       name: 'MultichainTransactionsController',
       allowedActions: [
         'SnapController:handleRequest',
@@ -127,7 +124,7 @@ const setupController = ({
     });
 
   const mockSnapHandleRequest = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'SnapController:handleRequest',
     mockSnapHandleRequest.mockReturnValue(
       mocks?.handleRequestReturnValue ?? mockTransactionResult,
@@ -135,7 +132,7 @@ const setupController = ({
   );
 
   const mockListMultichainAccounts = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     mockListMultichainAccounts.mockReturnValue(
       mocks?.listMultichainAccounts ?? [mockBtcAccount, mockEthAccount],
@@ -149,7 +146,7 @@ const setupController = ({
 
   return {
     controller,
-    messenger: controllerMessenger,
+    messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
   };

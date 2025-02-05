@@ -8,7 +8,7 @@ import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -102,14 +102,13 @@ type AllowedEvents =
 /**
  * Messenger type for the MultichainBalancesController.
  */
-export type MultichainBalancesControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    MultichainBalancesControllerActions | AllowedActions,
-    MultichainBalancesControllerEvents | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type MultichainBalancesControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  MultichainBalancesControllerActions | AllowedActions,
+  MultichainBalancesControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * {@link MultichainBalancesController}'s metadata.
