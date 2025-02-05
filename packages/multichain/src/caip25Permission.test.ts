@@ -697,210 +697,210 @@ describe('caip25CaveatBuilder', () => {
         },
       }),
     ).toBeUndefined();
+  });
 
-    describe('permission merger', () => {
-      const initLeftValue: Caip25CaveatValue = {
-        optionalScopes: {
-          'eip155:1': {
-            accounts: ['eip155:1:0xdead'],
-          },
+  describe('permission merger', () => {
+    const initLeftValue: Caip25CaveatValue = {
+      optionalScopes: {
+        'eip155:1': {
+          accounts: ['eip155:1:0xdead'],
         },
-        requiredScopes: {},
-        isMultichainOrigin: false,
-      };
+      },
+      requiredScopes: {},
+      isMultichainOrigin: false,
+    };
 
-      it.each<{
-        rightValue: Caip25CaveatValue;
-        expectedMergedValue: Caip25CaveatValue;
-        expectedDiff: Caip25CaveatValue;
-      }>([
-        {
-          rightValue: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xbeef'],
-              },
+    it.each<{
+      rightValue: Caip25CaveatValue;
+      expectedMergedValue: Caip25CaveatValue;
+      expectedDiff: Caip25CaveatValue;
+    }>([
+      {
+        rightValue: {
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xbeef'],
             },
-            requiredScopes: {},
-            isMultichainOrigin: false,
           },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xbeef'],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
         },
-        {
-          rightValue: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: [],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
+        expectedMergedValue: {
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
           },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead'] },
-              'eip155:10': {
-                accounts: [],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: [],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
         },
-        {
-          rightValue: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef'],
-              },
+        expectedDiff: {
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xbeef'],
             },
-            requiredScopes: {},
-            isMultichainOrigin: false,
           },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead'] },
-              'eip155:10': { accounts: ['eip155:10:0xbeef'] },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef'],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
+          isMultichainOrigin: false,
+          requiredScopes: {},
         },
-        {
-          rightValue: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
-              },
-              'eip155:10': {
-                accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
-              },
+      },
+      {
+        rightValue: {
+          optionalScopes: {
+            'eip155:10': {
+              accounts: [],
             },
-            requiredScopes: {},
-            isMultichainOrigin: false,
           },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
-              'eip155:10': {
-                accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xbeef'],
-              },
-              'eip155:10': {
-                accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
         },
-        {
-          rightValue: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'],
-              },
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
-              },
-              'eip155:426161': {
-                accounts: [
-                  'eip155:426161:0xdead',
-                  'eip155:426161:0xbeef',
-                  'eip155:426161:0xbadd',
-                ],
-              },
+        expectedMergedValue: {
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead'] },
+            'eip155:10': {
+              accounts: [],
             },
-            requiredScopes: {},
-            isMultichainOrigin: false,
           },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
-              },
-              'eip155:426161': {
-                accounts: [
-                  'eip155:426161:0xdead',
-                  'eip155:426161:0xbeef',
-                  'eip155:426161:0xbadd',
-                ],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xbadd'] },
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
-              },
-              'eip155:426161': {
-                accounts: [
-                  'eip155:426161:0xdead',
-                  'eip155:426161:0xbeef',
-                  'eip155:426161:0xbadd',
-                ],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
         },
-      ])(
-        'should return the expected merged value $expectedMergedValue and expected diff $expectedDiff',
-        async ({ rightValue, expectedMergedValue, expectedDiff }) => {
-          const [newValue, diff] = merger(initLeftValue, rightValue);
+        expectedDiff: {
+          optionalScopes: {
+            'eip155:10': {
+              accounts: [],
+            },
+          },
+          isMultichainOrigin: false,
+          requiredScopes: {},
+        },
+      },
+      {
+        rightValue: {
+          optionalScopes: {
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef'],
+            },
+          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
+        },
+        expectedMergedValue: {
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead'] },
+            'eip155:10': { accounts: ['eip155:10:0xbeef'] },
+          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
+        },
+        expectedDiff: {
+          optionalScopes: {
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef'],
+            },
+          },
+          isMultichainOrigin: false,
+          requiredScopes: {},
+        },
+      },
+      {
+        rightValue: {
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+            },
+            'eip155:10': {
+              accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+            },
+          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
+        },
+        expectedMergedValue: {
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
+            'eip155:10': {
+              accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+            },
+          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
+        },
+        expectedDiff: {
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xbeef'],
+            },
+            'eip155:10': {
+              accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+            },
+          },
+          isMultichainOrigin: false,
+          requiredScopes: {},
+        },
+      },
+      {
+        rightValue: {
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'],
+            },
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
+            },
+            'eip155:426161': {
+              accounts: [
+                'eip155:426161:0xdead',
+                'eip155:426161:0xbeef',
+                'eip155:426161:0xbadd',
+              ],
+            },
+          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
+        },
+        expectedMergedValue: {
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
+            },
+            'eip155:426161': {
+              accounts: [
+                'eip155:426161:0xdead',
+                'eip155:426161:0xbeef',
+                'eip155:426161:0xbadd',
+              ],
+            },
+          },
+          requiredScopes: {},
+          isMultichainOrigin: false,
+        },
+        expectedDiff: {
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xbadd'] },
+            'eip155:10': {
+              accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
+            },
+            'eip155:426161': {
+              accounts: [
+                'eip155:426161:0xdead',
+                'eip155:426161:0xbeef',
+                'eip155:426161:0xbadd',
+              ],
+            },
+          },
+          isMultichainOrigin: false,
+          requiredScopes: {},
+        },
+      },
+    ])(
+      'should return the expected merged value $expectedMergedValue and expected diff $expectedDiff',
+      async ({ rightValue, expectedMergedValue, expectedDiff }) => {
+        const [newValue, diff] = merger(initLeftValue, rightValue);
 
-          expect(newValue).toStrictEqual(
-            expect.objectContaining(expectedMergedValue),
-          );
-          expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
-        },
-      );
-    });
+        expect(newValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
+        expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+      },
+    );
   });
 });
