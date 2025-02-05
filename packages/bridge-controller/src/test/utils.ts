@@ -1,3 +1,2 @@
-export function flushPromises() {
-  return new Promise(jest.requireActual('timers').setImmediate);
-}
+export const flushPromises = () =>
+  new Promise((resolve) => jest.requireActual('timers').setImmediate(resolve));

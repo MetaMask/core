@@ -1,29 +1,8 @@
-import { Duration, Hex, hexToNumber, numberToHex } from '@metamask/utils';
-import {
-  BRIDGE_API_BASE_URL,
-  BRIDGE_CLIENT_ID,
-  REFRESH_INTERVAL_MS,
-} from '../constants';
-import {
-  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
-  SwapsTokenObject,
-} from '../constants/tokens';
-import {
-  isSwapsDefaultTokenAddress,
-  isSwapsDefaultTokenSymbol,
-} from './index';
-import {
-  BridgeFlag,
-  FeatureFlagResponse,
-  FeeData,
-  FeeType,
-  Quote,
-  QuoteRequest,
-  QuoteResponse,
-  TxData,
-  BridgeFeatureFlagsKey,
-  BridgeFeatureFlags,
-} from '../types';
+import { handleFetch } from '@metamask/controller-utils';
+import type { Hex } from '@metamask/utils';
+import { hexToNumber, numberToHex } from '@metamask/utils';
+
+import { isSwapsDefaultTokenAddress, isSwapsDefaultTokenSymbol } from '.';
 import {
   FEATURE_FLAG_VALIDATORS,
   QUOTE_VALIDATORS,
@@ -33,13 +12,33 @@ import {
   QUOTE_RESPONSE_VALIDATORS,
   FEE_DATA_VALIDATORS,
 } from './validators';
-import { handleFetch } from '@metamask/controller-utils';
-
+import {
+  BRIDGE_API_BASE_URL,
+  BRIDGE_CLIENT_ID,
+  REFRESH_INTERVAL_MS,
+} from '../constants';
+import type { SwapsTokenObject } from '../constants/tokens';
+import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
+import type {
+  FeatureFlagResponse,
+  FeeData,
+  Quote,
+  QuoteRequest,
+  QuoteResponse,
+  TxData,
+  BridgeFeatureFlags,
+} from '../types';
+import { BridgeFlag, FeeType, BridgeFeatureFlagsKey } from '../types';
 
 const CLIENT_ID_HEADER = { 'X-Client-Id': BRIDGE_CLIENT_ID };
 // TODO put this back in once we have a fetchWithCache equivalent
 // const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 
+/**
+ * Fetches the bridge feature flags
+ *
+ * @returns The bridge feature flags
+ */
 export async function fetchBridgeFeatureFlags(): Promise<BridgeFeatureFlags> {
   const url = `${BRIDGE_API_BASE_URL}/getAllFeatureFlags`;
   const rawFeatureFlags = await handleFetch(url, {
@@ -81,7 +80,10 @@ export async function fetchBridgeFeatureFlags(): Promise<BridgeFeatureFlags> {
 
 /**
  * Returns a list of enabled (unblocked) tokens
- * */
+ *
+ * @param chainId - The chain ID to fetch tokens for
+ * @returns A list of enabled (unblocked) tokens
+ */
 export async function fetchBridgeTokens(
   chainId: Hex,
 ): Promise<Record<string, SwapsTokenObject>> {
@@ -91,7 +93,7 @@ export async function fetchBridgeTokens(
   )}`;
 
   // TODO we will need to cache these. In Extension fetchWithCache is used. This is due to the following:
-  // If we allow selecting dest networks which the user has not imported, 
+  // If we allow selecting dest networks which the user has not imported,
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await handleFetch(url, {
     headers: CLIENT_ID_HEADER,
@@ -122,6 +124,12 @@ export async function fetchBridgeTokens(
 }
 
 // Returns a list of bridge tx quotes
+/**
+ *
+ * @param request - The quote request
+ * @param signal - The abort signal
+ * @returns A list of bridge tx quotes
+ */
 export async function fetchBridgeQuotes(
   request: QuoteRequest,
   signal: AbortSignal,
@@ -152,8 +160,16 @@ export async function fetchBridgeQuotes(
         url,
       ) &&
       validateResponse<Quote>(QUOTE_VALIDATORS, quote, url) &&
-      validateResponse<SwapsTokenObject>(TOKEN_VALIDATORS, quote.srcAsset, url) &&
-      validateResponse<SwapsTokenObject>(TOKEN_VALIDATORS, quote.destAsset, url) &&
+      validateResponse<SwapsTokenObject>(
+        TOKEN_VALIDATORS,
+        quote.srcAsset,
+        url,
+      ) &&
+      validateResponse<SwapsTokenObject>(
+        TOKEN_VALIDATORS,
+        quote.destAsset,
+        url,
+      ) &&
       validateResponse<TxData>(TX_DATA_VALIDATORS, trade, url) &&
       validateResponse<FeeData>(
         FEE_DATA_VALIDATORS,

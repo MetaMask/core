@@ -378,10 +378,10 @@ describe('BridgeController', function () {
         quotesRefreshCount: 3,
       }),
     );
-    secondFetchTime &&
-      expect(
-        bridgeController.state.bridgeState.quotesLastFetched,
-      ).toBeGreaterThan(secondFetchTime);
+    expect(
+      bridgeController.state.bridgeState.quotesLastFetched,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    ).toBeGreaterThan(secondFetchTime!);
 
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
