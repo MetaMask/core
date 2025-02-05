@@ -91,6 +91,8 @@ import {
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
+import type { KeyringControllerSignAuthorization } from './utils/eip7702';
+import { signAuthorizationList } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
@@ -107,6 +109,7 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
+import { prepareTransaction, serializeTransaction } from './utils/prepare';
 import type { ResimulateResponse } from './utils/resimulate';
 import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
@@ -129,7 +132,6 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
-import { prepareTransaction, serializeTransaction } from './utils/prepare';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -335,10 +337,11 @@ const controllerName = 'TransactionController';
  * The external actions available to the {@link TransactionController}.
  */
 export type AllowedActions =
+  | AccountsControllerGetSelectedAccountAction
   | AddApprovalRequest
+  | KeyringControllerSignAuthorization
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedAccountAction;
+  | NetworkControllerGetNetworkClientByIdAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -575,7 +578,7 @@ export class TransactionController extends BaseController<
   TransactionControllerState,
   TransactionControllerMessenger
 > {
-  #internalEvents = new EventEmitter();
+  readonly #internalEvents = new EventEmitter();
 
   private readonly isHistoryDisabled: boolean;
 
@@ -585,7 +588,7 @@ export class TransactionController extends BaseController<
 
   private readonly approvingTransactionIds: Set<string> = new Set();
 
-  #methodDataHelper: MethodDataHelper;
+  readonly #methodDataHelper: MethodDataHelper;
 
   private readonly mutex = new Mutex();
 
@@ -614,9 +617,9 @@ export class TransactionController extends BaseController<
     chainId?: string,
   ) => NonceTrackerTransaction[];
 
-  #incomingTransactionChainIds: Set<Hex> = new Set();
+  readonly #incomingTransactionChainIds: Set<Hex> = new Set();
 
-  #incomingTransactionHelper: IncomingTransactionHelper;
+  readonly #incomingTransactionHelper: IncomingTransactionHelper;
 
   private readonly layer1GasFeeFlows: Layer1GasFeeFlow[];
 
@@ -630,15 +633,15 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
-  #trace: TraceCallback;
+  readonly #trace: TraceCallback;
 
-  #transactionHistoryLimit: number;
+  readonly #transactionHistoryLimit: number;
 
-  #isFirstTimeInteractionEnabled: () => boolean;
+  readonly #isFirstTimeInteractionEnabled: () => boolean;
 
-  #isSimulationEnabled: () => boolean;
+  readonly #isSimulationEnabled: () => boolean;
 
-  #testGasFeeFlows: boolean;
+  readonly #testGasFeeFlows: boolean;
 
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
@@ -713,7 +716,7 @@ export class TransactionController extends BaseController<
     );
   }
 
-  #multichainTrackingHelper: MultichainTrackingHelper;
+  readonly #multichainTrackingHelper: MultichainTrackingHelper;
 
   /**
    * Method used to sign transactions
@@ -2218,6 +2221,7 @@ export class TransactionController extends BaseController<
   /**
    * Stop the signing process for a specific transaction.
    * Throws an error causing the transaction status to be set to failed.
+   *
    * @param transactionId - The ID of the transaction to stop signing.
    */
   abortTransactionSigning(transactionId: string) {
@@ -2662,8 +2666,6 @@ export class TransactionController extends BaseController<
       updatedTransactionMeta,
     );
     this.#internalEvents.emit(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${transactionMeta.id}:finished`,
       updatedTransactionMeta,
     );
@@ -2699,8 +2701,6 @@ export class TransactionController extends BaseController<
         const { chainId, status, txParams, time } = tx;
 
         if (txParams) {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           const key = `${String(txParams.nonce)}-${convertHexToDecimal(
             chainId,
           )}-${new Date(time).toDateString()}`;
@@ -3121,14 +3121,26 @@ export class TransactionController extends BaseController<
   ): Promise<string | undefined> {
     log('Signing transaction', txParams);
 
-    const unsignedEthTx = prepareTransaction(transactionMeta.chainId, txParams);
+    const { authorizationList, from } = txParams;
+    const finalTxParams = { ...txParams };
+
+    finalTxParams.authorizationList = await signAuthorizationList({
+      authorizationList,
+      messenger: this.messagingSystem,
+      transactionMeta,
+    });
+
+    const unsignedEthTx = prepareTransaction(
+      transactionMeta.chainId,
+      finalTxParams,
+    );
 
     this.approvingTransactionIds.add(transactionMeta.id);
 
     const signedTx = await new Promise<TypedTransaction>((resolve, reject) => {
       this.sign?.(
         unsignedEthTx,
-        txParams.from,
+        from,
         ...this.getAdditionalSignArguments(transactionMeta),
       ).then(resolve, reject);
 
@@ -3314,7 +3326,7 @@ export class TransactionController extends BaseController<
     return pendingTransactionTracker;
   }
 
-  #checkForPendingTransactionAndStartPolling = () => {
+  readonly #checkForPendingTransactionAndStartPolling = () => {
     this.#multichainTrackingHelper.checkForPendingTransactionAndStartPolling();
   };
 
