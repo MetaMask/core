@@ -23,7 +23,4 @@ module.exports = merge(baseConfig, {
       statements: 95,
     },
   },
-
-  // We rely on `window` to make requests
-  testEnvironment: '<rootDir>/jest.environment.js',
 });
