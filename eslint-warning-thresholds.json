@@ -793,7 +793,7 @@
     "jsdoc/tag-lines": 3
   },
   "packages/transaction-controller/src/helpers/PendingTransactionTracker.ts": {
-    "@typescript-eslint/prefer-readonly": 12
+    "@typescript-eslint/prefer-readonly": 11
   },
   "packages/transaction-controller/src/helpers/TransactionPoller.test.ts": {
     "import-x/order": 1,
