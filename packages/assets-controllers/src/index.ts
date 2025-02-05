@@ -151,7 +151,6 @@ export type {
 export {
   MultichainBalancesController,
   // constants
-  BALANCE_UPDATE_INTERVALS,
   NETWORK_ASSETS_MAP,
   MultichainNetworks,
   MultichainNativeAssets,

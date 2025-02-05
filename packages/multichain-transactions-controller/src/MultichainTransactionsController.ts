@@ -20,7 +20,12 @@ import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import { KnownCaipNamespace, parseCaipChainId, type Json, type JsonRpcRequest } from '@metamask/utils';
+import {
+  KnownCaipNamespace,
+  parseCaipChainId,
+  type Json,
+  type JsonRpcRequest,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import { MultichainNetwork } from './constants';
@@ -251,10 +256,10 @@ export class MultichainTransactionsController extends BaseController<
           { limit: 10 },
         );
 
-        /**
-         * Filter only Solana transactions to ensure they're mainnet
-         * All other chain transactions are included as-is
-         */
+        // Filter only Solana transactions to ensure they're on mainnet.
+        // All other chain transactions are included as-is.
+        // TODO: Maybe we should not do any filtering here? Or maybe have it
+        // being configurable somehow?
         const transactions = response.data.filter((tx) => {
           const chain = tx.chain as MultichainNetwork;
           const { namespace } = parseCaipChainId(chain);

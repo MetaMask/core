@@ -1,6 +1,5 @@
 export { MultichainBalancesController } from './MultichainBalancesController';
 export {
-  BALANCE_UPDATE_INTERVALS,
   NETWORK_ASSETS_MAP,
   MultichainNetworks,
   MultichainNativeAssets,

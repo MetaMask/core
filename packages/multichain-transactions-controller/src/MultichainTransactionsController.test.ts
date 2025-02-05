@@ -432,7 +432,7 @@ describe('MultichainTransactionsController', () => {
     expect(controller.state.nonEvmTransactions).toStrictEqual({});
   });
 
-  it('updates transactions when receiving accountTransactionsUpdated event', async () => {
+  it('updates transactions when receiving "AccountsController:accountTransactionsUpdated" event', async () => {
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
