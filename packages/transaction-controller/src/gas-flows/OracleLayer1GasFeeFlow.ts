@@ -1,5 +1,3 @@
-import { Common, Hardfork } from '@ethereumjs/common';
-import { TransactionFactory } from '@ethereumjs/tx';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';

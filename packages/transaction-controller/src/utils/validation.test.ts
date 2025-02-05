@@ -1,9 +1,13 @@
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { validateTransactionOrigin, validateTxParams } from './validation';
+import {
+  validateParamTo,
+  validateTransactionOrigin,
+  validateTxParams,
+} from './validation';
 import { TransactionEnvelopeType } from '../types';
 import type { TransactionParams } from '../types';
-import { ORIGIN_METAMASK } from '../../../controller-utils/src';
 
 const FROM_MOCK = '0x1678a085c290ebd122dc42cba69373b5953b831d';
 const TO_MOCK = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
@@ -578,13 +582,15 @@ describe('validation', () => {
     });
 
     it('does not throw if internal and from address is selected', async () => {
-      await validateTransactionOrigin({
-        from: FROM_MOCK,
-        origin: ORIGIN_METAMASK,
-        permittedAddresses: undefined,
-        selectedAddress: FROM_MOCK,
-        txParams: {} as TransactionParams,
-      });
+      expect(
+        await validateTransactionOrigin({
+          from: FROM_MOCK,
+          origin: ORIGIN_METAMASK,
+          permittedAddresses: undefined,
+          selectedAddress: FROM_MOCK,
+          txParams: {} as TransactionParams,
+        }),
+      ).toBeUndefined();
     });
 
     it('throws if external and from not permitted', async () => {
@@ -604,13 +610,15 @@ describe('validation', () => {
     });
 
     it('does not throw if external and from is permitted', async () => {
-      await validateTransactionOrigin({
-        from: FROM_MOCK,
-        origin: 'test-origin',
-        permittedAddresses: ['0x123', FROM_MOCK],
-        selectedAddress: '0x123',
-        txParams: {} as TransactionParams,
-      });
+      expect(
+        await validateTransactionOrigin({
+          from: FROM_MOCK,
+          origin: 'test-origin',
+          permittedAddresses: ['0x123', FROM_MOCK],
+          selectedAddress: '0x123',
+          txParams: {} as TransactionParams,
+        }),
+      ).toBeUndefined();
     });
 
     it('throw if external and type 4', async () => {
@@ -647,6 +655,20 @@ describe('validation', () => {
         rpcErrors.invalidParams(
           'External EIP-7702 transactions are not supported',
         ),
+      );
+    });
+  });
+
+  describe('validateParamTo', () => {
+    it('throws if no type', () => {
+      expect(() => validateParamTo(undefined as never)).toThrow(
+        rpcErrors.invalidParams('Invalid "to" address'),
+      );
+    });
+
+    it('throws if type is not string', () => {
+      expect(() => validateParamTo(123 as never)).toThrow(
+        rpcErrors.invalidParams('Invalid "to" address'),
       );
     });
   });

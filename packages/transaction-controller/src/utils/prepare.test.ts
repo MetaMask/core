@@ -1,9 +1,4 @@
-import {
-  FeeMarketEIP1559Transaction,
-  LegacyTransaction,
-  TransactionType,
-} from '@ethereumjs/tx';
-import { hexToBytes } from '@ethereumjs/util';
+import { FeeMarketEIP1559Transaction, LegacyTransaction } from '@ethereumjs/tx';
 
 import { prepareTransaction, serializeTransaction } from './prepare';
 import { TransactionEnvelopeType, type TransactionParams } from '../types';

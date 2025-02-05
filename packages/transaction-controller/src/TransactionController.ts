@@ -3339,15 +3339,6 @@ export class TransactionController extends BaseController<
     this.#multichainTrackingHelper.stopAllTracking();
   }
 
-  #removeIncomingTransactionHelperListeners(
-    incomingTransactionHelper: IncomingTransactionHelper,
-  ) {
-    incomingTransactionHelper.hub.removeAllListeners('transactions');
-    incomingTransactionHelper.hub.removeAllListeners(
-      'updated-last-fetched-timestamp',
-    );
-  }
-
   #addIncomingTransactionHelperListeners(
     incomingTransactionHelper: IncomingTransactionHelper,
   ) {
