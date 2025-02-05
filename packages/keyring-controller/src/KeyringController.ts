@@ -242,7 +242,7 @@ export type KeyringControllerMessenger = RestrictedMessenger<
 export type KeyringControllerOptions = {
   keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
   messenger: KeyringControllerMessenger;
-  state?: { vault?: string };
+  state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
 } & (
   | {
       cacheEncryptionKey: true;
@@ -616,6 +616,8 @@ export class KeyringController extends BaseController<
 
   #keyrings: EthKeyring<Json>[];
 
+  #keyringsMetadata: KeyringMetadata[];
+
   #unsupportedKeyrings: SerializedKeyring[];
 
   #password?: string;
@@ -665,6 +667,7 @@ export class KeyringController extends BaseController<
 
     this.#encryptor = encryptor;
     this.#keyrings = [];
+    this.#keyringsMetadata = state?.keyringsMetadata ?? [];
     this.#unsupportedKeyrings = [];
 
     // This option allows the controller to cache an exported key
@@ -689,6 +692,9 @@ export class KeyringController extends BaseController<
       const selectedKeyring = this.getKeyringsByType(
         'HD Key Tree',
       )[0] as EthKeyring<Json>;
+      if (!selectedKeyring) {
+        throw new Error('No HD keyring found');
+      }
       const oldAccounts = await selectedKeyring.getAccounts();
 
       if (accountCount && oldAccounts.length !== accountCount) {
@@ -1390,13 +1396,19 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase as Uint8Array.
    */
   async verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
-    const keyringIndex = this.state.keyringsMetadata.findIndex(
-      (keyring) => keyring.id === keyringId,
-    );
-    const keyring = this.state.keyrings[keyringIndex];
+    let keyring: EthKeyring<Json>;
+    if (!keyringId) {
+      keyring = this.#keyrings[0];
+    } else {
+      keyring = this.#getKeyringById(keyringId) as EthKeyring<Json>;
 
-    if (keyring.type !== KeyringTypes.hd) {
-      throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
+      if (keyring.type !== KeyringTypes.hd) {
+        throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
+      }
+    }
+
+    if (!keyring) {
+      throw new Error(KeyringControllerError.NoHdKeyring);
     }
 
     return this.#withControllerLock(async () =>
@@ -1483,11 +1495,9 @@ export class KeyringController extends BaseController<
           | undefined;
 
         if (!keyring && options.createIfMissing) {
-          const newMetadata = { id: ulid(), name: '' };
           keyring = (await this.#newKeyring(
             selector.type,
             options.createWithData,
-            newMetadata,
           )) as SelectedKeyring;
         }
       } else if ('id' in selector) {
@@ -1926,10 +1936,6 @@ export class KeyringController extends BaseController<
       throw new Error('No HD keyring found.');
     }
 
-    if ((keyring.type as KeyringTypes) !== KeyringTypes.hd) {
-      throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
-    }
-
     assertHasUint8ArrayMnemonic(keyring);
 
     const seedWords = keyring.mnemonic;
@@ -2020,11 +2026,8 @@ export class KeyringController extends BaseController<
       await this.#restoreKeyring(serializedKeyring);
     }
 
-    if (this.state.keyringsMetadata.length > this.#keyrings.length) {
-      this.update((state) => {
-        // remove metadata from the end of the array to have the same length as the keyrings array
-        state.keyringsMetadata = state.keyringsMetadata.slice(0, -1 * (state.keyringsMetadata.length - this.#keyrings.length));
-      })
+    if (this.#keyringsMetadata.length > this.#keyrings.length) {
+      throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
     }
   }
 
@@ -2190,12 +2193,13 @@ export class KeyringController extends BaseController<
       this.update((state) => {
         state.vault = updatedState.vault;
         state.keyrings = updatedKeyrings;
+        state.keyringsMetadata = this.#keyringsMetadata;
         if (updatedState.encryptionKey) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
         }
-        if (updatedKeyrings.length < state.keyringsMetadata.length) {
-          state.keyringsMetadata = state.keyringsMetadata.slice(0, -1 * (state.keyringsMetadata.length - updatedKeyrings.length));
+        if (updatedKeyrings.length < this.#keyringsMetadata.length) {
+          throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
         }
       });
 
@@ -2256,7 +2260,11 @@ export class KeyringController extends BaseController<
    */
   async #newKeyring(type: string, data?: unknown): Promise<EthKeyring<Json>> {
     this.#assertControllerMutexIsLocked();
-    const newKeyringMetadata = { id: ulid(), name: '' };
+
+    const newKeyringMetadata: KeyringMetadata = {
+      id: ulid().toString(),
+      name: '',
+    };
 
     const keyringBuilder = this.#getKeyringBuilderForType(type);
 
@@ -2299,14 +2307,9 @@ export class KeyringController extends BaseController<
     this.#keyrings.push(keyring);
     if (
       newKeyringMetadata &&
-      this.state.keyringsMetadata.length < this.#keyrings.length
+      this.#keyringsMetadata.length < this.#keyrings.length
     ) {
-      this.update((state) => {
-        state.keyringsMetadata = [
-          ...state.keyringsMetadata,
-          newKeyringMetadata,
-        ];
-      });
+      this.#keyringsMetadata = [...this.#keyringsMetadata, newKeyringMetadata];
     }
     return keyring;
   }
@@ -2321,9 +2324,10 @@ export class KeyringController extends BaseController<
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
-    this.update((state) => {
-      state.keyringsMetadata = [];
-    });
+    this.#keyringsMetadata = [];
+    // this.update((state) => {
+    //   state.keyringsMetadata = [];
+    // });
   }
 
   /**
@@ -2387,10 +2391,7 @@ export class KeyringController extends BaseController<
       }),
     );
     this.#keyrings = validKeyrings;
-
-    this.update((state) => {
-      state.keyringsMetadata = validKeyringMetadata;
-    });
+    this.#keyringsMetadata = validKeyringMetadata;
   }
 
   /**

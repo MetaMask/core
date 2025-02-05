@@ -32,4 +32,5 @@ export enum KeyringControllerError {
   DataType = 'KeyringController - Incorrect data type provided',
   NoHdKeyring = 'KeyringController - No HD Keyring found',
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
+  KeyringMetadataLengthMismatch = 'KeyringController - keyring metadata length mismatch',
 }
