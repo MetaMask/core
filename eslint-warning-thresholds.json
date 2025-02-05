@@ -166,12 +166,6 @@
   "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
     "jsdoc/tag-lines": 2
   },
-  "packages/base-controller/src/BaseControllerV1.test.ts": {
-    "import-x/namespace": 4
-  },
-  "packages/base-controller/src/BaseControllerV1.ts": {
-    "jsdoc/check-tag-names": 4
-  },
   "packages/base-controller/src/BaseControllerV2.test.ts": {
     "import-x/namespace": 16
   },
@@ -191,7 +185,7 @@
     "@typescript-eslint/no-unsafe-enum-comparison": 1
   },
   "packages/composable-controller/src/ComposableController.test.ts": {
-    "import-x/namespace": 5
+    "import-x/namespace": 3
   },
   "packages/composable-controller/src/ComposableController.ts": {
     "@typescript-eslint/no-unused-vars": 1
