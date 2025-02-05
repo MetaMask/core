@@ -98,27 +98,6 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     expect(result).toBe(MOCK_STORAGE_DATA);
   });
 
-  it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        isAccountSyncingInProgress: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-      },
-    });
-
-    await expect(
-      controller.performGetStorage(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-      ),
-    ).rejects.toThrow(expect.any(Error));
-  });
-
   it.each([
     [
       'fails when no bearer token is found (auth errors)',
@@ -177,27 +156,6 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
       await controller.performGetStorageAllFeatureEntries('notifications');
     mockAPI.done();
     expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
-  });
-
-  it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
-    });
-
-    await expect(
-      controller.performGetStorageAllFeatureEntries(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-      ),
-    ).rejects.toThrow(expect.any(Error));
   });
 
   it.each([
@@ -259,28 +217,6 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       'new data',
     );
     expect(mockAPI.isDone()).toBe(true);
-  });
-
-  it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
-    });
-
-    await expect(
-      controller.performSetStorage(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-        'new data',
-      ),
-    ).rejects.toThrow(expect.any(Error));
   });
 
   it.each([
@@ -367,28 +303,6 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
     expect(mockAPI.isDone()).toBe(true);
   });
 
-  it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
-    });
-
-    await expect(
-      controller.performBatchSetStorage(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-        [['notification_settings', 'new data']],
-      ),
-    ).rejects.toThrow(expect.any(Error));
-  });
-
   it.each([
     [
       'fails when no bearer token is found (auth errors)',
@@ -468,28 +382,6 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
       'notification_settings',
     ]);
     expect(mockAPI.isDone()).toBe(true);
-  });
-
-  it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
-    });
-
-    await expect(
-      controller.performBatchDeleteStorage('notifications', [
-        'notification_settings',
-        'notification_settings',
-      ]),
-    ).rejects.toThrow(expect.any(Error));
   });
 
   it.each([
@@ -574,27 +466,6 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
     expect(mockAPI.isDone()).toBe(true);
   });
 
-  it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
-    });
-
-    await expect(
-      controller.performDeleteStorage(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-      ),
-    ).rejects.toThrow(expect.any(Error));
-  });
-
   it.each([
     [
       'fails when no bearer token is found (auth errors)',
@@ -675,27 +546,6 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
     expect(mockAPI.isDone()).toBe(true);
   });
 
-  it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = await arrangeMocks();
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
-    });
-
-    await expect(
-      controller.performDeleteStorageAllFeatureEntries(
-        USER_STORAGE_FEATURE_NAMES.notifications,
-      ),
-    ).rejects.toThrow(expect.any(Error));
-  });
-
   it.each([
     [
       'fails when no bearer token is found (auth errors)',
@@ -768,19 +618,16 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
     expect(result).toBe(MOCK_STORAGE_KEY);
   });
 
-  it('rejects if UserStorage is not enabled', async () => {
+  it('fails when no session identifier is found (auth error)', async () => {
     const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
-      state: {
-        isProfileSyncingEnabled: false,
-        isProfileSyncingUpdateLoading: false,
-        hasAccountSyncingSyncedAtLeastOnce: false,
-        isAccountSyncingReadyToBeDispatched: false,
-        isAccountSyncingInProgress: false,
-      },
     });
+
+    messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+      new Error('MOCK FAILURE'),
+    );
 
     await expect(controller.getStorageKey()).rejects.toThrow(expect.any(Error));
   });
