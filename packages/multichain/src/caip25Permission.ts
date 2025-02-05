@@ -189,6 +189,7 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
     },
+    // TODO: Update Caip25EndowmentSpecification type with proper merger type
     merger: (leftValue: Caip25CaveatValue, rightValue: Caip25CaveatValue) => {
       const partiallyMergedValue = mergeScopesForCaip25CaveatValue(
         leftValue,
