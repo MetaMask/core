@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type {
   AccountAssetListUpdatedEventPayload,
   CaipAssetTypeOrId,
@@ -229,11 +229,8 @@ type RootEvent = ExtractAvailableEvent<MultichainAssetsControllerMessenger>;
  *
  * @returns The unrestricted messenger suited for PetNamesController.
  */
-function getRootControllerMessenger(): ControllerMessenger<
-  RootAction,
-  RootEvent
-> {
-  return new ControllerMessenger<RootAction, RootEvent>();
+function getRootMessenger(): Messenger<RootAction, RootEvent> {
+  return new Messenger<RootAction, RootEvent>();
 }
 
 const setupController = ({
@@ -248,10 +245,10 @@ const setupController = ({
     getPermissionsReturnValue?: SubjectPermissions<PermissionConstraint>;
   };
 } = {}) => {
-  const controllerMessenger = getRootControllerMessenger();
+  const messenger = getRootMessenger();
 
   const multichainAssetsControllerMessenger: MultichainAssetsControllerMessenger =
-    controllerMessenger.getRestricted({
+    messenger.getRestricted({
       name: 'MultichainAssetsController',
       allowedActions: [
         'AccountsController:listMultichainAccounts',
@@ -267,7 +264,7 @@ const setupController = ({
     });
 
   const mockSnapHandleRequest = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'SnapController:handleRequest',
     mockSnapHandleRequest.mockReturnValue(
       mocks?.handleRequestReturnValue ??
@@ -276,7 +273,7 @@ const setupController = ({
   );
 
   const mockListMultichainAccounts = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     mockListMultichainAccounts.mockReturnValue(
       mocks?.listMultichainAccounts ?? [mockSolanaAccount, mockEthAccount],
@@ -284,7 +281,7 @@ const setupController = ({
   );
 
   const mockGetAllSnaps = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'SnapController:getAll',
     mockGetAllSnaps.mockReturnValue(
       mocks?.getAllReturnValue ?? mockGetAllSnapsReturnValue,
@@ -292,7 +289,7 @@ const setupController = ({
   );
 
   const mockGetPermissions = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'PermissionController:getPermissions',
     mockGetPermissions.mockReturnValue(
       mocks?.getPermissionsReturnValue ?? mockGetPermissionsReturnValue[0],
@@ -306,7 +303,7 @@ const setupController = ({
 
   return {
     controller,
-    messenger: controllerMessenger,
+    messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
     mockGetAllSnaps,
