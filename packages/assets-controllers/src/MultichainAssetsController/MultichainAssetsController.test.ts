@@ -3,7 +3,12 @@ import type {
   AccountAssetListUpdatedEventPayload,
   CaipAssetTypeOrId,
 } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
+import {
+  EthAccountType,
+  EthMethod,
+  EthScope,
+  SolScope,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { PermissionConstraint } from '@metamask/permission-controller';
@@ -27,12 +32,13 @@ import type {
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
 
-const mockSolanaAccount = {
+const mockSolanaAccount: InternalAccount = {
   type: 'solana:data-account',
   id: 'a3fc6831-d229-4cd1-87c1-13b1756213d4',
   address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+  scopes: [SolScope.Devnet],
   options: {
-    scope: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+    scope: SolScope.Devnet,
   },
   methods: ['sendAndConfirmTransaction'],
   metadata: {
@@ -50,7 +56,7 @@ const mockSolanaAccount = {
   },
 };
 
-const mockEthAccount = {
+const mockEthAccount: InternalAccount = {
   address: '0x807dE1cf8f39E83258904b2f7b473E5C506E4aC1',
   id: uuidv4(),
   metadata: {
@@ -72,7 +78,7 @@ const mockEthAccount = {
   type: EthAccountType.Eoa,
 };
 
-const mockGetAssetsResult = [
+const mockHandleRequestOnAssetsLookupReturnValue = [
   'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
   'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
 ];
@@ -82,182 +88,42 @@ const mockGetAllSnapsReturnValue = [
     blocked: false,
     enabled: true,
     id: 'local:http://localhost:8080',
-    initialPermissions: {
-      'endowment:cronjob': {
-        jobs: [
-          {
-            expression: '* * * * *',
-            request: {
-              method: 'refreshTokenPrices',
-              params: {},
-            },
-          },
-          {
-            expression: '* * * * *',
-            request: {
-              method: 'refreshTransactions',
-              params: {},
-            },
-          },
-        ],
-      },
-      'endowment:keyring': {
-        allowedOrigins: [
-          'http://localhost:3000',
-          'https://portfolio.metamask.io',
-          'https://portfolio-builds.metafi-dev.codefi.network',
-          'https://dev.portfolio.metamask.io',
-          'https://ramps-dev.portfolio.metamask.io',
-        ],
-      },
-      'endowment:network-access': {},
-      'endowment:rpc': {
-        dapps: true,
-        snaps: false,
-      },
-      snap_dialog: {},
-      snap_getBip32Entropy: [
-        {
-          curve: 'ed25519',
-          path: ['m', "44'", "501'"],
-        },
-      ],
-      snap_getPreferences: {},
-      snap_manageAccounts: {},
-      snap_manageState: {},
-    },
     version: '1.0.4',
   },
   {
     blocked: false,
     enabled: true,
     id: 'npm:@metamask/account-watcher',
-    initialPermissions: {
-      'endowment:ethereum-provider': {},
-      'endowment:keyring': {
-        allowedOrigins: ['https://snaps.metamask.io'],
-      },
-      'endowment:page-home': {},
-      'endowment:rpc': {
-        allowedOrigins: ['https://snaps.metamask.io'],
-      },
-      snap_dialog: {},
-      snap_manageAccounts: {},
-      snap_manageState: {},
-    },
     version: '4.1.0',
   },
   {
     blocked: false,
     enabled: true,
     id: 'npm:@metamask/bitcoin-wallet-snap',
-    initialPermissions: {
-      'endowment:keyring': {
-        allowedOrigins: [
-          'https://portfolio.metamask.io',
-          'https://portfolio-builds.metafi-dev.codefi.network',
-          'https://dev.portfolio.metamask.io',
-          'https://ramps-dev.portfolio.metamask.io',
-        ],
-      },
-      'endowment:network-access': {},
-      'endowment:rpc': {
-        dapps: true,
-        snaps: false,
-      },
-      snap_dialog: {},
-      snap_getBip32Entropy: [
-        {
-          curve: 'secp256k1',
-          path: ['m', "84'", "0'"],
-        },
-        {
-          curve: 'secp256k1',
-          path: ['m', "84'", "1'"],
-        },
-      ],
-      snap_manageAccounts: {},
-      snap_manageState: {},
-    },
     version: '0.8.2',
   },
   {
     blocked: false,
     enabled: true,
     id: 'npm:@metamask/ens-resolver-snap',
-    initialPermissions: {
-      'endowment:ethereum-provider': {},
-      'endowment:name-lookup': {},
-      'endowment:network-access': {},
-    },
     version: '0.1.2',
   },
   {
     blocked: false,
     enabled: true,
     id: 'npm:@metamask/message-signing-snap',
-    initialPermissions: {
-      'endowment:rpc': {
-        dapps: true,
-        snaps: false,
-      },
-      snap_getEntropy: {},
-    },
     version: '0.6.0',
   },
   {
     blocked: false,
     enabled: true,
     id: 'npm:@metamask/preinstalled-example-snap',
-    initialPermissions: {
-      'endowment:rpc': {
-        dapps: true,
-      },
-      snap_dialog: {},
-    },
     version: '0.2.0',
   },
   {
     blocked: false,
     enabled: true,
     id: 'npm:@metamask/solana-wallet-snap',
-    initialPermissions: {
-      'endowment:cronjob': {
-        jobs: [
-          {
-            expression: '* * * * *',
-            request: {
-              method: 'refreshTokenPrices',
-              params: {},
-            },
-          },
-        ],
-      },
-      'endowment:keyring': {
-        allowedOrigins: [
-          'http://localhost:3000',
-          'https://portfolio.metamask.io',
-          'https://portfolio-builds.metafi-dev.codefi.network',
-          'https://dev.portfolio.metamask.io',
-          'https://ramps-dev.portfolio.metamask.io',
-        ],
-      },
-      'endowment:network-access': {},
-      'endowment:rpc': {
-        dapps: true,
-        snaps: false,
-      },
-      snap_dialog: {},
-      snap_getBip32Entropy: [
-        {
-          curve: 'ed25519',
-          path: ['m', "44'", "501'"],
-        },
-      ],
-      snap_getPreferences: {},
-      snap_manageAccounts: {},
-      snap_manageState: {},
-    },
     version: '1.0.3',
   },
 ];
@@ -272,122 +138,6 @@ const mockGetPermissionsReturnValue = [
         },
       ],
     },
-    'endowment:cronjob': {
-      caveats: [
-        {
-          type: 'snapCronjob',
-          value: {
-            jobs: [
-              {
-                expression: '* * * * *',
-                request: {
-                  method: 'refreshTokenPrices',
-                  params: {},
-                },
-              },
-              {
-                expression: '* * * * *',
-                request: {
-                  method: 'refreshTransactions',
-                  params: {},
-                },
-              },
-            ],
-          },
-        },
-      ],
-      date: 1736869806349,
-      id: 'OQ3d1RXEPbcvi3sNzP6GV',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'endowment:cronjob',
-    },
-    'endowment:keyring': {
-      caveats: [
-        {
-          type: 'keyringOrigin',
-          value: {
-            allowedOrigins: [
-              'http://localhost:3000',
-              'https://portfolio.metamask.io',
-              'https://portfolio-builds.metafi-dev.codefi.network',
-              'https://dev.portfolio.metamask.io',
-              'https://ramps-dev.portfolio.metamask.io',
-            ],
-          },
-        },
-      ],
-      date: 1736869806348,
-      id: 'WkNypQHrfAaP8VyDZZmIG',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'endowment:keyring',
-    },
-    'endowment:network-access': {
-      caveats: null,
-      date: 1736869806348,
-      id: 'wMPlAtMQCzt6TeQe4j3f-',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'endowment:network-access',
-    },
-    'endowment:rpc': {
-      caveats: [
-        {
-          type: 'rpcOrigin',
-          value: {
-            dapps: true,
-            snaps: false,
-          },
-        },
-      ],
-      date: 1736869806348,
-      id: '7j1Elw4kcL4KOnlQ6xt7A',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'endowment:rpc',
-    },
-    snap_dialog: {
-      caveats: null,
-      date: 1736869806349,
-      id: '2OtPNZTdpK1FadSM0s0rv',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'snap_dialog',
-    },
-    snap_getBip32Entropy: {
-      caveats: [
-        {
-          type: 'permittedDerivationPaths',
-          value: [
-            {
-              curve: 'ed25519',
-              path: ['m', "44'", "501'"],
-            },
-          ],
-        },
-      ],
-      date: 1736869806348,
-      id: 'WiOkUgu4Y89p2youlm7ro',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'snap_getBip32Entropy',
-    },
-    snap_getPreferences: {
-      caveats: null,
-      date: 1736869806349,
-      id: 'LmYGhkzdyDWmhAbM1UJfx',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'snap_getPreferences',
-    },
-    snap_manageAccounts: {
-      caveats: null,
-      date: 1736869806349,
-      id: 'BaiVanA9U-BIfbCgYpeo6',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'snap_manageAccounts',
-    },
-    snap_manageState: {
-      caveats: null,
-      date: 1736869806349,
-      id: 'oIJeVj2SsWh6uFam1RMi4',
-      invoker: 'local:http://localhost:8080',
-      parentCapability: 'snap_manageState',
-    },
   },
   {
     'endowment:ethereum-provider': {
@@ -397,146 +147,14 @@ const mockGetPermissionsReturnValue = [
       invoker: 'npm:@metamask/account-watcher',
       parentCapability: 'endowment:ethereum-provider',
     },
-    'endowment:keyring': {
-      caveats: [
-        {
-          type: 'keyringOrigin',
-          value: {
-            allowedOrigins: ['https://snaps.metamask.io'],
-          },
-        },
-      ],
-      date: 1736868793768,
-      id: 'Kov-E2ET5_VFdUXjmYYHP',
-      invoker: 'npm:@metamask/account-watcher',
-      parentCapability: 'endowment:keyring',
-    },
-    'endowment:page-home': {
-      caveats: null,
-      date: 1736868793768,
-      id: 'c-0RxHEdyaH1ykli6XVBU',
-      invoker: 'npm:@metamask/account-watcher',
-      parentCapability: 'endowment:page-home',
-    },
-    'endowment:rpc': {
-      caveats: [
-        {
-          type: 'rpcOrigin',
-          value: {
-            allowedOrigins: ['https://snaps.metamask.io'],
-          },
-        },
-      ],
-      date: 1736868793768,
-      id: 'zT7i1dwZutCoah2KhYq0A',
-      invoker: 'npm:@metamask/account-watcher',
-      parentCapability: 'endowment:rpc',
-    },
-    snap_dialog: {
-      caveats: null,
-      date: 1736868793768,
-      id: 'y2jAkxa2FLNBxxw8p1GIW',
-      invoker: 'npm:@metamask/account-watcher',
-      parentCapability: 'snap_dialog',
-    },
-    snap_manageAccounts: {
-      caveats: null,
-      date: 1736868793768,
-      id: 'Cn3WoTJ-Ute4BIoQncG9H',
-      invoker: 'npm:@metamask/account-watcher',
-      parentCapability: 'snap_manageAccounts',
-    },
-    snap_manageState: {
-      caveats: null,
-      date: 1736868793768,
-      id: '3VpjOrbSgm1iiSRdKfSK4',
-      invoker: 'npm:@metamask/account-watcher',
-      parentCapability: 'snap_manageState',
-    },
   },
   {
-    'endowment:keyring': {
-      caveats: [
-        {
-          type: 'keyringOrigin',
-          value: {
-            allowedOrigins: [
-              'https://portfolio.metamask.io',
-              'https://portfolio-builds.metafi-dev.codefi.network',
-              'https://dev.portfolio.metamask.io',
-              'https://ramps-dev.portfolio.metamask.io',
-            ],
-          },
-        },
-      ],
-      date: 1736868793769,
-      id: 'qrSg-gbPPoWUT0QC-cX_E',
-      invoker: 'npm:@metamask/bitcoin-wallet-snap',
-      parentCapability: 'endowment:keyring',
-    },
     'endowment:network-access': {
       caveats: null,
       date: 1736868793769,
       id: '9NST-8ZIQO7_BVVJP6JyD',
       invoker: 'npm:@metamask/bitcoin-wallet-snap',
       parentCapability: 'endowment:network-access',
-    },
-    'endowment:rpc': {
-      caveats: [
-        {
-          type: 'rpcOrigin',
-          value: {
-            dapps: true,
-            snaps: false,
-          },
-        },
-      ],
-      date: 1736868793769,
-      id: 'pmxVKfS_aa7atONpOswiG',
-      invoker: 'npm:@metamask/bitcoin-wallet-snap',
-      parentCapability: 'endowment:rpc',
-    },
-    snap_dialog: {
-      caveats: null,
-      date: 1736868793769,
-      id: '2GVLgDfehEN6_gOxHjF9y',
-      invoker: 'npm:@metamask/bitcoin-wallet-snap',
-      parentCapability: 'snap_dialog',
-    },
-    snap_getBip32Entropy: {
-      caveats: [
-        {
-          type: 'permittedDerivationPaths',
-          value: [
-            {
-              curve: 'secp256k1',
-              path: ['m', "84'", "0'"],
-            },
-            {
-              curve: 'secp256k1',
-              path: ['m', "84'", "1'"],
-            },
-          ],
-        },
-      ],
-      date: 1736868793769,
-      id: 'R6fsWjHr1dv1njukHgVc9',
-      invoker: 'npm:@metamask/bitcoin-wallet-snap',
-      parentCapability: 'snap_getBip32Entropy',
-    },
-    snap_manageAccounts: {
-      caveats: null,
-      date: 1736868793769,
-      id: 'CIPKC1JmlTcg1vx5m25_y',
-      invoker: 'npm:@metamask/bitcoin-wallet-snap',
-      parentCapability: 'snap_manageAccounts',
-    },
-    snap_manageState: {
-      caveats: null,
-      date: 1736868793769,
-      id: 'Hy75pNHCkG899mB02Rey1',
-      invoker: 'npm:@metamask/bitcoin-wallet-snap',
-      parentCapability: 'snap_manageState',
     },
   },
   {
@@ -547,177 +165,30 @@ const mockGetPermissionsReturnValue = [
       invoker: 'npm:@metamask/ens-resolver-snap',
       parentCapability: 'endowment:ethereum-provider',
     },
-    'endowment:name-lookup': {
-      caveats: null,
-      date: 1736868793767,
-      id: 'y0K_nuZVDc3LP4-5tu9aP',
-      invoker: 'npm:@metamask/ens-resolver-snap',
-      parentCapability: 'endowment:name-lookup',
-    },
-    'endowment:network-access': {
-      caveats: null,
-      date: 1736868793767,
-      id: 'JU4JfpT3aoeo61_KN1pRW',
-      invoker: 'npm:@metamask/ens-resolver-snap',
-      parentCapability: 'endowment:network-access',
-    },
   },
   {
     'endowment:rpc': {
-      caveats: [
-        {
-          type: 'rpcOrigin',
-          value: {
-            dapps: true,
-            snaps: false,
-          },
-        },
-      ],
       date: 1736868793765,
       id: 'j8XfK-fPq13COl7xFQxXn',
       invoker: 'npm:@metamask/message-signing-snap',
       parentCapability: 'endowment:rpc',
     },
-    snap_getEntropy: {
-      caveats: null,
-      date: 1736868793765,
-      id: 'igu3INtYezAnQFXtEZfsD',
-      invoker: 'npm:@metamask/message-signing-snap',
-      parentCapability: 'snap_getEntropy',
-    },
   },
   {
     'endowment:rpc': {
-      caveats: [
-        {
-          type: 'rpcOrigin',
-          value: {
-            dapps: true,
-          },
-        },
-      ],
       date: 1736868793771,
       id: 'Yd155j5BoXh3BIndgMkAM',
       invoker: 'npm:@metamask/preinstalled-example-snap',
       parentCapability: 'endowment:rpc',
     },
-    snap_dialog: {
-      caveats: null,
-      date: 1736868793771,
-      id: 'Mg3jlxAPZd-z2ktR_d-s3',
-      invoker: 'npm:@metamask/preinstalled-example-snap',
-      parentCapability: 'snap_dialog',
-    },
   },
   {
-    'endowment:cronjob': {
-      caveats: [
-        {
-          type: 'snapCronjob',
-          value: {
-            jobs: [
-              {
-                expression: '* * * * *',
-                request: {
-                  method: 'refreshTokenPrices',
-                  params: {},
-                },
-              },
-            ],
-          },
-        },
-      ],
-      date: 1736868793773,
-      id: 'HvFji18XmC4Z8X6aZRX0U',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'endowment:cronjob',
-    },
-    'endowment:keyring': {
-      caveats: [
-        {
-          type: 'keyringOrigin',
-          value: {
-            allowedOrigins: [
-              'http://localhost:3000',
-              'https://portfolio.metamask.io',
-              'https://portfolio-builds.metafi-dev.codefi.network',
-              'https://dev.portfolio.metamask.io',
-              'https://ramps-dev.portfolio.metamask.io',
-            ],
-          },
-        },
-      ],
-      date: 1736868793773,
-      id: 'gE03aDEESBJhHPOohNF_D',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'endowment:keyring',
-    },
     'endowment:network-access': {
       caveats: null,
       date: 1736868793773,
       id: 'HbXb8MLHbRrQMexyVpQQ7',
       invoker: 'npm:@metamask/solana-wallet-snap',
       parentCapability: 'endowment:network-access',
-    },
-    'endowment:rpc': {
-      caveats: [
-        {
-          type: 'rpcOrigin',
-          value: {
-            dapps: true,
-            snaps: false,
-          },
-        },
-      ],
-      date: 1736868793773,
-      id: 'c673VaxUJ2XiqpxU-NMwk',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'endowment:rpc',
-    },
-    snap_dialog: {
-      caveats: null,
-      date: 1736868793773,
-      id: '4_LLZgFa6BMO00xXjxUic',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'snap_dialog',
-    },
-    snap_getBip32Entropy: {
-      caveats: [
-        {
-          type: 'permittedDerivationPaths',
-          value: [
-            {
-              curve: 'ed25519',
-              path: ['m', "44'", "501'"],
-            },
-          ],
-        },
-      ],
-      date: 1736868793773,
-      id: 'uK-0Ig3Kwoz_hni63t3dl',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'snap_getBip32Entropy',
-    },
-    snap_getPreferences: {
-      caveats: null,
-      date: 1736868793773,
-      id: 'yW6iC0gWWEMJ0TWZMIbDb',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'snap_getPreferences',
-    },
-    snap_manageAccounts: {
-      caveats: null,
-      date: 1736868793773,
-      id: 'G0kZa4d7GekeMNxA76Yqz',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'snap_manageAccounts',
-    },
-    snap_manageState: {
-      caveats: null,
-      date: 1736868793773,
-      id: 'zjugDVmAof_4yztwpZveV',
-      invoker: 'npm:@metamask/solana-wallet-snap',
-      parentCapability: 'snap_manageState',
     },
   },
 ];
@@ -783,8 +254,8 @@ const setupController = ({
     controllerMessenger.getRestricted({
       name: 'MultichainAssetsController',
       allowedActions: [
-        'SnapController:handleRequest',
         'AccountsController:listMultichainAccounts',
+        'SnapController:handleRequest',
         'SnapController:getAll',
         'PermissionController:getPermissions',
       ],
@@ -799,7 +270,8 @@ const setupController = ({
   controllerMessenger.registerActionHandler(
     'SnapController:handleRequest',
     mockSnapHandleRequest.mockReturnValue(
-      mocks?.handleRequestReturnValue ?? mockGetAssetsResult,
+      mocks?.handleRequestReturnValue ??
+        mockHandleRequestOnAssetsLookupReturnValue,
     ),
   );
 
@@ -860,7 +332,7 @@ describe('MultichainAssetsController', () => {
     });
   });
 
-  it('should not update state when new account added is EVM', async () => {
+  it('does not update state when new account added is EVM', async () => {
     const { controller, messenger } = setupController();
 
     messenger.publish(
@@ -881,7 +353,7 @@ describe('MultichainAssetsController', () => {
       setupController();
 
     mockSnapHandleRequest
-      .mockReturnValueOnce(mockGetAssetsResult)
+      .mockReturnValueOnce(mockHandleRequestOnAssetsLookupReturnValue)
       .mockReturnValueOnce(mockGetMetadataReturnValue);
 
     mockGetPermissions
@@ -902,17 +374,17 @@ describe('MultichainAssetsController', () => {
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
-        [mockSolanaAccount.id]: mockGetAssetsResult,
+        [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupReturnValue,
       },
       assetsMetadata: mockGetMetadataReturnValue.assets,
     });
   });
 
-  it('updates metadata in state successfully all calls succeed to fetch metadata', async () => {
+  it('updates metadata in state successfully when all calls succeed to fetch metadata', async () => {
     const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
       setupController();
 
-    const mockAssetsResponse = [
+    const mockHandleRequestOnAssetsLookupResponse = [
       'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
       'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
@@ -929,122 +401,6 @@ describe('MultichainAssetsController', () => {
           },
         ],
       },
-      'endowment:cronjob': {
-        caveats: [
-          {
-            type: 'snapCronjob',
-            value: {
-              jobs: [
-                {
-                  expression: '* * * * *',
-                  request: {
-                    method: 'refreshTokenPrices',
-                    params: {},
-                  },
-                },
-                {
-                  expression: '* * * * *',
-                  request: {
-                    method: 'refreshTransactions',
-                    params: {},
-                  },
-                },
-              ],
-            },
-          },
-        ],
-        date: 1736869806349,
-        id: 'OQ3d1RXEPbcvi3sNzP6GV',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:cronjob',
-      },
-      'endowment:keyring': {
-        caveats: [
-          {
-            type: 'keyringOrigin',
-            value: {
-              allowedOrigins: [
-                'http://localhost:3000',
-                'https://portfolio.metamask.io',
-                'https://portfolio-builds.metafi-dev.codefi.network',
-                'https://dev.portfolio.metamask.io',
-                'https://ramps-dev.portfolio.metamask.io',
-              ],
-            },
-          },
-        ],
-        date: 1736869806348,
-        id: 'WkNypQHrfAaP8VyDZZmIG',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:keyring',
-      },
-      'endowment:network-access': {
-        caveats: null,
-        date: 1736869806348,
-        id: 'wMPlAtMQCzt6TeQe4j3f-',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:network-access',
-      },
-      'endowment:rpc': {
-        caveats: [
-          {
-            type: 'rpcOrigin',
-            value: {
-              dapps: true,
-              snaps: false,
-            },
-          },
-        ],
-        date: 1736869806348,
-        id: '7j1Elw4kcL4KOnlQ6xt7A',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:rpc',
-      },
-      snap_dialog: {
-        caveats: null,
-        date: 1736869806349,
-        id: '2OtPNZTdpK1FadSM0s0rv',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_dialog',
-      },
-      snap_getBip32Entropy: {
-        caveats: [
-          {
-            type: 'permittedDerivationPaths',
-            value: [
-              {
-                curve: 'ed25519',
-                path: ['m', "44'", "501'"],
-              },
-            ],
-          },
-        ],
-        date: 1736869806348,
-        id: 'WiOkUgu4Y89p2youlm7ro',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_getBip32Entropy',
-      },
-      snap_getPreferences: {
-        caveats: null,
-        date: 1736869806349,
-        id: 'LmYGhkzdyDWmhAbM1UJfx',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_getPreferences',
-      },
-      snap_manageAccounts: {
-        caveats: null,
-        date: 1736869806349,
-        id: 'BaiVanA9U-BIfbCgYpeo6',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_manageAccounts',
-      },
-      snap_manageState: {
-        caveats: null,
-        date: 1736869806349,
-        id: 'oIJeVj2SsWh6uFam1RMi4',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_manageState',
-      },
     };
     const mockGetMetadataResponse: AssetMetadataResponse | undefined = {
       assets: {
@@ -1059,7 +415,7 @@ describe('MultichainAssetsController', () => {
     };
 
     mockSnapHandleRequest
-      .mockReturnValueOnce(mockAssetsResponse)
+      .mockReturnValueOnce(mockHandleRequestOnAssetsLookupResponse)
       .mockReturnValueOnce(mockGetMetadataReturnValue)
       .mockReturnValueOnce(mockGetMetadataResponse);
 
@@ -1083,7 +439,7 @@ describe('MultichainAssetsController', () => {
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
-        [mockSolanaAccount.id]: mockAssetsResponse,
+        [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupResponse,
       },
       assetsMetadata: {
         ...mockGetMetadataResponse.assets,
@@ -1092,11 +448,11 @@ describe('MultichainAssetsController', () => {
     });
   });
 
-  it('updates metadata in state successfully one call to fetch metadata fails', async () => {
+  it('updates metadata in state successfully when one call to fetch metadata fails', async () => {
     const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
       setupController();
 
-    const mockAssetsResponse = [
+    const mockHandleRequestOnAssetsLookupResponse = [
       'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501',
       'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
@@ -1113,126 +469,10 @@ describe('MultichainAssetsController', () => {
           },
         ],
       },
-      'endowment:cronjob': {
-        caveats: [
-          {
-            type: 'snapCronjob',
-            value: {
-              jobs: [
-                {
-                  expression: '* * * * *',
-                  request: {
-                    method: 'refreshTokenPrices',
-                    params: {},
-                  },
-                },
-                {
-                  expression: '* * * * *',
-                  request: {
-                    method: 'refreshTransactions',
-                    params: {},
-                  },
-                },
-              ],
-            },
-          },
-        ],
-        date: 1736869806349,
-        id: 'OQ3d1RXEPbcvi3sNzP6GV',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:cronjob',
-      },
-      'endowment:keyring': {
-        caveats: [
-          {
-            type: 'keyringOrigin',
-            value: {
-              allowedOrigins: [
-                'http://localhost:3000',
-                'https://portfolio.metamask.io',
-                'https://portfolio-builds.metafi-dev.codefi.network',
-                'https://dev.portfolio.metamask.io',
-                'https://ramps-dev.portfolio.metamask.io',
-              ],
-            },
-          },
-        ],
-        date: 1736869806348,
-        id: 'WkNypQHrfAaP8VyDZZmIG',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:keyring',
-      },
-      'endowment:network-access': {
-        caveats: null,
-        date: 1736869806348,
-        id: 'wMPlAtMQCzt6TeQe4j3f-',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:network-access',
-      },
-      'endowment:rpc': {
-        caveats: [
-          {
-            type: 'rpcOrigin',
-            value: {
-              dapps: true,
-              snaps: false,
-            },
-          },
-        ],
-        date: 1736869806348,
-        id: '7j1Elw4kcL4KOnlQ6xt7A',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'endowment:rpc',
-      },
-      snap_dialog: {
-        caveats: null,
-        date: 1736869806349,
-        id: '2OtPNZTdpK1FadSM0s0rv',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_dialog',
-      },
-      snap_getBip32Entropy: {
-        caveats: [
-          {
-            type: 'permittedDerivationPaths',
-            value: [
-              {
-                curve: 'ed25519',
-                path: ['m', "44'", "501'"],
-              },
-            ],
-          },
-        ],
-        date: 1736869806348,
-        id: 'WiOkUgu4Y89p2youlm7ro',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_getBip32Entropy',
-      },
-      snap_getPreferences: {
-        caveats: null,
-        date: 1736869806349,
-        id: 'LmYGhkzdyDWmhAbM1UJfx',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_getPreferences',
-      },
-      snap_manageAccounts: {
-        caveats: null,
-        date: 1736869806349,
-        id: 'BaiVanA9U-BIfbCgYpeo6',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_manageAccounts',
-      },
-      snap_manageState: {
-        caveats: null,
-        date: 1736869806349,
-        id: 'oIJeVj2SsWh6uFam1RMi4',
-        invoker: 'local:http://localhost:8080',
-        parentCapability: 'snap_manageState',
-      },
     };
 
     mockSnapHandleRequest
-      .mockReturnValueOnce(mockAssetsResponse)
+      .mockReturnValueOnce(mockHandleRequestOnAssetsLookupResponse)
       .mockReturnValueOnce(mockGetMetadataReturnValue)
       .mockRejectedValueOnce('Error');
 
@@ -1256,7 +496,7 @@ describe('MultichainAssetsController', () => {
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
-        [mockSolanaAccount.id]: mockAssetsResponse,
+        [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupResponse,
       },
       assetsMetadata: {
         ...mockGetMetadataReturnValue.assets,
@@ -1264,12 +504,12 @@ describe('MultichainAssetsController', () => {
     });
   });
 
-  it('should not delete account from accountsAssets when "AccountsController:accountRemoved" is fired with EVM account', async () => {
+  it('does not delete account from accountsAssets when "AccountsController:accountRemoved" is fired with EVM account', async () => {
     const { controller, messenger, mockSnapHandleRequest, mockGetPermissions } =
       setupController();
 
     mockSnapHandleRequest
-      .mockReturnValueOnce(mockGetAssetsResult)
+      .mockReturnValueOnce(mockHandleRequestOnAssetsLookupReturnValue)
       .mockReturnValueOnce(mockGetMetadataReturnValue);
 
     mockGetPermissions
@@ -1291,7 +531,7 @@ describe('MultichainAssetsController', () => {
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
-        [mockSolanaAccount.id]: mockGetAssetsResult,
+        [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupReturnValue,
       },
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
@@ -1303,7 +543,7 @@ describe('MultichainAssetsController', () => {
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
-        [mockSolanaAccount.id]: mockGetAssetsResult,
+        [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupReturnValue,
       },
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
@@ -1315,7 +555,7 @@ describe('MultichainAssetsController', () => {
       setupController();
 
     mockSnapHandleRequest
-      .mockReturnValueOnce(mockGetAssetsResult)
+      .mockReturnValueOnce(mockHandleRequestOnAssetsLookupReturnValue)
       .mockReturnValueOnce(mockGetMetadataReturnValue);
 
     mockGetPermissions
@@ -1337,7 +577,7 @@ describe('MultichainAssetsController', () => {
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
-        [mockSolanaAccount.id]: mockGetAssetsResult,
+        [mockSolanaAccount.id]: mockHandleRequestOnAssetsLookupReturnValue,
       },
 
       assetsMetadata: mockGetMetadataReturnValue.assets,
@@ -1358,7 +598,7 @@ describe('MultichainAssetsController', () => {
   });
 
   describe('handleAccountAssetListUpdated', () => {
-    it('should update the assets list for an account when a new asset is added', async () => {
+    it('updates the assets list for an account when a new asset is added', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
       const {
@@ -1369,7 +609,7 @@ describe('MultichainAssetsController', () => {
       } = setupController({
         state: {
           accountsAssets: {
-            [mockSolanaAccountId1]: mockGetAssetsResult,
+            [mockSolanaAccountId1]: mockHandleRequestOnAssetsLookupReturnValue,
           },
           assetsMetadata: mockGetMetadataReturnValue.assets,
         } as MultichainAssetsControllerState,
@@ -1452,13 +692,13 @@ describe('MultichainAssetsController', () => {
       });
     });
 
-    it('should not add duplicate assets to state', async () => {
+    it('does not add duplicate assets to state', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
       const { controller, messenger } = setupController({
         state: {
           accountsAssets: {
-            [mockSolanaAccountId1]: mockGetAssetsResult,
+            [mockSolanaAccountId1]: mockHandleRequestOnAssetsLookupReturnValue,
           },
           assetsMetadata: mockGetMetadataReturnValue,
         } as MultichainAssetsControllerState,
@@ -1468,7 +708,7 @@ describe('MultichainAssetsController', () => {
         assets: {
           [mockSolanaAccountId1]: {
             added:
-              mockGetAssetsResult as `${string}:${string}/${string}:${string}`[],
+              mockHandleRequestOnAssetsLookupReturnValue as `${string}:${string}/${string}:${string}`[],
             removed: [],
           },
           [mockSolanaAccountId2]: {
@@ -1495,13 +735,13 @@ describe('MultichainAssetsController', () => {
       });
     });
 
-    it('should update the assets list for an account when a an asset is removed', async () => {
+    it('updates the assets list for an account when a an asset is removed', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';
       const { controller, messenger } = setupController({
         state: {
           accountsAssets: {
-            [mockSolanaAccountId1]: mockGetAssetsResult,
+            [mockSolanaAccountId1]: mockHandleRequestOnAssetsLookupReturnValue,
             [mockSolanaAccountId2]: [
               'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:newToken3',
             ],
