@@ -351,14 +351,11 @@ export default class UserStorageController extends BaseController<
 
   readonly #nativeScryptCrypto: NativeScrypt | undefined = undefined;
 
-  getMetaMetricsState: () => boolean;
-
   constructor({
     messenger,
     state,
     env,
     config,
-    getMetaMetricsState,
     nativeScryptCrypto,
   }: {
     messenger: UserStorageControllerMessenger;
@@ -368,7 +365,6 @@ export default class UserStorageController extends BaseController<
       isAccountSyncingEnabled?: boolean;
       isNetworkSyncingEnabled?: boolean;
     };
-    getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
   }) {
     super({
@@ -382,7 +378,6 @@ export default class UserStorageController extends BaseController<
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
 
-    this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
@@ -500,12 +495,6 @@ export default class UserStorageController extends BaseController<
 
     try {
       this.#setIsProfileSyncingUpdateLoading(true);
-
-      const isMetaMetricsParticipation = this.getMetaMetricsState();
-
-      if (!isMetaMetricsParticipation) {
-        await this.#auth.signOut();
-      }
 
       this.#setIsProfileSyncingUpdateLoading(false);
 
