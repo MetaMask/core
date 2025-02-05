@@ -61,19 +61,6 @@ import type {
   AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
 
-// TODO: fix external dependencies
-export declare type NotificationServicesControllerDisableNotificationServices =
-  {
-    type: `NotificationServicesController:disableNotificationServices`;
-    handler: () => Promise<void>;
-  };
-
-export declare type NotificationServicesControllerSelectIsNotificationServicesEnabled =
-  {
-    type: `NotificationServicesController:selectIsNotificationServicesEnabled`;
-    handler: () => boolean;
-  };
-
 const controllerName = 'UserStorageController';
 
 // State
@@ -245,9 +232,6 @@ export type AllowedActions =
   | AuthenticationControllerPerformSignIn
   | AuthenticationControllerIsSignedIn
   | AuthenticationControllerPerformSignOut
-  // Metamask Notifications
-  | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled
   // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
@@ -329,7 +313,7 @@ export default class UserStorageController extends BaseController<
       );
       return sessionProfile?.profileId;
     },
-    isAuthEnabled: () => {
+    isSignedIn: () => {
       return this.messagingSystem.call('AuthenticationController:isSignedIn');
     },
     signIn: async () => {
@@ -345,19 +329,6 @@ export default class UserStorageController extends BaseController<
   };
 
   readonly #config?: ControllerConfig;
-
-  readonly #notificationServices = {
-    disableNotificationServices: async () => {
-      return await this.messagingSystem.call(
-        'NotificationServicesController:disableNotificationServices',
-      );
-    },
-    selectIsNotificationServicesEnabled: async () => {
-      return this.messagingSystem.call(
-        'NotificationServicesController:selectIsNotificationServicesEnabled',
-      );
-    },
-  };
 
   #isUnlocked = false;
 
@@ -380,14 +351,11 @@ export default class UserStorageController extends BaseController<
 
   readonly #nativeScryptCrypto: NativeScrypt | undefined = undefined;
 
-  getMetaMetricsState: () => boolean;
-
   constructor({
     messenger,
     state,
     env,
     config,
-    getMetaMetricsState,
     nativeScryptCrypto,
   }: {
     messenger: UserStorageControllerMessenger;
@@ -397,7 +365,6 @@ export default class UserStorageController extends BaseController<
       isAccountSyncingEnabled?: boolean;
       isNetworkSyncingEnabled?: boolean;
     };
-    getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
   }) {
     super({
@@ -411,7 +378,6 @@ export default class UserStorageController extends BaseController<
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
 
-    this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
@@ -502,8 +468,8 @@ export default class UserStorageController extends BaseController<
     try {
       this.#setIsProfileSyncingUpdateLoading(true);
 
-      const authEnabled = this.#auth.isAuthEnabled();
-      if (!authEnabled) {
+      const isSignedIn = this.#auth.isSignedIn();
+      if (!isSignedIn) {
         await this.#auth.signIn();
       }
 
@@ -521,14 +487,6 @@ export default class UserStorageController extends BaseController<
     }
   }
 
-  public async setIsProfileSyncingEnabled(
-    isProfileSyncingEnabled: boolean,
-  ): Promise<void> {
-    this.update((state) => {
-      state.isProfileSyncingEnabled = isProfileSyncingEnabled;
-    });
-  }
-
   public async disableProfileSyncing(): Promise<void> {
     const isAlreadyDisabled = !this.state.isProfileSyncingEnabled;
     if (isAlreadyDisabled) {
@@ -537,19 +495,6 @@ export default class UserStorageController extends BaseController<
 
     try {
       this.#setIsProfileSyncingUpdateLoading(true);
-
-      const isNotificationServicesEnabled =
-        await this.#notificationServices.selectIsNotificationServicesEnabled();
-
-      if (isNotificationServicesEnabled) {
-        await this.#notificationServices.disableNotificationServices();
-      }
-
-      const isMetaMetricsParticipation = this.getMetaMetricsState();
-
-      if (!isMetaMetricsParticipation) {
-        await this.#auth.signOut();
-      }
 
       this.#setIsProfileSyncingUpdateLoading(false);
 
@@ -575,8 +520,6 @@ export default class UserStorageController extends BaseController<
   public async performGetStorage(
     path: UserStoragePathWithFeatureAndKey,
   ): Promise<string | null> {
-    this.#assertProfileSyncingEnabled();
-
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
@@ -600,8 +543,6 @@ export default class UserStorageController extends BaseController<
   public async performGetStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
   ): Promise<string[] | null> {
-    this.#assertProfileSyncingEnabled();
-
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
@@ -627,8 +568,6 @@ export default class UserStorageController extends BaseController<
     path: UserStoragePathWithFeatureAndKey,
     value: string,
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
@@ -654,8 +593,6 @@ export default class UserStorageController extends BaseController<
     path: FeatureName,
     values: [UserStorageFeatureKeys<FeatureName>, string][],
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
@@ -676,8 +613,6 @@ export default class UserStorageController extends BaseController<
   public async performDeleteStorage(
     path: UserStoragePathWithFeatureAndKey,
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
@@ -698,8 +633,6 @@ export default class UserStorageController extends BaseController<
   public async performDeleteStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
@@ -724,8 +657,6 @@ export default class UserStorageController extends BaseController<
     path: FeatureName,
     values: UserStorageFeatureKeys<FeatureName>[],
   ): Promise<void> {
-    this.#assertProfileSyncingEnabled();
-
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
@@ -743,17 +674,8 @@ export default class UserStorageController extends BaseController<
    * @returns the storage key
    */
   public async getStorageKey(): Promise<string> {
-    this.#assertProfileSyncingEnabled();
     const storageKey = await this.#createStorageKey();
     return storageKey;
-  }
-
-  #assertProfileSyncingEnabled(): void {
-    if (!this.state.isProfileSyncingEnabled) {
-      throw new Error(
-        `${controllerName}: Unable to call method, user is not authenticated`,
-      );
-    }
   }
 
   /**

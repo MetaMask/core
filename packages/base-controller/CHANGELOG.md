@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Widen input parameter for type guard `isBaseController` from `ControllerInstance` to `unknown` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+
+### Removed
+
+- **BREAKING:** Remove class `BaseControllerV1` and type guard `isBaseControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+- **BREAKING:** Remove types `BaseConfig`, `BaseControllerV1Instance`, `BaseState`, `ConfigConstraintV1`, `Listener`, `StateConstraintV1`, `LegacyControllerStateConstraint`, `ControllerInstance` ([#5018](https://github.com/MetaMask/core/pull/5018/))
+
 ## [7.1.1]
 
 ### Changed
