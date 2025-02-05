@@ -1947,6 +1947,11 @@ export class TransactionController extends BaseController<
    * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
    * @param options.hash - The new hash value to be assigned.
    * @param options.status - The new status value to be assigned.
+   * @param options.gasLimit - The new gas limit value to be assigned
+   * @param options.gasPrice - The new gas price value to be assigned
+   * @param options.maxFeePerGas - The new max fee per gas value to be assigned
+   * @param options.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
+   * @param options.nonce - The new nonce value to be assigned
    */
   updateCustodialTransaction(
     transactionId: string,
@@ -1954,10 +1959,22 @@ export class TransactionController extends BaseController<
       errorMessage,
       hash,
       status,
+      gasLimit,
+      gasPrice,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      nonce,
     }: {
       errorMessage?: string;
       hash?: string;
       status?: TransactionStatus;
+
+      // Transaction parameters that are mutable by the custodian
+      gasLimit?: string;
+      gasPrice?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+      nonce?: string;
     },
   ) {
     const transactionMeta = this.getTransaction(transactionId);
@@ -1992,6 +2009,27 @@ export class TransactionController extends BaseController<
 
     if (updatedTransactionMeta.status === TransactionStatus.failed) {
       updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
+    }
+
+    if (gasLimit) {
+      updatedTransactionMeta.txParams.gasLimit = gasLimit;
+    }
+
+    if (gasPrice) {
+      updatedTransactionMeta.txParams.gasPrice = gasPrice;
+    }
+
+    if (maxFeePerGas) {
+      updatedTransactionMeta.txParams.maxFeePerGas = maxFeePerGas;
+    }
+
+    if (maxPriorityFeePerGas) {
+      updatedTransactionMeta.txParams.maxPriorityFeePerGas =
+        maxPriorityFeePerGas;
+    }
+
+    if (nonce) {
+      updatedTransactionMeta.txParams.nonce = nonce;
     }
 
     this.updateTransaction(
