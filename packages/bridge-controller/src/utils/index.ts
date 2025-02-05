@@ -1,10 +1,8 @@
 import { Contract } from '@ethersproject/contracts';
-import { Hex } from '@metamask/utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import {
-  ETH_USDT_ADDRESS,
-  METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants';
+import type { Hex } from '@metamask/utils';
+
+import { ETH_USDT_ADDRESS, METABRIDGE_ETHEREUM_ADDRESS } from '../constants';
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 
@@ -35,36 +33,46 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
 
   const sum = hexStrings.reduce((acc, hex) => acc + BigInt(hex), BigInt(0));
   return `0x${sum.toString(16)}`;
-}
+};
 
 /**
  * Checks whether the provided address is strictly equal to the address for
  * the default swaps token of the provided chain.
  *
- * @param {string} address - The string to compare to the default token address
- * @param {Hex} chainId - The hex encoded chain ID of the default swaps token to check
- * @returns {boolean} Whether the address is the provided chain's default token address
+ * @param address - The string to compare to the default token address
+ * @param chainId - The hex encoded chain ID of the default swaps token to check
+ * @returns Whether the address is the provided chain's default token address
  */
 export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
   if (!address || !chainId) {
     return false;
   }
 
-  return address === SWAPS_CHAINID_DEFAULT_TOKEN_MAP[chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP]?.address;
-}
+  return (
+    address ===
+    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
+      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+    ]?.address
+  );
+};
 
 /**
  * Checks whether the provided symbol is strictly equal to the symbol for
  * the default swaps token of the provided chain.
  *
- * @param {string} symbol - The string to compare to the default token symbol
- * @param {Hex} chainId - The hex encoded chain ID of the default swaps token to check
- * @returns {boolean} Whether the symbol is the provided chain's default token symbol
+ * @param symbol - The string to compare to the default token symbol
+ * @param chainId - The hex encoded chain ID of the default swaps token to check
+ * @returns Whether the symbol is the provided chain's default token symbol
  */
 export const isSwapsDefaultTokenSymbol = (symbol: string, chainId: Hex) => {
   if (!symbol || !chainId) {
     return false;
   }
 
-  return symbol === SWAPS_CHAINID_DEFAULT_TOKEN_MAP[chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP]?.symbol;
-}
+  return (
+    symbol ===
+    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
+      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+    ]?.symbol
+  );
+};
