@@ -1,8 +1,9 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { validateTxParams } from './validation';
+import { validateTransactionOrigin, validateTxParams } from './validation';
 import { TransactionEnvelopeType } from '../types';
 import type { TransactionParams } from '../types';
+import { ORIGIN_METAMASK } from '../../../controller-utils/src';
 
 const FROM_MOCK = '0x1678a085c290ebd122dc42cba69373b5953b831d';
 const TO_MOCK = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
@@ -555,6 +556,97 @@ describe('validation', () => {
             ),
           );
         },
+      );
+    });
+  });
+
+  describe('validateTransactionOrigin', () => {
+    it('throws if internal and from address not selected', async () => {
+      await expect(
+        validateTransactionOrigin({
+          from: FROM_MOCK,
+          origin: ORIGIN_METAMASK,
+          permittedAddresses: undefined,
+          selectedAddress: '0x123',
+          txParams: {} as TransactionParams,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.invalidParams(
+          'Internally initiated transaction is using invalid account.',
+        ),
+      );
+    });
+
+    it('does not throw if internal and from address is selected', async () => {
+      await validateTransactionOrigin({
+        from: FROM_MOCK,
+        origin: ORIGIN_METAMASK,
+        permittedAddresses: undefined,
+        selectedAddress: FROM_MOCK,
+        txParams: {} as TransactionParams,
+      });
+    });
+
+    it('throws if external and from not permitted', async () => {
+      await expect(
+        validateTransactionOrigin({
+          from: FROM_MOCK,
+          origin: 'test-origin',
+          permittedAddresses: ['0x123', '0x456'],
+          selectedAddress: '0x123',
+          txParams: {} as TransactionParams,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.invalidParams(
+          'The requested account and/or method has not been authorized by the user.',
+        ),
+      );
+    });
+
+    it('does not throw if external and from is permitted', async () => {
+      await validateTransactionOrigin({
+        from: FROM_MOCK,
+        origin: 'test-origin',
+        permittedAddresses: ['0x123', FROM_MOCK],
+        selectedAddress: '0x123',
+        txParams: {} as TransactionParams,
+      });
+    });
+
+    it('throw if external and type 4', async () => {
+      await expect(
+        validateTransactionOrigin({
+          from: FROM_MOCK,
+          origin: 'test-origin',
+          permittedAddresses: [FROM_MOCK],
+          selectedAddress: '0x123',
+          txParams: {
+            type: TransactionEnvelopeType.setCode,
+          } as TransactionParams,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.invalidParams(
+          'External EIP-7702 transactions are not supported',
+        ),
+      );
+    });
+
+    it('throw if external and authorization list provided', async () => {
+      await expect(
+        validateTransactionOrigin({
+          from: FROM_MOCK,
+          origin: 'test-origin',
+          permittedAddresses: [FROM_MOCK],
+          selectedAddress: '0x123',
+          txParams: {
+            authorizationList: [],
+            from: FROM_MOCK,
+          } as TransactionParams,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.invalidParams(
+          'External EIP-7702 transactions are not supported',
+        ),
       );
     });
   });

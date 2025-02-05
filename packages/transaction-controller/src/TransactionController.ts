@@ -1016,19 +1016,25 @@ export class TransactionController extends BaseController<
       );
     }
 
+    const permittedAddresses =
+      origin === undefined
+        ? undefined
+        : await this.getPermittedAccounts?.(origin);
+
+    const selectedAddress = this.#getSelectedAccount().address;
+
+    await validateTransactionOrigin({
+      from: txParams.from,
+      origin,
+      permittedAddresses,
+      selectedAddress,
+      txParams,
+    });
+
     const isEIP1559Compatible =
       await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
-
-    if (origin && this.getPermittedAccounts) {
-      await validateTransactionOrigin(
-        await this.getPermittedAccounts(origin),
-        this.#getSelectedAccount().address,
-        txParams.from,
-        origin,
-      );
-    }
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,

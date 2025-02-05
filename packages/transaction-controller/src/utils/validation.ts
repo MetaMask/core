@@ -23,36 +23,53 @@ type GasFieldsToValidate =
 /**
  * Validates whether a transaction initiated by a specific 'from' address is permitted by the origin.
  *
- * @param permittedAddresses - The permitted accounts for the given origin.
- * @param selectedAddress - The currently selected Ethereum address in the wallet.
- * @param from - The address from which the transaction is initiated.
- * @param origin - The origin or source of the transaction.
+ * @param options - Options bag.
+ * @param options.from - The address from which the transaction is initiated.
+ * @param options.origin - The origin or source of the transaction.
+ * @param options.permittedAddresses - The permitted accounts for the given origin.
+ * @param options.selectedAddress - The currently selected Ethereum address in the wallet.
+ * @param options.txParams - The transaction parameters.
  * @throws Throws an error if the transaction is not permitted.
  */
-export async function validateTransactionOrigin(
-  permittedAddresses: string[],
-  selectedAddress: string,
-  from: string,
-  origin: string,
-) {
-  if (origin === ORIGIN_METAMASK) {
-    // Ensure the 'from' address matches the currently selected address
-    if (from !== selectedAddress) {
-      throw rpcErrors.internal({
-        message: `Internally initiated transaction is using invalid account.`,
-        data: {
-          origin,
-          fromAddress: from,
-          selectedAddress,
-        },
-      });
-    }
-    return;
+export async function validateTransactionOrigin({
+  from,
+  origin,
+  permittedAddresses,
+  selectedAddress,
+  txParams,
+}: {
+  from: string;
+  origin?: string;
+  permittedAddresses?: string[];
+  selectedAddress: string;
+  txParams: TransactionParams;
+}) {
+  const isInternal = origin === ORIGIN_METAMASK;
+  const isExternal = origin && origin !== ORIGIN_METAMASK;
+  const { authorizationList, type } = txParams;
+
+  if (isInternal && from !== selectedAddress) {
+    throw rpcErrors.internal({
+      message: `Internally initiated transaction is using invalid account.`,
+      data: {
+        origin,
+        fromAddress: from,
+        selectedAddress,
+      },
+    });
   }
 
-  // Check if the origin has permissions to initiate transactions from the specified address
-  if (!permittedAddresses.includes(from)) {
+  if (isExternal && permittedAddresses && !permittedAddresses.includes(from)) {
     throw providerErrors.unauthorized({ data: { origin } });
+  }
+
+  if (
+    isExternal &&
+    (authorizationList || type === TransactionEnvelopeType.setCode)
+  ) {
+    throw rpcErrors.invalidParams(
+      'External EIP-7702 transactions are not supported',
+    );
   }
 }
 
