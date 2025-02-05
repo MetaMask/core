@@ -1,3 +1,4 @@
+import { Contract } from '@ethersproject/contracts';
 import type { Hex } from '@metamask/utils';
 import { bigIntToHex } from '@metamask/utils';
 import nock from 'nock';
@@ -28,13 +29,7 @@ const messengerMock = {
   publish: jest.fn(),
 } as unknown as jest.Mocked<BridgeControllerMessenger>;
 
-jest.mock('@ethersproject/contracts', () => {
-  return {
-    Contract: jest.fn(() => ({
-      allowance: jest.fn(() => '100000000000000000000'),
-    })),
-  };
-});
+jest.mock('@ethersproject/contracts');
 
 jest.mock('@ethersproject/providers', () => {
   return {
@@ -557,6 +552,10 @@ describe('BridgeController', function () {
 
   describe('getBridgeERC20Allowance', () => {
     it('should return the atomic allowance of the ERC20 token contract', async () => {
+      (Contract as unknown as jest.Mock).mockImplementation(() => ({
+        allowance: jest.fn(() => '100000000000000000000'),
+      }));
+
       messengerMock.call.mockReturnValue({
         address: '0x123',
         provider: jest.fn(),
@@ -580,7 +579,7 @@ describe('BridgeController', function () {
     [
       'should append l1GasFees if srcChain is 10 and srcToken is native',
       mockBridgeQuotesNativeErc20 as unknown as QuoteResponse[],
-      bigIntToHex(BigInt('2608710388388') * 2n),
+      bigIntToHex(BigInt('2608710388388')),
       2,
     ],
     [
