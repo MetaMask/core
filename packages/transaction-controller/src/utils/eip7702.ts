@@ -1,3 +1,4 @@
+import { toHex } from '@metamask/controller-utils';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
@@ -7,7 +8,6 @@ import type {
   AuthorizationList,
   TransactionMeta,
 } from '../types';
-import { toHex } from '../../../controller-utils/src';
 
 export type KeyringControllerAuthorization = [
   chainId: number,

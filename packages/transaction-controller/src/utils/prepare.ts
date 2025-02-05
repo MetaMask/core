@@ -7,7 +7,7 @@ import type { Hex } from '@metamask/utils';
 
 import type { TransactionParams } from '../types';
 
-export const HARDFORK = Hardfork.London;
+export const HARDFORK = Hardfork.Prague;
 
 /**
  * Creates an `etheruemjs/tx` transaction object from the raw transaction parameters.
@@ -51,5 +51,7 @@ function getCommonConfiguration(chainId: Hex): Common {
     defaultHardfork: HARDFORK,
   };
 
-  return Common.custom(customChainParams);
+  return Common.custom(customChainParams, {
+    eips: [7702],
+  });
 }
