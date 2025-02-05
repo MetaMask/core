@@ -1,7 +1,15 @@
-import { isStrictHexString } from '@metamask/utils';
 import { isValidHexAddress as isValidHexAddress_ } from '@metamask/controller-utils';
-import { BridgeAsset, BridgeFlag, FeatureFlagResponse, FeeData, Quote, QuoteResponse, TxData } from '../types';
-import { SwapsTokenObject } from '../constants/tokens';
+import { isStrictHexString } from '@metamask/utils';
+
+import type { SwapsTokenObject } from '../constants/tokens';
+import type {
+  FeatureFlagResponse,
+  FeeData,
+  Quote,
+  QuoteResponse,
+  TxData,
+} from '../types';
+import { BridgeFlag } from '../types';
 
 export const truthyString = (string: string) => Boolean(string?.length);
 export const truthyDigitString = (string: string) =>
@@ -33,18 +41,25 @@ export const validateData = <ExpectedResponse>(
 
     const valid =
       isValidObject(object) &&
-      types.some((_type) => typeof object[propertyString as keyof typeof object] === _type) &&
+      types.some(
+        (_type) =>
+          typeof object[propertyString as keyof typeof object] === _type,
+      ) &&
       (!validator || validator(object[propertyString as keyof typeof object]));
 
     if (!valid && logError) {
-      const value = isValidObject(object) ? object[propertyString as keyof typeof object] : undefined;
-      const type = isValidObject(object) ? typeof object[propertyString as keyof typeof object] : 'undefined';
+      const value = isValidObject(object)
+        ? object[propertyString as keyof typeof object]
+        : undefined;
+      const typeString = isValidObject(object)
+        ? typeof object[propertyString as keyof typeof object]
+        : 'undefined';
 
       console.error(
         `response to GET ${urlUsed} invalid for property ${String(property)}; value was:`,
         value,
         '| type was: ',
-        type,
+        typeString,
       );
     }
     return valid;
@@ -129,7 +144,11 @@ export const QUOTE_VALIDATORS: Validator<Quote>[] = [
 ];
 
 export const FEE_DATA_VALIDATORS: Validator<FeeData>[] = [
-  { property: 'amount', type: 'string', validator: (v: unknown) => truthyDigitString(String(v)) },
+  {
+    property: 'amount',
+    type: 'string',
+    validator: (v: unknown) => truthyDigitString(String(v)),
+  },
   { property: 'asset', type: 'object', validator: isValidObject },
 ];
 
