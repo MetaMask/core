@@ -1,13 +1,13 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import type { Balance, CaipAssetType } from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
   EthAccountType,
   EthMethod,
-  BtcScopes,
-  EthScopes,
-  SolScopes,
+  BtcScope,
+  EthScope,
+  SolScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -43,7 +43,7 @@ const mockBtcAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [BtcScopes.Namespace],
+  scopes: [BtcScope.Testnet],
   options: {},
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
@@ -65,7 +65,7 @@ const mockEthAccount = {
     },
     lastSelected: 0,
   },
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   options: {},
   methods: [EthMethod.SignTypedDataV4, EthMethod.SignTransaction],
   type: EthAccountType.Eoa,
@@ -94,11 +94,8 @@ type RootEvent = ExtractAvailableEvent<MultichainBalancesControllerMessenger>;
  *
  * @returns The unrestricted messenger suited for PetNamesController.
  */
-function getRootControllerMessenger(): ControllerMessenger<
-  RootAction,
-  RootEvent
-> {
-  return new ControllerMessenger<RootAction, RootEvent>();
+function getRootMessenger(): Messenger<RootAction, RootEvent> {
+  return new Messenger<RootAction, RootEvent>();
 }
 
 const setupController = ({
@@ -111,10 +108,10 @@ const setupController = ({
     handleRequestReturnValue?: Record<CaipAssetType, Balance>;
   };
 } = {}) => {
-  const controllerMessenger = getRootControllerMessenger();
+  const messenger = getRootMessenger();
 
-  const multichainBalancesControllerMessenger: MultichainBalancesControllerMessenger =
-    controllerMessenger.getRestricted({
+  const multichainBalancesMessenger: MultichainBalancesControllerMessenger =
+    messenger.getRestricted({
       name: 'MultichainBalancesController',
       allowedActions: [
         'SnapController:handleRequest',
@@ -127,7 +124,7 @@ const setupController = ({
     });
 
   const mockSnapHandleRequest = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'SnapController:handleRequest',
     mockSnapHandleRequest.mockReturnValue(
       mocks?.handleRequestReturnValue ?? mockBalanceResult,
@@ -135,7 +132,7 @@ const setupController = ({
   );
 
   const mockListMultichainAccounts = jest.fn();
-  controllerMessenger.registerActionHandler(
+  messenger.registerActionHandler(
     'AccountsController:listMultichainAccounts',
     mockListMultichainAccounts.mockReturnValue(
       mocks?.listMultichainAccounts ?? [mockBtcAccount, mockEthAccount],
@@ -143,13 +140,13 @@ const setupController = ({
   );
 
   const controller = new MultichainBalancesController({
-    messenger: multichainBalancesControllerMessenger,
+    messenger: multichainBalancesMessenger,
     state,
   });
 
   return {
     controller,
-    messenger: controllerMessenger,
+    messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
   };

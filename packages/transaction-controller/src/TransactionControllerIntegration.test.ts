@@ -5,7 +5,7 @@ import type {
   ApprovalControllerEvents,
 } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ApprovalType,
   BUILT_IN_NETWORKS,
@@ -64,7 +64,7 @@ jest.mock('uuid', () => {
   };
 });
 
-type UnrestrictedControllerMessenger = ControllerMessenger<
+type UnrestrictedMessenger = Messenger<
   | NetworkControllerActions
   | ApprovalControllerActions
   | TransactionControllerActions
@@ -95,7 +95,7 @@ const createMockInternalAccount = ({
     options: {},
     methods: [],
     type: 'eip155:eoa',
-    scopes: ['eip155'],
+    scopes: ['eip155:0'],
     metadata: {
       name,
       keyring: { type: 'HD Key Tree' },
@@ -154,8 +154,7 @@ const setupController = async (
     ],
   });
 
-  const unrestrictedMessenger: UnrestrictedControllerMessenger =
-    new ControllerMessenger();
+  const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
   const networkController = new NetworkController({
     messenger: unrestrictedMessenger.getRestricted({
       name: 'NetworkController',

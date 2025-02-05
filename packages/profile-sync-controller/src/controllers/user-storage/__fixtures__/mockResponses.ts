@@ -1,3 +1,8 @@
+import {
+  MOCK_ENCRYPTED_STORAGE_DATA,
+  MOCK_STORAGE_DATA,
+  MOCK_STORAGE_KEY,
+} from './mockStorage';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
@@ -11,11 +16,6 @@ import type {
   GetUserStorageResponse,
 } from '../services';
 import { USER_STORAGE_ENDPOINT } from '../services';
-import {
-  MOCK_ENCRYPTED_STORAGE_DATA,
-  MOCK_STORAGE_DATA,
-  MOCK_STORAGE_KEY,
-} from './mockStorage';
 
 type MockResponse = {
   url: string;
@@ -38,6 +38,7 @@ export const getMockUserStorageEndpoint = (
 
 /**
  * Creates a mock GET user-storage response
+ *
  * @param data - data to encrypt
  * @returns a realistic GET Response Body
  */
@@ -52,6 +53,7 @@ export async function createMockGetStorageResponse(
 
 /**
  * Creates a mock GET ALL user-storage response
+ *
  * @param dataArr - array of data to encrypt
  * @returns a realistic GET ALL Response Body
  */
@@ -72,6 +74,7 @@ export async function createMockAllFeatureEntriesResponse(
 
 /**
  * Creates a mock user-storage api GET request
+ *
  * @param path - path of the GET Url
  * @returns mock GET API request. Can be used by e2e or unit mock servers
  */
@@ -87,6 +90,7 @@ export async function getMockUserStorageGetResponse(
 
 /**
  * Creates a mock user-storage api GET ALL request
+ *
  * @param path - path of the GET url
  * @param dataArr - data to encrypt
  * @returns mock GET ALL API request. Can be used by e2e or unit mock servers

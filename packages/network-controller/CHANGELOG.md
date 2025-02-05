@@ -7,9 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.2.0]
+
+### Added
+
+- Export `AbstractRpcService` type ([#5263](https://github.com/MetaMask/core/pull/5263))
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.6` to `^4.1.8` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/rpc-errors` from `^7.0.1` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Fixed
+
+- Fix `lookupNetwork` so that it will no longer throw an error if `networkDidChange` subscriptions have been removed before it returns ([#5116](https://github.com/MetaMask/core/pull/5116))
+  - This error could occur if the NetworkController's messenger is cleared of subscriptions, as in a "destroy" step.
+- Fix race condition so that after adding a new RPC endpoint to a network, it is possible to access the new endpoint inside of a `stateChange` event listener via `getNetworkConfigurationByNetworkClientId` ([#5122](https://github.com/MetaMask/core/pull/5122))
+- Fix `selectAvailableNetworkClientIds` so that it is properly memoized ([#5193](https://github.com/MetaMask/core/pull/5193))
 
 ## [22.1.1]
 
@@ -698,7 +716,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.0...HEAD
+[22.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.1...@metamask/network-controller@22.2.0
 [22.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.0...@metamask/network-controller@22.1.1
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.2...@metamask/network-controller@22.1.0
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.1...@metamask/network-controller@22.0.2

@@ -55,6 +55,7 @@ describe('getBoundedNetworksToAdd()', () => {
 
   /**
    * Test Utility - creates an array of network configurations
+   *
    * @param chains - list of chains to create
    * @returns array of mock network configurations
    */

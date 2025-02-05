@@ -10,8 +10,8 @@ import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { createModuleLogger, projectLogger } from '../logger';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
+import { createModuleLogger, projectLogger } from '../logger';
 
 /**
  * Registry of network clients provided by the NetworkController
@@ -39,6 +39,7 @@ export type MultichainTrackingHelperOptions = {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
+    networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
   onNetworkStateChange: (
     listener: (
@@ -68,6 +69,7 @@ export class MultichainTrackingHelper {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
+    networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
@@ -319,6 +321,7 @@ export class MultichainTrackingHelper {
       provider,
       blockTracker,
       chainId,
+      networkClientId,
     });
 
     this.#trackingMap.set(networkClientId, {

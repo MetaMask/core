@@ -14,7 +14,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -545,7 +545,7 @@ export type TransactionControllerEvents =
 /**
  * The messenger of the {@link TransactionController}.
  */
-export type TransactionControllerMessenger = RestrictedControllerMessenger<
+export type TransactionControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TransactionControllerActions | AllowedActions,
   TransactionControllerEvents | AllowedEvents,
@@ -3363,10 +3363,12 @@ export class TransactionController extends BaseController<
     provider,
     blockTracker,
     chainId,
+    networkClientId,
   }: {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
+    networkClientId: NetworkClientId;
   }): PendingTransactionTracker {
     const ethQuery = new EthQuery(provider);
 
@@ -3374,6 +3376,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       getChainId: () => chainId,
       getEthQuery: () => ethQuery,
+      getNetworkClientId: () => networkClientId,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
       getGlobalLock: () =>

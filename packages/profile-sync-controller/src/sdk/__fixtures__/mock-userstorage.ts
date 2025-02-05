@@ -21,8 +21,6 @@ const MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES = STORAGE_URL(
 );
 
 export const MOCK_STORAGE_KEY = createSHA256Hash('mockStorageKey');
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const MOCK_NOTIFICATIONS_DATA = '{ is_compact: false }';
 export const MOCK_NOTIFICATIONS_DATA_ENCRYPTED = async (data?: string) =>
   await encryption.encryptString(
