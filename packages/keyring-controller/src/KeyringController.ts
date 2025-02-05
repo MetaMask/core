@@ -618,8 +618,6 @@ export class KeyringController extends BaseController<
 
   #keyringsMetadata: KeyringMetadata[];
 
-  #unsupportedKeyrings: SerializedKeyring[];
-
   #password?: string;
 
   #qrKeyringStateListener?: (
