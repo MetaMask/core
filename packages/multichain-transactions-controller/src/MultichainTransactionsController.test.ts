@@ -155,6 +155,13 @@ const setupController = ({
   };
 };
 
+/**
+ * Utility function that waits for all pending promises to be resolved.
+ * This is necessary when testing asynchronous execution flows that are
+ * initiated by synchronous calls.
+ *
+ * @returns A promise that resolves when all pending promises are completed.
+ */
 async function waitForAllPromises(): Promise<void> {
   // Wait for next tick to flush all pending promises. It's requires since
   // we are testing some asynchronous execution flows that are started by
