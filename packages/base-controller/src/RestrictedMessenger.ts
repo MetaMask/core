@@ -30,18 +30,6 @@ export type RestrictedMessengerConstraint<Namespace extends string = string> =
   >;
 
 /**
- * A universal supertype of all `RestrictedMessenger` instances. This type can be assigned to any
- * `RestrictedMessenger` type.
- *
- * @template Namespace - Name of the module this messenger is for. Optionally can be used to
- * narrow this type to a constraint for the messenger of a specific module.
- * @deprecated This has been renamed to `RestrictedMessengerConstraint`.
- */
-export type RestrictedControllerMessengerConstraint<
-  Namespace extends string = string,
-> = RestrictedMessengerConstraint<Namespace>;
-
-/**
  * A restricted messenger.
  *
  * This acts as a wrapper around the messenger instance that restricts access to actions
@@ -81,7 +69,6 @@ export class RestrictedMessenger<
    * unregistering actions and clearing event subscriptions.
    *
    * @param options - Options.
-   * @param options.controllerMessenger - The messenger instance that is being wrapped. (deprecated)
    * @param options.messenger - The messenger instance that is being wrapped.
    * @param options.name - The name of the thing this messenger will be handed to (e.g. the
    * controller name). This grants "ownership" of actions and events under this namespace to the
@@ -92,28 +79,21 @@ export class RestrictedMessenger<
    * allowed to subscribe to.
    */
   constructor({
-    controllerMessenger,
     messenger,
     name,
     allowedActions,
     allowedEvents,
   }: {
-    controllerMessenger?: Messenger<ActionConstraint, EventConstraint>;
     messenger?: Messenger<ActionConstraint, EventConstraint>;
     name: Namespace;
     allowedActions: NotNamespacedBy<Namespace, AllowedAction>[];
     allowedEvents: NotNamespacedBy<Namespace, AllowedEvent>[];
   }) {
-    if (messenger && controllerMessenger) {
-      throw new Error(
-        `Both messenger properties provided. Provide message using only 'messenger' option, 'controllerMessenger' is deprecated`,
-      );
-    } else if (!messenger && !controllerMessenger) {
+    if (!messenger) {
       throw new Error('Messenger not provided');
     }
     // The above condition guarantees that one of these options is defined.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    this.#messenger = (messenger ?? controllerMessenger)!;
+    this.#messenger = messenger;
     this.#namespace = name;
     this.#allowedActions = allowedActions;
     this.#allowedEvents = allowedEvents;
@@ -429,5 +409,3 @@ export class RestrictedMessenger<
     return name.startsWith(`${this.#namespace}:`);
   }
 }
-
-export { RestrictedMessenger as RestrictedControllerMessenger };

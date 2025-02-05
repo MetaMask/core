@@ -5,11 +5,16 @@ import {
   BtcMethod,
   EthAccountType,
   EthMethod,
+  SolAccountType,
+  SolMethod,
+  SolScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
+import { MultichainNetwork } from './constants';
 import {
   MultichainTransactionsController,
   getDefaultMultichainTransactionsControllerState,
@@ -18,7 +23,6 @@ import {
   type MultichainTransactionsControllerState,
   type MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
-import { MultichainTransactionsTracker } from './MultichainTransactionsTracker';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -40,6 +44,28 @@ const mockBtcAccount = {
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
   scopes: [],
+};
+
+const mockSolAccount = {
+  address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+  id: uuidv4(),
+  metadata: {
+    name: 'Solana Account 1',
+    importTime: Date.now(),
+    keyring: {
+      type: KeyringTypes.snap,
+    },
+    snap: {
+      id: 'mock-sol-snap',
+      name: 'mock-sol-snap',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+  scopes: [SolScope.Devnet],
+  options: {},
+  methods: [SolMethod.SendAndConfirmTransaction],
+  type: SolAccountType.DataAccount,
 };
 
 const mockEthAccount = {
@@ -69,16 +95,26 @@ const mockTransactionResult = {
     {
       id: '123',
       account: mockBtcAccount.id,
-      chain: 'bip122:000000000019d6689c085ae165831e93',
-      type: 'send',
-      status: 'confirmed',
+      chain: 'bip122:000000000019d6689c085ae165831e93' as CaipChainId,
+      type: 'send' as const,
+      status: 'confirmed' as const,
       timestamp: Date.now(),
-      from: [],
-      to: [],
-      fees: [],
+      from: [{ address: 'from-address', asset: null }],
+      to: [{ address: 'to-address', asset: null }],
+      fees: [
+        {
+          type: 'base' as const,
+          asset: {
+            unit: 'BTC',
+            type: 'bip122:000000000019d6689c085ae165831e93/slip44:0' as CaipAssetType,
+            amount: '1000',
+            fungible: true as const,
+          },
+        },
+      ],
       events: [
         {
-          status: 'confirmed',
+          status: 'confirmed' as const,
           timestamp: Date.now(),
         },
       ],
@@ -109,6 +145,7 @@ const setupController = ({
       allowedEvents: [
         'AccountsController:accountAdded',
         'AccountsController:accountRemoved',
+        'AccountsController:accountTransactionsUpdated',
       ],
     });
 
@@ -141,50 +178,27 @@ const setupController = ({
   };
 };
 
+/**
+ * Utility function that waits for all pending promises to be resolved.
+ * This is necessary when testing asynchronous execution flows that are
+ * initiated by synchronous calls.
+ *
+ * @returns A promise that resolves when all pending promises are completed.
+ */
+async function waitForAllPromises(): Promise<void> {
+  // Wait for next tick to flush all pending promises. It's requires since
+  // we are testing some asynchronous execution flows that are started by
+  // synchronous calls.
+  await new Promise(process.nextTick);
+}
+
 describe('MultichainTransactionsController', () => {
   it('initialize with default state', () => {
     const { controller } = setupController({});
     expect(controller.state).toStrictEqual({ nonEvmTransactions: {} });
   });
 
-  it('starts tracking when calling start', async () => {
-    const spyTracker = jest.spyOn(
-      MultichainTransactionsTracker.prototype,
-      'start',
-    );
-    const { controller } = setupController();
-    controller.start();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('stops tracking when calling stop', async () => {
-    const spyTracker = jest.spyOn(
-      MultichainTransactionsTracker.prototype,
-      'stop',
-    );
-    const { controller } = setupController();
-    controller.start();
-    controller.stop();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('update transactions when calling updateTransactions', async () => {
-    const { controller } = setupController();
-
-    await controller.updateTransactions();
-
-    expect(controller.state).toStrictEqual({
-      nonEvmTransactions: {
-        [mockBtcAccount.id]: {
-          transactions: mockTransactionResult.data,
-          next: null,
-          lastUpdated: expect.any(Number),
-        },
-      },
-    });
-  });
-
-  it('update transactions when "AccountsController:accountAdded" is fired', async () => {
+  it('updates transactions when "AccountsController:accountAdded" is fired', async () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController({
         mocks: {
@@ -192,10 +206,10 @@ describe('MultichainTransactionsController', () => {
         },
       });
 
-    controller.start();
     mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
     messenger.publish('AccountsController:accountAdded', mockBtcAccount);
-    await controller.updateTransactions();
+
+    await waitForAllPromises();
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {
@@ -208,12 +222,11 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('update transactions when "AccountsController:accountRemoved" is fired', async () => {
+  it('updates transactions when "AccountsController:accountRemoved" is fired', async () => {
     const { controller, messenger, mockListMultichainAccounts } =
       setupController();
 
-    controller.start();
-    await controller.updateTransactions();
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {
         [mockBtcAccount.id]: {
@@ -226,7 +239,6 @@ describe('MultichainTransactionsController', () => {
 
     messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
     mockListMultichainAccounts.mockReturnValue([]);
-    await controller.updateTransactions();
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {},
@@ -241,17 +253,15 @@ describe('MultichainTransactionsController', () => {
         },
       });
 
-    controller.start();
     mockListMultichainAccounts.mockReturnValue([mockEthAccount]);
     messenger.publish('AccountsController:accountAdded', mockEthAccount);
-    await controller.updateTransactions();
 
     expect(controller.state).toStrictEqual({
       nonEvmTransactions: {},
     });
   });
 
-  it('should update transactions for a specific account', async () => {
+  it('updates transactions for a specific account', async () => {
     const { controller } = setupController();
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
 
@@ -264,7 +274,63 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('should handle pagination when fetching transactions', async () => {
+  it('filters out non-mainnet Solana transactions', async () => {
+    const mockSolTransaction = {
+      account: mockSolAccount.id,
+      type: 'send' as const,
+      status: 'confirmed' as const,
+      timestamp: Date.now(),
+      from: [],
+      to: [],
+      fees: [],
+      events: [
+        {
+          status: 'confirmed' as const,
+          timestamp: Date.now(),
+        },
+      ],
+    };
+    const mockSolTransactions = {
+      data: [
+        {
+          ...mockSolTransaction,
+          id: '3',
+          chain: MultichainNetwork.Solana,
+        },
+        {
+          ...mockSolTransaction,
+          id: '1',
+          chain: MultichainNetwork.SolanaTestnet,
+        },
+        {
+          ...mockSolTransaction,
+          id: '2',
+          chain: MultichainNetwork.SolanaDevnet,
+        },
+      ],
+      next: null,
+    };
+    // First transaction must be the mainnet one (for the test), so we assert this.
+    expect(mockSolTransactions.data[0].chain).toStrictEqual(
+      MultichainNetwork.Solana,
+    );
+
+    const { controller, mockSnapHandleRequest } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockSolAccount],
+      },
+    });
+    mockSnapHandleRequest.mockReturnValueOnce(mockSolTransactions);
+
+    await controller.updateTransactionsForAccount(mockSolAccount.id);
+
+    const { transactions } =
+      controller.state.nonEvmTransactions[mockSolAccount.id];
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0]).toStrictEqual(mockSolTransactions.data[0]); // First transaction is the mainnet one.
+  });
+
+  it('handles pagination when fetching transactions', async () => {
     const firstPage = {
       data: [
         {
@@ -327,11 +393,76 @@ describe('MultichainTransactionsController', () => {
     );
   });
 
-  it('should handle errors gracefully when updating transactions', async () => {
-    const { controller, mockSnapHandleRequest } = setupController();
-    mockSnapHandleRequest.mockRejectedValue(new Error('Failed to fetch'));
+  it('handles errors gracefully when updating transactions', async () => {
+    const { controller, mockSnapHandleRequest, mockListMultichainAccounts } =
+      setupController({
+        mocks: {
+          listMultichainAccounts: [],
+        },
+      });
 
-    await controller.updateTransactions();
+    mockSnapHandleRequest.mockReset();
+    mockSnapHandleRequest.mockImplementation(() =>
+      Promise.reject(new Error('Failed to fetch')),
+    );
+    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
+
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
+    await waitForAllPromises();
+
     expect(controller.state.nonEvmTransactions).toStrictEqual({});
+  });
+
+  it('handles errors gracefully when constructing the controller', async () => {
+    // This method will be used in the constructor of that controller.
+    const updateTransactionsForAccountSpy = jest.spyOn(
+      MultichainTransactionsController.prototype,
+      'updateTransactionsForAccount',
+    );
+    updateTransactionsForAccountSpy.mockRejectedValue(
+      new Error('Something unexpected happen'),
+    );
+
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    expect(controller.state.nonEvmTransactions).toStrictEqual({});
+  });
+
+  it('updates transactions when receiving "AccountsController:accountTransactionsUpdated" event', async () => {
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [mockBtcAccount.id]: {
+            transactions: [],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+    const transactionUpdate = {
+      transactions: {
+        [mockBtcAccount.id]: mockTransactionResult.data,
+      },
+    };
+
+    messenger.publish(
+      'AccountsController:accountTransactionsUpdated',
+      transactionUpdate,
+    );
+
+    await waitForAllPromises();
+
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id],
+    ).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      next: null,
+      lastUpdated: expect.any(Number),
+    });
   });
 });
