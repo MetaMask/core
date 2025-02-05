@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: remove metametrics dependencies in UserStorageController ([#5278](https://github.com/MetaMask/core/pull/5278))
+- feat: better logic & dependencies between profile sync, auth, user storage & notifications ([#5275](https://github.com/MetaMask/core/pull/5275))
+- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
+- chore: mark `@metamask/snaps-controllers` peer dependency bump as breaking in CHANGELOG ([#5267](https://github.com/MetaMask/core/pull/5267))
+- fix: eslint warnings & errors ([#5261](https://github.com/MetaMask/core/pull/5261))
+- chore(profile-sync): Rename `ControllerMessenger` to `Messenger` ([#5244](https://github.com/MetaMask/core/pull/5244))
+- feat: bump snaps-sdk to v6.16.0 ([#5220](https://github.com/MetaMask/core/pull/5220))
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.10.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
