@@ -87,7 +87,9 @@ export const caip25CaveatBuilder = ({
   findNetworkClientIdByChainId,
   listAccounts,
 }: Caip25EndowmentCaveatSpecificationBuilderOptions): EndowmentCaveatSpecificationConstraint &
-  Required<Pick<EndowmentCaveatSpecificationConstraint, 'validator'>> => {
+  Required<
+    Pick<EndowmentCaveatSpecificationConstraint, 'validator' | 'merger'>
+  > => {
   return {
     type: Caip25CaveatType,
     validator: (
@@ -154,6 +156,36 @@ export const caip25CaveatBuilder = ({
         );
       }
     },
+    merger: (
+      leftValue: Caip25CaveatValue,
+      rightValue: Caip25CaveatValue,
+    ): [Caip25CaveatValue, Caip25CaveatValue] => {
+      const partiallyMergedValue = mergeScopesForCaip25CaveatValue(
+        leftValue,
+        rightValue,
+        'requiredScopes',
+      );
+
+      const mergedValue = mergeScopesForCaip25CaveatValue(
+        partiallyMergedValue,
+        rightValue,
+        'optionalScopes',
+      );
+
+      const partialDiff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'requiredScopes',
+      );
+
+      const diff = diffScopesForCaip25CaveatValue(
+        partialDiff,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      return [mergedValue, diff];
+    },
   };
 };
 
@@ -196,34 +228,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
       return constructPermission({
         ...permissionOptions,
       });
-    },
-    // TODO: Update Caip25EndowmentSpecification type with proper merger type
-    merger: (leftValue: Caip25CaveatValue, rightValue: Caip25CaveatValue) => {
-      const partiallyMergedValue = mergeScopesForCaip25CaveatValue(
-        leftValue,
-        rightValue,
-        'requiredScopes',
-      );
-
-      const mergedValue = mergeScopesForCaip25CaveatValue(
-        partiallyMergedValue,
-        rightValue,
-        'optionalScopes',
-      );
-
-      const partialDiff = diffScopesForCaip25CaveatValue(
-        leftValue,
-        mergedValue,
-        'requiredScopes',
-      );
-
-      const diff = diffScopesForCaip25CaveatValue(
-        partialDiff,
-        mergedValue,
-        'optionalScopes',
-      );
-
-      return [mergedValue, diff];
     },
   };
 };
