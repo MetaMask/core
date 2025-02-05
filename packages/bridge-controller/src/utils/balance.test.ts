@@ -1,25 +1,18 @@
-import { BigNumber } from 'ethers';
-import { zeroAddress } from 'ethereumjs-util';
 import { Contract } from '@ethersproject/contracts';
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { Web3Provider } from '@ethersproject/providers';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { zeroAddress } from 'ethereumjs-util';
+import { BigNumber } from 'ethers';
+
 import * as balanceUtils from './balance';
 import { createMockProvider } from '../test/provider';
 
 declare global {
+  // eslint-disable-next-line no-var
   var ethereumProvider: SafeEventEmitterProvider;
 }
 
-const mockGetBalance = jest.fn();
-jest.mock('@ethersproject/providers', () => {
-  return {
-    Web3Provider: jest.fn().mockImplementation(() => {
-      return {
-        getBalance: mockGetBalance,
-      };
-    }),
-  };
-});
-
+jest.mock('@ethersproject/providers');
 jest.mock('@ethersproject/contracts');
 
 describe('balance', () => {
@@ -30,7 +23,9 @@ describe('balance', () => {
 
   describe('calcLatestSrcBalance', () => {
     it('should return the ERC20 token balance', async () => {
-      const mockBalanceOf = jest.fn().mockResolvedValueOnce(BigNumber.from('100'));
+      const mockBalanceOf = jest
+        .fn()
+        .mockResolvedValueOnce(BigNumber.from('100'));
       (Contract as unknown as jest.Mock).mockImplementation(() => ({
         balanceOf: mockBalanceOf,
       }));
@@ -44,12 +39,17 @@ describe('balance', () => {
         ),
       ).toStrictEqual(BigNumber.from(100));
       expect(mockBalanceOf).toHaveBeenCalledTimes(1);
-      expect(mockBalanceOf).toHaveBeenCalledWith(
-        '0x123',
-      );
+      expect(mockBalanceOf).toHaveBeenCalledWith('0x123');
     });
 
     it('should return the native asset balance', async () => {
+      const mockGetBalance = jest.fn();
+      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+        return {
+          getBalance: mockGetBalance,
+        };
+      });
+
       mockGetBalance.mockImplementation(() => {
         return BigNumber.from(100);
       });
@@ -69,7 +69,17 @@ describe('balance', () => {
     });
 
     it('should return undefined if token address and chainId are undefined', async () => {
-      const mockFetchTokenBalance = jest.spyOn(balanceUtils, 'fetchTokenBalance');
+      const mockGetBalance = jest.fn();
+      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+        return {
+          getBalance: mockGetBalance,
+        };
+      });
+
+      const mockFetchTokenBalance = jest.spyOn(
+        balanceUtils,
+        'fetchTokenBalance',
+      );
       expect(
         await balanceUtils.calcLatestSrcBalance(
           global.ethereumProvider,
@@ -77,7 +87,7 @@ describe('balance', () => {
           undefined as never,
           undefined as never,
         ),
-      ).toStrictEqual(undefined);
+      ).toBeUndefined();
       expect(mockFetchTokenBalance).not.toHaveBeenCalled();
       expect(mockGetBalance).not.toHaveBeenCalled();
     });
@@ -85,11 +95,20 @@ describe('balance', () => {
 
   describe('hasSufficientBalance', () => {
     it('should return true if user has sufficient balance', async () => {
+      const mockGetBalance = jest.fn();
+      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+        return {
+          getBalance: mockGetBalance,
+        };
+      });
+
       mockGetBalance.mockImplementation(() => {
         return BigNumber.from('10000000000000000000');
       });
 
-      const mockBalanceOf = jest.fn().mockResolvedValueOnce(BigNumber.from('10000000000000000001'));
+      const mockBalanceOf = jest
+        .fn()
+        .mockResolvedValueOnce(BigNumber.from('10000000000000000001'));
       (Contract as unknown as jest.Mock).mockImplementation(() => ({
         balanceOf: mockBalanceOf,
       }));
@@ -116,10 +135,20 @@ describe('balance', () => {
     });
 
     it('should return false if user has native assets but insufficient ERC20 src tokens', async () => {
+      const mockGetBalance = jest.fn();
+      (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
+        return {
+          getBalance: mockGetBalance,
+        };
+      });
+
       mockGetBalance.mockImplementation(() => {
         return BigNumber.from('10000000000000000000');
       });
-      const mockFetchTokenBalance = jest.spyOn(balanceUtils, 'fetchTokenBalance');
+      const mockFetchTokenBalance = jest.spyOn(
+        balanceUtils,
+        'fetchTokenBalance',
+      );
       mockFetchTokenBalance.mockResolvedValueOnce(
         BigNumber.from('9000000000000000000'),
       );
