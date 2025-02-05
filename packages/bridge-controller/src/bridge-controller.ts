@@ -7,7 +7,7 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
-import { add0x, numberToHex } from '@metamask/utils';
+import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import { REFRESH_INTERVAL_MS } from './constants';
