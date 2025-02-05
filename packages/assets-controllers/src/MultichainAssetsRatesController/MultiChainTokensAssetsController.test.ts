@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
+import { HandlerType } from '@metamask/snaps-utils';
 import { useFakeTimers } from 'sinon';
 
 import { MultiChainAssetsRatesController } from '.';
@@ -8,7 +9,6 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './MultichainAssetsRatesController';
-import { HandlerType } from '@metamask/snaps-utils';
 
 // A fake non‑EVM account (with Snap metadata) that meets the controller’s criteria.
 const fakeNonEvmAccount: InternalAccount = {
