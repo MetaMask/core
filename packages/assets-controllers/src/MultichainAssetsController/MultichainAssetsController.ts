@@ -8,7 +8,7 @@ import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
@@ -130,7 +130,7 @@ type AllowedEvents =
 /**
  * Messenger type for the MultichainAssetsController.
  */
-export type MultichainAssetsControllerMessenger = RestrictedControllerMessenger<
+export type MultichainAssetsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   MultichainAssetsControllerActions | AllowedActions,
   MultichainAssetsControllerEvents | AllowedEvents,
