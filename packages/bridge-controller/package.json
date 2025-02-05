@@ -67,6 +67,7 @@
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "jest-environment-jsdom": "^27.5.1",
     "lodash": "^4.17.21",
     "nock": "^13.5.4",
     "ts-jest": "^27.1.4",
