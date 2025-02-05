@@ -56,7 +56,7 @@ export default class BridgeController extends StaticIntervalPollingController<Br
 
   #quotesFirstFetched: number | undefined;
 
-  #getLayer1GasFee: (params: {
+  readonly #getLayer1GasFee: (params: {
     transactionParams: TransactionParams;
     chainId: ChainId;
   }) => Promise<string>;
@@ -156,7 +156,7 @@ export default class BridgeController extends StaticIntervalPollingController<Br
     }
   };
 
-  #hasSufficientBalance = async (quoteRequest: QuoteRequest) => {
+  readonly #hasSufficientBalance = async (quoteRequest: QuoteRequest) => {
     const walletAddress = this.#getSelectedAccount().address;
     const srcChainIdInHex = numberToHex(quoteRequest.srcChainId);
     const provider = this.#getSelectedNetworkClient()?.provider;
@@ -197,7 +197,7 @@ export default class BridgeController extends StaticIntervalPollingController<Br
     );
   };
 
-  #fetchBridgeQuotes = async ({
+  readonly #fetchBridgeQuotes = async ({
     networkClientId: _networkClientId,
     updatedQuoteRequest,
   }: BridgePollingInput) => {
@@ -281,7 +281,7 @@ export default class BridgeController extends StaticIntervalPollingController<Br
     }
   };
 
-  #appendL1GasFees = async (
+  readonly #appendL1GasFees = async (
     quotes: QuoteResponse[],
   ): Promise<(QuoteResponse & L1GasFees)[]> => {
     return await Promise.all(

@@ -1,13 +1,14 @@
-import { zeroAddress } from 'ethereumjs-util';
 import { handleFetch } from '@metamask/controller-utils';
-import { CHAIN_IDS } from '../constants/chains';
-import mockBridgeQuotesErc20Erc20 from '../test/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20 from '../test/mock-quotes-native-erc20.json';
+import { zeroAddress } from 'ethereumjs-util';
+
 import {
   fetchBridgeFeatureFlags,
   fetchBridgeQuotes,
   fetchBridgeTokens,
 } from './fetch';
+import { CHAIN_IDS } from '../constants/chains';
+import mockBridgeQuotesErc20Erc20 from '../test/mock-quotes-erc20-erc20.json';
+import mockBridgeQuotesNativeErc20 from '../test/mock-quotes-native-erc20.json';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -59,9 +60,12 @@ describe('Bridge utils', () => {
 
       const result = await fetchBridgeFeatureFlags();
 
-      expect(handleFetch).toHaveBeenCalledWith('https://bridge.api.cx.metamask.io/getAllFeatureFlags', {
-        headers: { 'X-Client-Id': 'extension' },
-      });
+      expect(handleFetch).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
+        {
+          headers: { 'X-Client-Id': 'extension' },
+        },
+      );
 
       expect(result).toStrictEqual({
         extensionConfig: {
@@ -121,9 +125,12 @@ describe('Bridge utils', () => {
 
       const result = await fetchBridgeFeatureFlags();
 
-      expect(handleFetch).toHaveBeenCalledWith('https://bridge.api.cx.metamask.io/getAllFeatureFlags', {
-        headers: { 'X-Client-Id': 'extension' },
-      });
+      expect(handleFetch).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
+        {
+          headers: { 'X-Client-Id': 'extension' },
+        },
+      );
 
       expect(result).toStrictEqual({
         extensionConfig: {
@@ -177,9 +184,12 @@ describe('Bridge utils', () => {
 
       const result = await fetchBridgeTokens('0xa');
 
-      expect(handleFetch).toHaveBeenCalledWith('https://bridge.api.cx.metamask.io/getTokens?chainId=10', {
-        headers: { 'X-Client-Id': 'extension' },
-      });
+      expect(handleFetch).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getTokens?chainId=10',
+        {
+          headers: { 'X-Client-Id': 'extension' },
+        },
+      );
 
       expect(result).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
@@ -214,9 +224,7 @@ describe('Bridge utils', () => {
 
   describe('fetchBridgeQuotes', () => {
     it('should fetch bridge quotes successfully, no approvals', async () => {
-      (handleFetch as jest.Mock).mockResolvedValue(
-        mockBridgeQuotesNativeErc20,
-      );
+      (handleFetch as jest.Mock).mockResolvedValue(mockBridgeQuotesNativeErc20);
       const { signal } = new AbortController();
 
       const result = await fetchBridgeQuotes(
@@ -232,10 +240,13 @@ describe('Bridge utils', () => {
         signal,
       );
 
-      expect(handleFetch).toHaveBeenCalledWith('https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false', {
-        headers: { 'X-Client-Id': 'extension' },
-        signal,
-      });
+      expect(handleFetch).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
+        {
+          headers: { 'X-Client-Id': 'extension' },
+          signal,
+        },
+      );
 
       expect(result).toStrictEqual(mockBridgeQuotesNativeErc20);
     });
@@ -261,10 +272,13 @@ describe('Bridge utils', () => {
         signal,
       );
 
-      expect(handleFetch).toHaveBeenCalledWith('https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false', {
-        headers: { 'X-Client-Id': 'extension' },
-        signal,
-      });
+      expect(handleFetch).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
+        {
+          headers: { 'X-Client-Id': 'extension' },
+          signal,
+        },
+      );
 
       expect(result).toStrictEqual(mockBridgeQuotesErc20Erc20);
     });
@@ -309,10 +323,13 @@ describe('Bridge utils', () => {
         signal,
       );
 
-      expect(handleFetch).toHaveBeenCalledWith('https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false', {
-        headers: { 'X-Client-Id': 'extension' },
-        signal,
-      });
+      expect(handleFetch).toHaveBeenCalledWith(
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
+        {
+          headers: { 'X-Client-Id': 'extension' },
+          signal,
+        },
+      );
 
       expect(result).toStrictEqual(mockBridgeQuotesErc20Erc20);
     });

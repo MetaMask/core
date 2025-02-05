@@ -263,7 +263,7 @@ describe('BridgeController', function () {
     });
 
     fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
-      return await new Promise((_, reject) => {
+      return await new Promise((_resolve, reject) => {
         return setTimeout(() => {
           reject(new Error('Network error'));
         }, 10000);
@@ -320,7 +320,7 @@ describe('BridgeController', function () {
       bridgeController.state.bridgeState.quotesLastFetched,
     ).toBeUndefined();
 
-    expect(bridgeController.state.bridgeState).toEqual(
+    expect(bridgeController.state.bridgeState).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: [],
@@ -338,8 +338,7 @@ describe('BridgeController', function () {
         quotesLoadingStatus: 1,
       }),
     );
-    const firstFetchTime =
-      bridgeController.state.bridgeState.quotesLastFetched ?? 0;
+    const firstFetchTime = bridgeController.state.bridgeState.quotesLastFetched;
     expect(firstFetchTime).toBeGreaterThan(0);
 
     // After 2nd fetch
@@ -360,7 +359,8 @@ describe('BridgeController', function () {
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
     const secondFetchTime =
       bridgeController.state.bridgeState.quotesLastFetched;
-    expect(secondFetchTime).toBeGreaterThan(firstFetchTime);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(secondFetchTime).toBeGreaterThan(firstFetchTime!);
 
     // After 3nd fetch throws an error
     jest.advanceTimersByTime(50000);
@@ -491,8 +491,7 @@ describe('BridgeController', function () {
         quotesInitialLoadTime: 11000,
       }),
     );
-    const firstFetchTime =
-      bridgeController.state.bridgeState.quotesLastFetched ?? 0;
+    const firstFetchTime = bridgeController.state.bridgeState.quotesLastFetched;
     expect(firstFetchTime).toBeGreaterThan(0);
 
     // After 2nd fetch
@@ -688,14 +687,13 @@ describe('BridgeController', function () {
         }),
       );
       quotes.forEach((quote) => {
-        const expectedQuote = l1GasFeesInHexWei
-          ? { ...quote, l1GasFeesInHexWei }
-          : quote;
-        expect(quote).toStrictEqual(expectedQuote);
+        const expectedQuote = { ...quote, l1GasFeesInHexWei };
+        // eslint-disable-next-line jest/prefer-strict-equal
+        expect(quote).toEqual(expectedQuote);
       });
 
       const firstFetchTime =
-        bridgeController.state.bridgeState.quotesLastFetched ?? 0;
+        bridgeController.state.bridgeState.quotesLastFetched;
       expect(firstFetchTime).toBeGreaterThan(0);
 
       expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(
