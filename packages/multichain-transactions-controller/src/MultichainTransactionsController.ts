@@ -20,7 +20,7 @@ import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
+import { KnownCaipNamespace, parseCaipChainId, type Json, type JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import { MultichainNetwork } from './constants';
@@ -257,7 +257,8 @@ export class MultichainTransactionsController extends BaseController<
          */
         const transactions = response.data.filter((tx) => {
           const chain = tx.chain as MultichainNetwork;
-          if (chain.startsWith(MultichainNetwork.Solana)) {
+          const { namespace } = parseCaipChainId(chain);
+          if (namespace === KnownCaipNamespace.Solana) {
             return chain === MultichainNetwork.Solana;
           }
           return true;
