@@ -56,22 +56,6 @@
   "packages/assets-controllers/src/CurrencyRateController.ts": {
     "jsdoc/check-tag-names": 6
   },
-  "packages/assets-controllers/src/MultichainBalancesController/BalancesTracker.test.ts": {
-    "jsdoc/tag-lines": 1
-  },
-  "packages/assets-controllers/src/MultichainBalancesController/BalancesTracker.ts": {
-    "@typescript-eslint/prefer-readonly": 2
-  },
-  "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "import-x/order": 1
-  },
-  "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.ts": {
-    "@typescript-eslint/prefer-readonly": 1
-  },
-  "packages/assets-controllers/src/MultichainBalancesController/Poller.ts": {
-    "@typescript-eslint/prefer-readonly": 2
-  },
   "packages/assets-controllers/src/NftController.test.ts": {
     "import-x/namespace": 9,
     "import-x/order": 3,
