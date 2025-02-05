@@ -11,5 +11,5 @@
     { "path": "../network-controller" },
     { "path": "../transaction-controller" }
   ],
-  "include": ["../../types", "./src", "tsconfig.build.json", "tsconfig.json"]
+  "include": ["../../types", "./src"]
 }

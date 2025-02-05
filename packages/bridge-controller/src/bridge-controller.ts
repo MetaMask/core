@@ -1,20 +1,22 @@
-import { add0x, Hex, numberToHex } from '@metamask/utils';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { NetworkClientId } from '@metamask/network-controller';
-import { StateMetadata } from '@metamask/base-controller';
-import { Contract } from '@ethersproject/contracts';
-import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { Web3Provider } from '@ethersproject/providers';
 import { BigNumber } from '@ethersproject/bignumber';
-import { TransactionParams } from '@metamask/transaction-controller';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
+import type { StateMetadata } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
+import type { NetworkClientId } from '@metamask/network-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
+import { add0x, numberToHex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+
+import { REFRESH_INTERVAL_MS } from './constants';
 import {
-  fetchBridgeFeatureFlags,
-  fetchBridgeQuotes,
-} from './utils/fetch';
-import {
-  sumHexes,
-} from './utils';
+  BRIDGE_CONTROLLER_NAME,
+  DEFAULT_BRIDGE_CONTROLLER_STATE,
+  METABRIDGE_CHAIN_TO_ADDRESS_MAP,
+} from './constants';
+import { CHAIN_IDS } from './constants/chains';
 import {
   type L1GasFees,
   type QuoteRequest,
@@ -24,16 +26,11 @@ import {
   BridgeFeatureFlagsKey,
   RequestStatus,
 } from './types';
-import { isValidQuoteRequest } from './utils/quote';
-import { hasSufficientBalance } from './utils/balance';
-import { CHAIN_IDS } from './constants/chains';
-import { REFRESH_INTERVAL_MS } from './constants';
-import {
-  BRIDGE_CONTROLLER_NAME,
-  DEFAULT_BRIDGE_CONTROLLER_STATE,
-  METABRIDGE_CHAIN_TO_ADDRESS_MAP,
-} from './constants';
 import type { BridgeControllerMessenger } from './types';
+import { sumHexes } from './utils';
+import { hasSufficientBalance } from './utils/balance';
+import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
+import { isValidQuoteRequest } from './utils/quote';
 
 const metadata: StateMetadata<{ bridgeState: BridgeControllerState }> = {
   bridgeState: {

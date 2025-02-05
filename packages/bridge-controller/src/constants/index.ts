@@ -1,7 +1,9 @@
-import { zeroAddress } from 'ethereumjs-util';
 import type { Hex } from '@metamask/utils';
+import { zeroAddress } from 'ethereumjs-util';
+
 import { CHAIN_IDS, NETWORK_TO_NAME_MAP } from './chains';
-import { BridgeFeatureFlagsKey, BridgeControllerState } from '../types';
+import type { BridgeControllerState } from '../types';
+import { BridgeFeatureFlagsKey } from '../types';
 
 // TODO read from feature flags
 export const ALLOWED_BRIDGE_CHAIN_IDS = [

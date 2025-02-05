@@ -1,4 +1,4 @@
-import { CHAIN_IDS } from "./chains";
+import { CHAIN_IDS } from './chains';
 
 export type SwapsTokenObject = {
   /**

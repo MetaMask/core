@@ -1,21 +1,21 @@
-import type { Hex } from '@metamask/utils';
-import type { BigNumber } from 'bignumber.js';
-import {
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
-import {
+import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetSelectedNetworkClientAction,
 } from '@metamask/network-controller';
-import BridgeController from './bridge-controller';
-import { BRIDGE_CONTROLLER_NAME } from './constants';
+import type { Hex } from '@metamask/utils';
+import type { BigNumber } from 'bignumber.js';
+
+import type BridgeController from './bridge-controller';
+import type { BRIDGE_CONTROLLER_NAME } from './constants';
 
 /**
  * The types of assets that a user can send
  *
- * @type {AssetTypes}
  */
 export enum AssetType {
   /** The native asset for the current network, such as ETH */
