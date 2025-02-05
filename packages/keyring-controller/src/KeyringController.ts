@@ -44,11 +44,10 @@ import type { MutexInterface } from 'async-mutex';
 import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
-import { monotonicFactory } from 'ulid';
+import { ulid } from 'ulid';
 
 import { KeyringControllerError } from './constants';
 
-const ulid = monotonicFactory();
 const name = 'KeyringController';
 
 /**
@@ -1398,6 +1397,9 @@ export class KeyringController extends BaseController<
     if (!keyringId) {
       keyring = this.#keyrings[0];
     } else {
+      console.log('keyrings: ', this.#keyrings);
+      console.log('keyringId: ', keyringId);
+      console.log('metadata: ', this.#keyringsMetadata);
       keyring = this.#getKeyringById(keyringId) as EthKeyring<Json>;
 
       if (keyring.type !== KeyringTypes.hd) {
@@ -1930,6 +1932,7 @@ export class KeyringController extends BaseController<
           | EthKeyring<Json>
           | undefined);
 
+    // This will never going to be undefined because we are checking for it in all of the callers
     if (!keyring) {
       throw new Error('No HD keyring found.');
     }
@@ -2022,10 +2025,6 @@ export class KeyringController extends BaseController<
 
     for (const serializedKeyring of serializedKeyrings) {
       await this.#restoreKeyring(serializedKeyring);
-    }
-
-    if (this.#keyringsMetadata.length > this.#keyrings.length) {
-      throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
     }
   }
 
@@ -2260,7 +2259,7 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     const newKeyringMetadata: KeyringMetadata = {
-      id: ulid().toString(),
+      id: ulid(),
       name: '',
     };
 
@@ -2322,10 +2321,6 @@ export class KeyringController extends BaseController<
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
-    this.#keyringsMetadata = [];
-    // this.update((state) => {
-    //   state.keyringsMetadata = [];
-    // });
   }
 
   /**
@@ -2479,6 +2474,7 @@ export class KeyringController extends BaseController<
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
+      const currentKeyringsMetadata = this.#keyringsMetadata;
 
       try {
         return await callback({ releaseLock });
@@ -2486,6 +2482,7 @@ export class KeyringController extends BaseController<
         // Keyrings and password are restored to their previous state
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
         this.#password = currentPassword;
+        this.#keyringsMetadata = currentKeyringsMetadata;
 
         throw e;
       }

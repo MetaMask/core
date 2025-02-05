@@ -55,13 +55,6 @@ jest.mock('uuid', () => {
   };
 });
 
-jest.mock('ulid', () => {
-  return {
-    ulid: () => 'ULID01234567890ABCDEFGHIJKLMN',
-    monotonicFactory: () => () => 'ULID01234567890ABCDEFGHIJKLMN',
-  };
-});
-
 const input =
   '{"version":3,"id":"534e0199-53f6-41a9-a8fe-d504702ee5e8","address":"b97c80fab7a3793bbe746864db80d236f1345ea7",' +
   '"crypto":{"ciphertext":"974fec42023c2d6340d9710863aa82a2961aa03b9d7e5dd19aa77ab4aab1f344",' +
@@ -84,7 +77,8 @@ const commonConfig = { chain: Chain.Goerli, hardfork: Hardfork.Berlin };
 describe('KeyringController', () => {
   afterEach(() => {
     sinon.restore();
-    jest.clearAllMocks();
+    // jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe('constructor', () => {
@@ -252,6 +246,28 @@ describe('KeyringController', () => {
           "Can't find account at index 1",
         );
       });
+    });
+  });
+
+  describe('behavior when keyring metadata length mismatch', () => {
+    it('should throw an error if the keyring metadata length mismatch', async () => {
+      // withController is already calling the #updateVault, which is throwing an error
+      await expect(
+        withController(
+          {
+            state: {
+              vault: undefined,
+              keyringsMetadata: [
+                { id: '1', name: '' },
+                { id: '2', name: '' },
+              ],
+            },
+          },
+          async ({ controller }) => {
+            await controller.addNewAccount();
+          },
+        ),
+      ).rejects.toThrow('KeyringController - keyring metadata length mismatch');
     });
   });
 
@@ -1028,7 +1044,10 @@ describe('KeyringController', () => {
             const modifiedState = {
               ...initialState,
               keyrings: [initialState.keyrings[0], newKeyring],
-              keyringsMetadata: [initialState.keyringsMetadata[0], initialState.keyringsMetadata[0]],
+              keyringsMetadata: [
+                initialState.keyringsMetadata[0],
+                controller.state.keyringsMetadata[1],
+              ],
             };
             expect(controller.state).toStrictEqual(modifiedState);
             expect(importedAccountAddress).toBe(address);
@@ -1102,7 +1121,10 @@ describe('KeyringController', () => {
             const modifiedState = {
               ...initialState,
               keyrings: [initialState.keyrings[0], newKeyring],
-              keyringsMetadata: [initialState.keyringsMetadata[0], initialState.keyringsMetadata[0]],
+              keyringsMetadata: [
+                initialState.keyringsMetadata[0],
+                controller.state.keyringsMetadata[1],
+              ],
             };
             expect(controller.state).toStrictEqual(modifiedState);
             expect(importedAccountAddress).toBe(address);
@@ -2297,7 +2319,7 @@ describe('KeyringController', () => {
     it('should return seedphrase for a specific keyring', async () => {
       await withController(async ({ controller }) => {
         const seedPhrase = await controller.verifySeedPhrase(
-          'ULID01234567890ABCDEFGHIJKLMN',
+          controller.state.keyringsMetadata[0].id,
         );
         expect(seedPhrase).toBeDefined();
       });
@@ -2326,6 +2348,17 @@ describe('KeyringController', () => {
           );
         },
       );
+    });
+
+    it('should throw unspported seed phrase error when keyring is not HD', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addNewKeyring(KeyringTypes.simple, [privateKey]);
+
+        const keyringId = controller.state.keyringsMetadata[1].id;
+        await expect(controller.verifySeedPhrase(keyringId)).rejects.toThrow(
+          'KeyringController - The keyring does not support the method verifySeedPhrase.',
+        );
+      });
     });
   });
 
