@@ -1,5 +1,17 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import {
+  MOCK_INTERNAL_ACCOUNTS,
+  MOCK_USER_STORAGE_ACCOUNTS,
+} from './__fixtures__/mockAccounts';
+import {
+  createExpectedAccountSyncBatchDeleteBody,
+  createExpectedAccountSyncBatchUpsertBody,
+  mockUserStorageMessengerForAccountSyncing,
+} from './__fixtures__/test-utils';
+import * as AccountSyncingControllerIntegrationModule from './controller-integration';
+import * as AccountSyncingUtils from './sync-utils';
+import * as AccountsUserStorageModule from './utils';
 import UserStorageController, { USER_STORAGE_FEATURE_NAMES } from '..';
 import { MOCK_STORAGE_KEY } from '../__fixtures__';
 import {
@@ -13,18 +25,6 @@ import {
   createMockUserStorageEntries,
   decryptBatchUpsertBody,
 } from '../__fixtures__/test-utils';
-import {
-  MOCK_INTERNAL_ACCOUNTS,
-  MOCK_USER_STORAGE_ACCOUNTS,
-} from './__fixtures__/mockAccounts';
-import {
-  createExpectedAccountSyncBatchDeleteBody,
-  createExpectedAccountSyncBatchUpsertBody,
-  mockUserStorageMessengerForAccountSyncing,
-} from './__fixtures__/test-utils';
-import * as AccountSyncingControllerIntegrationModule from './controller-integration';
-import * as AccountSyncingUtils from './sync-utils';
-import * as AccountsUserStorageModule from './utils';
 
 const baseState = {
   isProfileSyncingEnabled: true,
@@ -48,7 +48,6 @@ const arrangeMocks = async ({
     env: {
       isAccountSyncingEnabled,
     },
-    getMetaMetricsState: () => true,
     state: {
       ...baseState,
       ...stateOverrides,
@@ -258,6 +257,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         USER_STORAGE_FEATURE_NAMES.accounts,
         undefined,
         async (_uri, requestBody) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (typeof requestBody === 'string') {
             return;
           }
@@ -368,7 +368,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     });
 
     describe('Fires the onAccountSyncErroneousSituation callback on erroneous situations', () => {
-      it('And logs if the final state is incorrect', async () => {
+      it('and logs if the final state is incorrect', async () => {
         const onAccountSyncErroneousSituation = jest.fn();
 
         const { config, options, userStorageList, accountsList } =
@@ -383,6 +383,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         );
 
         expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
+        // eslint-disable-next-line jest/prefer-strict-equal
         expect(onAccountSyncErroneousSituation.mock.calls).toEqual([
           [
             'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
@@ -404,7 +405,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         ]);
       });
 
-      it('And logs if the final state is correct', async () => {
+      it('and logs if the final state is correct', async () => {
         const onAccountSyncErroneousSituation = jest.fn();
 
         const { config, options, userStorageList, accountsList } =
@@ -427,6 +428,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         );
 
         expect(onAccountSyncErroneousSituation).toHaveBeenCalledTimes(2);
+        // eslint-disable-next-line jest/prefer-strict-equal
         expect(onAccountSyncErroneousSituation.mock.calls).toEqual([
           [
             'An account was present in the user storage accounts list but was not found in the internal accounts list after the sync',
@@ -474,6 +476,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         USER_STORAGE_FEATURE_NAMES.accounts,
         undefined,
         async (_uri, requestBody) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (typeof requestBody === 'string') {
             return;
           }

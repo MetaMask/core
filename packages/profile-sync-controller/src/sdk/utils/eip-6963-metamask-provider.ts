@@ -30,15 +30,15 @@ const providerCache: Partial<Record<MetaMaskClientType, Eip1193Provider>> = {};
 export function getMetaMaskProviderEIP6963(
   type: MetaMaskClientType = 'any',
 ): Promise<Eip1193Provider | null> {
-  return new Promise<Eip1193Provider | null>((res) => {
+  return new Promise<Eip1193Provider | null>((resolve) => {
     if (type !== 'any' && metamaskClientsRdns[type] === undefined) {
-      res(null);
+      resolve(null);
       return;
     }
 
     const cachedProvider = providerCache[type];
     if (cachedProvider) {
-      res(cachedProvider);
+      resolve(cachedProvider);
       return;
     }
 
@@ -85,7 +85,7 @@ export function getMetaMaskProviderEIP6963(
       if (provider) {
         providerCache[type] = provider;
       }
-      return res(provider);
+      return resolve(provider);
     }, 100);
   });
 }

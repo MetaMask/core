@@ -58,19 +58,20 @@ export async function getNonce(publicKey: string): Promise<string | null> {
  */
 export type LoginResponse = {
   token: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   expires_in: string;
   /**
    * Contains anonymous information about the logged in profile.
    *
-   * @property identifier_id - a deterministic unique identifier on the method used to sign in
-   * @property profile_id - a unique id for a given profile
-   * @property metametrics_id - an anonymous server id
+   * identifier_id - a deterministic unique identifier on the method used to sign in
+   *
+   * profile_id - a unique id for a given profile
+   *
+   * metametrics_id - an anonymous server id
    */
   profile: {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     identifier_id: string;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+
     profile_id: string;
   };
 };
@@ -101,10 +102,9 @@ export async function login(
       },
       body: JSON.stringify({
         signature,
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         raw_message: rawMessage,
         metametrics: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           metametrics_id: clientMetaMetrics.metametricsId,
           agent: clientMetaMetrics.agent,
         },
@@ -130,9 +130,8 @@ export async function login(
  * The Auth API Token Response Shape
  */
 export type OAuthTokenResponse = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   access_token: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   expires_in: number;
 };
 

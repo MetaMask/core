@@ -1,14 +1,15 @@
 import type nock from 'nock';
 
+import { MOCK_STORAGE_KEY } from './mockStorage';
 import encryption from '../../../shared/encryption/encryption';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
 } from '../services';
-import { MOCK_STORAGE_KEY } from './mockStorage';
 
 /**
  * Test Utility - creates a realistic mock user-storage entry
+ *
  * @param data - data to encrypt
  * @returns user storage entry
  */
@@ -26,6 +27,7 @@ export async function createMockUserStorageEntry(
 
 /**
  * Test Utility - creates a realistic mock user-storage get-all entry
+ *
  * @param data - data array to encrypt
  * @returns user storage entry
  */
@@ -37,6 +39,7 @@ export async function createMockUserStorageEntries(
 
 /**
  * Test Utility - decrypts a realistic batch upsert payload
+ *
  * @param requestBody - nock body
  * @param storageKey - storage key
  * @returns decrypted body
@@ -86,7 +89,7 @@ export const waitFor = async (
         assertionFn();
         clearInterval(intervalId);
         resolve();
-      } catch (error) {
+      } catch {
         if (Date.now() - startTime >= timeoutMs) {
           clearInterval(intervalId);
           reject(new Error(`waitFor: timeout reached after ${timeoutMs}ms`));

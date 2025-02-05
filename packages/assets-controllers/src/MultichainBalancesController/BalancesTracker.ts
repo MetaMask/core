@@ -8,9 +8,9 @@ type BalanceInfo = {
 const BALANCES_TRACKING_INTERVAL = 5000; // Every 5s in milliseconds.
 
 export class BalancesTracker {
-  #poller: Poller;
+  readonly #poller: Poller;
 
-  #updateBalance: (accountId: string) => Promise<void>;
+  readonly #updateBalance: (accountId: string) => Promise<void>;
 
   #balances: Record<string, BalanceInfo> = {};
 

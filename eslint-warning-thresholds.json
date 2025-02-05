@@ -1,29 +1,972 @@
 {
-  "@typescript-eslint/consistent-type-exports": 19,
-  "@typescript-eslint/no-base-to-string": 3,
-  "@typescript-eslint/no-duplicate-enum-values": 2,
-  "@typescript-eslint/no-unsafe-enum-comparison": 32,
-  "@typescript-eslint/no-unused-vars": 41,
-  "@typescript-eslint/prefer-promise-reject-errors": 33,
-  "@typescript-eslint/prefer-readonly": 138,
-  "import-x/namespace": 189,
-  "import-x/no-named-as-default": 1,
-  "import-x/no-named-as-default-member": 8,
-  "import-x/order": 208,
-  "jest/no-conditional-in-test": 113,
-  "jest/prefer-lowercase-title": 2,
-  "jest/prefer-strict-equal": 2,
-  "jsdoc/check-tag-names": 365,
-  "jsdoc/require-returns": 24,
-  "jsdoc/tag-lines": 333,
-  "n/no-unsupported-features/node-builtins": 4,
-  "n/prefer-global/text-encoder": 4,
-  "n/prefer-global/text-decoder": 4,
-  "prettier/prettier": 101,
-  "promise/always-return": 3,
-  "promise/catch-or-return": 2,
-  "promise/param-names": 8,
-  "no-empty-function": 2,
-  "no-shadow": 8,
-  "no-unused-private-class-members": 5
+  "examples/example-controllers/src/gas-prices-controller.test.ts": {
+    "import-x/order": 1
+  },
+  "examples/example-controllers/src/gas-prices-controller.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "prettier/prettier": 1
+  },
+  "examples/example-controllers/src/gas-prices-service/gas-prices-service.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/require-returns": 1
+  },
+  "examples/example-controllers/src/pet-names-controller.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/accounts-controller/src/AccountsController.test.ts": {
+    "import-x/namespace": 1
+  },
+  "packages/accounts-controller/src/utils.ts": {
+    "jsdoc/tag-lines": 3
+  },
+  "packages/address-book-controller/src/AddressBookController.ts": {
+    "jsdoc/check-tag-names": 13
+  },
+  "packages/approval-controller/src/ApprovalController.test.ts": {
+    "import-x/order": 1,
+    "jest/no-conditional-in-test": 16
+  },
+  "packages/approval-controller/src/ApprovalController.ts": {
+    "@typescript-eslint/prefer-readonly": 4
+  },
+  "packages/assets-controllers/jest.environment.js": {
+    "n/prefer-global/text-encoder": 1,
+    "n/prefer-global/text-decoder": 1,
+    "no-shadow": 2
+  },
+  "packages/assets-controllers/src/AccountTrackerController.test.ts": {
+    "import-x/namespace": 2,
+    "import-x/order": 2
+  },
+  "packages/assets-controllers/src/AccountTrackerController.ts": {
+    "jsdoc/check-tag-names": 5,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/assets-controllers/src/AssetsContractController.test.ts": {
+    "import-x/order": 3
+  },
+  "packages/assets-controllers/src/AssetsContractController.ts": {
+    "jsdoc/check-tag-names": 2,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/assets-controllers/src/CurrencyRateController.test.ts": {
+    "import-x/order": 1,
+    "jest/no-conditional-in-test": 1
+  },
+  "packages/assets-controllers/src/CurrencyRateController.ts": {
+    "jsdoc/check-tag-names": 6
+  },
+  "packages/assets-controllers/src/MultichainBalancesController/BalancesTracker.test.ts": {
+    "jsdoc/tag-lines": 1
+  },
+  "packages/assets-controllers/src/MultichainBalancesController/MultichainBalancesController.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/assets-controllers/src/NftController.test.ts": {
+    "import-x/namespace": 9,
+    "import-x/order": 3,
+    "jest/no-conditional-in-test": 8
+  },
+  "packages/assets-controllers/src/NftController.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 46,
+    "jsdoc/tag-lines": 4
+  },
+  "packages/assets-controllers/src/NftDetectionController.test.ts": {
+    "import-x/namespace": 6,
+    "import-x/order": 4
+  },
+  "packages/assets-controllers/src/NftDetectionController.ts": {
+    "jsdoc/check-tag-names": 34,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
+    "import-x/order": 2,
+    "jsdoc/tag-lines": 4
+  },
+  "packages/assets-controllers/src/RatesController/RatesController.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 3
+  },
+  "packages/assets-controllers/src/RatesController/types.ts": {
+    "import-x/order": 1
+  },
+  "packages/assets-controllers/src/Standards/ERC20Standard.test.ts": {
+    "prettier/prettier": 1
+  },
+  "packages/assets-controllers/src/Standards/NftStandards/ERC721/ERC721Standard.ts": {
+    "prettier/prettier": 1
+  },
+  "packages/assets-controllers/src/TokenBalancesController.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/assets-controllers/src/TokenBalancesController.ts": {
+    "@typescript-eslint/prefer-readonly": 4,
+    "jsdoc/check-tag-names": 4,
+    "jsdoc/tag-lines": 11
+  },
+  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
+    "import-x/namespace": 11,
+    "import-x/order": 3,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/assets-controllers/src/TokenDetectionController.ts": {
+    "@typescript-eslint/prefer-readonly": 3,
+    "jsdoc/check-tag-names": 8,
+    "jsdoc/tag-lines": 6,
+    "no-unused-private-class-members": 2
+  },
+  "packages/assets-controllers/src/TokenListController.test.ts": {
+    "import-x/namespace": 7,
+    "import-x/order": 3,
+    "jest/no-conditional-in-test": 2
+  },
+  "packages/assets-controllers/src/TokenListController.ts": {
+    "jsdoc/check-tag-names": 1,
+    "jsdoc/tag-lines": 7
+  },
+  "packages/assets-controllers/src/TokenRatesController.test.ts": {
+    "import-x/order": 3
+  },
+  "packages/assets-controllers/src/TokenRatesController.ts": {
+    "@typescript-eslint/prefer-readonly": 2,
+    "jsdoc/check-tag-names": 11,
+    "no-unused-private-class-members": 1
+  },
+  "packages/assets-controllers/src/TokensController.test.ts": {
+    "import-x/namespace": 1,
+    "import-x/order": 4,
+    "jest/no-conditional-in-test": 2
+  },
+  "packages/assets-controllers/src/TokensController.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 13,
+    "jsdoc/tag-lines": 3
+  },
+  "packages/assets-controllers/src/assetsUtil.test.ts": {
+    "jest/no-conditional-in-test": 2
+  },
+  "packages/assets-controllers/src/assetsUtil.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/assets-controllers/src/multicall.test.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 2
+  },
+  "packages/assets-controllers/src/multicall.ts": {
+    "jsdoc/tag-lines": 1
+  },
+  "packages/assets-controllers/src/token-prices-service/codefi-v2.test.ts": {
+    "jsdoc/require-returns": 1
+  },
+  "packages/assets-controllers/src/token-prices-service/codefi-v2.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/base-controller/src/BaseControllerV2.test.ts": {
+    "import-x/namespace": 16
+  },
+  "packages/base-controller/src/BaseControllerV2.ts": {
+    "jsdoc/check-tag-names": 2
+  },
+  "packages/base-controller/src/Messenger.test.ts": {
+    "import-x/namespace": 33
+  },
+  "packages/base-controller/src/RestrictedMessenger.test.ts": {
+    "import-x/namespace": 31
+  },
+  "packages/build-utils/src/transforms/remove-fenced-code.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/build-utils/src/transforms/remove-fenced-code.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/composable-controller/src/ComposableController.test.ts": {
+    "import-x/namespace": 3
+  },
+  "packages/composable-controller/src/ComposableController.ts": {
+    "@typescript-eslint/no-unused-vars": 1
+  },
+  "packages/controller-utils/jest.environment.js": {
+    "n/prefer-global/text-encoder": 1,
+    "n/prefer-global/text-decoder": 1,
+    "no-shadow": 2
+  },
+  "packages/controller-utils/src/siwe.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "jsdoc/check-tag-names": 5
+  },
+  "packages/controller-utils/src/types.ts": {
+    "@typescript-eslint/no-duplicate-enum-values": 2,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/controller-utils/src/util.test.ts": {
+    "import-x/no-named-as-default": 1,
+    "import-x/order": 1,
+    "jest/no-conditional-in-test": 1,
+    "promise/param-names": 2
+  },
+  "packages/controller-utils/src/util.ts": {
+    "@typescript-eslint/no-base-to-string": 1,
+    "@typescript-eslint/no-unused-vars": 3,
+    "@typescript-eslint/prefer-promise-reject-errors": 1,
+    "promise/param-names": 3
+  },
+  "packages/ens-controller/src/EnsController.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/ens-controller/src/EnsController.ts": {
+    "jsdoc/check-tag-names": 6
+  },
+  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
+    "import-x/namespace": 1
+  },
+  "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.ts": {
+    "@typescript-eslint/prefer-readonly": 1
+  },
+  "packages/gas-fee-controller/src/GasFeeController.test.ts": {
+    "import-x/namespace": 2,
+    "import-x/order": 1
+  },
+  "packages/gas-fee-controller/src/GasFeeController.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 21
+  },
+  "packages/gas-fee-controller/src/determineGasFeeCalculations.ts": {
+    "jsdoc/tag-lines": 4
+  },
+  "packages/json-rpc-engine/src/JsonRpcEngine.test.ts": {
+    "jest/no-conditional-in-test": 2
+  },
+  "packages/json-rpc-engine/src/JsonRpcEngine.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 2
+  },
+  "packages/json-rpc-middleware-stream/src/index.test.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 3,
+    "no-empty-function": 1
+  },
+  "packages/keyring-controller/jest.environment.js": {
+    "n/no-unsupported-features/node-builtins": 1
+  },
+  "packages/keyring-controller/src/KeyringController.test.ts": {
+    "import-x/namespace": 16,
+    "jest/no-conditional-in-test": 8
+  },
+  "packages/keyring-controller/src/KeyringController.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 5,
+    "@typescript-eslint/no-unused-vars": 2,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
+    "@typescript-eslint/prefer-readonly": 1
+  },
+  "packages/logging-controller/src/LoggingController.test.ts": {
+    "import-x/namespace": 1
+  },
+  "packages/logging-controller/src/LoggingController.ts": {
+    "jsdoc/check-tag-names": 1
+  },
+  "packages/logging-controller/src/logTypes/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 1
+  },
+  "packages/message-manager/src/AbstractMessageManager.test.ts": {
+    "jest/no-conditional-in-test": 7
+  },
+  "packages/message-manager/src/AbstractMessageManager.ts": {
+    "jsdoc/check-tag-names": 25,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/message-manager/src/DecryptMessageManager.test.ts": {
+    "jest/no-conditional-in-test": 3
+  },
+  "packages/message-manager/src/DecryptMessageManager.ts": {
+    "jsdoc/check-tag-names": 11
+  },
+  "packages/message-manager/src/EncryptionPublicKeyManager.test.ts": {
+    "jest/no-conditional-in-test": 5
+  },
+  "packages/message-manager/src/EncryptionPublicKeyManager.ts": {
+    "jsdoc/check-tag-names": 13
+  },
+  "packages/message-manager/src/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 1
+  },
+  "packages/message-manager/src/utils.ts": {
+    "@typescript-eslint/no-unused-vars": 1
+  },
+  "packages/multichain/src/adapters/caip-permission-adapter-eth-accounts.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/multichain/src/adapters/caip-permission-adapter-eth-accounts.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1,
+    "jsdoc/tag-lines": 5
+  },
+  "packages/multichain/src/adapters/caip-permission-adapter-permittedChains.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/multichain/src/adapters/caip-permission-adapter-permittedChains.ts": {
+    "jsdoc/tag-lines": 5
+  },
+  "packages/multichain/src/adapters/caip-permission-adapter-session-scopes.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/multichain/src/adapters/caip-permission-adapter-session-scopes.ts": {
+    "jsdoc/tag-lines": 3
+  },
+  "packages/multichain/src/caip25Permission.test.ts": {
+    "@typescript-eslint/no-unused-vars": 3
+  },
+  "packages/multichain/src/caip25Permission.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/multichain/src/handlers/wallet-getSession.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/multichain/src/handlers/wallet-getSession.ts": {
+    "@typescript-eslint/no-unused-vars": 2,
+    "jsdoc/require-returns": 1
+  },
+  "packages/multichain/src/handlers/wallet-invokeMethod.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/multichain/src/handlers/wallet-invokeMethod.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "jsdoc/require-returns": 1
+  },
+  "packages/multichain/src/handlers/wallet-revokeSession.test.ts": {
+    "import-x/order": 1,
+    "prettier/prettier": 2
+  },
+  "packages/multichain/src/handlers/wallet-revokeSession.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "jsdoc/require-returns": 1
+  },
+  "packages/multichain/src/middlewares/MultichainMiddlewareManager.test.ts": {
+    "prettier/prettier": 1
+  },
+  "packages/multichain/src/middlewares/MultichainSubscriptionManager.ts": {
+    "@typescript-eslint/prefer-readonly": 2,
+    "import-x/order": 1
+  },
+  "packages/multichain/src/middlewares/multichainMethodCallValidator.test.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 20
+  },
+  "packages/multichain/src/scope/assert.test.ts": {
+    "@typescript-eslint/no-unused-vars": 3
+  },
+  "packages/multichain/src/scope/assert.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1,
+    "jsdoc/tag-lines": 8
+  },
+  "packages/multichain/src/scope/authorization.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/multichain/src/scope/errors.ts": {
+    "jsdoc/tag-lines": 5
+  },
+  "packages/multichain/src/scope/filter.test.ts": {
+    "jest/no-conditional-in-test": 9,
+    "prettier/prettier": 1
+  },
+  "packages/multichain/src/scope/filter.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "jsdoc/tag-lines": 3
+  },
+  "packages/multichain/src/scope/supported.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 4,
+    "jsdoc/tag-lines": 4
+  },
+  "packages/multichain/src/scope/transform.ts": {
+    "jsdoc/tag-lines": 3
+  },
+  "packages/multichain/src/scope/types.ts": {
+    "jsdoc/tag-lines": 1
+  },
+  "packages/multichain/src/scope/validation.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/name-controller/src/NameController.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1,
+    "@typescript-eslint/prefer-readonly": 2
+  },
+  "packages/name-controller/src/providers/ens.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/name-controller/src/providers/ens.ts": {
+    "@typescript-eslint/prefer-readonly": 2
+  },
+  "packages/name-controller/src/providers/etherscan.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/name-controller/src/providers/etherscan.ts": {
+    "@typescript-eslint/prefer-readonly": 2
+  },
+  "packages/name-controller/src/providers/lens.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/name-controller/src/providers/lens.ts": {
+    "@typescript-eslint/prefer-readonly": 1
+  },
+  "packages/name-controller/src/providers/token.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/name-controller/src/providers/token.ts": {
+    "@typescript-eslint/prefer-readonly": 1
+  },
+  "packages/name-controller/src/util.ts": {
+    "jsdoc/require-returns": 1
+  },
+  "packages/network-controller/src/NetworkController.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 1,
+    "@typescript-eslint/prefer-readonly": 2,
+    "jsdoc/tag-lines": 1,
+    "prettier/prettier": 1
+  },
+  "packages/network-controller/src/create-auto-managed-network-client.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/network-controller/src/create-network-client.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
+  },
+  "packages/network-controller/tests/NetworkController.test.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "@typescript-eslint/prefer-promise-reject-errors": 1,
+    "import-x/order": 1,
+    "jest/no-conditional-in-test": 4
+  },
+  "packages/network-controller/tests/create-network-client.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/network-controller/tests/provider-api-tests/block-param.ts": {
+    "jest/no-conditional-in-test": 1
+  },
+  "packages/network-controller/tests/provider-api-tests/helpers.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 1,
+    "import-x/namespace": 1,
+    "import-x/no-named-as-default-member": 1,
+    "promise/catch-or-return": 1
+  },
+  "packages/network-controller/tests/provider-api-tests/no-block-param.ts": {
+    "jest/no-conditional-in-test": 2
+  },
+  "packages/notification-services-controller/jest.environment.js": {
+    "n/no-unsupported-features/node-builtins": 1,
+    "n/prefer-global/text-encoder": 1,
+    "n/prefer-global/text-decoder": 1,
+    "no-shadow": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mock-raw-notifications.ts": {
+    "jsdoc/tag-lines": 22
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockResponses.ts": {
+    "import-x/order": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/test-utils.ts": {
+    "@typescript-eslint/no-unused-vars": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/processors/process-feature-announcement.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.ts": {
+    "import-x/order": 3
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/processors/process-onchain-notifications.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/processors/process-snap-notifications.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
+    "jsdoc/tag-lines": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/services/onchain-notifications.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/feature-announcement/feature-announcement.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/feature-announcement/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 3
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 5
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/notification/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/on-chain-notification/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/on-chain-notification/on-chain-notification.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/on-chain-notification/schema.ts": {
+    "jsdoc/check-tag-names": 21,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/snaps/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/types/user-storage/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/utils/utils.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesController/utils/utils.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "@typescript-eslint/prefer-readonly": 2,
+    "import-x/order": 1,
+    "jsdoc/check-tag-names": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/services/push/push-web.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/services/push/push-web.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/services/services.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/services/services.ts": {
+    "import-x/order": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/types/index.ts": {
+    "@typescript-eslint/consistent-type-exports": 1
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/utils/get-notification-message.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/notification-services-controller/src/NotificationServicesPushController/utils/get-notification-message.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "import-x/order": 1
+  },
+  "packages/permission-controller/src/Permission.ts": {
+    "prettier/prettier": 11
+  },
+  "packages/permission-controller/src/PermissionController.test.ts": {
+    "jest/no-conditional-in-test": 4
+  },
+  "packages/permission-controller/src/PermissionController.ts": {
+    "prettier/prettier": 12
+  },
+  "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/permission-controller/src/rpc-methods/requestPermissions.ts": {
+    "prettier/prettier": 1
+  },
+  "packages/permission-log-controller/src/PermissionLogController.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 2,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/phishing-controller/src/PhishingController.test.ts": {
+    "import-x/namespace": 36,
+    "import-x/no-named-as-default-member": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/phishing-controller/src/PhishingController.ts": {
+    "jsdoc/check-tag-names": 42,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/phishing-controller/src/PhishingDetector.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "@typescript-eslint/prefer-readonly": 2,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/phishing-controller/src/tests/utils.ts": {
+    "@typescript-eslint/no-unused-vars": 1
+  },
+  "packages/phishing-controller/src/utils.test.ts": {
+    "import-x/namespace": 5
+  },
+  "packages/phishing-controller/src/utils.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1,
+    "@typescript-eslint/no-unused-vars": 2
+  },
+  "packages/polling-controller/src/AbstractPollingController.ts": {
+    "@typescript-eslint/prefer-readonly": 1
+  },
+  "packages/preferences-controller/src/PreferencesController.test.ts": {
+    "prettier/prettier": 4
+  },
+  "packages/queued-request-controller/src/QueuedRequestController.ts": {
+    "@typescript-eslint/prefer-readonly": 2
+  },
+  "packages/rate-limit-controller/src/RateLimitController.ts": {
+    "jsdoc/check-tag-names": 4,
+    "jsdoc/require-returns": 1,
+    "jsdoc/tag-lines": 3
+  },
+  "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1,
+    "promise/param-names": 1
+  },
+  "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.ts": {
+    "@typescript-eslint/prefer-readonly": 4,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/check-tag-names": 2,
+    "prettier/prettier": 1
+  },
+  "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.test.ts": {
+    "jest/no-conditional-in-test": 1,
+    "prettier/prettier": 2
+  },
+  "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/selected-network-controller/src/SelectedNetworkController.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "prettier/prettier": 6
+  },
+  "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
+    "jest/no-conditional-in-test": 1
+  },
+  "packages/signature-controller/src/SignatureController.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 3
+  },
+  "packages/signature-controller/src/SignatureController.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 4,
+    "@typescript-eslint/prefer-readonly": 3,
+    "jsdoc/tag-lines": 8
+  },
+  "packages/signature-controller/src/utils/decoding-api.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/signature-controller/src/utils/decoding-api.ts": {
+    "import-x/order": 1
+  },
+  "packages/signature-controller/src/utils/normalize.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/signature-controller/src/utils/normalize.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/signature-controller/src/utils/validation.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/signature-controller/src/utils/validation.ts": {
+    "@typescript-eslint/no-base-to-string": 1,
+    "@typescript-eslint/no-unused-vars": 2,
+    "jsdoc/tag-lines": 4
+  },
+  "packages/transaction-controller/src/TransactionController.test.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "import-x/namespace": 1,
+    "import-x/order": 4,
+    "jsdoc/tag-lines": 1,
+    "promise/always-return": 2
+  },
+  "packages/transaction-controller/src/TransactionController.ts": {
+    "@typescript-eslint/prefer-readonly": 11,
+    "jsdoc/check-tag-names": 35,
+    "jsdoc/require-returns": 5,
+    "jsdoc/tag-lines": 1,
+    "prettier/prettier": 1,
+    "no-unused-private-class-members": 1
+  },
+  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
+    "import-x/order": 4,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/api/accounts-api.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/api/accounts-api.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/transaction-controller/src/gas-flows/DefaultGasFeeFlow.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/gas-flows/LineaGasFeeFlow.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/transaction-controller/src/gas-flows/LineaGasFeeFlow.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/gas-flows/OptimismLayer1GasFeeFlow.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/gas-flows/OptimismLayer1GasFeeFlow.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.ts": {
+    "@typescript-eslint/prefer-readonly": 2
+  },
+  "packages/transaction-controller/src/gas-flows/ScrollLayer1GasFeeFlow.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/gas-flows/ScrollLayer1GasFeeFlow.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/gas-flows/TestGasFeeFlow.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/helpers/AccountsApiRemoteTransactionSource.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/helpers/GasFeePoller.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1,
+    "prettier/prettier": 1
+  },
+  "packages/transaction-controller/src/helpers/GasFeePoller.ts": {
+    "@typescript-eslint/prefer-readonly": 6,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/helpers/IncomingTransactionHelper.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/helpers/IncomingTransactionHelper.ts": {
+    "@typescript-eslint/prefer-readonly": 11
+  },
+  "packages/transaction-controller/src/helpers/MethodDataHelper.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/helpers/MethodDataHelper.ts": {
+    "@typescript-eslint/prefer-readonly": 4
+  },
+  "packages/transaction-controller/src/helpers/MultichainTrackingHelper.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/transaction-controller/src/helpers/MultichainTrackingHelper.ts": {
+    "@typescript-eslint/no-unused-vars": 2,
+    "@typescript-eslint/prefer-readonly": 1,
+    "no-unused-private-class-members": 1
+  },
+  "packages/transaction-controller/src/helpers/PendingTransactionTracker.test.ts": {
+    "jsdoc/tag-lines": 3
+  },
+  "packages/transaction-controller/src/helpers/PendingTransactionTracker.ts": {
+    "@typescript-eslint/prefer-readonly": 12
+  },
+  "packages/transaction-controller/src/helpers/TransactionPoller.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/helpers/TransactionPoller.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/transaction-controller/src/types.ts": {
+    "jsdoc/tag-lines": 4
+  },
+  "packages/transaction-controller/src/utils/external-transactions.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/utils/gas-fees.test.ts": {
+    "import-x/order": 2,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/utils/gas-fees.ts": {
+    "import-x/order": 2
+  },
+  "packages/transaction-controller/src/utils/gas-flow.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/utils/gas-flow.ts": {
+    "jsdoc/tag-lines": 4
+  },
+  "packages/transaction-controller/src/utils/gas.test.ts": {
+    "import-x/order": 2,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/transaction-controller/src/utils/gas.ts": {
+    "prettier/prettier": 1
+  },
+  "packages/transaction-controller/src/utils/history.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/utils/layer1-gas-fee-flow.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/utils/layer1-gas-fee-flow.ts": {
+    "jsdoc/require-returns": 1,
+    "jsdoc/tag-lines": 3
+  },
+  "packages/transaction-controller/src/utils/nonce.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/utils/resimulate.test.ts": {
+    "import-x/order": 2
+  },
+  "packages/transaction-controller/src/utils/resimulate.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 7
+  },
+  "packages/transaction-controller/src/utils/retry.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/utils/retry.ts": {
+    "jsdoc/tag-lines": 4
+  },
+  "packages/transaction-controller/src/utils/simulation-api.test.ts": {
+    "@typescript-eslint/no-base-to-string": 1,
+    "import-x/order": 1,
+    "jest/no-conditional-in-test": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/transaction-controller/src/utils/simulation-api.ts": {
+    "jsdoc/require-returns": 2,
+    "jsdoc/tag-lines": 3
+  },
+  "packages/transaction-controller/src/utils/simulation.test.ts": {
+    "import-x/order": 2,
+    "jsdoc/tag-lines": 5
+  },
+  "packages/transaction-controller/src/utils/simulation.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "import-x/order": 2,
+    "jsdoc/tag-lines": 16
+  },
+  "packages/transaction-controller/src/utils/swaps.test.ts": {
+    "import-x/order": 1,
+    "promise/always-return": 1,
+    "promise/catch-or-return": 1
+  },
+  "packages/transaction-controller/src/utils/swaps.ts": {
+    "import-x/order": 1,
+    "jsdoc/require-returns": 1
+  },
+  "packages/transaction-controller/src/utils/transaction-type.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/utils/transaction-type.ts": {
+    "@typescript-eslint/no-unused-vars": 1
+  },
+  "packages/transaction-controller/src/utils/utils.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/utils/validation.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/transaction-controller/src/utils/validation.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 2,
+    "import-x/order": 1
+  },
+  "packages/user-operation-controller/src/UserOperationController.test.ts": {
+    "jsdoc/tag-lines": 4
+  },
+  "packages/user-operation-controller/src/UserOperationController.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 1,
+    "@typescript-eslint/prefer-readonly": 3,
+    "jsdoc/require-returns": 2
+  },
+  "packages/user-operation-controller/src/helpers/Bundler.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/require-returns": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/user-operation-controller/src/helpers/Bundler.ts": {
+    "@typescript-eslint/prefer-readonly": 1,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.test.ts": {
+    "import-x/order": 2,
+    "jsdoc/tag-lines": 4,
+    "prettier/prettier": 1
+  },
+  "packages/user-operation-controller/src/helpers/PendingUserOperationTracker.ts": {
+    "@typescript-eslint/prefer-readonly": 2,
+    "import-x/order": 1
+  },
+  "packages/user-operation-controller/src/helpers/SnapSmartContractAccount.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/user-operation-controller/src/helpers/SnapSmartContractAccount.ts": {
+    "@typescript-eslint/prefer-readonly": 1
+  },
+  "packages/user-operation-controller/src/types.ts": {
+    "jsdoc/tag-lines": 3
+  },
+  "packages/user-operation-controller/src/utils/gas-fees.ts": {
+    "jsdoc/tag-lines": 7
+  },
+  "packages/user-operation-controller/src/utils/gas.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/user-operation-controller/src/utils/gas.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/user-operation-controller/src/utils/transaction.test.ts": {
+    "import-x/order": 1
+  },
+  "packages/user-operation-controller/src/utils/transaction.ts": {
+    "jsdoc/tag-lines": 2
+  },
+  "packages/user-operation-controller/src/utils/validation.test.ts": {
+    "import-x/order": 1,
+    "jsdoc/tag-lines": 2
+  },
+  "packages/user-operation-controller/src/utils/validation.ts": {
+    "jsdoc/tag-lines": 8
+  },
+  "scripts/create-package/utils.test.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 3,
+    "import-x/no-named-as-default-member": 2,
+    "jest/no-conditional-in-test": 1
+  },
+  "scripts/create-package/utils.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 5,
+    "prettier/prettier": 1
+  },
+  "tests/fake-block-tracker.ts": {
+    "no-empty-function": 1
+  },
+  "tests/fake-provider.ts": {
+    "@typescript-eslint/prefer-promise-reject-errors": 1,
+    "@typescript-eslint/prefer-readonly": 2,
+    "jsdoc/check-tag-names": 12
+  },
+  "tests/mock-network.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1,
+    "@typescript-eslint/prefer-readonly": 3,
+    "jsdoc/check-tag-names": 10
+  },
+  "tests/setupAfterEnv/nock.ts": {
+    "import-x/no-named-as-default-member": 3
+  }
 }
