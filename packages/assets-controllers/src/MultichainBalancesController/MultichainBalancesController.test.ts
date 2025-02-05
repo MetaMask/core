@@ -7,6 +7,9 @@ import {
   EthMethod,
   BtcScope,
   EthScope,
+  SolScope,
+  SolMethod,
+  SolAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -47,6 +50,28 @@ const mockBtcAccount = {
   type: BtcAccountType.P2wpkh,
 };
 
+const mockSolAccount = {
+  address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+  id: uuidv4(),
+  metadata: {
+    name: 'Solana Account 1',
+    importTime: Date.now(),
+    keyring: {
+      type: KeyringTypes.snap,
+    },
+    snap: {
+      id: 'mock-sol-snap',
+      name: 'mock-sol-snap',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+  scopes: [SolScope.Devnet],
+  options: {},
+  methods: [SolMethod.SendAndConfirmTransaction],
+  type: SolAccountType.DataAccount,
+};
+
 const mockEthAccount = {
   address: '0x807dE1cf8f39E83258904b2f7b473E5C506E4aC1',
   id: uuidv4(),
@@ -69,9 +94,10 @@ const mockEthAccount = {
   type: EthAccountType.Eoa,
 };
 
+const mockBtcNativeAsset = 'bip122:000000000933ea01ad0ee984209779ba/slip44:0';
 const mockBalanceResult = {
-  'bip122:000000000933ea01ad0ee984209779ba/slip44:0': {
-    amount: '0.00000000',
+  [mockBtcNativeAsset]: {
+    amount: '1.00000000',
     unit: 'BTC',
   },
 };
@@ -253,8 +279,88 @@ describe('BalancesController', () => {
     expect(controller.state.balances).toStrictEqual({});
   });
 
-  it('updates balances when receiving accountBalancesUpdated event', async () => {
+  it('handles errors gracefully when account could not be found', async () => {
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [],
+      },
+    });
+
+    await controller.updateBalance(mockBtcAccount.id);
+    await waitForAllPromises();
+
+    expect(controller.state.balances).toStrictEqual({});
+  });
+
+  it('handles errors gracefully when constructing the controller', async () => {
+    // This method will be used in the constructor of that controller.
+    const updateBalanceSpy = jest.spyOn(
+      MultichainBalancesController.prototype,
+      'updateBalance',
+    );
+    updateBalanceSpy.mockRejectedValue(
+      new Error('Something unexpected happen'),
+    );
+
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    expect(controller.state.balances).toStrictEqual({});
+  });
+
+  it('handles errors when trying to upgrade the balance of a non-existing account', async () => {
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    // Solana account is not registered, so this should not update anything for this account
+    await controller.updateBalance(mockSolAccount.id);
+    expect(controller.state.balances).toStrictEqual({});
+  });
+
+  it('stores balances when receiving new balances from the "AccountsController:accountBalancesUpdated" event', async () => {
     const { controller, messenger } = setupController();
+    const balanceUpdate = {
+      balances: {
+        [mockBtcAccount.id]: mockBalanceResult,
+      },
+    };
+
+    messenger.publish(
+      'AccountsController:accountBalancesUpdated',
+      balanceUpdate,
+    );
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('updates balances when receiving "AccountsController:accountBalancesUpdated" event', async () => {
+    const mockInitialBalances = {
+      [mockBtcNativeAsset]: {
+        amount: '0.00000000',
+        unit: 'BTC',
+      },
+    };
+    // Just to make sure we will run a "true update", we want to make the
+    // initial state is different from the updated one.
+    expect(mockInitialBalances).not.toStrictEqual(mockBalanceResult);
+
+    const { controller, messenger } = setupController({
+      state: {
+        balances: {
+          [mockBtcAccount.id]: mockInitialBalances,
+        },
+      },
+    });
     const balanceUpdate = {
       balances: {
         [mockBtcAccount.id]: mockBalanceResult,
