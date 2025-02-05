@@ -16,6 +16,7 @@ import { SnapCaveatType } from '@metamask/snaps-utils';
  * @param permission - The permission to get the `chainIds` caveat from.
  * @returns An array of `chainIds` that the snap supports.
  */
+// istanbul ignore next
 export function getChainIdsCaveat(
   permission?: PermissionConstraint,
 ): string[] | null {

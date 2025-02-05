@@ -17,14 +17,14 @@ import type { Snap } from '@metamask/snaps-utils';
 import { useFakeTimers } from 'sinon';
 import { v4 as uuidv4 } from 'uuid';
 
+import {
+  getDefaultMultichainAssetsControllerState,
+  MultichainAssetsController,
+} from '.';
 import type {
   AssetMetadataResponse,
   MultichainAssetsControllerMessenger,
   MultichainAssetsControllerState,
-} from './MultichainAssetsController';
-import {
-  getDefaultMultichainAssetsControllerState,
-  MultichainAssetsController,
 } from './MultichainAssetsController';
 import { advanceTime } from '../../../../tests/helpers';
 import type {
