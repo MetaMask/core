@@ -5,6 +5,9 @@ import {
   BtcMethod,
   EthAccountType,
   EthMethod,
+  SolAccountType,
+  SolMethod,
+  SolScope,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -19,6 +22,7 @@ import {
   type MultichainTransactionsControllerState,
   type MultichainTransactionsControllerMessenger,
 } from './MultichainTransactionsController';
+import { MultichainNetwork } from './constants';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -40,6 +44,28 @@ const mockBtcAccount = {
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
   scopes: [],
+};
+
+const mockSolAccount = {
+  address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+  id: uuidv4(),
+  metadata: {
+    name: 'Solana Account 1',
+    importTime: Date.now(),
+    keyring: {
+      type: KeyringTypes.snap,
+    },
+    snap: {
+      id: 'mock-sol-snap',
+      name: 'mock-sol-snap',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+  scopes: [SolScope.Devnet],
+  options: {},
+  methods: [SolMethod.SendAndConfirmTransaction],
+  type: SolAccountType.DataAccount,
 };
 
 const mockEthAccount = {
@@ -248,6 +274,62 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
+  it('filters out non-mainnet Solana transactions', async () => {
+    const mockSolTransaction = {
+      account: mockSolAccount.id,
+      type: 'send' as const,
+      status: 'confirmed' as const,
+      timestamp: Date.now(),
+      from: [],
+      to: [],
+      fees: [],
+      events: [
+        {
+          status: 'confirmed' as const,
+          timestamp: Date.now(),
+        },
+      ],
+    };
+    const mockSolTransactions = {
+      data: [
+        {
+          ...mockSolTransaction,
+          id: '3',
+          chain: MultichainNetwork.Solana,
+        },
+        {
+          ...mockSolTransaction,
+          id: '1',
+          chain: MultichainNetwork.SolanaTestnet,
+        },
+        {
+          ...mockSolTransaction,
+          id: '2',
+          chain: MultichainNetwork.SolanaDevnet,
+        },
+      ],
+      next: null,
+    };
+    // First transaction must be the mainnet one (for the test), so we assert this.
+    expect(mockSolTransactions.data[0].chain).toStrictEqual(
+      MultichainNetwork.Solana,
+    );
+
+    const { controller, mockSnapHandleRequest } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockSolAccount],
+      },
+    });
+    mockSnapHandleRequest.mockReturnValueOnce(mockSolTransactions);
+
+    await controller.updateTransactionsForAccount(mockSolAccount.id);
+
+    const { transactions } =
+      controller.state.nonEvmTransactions[mockSolAccount.id];
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0]).toStrictEqual(mockSolTransactions.data[0]); // First transaction is the mainnet one.
+  });
+
   it('handles pagination when fetching transactions', async () => {
     const firstPage = {
       data: [
@@ -327,6 +409,25 @@ describe('MultichainTransactionsController', () => {
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
     await waitForAllPromises();
+
+    expect(controller.state.nonEvmTransactions).toStrictEqual({});
+  });
+
+  it('handles errors gracefully when constructing the controller', async () => {
+    // This method will be used in the constructor of that controller.
+    const updateTransactionsForAccountSpy = jest.spyOn(
+      MultichainTransactionsController.prototype,
+      'updateTransactionsForAccount',
+    );
+    updateTransactionsForAccountSpy.mockRejectedValue(
+      new Error('Something unexpected happen'),
+    );
+
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
 
     expect(controller.state.nonEvmTransactions).toStrictEqual({});
   });
