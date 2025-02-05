@@ -465,14 +465,6 @@
     "n/prefer-global/text-decoder": 1,
     "no-shadow": 2
   },
-  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
-    "jsdoc/tag-lines": 4
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "@typescript-eslint/prefer-readonly": 8,
-    "jsdoc/require-returns": 1
-  },
   "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mock-raw-notifications.ts": {
     "jsdoc/tag-lines": 22
   },
