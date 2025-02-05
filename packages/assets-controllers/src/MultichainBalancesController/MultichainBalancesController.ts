@@ -2,6 +2,7 @@ import type {
   AccountsControllerAccountAddedEvent,
   AccountsControllerAccountRemovedEvent,
   AccountsControllerListMultichainAccountsAction,
+  AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
 import {
   BaseController,
@@ -10,7 +11,11 @@ import {
   type RestrictedMessenger,
 } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
-import type { Balance, CaipAssetType } from '@metamask/keyring-api';
+import type {
+  Balance,
+  CaipAssetType,
+  AccountBalancesUpdatedEventPayload,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -19,8 +24,8 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { BalancesTracker, NETWORK_ASSETS_MAP } from '.';
-import { getScopeForAccount, getBlockTimeForAccount } from './utils';
+import { NETWORK_ASSETS_MAP } from '.';
+import { getScopeForAccount } from './utils';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -60,14 +65,6 @@ export type MultichainBalancesControllerGetStateAction =
   >;
 
 /**
- * Updates the balances of all supported accounts.
- */
-export type MultichainBalancesControllerUpdateBalancesAction = {
-  type: `${typeof controllerName}:updateBalances`;
-  handler: MultichainBalancesController['updateBalances'];
-};
-
-/**
  * Event emitted when the state of the {@link MultichainBalancesController} changes.
  */
 export type MultichainBalancesControllerStateChange =
@@ -80,8 +77,7 @@ export type MultichainBalancesControllerStateChange =
  * Actions exposed by the {@link MultichainBalancesController}.
  */
 export type MultichainBalancesControllerActions =
-  | MultichainBalancesControllerGetStateAction
-  | MultichainBalancesControllerUpdateBalancesAction;
+  MultichainBalancesControllerGetStateAction;
 
 /**
  * Events emitted by {@link MultichainBalancesController}.
@@ -101,8 +97,8 @@ type AllowedActions =
  */
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
-
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountBalancesUpdatesEvent;
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -137,8 +133,6 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
-  readonly #tracker: BalancesTracker;
-
   constructor({
     messenger,
     state = {},
@@ -156,39 +150,29 @@ export class MultichainBalancesController extends BaseController<
       },
     });
 
-    this.#tracker = new BalancesTracker(
-      async (accountId: string) => await this.#updateBalance(accountId),
-    );
-
-    // Register all non-EVM accounts into the tracker
+    // Fetch initial balances for all non-EVM accounts
     for (const account of this.#listAccounts()) {
-      if (this.#isNonEvmAccount(account)) {
-        this.#tracker.track(account.id, getBlockTimeForAccount(account.type));
-      }
+      this.updateBalance(account.id).catch((error) => {
+        console.error(
+          `Failed to fetch initial balance for account ${account.id}:`,
+          error,
+        );
+      });
     }
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      (account) => this.#handleOnAccountAdded(account),
+      (account: InternalAccount) => this.#handleOnAccountAdded(account),
     );
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
-      (account) => this.#handleOnAccountRemoved(account),
+      (account: string) => this.#handleOnAccountRemoved(account),
     );
-  }
-
-  /**
-   * Starts the polling process.
-   */
-  start(): void {
-    this.#tracker.start();
-  }
-
-  /**
-   * Stops the polling process.
-   */
-  stop(): void {
-    this.#tracker.stop();
+    this.messagingSystem.subscribe(
+      'AccountsController:accountBalancesUpdated',
+      (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
+        this.#handleOnAccountBalancesUpdated(balanceUpdate),
+    );
   }
 
   /**
@@ -198,17 +182,29 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID.
    */
   async updateBalance(accountId: string): Promise<void> {
-    // NOTE: No need to track the account here, since we start tracking those when
-    // the "AccountsController:accountAdded" is fired.
-    await this.#tracker.updateBalance(accountId);
-  }
+    try {
+      const account = this.#getAccount(accountId);
 
-  /**
-   * Updates the balances of all supported accounts. This method doesn't return
-   * anything, but it updates the state of the controller.
-   */
-  async updateBalances(): Promise<void> {
-    await this.#tracker.updateBalances();
+      if (account.metadata.snap) {
+        const scope = getScopeForAccount(account);
+        const assetTypes = NETWORK_ASSETS_MAP[scope];
+
+        const accountBalance = await this.#getBalances(
+          account.id,
+          account.metadata.snap.id,
+          assetTypes,
+        );
+
+        this.update((state: Draft<MultichainBalancesControllerState>) => {
+          state.balances[accountId] = accountBalance;
+        });
+      }
+    } catch (error) {
+      console.error(
+        `Failed to fetch balances for account ${accountId}:`,
+        error,
+      );
+    }
   }
 
   /**
@@ -252,32 +248,6 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
-   * Updates the balances of one account. This method doesn't return
-   * anything, but it updates the state of the controller.
-   *
-   * @param accountId - The account ID.
-   */
-
-  async #updateBalance(accountId: string) {
-    const account = this.#getAccount(accountId);
-
-    if (account.metadata.snap) {
-      const scope = getScopeForAccount(account);
-      const assetTypes = NETWORK_ASSETS_MAP[scope];
-
-      const accountBalance = await this.#getBalances(
-        account.id,
-        account.metadata.snap.id,
-        assetTypes,
-      );
-
-      this.update((state: Draft<MultichainBalancesControllerState>) => {
-        state.balances[accountId] = accountBalance;
-      });
-    }
-  }
-
-  /**
    * Checks for non-EVM accounts.
    *
    * @param account - The new account to be checked.
@@ -298,18 +268,29 @@ export class MultichainBalancesController extends BaseController<
    */
   async #handleOnAccountAdded(account: InternalAccount): Promise<void> {
     if (!this.#isNonEvmAccount(account)) {
-      // Nothing to do here for EVM accounts
       return;
     }
 
-    this.#tracker.track(account.id, getBlockTimeForAccount(account.type));
-    // NOTE: Unfortunately, we cannot update the balance right away here, because
-    // messenger's events are running synchronously and fetching the balance is
-    // asynchronous.
-    // Updating the balance here would resume at some point but the event emitter
-    // will not `await` this (so we have no real control "when" the balance will
-    // really be updated), see:
-    // - https://github.com/MetaMask/core/blob/v213.0.0/packages/accounts-controller/src/AccountsController.ts#L1036-L1039
+    await this.updateBalance(account.id);
+  }
+
+  /**
+   * Handles balance updates received from the AccountsController.
+   *
+   * @param balanceUpdate - The balance update event containing new balances.
+   */
+  #handleOnAccountBalancesUpdated(
+    balanceUpdate: AccountBalancesUpdatedEventPayload,
+  ): void {
+    this.update((state: Draft<MultichainBalancesControllerState>) => {
+      Object.entries(balanceUpdate.balances).forEach(
+        ([accountId, assetBalances]) => {
+          if (accountId in state.balances) {
+            Object.assign(state.balances[accountId], assetBalances);
+          }
+        },
+      );
+    });
   }
 
   /**
@@ -318,10 +299,6 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string): Promise<void> {
-    if (this.#tracker.isTracked(accountId)) {
-      this.#tracker.untrack(accountId);
-    }
-
     if (accountId in this.state.balances) {
       this.update((state: Draft<MultichainBalancesControllerState>) => {
         delete state.balances[accountId];
