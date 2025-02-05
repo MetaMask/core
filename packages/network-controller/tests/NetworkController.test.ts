@@ -533,7 +533,12 @@ describe('NetworkController', () => {
 
     it('stops the block tracker for the currently selected network as long as the provider has been initialized', async () => {
       await withController(async ({ controller }) => {
-        const fakeProvider = buildFakeProvider();
+        const fakeProvider = buildFakeProvider([
+          {
+            request: { method: 'eth_blockNumber' },
+            response: { result: '0x1' },
+          },
+        ]);
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
         await controller.initializeProvider();
@@ -14475,7 +14480,8 @@ function buildFakeClient(
  * optionally provided for certain RPC methods.
  *
  * @param stubs - The list of RPC methods you want to stub along with their
- * responses. `eth_getBlockByNumber` will be stubbed by default.
+ * responses. `eth_getBlockByNumber` and `eth_blockNumber will be stubbed by
+ * default.
  * @returns The object.
  */
 function buildFakeProvider(stubs: FakeProviderStub[] = []): Provider {
