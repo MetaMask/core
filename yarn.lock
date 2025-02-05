@@ -3546,7 +3546,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.1.1"
     "@metamask/controller-utils": "npm:^11.5.0"
     "@metamask/keyring-controller": "npm:^19.0.5"
-    "@metamask/profile-sync-controller": "npm:^5.0.0"
+    "@metamask/profile-sync-controller": "npm:^6.0.0"
     "@metamask/utils": "npm:^11.1.0"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
@@ -3565,7 +3565,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/keyring-controller": ^19.0.0
-    "@metamask/profile-sync-controller": ^5.0.0
+    "@metamask/profile-sync-controller": ^6.0.0
   languageName: unknown
   linkType: soft
 
@@ -3727,7 +3727,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@npm:^5.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^6.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
