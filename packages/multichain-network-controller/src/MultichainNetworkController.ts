@@ -23,36 +23,55 @@ export type MultichainNetworkMetadata = {
   status: NetworkStatus;
 };
 
-export type MultichainNetworkConfiguration = {
+export type CommonNetworkConfiguration = {
+  /**
+   * EVM network flag.
+   */
+  isEvm: boolean;
+
+  /**
+   * The block explorers of the network.
+   */
+  blockExplorers: {
+    urls: string[];
+    defaultIndex: number;
+  };
+
   /**
    * The chain ID of the network.
    */
   chainId: CaipChainId;
+
   /**
    * The name of the network.
    */
   name: string;
+
   /**
    * The native asset type of the network.
    */
   nativeCurrency: CaipAssetType;
-  /**
-   * The block explorer URLs of the network.
-   */
-  blockExplorerUrls: string[];
-  /**
-   * The default block explorer URL index of the network.
-   */
-  defaultBlockExplorerUrlIndex?: number;
-  /**
-   * The last updated timestamp of the network.
-   */
-  lastUpdated?: number;
-  /**
-   * Whether the network is an EVM network or non-evm network.
-   */
-  isEvm: boolean;
 };
+
+export type NonEvmNetworkConfiguration = CommonNetworkConfiguration & {
+  isEvm: false;
+};
+
+export type EvmNetworkConfiguration = CommonNetworkConfiguration & {
+  isEvm: true;
+
+  /**
+   * The RPC endpoints of the network.
+   */
+  rpcEndpoints: {
+    urls: string[];
+    defaultIndex: number;
+  };
+};
+
+export type MultichainNetworkConfiguration =
+  | EvmNetworkConfiguration
+  | NonEvmNetworkConfiguration;
 
 /**
  * State used by the {@link MultichainNetworkController} to cache network configurations.
