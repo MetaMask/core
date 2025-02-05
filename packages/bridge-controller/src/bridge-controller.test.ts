@@ -1,3 +1,4 @@
+import type { Hex } from '@metamask/utils';
 import { bigIntToHex } from '@metamask/utils';
 import nock from 'nock';
 
@@ -165,8 +166,8 @@ describe('BridgeController', function () {
     );
   });
 
-  it('updateBridgeQuoteRequestParams should update the quoteRequest state', function () {
-    bridgeController.updateBridgeQuoteRequestParams({ srcChainId: 1 });
+  it('updateBridgeQuoteRequestParams should update the quoteRequest state', async function () {
+    await bridgeController.updateBridgeQuoteRequestParams({ srcChainId: 1 });
     expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
       srcChainId: 1,
       slippage: 0.5,
@@ -174,7 +175,7 @@ describe('BridgeController', function () {
       walletAddress: undefined,
     });
 
-    bridgeController.updateBridgeQuoteRequestParams({ destChainId: 10 });
+    await bridgeController.updateBridgeQuoteRequestParams({ destChainId: 10 });
     expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
       destChainId: 10,
       slippage: 0.5,
@@ -182,7 +183,9 @@ describe('BridgeController', function () {
       walletAddress: undefined,
     });
 
-    bridgeController.updateBridgeQuoteRequestParams({ destChainId: undefined });
+    await bridgeController.updateBridgeQuoteRequestParams({
+      destChainId: undefined,
+    });
     expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
       destChainId: undefined,
       slippage: 0.5,
@@ -190,7 +193,7 @@ describe('BridgeController', function () {
       walletAddress: undefined,
     });
 
-    bridgeController.updateBridgeQuoteRequestParams({
+    await bridgeController.updateBridgeQuoteRequestParams({
       srcTokenAddress: undefined,
     });
     expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
@@ -199,7 +202,7 @@ describe('BridgeController', function () {
       walletAddress: undefined,
     });
 
-    bridgeController.updateBridgeQuoteRequestParams({
+    await bridgeController.updateBridgeQuoteRequestParams({
       srcTokenAmount: '100000',
       destTokenAddress: '0x123',
       slippage: 0.5,
@@ -214,7 +217,7 @@ describe('BridgeController', function () {
       walletAddress: undefined,
     });
 
-    bridgeController.updateBridgeQuoteRequestParams({
+    await bridgeController.updateBridgeQuoteRequestParams({
       srcTokenAddress: '0x2ABC',
     });
     expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
@@ -516,7 +519,7 @@ describe('BridgeController', function () {
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
   });
 
-  it('updateBridgeQuoteRequestParams should not trigger quote polling if request is invalid', function () {
+  it('updateBridgeQuoteRequestParams should not trigger quote polling if request is invalid', async function () {
     const stopAllPollingSpy = jest.spyOn(bridgeController, 'stopAllPolling');
     const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
     messengerMock.call.mockReturnValue({
@@ -524,7 +527,7 @@ describe('BridgeController', function () {
       provider: jest.fn(),
     } as never);
 
-    bridgeController.updateBridgeQuoteRequestParams({
+    await bridgeController.updateBridgeQuoteRequestParams({
       srcChainId: 1,
       destChainId: 10,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
@@ -570,28 +573,28 @@ describe('BridgeController', function () {
   it.each([
     [
       'should append l1GasFees if srcChain is 10 and srcToken is erc20',
-      mockBridgeQuotesErc20Native,
+      mockBridgeQuotesErc20Native as QuoteResponse[],
       bigIntToHex(BigInt('2608710388388') * 2n),
       12,
     ],
     [
       'should append l1GasFees if srcChain is 10 and srcToken is native',
-      mockBridgeQuotesNativeErc20,
+      mockBridgeQuotesNativeErc20 as unknown as QuoteResponse[],
       bigIntToHex(BigInt('2608710388388') * 2n),
       2,
     ],
     [
       'should not append l1GasFees if srcChain is not 10',
-      mockBridgeQuotesNativeErc20Eth,
+      mockBridgeQuotesNativeErc20Eth as unknown as QuoteResponse[],
       undefined,
       0,
     ],
   ])(
     'updateBridgeQuoteRequestParams: %s',
     async (
-      _: string,
+      _testTitle: string,
       quoteResponse: QuoteResponse[],
-      l1GasFeesInHexWei: string,
+      l1GasFeesInHexWei: Hex | undefined,
       getLayer1GasFeeMockCallCount: number,
     ) => {
       jest.useFakeTimers();

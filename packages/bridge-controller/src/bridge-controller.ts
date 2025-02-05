@@ -219,7 +219,11 @@ export default class BridgeController extends StaticIntervalPollingController<Br
     try {
       const quotes = await fetchBridgeQuotes(
         updatedQuoteRequest,
-        this.#abortController.signal,
+        // AbortController is always defined by this line, because we assign it a few lines above,
+        // not sure why Jest thinks it's not
+        // Linters accurately say that it's defined
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        this.#abortController!.signal as AbortSignal,
       );
 
       const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
