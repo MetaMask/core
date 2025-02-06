@@ -32,7 +32,5 @@ export type AccountConversionRates = {
  * The top-level object has a conversionRates property that maps account IDs to their respective rates.
  */
 export type ConversionRatesWrapper = {
-  conversionRates: {
-    [accountId: string]: AccountConversionRates;
-  };
+  conversionRates: AccountConversionRates;
 };
