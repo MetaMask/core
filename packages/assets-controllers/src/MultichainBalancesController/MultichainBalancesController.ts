@@ -183,7 +183,9 @@ export class MultichainBalancesController extends BaseController<
       'MultichainAssetsController:stateChange',
       async (assetsState: MultichainAssetsControllerState) => {
         for (const accountId in assetsState.accountsAssets) {
-          await this.updateBalance(accountId);
+          if (assetsState.accountsAssets.hasOwnProperty(accountId)) {
+            await this.updateBalance(accountId);
+          }
         }
       },
     );
