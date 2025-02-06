@@ -1,13 +1,13 @@
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import log from 'loglevel';
 
-import type { UserStorageBaseOptions } from '../services';
-import type { UserStorageControllerMessenger } from '../UserStorageController';
 import { getBoundedNetworksToAdd } from './add-network-utils';
 import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
 import { createUpdateNetworkProps } from './update-network-utils';
+import type { UserStorageBaseOptions } from '../services';
+import type { UserStorageControllerMessenger } from '../UserStorageController';
 
 type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
@@ -47,7 +47,7 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
   try {
     messenger.subscribe(
       'NetworkController:networkRemoved',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async (networkConfiguration) => {
         try {
           // If blocked (e.g. we have not yet performed a main-sync), then we should not perform any mutations
@@ -79,6 +79,7 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
 /**
  * method that will dispatch the `NetworkController:updateNetwork` action.
  * transforms and corrects the network configuration (and RPCs) we pass through.
+ *
  * @param props - properties
  * @param props.messenger - messenger to call the action
  * @param props.originalNetworkConfiguration - original network config (from network controller state)
@@ -116,6 +117,7 @@ export const dispatchUpdateNetwork = async (props: {
 /**
  * Action to perform the main network sync.
  * It will fetch local networks and remote networks, then determines which networks (local and remote) to add/update
+ *
  * @param props - parameters used for this main sync
  */
 export async function performMainNetworkSync(

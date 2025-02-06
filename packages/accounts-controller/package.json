@@ -49,11 +49,11 @@
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
     "@metamask/base-controller": "^7.1.1",
-    "@metamask/eth-snap-keyring": "^9.1.1",
-    "@metamask/keyring-api": "^16.1.0",
+    "@metamask/eth-snap-keyring": "^10.0.0",
+    "@metamask/keyring-api": "^17.0.0",
     "@metamask/keyring-internal-api": "^4.0.1",
-    "@metamask/snaps-sdk": "^6.16.0",
-    "@metamask/snaps-utils": "^8.9.0",
+    "@metamask/snaps-sdk": "^6.17.1",
+    "@metamask/snaps-utils": "^8.10.0",
     "@metamask/utils": "^11.1.0",
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
@@ -64,7 +64,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.0.5",
     "@metamask/providers": "^18.1.1",
-    "@metamask/snaps-controllers": "^9.10.0",
+    "@metamask/snaps-controllers": "^9.19.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
@@ -77,7 +77,7 @@
   "peerDependencies": {
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/providers": "^18.1.0",
-    "@metamask/snaps-controllers": "^9.7.0",
+    "@metamask/snaps-controllers": "^9.19.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {

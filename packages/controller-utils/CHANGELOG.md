@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.5.0]
+
 ### Added
 
-- Add utility function for reducing boilerplate for service classes ([#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143), [#5149](https://github.com/MetaMask/core/pull/5149), [#5188](https://github.com/MetaMask/core/pull/5188), [#5192](https://github.com/MetaMask/core/pull/5192), [#5225](https://github.com/MetaMask/core/pull/5225))
-  - Add function `createServicePolicy`
-  - Add constants `DEFAULT_CIRCUIT_BREAK_DURATION`, `DEFAULT_DEGRADED_THRESHOLD`, `DEFAULT_MAX_CONSECUTIVE_FAILURES`, and `DEFAULT_MAX_RETRIES`
-  - Add types `ServicePolicy` and `CreateServicePolicyOptions`
+- Add utility function `createServicePolicy` for reducing boilerplate for service classes ([#5141](https://github.com/MetaMask/core/pull/5141), [#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143), [#5149](https://github.com/MetaMask/core/pull/5149), [#5188](https://github.com/MetaMask/core/pull/5188), [#5192](https://github.com/MetaMask/core/pull/5192), [#5225](https://github.com/MetaMask/core/pull/5225))
+  - Export constants `DEFAULT_CIRCUIT_BREAK_DURATION`, `DEFAULT_DEGRADED_THRESHOLD`, `DEFAULT_MAX_CONSECUTIVE_FAILURES`, and `DEFAULT_MAX_RETRIES`
+  - Export types `ServicePolicy` and `CreateServicePolicyOptions`
   - Re-export `BrokenCircuitError`, `CircuitState`, `handleAll`, and `handleWhen` from `cockatiel`
-  - Export `CockatielEvent` type which is an alias of the `Event` type from `cockatiel`
+  - Export `CockatielEvent` type, an alias of the `Event` type from `cockatiel`
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [11.4.5]
 
@@ -453,7 +458,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.5.0...HEAD
+[11.5.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.5...@metamask/controller-utils@11.5.0
 [11.4.5]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.4...@metamask/controller-utils@11.4.5
 [11.4.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.3...@metamask/controller-utils@11.4.4
 [11.4.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.2...@metamask/controller-utils@11.4.3

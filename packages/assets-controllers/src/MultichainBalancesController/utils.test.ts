@@ -10,12 +10,11 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import { validate, Network } from 'bitcoin-address-validation';
 import { v4 as uuidv4 } from 'uuid';
 
-import { MultichainNetworks, BALANCE_UPDATE_INTERVALS } from '.';
+import { MultichainNetworks } from '.';
 import {
   getScopeForBtcAddress,
   getScopeForSolAddress,
   getScopeForAccount,
-  getBlockTimeForAccount,
 } from './utils';
 
 const mockBtcAccount = {
@@ -171,27 +170,6 @@ describe('getScopeForAddress', () => {
     // @ts-expect-error - We're testing an error case.
     expect(() => getScopeForAccount(account)).toThrow(
       `Unsupported non-EVM account type: ${account.type}`,
-    );
-  });
-});
-
-describe('getBlockTimeForAccount', () => {
-  it('returns the block time for a supported Bitcoin account', () => {
-    const blockTime = getBlockTimeForAccount(BtcAccountType.P2wpkh);
-    expect(blockTime).toBe(BALANCE_UPDATE_INTERVALS[BtcAccountType.P2wpkh]);
-  });
-
-  it('returns the block time for a supported Solana account', () => {
-    const blockTime = getBlockTimeForAccount(SolAccountType.DataAccount);
-    expect(blockTime).toBe(
-      BALANCE_UPDATE_INTERVALS[SolAccountType.DataAccount],
-    );
-  });
-
-  it('throws an error for an unsupported account type', () => {
-    const unsupportedAccountType = 'unsupported-type';
-    expect(() => getBlockTimeForAccount(unsupportedAccountType)).toThrow(
-      `Unsupported account type for balance tracking: ${unsupportedAccountType}`,
     );
   });
 });
