@@ -4,13 +4,14 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
-import type { MultichainAssetsControllerGetStateAction } from '../MultichainAssetsController';
+
 import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
+
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   Balance,
@@ -24,6 +25,8 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
+
+import type { MultichainAssetsControllerGetStateAction } from '../MultichainAssetsController';
 
 const controllerName = 'MultichainBalancesController';
 
