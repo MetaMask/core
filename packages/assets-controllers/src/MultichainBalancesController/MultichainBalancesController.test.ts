@@ -140,6 +140,7 @@ const setupController = ({
       allowedActions: [
         'SnapController:handleRequest',
         'AccountsController:listMultichainAccounts',
+        'MultichainAssetsController:getState',
       ],
       allowedEvents: [
         'AccountsController:accountAdded',
@@ -164,6 +165,16 @@ const setupController = ({
     ),
   );
 
+  const mockGetAssetsState = jest.fn().mockReturnValue({
+    accountsAssets: {
+      [mockBtcAccount.id]: [mockBtcNativeAsset],
+    },
+  });
+  messenger.registerActionHandler(
+    'MultichainAssetsController:getState',
+    mockGetAssetsState,
+  );
+
   const controller = new MultichainBalancesController({
     messenger: multichainBalancesMessenger,
     state,
@@ -174,6 +185,7 @@ const setupController = ({
     messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
+    mockGetAssetsState,
   };
 };
 
@@ -391,5 +403,21 @@ describe('BalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
+  });
+
+  it('handles an account with no assets in MultichainAssetsController state', async () => {
+    const { controller, mockGetAssetsState } = setupController({
+      mocks: {
+        handleRequestReturnValue: {},
+      },
+    });
+
+    mockGetAssetsState.mockReturnValue({
+      accountsAssets: {},
+    });
+
+    await controller.updateBalance(mockBtcAccount.id);
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual({});
   });
 });

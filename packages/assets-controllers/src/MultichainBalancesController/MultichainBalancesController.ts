@@ -4,14 +4,12 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
-
 import {
   BaseController,
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   Balance,
