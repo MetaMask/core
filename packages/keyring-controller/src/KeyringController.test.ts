@@ -77,7 +77,6 @@ const commonConfig = { chain: Chain.Goerli, hardfork: Hardfork.Berlin };
 describe('KeyringController', () => {
   afterEach(() => {
     sinon.restore();
-    // jest.clearAllMocks();
     jest.resetAllMocks();
   });
 
@@ -251,23 +250,29 @@ describe('KeyringController', () => {
 
   describe('behavior when keyring metadata length mismatch', () => {
     it('should throw an error if the keyring metadata length mismatch', async () => {
-      // withController is already calling the #updateVault, which is throwing an error
-      await expect(
-        withController(
-          {
-            state: {
-              vault: undefined,
-              keyringsMetadata: [
-                { id: '1', name: '' },
-                { id: '2', name: '' },
-              ],
-            },
+      let vaultWithOneKeyring;
+      await withController(async ({ controller }) => {
+        vaultWithOneKeyring = controller.state.vault;
+      });
+
+      await withController(
+        {
+          skipVaultCreation: true,
+          state: {
+            vault: vaultWithOneKeyring,
+            keyringsMetadata: [
+              { id: '1', name: '' },
+              { id: '2', name: '' },
+            ],
           },
-          async ({ controller }) => {
-            await controller.addNewAccount();
-          },
-        ),
-      ).rejects.toThrow('KeyringController - keyring metadata length mismatch');
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          await expect(controller.addNewAccount()).rejects.toThrow(
+            'KeyringController - keyring metadata length mismatch',
+          );
+        },
+      );
     });
   });
 
@@ -410,6 +415,7 @@ describe('KeyringController', () => {
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
               const initialVault = controller.state.vault;
+              const initialKeyringsMetadata = controller.state.keyringsMetadata;
               await controller.createNewVaultAndRestore(
                 password,
                 uint8ArraySeed,
@@ -417,6 +423,13 @@ describe('KeyringController', () => {
               expect(controller.state).not.toBe(initialState);
               expect(controller.state.vault).toBeDefined();
               expect(controller.state.vault).toStrictEqual(initialVault);
+              expect(controller.state.keyringsMetadata).toHaveLength(
+                initialKeyringsMetadata.length,
+              );
+              // new keyring metadata should be generated
+              expect(controller.state.keyringsMetadata).not.toStrictEqual(
+                initialKeyringsMetadata,
+              );
             },
           );
         });
@@ -714,13 +727,14 @@ describe('KeyringController', () => {
         it('should throw invalid password error with valid keyringId', async () => {
           await withController(async ({ controller, encryptor, initialState }) => {
               const keyringId = initialState.keyringsMetadata[0].id;
-              sinon
-                .stub(encryptor, 'decrypt')
-                .throws(new Error('Invalid password'));
+              jest
+                .spyOn(encryptor, 'decrypt')
+                .mockRejectedValueOnce(new Error('Invalid password'));
               await expect(
-                controller.exportSeedPhrase('', keyringId)
+                controller.exportSeedPhrase('', keyringId),
               ).rejects.toThrow('Invalid password');
-          });
+            },
+          );
         });
       });
     });

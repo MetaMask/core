@@ -1397,9 +1397,6 @@ export class KeyringController extends BaseController<
     if (!keyringId) {
       keyring = this.#keyrings[0];
     } else {
-      console.log('keyrings: ', this.#keyrings);
-      console.log('keyringId: ', keyringId);
-      console.log('metadata: ', this.#keyringsMetadata);
       keyring = this.#getKeyringById(keyringId) as EthKeyring<Json>;
 
       if (keyring.type !== KeyringTypes.hd) {
@@ -1913,6 +1910,7 @@ export class KeyringController extends BaseController<
     this.#password = password;
 
     await this.#clearKeyrings();
+    this.#keyringsMetadata = [];
     await this.#createKeyringWithFirstAccount(keyring.type, keyring.opts);
     this.#setUnlocked();
   }
