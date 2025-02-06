@@ -6,7 +6,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -163,7 +163,7 @@ export type AllowedEvents =
  * The messenger which is restricted to actions and events accessed by
  * EarnController.
  */
-export type EarnControllerMessenger = RestrictedControllerMessenger<
+export type EarnControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   EarnControllerActions | AllowedActions,
   EarnControllerEvents | AllowedEvents,

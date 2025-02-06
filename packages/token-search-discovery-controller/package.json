@@ -1,6 +1,6 @@
 {
   "name": "@metamask/token-search-discovery-controller",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Manages token search and discovery through the Portfolio API",
   "keywords": [
     "MetaMask",
@@ -55,6 +55,7 @@
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
+    "nock": "^13.3.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",

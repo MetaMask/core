@@ -1,3 +1,4 @@
+import type { RemoteNetworkConfiguration } from './types';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import type { UserStorageBaseOptions } from '../services';
 import {
@@ -5,11 +6,11 @@ import {
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from '../services';
-import type { RemoteNetworkConfiguration } from './types';
 
 // TODO - parse type, and handle version changes
 /**
  * parses the raw remote data to the NetworkConfiguration shape
+ *
  * @todo - improve parsing instead of asserting
  * @todo - improve version handling
  * @param rawData - raw remote user storage data
@@ -28,6 +29,7 @@ const isDefined = <Value>(value: Value | null | undefined): value is Value =>
 
 /**
  * gets all remote networks from user storage
+ *
  * @param opts - user storage options/configuration
  * @returns array of all remote networks
  */
@@ -49,8 +51,10 @@ export async function getAllRemoteNetworks(
 
 /**
  * Upserts a remote network to user storage
+ *
  * @param network - network we are updating or inserting
  * @param opts - user storage options/configuration
+ * @returns void
  */
 export async function upsertRemoteNetwork(
   network: RemoteNetworkConfiguration,
@@ -66,6 +70,7 @@ export async function upsertRemoteNetwork(
 
 /**
  * Batch upsert a list of remote networks into user storage
+ *
  * @param networks - a list of networks to update or insert
  * @param opts - user storage options/configuration
  */

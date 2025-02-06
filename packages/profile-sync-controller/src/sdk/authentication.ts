@@ -1,6 +1,5 @@
 import type { Eip1193Provider } from 'ethers';
 
-import type { Env } from '../shared/env';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
 import {
@@ -10,10 +9,11 @@ import {
 import type { UserProfile, Pair } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
 import { PairError, UnsupportedAuthTypeError } from './errors';
+import type { Env } from '../shared/env';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 type Compute<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 type SIWEInterface = Compute<SIWEJwtBearerAuth>;
 type SRPInterface = Compute<SRPJwtBearerAuth>;
@@ -23,11 +23,11 @@ type SRPParams = ConstructorParameters<typeof SRPJwtBearerAuth>;
 type JwtBearerAuthParams = SiweParams | SRPParams;
 
 export class JwtBearerAuth implements SIWEInterface, SRPInterface {
-  #type: AuthType;
+  readonly #type: AuthType;
 
-  #env: Env;
+  readonly #env: Env;
 
-  #sdk: SIWEJwtBearerAuth | SRPJwtBearerAuth;
+  readonly #sdk: SIWEJwtBearerAuth | SRPJwtBearerAuth;
 
   constructor(...args: JwtBearerAuthParams) {
     this.#type = args[0].type;
@@ -89,13 +89,13 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
           return {
             signature: sig,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             raw_message: raw,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             encrypted_storage_key: p.encryptedStorageKey,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/naming-convention
+
             identifier_type: p.identifierType,
           };
         } catch (e) {

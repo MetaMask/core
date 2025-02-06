@@ -5,7 +5,6 @@ export type {
   TransactionStateEntry,
 } from './MultichainTransactionsController';
 export {
-  TRANSACTIONS_CHECK_INTERVALS,
   NETWORK_ASSETS_MAP,
   MultichainNetwork,
   MultichainNativeAsset,

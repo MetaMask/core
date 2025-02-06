@@ -1,8 +1,3 @@
-import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
-import { Env } from '../shared/env';
-import type { UserStorageFeatureKeys } from '../shared/storage-schema';
-import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 import { arrangeAuthAPIs } from './__fixtures__/mock-auth';
 import {
   MOCK_NOTIFICATIONS_DATA,
@@ -20,6 +15,11 @@ import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
+import encryption, { createSHA256Hash } from '../shared/encryption';
+import { SHARED_SALT } from '../shared/encryption/constants';
+import { Env } from '../shared/env';
+import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
+import type { UserStorageFeatureKeys } from '../shared/storage-schema';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -107,6 +107,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -167,6 +168,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -215,6 +217,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -318,6 +321,7 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStorageBatchDelete(
       undefined,
       async (_, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }

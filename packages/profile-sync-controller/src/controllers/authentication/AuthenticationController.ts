@@ -134,11 +134,11 @@ export default class AuthenticationController extends BaseController<
   AuthenticationControllerState,
   AuthenticationControllerMessenger
 > {
-  #metametrics: MetaMetricsAuth;
+  readonly #metametrics: MetaMetricsAuth;
 
   #isUnlocked = false;
 
-  #keyringController = {
+  readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
