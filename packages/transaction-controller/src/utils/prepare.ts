@@ -2,7 +2,7 @@ import type { ChainConfig } from '@ethereumjs/common';
 import { Common, Hardfork } from '@ethereumjs/common';
 import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
-import { bytesToHex } from '@ethereumjs/util';
+import { bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { TransactionParams } from '../types';
