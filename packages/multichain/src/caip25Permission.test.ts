@@ -1,6 +1,9 @@
 import {
   CaveatMutatorOperation,
+  type PermissionConstraint,
+  type PermissionOptions,
   PermissionType,
+  constructPermission,
 } from '@metamask/permission-controller';
 
 import type { Caip25CaveatValue } from './caip25Permission';
@@ -19,6 +22,11 @@ jest.mock('./scope/supported', () => ({
   isSupportedScopeString: jest.fn(),
 }));
 const MockScopeSupported = jest.mocked(ScopeSupported);
+
+jest.mock('@metamask/permission-controller', () => ({
+  ...jest.requireActual('@metamask/permission-controller'),
+  constructPermission: jest.fn(),
+}));
 
 const { removeAccount, removeScope } = Caip25CaveatMutators[Caip25CaveatType];
 
@@ -41,6 +49,35 @@ describe('caip25EndowmentBuilder', () => {
       });
 
       expect(specification.endowmentGetter()).toBeNull();
+    });
+
+    describe('factory', () => {
+      const { factory } = caip25EndowmentBuilder.specificationBuilder({
+        methodHooks: {
+          findNetworkClientIdByChainId: jest.fn(),
+          listAccounts: jest.fn(),
+        },
+      });
+
+      it('should call `constructPermission` with provided options', () => {
+        const mockRequestData = { origin: 'test.com' };
+        const mockOptions: PermissionOptions<PermissionConstraint> = {
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {},
+                optionalScopes: {},
+                isMultichainOrigin: true,
+              },
+            },
+          ],
+          target: Caip25EndowmentPermissionName,
+          invoker: 'test.com',
+        };
+        factory(mockOptions, mockRequestData);
+        expect(constructPermission).toHaveBeenCalledWith({ ...mockOptions });
+      });
     });
   });
 
