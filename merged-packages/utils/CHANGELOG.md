@@ -6,12 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [12.0.0]
-### Changed
-- **BREAKING:** The `State` generic has been removed from the `KeyringClass` and `Keyring` types ([#232](https://github.com/MetaMask/utils/pull/232))
-  - The `serialize` method of the `Keyring` type now returns a `Promise<Json>`
-  - The `deserialize` method of the `Keyring` type now accepts `Json` as its argument
-
 ## [11.1.0]
 ### Added
 - Add additional CAIP-19 types (`CaipAsset{Namespace,Reference,TokenId}` support ([#227](https://github.com/MetaMask/utils/pull/227))
@@ -298,8 +292,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v12.0.0...HEAD
-[12.0.0]: https://github.com/MetaMask/utils/compare/v11.1.0...v12.0.0
+[Unreleased]: https://github.com/MetaMask/utils/compare/v11.1.0...HEAD
 [11.1.0]: https://github.com/MetaMask/utils/compare/v11.0.1...v11.1.0
 [11.0.1]: https://github.com/MetaMask/utils/compare/v11.0.0...v11.0.1
 [11.0.0]: https://github.com/MetaMask/utils/compare/v10.0.1...v11.0.0
