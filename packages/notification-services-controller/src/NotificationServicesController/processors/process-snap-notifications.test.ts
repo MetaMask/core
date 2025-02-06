@@ -1,6 +1,6 @@
+import { processSnapNotification } from './process-snap-notifications';
 import { createMockSnapNotification } from '../__fixtures__';
 import { TRIGGER_TYPES } from '../constants';
-import { processSnapNotification } from './process-snap-notifications';
 
 describe('process-snap-notifications - processSnapNotification()', () => {
   it('processes a Raw Snap Notification to a shared Notification Type', () => {

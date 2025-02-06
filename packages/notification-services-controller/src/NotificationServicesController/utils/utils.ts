@@ -199,7 +199,7 @@ function isAccountEnabled(
       }
 
       const triggerExists = Object.values(accountObject[chain]).some(
-        (obj) => obj.k === triggerKind,
+        (obj) => obj.k === (triggerKind as TRIGGER_TYPES),
       );
       if (!triggerExists) {
         return false;
@@ -343,7 +343,7 @@ export function upsertAddressTriggers(
 
       // Check if the trigger exists for the chain
       const existingTrigger = Object.values(userStorage[account][chain]).find(
-        (obj) => obj.k === trigger,
+        (obj) => obj.k === (trigger as TRIGGER_TYPES),
       );
 
       if (!existingTrigger) {
