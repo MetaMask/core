@@ -1,7 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
-import { HandlerType } from '@metamask/snaps-utils';
 import { useFakeTimers } from 'sinon';
 
 import { MultiChainAssetsRatesController } from '.';
@@ -68,7 +67,7 @@ const fakeEvmAccountWithoutMetadata: InternalAccount = {
 // A fake conversion rates response returned by the SnapController.
 const fakeAccountRates = {
   conversionRates: {
-    token1: {
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
       'swift:0/iso4217:USD': {
         rate: '202.11',
         conversionTime: 1738539923277,
@@ -187,16 +186,16 @@ describe('MultiChainAssetsRatesController', () => {
     // Check that the Snap request was made with the expected parameters.
     expect(snapHandler).toHaveBeenCalledWith(
       expect.objectContaining({
-        handler: HandlerType.OnAssetsConversion,
+        handler: 'onAssetsConversion',
         origin: 'metamask',
         request: {
           jsonrpc: '2.0',
-          method: HandlerType.OnAssetsConversion,
+          method: 'onAssetsConversion',
           params: {
             conversions: [
               {
                 from: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-                to: undefined,
+                to: 'swift:0/iso4217:USD',
               },
             ],
           },
@@ -210,8 +209,9 @@ describe('MultiChainAssetsRatesController', () => {
       // fakeAccountRates.conversionRates,
       {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-          rate: null,
-          conversionTime: null,
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD',
         },
       },
     );

@@ -1,4 +1,4 @@
-import type { CaipAssetId } from '@metamask/utils';
+import type { CaipAssetTypeOrId } from '@metamask/utils';
 
 /**
  * Represents the rate details for a given token conversion.
@@ -6,15 +6,7 @@ import type { CaipAssetId } from '@metamask/utils';
 export type RateData = {
   conversionTime: number;
   rate: string;
-};
-
-/**
- * Represents the conversion rates for a specific token.
- * The key is a currency identifier (for example, 'swift:0/iso4217:USD'),
- * and the value is a RateData object.
- */
-export type TokenConversionRates = {
-  [currency: CaipAssetId]: RateData;
+  currency: CaipAssetTypeOrId;
 };
 
 /**
@@ -24,7 +16,7 @@ export type TokenConversionRates = {
  * and the value is a mapping of currency identifiers to RateData.
  */
 export type AccountConversionRates = {
-  [tokenId: CaipAssetId]: TokenConversionRates;
+  [tokenId: CaipAssetTypeOrId]: RateData;
 };
 
 /**

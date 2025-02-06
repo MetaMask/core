@@ -8,6 +8,7 @@ import type {
   ControllerGetStateAction,
 } from '@metamask/base-controller';
 import {
+  type CaipAssetType,
   type CaipAssetTypeOrId,
   isEvmAccountType,
 } from '@metamask/keyring-api';
@@ -24,7 +25,7 @@ import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
 import { MAP_CAIP_CURRENCIES } from './constant';
-import type { AccountConversionRates, ConversionRatesWrapper } from './types';
+import type { ConversionRatesWrapper } from './types';
 import type {
   CurrencyRateState,
   CurrencyRateStateChange,
@@ -329,7 +330,8 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
   #buildConversions(
     assets: CaipAssetTypeOrId[],
   ): { from: CaipAssetTypeOrId; to?: CaipAssetTypeOrId }[] {
-    const currency = MAP_CAIP_CURRENCIES?.[this.#currentCurrency];
+    const currency =
+      MAP_CAIP_CURRENCIES[this.#currentCurrency] ?? MAP_CAIP_CURRENCIES.usd;
     return assets.map((asset) => ({
       from: asset,
       to: currency,
@@ -371,14 +373,27 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
   ): Record<string, { rate: string | null; conversionTime: number | null }> {
     const updatedRates: Record<
       string,
-      { rate: string | null; conversionTime: number | null }
+      {
+        rate: string | null;
+        conversionTime: number | null;
+        currency: CaipAssetType | null | undefined;
+      }
     > = {};
 
     for (const asset of assets) {
       if (flattenedRates[asset]) {
-        updatedRates[asset] = flattenedRates[asset];
+        updatedRates[asset] = {
+          ...flattenedRates[asset],
+          currency:
+            MAP_CAIP_CURRENCIES[this.#currentCurrency] ??
+            MAP_CAIP_CURRENCIES.usd,
+        };
       } else {
-        updatedRates[asset] = { rate: null, conversionTime: null };
+        updatedRates[asset] = {
+          rate: null,
+          conversionTime: null,
+          currency: null,
+        };
       }
     }
     return updatedRates;
@@ -420,7 +435,12 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
     snapId: SnapId;
     handler: HandlerType;
     conversions: { from: CaipAssetTypeOrId; to?: CaipAssetTypeOrId }[];
-  }): Promise<{ conversionRates: AccountConversionRates }> {
+  }): Promise<{
+    conversionRates: Record<
+      string,
+      Record<string, { rate: string; conversionTime: number }>
+    >;
+  }> {
     return this.messagingSystem.call('SnapController:handleRequest', {
       snapId,
       origin: 'metamask',
@@ -430,6 +450,11 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
         method: handler,
         params: { conversions },
       },
-    }) as Promise<{ conversionRates: AccountConversionRates }>;
+    }) as Promise<{
+      conversionRates: Record<
+        string,
+        Record<string, { rate: string; conversionTime: number }>
+      >;
+    }>;
   }
 }
