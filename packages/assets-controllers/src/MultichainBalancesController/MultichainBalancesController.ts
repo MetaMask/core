@@ -25,9 +25,6 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { getScopeForAccount } from './utils';
-import { NETWORK_ASSETS_MAP } from './constants';
-
 const controllerName = 'MultichainBalancesController';
 
 /**
@@ -188,18 +185,11 @@ export class MultichainBalancesController extends BaseController<
       const account = this.#getAccount(accountId);
 
       if (account.metadata.snap) {
-        const scope = getScopeForAccount(account);
-
         const assetsState = this.messagingSystem.call(
           'MultichainAssetsController:getState',
         );
 
-        let assetTypes = assetsState.accountsAssets[accountId] ?? [];
-
-        if (scope && NETWORK_ASSETS_MAP[scope]) {
-          const nativeAssets = NETWORK_ASSETS_MAP[scope];
-          assetTypes = [...new Set([...nativeAssets, ...assetTypes])];
-        }
+        const assetTypes = assetsState.accountsAssets[accountId] ?? [];
 
         const accountBalance = await this.#getBalances(
           account.id,
