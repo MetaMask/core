@@ -25,7 +25,6 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { NETWORK_ASSETS_MAP } from '.';
 import { getScopeForAccount } from './utils';
 
 const controllerName = 'MultichainBalancesController';
