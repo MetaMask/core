@@ -49,7 +49,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/providers": "^5.7.2",
+    "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^7.1.1",
     "@metamask/controller-utils": "^11.5.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
