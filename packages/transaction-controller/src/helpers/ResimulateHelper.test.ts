@@ -129,10 +129,10 @@ describe('ResimulateHelper', () => {
   it(`resimulates unapproved active transaction every ${RESIMULATE_INTERVAL_MS} milliseconds`, async () => {
     mockGetTransactionsOnce([mockTransactionMeta]);
     triggerStateChange();
-  
+
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
     await Promise.resolve();
-  
+
     jest.advanceTimersByTime(RESIMULATE_INTERVAL_MS);
     await Promise.resolve();
 
