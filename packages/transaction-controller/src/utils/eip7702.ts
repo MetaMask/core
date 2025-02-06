@@ -1,12 +1,16 @@
+import { Contract } from '@ethersproject/contracts';
 import { query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { createModuleLogger, type Hex, add0x } from '@metamask/utils';
 
+import { ABI_SIMPLE_DELEGATE_CONTRACT } from '../abi/SimpleDelegateContract';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
+  AtomicBatchTransactionParams,
   Authorization,
   AuthorizationList,
+  TransactionBatchRequest,
   TransactionMeta,
 } from '../types';
 
@@ -23,6 +27,7 @@ export type KeyringControllerSignAuthorization = {
 
 export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
 export const DELEGATION_PREFIX = '0xef0100';
+export const BATCH_FUNCTION_NAME = 'execute';
 
 export type FeatureFlagsEIP7702 = {
   contractAddresses?: Record<Hex, Hex[]>;
@@ -81,15 +86,56 @@ export async function isAccountUpgradedToEIP7702(
     ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))
     : undefined;
 
-  const isSupported =
+  const isSupported = Boolean(
     delegationAddress &&
-    contractAddresses.some(
-      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
-    );
+      contractAddresses.some(
+        (contract) =>
+          contract.toLowerCase() === delegationAddress.toLowerCase(),
+      ),
+  );
 
   return {
     delegationAddress,
     isSupported,
+  };
+}
+
+/**
+ * Generate an EIP-7702 batch transaction.
+ *
+ * @param from - The sender address.
+ * @param transactions - The transactions to batch.
+ * @returns The batch transaction.
+ */
+export function generateEIP7702BatchTransaction(
+  from: Hex,
+  transactions: AtomicBatchTransactionParams[],
+): AtomicBatchTransactionParams {
+  const delegationContract = Contract.getInterface(
+    ABI_SIMPLE_DELEGATE_CONTRACT,
+  );
+
+  const args = transactions.map((transaction) => {
+    const { data, to, value } = transaction;
+
+    return [
+      data ?? '0x',
+      to ?? '0x0000000000000000000000000000000000000000',
+      value ?? '0x0',
+    ];
+  });
+
+  log('Args', args);
+
+  const data = delegationContract.encodeFunctionData(BATCH_FUNCTION_NAME, [
+    args,
+  ]) as Hex;
+
+  log('Transaction data', data);
+
+  return {
+    data,
+    to: from,
   };
 }
 
