@@ -9,22 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
-### Uncategorized
-
-- chore: mark `@metamask/snaps-controllers` peer dependency bump as breaking in CHANGELOG ([#5267](https://github.com/MetaMask/core/pull/5267))
-- chore(accounts): fix AccountsController eslint warnings & errors ([#5266](https://github.com/MetaMask/core/pull/5266))
-- chore(accounts): Rename `ControllerMessenger` to `Messenger` ([#5090](https://github.com/MetaMask/core/pull/5090))
-- fix(accounts-controller): export `*` in index ([#5224](https://github.com/MetaMask/core/pull/5224))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- feat: bump snaps-sdk to v6.16.0 ([#5220](https://github.com/MetaMask/core/pull/5220))
-
 ### Changed
 
 - **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.7.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
-- Bump `@metamask/snaps-sdk` from `^6.16.0` to `^6.17.1` ([#5265](https://github.com/MetaMask/core/pull/5265))
-- Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
-- Bump `@metamask/eth-snap-keyring` from `^9.1.1` to `^10.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
 - Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
+- Bump `@metamask/eth-snap-keyring` from `^9.1.1` to `^10.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
+- Bump `@metamask/snaps-sdk` from `^6.7.0` to `^6.17.1` ([#5220](https://github.com/MetaMask/core/pull/5220)), ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Fixed
+
+- Properly exports public members ([#5224](https://github.com/MetaMask/core/pull/5224))
+  - The new events (`AccountsController:account{AssetList,Balances,Transactions}Updated`) from the previous versions but were not exported.
 
 ## [22.0.0]
 

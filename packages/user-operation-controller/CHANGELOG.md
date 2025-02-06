@@ -9,12 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- Release 291.0.0 ([#5264](https://github.com/MetaMask/core/pull/5264))
-- chore(user-operation): Rename `RestrictedControllerMessenger` to `RestrictedMessenger` ([#5238](https://github.com/MetaMask/core/pull/5238))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^44.0.0` to `^45.0.0` ([#5292](https://github.com/MetaMask/core/pull/5292))
+- Bump `@metamask/controller-utils` dependency from `^11.4.5` to `^11.5.0`([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [23.0.0]
 
