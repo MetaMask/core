@@ -2,7 +2,11 @@ import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber, numberToHex } from '@metamask/utils';
 
-import { isSwapsDefaultTokenAddress, isSwapsDefaultTokenSymbol } from '.';
+import {
+  isSwapsDefaultTokenAddress,
+  isSwapsDefaultTokenSymbol,
+  getBridgeApiBaseUrl,
+} from '.';
 import {
   FEATURE_FLAG_VALIDATORS,
   QUOTE_VALIDATORS,
@@ -12,11 +16,7 @@ import {
   QUOTE_RESPONSE_VALIDATORS,
   FEE_DATA_VALIDATORS,
 } from './validators';
-import {
-  BRIDGE_API_BASE_URL,
-  BRIDGE_CLIENT_ID,
-  REFRESH_INTERVAL_MS,
-} from '../constants';
+import { BRIDGE_CLIENT_ID, REFRESH_INTERVAL_MS } from '../constants';
 import type { SwapsTokenObject } from '../constants/tokens';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
@@ -40,7 +40,7 @@ const CLIENT_ID_HEADER = { 'X-Client-Id': BRIDGE_CLIENT_ID };
  * @returns The bridge feature flags
  */
 export async function fetchBridgeFeatureFlags(): Promise<BridgeFeatureFlags> {
-  const url = `${BRIDGE_API_BASE_URL}/getAllFeatureFlags`;
+  const url = `${getBridgeApiBaseUrl()}/getAllFeatureFlags`;
   const rawFeatureFlags = await handleFetch(url, {
     headers: CLIENT_ID_HEADER,
   });
@@ -88,7 +88,7 @@ export async function fetchBridgeTokens(
   chainId: Hex,
 ): Promise<Record<string, SwapsTokenObject>> {
   // TODO make token api v2 call
-  const url = `${BRIDGE_API_BASE_URL}/getTokens?chainId=${hexToNumber(
+  const url = `${getBridgeApiBaseUrl()}/getTokens?chainId=${hexToNumber(
     chainId,
   )}`;
 
@@ -145,7 +145,7 @@ export async function fetchBridgeQuotes(
     insufficientBal: request.insufficientBal ? 'true' : 'false',
     resetApproval: request.resetApproval ? 'true' : 'false',
   });
-  const url = `${BRIDGE_API_BASE_URL}/getQuote?${queryParams}`;
+  const url = `${getBridgeApiBaseUrl()}/getQuote?${queryParams}`;
   const quotes = await handleFetch(url, {
     headers: CLIENT_ID_HEADER,
     signal,

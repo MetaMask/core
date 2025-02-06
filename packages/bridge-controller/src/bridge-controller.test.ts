@@ -4,10 +4,7 @@ import { Contract } from 'ethers';
 import nock from 'nock';
 
 import BridgeController from './bridge-controller';
-import {
-  BRIDGE_API_BASE_URL,
-  DEFAULT_BRIDGE_CONTROLLER_STATE,
-} from './constants';
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from './constants';
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import mockBridgeQuotesErc20Native from './test/mock-quotes-erc20-native.json';
@@ -15,6 +12,7 @@ import mockBridgeQuotesNativeErc20Eth from './test/mock-quotes-native-erc20-eth.
 import mockBridgeQuotesNativeErc20 from './test/mock-quotes-native-erc20.json';
 import { flushPromises } from './test/utils';
 import type { BridgeControllerMessenger, QuoteResponse } from './types';
+import { getBridgeApiBaseUrl } from './utils';
 import * as balanceUtils from './utils/balance';
 import * as fetchUtils from './utils/fetch';
 
@@ -52,7 +50,7 @@ describe('BridgeController', function () {
     jest.clearAllMocks();
     jest.clearAllTimers();
 
-    nock(BRIDGE_API_BASE_URL)
+    nock(getBridgeApiBaseUrl())
       .get('/getAllFeatureFlags')
       .reply(200, {
         'extension-config': {
@@ -91,7 +89,7 @@ describe('BridgeController', function () {
           '534352': 2.4,
         },
       });
-    nock(BRIDGE_API_BASE_URL)
+    nock(getBridgeApiBaseUrl())
       .get('/getTokens?chainId=10')
       .reply(200, [
         {

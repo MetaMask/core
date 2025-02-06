@@ -38,7 +38,6 @@ export type {
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
-  BRIDGE_API_BASE_URL,
   BRIDGE_CLIENT_ID,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
@@ -78,4 +77,4 @@ export type { SwapsTokenObject } from './constants/tokens';
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
-export { getEthUsdtResetData, isEthUsdt } from './utils';
+export { getEthUsdtResetData, isEthUsdt, getBridgeApiBaseUrl } from './utils';

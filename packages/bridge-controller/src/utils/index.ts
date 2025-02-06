@@ -2,9 +2,26 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import { Contract } from 'ethers';
 
-import { ETH_USDT_ADDRESS, METABRIDGE_ETHEREUM_ADDRESS } from '../constants';
+import {
+  BRIDGE_DEV_API_BASE_URL,
+  BRIDGE_PROD_API_BASE_URL,
+  ETH_USDT_ADDRESS,
+  METABRIDGE_ETHEREUM_ADDRESS,
+} from '../constants';
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
+
+export const getBridgeApiBaseUrl = () => {
+  if (process.env.BRIDGE_API_CUSTOM_URL) {
+    return process.env.BRIDGE_API_CUSTOM_URL;
+  }
+
+  if (process.env.BRIDGE_USE_DEV_APIS) {
+    return BRIDGE_DEV_API_BASE_URL;
+  }
+
+  return BRIDGE_PROD_API_BASE_URL;
+};
 
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
