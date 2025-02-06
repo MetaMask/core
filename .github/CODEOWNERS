@@ -37,6 +37,9 @@
 ## Snaps Team
 /packages/rate-limit-controller            @MetaMask/snaps-devs
 
+## Swaps-Bridge Team
+/packages/bridge-controller                @MetaMask/swaps-engineers
+
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 
