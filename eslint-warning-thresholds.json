@@ -687,7 +687,6 @@
     "jsdoc/check-tag-names": 35,
     "jsdoc/require-returns": 5,
     "jsdoc/tag-lines": 1,
-    "prettier/prettier": 1,
     "no-unused-private-class-members": 1
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
@@ -821,13 +820,6 @@
   },
   "packages/transaction-controller/src/utils/nonce.test.ts": {
     "import-x/order": 1
-  },
-  "packages/transaction-controller/src/utils/resimulate.test.ts": {
-    "import-x/order": 2
-  },
-  "packages/transaction-controller/src/utils/resimulate.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 7
   },
   "packages/transaction-controller/src/utils/retry.test.ts": {
     "import-x/order": 1
