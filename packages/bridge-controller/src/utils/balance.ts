@@ -1,18 +1,15 @@
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { zeroAddress } from 'ethereumjs-util';
-import type { BigNumber } from 'ethers';
-import { getAddress } from 'ethers/lib/utils';
+import { BrowserProvider, Contract, getAddress } from 'ethers';
 
 export const fetchTokenBalance = async (
   address: string,
   userAddress: string,
   provider: Provider,
-): Promise<BigNumber> => {
-  const ethersProvider = new Web3Provider(provider);
+): Promise<bigint> => {
+  const ethersProvider = new BrowserProvider(provider);
   const tokenContract = new Contract(address, abiERC20, ethersProvider);
   const tokenBalancePromise = tokenContract
     ? tokenContract.balanceOf(userAddress)
@@ -25,10 +22,10 @@ export const calcLatestSrcBalance = async (
   selectedAddress: string,
   tokenAddress: string,
   chainId: Hex,
-): Promise<BigNumber | undefined> => {
+): Promise<bigint | undefined> => {
   if (tokenAddress && chainId) {
     if (tokenAddress === zeroAddress()) {
-      const ethersProvider = new Web3Provider(provider);
+      const ethersProvider = new BrowserProvider(provider);
       return await ethersProvider.getBalance(getAddress(selectedAddress));
     }
     return await fetchTokenBalance(tokenAddress, selectedAddress, provider);
@@ -50,5 +47,5 @@ export const hasSufficientBalance = async (
     chainId,
   );
 
-  return srcTokenBalance?.gte(fromTokenAmount) ?? false;
+  return srcTokenBalance ? srcTokenBalance >= BigInt(fromTokenAmount) : false;
 };

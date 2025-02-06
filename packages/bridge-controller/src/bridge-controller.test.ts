@@ -1,6 +1,6 @@
-import { Contract } from '@ethersproject/contracts';
 import type { Hex } from '@metamask/utils';
 import { bigIntToHex } from '@metamask/utils';
+import { Contract } from 'ethers';
 import nock from 'nock';
 
 import BridgeController from './bridge-controller';
@@ -29,11 +29,11 @@ const messengerMock = {
   publish: jest.fn(),
 } as unknown as jest.Mocked<BridgeControllerMessenger>;
 
-jest.mock('@ethersproject/contracts');
-
-jest.mock('@ethersproject/providers', () => {
+jest.mock('ethers', () => {
   return {
-    Web3Provider: jest.fn(),
+    ...jest.requireActual('ethers'),
+    Contract: jest.fn(),
+    BrowserProvider: jest.fn(),
   };
 });
 const getLayer1GasFeeMock = jest.fn();

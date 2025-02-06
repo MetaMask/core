@@ -47,9 +47,6 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethersproject/bignumber": "^5.7.0",
-    "@ethersproject/contracts": "^5.7.0",
-    "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^7.1.1",
     "@metamask/controller-utils": "^11.5.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
@@ -58,7 +55,7 @@
     "@metamask/transaction-controller": "^45.0.0",
     "@metamask/utils": "^11.1.0",
     "ethereumjs-util": "^7.0.10",
-    "ethers": "5.7.0"
+    "ethers": "6.12.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

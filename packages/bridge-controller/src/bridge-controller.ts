@@ -1,6 +1,3 @@
-import { BigNumber } from '@ethersproject/bignumber';
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
@@ -9,6 +6,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { BrowserProvider, Contract } from 'ethers';
 
 import { REFRESH_INTERVAL_MS } from './constants';
 import {
@@ -352,13 +350,13 @@ export default class BridgeController extends StaticIntervalPollingController<Br
       throw new Error('No provider found');
     }
 
-    const web3Provider = new Web3Provider(provider);
-    const contract = new Contract(contractAddress, abiERC20, web3Provider);
+    const ethersProvider = new BrowserProvider(provider);
+    const contract = new Contract(contractAddress, abiERC20, ethersProvider);
     const { address: walletAddress } = this.#getSelectedAccount();
-    const allowance = await contract.allowance(
+    const allowance: bigint = await contract.allowance(
       walletAddress,
       METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId],
     );
-    return BigNumber.from(allowance).toString();
+    return allowance.toString();
   };
 }
