@@ -1,6 +1,6 @@
-import { Contract } from '@ethersproject/contracts';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
+import { Contract } from 'ethers';
 
 import { ETH_USDT_ADDRESS, METABRIDGE_ETHEREUM_ADDRESS } from '../constants';
 import { CHAIN_IDS } from '../constants/chains';

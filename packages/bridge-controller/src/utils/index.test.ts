@@ -1,6 +1,6 @@
-import { Contract } from '@ethersproject/contracts';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
+import { Contract } from 'ethers';
 
 import {
   getEthUsdtResetData,
