@@ -39,6 +39,7 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x, hexToNumber } from '@metamask/utils';
@@ -341,7 +342,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | KeyringControllerSignAuthorization
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 /**
  * The external events available to the {@link TransactionController}.

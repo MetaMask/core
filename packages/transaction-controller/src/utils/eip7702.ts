@@ -1,5 +1,6 @@
-import { toHex } from '@metamask/controller-utils';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { query, toHex } from '@metamask/controller-utils';
+import type EthQuery from '@metamask/eth-query';
+import { createModuleLogger, type Hex, add0x } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -20,7 +21,77 @@ export type KeyringControllerSignAuthorization = {
   handler: (authorization: KeyringControllerAuthorization) => Promise<string>;
 };
 
+export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
+export const DELEGATION_PREFIX = '0xef0100';
+
+export type FeatureFlagsEIP7702 = {
+  contractAddresses?: Record<Hex, Hex[]>;
+  supportedChains?: Hex[];
+};
+
 const log = createModuleLogger(projectLogger, 'eip-7702');
+
+/**
+ * Determine if a chain supports EIP-7702 using LaunchDarkly feature flag.
+ *
+ * @param chainId - Hexadecimal ID of the chain.
+ * @param messenger - Messenger instance.
+ * @returns True if the chain supports EIP-7702.
+ */
+export function doesChainSupportEIP7702(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+) {
+  const featureFlags = getFeatureFlags(messenger);
+  const supportedChains = featureFlags?.supportedChains ?? [];
+
+  return supportedChains.some(
+    (supportedChainId) =>
+      supportedChainId.toLowerCase() === chainId.toLowerCase(),
+  );
+}
+
+/**
+ * Determine if an account has been upgraded to a supported EIP-7702 contract.
+ *
+ * @param address - The EOA address to check.
+ * @param chainId - The chain ID.
+ * @param messenger - The messenger instance.
+ * @param ethQuery - The EthQuery instance to communicate with the blockchain.
+ * @returns An object with the results of the check.
+ */
+export async function isAccountUpgradedToEIP7702(
+  address: Hex,
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+  ethQuery: EthQuery,
+) {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const contractAddresses =
+    featureFlags?.contractAddresses?.[chainId.toLowerCase() as Hex] ?? [];
+
+  const code = await query(ethQuery, 'eth_getCode', [address]);
+  const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
+
+  const hasDelegation =
+    code.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
+
+  const delegationAddress = hasDelegation
+    ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))
+    : undefined;
+
+  const isSupported =
+    delegationAddress &&
+    contractAddresses.some(
+      (contract) => contract.toLowerCase() === delegationAddress.toLowerCase(),
+    );
+
+  return {
+    delegationAddress,
+    isSupported,
+  };
+}
 
 /**
  * Sign an authorization list.
@@ -145,4 +216,28 @@ function prepareAuthorization(
   log('Prepared authorization', result);
 
   return result;
+}
+
+/**
+ * Retrieves the relevant feature flags from the remote feature flag controller.
+ *
+ * @param messenger - The messenger instance.
+ * @returns The feature flags related to EIP-7702.
+ */
+function getFeatureFlags(
+  messenger: TransactionControllerMessenger,
+): FeatureFlagsEIP7702 {
+  const featureFlags = messenger.call(
+    'RemoteFeatureFlagController:getState',
+  ).remoteFeatureFlags;
+
+  log('Retrieved all feature flags', featureFlags);
+
+  const relatedFeatureFlags = featureFlags?.[
+    FEATURE_FLAG_EIP_7702
+  ] as FeatureFlagsEIP7702;
+
+  log('Retrieved EIP-7702 feature flags', relatedFeatureFlags);
+
+  return relatedFeatureFlags;
 }
