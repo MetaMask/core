@@ -146,6 +146,7 @@ const setupController = ({
         'AccountsController:accountAdded',
         'AccountsController:accountRemoved',
         'AccountsController:accountBalancesUpdated',
+        'MultichainAssetsController:stateChange',
       ],
     });
 
@@ -419,5 +420,26 @@ describe('BalancesController', () => {
     await controller.updateBalance(mockBtcAccount.id);
 
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual({});
+  });
+
+  it('updates balances when receiving "MultichainAssetsController:stateChange" event', async () => {
+    const { controller, messenger } = setupController();
+
+    messenger.publish(
+      'MultichainAssetsController:stateChange',
+      {
+        assetsMetadata: {},
+        accountsAssets: {
+          [mockBtcAccount.id]: [mockBtcNativeAsset],
+        },
+      },
+      [],
+    );
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
   });
 });

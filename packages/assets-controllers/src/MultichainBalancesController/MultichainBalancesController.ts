@@ -24,7 +24,11 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { MultichainAssetsControllerGetStateAction } from '../MultichainAssetsController';
+import type {
+  MultichainAssetsControllerGetStateAction,
+  MultichainAssetsControllerState,
+  MultichainAssetsControllerStateChangeEvent,
+} from '../MultichainAssetsController';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -98,7 +102,9 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountBalancesUpdatesEvent;
+  | AccountsControllerAccountBalancesUpdatesEvent
+  | MultichainAssetsControllerStateChangeEvent;
+
 /**
  * Messenger type for the MultichainBalancesController.
  */
@@ -172,6 +178,14 @@ export class MultichainBalancesController extends BaseController<
       'AccountsController:accountBalancesUpdated',
       (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
         this.#handleOnAccountBalancesUpdated(balanceUpdate),
+    );
+    this.messagingSystem.subscribe(
+      'MultichainAssetsController:stateChange',
+      async (assetsState: MultichainAssetsControllerState) => {
+        for (const accountId in assetsState.accountsAssets) {
+          await this.updateBalance(accountId);
+        }
+      },
     );
   }
 
