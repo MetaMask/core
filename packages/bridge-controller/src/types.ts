@@ -114,17 +114,20 @@ export type QuoteRequest = {
   resetApproval?: boolean;
   refuel?: boolean;
 };
-type Protocol = {
+
+export type Protocol = {
   name: string;
   displayName?: string;
   icon?: string;
 };
-enum ActionTypes {
+
+export enum ActionTypes {
   BRIDGE = 'bridge',
   SWAP = 'swap',
   REFUEL = 'refuel',
 }
-type Step = {
+
+export type Step = {
   action: ActionTypes;
   srcChainId: ChainId;
   destChainId?: ChainId;
@@ -134,7 +137,8 @@ type Step = {
   destAmount: string;
   protocol: Protocol;
 };
-type RefuelData = Step;
+
+export type RefuelData = Step;
 
 export type Quote = {
   requestId: string;
@@ -225,28 +229,30 @@ export type BridgeControllerState = {
   quotesRefreshCount: number;
 };
 
-type BridgeControllerAction<FunctionName extends keyof BridgeController> = {
+export type BridgeControllerAction<
+  FunctionName extends keyof BridgeController,
+> = {
   type: `${typeof BRIDGE_CONTROLLER_NAME}:${FunctionName}`;
   handler: BridgeController[FunctionName];
 };
 
 // Maps to BridgeController function names
-type BridgeControllerActions =
+export type BridgeControllerActions =
   | BridgeControllerAction<BridgeBackgroundAction.SET_FEATURE_FLAGS>
   | BridgeControllerAction<BridgeBackgroundAction.RESET_STATE>
   | BridgeControllerAction<BridgeBackgroundAction.GET_BRIDGE_ERC20_ALLOWANCE>
   | BridgeControllerAction<BridgeUserAction.UPDATE_QUOTE_PARAMS>;
 
-type BridgeControllerEvents = ControllerStateChangeEvent<
+export type BridgeControllerEvents = ControllerStateChangeEvent<
   typeof BRIDGE_CONTROLLER_NAME,
   BridgeControllerState
 >;
 
-type AllowedActions =
+export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction['type']
   | NetworkControllerGetSelectedNetworkClientAction['type']
   | NetworkControllerFindNetworkClientIdByChainIdAction['type'];
-type AllowedEvents = never;
+export type AllowedEvents = never;
 
 /**
  * The messenger for the BridgeController.
