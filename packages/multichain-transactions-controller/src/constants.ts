@@ -1,5 +1,3 @@
-import { BtcAccountType, SolAccountType } from '@metamask/keyring-api';
-
 /**
  * The network identifiers for supported networks in CAIP-2 format.
  * Note: This is a temporary workaround until we have a more robust
@@ -20,17 +18,6 @@ export enum MultichainNativeAsset {
   SolanaDevnet = `${MultichainNetwork.SolanaDevnet}/slip44:501`,
   SolanaTestnet = `${MultichainNetwork.SolanaTestnet}/slip44:501`,
 }
-
-const BITCOIN_AVG_BLOCK_TIME = 10 * 60 * 1000; // 10 minutes in milliseconds
-const SOLANA_TRANSACTIONS_UPDATE_TIME = 7000; // 7 seconds
-const BTC_TRANSACTIONS_UPDATE_TIME = BITCOIN_AVG_BLOCK_TIME / 2;
-
-export const TRANSACTIONS_CHECK_INTERVALS = {
-  // NOTE: We set an interval of half the average block time for bitcoin
-  // to mitigate when our interval is de-synchronized with the actual block time.
-  [BtcAccountType.P2wpkh]: BTC_TRANSACTIONS_UPDATE_TIME,
-  [SolAccountType.DataAccount]: SOLANA_TRANSACTIONS_UPDATE_TIME,
-};
 
 /**
  * Maps network identifiers to their corresponding native asset types.
