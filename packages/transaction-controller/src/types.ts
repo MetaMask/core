@@ -1386,3 +1386,57 @@ export type Authorization = {
  * Introduced in EIP-7702.
  */
 export type AuthorizationList = Authorization[];
+
+/**
+ * The parameters of a transaction within an atomic batch.
+ */
+export type AtomicBatchTransactionParams = {
+  /** Data used to invoke a function on the target smart contract or EOA. */
+  data?: Hex;
+
+  /** Address of the target contract or EOA. */
+  to?: Hex;
+
+  /** Native balance to transfer with the transaction. */
+  value?: Hex;
+};
+
+/**
+ * Specification for a single transaction within a batch request.
+ */
+export type TransactionBatchSingleRequest = {
+  /** Parameters of the single transaction. */
+  params: AtomicBatchTransactionParams;
+};
+
+/**
+ * Request to submit a batch of transactions.
+ * Currently only atomic batches are supported via EIP-7702.
+ */
+export type TransactionBatchRequest = {
+  /** ID of the network client to submit the transaction. */
+  networkClientId: NetworkClientId;
+
+  /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
+  origin?: string;
+
+  /** Whether an approval request should be created to require confirmation from the user. */
+  requireApproval?: boolean;
+
+  /** Transactions to be submitted as part of the batch. */
+  transactions: TransactionBatchSingleRequest[];
+};
+
+/**
+ * Result from submitting a transaction batch.
+ */
+export type TransactionBatchResult = {
+  /** ID of the batch to locate related transactions. */
+  batchId: string;
+
+  /** Callback that returns a promise that resolves when the transaction batch has been confirmed on chain. */
+  waitForConfirm: () => Promise<void>;
+
+  /** Callback that returns a promise that resolves when the transaction batch has been submitted. */
+  waitForSubmit: () => Promise<void>;
+};
