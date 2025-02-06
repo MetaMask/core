@@ -17,14 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for fetching discover related data
   - Add `getTrendingTokens` method to fetch trending tokens by chain
   - Add `TokenTrendingResponseItem` type for trending token responses
-- Export `TokenSearchResponseItem` type from the package index
+- Export `TokenSearchResponseItem` type from the package index ([#5214](https://github.com/MetaMask/core/pull/5214))
 
 ### Changed
 
 - Bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
 - Update the `TokenSearchApiService` to use the updated URL for `searchTokens` ([#5195](https://github.com/MetaMask/core/pull/5195))
-- **BREAKING:** The `searchTokens` method now takes a `query` parameter instead of `name`
   - The URL is now `/tokens-search` instead of `/tokens-search/name`
+- **BREAKING:** The `searchTokens` method now takes a `query` parameter instead of `name` ([#5195](https://github.com/MetaMask/core/pull/5195))
 
 ## [1.0.0]
 
