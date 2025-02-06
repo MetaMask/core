@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
+- chore(polling): Rename `ControllerMessenger` to `Messenger` ([#5249](https://github.com/MetaMask/core/pull/5249))
+- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Release 266.0.0 ([#5038](https://github.com/MetaMask/core/pull/5038))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
