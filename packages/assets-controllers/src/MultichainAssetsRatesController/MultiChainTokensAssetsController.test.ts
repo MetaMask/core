@@ -158,12 +158,12 @@ describe('MultiChainAssetsRatesController', () => {
     jest.restoreAllMocks();
   });
 
-  it('should initialize with an empty conversionRates state', () => {
+  it('initializes with an empty conversionRates state', () => {
     const { controller } = setupController();
     expect(controller.state).toStrictEqual({ conversionRates: {} });
   });
 
-  it('should update conversion rates for a valid non-EVM account', async () => {
+  it('updates conversion rates for a valid non-EVM account', async () => {
     const { controller, messenger } = setupController();
 
     // Stub KeyringClient.listAccountAssets so that the controller “discovers” one asset.
@@ -217,7 +217,7 @@ describe('MultiChainAssetsRatesController', () => {
     );
   });
 
-  it('should not update conversion rates if the controller is not active', async () => {
+  it('does not update conversion rates if the controller is not active', async () => {
     const { controller, messenger } = setupController();
 
     // Simulate a keyring lock event to set the controller as inactive.
@@ -240,7 +240,7 @@ describe('MultiChainAssetsRatesController', () => {
     expect(snapHandler).not.toHaveBeenCalled();
   });
 
-  it('should resume update tokens rates when the keyring is unlocked', async () => {
+  it('resumes update tokens rates when the keyring is unlocked', async () => {
     const { controller, messenger } = setupController();
     messenger.publish('KeyringController:lock');
     // Override SnapController:handleRequest and stub listAccountAssets.
@@ -263,7 +263,7 @@ describe('MultiChainAssetsRatesController', () => {
     expect(controller.isActive).toBe(true);
   });
 
-  it('should call updateTokensRates when _executePoll is invoked', async () => {
+  it('calls updateTokensRates when _executePoll is invoked', async () => {
     const { controller, messenger } = setupController();
 
     jest
@@ -292,7 +292,7 @@ describe('MultiChainAssetsRatesController', () => {
     expect(updateSpy).toHaveBeenCalled();
   });
 
-  it('should call updateTokensRates when an multichain assets state is updated', async () => {
+  it('calls updateTokensRates when an multichain assets state is updated', async () => {
     const { controller, messenger } = setupController();
 
     // Spy on updateTokensRates.
@@ -312,7 +312,7 @@ describe('MultiChainAssetsRatesController', () => {
     expect(updateSpy).toHaveBeenCalled();
   });
 
-  it('should handle partial or empty Snap responses gracefully', async () => {
+  it('handles partial or empty Snap responses gracefully', async () => {
     const { controller, messenger } = setupController();
 
     messenger.registerActionHandler('SnapController:handleRequest', () => {
@@ -339,7 +339,7 @@ describe('MultiChainAssetsRatesController', () => {
     });
   });
 
-  it('should skip all accounts that lack Snap metadata or are EVM', async () => {
+  it('skips all accounts that lack Snap metadata or are EVM', async () => {
     const { controller, messenger } = setupController({
       accountsAssets: [fakeEvmAccountWithoutMetadata],
     });
@@ -353,7 +353,7 @@ describe('MultiChainAssetsRatesController', () => {
     expect(controller.state.conversionRates).toStrictEqual({});
   });
 
-  it('should update state when currency is updated', async () => {
+  it('updates state when currency is updated', async () => {
     const { controller, messenger } = setupController();
 
     const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
