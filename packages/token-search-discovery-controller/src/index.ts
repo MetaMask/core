@@ -1,4 +1,5 @@
 export { TokenSearchDiscoveryController } from './token-search-discovery-controller';
+export { TokenSearchDiscoveryControllerMessenger } from './token-search-discovery-controller';
 export type { TokenSearchDiscoveryControllerState } from './token-search-discovery-controller';
 export type {
   TokenSearchResponseItem,
