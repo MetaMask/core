@@ -3293,8 +3293,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
-    "@ethereumjs/common": "npm:^4.4.0"
-    "@ethereumjs/tx": "npm:^5.4.0"
+    "@ethereumjs/common": "npm:^3.2.0"
+    "@ethereumjs/tx": "npm:^4.2.0"
     "@ethereumjs/util": "npm:^8.1.0"
     "@keystonehq/bc-ur-registry-eth": "npm:^0.19.0"
     "@keystonehq/metamask-airgapped-keyring": "npm:^0.14.1"
