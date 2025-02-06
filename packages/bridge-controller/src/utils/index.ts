@@ -12,8 +12,8 @@ import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 
 export const getBridgeApiBaseUrl = () => {
-  if (process.env.BRIDGE_API_CUSTOM_URL) {
-    return process.env.BRIDGE_API_CUSTOM_URL;
+  if (process.env.BRIDGE_CUSTOM_API_BASE_URL) {
+    return process.env.BRIDGE_CUSTOM_API_BASE_URL;
   }
 
   if (process.env.BRIDGE_USE_DEV_APIS) {
