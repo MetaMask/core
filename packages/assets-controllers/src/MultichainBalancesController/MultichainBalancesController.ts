@@ -4,6 +4,7 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountBalancesUpdatesEvent,
 } from '@metamask/accounts-controller';
+import type { MultichainAssetsControllerGetStateAction } from '@metamask/multichain-assets-controller';
 import {
   BaseController,
   type ControllerGetStateAction,
@@ -90,7 +91,8 @@ export type MultichainBalancesControllerEvents =
  */
 type AllowedActions =
   | HandleSnapRequest
-  | AccountsControllerListMultichainAccountsAction;
+  | AccountsControllerListMultichainAccountsAction
+  | MultichainAssetsControllerGetStateAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -187,7 +189,13 @@ export class MultichainBalancesController extends BaseController<
 
       if (account.metadata.snap) {
         const scope = getScopeForAccount(account);
-        const assetTypes = NETWORK_ASSETS_MAP[scope];
+
+        // Get assets from MultichainAssetsController state
+        const assetsState = this.messagingSystem.call(
+          'MultichainAssetsController:getState',
+        );
+
+        const assetTypes = assetsState.accountsAssets[accountId] ?? [];
 
         const accountBalance = await this.#getBalances(
           account.id,
