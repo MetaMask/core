@@ -8,7 +8,6 @@ import { BaseController } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import type { Types } from '../NotificationServicesController';
 import { createRegToken, deleteRegToken } from './services/push/push-web';
 import {
   activatePushNotifications,
@@ -17,6 +16,7 @@ import {
   updateTriggerPushNotifications,
 } from './services/services';
 import type { PushNotificationEnv } from './types';
+import type { Types } from '../NotificationServicesController';
 
 const controllerName = 'NotificationServicesPushController';
 
@@ -135,8 +135,6 @@ type ControllerConfig = {
  * It is responsible for registering and unregistering the service worker that listens for push notifications,
  * managing the FCM token, and communicating with the server to register or unregister the device for push notifications.
  * Additionally, it provides functionality to update the server with new UUIDs that should trigger push notifications.
- *
- * @augments {BaseController<typeof controllerName, NotificationServicesPushControllerState, NotificationServicesPushControllerMessenger>}
  */
 export default class NotificationServicesPushController extends BaseController<
   typeof controllerName,
@@ -145,9 +143,9 @@ export default class NotificationServicesPushController extends BaseController<
 > {
   #pushListenerUnsubscribe: (() => void) | undefined = undefined;
 
-  #env: PushNotificationEnv;
+  readonly #env: PushNotificationEnv;
 
-  #config: ControllerConfig;
+  readonly #config: ControllerConfig;
 
   constructor({
     messenger,
@@ -233,7 +231,7 @@ export default class NotificationServicesPushController extends BaseController<
           this.#config.onPushNotificationClicked(e, n);
         },
       });
-    } catch (e) {
+    } catch {
       // Do nothing, we are silently failing if push notification registration fails
     }
   }

@@ -1,3 +1,4 @@
+import * as OnChainNotifications from './onchain-notifications';
 import {
   MOCK_USER_STORAGE_ACCOUNT,
   MOCK_USER_STORAGE_CHAIN,
@@ -12,7 +13,6 @@ import {
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import * as Utils from '../utils/utils';
-import * as OnChainNotifications from './onchain-notifications';
 
 const MOCK_STORAGE_KEY = 'MOCK_USER_STORAGE_KEY';
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';

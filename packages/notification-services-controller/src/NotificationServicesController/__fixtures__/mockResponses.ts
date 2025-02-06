@@ -1,11 +1,11 @@
+import { createMockFeatureAnnouncementAPIResult } from './mock-feature-announcements';
+import { createMockRawOnChainNotifications } from './mock-raw-notifications';
 import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
   TRIGGER_API_BATCH_ENDPOINT,
 } from '../services/onchain-notifications';
-import { createMockFeatureAnnouncementAPIResult } from './mock-feature-announcements';
-import { createMockRawOnChainNotifications } from './mock-raw-notifications';
 
 type MockResponse = {
   url: string;
