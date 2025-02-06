@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.6]
+
 ### Uncategorized
 
 - chore: fix lint warnings in `KeyringController` ([#5170](https://github.com/MetaMask/core/pull/5170))
@@ -656,7 +658,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.6...HEAD
+[19.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.5...@metamask/keyring-controller@19.0.6
 [19.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.4...@metamask/keyring-controller@19.0.5
 [19.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.3...@metamask/keyring-controller@19.0.4
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.2...@metamask/keyring-controller@19.0.3

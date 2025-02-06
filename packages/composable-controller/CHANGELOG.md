@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(composable): Rename `ControllerMessenger` to `Messenger` ([#5230](https://github.com/MetaMask/core/pull/5230))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
-- Release 274.0.0 ([#5082](https://github.com/MetaMask/core/pull/5082))
-
 ### Changed
 
 - **BREAKING:** Re-define `ComposableControllerStateConstraint` type using `StateConstraint` instead of `LegacyControllerStateConstraint` ([#5018](https://github.com/MetaMask/core/pull/5018/))
