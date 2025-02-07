@@ -2594,27 +2594,31 @@ describe('KeyringController', () => {
 
       describe('when the keyring is not found', () => {
         it('should throw an error if the keyring is not found and `createIfMissing` is false', async () => {
-          await withController(async ({ controller }) => {
-            const selector = { id: 'non-existent-id' };
-            const fn = jest.fn();
+          await withController(
+            async ({ controller, initialState: _initialState }) => {
+              const selector = { id: 'non-existent-id' };
+              const fn = jest.fn();
 
-            await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
-              KeyringControllerError.KeyringNotFound,
-            );
-            expect(fn).not.toHaveBeenCalled();
-          });
+              await expect(
+                controller.withKeyring(selector, fn),
+              ).rejects.toThrow(KeyringControllerError.KeyringNotFound);
+              expect(fn).not.toHaveBeenCalled();
+            },
+          );
         });
 
         it('should throw an error even if `createIfMissing` is true', async () => {
-          await withController(async ({ controller }) => {
-            const selector = { id: 'non-existent-id' };
-            const fn = jest.fn();
+          await withController(
+            async ({ controller, initialState: _initialState }) => {
+              const selector = { id: 'non-existent-id' };
+              const fn = jest.fn();
 
-            await expect(
-              controller.withKeyring(selector, fn, { createIfMissing: true }),
-            ).rejects.toThrow(KeyringControllerError.KeyringNotFound);
-            expect(fn).not.toHaveBeenCalled();
-          });
+              await expect(
+                controller.withKeyring(selector, fn, { createIfMissing: true }),
+              ).rejects.toThrow(KeyringControllerError.KeyringNotFound);
+              expect(fn).not.toHaveBeenCalled();
+            },
+          );
         });
       });
     });
