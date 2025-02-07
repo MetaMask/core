@@ -80,7 +80,6 @@ export const NETWORK_TYPES = {
   GOERLI: 'goerli',
   LOCALHOST: 'localhost',
   MAINNET: 'mainnet',
-  RPC: 'rpc',
   SEPOLIA: 'sepolia',
   LINEA_GOERLI: 'linea-goerli',
   LINEA_SEPOLIA: 'linea-sepolia',
