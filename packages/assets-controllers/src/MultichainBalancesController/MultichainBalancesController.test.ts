@@ -15,14 +15,12 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuidv4 } from 'uuid';
 
-import {
-  MultichainBalancesController,
-  getDefaultMultichainBalancesControllerState,
-} from './MultichainBalancesController';
+import { MultichainBalancesController } from '.';
 import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
-} from './MultichainBalancesController';
+} from '.';
+import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
