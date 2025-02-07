@@ -81,7 +81,7 @@ export type MultichainNetworkControllerState = {
    * The network configurations by chain ID.
    */
   multichainNetworkConfigurationsByChainId: Record<
-    string,
+    CaipChainId,
     MultichainNetworkConfiguration
   >;
   /**
