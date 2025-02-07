@@ -10,11 +10,11 @@ import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import mockBridgeQuotesErc20Native from './test/mock-quotes-erc20-native.json';
 import mockBridgeQuotesNativeErc20Eth from './test/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from './test/mock-quotes-native-erc20.json';
-import { flushPromises } from './test/utils';
 import type { BridgeControllerMessenger, QuoteResponse } from './types';
 import { getBridgeApiBaseUrl } from './utils';
 import * as balanceUtils from './utils/balance';
 import * as fetchUtils from './utils/fetch';
+import { flushPromises } from '../../../tests/helpers';
 
 const EMPTY_INIT_STATE = {
   bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
