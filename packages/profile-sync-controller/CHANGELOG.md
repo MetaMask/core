@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
 - Bump `@metamask/keyring-controller` from `^19.0.6` to `^19.0.7` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/network-controller` from `^22.2.0` to `^22.2.1` ([#5305](https://github.com/MetaMask/core/pull/5305))
 
 ## [7.0.0]
 
