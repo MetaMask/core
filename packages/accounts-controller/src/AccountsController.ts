@@ -183,7 +183,7 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
 
 // Re-define event here to avoid circular dependency with MultichainNetworkController
 type MultichainNetworkSetActiveNetworkEvent = {
-  type: `MultichainNetworkController:setActiveNetwork`;
+  type: `MultichainNetworkController:onNetworkChange`;
   payload: [
     {
       evmClientId?: string;
@@ -1231,7 +1231,7 @@ export class AccountsController extends BaseController<
 
     // Handle account change when multichain network is changed
     this.messagingSystem.subscribe(
-      'MultichainNetworkController:setActiveNetwork',
+      'MultichainNetworkController:onNetworkChange',
       this.#handleMultichainNetworkChange,
     );
   }

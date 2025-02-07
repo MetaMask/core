@@ -133,8 +133,8 @@ export type MultichainNetworkControllerStateChange = ControllerStateChangeEvent<
   MultichainNetworkControllerState
 >;
 
-export type MultichainNetworkSetActiveNetworkEvent = {
-  type: `${typeof controllerName}:setActiveNetwork`;
+export type MultichainNetworkOnNetworkChangeEvent = {
+  type: `${typeof controllerName}:onNetworkChange`;
   payload: [
     {
       evmClientId?: string;
@@ -154,7 +154,7 @@ export type MultichainNetworkControllerActions =
  * Events emitted by {@link MultichainNetworkController}.
  */
 export type MultichainNetworkControllerEvents =
-  MultichainNetworkSetActiveNetworkEvent;
+  MultichainNetworkOnNetworkChangeEvent;
 
 /**
  * Actions that this controller is allowed to call.
@@ -273,7 +273,7 @@ export class MultichainNetworkController extends BaseController<
 
         // Notify listeners that setActiveNetwork was called
         this.messagingSystem.publish(
-          'MultichainNetworkController:setActiveNetwork',
+          'MultichainNetworkController:onNetworkChange',
           { nonEvmChainId },
         );
         return;
@@ -290,7 +290,7 @@ export class MultichainNetworkController extends BaseController<
 
       // Notify listeners that setActiveNetwork was called
       this.messagingSystem.publish(
-        'MultichainNetworkController:setActiveNetwork',
+        'MultichainNetworkController:onNetworkChange',
         { nonEvmChainId },
       );
 
@@ -309,7 +309,7 @@ export class MultichainNetworkController extends BaseController<
 
     // Notify listeners that setActiveNetwork was called
     this.messagingSystem.publish(
-      'MultichainNetworkController:setActiveNetwork',
+      'MultichainNetworkController:onNetworkChange',
       {
         evmClientId,
       },
