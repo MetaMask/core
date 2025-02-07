@@ -6,9 +6,9 @@ import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
 } from './fetch';
+import mockBridgeQuotesErc20Erc20 from '../../../../tests/bridge-controller/mock-quotes-erc20-erc20.json';
+import mockBridgeQuotesNativeErc20 from '../../../../tests/bridge-controller/mock-quotes-native-erc20.json';
 import { CHAIN_IDS } from '../constants/chains';
-import mockBridgeQuotesErc20Erc20 from '../test/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20 from '../test/mock-quotes-native-erc20.json';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
