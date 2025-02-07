@@ -2594,7 +2594,7 @@ describe('KeyringController', () => {
 
       describe('when the keyring is not found', () => {
         it('should throw an error if the keyring is not found and `createIfMissing` is false', async () => {
-          await withController(async ({ controller, initialState }) => {
+          await withController(async ({ controller }) => {
             const selector = { id: 'non-existent-id' };
             const fn = jest.fn();
 
@@ -2606,7 +2606,7 @@ describe('KeyringController', () => {
         });
 
         it('should throw an error even if `createIfMissing` is true', async () => {
-          await withController(async ({ controller, initialState }) => {
+          await withController(async ({ controller }) => {
             const selector = { id: 'non-existent-id' };
             const fn = jest.fn();
 
