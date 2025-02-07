@@ -24,6 +24,9 @@ const { inspect } = require('util');
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
   // '@metamask/json-rpc-engine': ['^9.0.3'],
+  // Temporary to allow separate keyring API and keyring-controller upgrade.
+  '@ethereumjs/common': ['^3.2.0'],
+  '@ethereumjs/tx': ['^4.2.0'],
 };
 
 /**
