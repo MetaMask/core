@@ -16,10 +16,6 @@ jest.mock('@metamask/controller-utils', () => ({
 }));
 
 describe('Bridge utils', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('fetchBridgeFeatureFlags', () => {
     it('should fetch bridge feature flags successfully', async () => {
       const mockResponse = {
