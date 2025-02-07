@@ -5,7 +5,7 @@ import type { CaipAssetType } from '@metamask/utils';
  * For fiat, we mimic the old “swift:0/iso4217:XYZ” style.
  */
 export const MAP_CAIP_CURRENCIES: {
-  [key: string]: CaipAssetType | undefined;
+  [key: string]: CaipAssetType;
 } = {
   // ========================
   // Native crypto assets
@@ -89,10 +89,4 @@ export const MAP_CAIP_CURRENCIES: {
   xdr: 'swift:0/iso4217:XDR',
   xag: 'swift:0/iso4217:XAG',
   xau: 'swift:0/iso4217:XAU',
-
-  // ========================
-  // Non-standard sub-units
-  // ========================
-  bits: undefined, // no official CAIP reference for bits
-  sats: undefined, // no official CAIP reference for satoshis
 };
