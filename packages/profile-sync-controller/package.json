@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
@@ -102,7 +102,7 @@
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
     "@metamask/keyring-api": "^17.0.0",
-    "@metamask/keyring-controller": "^19.0.6",
+    "@metamask/keyring-controller": "^19.0.7",
     "@metamask/network-controller": "^22.2.0",
     "@metamask/snaps-sdk": "^6.17.1",
     "@metamask/snaps-utils": "^8.10.0",
