@@ -217,6 +217,16 @@ describe('BalancesController', () => {
     const messenger = getRootMessenger();
     const multichainBalancesMessenger = getRestrictedMessenger(messenger);
 
+    messenger.registerActionHandler('SnapController:handleRequest', jest.fn());
+    messenger.registerActionHandler(
+      'AccountsController:listMultichainAccounts',
+      jest.fn().mockReturnValue([]),
+    );
+    messenger.registerActionHandler(
+      'MultichainAssetsController:getState',
+      jest.fn(),
+    );
+
     const controller = new MultichainBalancesController({
       messenger: multichainBalancesMessenger,
     });
