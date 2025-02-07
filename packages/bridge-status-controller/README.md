@@ -1,14 +1,14 @@
-# `@metamask/bridge-controller`
+# `@metamask/bridge-status-controller`
 
-Manages bridge-related quote fetching functionality for MetaMask.
+Manages bridge-related status fetching functionality for MetaMask.
 
 ## Installation
 
-`yarn add @metamask/bridge-controller`
+`yarn add @metamask/bridge-status-controller`
 
 or
 
-`npm install @metamask/bridge-controller`
+`npm install @metamask/bridge-status-controller`
 
 ## Contributing
 
