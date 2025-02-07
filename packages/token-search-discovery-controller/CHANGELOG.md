@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: export controller messenger type to index ([#5296](https://github.com/MetaMask/core/pull/5296))
+
 ### Added
 
 - Export `TokenSearchDiscoveryControllerMessenger` type from package index

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: get assets list from MultichainAssetsController state ([#5295](https://github.com/MetaMask/core/pull/5295))
+
 ## [0.2.0]
 
 ### Changed

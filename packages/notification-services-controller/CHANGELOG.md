@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: resolve notification-services lint warnings ([#5293](https://github.com/MetaMask/core/pull/5293))
+
 ## [0.20.0]
 
 ### Changed

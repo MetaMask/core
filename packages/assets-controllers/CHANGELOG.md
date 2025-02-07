@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: multichainToken rate for non evm ([#5175](https://github.com/MetaMask/core/pull/5175))
+- chore: get assets list from MultichainAssetsController state ([#5295](https://github.com/MetaMask/core/pull/5295))
+
 ## [48.0.0]
 
 ### Added

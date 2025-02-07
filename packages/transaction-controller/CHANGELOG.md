@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: support type 4 transactions ([#5285](https://github.com/MetaMask/core/pull/5285))
+
 ## [45.0.0]
 
 ### Changed
