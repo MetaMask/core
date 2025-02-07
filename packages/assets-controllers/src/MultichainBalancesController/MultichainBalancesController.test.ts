@@ -219,26 +219,6 @@ describe('BalancesController', () => {
     );
   });
 
-  it('updates balances when "AccountsController:accountAdded" is fired', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
-      setupController({
-        mocks: {
-          listMultichainAccounts: [],
-        },
-      });
-
-    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
-    messenger.publish('AccountsController:accountAdded', mockBtcAccount);
-
-    await waitForAllPromises();
-
-    expect(controller.state).toStrictEqual({
-      balances: {
-        [mockBtcAccount.id]: mockBalanceResult,
-      },
-    });
-  });
-
   it('updates balances when "AccountsController:accountRemoved" is fired', async () => {
     const { controller, messenger } = setupController();
 

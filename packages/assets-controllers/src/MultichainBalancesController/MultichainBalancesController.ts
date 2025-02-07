@@ -167,10 +167,6 @@ export class MultichainBalancesController extends BaseController<
     }
 
     this.messagingSystem.subscribe(
-      'AccountsController:accountAdded',
-      (account: InternalAccount) => this.#handleOnAccountAdded(account),
-    );
-    this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
       (account: string) => this.#handleOnAccountRemoved(account),
     );
@@ -179,6 +175,9 @@ export class MultichainBalancesController extends BaseController<
       (balanceUpdate: AccountBalancesUpdatedEventPayload) =>
         this.#handleOnAccountBalancesUpdated(balanceUpdate),
     );
+    // TODO: Maybe add a MultichainAssetsController:accountAssetListUpdated event instead of using the entire state.
+    // Since MultichainAssetsController already listens for the AccountsController:accountAdded, we can rely in it for that event
+    // and not listen for it also here, in this controller, since it would be redundant
     this.messagingSystem.subscribe(
       'MultichainAssetsController:stateChange',
       async (assetsState: MultichainAssetsControllerState) => {
@@ -283,19 +282,6 @@ export class MultichainBalancesController extends BaseController<
       // Non-EVM accounts are backed by a Snap for now
       account.metadata.snap !== undefined
     );
-  }
-
-  /**
-   * Handles changes when a new account has been added.
-   *
-   * @param account - The new account being added.
-   */
-  async #handleOnAccountAdded(account: InternalAccount): Promise<void> {
-    if (!this.#isNonEvmAccount(account)) {
-      return;
-    }
-
-    await this.updateBalance(account.id);
   }
 
   /**
