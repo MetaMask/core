@@ -2293,7 +2293,7 @@ export class KeyringController extends BaseController<
 
     this.#keyrings.push(keyring);
     if (this.#keyringsMetadata.length < this.#keyrings.length) {
-      // For some reason, metadata is not always an extensible array, so .push() is not working
+      // FIXME: For some reason, metadata is not always an extensible array, so .push() is not working
       this.#keyringsMetadata = [...this.#keyringsMetadata, newKeyringMetadata];
     }
 
