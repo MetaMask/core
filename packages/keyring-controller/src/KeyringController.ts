@@ -254,11 +254,7 @@ export type KeyringControllerOptions = {
 );
 
 /**
- * @type KeyringObject
- *
  * Keyring object to return in fullUpdate
- * @property type - Keyring type
- * @property accounts - Associated accounts
  */
 export type KeyringObject = {
   /**
@@ -272,14 +268,16 @@ export type KeyringObject = {
 };
 
 /**
- * @type KeyringMetadata
- *
  * Keyring metadata
- * @property id - Keyring ID
- * @property name - Keyring name
  */
 export type KeyringMetadata = {
+  /**
+   * Keyring ID
+   */
   id: string;
+  /**
+   * Keyring name
+   */
   name: string;
 };
 
@@ -854,11 +852,7 @@ export class KeyringController extends BaseController<
     keyringId?: string,
   ): Promise<Uint8Array> {
     await this.verifyPassword(password);
-    if (!keyringId) {
-      assertHasUint8ArrayMnemonic(this.#keyrings[0]);
-      return this.#keyrings[0].mnemonic;
-    }
-    const selectedKeyring = this.#getKeyringById(keyringId);
+    const selectedKeyring = this.#getKeyringByIdOrDefault(keyringId);
     if (!selectedKeyring) {
       throw new Error('Keyring not found');
     }
@@ -1393,19 +1387,14 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase as Uint8Array.
    */
   async verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
-    let keyring: EthKeyring<Json>;
-    if (!keyringId) {
-      keyring = this.#keyrings[0];
-    } else {
-      keyring = this.#getKeyringById(keyringId) as EthKeyring<Json>;
-
-      if (keyring.type !== KeyringTypes.hd) {
-        throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
-      }
-    }
+    const keyring = this.#getKeyringByIdOrDefault(keyringId);
 
     if (!keyring) {
       throw new Error(KeyringControllerError.NoHdKeyring);
+    }
+
+    if (keyring.type !== KeyringTypes.hd) {
+      throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
     }
 
     return this.#withControllerLock(async () =>
@@ -1498,7 +1487,10 @@ export class KeyringController extends BaseController<
           )) as SelectedKeyring;
         }
       } else if ('id' in selector) {
-        keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
+        const index = this.state.keyringsMetadata.findIndex(
+          (metadata) => metadata.id === selector.id,
+        );
+        keyring = this.#keyrings[index] as SelectedKeyring;
       }
 
       if (!keyring) {
@@ -1806,12 +1798,16 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Get the keyring by id.
+   * Get the keyring by id or return the first keyring if the id is not found.
    *
    * @param keyringId - The id of the keyring.
    * @returns The keyring.
    */
-  #getKeyringById(keyringId: string): EthKeyring<Json> | undefined {
+  #getKeyringByIdOrDefault(keyringId?: string): EthKeyring<Json> | undefined {
+    if (!keyringId) {
+      return this.#keyrings[0] as EthKeyring<Json>;
+    }
+
     const index = this.state.keyringsMetadata.findIndex(
       (metadata) => metadata.id === keyringId,
     );
@@ -1924,11 +1920,7 @@ export class KeyringController extends BaseController<
   async #verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
     this.#assertControllerMutexIsLocked();
 
-    const keyring = keyringId
-      ? this.#getKeyringById(keyringId)
-      : (this.getKeyringsByType(KeyringTypes.hd)[0] as
-          | EthKeyring<Json>
-          | undefined);
+    const keyring = this.#getKeyringByIdOrDefault(keyringId);
 
     // This will never going to be undefined because we are checking for it in all of the callers
     if (!keyring) {
@@ -2300,12 +2292,11 @@ export class KeyringController extends BaseController<
     }
 
     this.#keyrings.push(keyring);
-    if (
-      newKeyringMetadata &&
-      this.#keyringsMetadata.length < this.#keyrings.length
-    ) {
+    if (this.#keyringsMetadata.length < this.#keyrings.length) {
+      // For some reason, metadata is not always an extensible array, so .push() is not working
       this.#keyringsMetadata = [...this.#keyringsMetadata, newKeyringMetadata];
     }
+
     return keyring;
   }
 
@@ -2472,7 +2463,7 @@ export class KeyringController extends BaseController<
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
-      const currentKeyringsMetadata = this.#keyringsMetadata;
+      const currentKeyringsMetadata = this.#keyringsMetadata.slice();
 
       try {
         return await callback({ releaseLock });

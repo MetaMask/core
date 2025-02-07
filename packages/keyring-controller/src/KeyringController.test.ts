@@ -3617,20 +3617,16 @@ describe('KeyringController', () => {
       it('should rollback the controller keyrings if the keyring creation fails', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);
-        // Mocking the serialize method to throw an error will
-        // halt the controller everytime it tries to persist the keyring,
-        // making it impossible to update the vault
-        jest
-          .spyOn(MockKeyring.prototype, 'serialize')
-          .mockImplementation(async () => {
-            throw new Error('You will never be able to persist me!');
-          });
+
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller, initialState }) => {
+            jest.spyOn(controller, 'update' as never).mockImplementation(() => {
+              throw new Error('You will never be able to change me!');
+            });
             await expect(
               controller.addNewKeyring(MockKeyring.type),
-            ).rejects.toThrow('You will never be able to persist me!');
+            ).rejects.toThrow('You will never be able to change me!');
 
             expect(controller.state).toStrictEqual(initialState);
             await expect(
