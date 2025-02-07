@@ -246,13 +246,12 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "import-x/namespace": 16,
+    "import-x/namespace": 15,
     "jest/no-conditional-in-test": 8
   },
   "packages/keyring-controller/src/KeyringController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 5,
-    "@typescript-eslint/no-unused-vars": 2,
-    "jsdoc/tag-lines": 1
+    "@typescript-eslint/no-unused-vars": 2
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
     "@typescript-eslint/prefer-readonly": 1
