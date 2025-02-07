@@ -7,10 +7,9 @@ import { ABI_SIMPLE_DELEGATE_CONTRACT } from '../abi/SimpleDelegateContract';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
-  AtomicBatchTransactionParams,
+  BatchTransactionParams,
   Authorization,
   AuthorizationList,
-  TransactionBatchRequest,
   TransactionMeta,
 } from '../types';
 
@@ -109,8 +108,8 @@ export async function isAccountUpgradedToEIP7702(
  */
 export function generateEIP7702BatchTransaction(
   from: Hex,
-  transactions: AtomicBatchTransactionParams[],
-): AtomicBatchTransactionParams {
+  transactions: BatchTransactionParams[],
+): BatchTransactionParams {
   const delegationContract = Contract.getInterface(
     ABI_SIMPLE_DELEGATE_CONTRACT,
   );
