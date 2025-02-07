@@ -3,7 +3,7 @@ import { zeroAddress } from 'ethereumjs-util';
 import { BrowserProvider, Contract } from 'ethers';
 
 import * as balanceUtils from './balance';
-import { createMockProvider } from '../test/provider';
+import { FakeProvider } from '../../../../tests/fake-provider';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -21,7 +21,7 @@ jest.mock('ethers', () => {
 describe('balance', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    global.ethereumProvider = createMockProvider();
+    global.ethereumProvider = new FakeProvider();
   });
 
   describe('calcLatestSrcBalance', () => {
