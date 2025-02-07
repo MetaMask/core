@@ -47,8 +47,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/common": "^3.2.0",
-    "@ethereumjs/tx": "^4.2.0",
+    "@ethereumjs/common": "^4.4.0",
+    "@ethereumjs/tx": "^5.4.0",
     "@ethereumjs/util": "^8.1.0",
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
