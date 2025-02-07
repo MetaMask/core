@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [1.0.0]
 
-- chore: get assets list from MultichainAssetsController state ([#5295](https://github.com/MetaMask/core/pull/5295))
+### Changed
+
+- **BREAKING:** Remove `NETWORK_ASSETS_MAP` variable and its exports (network-to-native-asset mapping), making it no longer available for consumers ([#5295](https://github.com/MetaMask/core/pull/5295))
 
 ## [0.2.0]
 
@@ -39,7 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.2.0...@metamask/multichain-transactions-controller@1.0.0
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.1.0...@metamask/multichain-transactions-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.0.1...@metamask/multichain-transactions-controller@0.1.0
 [0.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/multichain-transactions-controller@0.0.1

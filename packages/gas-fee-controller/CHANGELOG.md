@@ -7,18 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(gas-fee): Rename `ControllerMessenger` to `Messenger` ([#5232](https://github.com/MetaMask/core/pull/5232))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- Release 266.0.0 ([#5038](https://github.com/MetaMask/core/pull/5038))
+## [22.0.3]
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [22.0.2]
 
@@ -406,7 +401,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.3...HEAD
+[22.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...@metamask/gas-fee-controller@22.0.3
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.1...@metamask/gas-fee-controller@22.0.2
 [22.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.0...@metamask/gas-fee-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@21.0.0...@metamask/gas-fee-controller@22.0.0

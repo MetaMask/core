@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [12.0.1]
 
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(message-manager): Rename `ControllerMessenger` to `Messenger` ([#5233](https://github.com/MetaMask/core/pull/5233))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.0` to `^7.1.1` ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [12.0.0]
 
@@ -365,7 +367,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@12.0.0...@metamask/message-manager@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.3...@metamask/message-manager@12.0.0
 [11.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.2...@metamask/message-manager@11.0.3
 [11.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.1...@metamask/message-manager@11.0.2

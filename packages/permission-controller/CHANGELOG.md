@@ -7,12 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [11.0.6]
 
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(permission): Rename `ControllerMessenger` to `Messenger` ([#5245](https://github.com/MetaMask/core/pull/5245))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.5` to `^11.5.0` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.0.3` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [11.0.5]
 
@@ -26,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
 - Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
 - Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
 
 ## [11.0.4]
 
@@ -328,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...HEAD
+[11.0.6]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.5...@metamask/permission-controller@11.0.6
 [11.0.5]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...@metamask/permission-controller@11.0.5
 [11.0.4]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4
 [11.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...@metamask/permission-controller@11.0.3

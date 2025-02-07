@@ -7,17 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [23.2.1]
 
-- Release 296.0.0 ([#5292](https://github.com/MetaMask/core/pull/5292))
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(signature): Rename `RestrictedControllerMessenger` to `RestrictedMessenger` ([#5237](https://github.com/MetaMask/core/pull/5237))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- Release 290.0.0 ([#5218](https://github.com/MetaMask/core/pull/5218))
-- Release 287.0.0 ([#5182](https://github.com/MetaMask/core/pull/5182))
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
-- Release 281.0.0 ([#5140](https://github.com/MetaMask/core/pull/5140))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.0` to `^7.1.1` ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [23.2.0]
 
@@ -465,7 +461,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.1...HEAD
+[23.2.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.0...@metamask/signature-controller@23.2.1
 [23.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.1.0...@metamask/signature-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.1...@metamask/signature-controller@23.1.0
 [23.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.0...@metamask/signature-controller@23.0.1

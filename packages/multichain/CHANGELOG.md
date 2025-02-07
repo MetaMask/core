@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [2.1.1]
 
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.5` to `^11.5.0` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [2.1.0]
 
@@ -72,7 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.1...HEAD
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.0...@metamask/multichain@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.0.0...@metamask/multichain@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.2...@metamask/multichain@2.0.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.1...@metamask/multichain@1.1.2

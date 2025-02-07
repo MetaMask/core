@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [45.1.0]
 
-- feat: support type 4 transactions ([#5285](https://github.com/MetaMask/core/pull/5285))
+### Added
+
+- Add support for EIP-7702 / type 4 transactions ([#5285](https://github.com/MetaMask/core/pull/5285))
+  - Add `setCode` to `TransactionEnvelopeType`.
+  - Add `authorizationList` to `TransactionParams`.
+
+### Changed
+
+- Bump `ethereumjs/tx` from `^4.2.0` to `^5.4.0` ([#5285](https://github.com/MetaMask/core/pull/5285))
+- Bump `ethereumjs/common` from `^3.2.0` to `^4.5.0` ([#5285](https://github.com/MetaMask/core/pull/5285))
 
 ## [45.0.0]
 
@@ -1265,7 +1274,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.1.0...HEAD
+[45.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.0.0...@metamask/transaction-controller@45.1.0
 [45.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.1.0...@metamask/transaction-controller@45.0.0
 [44.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...@metamask/transaction-controller@44.1.0
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@43.0.0...@metamask/transaction-controller@44.0.0

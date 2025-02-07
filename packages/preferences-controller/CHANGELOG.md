@@ -7,20 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 296.0.0 ([#5292](https://github.com/MetaMask/core/pull/5292))
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(preferences): Rename `ControllerMessenger` to `Messenger` ([#5251](https://github.com/MetaMask/core/pull/5251))
-- Release 290.0.0 ([#5218](https://github.com/MetaMask/core/pull/5218))
-- Release 287.0.0 ([#5182](https://github.com/MetaMask/core/pull/5182))
-- Release 281.0.0 ([#5140](https://github.com/MetaMask/core/pull/5140))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
-- Release 270.0.0 ([#5058](https://github.com/MetaMask/core/pull/5058))
+## [15.0.2]
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
 
 ## [15.0.1]
 
@@ -348,7 +340,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.2...HEAD
+[15.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.1...@metamask/preferences-controller@15.0.2
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.0...@metamask/preferences-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@14.0.0...@metamask/preferences-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.3.0...@metamask/preferences-controller@14.0.0

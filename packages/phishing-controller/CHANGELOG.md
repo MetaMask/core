@@ -7,16 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(phishing): Rename `ControllerMessenger` to `Messenger` ([#5248](https://github.com/MetaMask/core/pull/5248))
-- Fix ESLint config ([#5132](https://github.com/MetaMask/core/pull/5132))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+## [12.3.2]
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
 
 ## [12.3.1]
 
@@ -328,7 +324,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.2...HEAD
+[12.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.1...@metamask/phishing-controller@12.3.2
 [12.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.0...@metamask/phishing-controller@12.3.1
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.2.0...@metamask/phishing-controller@12.3.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...@metamask/phishing-controller@12.2.0

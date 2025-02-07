@@ -7,16 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(rate-limit): Rename `ControllerMessenger` to `Messenger` ([#5255](https://github.com/MetaMask/core/pull/5255))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+## [6.0.3]
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/rpc-errors` from `^7.0.1` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [6.0.2]
 
@@ -180,7 +177,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.3...HEAD
+[6.0.3]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.2...@metamask/rate-limit-controller@6.0.3
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.1...@metamask/rate-limit-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.0...@metamask/rate-limit-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@5.0.2...@metamask/rate-limit-controller@6.0.0

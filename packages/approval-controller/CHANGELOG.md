@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [7.1.3]
 
-- chore(approval): Rename `ControllerMessenger` to `Messenger` ([#5228](https://github.com/MetaMask/core/pull/5228))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+### Changed
+
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [7.1.2]
 
@@ -267,7 +268,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.3...HEAD
+[7.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.2...@metamask/approval-controller@7.1.3
 [7.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.1...@metamask/approval-controller@7.1.2
 [7.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.0...@metamask/approval-controller@7.1.1
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.4...@metamask/approval-controller@7.1.0

@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [9.0.1]
 
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(queued-request): Rename `ControllerMessenger` to `Messenger` ([#5254](https://github.com/MetaMask/core/pull/5254))
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.5` to `^11.5.0` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [9.0.0]
 
@@ -343,7 +344,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@9.0.1...HEAD
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@9.0.0...@metamask/queued-request-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.2...@metamask/queued-request-controller@9.0.0
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.1...@metamask/queued-request-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@8.0.0...@metamask/queued-request-controller@8.0.1

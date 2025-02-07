@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [3.0.3]
 
-- feat: bump @metamask/utils to v11.1.0 ([#5223](https://github.com/MetaMask/core/pull/5223))
-- Bump `eslint` to `^9.11.1` and migrate to flat config ([#4727](https://github.com/MetaMask/core/pull/4727))
-- Bump `@metamask/utils` to `^11.0.1` and `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+### Changed
+
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [3.0.2]
 
@@ -81,7 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#3577](https://github.com/MetaMask/core/pull/3577) [#3588](https://github.com/MetaMask/core/pull/3588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.3...HEAD
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.2...@metamask/build-utils@3.0.3
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.1...@metamask/build-utils@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/build-utils@3.0.0...@metamask/build-utils@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/build-utils@2.0.1...@metamask/build-utils@3.0.0

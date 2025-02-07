@@ -7,15 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 293.0.0 ([#5272](https://github.com/MetaMask/core/pull/5272))
-- chore(logging): Rename `ControllerMessenger` to `Messenger` ([#5235](https://github.com/MetaMask/core/pull/5235))
-- Release 280.0.0 ([#5135](https://github.com/MetaMask/core/pull/5135))
+## [6.0.4]
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
 
 ## [6.0.3]
 
@@ -161,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.4...HEAD
+[6.0.4]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.3...@metamask/logging-controller@6.0.4
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.2...@metamask/logging-controller@6.0.3
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.1...@metamask/logging-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@6.0.0...@metamask/logging-controller@6.0.1

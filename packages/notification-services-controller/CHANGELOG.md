@@ -7,9 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: resolve notification-services lint warnings ([#5293](https://github.com/MetaMask/core/pull/5293))
+## [0.20.1]
 
 ## [0.20.0]
 
@@ -306,7 +304,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.1...HEAD
+[0.20.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.0...@metamask/notification-services-controller@0.20.1
 [0.20.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.19.0...@metamask/notification-services-controller@0.20.0
 [0.19.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.18.0...@metamask/notification-services-controller@0.19.0
 [0.18.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.17.0...@metamask/notification-services-controller@0.18.0
