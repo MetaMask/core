@@ -171,3 +171,17 @@ export type {
   MultichainAssetsControllerEvents,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
+
+export {
+  MultiChainAssetsRatesController,
+  getDefaultMultichainAssetsRatesControllerState,
+} from './MultichainAssetsRatesController';
+
+export type {
+  MultichainAssetsRatesControllerState,
+  MultichainAssetsRatesControllerActions,
+  MultichainAssetsRatesControllerEvents,
+  MultichainAssetsRatesControllerGetStateAction,
+  MultichainAssetsRatesControllerStateChange,
+  MultichainAssetsRatesControllerMessenger,
+} from './MultichainAssetsRatesController';
