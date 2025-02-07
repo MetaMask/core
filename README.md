@@ -120,6 +120,10 @@ linkStyle default opacity:0.5
   base_controller --> json_rpc_engine;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
+  earn_controller --> base_controller;
+  earn_controller --> controller_utils;
+  earn_controller --> accounts_controller;
+  earn_controller --> network_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
   ens_controller --> network_controller;
@@ -136,8 +140,13 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   multichain --> controller_utils;
+  multichain --> json_rpc_engine;
   multichain --> network_controller;
   multichain --> permission_controller;
+  multichain_transactions_controller --> base_controller;
+  multichain_transactions_controller --> polling_controller;
+  multichain_transactions_controller --> accounts_controller;
+  multichain_transactions_controller --> keyring_controller;
   name_controller --> base_controller;
   name_controller --> controller_utils;
   network_controller --> base_controller;
@@ -184,6 +193,7 @@ linkStyle default opacity:0.5
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
+  token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
   transaction_controller --> accounts_controller;
