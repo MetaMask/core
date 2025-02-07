@@ -1,8 +1,5 @@
 export { MultichainBalancesController } from './MultichainBalancesController';
-export {
-  MultichainNetworks,
-  MultichainNativeAssets,
-} from './constants';
+export { MultichainNetworks, MultichainNativeAssets } from './constants';
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
