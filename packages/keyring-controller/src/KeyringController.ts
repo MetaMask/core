@@ -2367,7 +2367,7 @@ export class KeyringController extends BaseController<
         const accounts = await keyring.getAccounts();
         if (accounts.length > 0) {
           validKeyrings.push(keyring);
-          validKeyringMetadata.push(this.state.keyringsMetadata[index]);
+          validKeyringMetadata.push(this.#keyringsMetadata[index]);
         } else {
           await this.#destroyKeyring(keyring);
         }
