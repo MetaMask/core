@@ -35,6 +35,3 @@ scripts/coverage
 
 # typescript
 packages/*/*.tsbuildinfo
-
-# vscode
-.vscode
