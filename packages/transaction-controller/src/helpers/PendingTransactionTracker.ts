@@ -72,6 +72,8 @@ export class PendingTransactionTracker {
 
   #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
 
+  readonly #getNetworkClientId: () => string;
+
   #getTransactions: () => TransactionMeta[];
 
   #isResubmitEnabled: () => boolean;
@@ -101,6 +103,7 @@ export class PendingTransactionTracker {
     blockTracker,
     getChainId,
     getEthQuery,
+    getNetworkClientId,
     getTransactions,
     isResubmitEnabled,
     getGlobalLock,
@@ -110,6 +113,7 @@ export class PendingTransactionTracker {
     blockTracker: BlockTracker;
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
+    getNetworkClientId: () => string;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: () => boolean;
     getGlobalLock: () => Promise<() => void>;
@@ -129,10 +133,10 @@ export class PendingTransactionTracker {
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
     this.#getEthQuery = getEthQuery;
+    this.#getNetworkClientId = getNetworkClientId;
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? (() => true);
     this.#listener = this.#onLatestBlock.bind(this);
-    this.#log = createModuleLogger(log, getChainId());
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
@@ -140,6 +144,11 @@ export class PendingTransactionTracker {
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
+
+    this.#log = createModuleLogger(
+      log,
+      `${getChainId()}:${getNetworkClientId()}`,
+    );
   }
 
   startIfPendingTransactions = () => {
@@ -478,7 +487,7 @@ export class PendingTransactionTracker {
   #isNonceTaken(txMeta: TransactionMeta): boolean {
     const { id, txParams } = txMeta;
 
-    return this.#getCurrentChainTransactions().some(
+    return this.#getChainTransactions().some(
       (tx) =>
         tx.id !== id &&
         tx.txParams.from === txParams.from &&
@@ -489,7 +498,7 @@ export class PendingTransactionTracker {
   }
 
   #getPendingTransactions(): TransactionMeta[] {
-    return this.#getCurrentChainTransactions().filter(
+    return this.#getNetworkClientTransactions().filter(
       (tx) =>
         tx.status === TransactionStatus.submitted &&
         !tx.verifiedOnBlockchain &&
@@ -543,11 +552,15 @@ export class PendingTransactionTracker {
     return await query(this.#getEthQuery(), 'getTransactionCount', [address]);
   }
 
-  #getCurrentChainTransactions(): TransactionMeta[] {
-    const currentChainId = this.#getChainId();
+  #getChainTransactions(): TransactionMeta[] {
+    const chainId = this.#getChainId();
+    return this.#getTransactions().filter((tx) => tx.chainId === chainId);
+  }
 
+  #getNetworkClientTransactions(): TransactionMeta[] {
+    const networkClientId = this.#getNetworkClientId();
     return this.#getTransactions().filter(
-      (tx) => tx.chainId === currentChainId,
+      (tx) => tx.networkClientId === networkClientId,
     );
   }
 }

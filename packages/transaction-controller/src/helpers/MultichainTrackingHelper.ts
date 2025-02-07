@@ -39,6 +39,7 @@ export type MultichainTrackingHelperOptions = {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
+    networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
   onNetworkStateChange: (
     listener: (
@@ -68,6 +69,7 @@ export class MultichainTrackingHelper {
     provider: Provider;
     blockTracker: BlockTracker;
     chainId: Hex;
+    networkClientId: NetworkClientId;
   }) => PendingTransactionTracker;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
@@ -319,6 +321,7 @@ export class MultichainTrackingHelper {
       provider,
       blockTracker,
       chainId,
+      networkClientId
     });
 
     this.#trackingMap.set(networkClientId, {
