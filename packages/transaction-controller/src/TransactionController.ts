@@ -295,13 +295,19 @@ export type PendingTransactionOptions = {
  *
  * transactionHistoryLimit - Transaction history limit.
  *
- * @property hooks - The controller hooks.
- * @property hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
- * @property hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
- * @property hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
- * @property hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
- * @property hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
- * @property hooks.publish - Alternate logic to publish a transaction.
+ * hooks - The controller hooks.
+ *
+ * hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
+ *
+ * hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
+ *
+ * hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
+ *
+ * hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
+ *
+ * hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
+ *
+ * hooks.publish - Alternate logic to publish a transaction.
  */
 export type TransactionControllerOptions = {
   disableHistory: boolean;
