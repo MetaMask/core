@@ -214,6 +214,9 @@ export class MultichainBalancesController extends BaseController<
         });
       }
     } catch (error) {
+      // FIXME: Maybe we shouldn't catch all errors here since this method is also being
+      // used in the public methods. This means if something else uses `updateBalance` it
+      // won't be able to catch and gets the error itself...
       console.error(
         `Failed to fetch balances for account ${accountId}:`,
         error,
