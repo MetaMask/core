@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `TokenSearchDiscoveryControllerMessenger` type from package index ([#5296](https://github.com/MetaMask/core/pull/5296))
+- Export `TokenSearchDiscoveryControllerMessenger` type ([#5296](https://github.com/MetaMask/core/pull/5296))
 
 ### Changed
 

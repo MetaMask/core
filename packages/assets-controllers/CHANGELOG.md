@@ -13,12 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add new `MultiChainTokensRatesController` ([#5175](https://github.com/MetaMask/core/pull/5175))
   - A controller that manages multi‑chain token conversion rates within MetaMask. Its primary goal is to periodically poll for updated conversion rates of tokens associated with non‑EVM accounts (those using Snap metadata), ensuring that the conversion data remains up‑to‑date across supported chains.
+- Add `updateBalance` to MultichainBalancesController ([#5295](https://github.com/MetaMask/core/pull/5295))
 
 ### Changed
 
+- **BREAKING:** MultichainBalancesController messenger must now allow `MultichainAssetsController:getState` action and `MultichainAssetsController:stateChange` event ([#5295](https://github.com/MetaMask/core/pull/5295))
 - Update `MultichainBalancesController` to get the full list of assets from `MultichainAssetsController` state instead of only requesting the native token ([#5295](https://github.com/MetaMask/core/pull/5295))
-- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0`([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/polling-controller` from `^12.0.2` to `^12.0.3`([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/polling-controller` from `^12.0.2` to `^12.0.3` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+### Removed
+
+- **BREAKING:** `NETWORK_ASSETS_MAP`, `MultichainNetworks`, and `MultichainNativeAssets` are no longer exported ([#5295](https://github.com/MetaMask/core/pull/5295))
 
 ## [48.0.0]
 

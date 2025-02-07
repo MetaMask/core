@@ -11,9 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Remove `NETWORK_ASSETS_MAP` variable and its exports (network-to-native-asset mapping), making it no longer available for consumers ([#5295](https://github.com/MetaMask/core/pull/5295))
 - Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
 - Bump `@metamask/polling-controller` from `^12.0.2` to `^12.0.3` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+### Removed
+
+- **BREAKING:** Remove `NETWORK_ASSETS_MAP`, `MultichainNetwork` and `MultichainNativeAsset` from exports, making them no longer available for consumers ([#5295](https://github.com/MetaMask/core/pull/5295))
 
 ## [0.2.0]
 

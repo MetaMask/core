@@ -115,7 +115,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/accounts-controller": "^23.0.0",
+    "@metamask/accounts-controller": "^23.0.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-internal-api": "^4.0.1",
     "@metamask/providers": "^18.1.1",
