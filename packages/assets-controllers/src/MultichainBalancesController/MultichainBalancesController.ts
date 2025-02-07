@@ -160,12 +160,7 @@ export class MultichainBalancesController extends BaseController<
     for (const account of this.#listAccounts()) {
       const assets = this.#listAccountAssets(account.id);
 
-      this.#updateBalance(account.id, assets).catch((error) => {
-        console.error(
-          `Failed to fetch initial balance for account ${account.id}:`,
-          error,
-        );
-      });
+      this.#updateBalance(account.id, assets);
     }
 
     this.messagingSystem.subscribe(
