@@ -158,7 +158,9 @@ export class MultichainBalancesController extends BaseController<
 
     // Fetch initial balances for all non-EVM accounts
     for (const account of this.#listAccounts()) {
-      this.updateBalance(account.id).catch((error) => {
+      const assets = this.#listAccountAssets(account.id);
+
+      this.#updateBalance(account.id, assets).catch((error) => {
         console.error(
           `Failed to fetch initial balance for account ${account.id}:`,
           error,
@@ -182,7 +184,10 @@ export class MultichainBalancesController extends BaseController<
       'MultichainAssetsController:stateChange',
       async (assetsState: MultichainAssetsControllerState) => {
         for (const accountId of Object.keys(assetsState.accountsAssets)) {
-          await this.updateBalance(accountId);
+          await this.#updateBalance(
+            accountId,
+            assetsState.accountsAssets[accountId],
+          );
         }
       },
     );
@@ -193,22 +198,20 @@ export class MultichainBalancesController extends BaseController<
    * anything, but it updates the state of the controller.
    *
    * @param accountId - The account ID.
+   * @param assets - The list of asset types for this account to upadte.
    */
-  async updateBalance(accountId: string): Promise<void> {
+  async #updateBalance(
+    accountId: string,
+    assets: CaipAssetType[],
+  ): Promise<void> {
     try {
       const account = this.#getAccount(accountId);
 
       if (account.metadata.snap) {
-        const assetsState = this.messagingSystem.call(
-          'MultichainAssetsController:getState',
-        );
-
-        const assetTypes = assetsState.accountsAssets[accountId] ?? [];
-
         const accountBalance = await this.#getBalances(
           account.id,
           account.metadata.snap.id,
-          assetTypes,
+          assets,
         );
 
         this.update((state: Draft<MultichainBalancesControllerState>) => {
@@ -221,6 +224,16 @@ export class MultichainBalancesController extends BaseController<
         error,
       );
     }
+  }
+
+  /**
+   * Updates the balances of one account. This method doesn't return
+   * anything, but it updates the state of the controller.
+   *
+   * @param accountId - The account ID.
+   */
+  async updateBalance(accountId: string): Promise<void> {
+    await this.#updateBalance(accountId, this.#listAccountAssets(accountId));
   }
 
   /**
@@ -243,6 +256,21 @@ export class MultichainBalancesController extends BaseController<
     const accounts = this.#listMultichainAccounts();
 
     return accounts.filter((account) => this.#isNonEvmAccount(account));
+  }
+
+  /**
+   * Lists the accounts assets.
+   *
+   * @param accountId - The account ID.
+   * @returns The list of assets for this account, returns an empty list if none.
+   */
+  #listAccountAssets(accountId: string): CaipAssetType[] {
+    // TODO: Add an action `MultichainAssetsController:getAccountAssets` maybe?
+    const assetsState = this.messagingSystem.call(
+      'MultichainAssetsController:getState',
+    );
+
+    return assetsState.accountsAssets[accountId] ?? [];
   }
 
   /**
