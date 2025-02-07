@@ -157,11 +157,11 @@ export class MultichainBalancesController extends BaseController<
     });
 
     // Fetch initial balances for all non-EVM accounts
-    for (const account of this.#listAccounts()) {
-      const assets = this.#listAccountAssets(account.id);
-
-      this.#updateBalance(account.id, assets);
-    }
+    (async () => {
+      for (const account of this.#listAccounts()) {
+        await this.updateBalance(account.id);
+      }
+    })();
 
     this.messagingSystem.subscribe(
       'AccountsController:accountRemoved',
