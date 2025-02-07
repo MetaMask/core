@@ -3,7 +3,7 @@ import { bigIntToHex } from '@metamask/utils';
 import { Contract } from 'ethers';
 import nock from 'nock';
 
-import BridgeController from './bridge-controller';
+import { BridgeController } from './bridge-controller';
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from './constants';
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
