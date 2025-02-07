@@ -5,7 +5,8 @@ import type {
 } from '@metamask/base-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetSelectedNetworkClientAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
@@ -250,8 +251,9 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction['type']
-  | NetworkControllerGetSelectedNetworkClientAction['type']
-  | NetworkControllerFindNetworkClientIdByChainIdAction['type'];
+  | NetworkControllerFindNetworkClientIdByChainIdAction['type']
+  | NetworkControllerGetStateAction['type']
+  | NetworkControllerGetNetworkClientByIdAction['type'];
 export type AllowedEvents = never;
 
 /**
@@ -261,8 +263,9 @@ export type BridgeControllerMessenger = RestrictedMessenger<
   typeof BRIDGE_CONTROLLER_NAME,
   | BridgeControllerActions
   | AccountsControllerGetSelectedAccountAction
-  | NetworkControllerGetSelectedNetworkClientAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction,
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction,
   BridgeControllerEvents,
   AllowedActions,
   AllowedEvents

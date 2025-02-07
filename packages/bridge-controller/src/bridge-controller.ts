@@ -323,9 +323,14 @@ export default class BridgeController extends StaticIntervalPollingController<Br
   }
 
   #getSelectedNetworkClient() {
-    return this.messagingSystem.call(
-      'NetworkController:getSelectedNetworkClient',
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
     );
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    return networkClient;
   }
 
   #getSelectedNetworkClientId(chainId: Hex) {
