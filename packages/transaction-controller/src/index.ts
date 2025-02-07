@@ -30,6 +30,8 @@ export {
   TransactionController,
 } from './TransactionController';
 export type {
+  Authorization,
+  AuthorizationList,
   DappSuggestedGasFees,
   DefaultGasEstimates,
   FeeMarketEIP1559Values,
