@@ -1,4 +1,4 @@
-export { default } from './bridge-controller';
+export { BridgeController } from './bridge-controller';
 
 export type {
   AssetType,

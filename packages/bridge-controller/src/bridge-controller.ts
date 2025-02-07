@@ -45,7 +45,7 @@ type BridgePollingInput = {
   updatedQuoteRequest: QuoteRequest;
 };
 
-export default class BridgeController extends StaticIntervalPollingController<BridgePollingInput>()<
+export class BridgeController extends StaticIntervalPollingController<BridgePollingInput>()<
   typeof BRIDGE_CONTROLLER_NAME,
   { bridgeState: BridgeControllerState },
   BridgeControllerMessenger
