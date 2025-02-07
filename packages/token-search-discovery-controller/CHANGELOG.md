@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Export `TokenSearchDiscoveryControllerMessenger` type from package index ([#5296](https://github.com/MetaMask/core/pull/5296))
 
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
 ## [2.0.0]
 
 ### Added
