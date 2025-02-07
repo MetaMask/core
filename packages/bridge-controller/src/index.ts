@@ -31,8 +31,6 @@ export type {
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
-  AllowedActions,
-  AllowedEvents,
   BridgeControllerMessenger,
 } from './types';
 
