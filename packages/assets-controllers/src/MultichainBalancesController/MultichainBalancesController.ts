@@ -181,15 +181,8 @@ export class MultichainBalancesController extends BaseController<
     this.messagingSystem.subscribe(
       'MultichainAssetsController:stateChange',
       async (assetsState: MultichainAssetsControllerState) => {
-        for (const accountId in assetsState.accountsAssets) {
-          if (
-            Object.prototype.hasOwnProperty.call(
-              assetsState.accountsAssets,
-              accountId,
-            )
-          ) {
-            await this.updateBalance(accountId);
-          }
+        for (const accountId of Object.keys(assetsState.accountsAssets)) {
+          await this.updateBalance(accountId);
         }
       },
     );
