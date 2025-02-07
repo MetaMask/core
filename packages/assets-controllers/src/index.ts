@@ -151,7 +151,6 @@ export type {
 export {
   MultichainBalancesController,
   // constants
-  NETWORK_ASSETS_MAP,
   MultichainNetworks,
   MultichainNativeAssets,
 } from './MultichainBalancesController';

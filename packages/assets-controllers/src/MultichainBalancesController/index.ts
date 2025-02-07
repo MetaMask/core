@@ -1,6 +1,5 @@
 export { MultichainBalancesController } from './MultichainBalancesController';
 export {
-  NETWORK_ASSETS_MAP,
   MultichainNetworks,
   MultichainNativeAssets,
 } from './constants';
