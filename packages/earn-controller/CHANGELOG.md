@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.2.1...HEAD
+[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.2.0...@metamask/earn-controller@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.1.0...@metamask/earn-controller@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/earn-controller@0.1.0
