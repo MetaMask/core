@@ -1,5 +1,5 @@
 import { handleFetch } from '@metamask/controller-utils';
-import { zeroAddress } from 'ethereumjs-util';
+import { ZeroAddress } from 'ethers';
 
 import {
   fetchBridgeFeatureFlags,
@@ -228,8 +228,8 @@ describe('Bridge utils', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: zeroAddress(),
-          destTokenAddress: zeroAddress(),
+          srcTokenAddress: ZeroAddress,
+          destTokenAddress: ZeroAddress,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },
@@ -260,8 +260,8 @@ describe('Bridge utils', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: zeroAddress(),
-          destTokenAddress: zeroAddress(),
+          srcTokenAddress: ZeroAddress,
+          destTokenAddress: ZeroAddress,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },
@@ -311,8 +311,8 @@ describe('Bridge utils', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: zeroAddress(),
-          destTokenAddress: zeroAddress(),
+          srcTokenAddress: ZeroAddress,
+          destTokenAddress: ZeroAddress,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },

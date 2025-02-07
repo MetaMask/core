@@ -1,5 +1,5 @@
 import type { Hex } from '@metamask/utils';
-import { zeroAddress } from 'ethereumjs-util';
+import { ZeroAddress } from 'ethers';
 
 import { CHAIN_IDS, NETWORK_TO_NAME_MAP } from './chains';
 import type { BridgeControllerState } from '../types';
@@ -64,7 +64,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   },
   quoteRequest: {
     walletAddress: undefined,
-    srcTokenAddress: zeroAddress(),
+    srcTokenAddress: ZeroAddress,
     slippage: BRIDGE_DEFAULT_SLIPPAGE,
   },
   quotesInitialLoadTime: undefined,

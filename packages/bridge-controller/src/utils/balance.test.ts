@@ -1,5 +1,5 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { zeroAddress } from 'ethereumjs-util';
+import { ZeroAddress } from 'ethers';
 import { BrowserProvider, Contract } from 'ethers';
 
 import * as balanceUtils from './balance';
@@ -57,7 +57,7 @@ describe('balance', () => {
         await balanceUtils.calcLatestSrcBalance(
           global.ethereumProvider,
           '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-          zeroAddress(),
+          ZeroAddress,
           '0x789',
         ),
       ).toStrictEqual(BigInt(100));
@@ -116,7 +116,7 @@ describe('balance', () => {
         await balanceUtils.hasSufficientBalance(
           global.ethereumProvider,
           '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
-          zeroAddress(),
+          ZeroAddress,
           '10000000000000000000',
           '0x1',
         ),

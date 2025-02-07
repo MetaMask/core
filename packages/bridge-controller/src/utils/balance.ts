@@ -1,8 +1,7 @@
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import { zeroAddress } from 'ethereumjs-util';
-import { BrowserProvider, Contract, getAddress } from 'ethers';
+import { BrowserProvider, Contract, getAddress, ZeroAddress } from 'ethers';
 
 export const fetchTokenBalance = async (
   address: string,
@@ -24,7 +23,7 @@ export const calcLatestSrcBalance = async (
   chainId: Hex,
 ): Promise<bigint | undefined> => {
   if (tokenAddress && chainId) {
-    if (tokenAddress === zeroAddress()) {
+    if (tokenAddress === ZeroAddress) {
       const ethersProvider = new BrowserProvider(provider);
       return await ethersProvider.getBalance(getAddress(selectedAddress));
     }
