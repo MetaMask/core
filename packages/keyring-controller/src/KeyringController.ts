@@ -1393,6 +1393,7 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.NoHdKeyring);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     if (keyring.type !== KeyringTypes.hd) {
       throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
     }
@@ -1987,7 +1988,7 @@ export class KeyringController extends BaseController<
     },
   ): Promise<SerializedKeyring[]> {
     const serializedKeyrings = await Promise.all(
-      this.#keyrings.map(async (keyring, index) => {
+      this.#keyrings.map(async (keyring) => {
         const [type, data] = await Promise.all([
           keyring.type,
           keyring.serialize(),

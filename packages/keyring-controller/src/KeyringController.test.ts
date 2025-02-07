@@ -706,7 +706,7 @@ describe('KeyringController', () => {
         it('should throw error if keyringId is invalid', async () => {
           await withController(async ({ controller }) => {
             await expect(
-              controller.exportSeedPhrase(password, 'invalid-id')
+              controller.exportSeedPhrase(password, 'invalid-id'),
             ).rejects.toThrow('Keyring not found');
           });
         });
@@ -725,7 +725,8 @@ describe('KeyringController', () => {
         });
 
         it('should throw invalid password error with valid keyringId', async () => {
-          await withController(async ({ controller, encryptor, initialState }) => {
+          await withController(
+            async ({ controller, encryptor, initialState }) => {
               const keyringId = initialState.keyringsMetadata[0].id;
               jest
                 .spyOn(encryptor, 'decrypt')
@@ -3601,7 +3602,7 @@ describe('KeyringController', () => {
           }
         });
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         messenger.subscribe('KeyringController:stateChange', listener);
 
         await controller.submitPassword(password);
