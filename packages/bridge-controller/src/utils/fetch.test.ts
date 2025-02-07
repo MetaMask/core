@@ -16,10 +16,6 @@ jest.mock('@metamask/controller-utils', () => ({
 }));
 
 describe('Bridge utils', () => {
-  describe('fetchBridgeFeatureFlags', () => {
-    it('should fetch bridge feature flags successfully', async () => {
-      const mockResponse = {
-        'extension-config': {
           refreshRate: 3,
           maxRefreshCount: 1,
           support: true,
