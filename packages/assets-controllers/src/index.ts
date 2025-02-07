@@ -148,12 +148,7 @@ export type {
   RatesControllerPollingStartedEvent,
   RatesControllerPollingStoppedEvent,
 } from './RatesController';
-export {
-  MultichainBalancesController,
-  // constants
-  MultichainNetworks,
-  MultichainNativeAssets,
-} from './MultichainBalancesController';
+export { MultichainBalancesController } from './MultichainBalancesController';
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
