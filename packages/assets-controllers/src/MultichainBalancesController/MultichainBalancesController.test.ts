@@ -120,6 +120,31 @@ function getRootMessenger(): Messenger<RootAction, RootEvent> {
   return new Messenger<RootAction, RootEvent>();
 }
 
+/**
+ * Constructs the restricted messenger for the MultichainBalancesController.
+ *
+ * @param messenger - The root messenger.
+ * @returns The unrestricted messenger suited for MultichainBalancesController.
+ */
+function getRestrictedMessenger(
+  messenger: Messenger<RootAction, RootEvent>,
+): MultichainBalancesControllerMessenger {
+  return messenger.getRestricted({
+    name: 'MultichainBalancesController',
+    allowedActions: [
+      'SnapController:handleRequest',
+      'AccountsController:listMultichainAccounts',
+      'MultichainAssetsController:getState',
+    ],
+    allowedEvents: [
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+      'AccountsController:accountBalancesUpdated',
+      'MultichainAssetsController:stateChange',
+    ],
+  });
+}
+
 const setupController = ({
   state = getDefaultMultichainBalancesControllerState(),
   mocks,
@@ -131,22 +156,7 @@ const setupController = ({
   };
 } = {}) => {
   const messenger = getRootMessenger();
-
-  const multichainBalancesMessenger: MultichainBalancesControllerMessenger =
-    messenger.getRestricted({
-      name: 'MultichainBalancesController',
-      allowedActions: [
-        'SnapController:handleRequest',
-        'AccountsController:listMultichainAccounts',
-        'MultichainAssetsController:getState',
-      ],
-      allowedEvents: [
-        'AccountsController:accountAdded',
-        'AccountsController:accountRemoved',
-        'AccountsController:accountBalancesUpdated',
-        'MultichainAssetsController:stateChange',
-      ],
-    });
+  const multichainBalancesMessenger = getRestrictedMessenger(messenger);
 
   const mockSnapHandleRequest = jest.fn();
   messenger.registerActionHandler(
@@ -204,7 +214,12 @@ async function waitForAllPromises(): Promise<void> {
 
 describe('BalancesController', () => {
   it('initialize with default state', () => {
-    const { controller } = setupController({});
+    const messenger = getRootMessenger();
+    const multichainBalancesMessenger = getRestrictedMessenger(messenger);
+
+    const controller = new MultichainBalancesController({
+      messenger: multichainBalancesMessenger,
+    });
     expect(controller.state).toStrictEqual({ balances: {} });
   });
 
@@ -279,25 +294,6 @@ describe('BalancesController', () => {
 
     await controller.updateBalance(mockBtcAccount.id);
     await waitForAllPromises();
-
-    expect(controller.state.balances).toStrictEqual({});
-  });
-
-  it('handles errors gracefully when constructing the controller', async () => {
-    // This method will be used in the constructor of that controller.
-    const updateBalanceSpy = jest.spyOn(
-      MultichainBalancesController.prototype,
-      'updateBalance',
-    );
-    updateBalanceSpy.mockRejectedValue(
-      new Error('Something unexpected happen'),
-    );
-
-    const { controller } = setupController({
-      mocks: {
-        listMultichainAccounts: [mockBtcAccount],
-      },
-    });
 
     expect(controller.state.balances).toStrictEqual({});
   });
