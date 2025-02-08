@@ -43,7 +43,7 @@ export const multichainNetworkConfigurations: Record<
   },
 };
 
-export const networksMetadata: Record<string, MultichainNetworkMetadata> = {
+export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
   [BtcScope.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,
