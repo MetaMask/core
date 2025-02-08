@@ -51,14 +51,15 @@ export function getEIP7702ContractAddresses(
 /**
  * Retrieves the EIP-7702 upgrade contract address.
  *
+ * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
  * @returns The upgrade contract address.
  */
 export function getEIP7702UpgradeContractAddress(
+  chainId: Hex,
   messenger: TransactionControllerMessenger,
 ): Hex | undefined {
-  const featureFlags = getFeatureFlags(messenger);
-  return featureFlags?.[FEATURE_FLAG_EIP_7702]?.upgradeContractAddress;
+  return getEIP7702ContractAddresses(chainId, messenger)?.[0];
 }
 
 /**

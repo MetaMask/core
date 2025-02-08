@@ -4,22 +4,24 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 
-import type {
-  FeatureFlagsEIP7702,
-  KeyringControllerSignAuthorization,
-} from './eip7702';
+import type { KeyringControllerSignAuthorization } from './eip7702';
 import {
   DELEGATION_PREFIX,
-  FEATURE_FLAG_EIP_7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
   signAuthorizationList,
 } from './eip7702';
+import {
+  getEIP7702ContractAddresses,
+  getEIP7702SupportedChains,
+} from './feature-flags';
 import { Messenger } from '../../../base-controller/src';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { AuthorizationList } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
+
+jest.mock('../utils/feature-flags');
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -78,27 +80,15 @@ describe('EIP-7702 Utils', () => {
   const getCodeMock = jest.mocked(query);
   let controllerMessenger: TransactionControllerMessenger;
 
+  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
+
+  const getEIP7702ContractAddressesMock = jest.mocked(
+    getEIP7702ContractAddresses,
+  );
+
   let signAuthorizationMock: jest.MockedFn<
     KeyringControllerSignAuthorization['handler']
   >;
-
-  let getFeatureFlagsMock: jest.MockedFunction<
-    RemoteFeatureFlagControllerGetStateAction['handler']
-  >;
-
-  /**
-   * Mock the EIP-7702 feature flags.
-   *
-   * @param featureFlags - The feature flags to mock.
-   */
-  function mockFeatureFlags(featureFlags: FeatureFlagsEIP7702) {
-    getFeatureFlagsMock.mockReturnValueOnce({
-      cacheTimestamp: 1234567890,
-      remoteFeatureFlags: {
-        [FEATURE_FLAG_EIP_7702]: featureFlags,
-      },
-    });
-  }
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -109,24 +99,14 @@ describe('EIP-7702 Utils', () => {
       .fn()
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 
-    getFeatureFlagsMock = jest.fn();
-
     baseMessenger.registerActionHandler(
       'KeyringController:signAuthorization',
       signAuthorizationMock,
     );
 
-    baseMessenger.registerActionHandler(
-      'RemoteFeatureFlagController:getState',
-      getFeatureFlagsMock,
-    );
-
     controllerMessenger = baseMessenger.getRestricted({
       name: 'TransactionController',
-      allowedActions: [
-        'KeyringController:signAuthorization',
-        'RemoteFeatureFlagController:getState',
-      ],
+      allowedActions: ['KeyringController:signAuthorization'],
       allowedEvents: [],
     });
   });
@@ -249,9 +229,10 @@ describe('EIP-7702 Utils', () => {
 
   describe('doesChainSupportEIP7702', () => {
     it('returns true if chain ID in feature flag list', () => {
-      mockFeatureFlags({
-        supportedChains: [CHAIN_ID_2_MOCK, CHAIN_ID_MOCK],
-      });
+      getEIP7702SupportedChainsMock.mockReturnValue([
+        CHAIN_ID_2_MOCK,
+        CHAIN_ID_MOCK,
+      ]);
 
       expect(doesChainSupportEIP7702(CHAIN_ID_MOCK, controllerMessenger)).toBe(
         true,
@@ -259,9 +240,7 @@ describe('EIP-7702 Utils', () => {
     });
 
     it('returns false if chain ID not in feature flag list', () => {
-      mockFeatureFlags({
-        supportedChains: [CHAIN_ID_2_MOCK],
-      });
+      getEIP7702SupportedChainsMock.mockReturnValue([CHAIN_ID_2_MOCK]);
 
       expect(doesChainSupportEIP7702(CHAIN_ID_MOCK, controllerMessenger)).toBe(
         false,
@@ -269,9 +248,10 @@ describe('EIP-7702 Utils', () => {
     });
 
     it('returns true if chain ID in feature flag list with alternate case', () => {
-      mockFeatureFlags({
-        supportedChains: [CHAIN_ID_2_MOCK, CHAIN_ID_MOCK.toUpperCase() as Hex],
-      });
+      getEIP7702SupportedChainsMock.mockReturnValue([
+        CHAIN_ID_2_MOCK,
+        CHAIN_ID_MOCK.toUpperCase() as Hex,
+      ]);
 
       expect(doesChainSupportEIP7702(CHAIN_ID_MOCK, controllerMessenger)).toBe(
         true,
@@ -281,11 +261,7 @@ describe('EIP-7702 Utils', () => {
 
   describe('isAccountUpgradedToEIP7702', () => {
     it('returns true if delegation matches feature flag', async () => {
-      mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_MOCK]: [ADDRESS_2_MOCK],
-        },
-      });
+      getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_2_MOCK]);
 
       getCodeMock.mockResolvedValueOnce(
         `${DELEGATION_PREFIX}${remove0x(ADDRESS_2_MOCK)}`,
@@ -305,11 +281,9 @@ describe('EIP-7702 Utils', () => {
     });
 
     it('returns true if delegation matches feature flag with alternate case', async () => {
-      mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_MOCK]: [ADDRESS_3_MOCK.toUpperCase() as Hex],
-        },
-      });
+      getEIP7702ContractAddressesMock.mockReturnValue([
+        ADDRESS_3_MOCK.toUpperCase() as Hex,
+      ]);
 
       getCodeMock.mockResolvedValueOnce(
         `${DELEGATION_PREFIX}${remove0x(ADDRESS_3_MOCK)}`,
@@ -329,11 +303,7 @@ describe('EIP-7702 Utils', () => {
     });
 
     it('returns false if delegation does not match feature flag', async () => {
-      mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_MOCK]: [ADDRESS_3_MOCK],
-        },
-      });
+      getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
       getCodeMock.mockResolvedValueOnce(
         `${DELEGATION_PREFIX}${remove0x(ADDRESS_2_MOCK)}`,
@@ -353,11 +323,7 @@ describe('EIP-7702 Utils', () => {
     });
 
     it('returns false if no code', async () => {
-      mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_MOCK]: [ADDRESS_3_MOCK],
-        },
-      });
+      getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
       getCodeMock.mockResolvedValueOnce('0x');
 
@@ -375,11 +341,7 @@ describe('EIP-7702 Utils', () => {
     });
 
     it('returns false if not delegation code', async () => {
-      mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_MOCK]: [ADDRESS_3_MOCK],
-        },
-      });
+      getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
       getCodeMock.mockResolvedValueOnce(
         '0x1234567890123456789012345678901234567890123456789012345678901234567890',

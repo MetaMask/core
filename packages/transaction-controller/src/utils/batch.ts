@@ -8,7 +8,6 @@ import {
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type { TransactionController, TransactionControllerMessenger } from '..';
 import { projectLogger } from '../logger';
 import {
@@ -17,6 +16,7 @@ import {
   type TransactionBatchResult,
   type TransactionParams,
 } from '../types';
+import { getEIP7702UpgradeContractAddress } from './feature-flags';
 
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
@@ -80,7 +80,10 @@ export async function addTransactionBatch(
   };
 
   if (!isSupported) {
-    const upgradeContractAddress = getEIP7702UpgradeContractAddress(messenger);
+    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+      chainId,
+      messenger,
+    );
 
     if (!upgradeContractAddress) {
       throw rpcErrors.internal('Upgrade contract address not found');
