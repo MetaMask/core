@@ -14,7 +14,7 @@ import type {
 } from '@metamask/network-controller';
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
-import { nonEvmNetworkChainIdByAccountAddress } from './utils';
+import { getChainIdForNonEvmAddress } from './utils';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -361,7 +361,7 @@ export class MultichainNetworkController extends BaseController<
     }
 
     // Handle switching to non-EVM network
-    const nonEvmChainId = nonEvmNetworkChainIdByAccountAddress(accountAddress);
+    const nonEvmChainId = getChainIdForNonEvmAddress(accountAddress);
     const isSameNonEvmNetwork =
       nonEvmChainId === this.state.selectedMultichainNetworkChainId;
 
