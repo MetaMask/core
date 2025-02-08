@@ -93,9 +93,9 @@ export type MultichainNetworkControllerState = {
    */
   multichainNetworksMetadata: Record<string, MultichainNetworkMetadata>;
   /**
-   * Whether the non-EVM network is selected by the wallet.
+   * Whether EVM or non-EVM network is selected
    */
-  nonEvmSelected: boolean;
+  isEvmSelected: boolean;
 };
 
 /**
@@ -108,7 +108,7 @@ export const getDefaultMultichainNetworkControllerState =
     multichainNetworkConfigurationsByChainId: {},
     selectedMultichainNetworkChainId: SolScope.Mainnet,
     multichainNetworksMetadata: {},
-    nonEvmSelected: false,
+    isEvmSelected: true,
   });
 
 /**
@@ -205,7 +205,7 @@ const multichainNetworkControllerMetadata = {
   multichainNetworkConfigurationsByChainId: { persist: true, anonymous: true },
   selectedMultichainNetworkChainId: { persist: true, anonymous: true },
   multichainNetworksMetadata: { persist: true, anonymous: true },
-  nonEvmSelected: { persist: true, anonymous: true },
+  isEvmSelected: { persist: true, anonymous: true },
 } satisfies StateMetadata<MultichainNetworkControllerState>;
 
 /**
@@ -268,7 +268,7 @@ export class MultichainNetworkController extends BaseController<
       if (nonEvmChainId === this.state.selectedMultichainNetworkChainId) {
         // Indicate that the non-EVM network is selected
         this.update((state) => {
-          state.nonEvmSelected = true;
+          state.isEvmSelected = false;
         });
 
         // Notify listeners that setActiveNetwork was called
@@ -296,7 +296,7 @@ export class MultichainNetworkController extends BaseController<
 
       this.update((state) => {
         state.selectedMultichainNetworkChainId = nonEvmChainId;
-        state.nonEvmSelected = true;
+        state.isEvmSelected = false;
       });
 
       return;
@@ -317,7 +317,7 @@ export class MultichainNetworkController extends BaseController<
 
     // Indicate that the non-EVM network is not selected
     this.update((state) => {
-      state.nonEvmSelected = false;
+      state.isEvmSelected = true;
     });
 
     // Prevent setting same network
@@ -348,14 +348,14 @@ export class MultichainNetworkController extends BaseController<
 
     // Handle switching to EVM network
     if (isEvmAccount) {
-      if (!this.state.nonEvmSelected) {
+      if (this.state.isEvmSelected) {
         // No need to update if already on evm network
         return;
       }
 
       // Make EVM network active
       this.update((state) => {
-        state.nonEvmSelected = false;
+        state.isEvmSelected = true;
       });
       return;
     }
@@ -368,14 +368,14 @@ export class MultichainNetworkController extends BaseController<
     if (isSameNonEvmNetwork) {
       // No need to update if already on the same non-EVM network
       this.update((state) => {
-        state.nonEvmSelected = true;
+        state.isEvmSelected = false;
       });
       return;
     }
 
     this.update((state) => {
       state.selectedMultichainNetworkChainId = nonEvmChainId;
-      state.nonEvmSelected = true;
+      state.isEvmSelected = false;
     });
   };
 

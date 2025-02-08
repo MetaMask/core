@@ -103,7 +103,7 @@ function setupController({
       selectedMultichainNetworkChainId: SolScope.Mainnet,
       multichainNetworkConfigurationsByChainId: multichainNetworkConfigurations,
       multichainNetworksMetadata: {},
-      nonEvmSelected: false,
+      isEvmSelected: true,
       ...options.state,
     },
   });
@@ -192,7 +192,7 @@ describe('MultichainNetworkController', () => {
       );
 
       // Check that the a non evm network is now active
-      expect(controller.state.nonEvmSelected).toBe(true);
+      expect(controller.state.isEvmSelected).toBe(false);
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
@@ -215,7 +215,7 @@ describe('MultichainNetworkController', () => {
     it('should set non-EVM network when different non-EVM chain ID is active', async () => {
       // By default, Solana is selected but is NOT active (aka EVM network is active)
       const { controller, publishSpy } = setupController({
-        options: { state: { nonEvmSelected: true } },
+        options: { state: { isEvmSelected: false } },
       });
 
       // Set active network to Bitcoin
@@ -229,7 +229,7 @@ describe('MultichainNetworkController', () => {
       );
 
       // Check that BTC network is now active
-      expect(controller.state.nonEvmSelected).toBe(true);
+      expect(controller.state.isEvmSelected).toBe(false);
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
@@ -252,7 +252,7 @@ describe('MultichainNetworkController', () => {
       });
 
       // Check that EVM network is selected
-      expect(controller.state.nonEvmSelected).toBe(false);
+      expect(controller.state.isEvmSelected).toBe(true);
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
@@ -277,7 +277,7 @@ describe('MultichainNetworkController', () => {
       });
 
       // Check that EVM network is selected
-      expect(controller.state.nonEvmSelected).toBe(false);
+      expect(controller.state.isEvmSelected).toBe(true);
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
@@ -291,51 +291,51 @@ describe('MultichainNetworkController', () => {
   });
 
   describe('handle AccountsController:selectedAccountChange event', () => {
-    it('nonEvmSelected should be false when both switching to EVM account and EVM network is already active', async () => {
+    it('isEvmSelected should be true when both switching to EVM account and EVM network is already active', async () => {
       // By default, Solana is selected but EVM network is active
       const { controller, triggerSelectedAccountChange } = setupController();
 
       // EVM network is currently active
-      expect(controller.state.nonEvmSelected).toBe(false);
+      expect(controller.state.isEvmSelected).toBe(true);
 
       // Switching to EVM account
       triggerSelectedAccountChange(EthAccountType.Eoa);
 
       // EVM network is still active
-      expect(controller.state.nonEvmSelected).toBe(false);
+      expect(controller.state.isEvmSelected).toBe(true);
     });
 
     it('should switch to EVM network if non-EVM network is previously active', async () => {
       // By default, Solana is selected and active
       const { controller, triggerSelectedAccountChange } = setupController({
-        options: { state: { nonEvmSelected: true } },
+        options: { state: { isEvmSelected: false } },
         getNetworkState: jest.fn().mockImplementation(() => ({
           selectedNetworkClientId: InfuraNetworkType.mainnet,
         })),
       });
 
       // non-EVM network is currently active
-      expect(controller.state.nonEvmSelected).toBe(true);
+      expect(controller.state.isEvmSelected).toBe(false);
 
       // Switching to EVM account
       triggerSelectedAccountChange(EthAccountType.Eoa);
 
       // EVM network is now active
-      expect(controller.state.nonEvmSelected).toBe(false);
+      expect(controller.state.isEvmSelected).toBe(true);
     });
     it('non-EVM network should be active when switching to account of same selected non-EVM network', async () => {
       // By default, Solana is selected and active
       const { controller, triggerSelectedAccountChange } = setupController({
         options: {
           state: {
-            nonEvmSelected: false,
+            isEvmSelected: true,
             selectedMultichainNetworkChainId: SolScope.Mainnet,
           },
         },
       });
 
       // EVM network is currently active
-      expect(controller.state.nonEvmSelected).toBe(false);
+      expect(controller.state.isEvmSelected).toBe(true);
 
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
         SolScope.Mainnet,
@@ -348,7 +348,7 @@ describe('MultichainNetworkController', () => {
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
         SolScope.Mainnet,
       );
-      expect(controller.state.nonEvmSelected).toBe(true);
+      expect(controller.state.isEvmSelected).toBe(false);
     });
 
     it('non-EVM network should change when switching to account on different non-EVM network', async () => {
@@ -356,14 +356,14 @@ describe('MultichainNetworkController', () => {
       const { controller, triggerSelectedAccountChange } = setupController({
         options: {
           state: {
-            nonEvmSelected: true,
+            isEvmSelected: false,
             selectedMultichainNetworkChainId: SolScope.Mainnet,
           },
         },
       });
 
       // Solana is currently active
-      expect(controller.state.nonEvmSelected).toBe(true);
+      expect(controller.state.isEvmSelected).toBe(false);
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
         SolScope.Mainnet,
       );
@@ -375,7 +375,7 @@ describe('MultichainNetworkController', () => {
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
         BtcScope.Mainnet,
       );
-      expect(controller.state.nonEvmSelected).toBe(true);
+      expect(controller.state.isEvmSelected).toBe(false);
     });
   });
 });
