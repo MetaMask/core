@@ -85,6 +85,8 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
   SubmitHistoryEntry,
+  TransactionBatchRequest,
+  TransactionBatchResult,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -133,6 +135,7 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+import { addTransactionBatch } from './utils/batch';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -951,6 +954,18 @@ export class TransactionController extends BaseController<
     networkClientId: NetworkClientId,
   ): Promise<MethodData> {
     return this.#methodDataHelper.lookup(fourBytePrefix, networkClientId);
+  }
+
+  async addTransactionBatch(
+    request: TransactionBatchRequest,
+  ): Promise<TransactionBatchResult> {
+    return await addTransactionBatch({
+      addTransaction: this.addTransaction.bind(this),
+      getChainId: this.#getChainId.bind(this),
+      getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
+      messenger: this.messagingSystem,
+      request,
+    });
   }
 
   /**

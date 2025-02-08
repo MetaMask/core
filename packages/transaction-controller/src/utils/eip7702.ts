@@ -3,6 +3,10 @@ import { query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { createModuleLogger, type Hex, add0x } from '@metamask/utils';
 
+import {
+  getEIP7702ContractAddresses,
+  getEIP7702SupportedChains,
+} from './feature-flags';
 import { ABI_SIMPLE_DELEGATE_CONTRACT } from '../abi/SimpleDelegateContract';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -24,7 +28,6 @@ export type KeyringControllerSignAuthorization = {
   handler: (authorization: KeyringControllerAuthorization) => Promise<string>;
 };
 
-export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 
@@ -46,8 +49,7 @@ export function doesChainSupportEIP7702(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
 ) {
-  const featureFlags = getFeatureFlags(messenger);
-  const supportedChains = featureFlags?.supportedChains ?? [];
+  const supportedChains = getEIP7702SupportedChains(messenger);
 
   return supportedChains.some(
     (supportedChainId) =>
@@ -70,11 +72,7 @@ export async function isAccountUpgradedToEIP7702(
   messenger: TransactionControllerMessenger,
   ethQuery: EthQuery,
 ) {
-  const featureFlags = getFeatureFlags(messenger);
-
-  const contractAddresses =
-    featureFlags?.contractAddresses?.[chainId.toLowerCase() as Hex] ?? [];
-
+  const contractAddresses = getEIP7702ContractAddresses(chainId, messenger);
   const code = await query(ethQuery, 'eth_getCode', [address]);
   const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
 
@@ -261,28 +259,4 @@ function prepareAuthorization(
   log('Prepared authorization', result);
 
   return result;
-}
-
-/**
- * Retrieves the relevant feature flags from the remote feature flag controller.
- *
- * @param messenger - The messenger instance.
- * @returns The feature flags related to EIP-7702.
- */
-function getFeatureFlags(
-  messenger: TransactionControllerMessenger,
-): FeatureFlagsEIP7702 {
-  const featureFlags = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  ).remoteFeatureFlags;
-
-  log('Retrieved all feature flags', featureFlags);
-
-  const relatedFeatureFlags = featureFlags?.[
-    FEATURE_FLAG_EIP_7702
-  ] as FeatureFlagsEIP7702;
-
-  log('Retrieved EIP-7702 feature flags', relatedFeatureFlags);
-
-  return relatedFeatureFlags;
 }
