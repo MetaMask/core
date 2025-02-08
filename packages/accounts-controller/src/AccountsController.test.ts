@@ -307,7 +307,7 @@ function buildAccountsControllerMessenger(messenger = buildMessenger()) {
       'SnapKeyring:accountAssetListUpdated',
       'SnapKeyring:accountBalancesUpdated',
       'SnapKeyring:accountTransactionsUpdated',
-      'MultichainNetworkController:onNetworkChange',
+      'MultichainNetworkController:networkDidChange',
     ],
     allowedActions: [
       'KeyringController:getAccounts',
@@ -360,7 +360,7 @@ function setupAccountsController({
     evmClientId?: string;
     nonEvmChainId?: CaipChainId;
   }) => {
-    messenger.publish('MultichainNetworkController:onNetworkChange', {
+    messenger.publish('MultichainNetworkController:networkDidChange', {
       evmClientId,
       nonEvmChainId,
     });
@@ -1556,7 +1556,7 @@ describe('AccountsController', () => {
     });
   });
 
-  describe('handle MultichainNetworkController:onNetworkChange event', () => {
+  describe('handle MultichainNetworkController:networkDidChange event', () => {
     it('should update selected account to non-EVM account when switching to non-EVM network', () => {
       const messenger = buildMessenger();
       const { accountsController, triggerMultichainNetworkChange } =

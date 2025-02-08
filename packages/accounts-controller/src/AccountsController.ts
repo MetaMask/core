@@ -182,8 +182,8 @@ export type AccountsControllerAccountAssetListUpdatedEvent = {
 };
 
 // Re-define event here to avoid circular dependency with MultichainNetworkController
-type MultichainNetworkSetActiveNetworkEvent = {
-  type: `MultichainNetworkController:onNetworkChange`;
+type MultichainNetworkControllerNetworkDidChangeEvent = {
+  type: `MultichainNetworkController:networkDidChange`;
   payload: [
     {
       evmClientId?: string;
@@ -198,7 +198,7 @@ export type AllowedEvents =
   | SnapKeyringAccountAssetListUpdatedEvent
   | SnapKeyringAccountBalancesUpdatedEvent
   | SnapKeyringAccountTransactionsUpdatedEvent
-  | MultichainNetworkSetActiveNetworkEvent;
+  | MultichainNetworkControllerNetworkDidChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
@@ -1231,7 +1231,7 @@ export class AccountsController extends BaseController<
 
     // Handle account change when multichain network is changed
     this.messagingSystem.subscribe(
-      'MultichainNetworkController:onNetworkChange',
+      'MultichainNetworkController:networkDidChange',
       this.#handleMultichainNetworkChange,
     );
   }

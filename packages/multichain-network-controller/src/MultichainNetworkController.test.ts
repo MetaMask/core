@@ -196,7 +196,7 @@ describe('MultichainNetworkController', () => {
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
-        'MultichainNetworkController:onNetworkChange',
+        'MultichainNetworkController:networkDidChange',
         { nonEvmChainId: SolScope.Mainnet },
       );
     });
@@ -233,7 +233,7 @@ describe('MultichainNetworkController', () => {
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
-        'MultichainNetworkController:onNetworkChange',
+        'MultichainNetworkController:networkDidChange',
         { nonEvmChainId: BtcScope.Mainnet },
       );
     });
@@ -256,7 +256,7 @@ describe('MultichainNetworkController', () => {
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
-        'MultichainNetworkController:onNetworkChange',
+        'MultichainNetworkController:networkDidChange',
         { evmClientId: selectedNetworkClientId },
       );
 
@@ -281,7 +281,7 @@ describe('MultichainNetworkController', () => {
 
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
-        'MultichainNetworkController:onNetworkChange',
+        'MultichainNetworkController:networkDidChange',
         { evmClientId },
       );
 
