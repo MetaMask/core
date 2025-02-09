@@ -1571,6 +1571,7 @@ describe('TransactionController', () => {
         deviceConfirmedOn: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
+        nestedTransactions: undefined,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: undefined,
         securityAlertResponse: undefined,

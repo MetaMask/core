@@ -71,8 +71,8 @@ export async function addTransactionBatch(
     throw rpcErrors.internal('Account upgraded to unsupported contract');
   }
 
-  const allParams = transactions.map((tx) => tx.params);
-  const batchParams = generateEIP7702BatchTransaction(from, allParams);
+  const nestedTransactions = transactions.map((tx) => tx.params);
+  const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
     from,
@@ -96,6 +96,7 @@ export async function addTransactionBatch(
   log('Adding batch transaction', txParams, networkClientId);
 
   const { transactionMeta } = await addTransaction(txParams, {
+    nestedTransactions,
     networkClientId,
     requireApproval,
   });

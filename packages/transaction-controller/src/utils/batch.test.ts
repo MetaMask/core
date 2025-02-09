@@ -68,7 +68,22 @@ describe('Batch Utils', () => {
         from: FROM_MOCK,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         requireApproval: true,
-        transactions: [],
+        transactions: [
+          {
+            params: {
+              to: TO_MOCK,
+              data: DATA_MOCK,
+              value: VALUE_MOCK,
+            },
+          },
+          {
+            params: {
+              to: TO_MOCK,
+              data: DATA_MOCK,
+              value: VALUE_MOCK,
+            },
+          },
+        ],
       },
     };
   });
@@ -103,10 +118,10 @@ describe('Batch Utils', () => {
           data: DATA_MOCK,
           value: VALUE_MOCK,
         },
-        {
+        expect.objectContaining({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           requireApproval: true,
-        },
+        }),
       );
     });
 
@@ -145,10 +160,51 @@ describe('Batch Utils', () => {
           type: TransactionEnvelopeType.setCode,
           authorizationList: [{ address: CONTRACT_ADDRESS_MOCK }],
         },
-        {
+        expect.objectContaining({
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           requireApproval: true,
-        },
+        }),
+      );
+    });
+
+    it('passes nested transactions to add transaction', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          nestedTransactions: [
+            {
+              to: TO_MOCK,
+              data: DATA_MOCK,
+              value: VALUE_MOCK,
+            },
+            {
+              to: TO_MOCK,
+              data: DATA_MOCK,
+              value: VALUE_MOCK,
+            },
+          ],
+        }),
       );
     });
 

@@ -218,6 +218,12 @@ type TransactionMetaBase = {
   layer1GasFee?: Hex;
 
   /**
+   * Parameters for any nested transactions encoded in the data.
+   * For example, in an atomic batch transaction via EIP-7702.
+   */
+  nestedTransactions?: BatchTransactionParams[];
+
+  /**
    * The ID of the network client used by the transaction.
    */
   networkClientId: NetworkClientId;

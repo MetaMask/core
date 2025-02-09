@@ -87,6 +87,7 @@ import type {
   SubmitHistoryEntry,
   TransactionBatchRequest,
   TransactionBatchResult,
+  BatchTransactionParams,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -978,6 +979,7 @@ export class TransactionController extends BaseController<
    * @param options.actionId - Unique ID to prevent duplicate requests.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.method - RPC method that requested the transaction.
+   * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
    * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param options.securityAlertResponse - Response from security validator.
@@ -996,6 +998,7 @@ export class TransactionController extends BaseController<
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
       method?: string;
+      nestedTransactions?: BatchTransactionParams[];
       networkClientId: NetworkClientId;
       origin?: string;
       requireApproval?: boolean | undefined;
@@ -1015,6 +1018,7 @@ export class TransactionController extends BaseController<
       actionId,
       deviceConfirmedOn,
       method,
+      nestedTransactions,
       networkClientId,
       origin,
       requireApproval,
@@ -1080,6 +1084,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           id: random(),
           isFirstTimeInteraction: undefined,
+          nestedTransactions,
           networkClientId,
           origin,
           securityAlertResponse,
@@ -2551,7 +2556,7 @@ export class TransactionController extends BaseController<
 
       const rawTx = await this.#trace(
         { name: 'Sign', parentContext: traceContext },
-        () => this.signTransaction(transactionMeta, transactionMeta.txParams),
+        () => this.signTransaction(transactionMeta),
       );
 
       if (!this.beforePublish(transactionMeta)) {
@@ -3139,8 +3144,9 @@ export class TransactionController extends BaseController<
 
   private async signTransaction(
     transactionMeta: TransactionMeta,
-    txParams: TransactionParams,
   ): Promise<string | undefined> {
+    const { txParams } = transactionMeta;
+
     log('Signing transaction', txParams);
 
     const { authorizationList, from } = txParams;
@@ -3193,6 +3199,7 @@ export class TransactionController extends BaseController<
     const transactionMetaWithRsv = {
       ...this.updateTransactionMetaRSV(transactionMetaFromHook, signedTx),
       status: TransactionStatus.signed as const,
+      txParams: finalTxParams,
     };
 
     this.updateTransaction(
