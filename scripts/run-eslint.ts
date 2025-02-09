@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { ESLint } from 'eslint';
+import execa from 'execa';
 import fs from 'fs';
 import path from 'path';
 import yargs from 'yargs';
@@ -20,7 +21,8 @@ type CommandLineArguments = {
    */
   cache: boolean;
   /**
-   * A list of specific files to lint.
+   * A list of specific files to lint, in addition to those matched by
+   * `onlyChangedFiles`.
    */
   files: string[];
   /**
@@ -32,6 +34,10 @@ type CommandLineArguments = {
    * process (true) or not (false).
    */
   quiet: boolean;
+  /**
+   * Whether to only lint changed files (true) or not (false).
+   */
+  onlyChangedFiles: boolean;
 };
 
 /**
@@ -120,9 +126,15 @@ async function main() {
   const {
     cache,
     fix,
-    files: givenFiles,
+    files: specificFilePatterns,
+    onlyChangedFiles,
     quiet,
   } = await parseCommandLineArguments();
+
+  const changedFilePaths = onlyChangedFiles ? await getChangedFilePaths() : [];
+  const filePatternsToLint = Array.from(
+    new Set([...specificFilePatterns, ...changedFilePaths]),
+  );
 
   const eslint = new ESLint({
     cache,
@@ -132,22 +144,40 @@ async function main() {
       !quiet || severity === ESLintMessageSeverity.Error,
   });
 
-  const fileFilteredResults = await eslint.lintFiles(
-    givenFiles.length > 0 ? givenFiles : ['.'],
+  if (changedFilePaths.length > 0) {
+    console.log('Running files through ESLint, please wait...');
+    for (const filePath of changedFilePaths) {
+      console.log(`- ${filePath}`);
+    }
+  } else {
+    console.log('Running all files through ESLint, please wait...');
+  }
+  const lintFilesPromise = eslint.lintFiles(
+    filePatternsToLint.length > 0 ? filePatternsToLint : ['.'],
   );
+  const allResults = await lintFilesPromise;
+  const resultsForLintableFiles = allResults.filter((result) => {
+    return !result.messages.some((message) => {
+      return message.message.startsWith('File ignored');
+    });
+  });
 
-  const filteredResults = quiet
-    ? ESLint.getErrorResults(fileFilteredResults)
-    : fileFilteredResults;
+  const resultsFilteredByType = quiet
+    ? ESLint.getErrorResults(resultsForLintableFiles)
+    : resultsForLintableFiles;
 
-  await printResults(eslint, filteredResults);
+  await printResults(eslint, resultsFilteredByType);
 
   if (fix) {
-    await ESLint.outputFixes(filteredResults);
+    await ESLint.outputFixes(resultsFilteredByType);
   }
-  const hasErrors = filteredResults.some((result) => result.errorCount > 0);
+  const hasErrors = resultsFilteredByType.some(
+    (result) => result.errorCount > 0,
+  );
 
-  const qualityGateStatus = applyWarningThresholdsQualityGate(filteredResults);
+  const qualityGateStatus = applyWarningThresholdsQualityGate(
+    resultsFilteredByType,
+  );
 
   if (hasErrors || qualityGateStatus === QualityGateStatus.Increase) {
     process.exitCode = 1;
@@ -160,7 +190,9 @@ async function main() {
  * @returns The parsed arguments.
  */
 async function parseCommandLineArguments(): Promise<CommandLineArguments> {
-  const { cache, fix, quiet, ...rest } = await yargs(process.argv.slice(2))
+  const { cache, fix, quiet, onlyChangedFiles, ...rest } = await yargs(
+    process.argv.slice(2),
+  )
     .option('cache', {
       type: 'boolean',
       description: 'Cache results to speed up future runs',
@@ -177,13 +209,19 @@ async function parseCommandLineArguments(): Promise<CommandLineArguments> {
       description: 'Only report or fix errors',
       default: false,
     })
+    .option('onlyChangedFiles', {
+      type: 'boolean',
+      description:
+        'Only lint files that have been changed within the current branch',
+      default: false,
+    })
     .help()
     .string('_').argv;
 
   // Type assertion: The types for `yargs`'s `string` method are wrong.
   const files = rest._ as string[];
 
-  return { cache, fix, quiet, files };
+  return { cache, fix, quiet, files, onlyChangedFiles };
 }
 
 /**
@@ -329,6 +367,8 @@ function applyWarningThresholdsQualityGate(
         status = QualityGateStatus.Decrease;
       }
     } else {
+      console.log(`\n${chalk.green('No lint violations found')}`);
+
       status = QualityGateStatus.NoChange;
     }
   }
@@ -516,4 +556,68 @@ function sortRules(ruleIdA: string, ruleIdB: string): number {
     return 1;
   }
   return namespaceA.localeCompare(namespaceB) || ruleA.localeCompare(ruleB);
+}
+
+/**
+ * Gets the list of changed files between the current branch and the base branch.
+ *
+ * @returns The list of changed files.
+ */
+async function getChangedFilePaths(): Promise<string[]> {
+  const baseBranch = await getBaseBranch();
+  const { stdout } = await execa('git', ['diff', baseBranch, '--name-only']);
+  return stdout
+    .trim()
+    .split('\n')
+    .map((line) => line.trim());
+}
+
+/**
+ * Finds the point at which the current branch was cut by walking backward from
+ * `HEAD` until we find a commit that matches a remote branch.
+ *
+ * @returns The name of the base branch.
+ */
+async function getBaseBranch(): Promise<string> {
+  const { stdout } = await execa('git', ['log', '--pretty=format:%H%x09%D']);
+
+  const identifiedCommits = stdout
+    .trim()
+    .split('\n')
+    .map((line) => {
+      const [commitId, rest = ''] = line.trim().split('\t');
+      const rawRefNames = rest.split(/[ ]*(,|->)[ ]*/u);
+      const branchRefs = rawRefNames.reduce(
+        (workingBranchNames: string[], rawRefName) => {
+          if (rawRefName === 'HEAD' || rawRefName.startsWith('tag: ')) {
+            return workingBranchNames;
+          }
+          return [...workingBranchNames, rawRefName];
+        },
+        [],
+      );
+      return { commitId, branchRefs };
+    });
+
+  const baseBranch = identifiedCommits.find((identifiedCommit) => {
+    return identifiedCommit.branchRefs.some((branchRef) => {
+      return branchRef.startsWith('origin/');
+    });
+  });
+
+  if (baseBranch) {
+    return baseBranch.commitId;
+  }
+
+  console.error('Could not find base branch. Assuming origin/main.');
+
+  const mainBranch = identifiedCommits.find((identifiedCommit) => {
+    return identifiedCommit.branchRefs.includes('origin/main');
+  });
+
+  if (mainBranch) {
+    return mainBranch.commitId;
+  }
+
+  throw new Error('Could not find base branch');
 }
