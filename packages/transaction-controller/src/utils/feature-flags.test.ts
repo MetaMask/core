@@ -137,5 +137,17 @@ describe('Feature Flags Utils', () => {
         getEIP7702UpgradeContractAddress(CHAIN_ID_MOCK, controllerMessenger),
       ).toBeUndefined();
     });
+
+    it('returns undefined if empty contract addresses', () => {
+      mockFeatureFlags({
+        contractAddresses: {
+          [CHAIN_ID_MOCK]: [],
+        },
+      });
+
+      expect(
+        getEIP7702UpgradeContractAddress(CHAIN_ID_MOCK, controllerMessenger),
+      ).toBeUndefined();
+    });
   });
 });

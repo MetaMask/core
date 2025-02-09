@@ -77,7 +77,7 @@ export async function isAccountUpgradedToEIP7702(
   const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
 
   const hasDelegation =
-    code.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
+    code?.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
 
   const delegationAddress = hasDelegation
     ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))

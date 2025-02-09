@@ -322,10 +322,28 @@ describe('EIP-7702 Utils', () => {
       });
     });
 
-    it('returns false if no code', async () => {
+    it('returns false if empty code', async () => {
       getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
 
       getCodeMock.mockResolvedValueOnce('0x');
+
+      expect(
+        await isAccountUpgradedToEIP7702(
+          ADDRESS_MOCK,
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          ETH_QUERY_MOCK,
+        ),
+      ).toStrictEqual({
+        delegationAddress: undefined,
+        isSupported: false,
+      });
+    });
+
+    it('returns false if no code', async () => {
+      getEIP7702ContractAddressesMock.mockReturnValue([ADDRESS_3_MOCK]);
+
+      getCodeMock.mockResolvedValueOnce(undefined);
 
       expect(
         await isAccountUpgradedToEIP7702(
