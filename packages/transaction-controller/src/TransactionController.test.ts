@@ -92,6 +92,7 @@ import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
+import { addTransactionBatch } from './utils/batch';
 
 type UnrestrictedMessenger = Messenger<
   TransactionControllerActions | AllowedActions,
@@ -111,6 +112,7 @@ jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MethodDataHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
+jest.mock('./utils/batch');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
@@ -485,6 +487,7 @@ describe('TransactionController', () => {
   const getAccountAddressRelationshipMock = jest.mocked(
     getAccountAddressRelationship,
   );
+  const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
 
   let mockEthQuery: EthQuery;
@@ -6073,6 +6076,28 @@ describe('TransactionController', () => {
           blockTime: 123,
         },
       );
+    });
+  });
+
+  describe('addTransactionBatch', () => {
+    it('invokes util', async () => {
+      const { controller } = setupController();
+
+      await controller.addTransactionBatch({
+        from: ACCOUNT_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        transactions: [
+          {
+            params: {
+              to: ACCOUNT_2_MOCK,
+              data: '0x123456',
+              value: '0x123',
+            },
+          },
+        ],
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
     });
   });
 });
