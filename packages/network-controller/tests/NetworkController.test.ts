@@ -376,20 +376,6 @@ describe('NetworkController', () => {
                   },
                 ],
               },
-              "0x5": Object {
-                "blockExplorerUrls": Array [],
-                "chainId": "0x5",
-                "defaultRpcEndpointIndex": 0,
-                "name": "Goerli",
-                "nativeCurrency": "GoerliETH",
-                "rpcEndpoints": Array [
-                  Object {
-                    "networkClientId": "goerli",
-                    "type": "infura",
-                    "url": "https://goerli.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
               "0xaa36a7": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xaa36a7",
@@ -401,20 +387,6 @@ describe('NetworkController', () => {
                     "networkClientId": "sepolia",
                     "type": "infura",
                     "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe704": Object {
-                "blockExplorerUrls": Array [],
-                "chainId": "0xe704",
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea Goerli",
-                "nativeCurrency": "LineaETH",
-                "rpcEndpoints": Array [
-                  Object {
-                    "networkClientId": "linea-goerli",
-                    "type": "infura",
-                    "url": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
                   },
                 ],
               },
@@ -458,21 +430,21 @@ describe('NetworkController', () => {
       await withController(
         {
           state: {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
             networkConfigurationsByChainId: {
-              [ChainId.goerli]: {
+              [ChainId.sepolia]: {
                 blockExplorerUrls: ['https://block.explorer'],
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
-                name: 'Goerli',
-                nativeCurrency: 'GoerliETH',
+                name: 'Sepolia',
+                nativeCurrency: 'SepoliaETH',
                 rpcEndpoints: [
                   {
-                    name: 'Goerli',
-                    networkClientId: InfuraNetworkType.goerli,
+                    name: 'Sepolia',
+                    networkClientId: InfuraNetworkType.sepolia,
                     type: RpcEndpointType.Infura,
-                    url: 'https://goerli.infura.io/v3/{infuraProjectId}',
+                    url: 'https://sepolia.infura.io/v3/{infuraProjectId}',
                   },
                 ],
               },
@@ -489,21 +461,21 @@ describe('NetworkController', () => {
           expect(controller.state).toMatchInlineSnapshot(`
             Object {
               "networkConfigurationsByChainId": Object {
-                "0x5": Object {
+                "0xaa36a7": Object {
                   "blockExplorerUrls": Array [
                     "https://block.explorer",
                   ],
-                  "chainId": "0x5",
+                  "chainId": "0xaa36a7",
                   "defaultBlockExplorerUrlIndex": 0,
                   "defaultRpcEndpointIndex": 0,
-                  "name": "Goerli",
-                  "nativeCurrency": "GoerliETH",
+                  "name": "Sepolia",
+                  "nativeCurrency": "SepoliaETH",
                   "rpcEndpoints": Array [
                     Object {
-                      "name": "Goerli",
-                      "networkClientId": "goerli",
+                      "name": "Sepolia",
+                      "networkClientId": "sepolia",
                       "type": "infura",
-                      "url": "https://goerli.infura.io/v3/{infuraProjectId}",
+                      "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
                     },
                   ],
                 },
@@ -516,7 +488,7 @@ describe('NetworkController', () => {
                   "status": "unknown",
                 },
               },
-              "selectedNetworkClientId": "goerli",
+              "selectedNetworkClientId": "sepolia",
             }
           `);
         },
@@ -554,6 +526,12 @@ describe('NetworkController', () => {
 
   describe('initializeProvider', () => {
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
       const infuraChainId = ChainId[infuraNetworkType];
       // TODO: Update these names
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
@@ -735,6 +713,12 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
@@ -842,10 +826,10 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              selectedNetworkClientId: InfuraNetworkType.goerli,
+              selectedNetworkClientId: InfuraNetworkType.sepolia,
               networkConfigurationsByChainId: {
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
@@ -890,10 +874,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                chainId: BUILT_IN_NETWORKS[NetworkType.sepolia].chainId,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker[InfuraNetworkType.goerli],
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker[InfuraNetworkType.sepolia],
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -1101,30 +1085,6 @@ describe('NetworkController', () => {
             mockCreateNetworkClient().mockReturnValue(buildFakeClient());
 
             expect(controller.getNetworkClientRegistry()).toStrictEqual({
-              goerli: {
-                blockTracker: expect.anything(),
-                configuration: {
-                  chainId: '0x5',
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: 'GoerliETH',
-                  type: NetworkClientType.Infura,
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-              },
-              'linea-goerli': {
-                blockTracker: expect.anything(),
-                configuration: {
-                  type: NetworkClientType.Infura,
-                  infuraProjectId,
-                  chainId: '0xe704',
-                  ticker: 'LineaETH',
-                  network: InfuraNetworkType['linea-goerli'],
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-              },
               'linea-mainnet': {
                 blockTracker: expect.anything(),
                 configuration: {
@@ -1274,6 +1234,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraChainId = ChainId[infuraNetworkType];
 
       // False negative - this is a string.
@@ -1707,8 +1674,8 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
-                  [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                    InfuraNetworkType.goerli,
+                  [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                    InfuraNetworkType.sepolia,
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -1743,7 +1710,7 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // We are purposefully not awaiting this promise.
                       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      controller.setProviderType(NetworkType.goerli);
+                      controller.setProviderType(NetworkType.sepolia);
                     },
                   },
                 ]),
@@ -1770,10 +1737,10 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
-                  chainId: ChainId[InfuraNetworkType.goerli],
+                  chainId: ChainId[InfuraNetworkType.sepolia],
                   infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker[InfuraNetworkType.goerli],
+                  network: InfuraNetworkType.sepolia,
+                  ticker: NetworksTicker[InfuraNetworkType.sepolia],
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -1785,7 +1752,7 @@ describe('NetworkController', () => {
               await controller.lookupNetwork();
 
               expect(
-                controller.state.networksMetadata[InfuraNetworkType.goerli]
+                controller.state.networksMetadata[InfuraNetworkType.sepolia]
                   .status,
               ).toBe('unknown');
             },
@@ -1800,8 +1767,8 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
-                  [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                    InfuraNetworkType.goerli,
+                  [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                    InfuraNetworkType.sepolia,
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -1840,7 +1807,7 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // We are purposefully not awaiting this promise.
                       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      controller.setProviderType(NetworkType.goerli);
+                      controller.setProviderType(NetworkType.sepolia);
                     },
                   },
                 ]),
@@ -1869,10 +1836,10 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
-                  chainId: ChainId[InfuraNetworkType.goerli],
+                  chainId: ChainId[InfuraNetworkType.sepolia],
                   infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker[InfuraNetworkType.goerli],
+                  network: InfuraNetworkType.sepolia,
+                  ticker: NetworksTicker[InfuraNetworkType.sepolia],
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -1885,7 +1852,7 @@ describe('NetworkController', () => {
               await controller.lookupNetwork();
 
               expect(
-                controller.state.networksMetadata[NetworkType.goerli]
+                controller.state.networksMetadata[NetworkType.sepolia]
                   .EIPS[1559],
               ).toBe(false);
               expect(
@@ -1904,8 +1871,8 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
-                  [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                    InfuraNetworkType.goerli,
+                  [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                    InfuraNetworkType.sepolia,
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -1940,7 +1907,7 @@ describe('NetworkController', () => {
                     beforeCompleting: () => {
                       // We are purposefully not awaiting this promise.
                       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                      controller.setProviderType(NetworkType.goerli);
+                      controller.setProviderType(NetworkType.sepolia);
                     },
                   },
                 ]),
@@ -1967,10 +1934,10 @@ describe('NetworkController', () => {
                 })
                 .mockReturnValue(fakeNetworkClients[0])
                 .calledWith({
-                  chainId: ChainId[InfuraNetworkType.goerli],
+                  chainId: ChainId[InfuraNetworkType.sepolia],
                   infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker[InfuraNetworkType.goerli],
+                  network: InfuraNetworkType.sepolia,
+                  ticker: NetworksTicker[InfuraNetworkType.sepolia],
                   type: NetworkClientType.Infura,
                 })
                 .mockReturnValue(fakeNetworkClients[1]);
@@ -2148,6 +2115,13 @@ describe('NetworkController', () => {
 
   describe('setProviderType', () => {
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       // False negative - this is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the Infura network "${infuraNetworkType}"`, () => {
@@ -2273,9 +2247,9 @@ describe('NetworkController', () => {
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-        await messenger.call('NetworkController:setProviderType', 'goerli');
+        await messenger.call('NetworkController:setProviderType', 'sepolia');
 
-        expect(controller.state.selectedNetworkClientId).toBe('goerli');
+        expect(controller.state.selectedNetworkClientId).toBe('sepolia');
       });
     });
   });
@@ -2296,6 +2270,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraChainId = ChainId[infuraNetworkType];
 
       // False negative - this is a string.
@@ -2818,6 +2799,12 @@ describe('NetworkController', () => {
 
   describe('resetConnection', () => {
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
       // False negative - this is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
@@ -2936,6 +2923,13 @@ describe('NetworkController', () => {
     // eslint-disable-next-line jest/valid-title
     describe(name, () => {
       for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+        if (
+          infuraNetworkType === InfuraNetworkType.goerli ||
+          infuraNetworkType === InfuraNetworkType['linea-goerli']
+        ) {
+          continue;
+        }
+
         const infuraChainId = ChainId[infuraNetworkType];
 
         // False negative - this is a string.
@@ -3051,6 +3045,13 @@ describe('NetworkController', () => {
     // eslint-disable-next-line jest/valid-title
     describe(name, () => {
       for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+        if (
+          infuraNetworkType === InfuraNetworkType.goerli ||
+          infuraNetworkType === InfuraNetworkType['linea-goerli']
+        ) {
+          continue;
+        }
+
         const infuraChainId = ChainId[infuraNetworkType];
 
         // False negative - this is a string.
@@ -3309,6 +3310,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
@@ -3418,14 +3426,14 @@ describe('NetworkController', () => {
           const mainnetRpcEndpoint = buildInfuraRpcEndpoint(
             InfuraNetworkType.mainnet,
           );
-          const goerliRpcEndpoint = buildInfuraRpcEndpoint(
-            InfuraNetworkType.goerli,
+          const sepoliaRpcEndpoint = buildInfuraRpcEndpoint(
+            InfuraNetworkType.sepolia,
           );
           expect(() =>
             controller.addNetwork(
               buildAddNetworkFields({
                 chainId: ChainId.mainnet,
-                rpcEndpoints: [mainnetRpcEndpoint, goerliRpcEndpoint],
+                rpcEndpoints: [mainnetRpcEndpoint, sepoliaRpcEndpoint],
               }),
             ),
           ).toThrow(
@@ -3460,6 +3468,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
@@ -3520,6 +3535,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
@@ -3857,10 +3879,10 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              selectedNetworkClientId: InfuraNetworkType.goerli,
+              selectedNetworkClientId: InfuraNetworkType.sepolia,
               networkConfigurationsByChainId: {
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -4512,6 +4534,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
@@ -4669,9 +4698,9 @@ describe('NetworkController', () => {
     });
 
     it('throws (albeit for a different reason) if there are two or more different Infura RPC endpoints', async () => {
-      const [mainnetRpcEndpoint, goerliRpcEndpoint] = [
+      const [mainnetRpcEndpoint, sepoliaRpcEndpoint] = [
         buildInfuraRpcEndpoint(InfuraNetworkType.mainnet),
-        buildInfuraRpcEndpoint(InfuraNetworkType.goerli),
+        buildInfuraRpcEndpoint(InfuraNetworkType.sepolia),
       ];
       const networkConfigurationToUpdate = buildNetworkConfiguration({
         name: 'Mainnet',
@@ -4684,10 +4713,10 @@ describe('NetworkController', () => {
           state: buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
             networkConfigurationsByChainId: {
               [ChainId.mainnet]: networkConfigurationToUpdate,
-              [ChainId.goerli]: buildNetworkConfiguration({
-                name: 'Goerli',
-                chainId: ChainId.goerli,
-                rpcEndpoints: [goerliRpcEndpoint],
+              [ChainId.sepolia]: buildNetworkConfiguration({
+                name: 'Sepolia',
+                chainId: ChainId.sepolia,
+                rpcEndpoints: [sepoliaRpcEndpoint],
               }),
             },
           }),
@@ -4696,11 +4725,11 @@ describe('NetworkController', () => {
           await expect(
             controller.updateNetwork(ChainId.mainnet, {
               ...networkConfigurationToUpdate,
-              rpcEndpoints: [mainnetRpcEndpoint, goerliRpcEndpoint],
+              rpcEndpoints: [mainnetRpcEndpoint, sepoliaRpcEndpoint],
             }),
           ).rejects.toThrow(
             new Error(
-              "Could not update network to point to same RPC endpoint as existing network for chain 0x5 ('Goerli')",
+              "Could not update network to point to same RPC endpoint as existing network for chain 0xaa36a7 ('Sepolia')",
             ),
           );
         },
@@ -4879,6 +4908,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
@@ -10702,8 +10738,8 @@ describe('NetworkController', () => {
             state: {
               networkConfigurationsByChainId: {
                 '0x1337': networkConfigurationToUpdate,
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
                 '0x9999': buildCustomNetworkConfiguration({
                   chainId: '0x9999',
@@ -10721,7 +10757,7 @@ describe('NetworkController', () => {
           },
           async ({ controller }) => {
             const newRpcEndpoint = buildInfuraRpcEndpoint(
-              InfuraNetworkType.goerli,
+              InfuraNetworkType.sepolia,
             );
             await expect(() =>
               controller.updateNetwork('0x1337', {
@@ -10731,7 +10767,7 @@ describe('NetworkController', () => {
               }),
             ).rejects.toThrow(
               new Error(
-                "Could not update network to point to same RPC endpoint as existing network for chain 0x5 ('Goerli')",
+                "Could not update network to point to same RPC endpoint as existing network for chain 0xaa36a7 ('Sepolia')",
               ),
             );
           },
@@ -11313,6 +11349,13 @@ describe('NetworkController', () => {
 
     describe('if nothing is being changed', () => {
       for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+        if (
+          infuraNetworkType === InfuraNetworkType.goerli ||
+          infuraNetworkType === InfuraNetworkType['linea-goerli']
+        ) {
+          continue;
+        }
+
         const infuraChainId = ChainId[infuraNetworkType];
 
         // This is a string.
@@ -11658,6 +11701,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraChainId = ChainId[infuraNetworkType];
 
       // This is a string.
@@ -11760,11 +11810,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              selectedNetworkClientId: InfuraNetworkType.goerli,
+              selectedNetworkClientId: InfuraNetworkType.sepolia,
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration(),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -11787,7 +11837,7 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              selectedNetworkClientId: InfuraNetworkType.goerli,
+              selectedNetworkClientId: InfuraNetworkType.sepolia,
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   rpcEndpoints: [
@@ -11803,8 +11853,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -11838,11 +11888,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              selectedNetworkClientId: InfuraNetworkType.goerli,
+              selectedNetworkClientId: InfuraNetworkType.sepolia,
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration(),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -11861,11 +11911,11 @@ describe('NetworkController', () => {
         await withController(
           {
             state: {
-              selectedNetworkClientId: InfuraNetworkType.goerli,
+              selectedNetworkClientId: InfuraNetworkType.sepolia,
               networkConfigurationsByChainId: {
                 '0x1337': networkConfig,
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -11889,6 +11939,13 @@ describe('NetworkController', () => {
   describe('rollbackToPreviousProvider', () => {
     describe('when called not following any network switches', () => {
       for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+        if (
+          infuraNetworkType === InfuraNetworkType.goerli ||
+          infuraNetworkType === InfuraNetworkType['linea-goerli']
+        ) {
+          continue;
+        }
+
         // False negative - this is a string.
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
@@ -11936,6 +11993,13 @@ describe('NetworkController', () => {
     });
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
+      if (
+        infuraNetworkType === InfuraNetworkType.goerli ||
+        infuraNetworkType === InfuraNetworkType['linea-goerli']
+      ) {
+        continue;
+      }
+
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
@@ -12572,8 +12636,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -12582,7 +12646,7 @@ describe('NetworkController', () => {
             const fakeProvider = buildFakeProvider();
             const fakeNetworkClient = buildFakeClient(fakeProvider);
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
 
             const networkWillChange = waitForPublishedEvents({
               messenger,
@@ -12617,8 +12681,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -12627,7 +12691,7 @@ describe('NetworkController', () => {
             const fakeProvider = buildFakeProvider();
             const fakeNetworkClient = buildFakeClient(fakeProvider);
             mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
 
             const networkDidChange = waitForPublishedEvents({
               messenger,
@@ -12664,8 +12728,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -12679,10 +12743,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker.goerli,
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker.sepolia,
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -12693,9 +12757,9 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               })
               .mockReturnValue(fakeNetworkClients[1]);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
             expect(controller.state.selectedNetworkClientId).toBe(
-              InfuraNetworkType.goerli,
+              InfuraNetworkType.sepolia,
             );
 
             await controller.rollbackToPreviousProvider();
@@ -12724,8 +12788,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -12749,10 +12813,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker.goerli,
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker.sepolia,
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -12763,7 +12827,7 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               })
               .mockReturnValue(fakeNetworkClients[1]);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
             expect(
               controller.state.networksMetadata[
                 controller.state.selectedNetworkClientId
@@ -12815,8 +12879,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -12842,10 +12906,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker.goerli,
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker.sepolia,
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -12856,7 +12920,7 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               })
               .mockReturnValue(fakeNetworkClients[1]);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
 
             await controller.rollbackToPreviousProvider();
 
@@ -12890,8 +12954,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -12905,10 +12969,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker.goerli,
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker.sepolia,
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -12919,7 +12983,7 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               })
               .mockReturnValue(fakeNetworkClients[1]);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
             const networkClientBefore = controller.getSelectedNetworkClient();
             assert(networkClientBefore, 'Network client is somehow unset');
 
@@ -12952,8 +13016,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -12967,10 +13031,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker.goerli,
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker.sepolia,
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -12981,7 +13045,7 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               })
               .mockReturnValue(fakeNetworkClients[1]);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
 
             const promiseForInfuraIsUnblocked = waitForPublishedEvents({
               messenger,
@@ -13014,8 +13078,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -13046,10 +13110,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker.goerli,
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker.sepolia,
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -13060,9 +13124,9 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               })
               .mockReturnValue(fakeNetworkClients[1]);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
             expect(
-              controller.state.networksMetadata[InfuraNetworkType.goerli]
+              controller.state.networksMetadata[InfuraNetworkType.sepolia]
                 .status,
             ).toBe('unavailable');
 
@@ -13092,8 +13156,8 @@ describe('NetworkController', () => {
                     }),
                   ],
                 }),
-                [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.goerli,
+                [ChainId.sepolia]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.sepolia,
                 ),
               },
             },
@@ -13128,10 +13192,10 @@ describe('NetworkController', () => {
             ];
             mockCreateNetworkClient()
               .calledWith({
-                chainId: ChainId.goerli,
+                chainId: ChainId.sepolia,
                 infuraProjectId,
-                network: InfuraNetworkType.goerli,
-                ticker: NetworksTicker.goerli,
+                network: InfuraNetworkType.sepolia,
+                ticker: NetworksTicker.sepolia,
                 type: NetworkClientType.Infura,
               })
               .mockReturnValue(fakeNetworkClients[0])
@@ -13142,9 +13206,9 @@ describe('NetworkController', () => {
                 type: NetworkClientType.Custom,
               })
               .mockReturnValue(fakeNetworkClients[1]);
-            await controller.setActiveNetwork(InfuraNetworkType.goerli);
+            await controller.setActiveNetwork(InfuraNetworkType.sepolia);
             expect(
-              controller.state.networksMetadata[InfuraNetworkType.goerli]
+              controller.state.networksMetadata[InfuraNetworkType.sepolia]
                 .EIPS[1559],
             ).toBe(false);
 
