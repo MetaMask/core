@@ -1,4 +1,5 @@
 import {
+  type CaipChainId,
   hasProperty,
   isCaipAccountId,
   isCaipChainId,
@@ -27,27 +28,39 @@ import type {
 
 /**
  * Asserts that a scope string and its associated scope object are supported.
+ *
  * @param scopeString - The scope string against which to assert support.
  * @param scopeObject - The scope object against which to assert support.
- * @param options - An object containing the following properties:
- * @param options.isChainIdSupported - A predicate that determines if a chainID is supported.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 export const assertScopeSupported = (
   scopeString: string,
   scopeObject: NormalizedScopeObject,
   {
-    isChainIdSupported,
+    isEvmChainIdSupported,
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods,
   }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
+    isEvmChainIdSupported: (chainId: Hex) => boolean;
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
   },
 ) => {
   const { methods, notifications } = scopeObject;
-  if (!isSupportedScopeString(scopeString, isChainIdSupported)) {
+  if (
+    !isSupportedScopeString(scopeString, {
+      isEvmChainIdSupported,
+      isNonEvmScopeSupported,
+    })
+  ) {
     throw Caip25Errors.requestedChainsNotSupportedError();
   }
 
   const allMethodsSupported = methods.every((method) =>
-    isSupportedMethod(scopeString, method),
+    isSupportedMethod(scopeString, method, { getNonEvmSupportedMethods }),
   );
 
   if (!allMethodsSupported) {
@@ -66,26 +79,36 @@ export const assertScopeSupported = (
 
 /**
  * Asserts that all scope strings and their associated scope objects are supported.
+ *
  * @param scopes - The scopes object against which to assert support.
- * @param options - An object containing the following properties:
- * @param options.isChainIdSupported - A predicate that determines if a chainID is supported.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 export const assertScopesSupported = (
   scopes: NormalizedScopesObject,
   {
-    isChainIdSupported,
+    isEvmChainIdSupported,
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods,
   }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
+    isEvmChainIdSupported: (chainId: Hex) => boolean;
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
   },
 ) => {
   for (const [scopeString, scopeObject] of Object.entries(scopes)) {
     assertScopeSupported(scopeString, scopeObject, {
-      isChainIdSupported,
+      isEvmChainIdSupported,
+      isNonEvmScopeSupported,
+      getNonEvmSupportedMethods,
     });
   }
 };
 /**
  * Asserts that an object is a valid ExternalScopeObject.
+ *
  * @param obj - The object to assert.
  */
 function assertIsExternalScopeObject(
@@ -163,6 +186,7 @@ function assertIsExternalScopeObject(
 
 /**
  * Asserts that a scope string is a valid ExternalScopeString.
+ *
  * @param scopeString - The scope string to assert.
  */
 function assertIsExternalScopeString(
@@ -178,6 +202,7 @@ function assertIsExternalScopeString(
 
 /**
  * Asserts that an object is a valid ExternalScopesObject.
+ *
  * @param obj - The object to assert.
  */
 export function assertIsExternalScopesObject(
@@ -195,6 +220,7 @@ export function assertIsExternalScopesObject(
 
 /**
  * Asserts that an object is a valid InternalScopeObject.
+ *
  * @param obj - The object to assert.
  */
 function assertIsInternalScopeObject(
@@ -217,6 +243,7 @@ function assertIsInternalScopeObject(
 
 /**
  * Asserts that a scope string is a valid InternalScopeString.
+ *
  * @param scopeString - The scope string to assert.
  */
 export function assertIsInternalScopeString(
@@ -232,6 +259,7 @@ export function assertIsInternalScopeString(
 
 /**
  * Asserts that an object is a valid InternalScopesObject.
+ *
  * @param obj - The object to assert.
  */
 export function assertIsInternalScopesObject(
