@@ -33,13 +33,6 @@ import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
 import * as uuidModule from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { flushPromises } from '../../../tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 import { getAccountAddressRelationship } from './api/accounts-api';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -79,6 +72,7 @@ import {
   TransactionType,
   WalletDevice,
 } from './types';
+import { addTransactionBatch } from './utils/batch';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -92,7 +86,13 @@ import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
-import { addTransactionBatch } from './utils/batch';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { flushPromises } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 
 type UnrestrictedMessenger = Messenger<
   TransactionControllerActions | AllowedActions,
@@ -275,6 +275,7 @@ function buildMockBlockTracker(
 
 /**
  * Builds a mock gas fee flow.
+ *
  * @returns The mocked gas fee flow.
  */
 function buildMockGasFeeFlow(): jest.Mocked<GasFeeFlow> {
@@ -638,6 +639,7 @@ describe('TransactionController', () => {
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
           'AccountsController:getSelectedAccount',
+          'AccountsController:getState',
         ],
         allowedEvents: [],
       });
@@ -646,6 +648,11 @@ describe('TransactionController', () => {
     unrestrictedMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
       mockGetSelectedAccount,
+    );
+
+    unrestrictedMessenger.registerActionHandler(
+      'AccountsController:getState',
+      () => ({}) as never,
     );
 
     const controller = new TransactionController({
@@ -1372,7 +1379,7 @@ describe('TransactionController', () => {
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         result_type: 'Malicious',
         reason: 'blur_farming',
         description:
@@ -4167,8 +4174,6 @@ describe('TransactionController', () => {
       const key = 'testKey';
       const value = 123;
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       incomingTransactionHelperClassMock.mock.calls[0][0].updateCache(
         (cache) => {
           cache[key] = value;
@@ -4468,24 +4473,18 @@ describe('TransactionController', () => {
           txParams: { ...TRANSACTION_META_MOCK.txParams, nonce: '0x1' },
         };
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_1 = {
           ...confirmed,
           id: 'testId2',
           status: TransactionStatus.submitted,
         };
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_2 = {
           ...duplicate_1,
           id: 'testId3',
           status: TransactionStatus.approved,
         };
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_3 = {
           ...duplicate_1,
           id: 'testId4',
@@ -5107,8 +5106,6 @@ describe('TransactionController', () => {
 
       controller.updateSecurityAlertResponse(transactionMeta.id, {
         reason: 'NA',
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         result_type: 'Benign',
       });
 
@@ -5130,8 +5127,6 @@ describe('TransactionController', () => {
         // @ts-expect-error Intentionally passing invalid input
         controller.updateSecurityAlertResponse(undefined, {
           reason: 'NA',
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           result_type: 'Benign',
         }),
       ).toThrow(
@@ -5198,8 +5193,6 @@ describe('TransactionController', () => {
       expect(() =>
         controller.updateSecurityAlertResponse('456', {
           reason: 'NA',
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           result_type: 'Benign',
         }),
       ).toThrow(

@@ -621,7 +621,7 @@ describe('validation', () => {
       ).toBeUndefined();
     });
 
-    it('throw if external and type 4', async () => {
+    it('throws if external and type 4', async () => {
       await expect(
         validateTransactionOrigin({
           from: FROM_MOCK,
@@ -639,7 +639,7 @@ describe('validation', () => {
       );
     });
 
-    it('throw if external and authorization list provided', async () => {
+    it('throws if external and authorization list provided', async () => {
       await expect(
         validateTransactionOrigin({
           from: FROM_MOCK,
@@ -648,12 +648,30 @@ describe('validation', () => {
           selectedAddress: '0x123',
           txParams: {
             authorizationList: [],
-            from: FROM_MOCK,
+            from: TO_MOCK,
           } as TransactionParams,
         }),
       ).rejects.toThrow(
         rpcErrors.invalidParams(
           'External EIP-7702 transactions are not supported',
+        ),
+      );
+    });
+
+    it('throws if external and to is internal account', async () => {
+      await expect(
+        validateTransactionOrigin({
+          from: FROM_MOCK,
+          internalAccounts: [TO_MOCK],
+          origin: 'test-origin',
+          selectedAddress: '0x123',
+          txParams: {
+            to: TO_MOCK,
+          } as TransactionParams,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.invalidParams(
+          'External transactions to internal accounts are not supported',
         ),
       );
     });

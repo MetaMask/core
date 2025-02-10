@@ -1,5 +1,8 @@
 import type { TypedTransaction } from '@ethereumjs/tx';
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetStateAction,
+} from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -347,6 +350,7 @@ const controllerName = 'TransactionController';
  */
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetStateAction
   | AddApprovalRequest
   | KeyringControllerSignAuthorization
   | NetworkControllerFindNetworkClientIdByChainIdAction
@@ -1067,9 +1071,11 @@ export class TransactionController extends BaseController<
         : await this.getPermittedAccounts?.(origin);
 
     const selectedAddress = this.#getSelectedAccount().address;
+    const internalAccounts = this.#getInternalAccounts();
 
     await validateTransactionOrigin({
       from: txParams.from,
+      internalAccounts,
       origin,
       permittedAddresses,
       selectedAddress,
@@ -3755,6 +3761,14 @@ export class TransactionController extends BaseController<
 
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
+
+  #getInternalAccounts(): string[] {
+    const state = this.messagingSystem.call('AccountsController:getState');
+
+    return Object.values(state.internalAccounts?.accounts ?? {})
+      .filter((account) => account.type === 'eip155:eoa')
+      .map((account) => account.address);
   }
 
   #updateSubmitHistory(transactionMeta: TransactionMeta, hash: string): void {

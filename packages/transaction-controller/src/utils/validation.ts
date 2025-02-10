@@ -25,6 +25,7 @@ type GasFieldsToValidate =
  *
  * @param options - Options bag.
  * @param options.from - The address from which the transaction is initiated.
+ * @param options.internalAccounts - The internal accounts added to the wallet.
  * @param options.origin - The origin or source of the transaction.
  * @param options.permittedAddresses - The permitted accounts for the given origin.
  * @param options.selectedAddress - The currently selected Ethereum address in the wallet.
@@ -33,20 +34,22 @@ type GasFieldsToValidate =
  */
 export async function validateTransactionOrigin({
   from,
+  internalAccounts,
   origin,
   permittedAddresses,
   selectedAddress,
   txParams,
 }: {
   from: string;
+  internalAccounts?: string[];
   origin?: string;
   permittedAddresses?: string[];
-  selectedAddress: string;
+  selectedAddress?: string;
   txParams: TransactionParams;
 }) {
   const isInternal = origin === ORIGIN_METAMASK;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
-  const { authorizationList, type } = txParams;
+  const { authorizationList, to, type } = txParams;
 
   if (isInternal && from !== selectedAddress) {
     throw rpcErrors.internal({
@@ -69,6 +72,12 @@ export async function validateTransactionOrigin({
   ) {
     throw rpcErrors.invalidParams(
       'External EIP-7702 transactions are not supported',
+    );
+  }
+
+  if (isExternal && internalAccounts?.includes(to as string)) {
+    throw rpcErrors.invalidParams(
+      'External transactions to internal accounts are not supported',
     );
   }
 }
