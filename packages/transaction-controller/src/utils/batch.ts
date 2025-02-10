@@ -8,6 +8,10 @@ import {
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
 } from './eip7702';
+import {
+  getEIP7702SupportedChains,
+  getEIP7702UpgradeContractAddress,
+} from './feature-flags';
 import type { TransactionController, TransactionControllerMessenger } from '..';
 import { projectLogger } from '../logger';
 import {
@@ -16,7 +20,6 @@ import {
   type TransactionBatchResult,
   type TransactionParams,
 } from '../types';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
 
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
@@ -24,6 +27,12 @@ type AddTransactionBatchRequest = {
   getEthQuery: (networkClientId: string) => EthQuery;
   messenger: TransactionControllerMessenger;
   request: TransactionBatchRequest;
+};
+
+type IsAtomicBatchSupportedRequest = {
+  address: Hex;
+  getEthQuery: (chainId: Hex) => EthQuery;
+  messenger: TransactionControllerMessenger;
 };
 
 const log = createModuleLogger(projectLogger, 'batch');
@@ -106,4 +115,38 @@ export async function addTransactionBatch(
   return {
     batchId,
   };
+}
+
+/**
+ * Determine which chains support atomic batch transactions for the given account.
+ *
+ * @param request - The request object including the account address and necessary callbacks.
+ * @returns The chain IDs that support atomic batch transactions.
+ */
+export async function isAtomicBatchSupported(
+  request: IsAtomicBatchSupportedRequest,
+): Promise<Hex[]> {
+  const { address, getEthQuery, messenger } = request;
+
+  const chainIds7702 = getEIP7702SupportedChains(messenger);
+  const chainIds: Hex[] = [];
+
+  for (const chainId of chainIds7702) {
+    const ethQuery = getEthQuery(chainId);
+
+    const { isSupported, delegationAddress } = await isAccountUpgradedToEIP7702(
+      address,
+      chainId,
+      messenger,
+      ethQuery,
+    );
+
+    if (!delegationAddress || isSupported) {
+      chainIds.push(chainId);
+    }
+  }
+
+  log('Atomic batch supported chains', chainIds);
+
+  return chainIds;
 }

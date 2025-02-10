@@ -95,9 +95,14 @@ import {
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
+import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import type { KeyringControllerSignAuthorization } from './utils/eip7702';
-import { signAuthorizationList } from './utils/eip7702';
+import {
+  isAccountUpgradedToEIP7702,
+  signAuthorizationList,
+} from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import { getEIP7702SupportedChains } from './utils/feature-flags';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -136,7 +141,6 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
-import { addTransactionBatch } from './utils/batch';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -957,6 +961,12 @@ export class TransactionController extends BaseController<
     return this.#methodDataHelper.lookup(fourBytePrefix, networkClientId);
   }
 
+  /**
+   * Add a batch of transactions to be submitted after approval.
+   *
+   * @param request - Request object containing the transactions to add.
+   * @returns Result object containing the generated batch ID.
+   */
   async addTransactionBatch(
     request: TransactionBatchRequest,
   ): Promise<TransactionBatchResult> {
@@ -966,6 +976,20 @@ export class TransactionController extends BaseController<
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       messenger: this.messagingSystem,
       request,
+    });
+  }
+
+  /**
+   * Determine which chains support atomic batch transactions with the given account address.
+   *
+   * @param address - The address of the account to check.
+   * @returns  The supported chain IDs.
+   */
+  async isAtomicBatchSupported(address: Hex): Promise<Hex[]> {
+    return isAtomicBatchSupported({
+      address,
+      getEthQuery: (chainId) => this.#getEthQuery({ chainId }),
+      messenger: this.messagingSystem,
     });
   }
 

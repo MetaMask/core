@@ -1,12 +1,15 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { addTransactionBatch } from './batch';
+import { addTransactionBatch, isAtomicBatchSupported } from './batch';
 import {
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   isAccountUpgradedToEIP7702,
 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
+import {
+  getEIP7702SupportedChains,
+  getEIP7702UpgradeContractAddress,
+} from './feature-flags';
 import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
@@ -18,6 +21,8 @@ jest.mock('./feature-flags');
 
 type AddBatchTransactionOptions = Parameters<typeof addTransactionBatch>[0];
 
+const CHAIN_ID_MOCK = '0x123';
+const CHAIN_ID_2_MOCK = '0xabc';
 const FROM_MOCK = '0x1234567890123456789012345678901234567890';
 const CONTRACT_ADDRESS_MOCK = '0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd';
 const TO_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
@@ -33,62 +38,66 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 describe('Batch Utils', () => {
-  let addTransactionMock: jest.MockedFn<
-    AddBatchTransactionOptions['addTransaction']
-  >;
-
-  let getChainIdMock: jest.MockedFunction<
-    AddBatchTransactionOptions['getChainId']
-  >;
-
-  let request: AddBatchTransactionOptions;
-
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
+  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
+
   const isAccountUpgradedToEIP7702Mock = jest.mocked(
     isAccountUpgradedToEIP7702,
   );
+
   const getEIP7702UpgradeContractAddressMock = jest.mocked(
     getEIP7702UpgradeContractAddress,
   );
+
   const generateEIP7702BatchTransactionMock = jest.mocked(
     generateEIP7702BatchTransaction,
   );
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-    addTransactionMock = jest.fn();
-    getChainIdMock = jest.fn();
-
-    request = {
-      addTransaction: addTransactionMock,
-      getChainId: getChainIdMock,
-      getEthQuery: GET_ETH_QUERY_MOCK,
-      messenger: MESSENGER_MOCK,
-      request: {
-        from: FROM_MOCK,
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        requireApproval: true,
-        transactions: [
-          {
-            params: {
-              to: TO_MOCK,
-              data: DATA_MOCK,
-              value: VALUE_MOCK,
-            },
-          },
-          {
-            params: {
-              to: TO_MOCK,
-              data: DATA_MOCK,
-              value: VALUE_MOCK,
-            },
-          },
-        ],
-      },
-    };
-  });
-
   describe('addTransactionBatch', () => {
+    let addTransactionMock: jest.MockedFn<
+      AddBatchTransactionOptions['addTransaction']
+    >;
+
+    let getChainIdMock: jest.MockedFunction<
+      AddBatchTransactionOptions['getChainId']
+    >;
+
+    let request: AddBatchTransactionOptions;
+
+    beforeEach(() => {
+      jest.resetAllMocks();
+      addTransactionMock = jest.fn();
+      getChainIdMock = jest.fn();
+
+      request = {
+        addTransaction: addTransactionMock,
+        getChainId: getChainIdMock,
+        getEthQuery: GET_ETH_QUERY_MOCK,
+        messenger: MESSENGER_MOCK,
+        request: {
+          from: FROM_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          requireApproval: true,
+          transactions: [
+            {
+              params: {
+                to: TO_MOCK,
+                data: DATA_MOCK,
+                value: VALUE_MOCK,
+              },
+            },
+            {
+              params: {
+                to: TO_MOCK,
+                data: DATA_MOCK,
+                value: VALUE_MOCK,
+              },
+            },
+          ],
+        },
+      };
+    });
+
     it('adds generated EIP-7702 transaction', async () => {
       doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
 
@@ -241,6 +250,50 @@ describe('Batch Utils', () => {
       await expect(addTransactionBatch(request)).rejects.toThrow(
         rpcErrors.internal('Upgrade contract address not found'),
       );
+    });
+  });
+
+  describe('isAtomicBatchSupported', () => {
+    it('includes feature flag chains if not upgraded or upgraded to supported contract', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValueOnce([
+        CHAIN_ID_MOCK,
+        CHAIN_ID_2_MOCK,
+      ]);
+
+      isAccountUpgradedToEIP7702Mock
+        .mockResolvedValueOnce({
+          isSupported: false,
+          delegationAddress: undefined,
+        })
+        .mockResolvedValueOnce({
+          isSupported: true,
+          delegationAddress: CONTRACT_ADDRESS_MOCK,
+        });
+
+      const result = await isAtomicBatchSupported({
+        address: FROM_MOCK,
+        getEthQuery: GET_ETH_QUERY_MOCK,
+        messenger: MESSENGER_MOCK,
+      });
+
+      expect(result).toStrictEqual([CHAIN_ID_MOCK, CHAIN_ID_2_MOCK]);
+    });
+
+    it('excludes chain if upgraded to different contract', async () => {
+      getEIP7702SupportedChainsMock.mockReturnValueOnce([CHAIN_ID_MOCK]);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        isSupported: false,
+        delegationAddress: CONTRACT_ADDRESS_MOCK,
+      });
+
+      const result = await isAtomicBatchSupported({
+        address: FROM_MOCK,
+        getEthQuery: GET_ETH_QUERY_MOCK,
+        messenger: MESSENGER_MOCK,
+      });
+
+      expect(result).toStrictEqual([]);
     });
   });
 });
