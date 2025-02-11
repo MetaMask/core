@@ -35,8 +35,7 @@
     "import-x/namespace": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
-    "jsdoc/check-tag-names": 5,
-    "jsdoc/tag-lines": 1
+    "jsdoc/check-tag-names": 5
   },
   "packages/assets-controllers/src/AssetsContractController.test.ts": {
     "import-x/order": 3
@@ -132,8 +131,8 @@
   "packages/assets-controllers/src/TokensController.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 13,
-    "jsdoc/tag-lines": 3
+    "jsdoc/check-tag-names": 10,
+    "jsdoc/tag-lines": 2
   },
   "packages/assets-controllers/src/assetsUtil.test.ts": {
     "jest/no-conditional-in-test": 2
