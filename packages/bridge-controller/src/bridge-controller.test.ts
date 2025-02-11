@@ -570,6 +570,35 @@ describe('BridgeController', function () {
       );
       expect(allowance).toBe('100000000000000000000');
     });
+
+    it('should throw an error when no provider is found', async () => {
+      // Setup
+      const mockMessenger = {
+        call: jest.fn().mockImplementation((methodName) => {
+          if (methodName === 'NetworkController:getNetworkClientById') {
+            return { provider: null };
+          }
+          if (methodName === 'NetworkController:getState') {
+            return { selectedNetworkClientId: 'testNetworkClientId' };
+          }
+          return undefined;
+        }),
+        registerActionHandler: jest.fn(),
+        publish: jest.fn(),
+        registerInitialEventPayload: jest.fn(),
+      } as unknown as jest.Mocked<BridgeControllerMessenger>;
+
+      const controller = new BridgeController({
+        messenger: mockMessenger,
+        clientId: BridgeClientId.EXTENSION,
+        getLayer1GasFee: jest.fn(),
+      });
+
+      // Test
+      await expect(
+        controller.getBridgeERC20Allowance('0xContractAddress', '0x1'),
+      ).rejects.toThrow('No provider found');
+    });
   });
 
   it.each([
