@@ -2,11 +2,11 @@ import nock, { cleanAll } from 'nock';
 
 import { TokenDiscoveryApiService } from './token-discovery-api-service';
 import { TEST_API_URLS } from '../test/constants';
-import type { TokenTrendingResponseItem } from '../types';
+import type { MoralisTokenResponseItem } from '../types';
 
 describe('TokenDiscoveryApiService', () => {
   let service: TokenDiscoveryApiService;
-  const mockTrendingResponse: TokenTrendingResponseItem[] = [
+  const mockTrendingResponse: MoralisTokenResponseItem[] = [
     {
       chain_id: '1',
       token_address: '0x123',
