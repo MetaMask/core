@@ -186,7 +186,7 @@ type MultichainNetworkControllerNetworkDidChangeEvent = {
   type: `MultichainNetworkController:networkDidChange`;
   payload: [
     {
-      evmClientId?: string;
+      evmNetworkClientId?: string;
       nonEvmChainId?: CaipChainId;
     },
   ];
@@ -1139,14 +1139,14 @@ export class AccountsController extends BaseController<
    * Handles the change in multichain network by updating the selected account.
    *
    * @param args - The arguments to handle the multichain network change.
-   * @param args.evmClientId - The ID of the EVM client.
+   * @param args.evmNetworkClientId - The ID of the EVM client.
    * @param args.nonEvmChainId - The CAIP2 of the non-EVM chain.
    */
   readonly #handleMultichainNetworkChange = ({
-    evmClientId,
+    evmNetworkClientId,
     nonEvmChainId,
   }: {
-    evmClientId?: string;
+    evmNetworkClientId?: string;
     nonEvmChainId?: CaipChainId;
   }) => {
     let accountId: string;
@@ -1157,7 +1157,7 @@ export class AccountsController extends BaseController<
         this.getSelectedMultichainAccount(nonEvmChainId);
       // @ts-expect-error - This should never be undefined, otherwise it's a bug that should be handled
       accountId = lastSelectedNonEvmAccount.id;
-    } else if (evmClientId) {
+    } else if (evmNetworkClientId) {
       // Update selected account to evm account
       const lastSelectedEvmAccount = this.getSelectedAccount();
       accountId = lastSelectedEvmAccount.id;

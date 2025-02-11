@@ -341,7 +341,7 @@ function setupAccountsController({
     AccountsControllerEvents | AllowedEvents
   >;
   triggerMultichainNetworkChange: (args: {
-    evmClientId?: string;
+    evmNetworkClientId?: string;
     nonEvmChainId?: CaipChainId;
   }) => void;
 } {
@@ -354,14 +354,14 @@ function setupAccountsController({
   });
 
   const triggerMultichainNetworkChange = ({
-    evmClientId,
+    evmNetworkClientId,
     nonEvmChainId,
   }: {
-    evmClientId?: string;
+    evmNetworkClientId?: string;
     nonEvmChainId?: CaipChainId;
   }) => {
     messenger.publish('MultichainNetworkController:networkDidChange', {
-      evmClientId,
+      evmNetworkClientId,
       nonEvmChainId,
     });
   };
@@ -1603,7 +1603,7 @@ describe('AccountsController', () => {
 
       // Triggered from network switch to Bitcoin mainnet
       triggerMultichainNetworkChange({
-        evmClientId: EthScope.Mainnet,
+        evmNetworkClientId: EthScope.Mainnet,
       });
 
       // ETH mainnet account is now selected

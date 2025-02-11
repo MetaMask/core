@@ -154,7 +154,7 @@ describe('MultichainNetworkController', () => {
       const { controller } = setupController();
       await expect(
         controller.setActiveNetwork({
-          evmClientId: InfuraNetworkType.mainnet,
+          evmNetworkClientId: InfuraNetworkType.mainnet,
           nonEvmChainId: SolScope.Mainnet,
         }),
       ).rejects.toThrow('Cannot set both EVM and non-EVM networks!');
@@ -169,11 +169,11 @@ describe('MultichainNetworkController', () => {
       ).rejects.toThrow('Non-EVM chain ID is required!');
     });
 
-    it('should throw error if evmClientId is an empty string', async () => {
+    it('should throw error if evmNetworkClientId is an empty string', async () => {
       const { controller } = setupController();
       await expect(
         controller.setActiveNetwork({
-          evmClientId: '',
+          evmNetworkClientId: '',
         }),
       ).rejects.toThrow('EVM client ID is required!');
     });
@@ -249,7 +249,7 @@ describe('MultichainNetworkController', () => {
       });
 
       await controller.setActiveNetwork({
-        evmClientId: selectedNetworkClientId,
+        evmNetworkClientId: selectedNetworkClientId,
       });
 
       // Check that EVM network is selected
@@ -258,7 +258,7 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:networkDidChange',
-        { evmClientId: selectedNetworkClientId },
+        { evmNetworkClientId: selectedNetworkClientId },
       );
 
       // Check that NetworkController:setActiveNetwork was not called
@@ -271,10 +271,10 @@ describe('MultichainNetworkController', () => {
           selectedNetworkClientId: InfuraNetworkType.mainnet,
         })),
       });
-      const evmClientId = 'linea';
+      const evmNetworkClientId = 'linea';
 
       await controller.setActiveNetwork({
-        evmClientId,
+        evmNetworkClientId,
       });
 
       // Check that EVM network is selected
@@ -283,11 +283,11 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:networkDidChange',
-        { evmClientId },
+        { evmNetworkClientId },
       );
 
       // Check that NetworkController:setActiveNetwork was not called
-      expect(mockSetActiveNetwork).toHaveBeenCalledWith(evmClientId);
+      expect(mockSetActiveNetwork).toHaveBeenCalledWith(evmNetworkClientId);
     });
   });
 

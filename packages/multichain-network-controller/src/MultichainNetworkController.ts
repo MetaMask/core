@@ -137,7 +137,7 @@ export type MultichainNetworkControllerNetworkDidChangeEvent = {
   type: `${typeof controllerName}:networkDidChange`;
   payload: [
     {
-      evmClientId?: string;
+      evmNetworkClientId?: string;
       nonEvmChainId?: CaipChainId;
     },
   ];
@@ -242,18 +242,18 @@ export class MultichainNetworkController extends BaseController<
    * Handles switching between EVM and non-EVM networks.
    *
    * @param args - The arguments to set the active network.
-   * @param args.evmClientId - The client ID of the EVM network to set active.
+   * @param args.evmNetworkClientId - The client ID of the EVM network to set active.
    * @param args.nonEvmChainId - The chain ID of the non-EVM network to set active.
    */
   async setActiveNetwork({
-    evmClientId,
+    evmNetworkClientId,
     nonEvmChainId,
   }: {
-    evmClientId?: string;
+    evmNetworkClientId?: string;
     nonEvmChainId?: CaipChainId;
   }): Promise<void> {
     // Throw an error if both EVM and non-EVM networks are set
-    if (evmClientId !== undefined && nonEvmChainId !== undefined) {
+    if (evmNetworkClientId !== undefined && nonEvmChainId !== undefined) {
       throw new Error('Cannot set both EVM and non-EVM networks!');
     }
 
@@ -303,7 +303,7 @@ export class MultichainNetworkController extends BaseController<
     }
 
     // Handle EVM networks
-    if (!evmClientId) {
+    if (!evmNetworkClientId) {
       throw new Error('EVM client ID is required!');
     }
 
@@ -311,7 +311,7 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.publish(
       'MultichainNetworkController:networkDidChange',
       {
-        evmClientId,
+        evmNetworkClientId,
       },
     );
 
@@ -325,7 +325,7 @@ export class MultichainNetworkController extends BaseController<
       'NetworkController:getState',
     );
 
-    if (evmClientId === selectedNetworkClientId) {
+    if (evmNetworkClientId === selectedNetworkClientId) {
       // EVM network is already selected, no need to update NetworkController
       return;
     }
@@ -333,7 +333,7 @@ export class MultichainNetworkController extends BaseController<
     // Update evm active network
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
-      evmClientId,
+      evmNetworkClientId,
     );
   }
 
