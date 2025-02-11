@@ -438,30 +438,6 @@ const outdatedExistingState = {
 };
 
 const expiredCacheExistingState: TokenListState = {
-  tokenList: {
-    '0x514910771af9ca656af840dff83e8264ecf986ca': {
-      address: '0x514910771af9ca656af840dff83e8264ecf986ca',
-      symbol: 'LINK',
-      decimals: 18,
-      occurrences: 9,
-      name: 'Chainlink',
-      iconUrl:
-        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
-      aggregators: [
-        'Aave',
-        'Bancor',
-        'CMC',
-        'Crypto.com',
-        'CoinGecko',
-        '1inch',
-        'Paraswap',
-        'PMM',
-        'Zapper',
-        'Zerion',
-        '0x',
-      ],
-    },
-  },
   tokensChainsCache: {
     [toHex(1)]: {
       timestamp: timestamp - 86400000,
@@ -527,7 +503,6 @@ describe('TokenListController', () => {
     });
 
     expect(controller.state).toStrictEqual({
-      tokenList: {},
       tokensChainsCache: {},
       preventPollingOnNetworkRestart: false,
     });
@@ -592,7 +567,6 @@ describe('TokenListController', () => {
     });
 
     expect(controller.state).toStrictEqual({
-      tokenList: {},
       tokensChainsCache: {},
       preventPollingOnNetworkRestart: false,
     });
@@ -611,7 +585,6 @@ describe('TokenListController', () => {
     });
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(controller.state.tokenList).toStrictEqual({});
 
     controller.destroy();
   });
@@ -645,9 +618,6 @@ describe('TokenListController', () => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     controller.start();
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
     onNetworkStateChangeCallback({
       selectedNetworkClientId,
       networkConfigurationsByChainId: {},
@@ -657,7 +627,6 @@ describe('TokenListController', () => {
     });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
-    expect(controller.state.tokenList).toStrictEqual({});
     controller.destroy();
   });
 
@@ -807,9 +776,6 @@ describe('TokenListController', () => {
     await controller.start();
     try {
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      expect(controller.state.tokenList).toStrictEqual(
-        sampleSingleChainState.tokenList,
-      );
 
       expect(
         controller.state.tokensChainsCache[ChainId.mainnet].data,
@@ -848,12 +814,8 @@ describe('TokenListController', () => {
       interval: 100,
       state: existingState,
     });
-    expect(controller.state.tokenList).toStrictEqual(existingState.tokenList);
     const pollingToken = controller.startPolling({ chainId: ChainId.mainnet });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
     expect(controller.state.tokensChainsCache[toHex(1)].data).toStrictEqual(
       sampleSingleChainState.tokensChainsCache[toHex(1)].data,
     );
@@ -871,9 +833,6 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
 
     expect(
       controller.state.tokensChainsCache[ChainId.mainnet].data,
@@ -899,9 +858,6 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(outdatedExistingState);
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
 
     expect(
       controller.state.tokensChainsCache[ChainId.mainnet].data,
@@ -974,9 +930,6 @@ describe('TokenListController', () => {
     });
     expect(controller.state).toStrictEqual(existingState);
     await controller.start();
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleSingleChainState.tokenList,
-    );
 
     expect(
       controller.state.tokensChainsCache[ChainId.mainnet].data,
@@ -998,7 +951,6 @@ describe('TokenListController', () => {
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
-    expect(controller.state.tokenList).toStrictEqual({});
     expect(
       controller.state.tokensChainsCache[ChainId.mainnet].data,
     ).toStrictEqual(
@@ -1018,9 +970,6 @@ describe('TokenListController', () => {
     );
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
-    expect(controller.state.tokenList).toStrictEqual(
-      sampleTwoChainState.tokenList,
-    );
 
     expect(
       controller.state.tokensChainsCache[ChainId.mainnet].data,
@@ -1047,7 +996,6 @@ describe('TokenListController', () => {
     expect(controller.state).toStrictEqual(existingState);
     controller.clearingTokenListData();
 
-    expect(controller.state.tokenList).toStrictEqual({});
     expect(controller.state.tokensChainsCache).toStrictEqual({});
 
     controller.destroy();
@@ -1098,13 +1046,11 @@ describe('TokenListController', () => {
     );
 
     expect(controller.state).toStrictEqual({
-      tokenList: {},
       tokensChainsCache: {},
       preventPollingOnNetworkRestart: true,
     });
     controller.updatePreventPollingOnNetworkRestart(false);
     expect(controller.state).toStrictEqual({
-      tokenList: {},
       tokensChainsCache: {},
       preventPollingOnNetworkRestart: false,
     });
@@ -1149,9 +1095,6 @@ describe('TokenListController', () => {
         state: expiredCacheExistingState,
         interval: pollingIntervalTime,
       });
-      expect(controller.state.tokenList).toStrictEqual(
-        expiredCacheExistingState.tokenList,
-      );
 
       controller.startPolling({ chainId: ChainId.sepolia });
       await advanceTime({ clock, duration: 0 });
@@ -1163,7 +1106,6 @@ describe('TokenListController', () => {
 
     it('should update tokenList state and tokensChainsCache', async () => {
       const startingState: TokenListState = {
-        tokenList: {},
         tokensChainsCache: {},
         preventPollingOnNetworkRestart: false,
       };
@@ -1226,9 +1168,6 @@ describe('TokenListController', () => {
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
 
-      expect(controller.state.tokenList).toStrictEqual(
-        sampleSepoliaTokensChainCache,
-      );
       expect(controller.state.tokensChainsCache).toStrictEqual({
         [ChainId.sepolia]: {
           timestamp: expect.any(Number),
@@ -1247,11 +1186,6 @@ describe('TokenListController', () => {
       // because the cache for the recently fetched sepolia token list is still valid
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
 
-      // expect tokenList to be not be updated with the binance token list, because sepolia is still this.chainId
-      // and the cache to now contain both the binance token list and the sepolia token list
-      expect(controller.state.tokenList).toStrictEqual(
-        sampleSepoliaTokensChainCache,
-      );
       // once we adopt this polling pattern we should no longer access the root tokenList state
       // but rather access from the cache with a chainId selector.
       expect(controller.state.tokensChainsCache).toStrictEqual({
