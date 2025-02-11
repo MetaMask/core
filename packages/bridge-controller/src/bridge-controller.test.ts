@@ -706,4 +706,37 @@ describe('BridgeController', function () {
       );
     },
   );
+
+  it('should not fetch quotes if source and destination chains are the same', async () => {
+    jest.useFakeTimers();
+    const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuotes');
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: jest.fn(),
+    } as never);
+
+    const hasSufficientBalanceSpy = jest
+      .spyOn(balanceUtils, 'hasSufficientBalance')
+      .mockResolvedValue(true);
+
+    const quoteParams = {
+      srcChainId: 1,
+      destChainId: 1, // Same chain ID
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(quoteParams);
+
+    // Advance timers to trigger fetch
+    jest.advanceTimersByTime(1000);
+    await flushPromises();
+
+    expect(fetchBridgeQuotesSpy).not.toHaveBeenCalled();
+    expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
+    expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(
+      DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
+    );
+  });
 });
