@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+import { getAmount, formatAmount } from './get-notification-data';
 import type { Types } from '../../NotificationServicesController';
 import { Constants } from '../../NotificationServicesController';
-import { getAmount, formatAmount } from './get-notification-data';
 
 export type TranslationKeys = {
   pushPlatformNotificationsFundsSentTitle: () => string;
@@ -288,7 +287,7 @@ export function createOnChainPushNotificationMessage(
       notificationMessage?.getDescription?.(n as any) ??
       notificationMessage.defaultDescription ??
       null;
-  } catch (e) {
+  } catch {
     description = notificationMessage.defaultDescription ?? null;
   }
 
