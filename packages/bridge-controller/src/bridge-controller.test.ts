@@ -768,4 +768,54 @@ describe('BridgeController', function () {
       DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
     );
   });
+
+  it('should handle abort signals in fetchBridgeQuotes', async () => {
+    jest.useFakeTimers();
+    const fetchBridgeQuotesSpy = jest.spyOn(fetchUtils, 'fetchBridgeQuotes');
+    messengerMock.call.mockReturnValue({
+      address: '0x123',
+      provider: jest.fn(),
+    } as never);
+
+    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+
+    // Mock fetchBridgeQuotes to throw AbortError
+    fetchBridgeQuotesSpy.mockImplementation(async () => {
+      const error = new Error('Aborted');
+      error.name = 'AbortError';
+      throw error;
+    });
+
+    const quoteParams = {
+      srcChainId: 1,
+      destChainId: 10,
+      srcTokenAddress: '0x0000000000000000000000000000000000000000',
+      destTokenAddress: '0x123',
+      srcTokenAmount: '1000000000000000000',
+    };
+
+    await bridgeController.updateBridgeQuoteRequestParams(quoteParams);
+
+    // Advance timers to trigger fetch
+    jest.advanceTimersByTime(1000);
+    await flushPromises();
+
+    // Verify state wasn't updated due to abort
+    expect(bridgeController.state.bridgeState.quoteFetchError).toBeUndefined();
+    expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(0);
+    expect(bridgeController.state.bridgeState.quotes).toEqual([]);
+
+    // Test reset abort
+    fetchBridgeQuotesSpy.mockRejectedValueOnce('Reset controller state');
+
+    await bridgeController.updateBridgeQuoteRequestParams(quoteParams);
+
+    jest.advanceTimersByTime(1000);
+    await flushPromises();
+
+    // Verify state wasn't updated due to reset
+    expect(bridgeController.state.bridgeState.quoteFetchError).toBeUndefined();
+    expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(0);
+    expect(bridgeController.state.bridgeState.quotes).toEqual([]);
+  });
 });
