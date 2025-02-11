@@ -11,7 +11,7 @@ import type { Json } from './json';
  * static property on Keyring classes. See the {@link Keyring} type for more
  * information.
  */
-export type KeyringClass = {
+export type KeyringClass<State extends Json> = {
   /**
    * The Keyring constructor. Takes a single parameter, an "options" object.
    * See the documentation for the specific keyring for more information about
@@ -20,7 +20,7 @@ export type KeyringClass = {
    * @param options - The constructor options. Differs between keyring
    * implementations.
    */
-  new (options?: Record<string, unknown>): Keyring;
+  new (options?: Record<string, unknown>): Keyring<State>;
 
   /**
    * The name of this type of keyring. This must uniquely identify the
@@ -44,7 +44,7 @@ export type KeyringClass = {
  * should be treated with care though, just in case it does contain sensitive
  * material such as a private key.
  */
-export type Keyring = {
+export type Keyring<State extends Json> = {
   /**
    * The name of this type of keyring. This must match the `type` property of
    * the keyring class.
@@ -71,7 +71,7 @@ export type Keyring = {
    *
    * @returns A JSON-serializable representation of the keyring state.
    */
-  serialize(): Promise<Json>;
+  serialize(): Promise<State>;
 
   /**
    * Deserialize the given keyring state, overwriting any existing state with
@@ -79,7 +79,7 @@ export type Keyring = {
    *
    * @param state - A JSON-serializable representation of the keyring state.
    */
-  deserialize(state: Json): Promise<void>;
+  deserialize(state: State): Promise<void>;
 
   /**
    * Method to include asynchronous configuration.
