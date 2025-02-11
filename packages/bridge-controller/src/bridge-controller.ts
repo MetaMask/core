@@ -12,7 +12,7 @@ import { REFRESH_INTERVAL_MS } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-  METABRIDGE_CHAIN_TO_ADDRESS_MAP
+  METABRIDGE_CHAIN_TO_ADDRESS_MAP,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import {
@@ -25,8 +25,8 @@ import {
   RequestStatus,
 } from './types';
 import type { BridgeControllerMessenger } from './types';
-import { getDefaultBridgeControllerState, sumHexes } from './utils';
 import { hasSufficientBalance } from './utils/balance';
+import { getDefaultBridgeControllerState, sumHexes } from './utils/bridge';
 import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
 import { isValidQuoteRequest } from './utils/quote';
 

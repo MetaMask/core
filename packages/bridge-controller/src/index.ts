@@ -56,4 +56,8 @@ export type { SwapsTokenObject } from './constants/tokens';
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
-export { getEthUsdtResetData, isEthUsdt, getBridgeApiBaseUrl } from './utils';
+export {
+  getEthUsdtResetData,
+  isEthUsdt,
+  getBridgeApiBaseUrl,
+} from './utils/bridge';

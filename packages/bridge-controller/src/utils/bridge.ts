@@ -28,12 +28,12 @@ export const getBridgeApiBaseUrl = () => {
 
   return BRIDGE_PROD_API_BASE_URL;
 };
-
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
  *
  * @returns The txParam data that will reset allowance to 0, combine it with the approval tx params received from Bridge API
  */
+
 export const getEthUsdtResetData = () => {
   const UsdtContractInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
     .interface;
@@ -57,7 +57,6 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
   const sum = hexStrings.reduce((acc, hex) => acc + BigInt(hex), BigInt(0));
   return `0x${sum.toString(16)}`;
 };
-
 /**
  * Checks whether the provided address is strictly equal to the address for
  * the default swaps token of the provided chain.
@@ -66,6 +65,7 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the address is the provided chain's default token address
  */
+
 export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
   if (!address || !chainId) {
     return false;
@@ -78,7 +78,6 @@ export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
     ]?.address
   );
 };
-
 /**
  * Checks whether the provided symbol is strictly equal to the symbol for
  * the default swaps token of the provided chain.
@@ -87,6 +86,7 @@ export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the symbol is the provided chain's default token symbol
  */
+
 export const isSwapsDefaultTokenSymbol = (symbol: string, chainId: Hex) => {
   if (!symbol || !chainId) {
     return false;

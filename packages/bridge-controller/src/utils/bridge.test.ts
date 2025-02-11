@@ -10,7 +10,7 @@ import {
   isSwapsDefaultTokenSymbol,
   sumHexes,
   getBridgeApiBaseUrl,
-} from '.';
+} from './bridge';
 import {
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,

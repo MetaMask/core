@@ -8,7 +8,7 @@ import { DEFAULT_BRIDGE_CONTROLLER_STATE } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import type { BridgeControllerMessenger, QuoteResponse } from './types';
-import { getBridgeApiBaseUrl } from './utils';
+import { getBridgeApiBaseUrl } from './utils/bridge';
 import * as balanceUtils from './utils/balance';
 import * as fetchUtils from './utils/fetch';
 import mockBridgeQuotesErc20Native from '../../../tests/bridge-controller/mock-quotes-erc20-native.json';

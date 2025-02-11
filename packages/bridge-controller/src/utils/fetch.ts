@@ -5,8 +5,8 @@ import { hexToNumber, numberToHex } from '@metamask/utils';
 import {
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
-  getBridgeApiBaseUrl,
-} from '.';
+  getBridgeApiBaseUrl
+} from './bridge';
 import {
   FEATURE_FLAG_VALIDATORS,
   QUOTE_VALIDATORS,
