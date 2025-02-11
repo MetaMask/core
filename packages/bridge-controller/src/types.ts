@@ -250,10 +250,10 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 >;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction['type']
-  | NetworkControllerFindNetworkClientIdByChainIdAction['type']
-  | NetworkControllerGetStateAction['type']
-  | NetworkControllerGetNetworkClientByIdAction['type'];
+  | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction;
 export type AllowedEvents = never;
 
 /**
@@ -261,12 +261,8 @@ export type AllowedEvents = never;
  */
 export type BridgeControllerMessenger = RestrictedMessenger<
   typeof BRIDGE_CONTROLLER_NAME,
-  | BridgeControllerActions
-  | AccountsControllerGetSelectedAccountAction
-  | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction,
-  BridgeControllerEvents,
-  AllowedActions,
-  AllowedEvents
+  BridgeControllerActions | AllowedActions,
+  BridgeControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
