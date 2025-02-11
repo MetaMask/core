@@ -49,7 +49,7 @@ export { parseScopeString } from './scope/types';
 export {
   normalizeScope,
   mergeScopeObject,
-  mergeScopes,
+  mergeNormalizedScopes as mergeScopes,
   normalizeAndMergeScopes,
 } from './scope/transform';
 

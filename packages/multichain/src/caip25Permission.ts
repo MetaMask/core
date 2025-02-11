@@ -26,7 +26,7 @@ import { cloneDeep, isEqual } from 'lodash';
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
 import { isSupportedScopeString } from './scope/supported';
-import { getUniqueArrayItems } from './scope/transform';
+import { mergeInternalScopes } from './scope/transform';
 import {
   parseScopeString,
   type InternalScopeString,
@@ -160,17 +160,20 @@ export const caip25CaveatBuilder = ({
       leftValue: Caip25CaveatValue,
       rightValue: Caip25CaveatValue,
     ): [Caip25CaveatValue, Caip25CaveatValue] => {
-      const partiallyMergedValue = mergeScopesForCaip25CaveatValue(
-        leftValue,
-        rightValue,
-        'requiredScopes',
+      const mergedRequiredScopes = mergeInternalScopes(
+        leftValue.requiredScopes,
+        rightValue.requiredScopes,
+      );
+      const mergedOptionalScopes = mergeInternalScopes(
+        leftValue.optionalScopes,
+        rightValue.optionalScopes,
       );
 
-      const mergedValue = mergeScopesForCaip25CaveatValue(
-        partiallyMergedValue,
-        rightValue,
-        'optionalScopes',
-      );
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: mergedRequiredScopes,
+        optionalScopes: mergedOptionalScopes,
+        isMultichainOrigin: rightValue.isMultichainOrigin,
+      };
 
       const partialDiff = diffScopesForCaip25CaveatValue(
         leftValue,
@@ -388,44 +391,6 @@ function removeScope(
   return {
     operation: CaveatMutatorOperation.RevokePermission,
   };
-}
-
-/**
- *
- * @param leftValue - The existing CAIP-25 permission caveat value.
- * @param rightValue - The incoming CAIP-25 permission caveat value.
- * @param scopeToMerge - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
- * @returns The combined CAIP-25 permission caveat value.
- */
-function mergeScopesForCaip25CaveatValue(
-  leftValue: Caip25CaveatValue,
-  rightValue: Caip25CaveatValue,
-  scopeToMerge: keyof Pick<
-    Caip25CaveatValue,
-    'optionalScopes' | 'requiredScopes'
-  >,
-): Caip25CaveatValue {
-  const newValue = cloneDeep(leftValue);
-
-  Object.entries(rightValue[scopeToMerge]).forEach(
-    ([scopeString, rightScopeObject]) => {
-      const internalScopeString = scopeString as InternalScopeString;
-      const leftRequiredScopeObject =
-        newValue[scopeToMerge][internalScopeString];
-      if (!leftRequiredScopeObject) {
-        newValue[scopeToMerge][internalScopeString] = rightScopeObject;
-      } else {
-        newValue[scopeToMerge][internalScopeString] = {
-          accounts: getUniqueArrayItems([
-            ...leftRequiredScopeObject.accounts,
-            ...rightScopeObject.accounts,
-          ]),
-        };
-      }
-    },
-  );
-
-  return newValue;
 }
 
 /**

@@ -4,6 +4,8 @@ import { cloneDeep } from 'lodash';
 import type {
   ExternalScopeObject,
   ExternalScopesObject,
+  InternalScopesObject,
+  InternalScopeString,
   NormalizedScopeObject,
   NormalizedScopesObject,
 } from './types';
@@ -101,11 +103,12 @@ export const mergeScopeObject = (
 
 /**
  * Merges two NormalizedScopeObjects
- * @param scopeA - The first scope object to merge.
- * @param scopeB - The second scope object to merge.
- * @returns The merged scope object.
+ *
+ * @param scopeA - The first normalized scope object to merge.
+ * @param scopeB - The second normalized scope object to merge.
+ * @returns The merged normalized scope object from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
  */
-export const mergeScopes = (
+export const mergeNormalizedScopes = (
   scopeA: NormalizedScopesObject,
   scopeB: NormalizedScopesObject,
 ): NormalizedScopesObject => {
@@ -135,6 +138,37 @@ export const mergeScopes = (
 };
 
 /**
+ * Merges two InternalScopeObjects
+ *
+ * @param scopeA - The first internal scope object to merge.
+ * @param scopeB - The second internal scope object to merge.
+ * @returns The merged internal scope object from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
+ */
+export const mergeInternalScopes = (
+  scopeA: InternalScopesObject,
+  scopeB: InternalScopesObject,
+): InternalScopesObject => {
+  const resultScope = cloneDeep(scopeA);
+
+  Object.entries(scopeB).forEach(([scopeString, rightScopeObject]) => {
+    const internalScopeString = scopeString as InternalScopeString;
+    const leftRequiredScopeObject = resultScope[internalScopeString];
+    if (!leftRequiredScopeObject) {
+      resultScope[internalScopeString] = rightScopeObject;
+    } else {
+      resultScope[internalScopeString] = {
+        accounts: getUniqueArrayItems([
+          ...leftRequiredScopeObject.accounts,
+          ...rightScopeObject.accounts,
+        ]),
+      };
+    }
+  });
+
+  return resultScope;
+};
+
+/**
  * Normalizes and merges a set of ExternalScopesObjects into a NormalizedScopesObject (i.e. a set of NormalizedScopeObjects where references are flattened).
  * @param scopes - The external scopes to normalize and merge.
  * @returns The normalized and merged scopes.
@@ -145,7 +179,7 @@ export const normalizeAndMergeScopes = (
   let mergedScopes: NormalizedScopesObject = {};
   Object.keys(scopes).forEach((scopeString) => {
     const normalizedScopes = normalizeScope(scopeString, scopes[scopeString]);
-    mergedScopes = mergeScopes(mergedScopes, normalizedScopes);
+    mergedScopes = mergeNormalizedScopes(mergedScopes, normalizedScopes);
   });
 
   return mergedScopes;

@@ -1,6 +1,6 @@
 import {
   normalizeScope,
-  mergeScopes,
+  mergeNormalizedScopes,
   mergeScopeObject,
   normalizeAndMergeScopes,
 } from './transform';
@@ -255,7 +255,7 @@ describe('Scope Transform', () => {
   describe('mergeScopes', () => {
     it('merges the scopeObjects with matching scopeString', () => {
       expect(
-        mergeScopes(
+        mergeNormalizedScopes(
           {
             'eip155:1': {
               methods: ['a', 'b', 'c'],
@@ -282,7 +282,7 @@ describe('Scope Transform', () => {
 
     it('preserves the scopeObjects with no matching scopeString', () => {
       expect(
-        mergeScopes(
+        mergeNormalizedScopes(
           {
             'eip155:1': {
               methods: ['a', 'b', 'c'],
@@ -322,12 +322,12 @@ describe('Scope Transform', () => {
       });
     });
     it('returns an empty object when no scopes are provided', () => {
-      expect(mergeScopes({}, {})).toStrictEqual({});
+      expect(mergeNormalizedScopes({}, {})).toStrictEqual({});
     });
 
     it('returns an unchanged scope when two identical scopeObjects are provided', () => {
       expect(
-        mergeScopes(
+        mergeNormalizedScopes(
           { 'eip155:1': validScopeObject },
           { 'eip155:1': validScopeObject },
         ),
