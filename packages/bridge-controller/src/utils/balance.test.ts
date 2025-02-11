@@ -1,8 +1,10 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { ZeroAddress } from 'ethers';
 import { BrowserProvider, Contract } from 'ethers';
 
 import * as balanceUtils from './balance';
+import { fetchTokenBalance } from './balance';
 import { FakeProvider } from '../../../../tests/fake-provider';
 
 declare global {
@@ -182,5 +184,66 @@ describe('balance', () => {
         '0x141d32a89a1e0a5ef360034a2f60a4b917c18838',
       );
     });
+  });
+});
+
+describe('fetchTokenBalance', () => {
+  let mockProvider: SafeEventEmitterProvider;
+  const mockAddress = '0x1234567890123456789012345678901234567890';
+  const mockUserAddress = '0x9876543210987654321098765432109876543210';
+  const mockBalance = BigInt(1000);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockProvider = new FakeProvider();
+
+    // Mock BrowserProvider
+    (BrowserProvider as jest.Mock).mockImplementation(() => ({
+      // Add any provider methods needed
+    }));
+  });
+
+  it('should fetch token balance when contract is valid', async () => {
+    // Mock Contract
+    const mockBalanceOf = jest.fn().mockResolvedValue(mockBalance);
+    (Contract as jest.Mock).mockImplementation(() => ({
+      balanceOf: mockBalanceOf,
+    }));
+
+    const result = await fetchTokenBalance(
+      mockAddress,
+      mockUserAddress,
+      mockProvider,
+    );
+
+    expect(BrowserProvider).toHaveBeenCalledWith(mockProvider);
+    expect(Contract).toHaveBeenCalledWith(
+      mockAddress,
+      abiERC20,
+      expect.anything(),
+    );
+    expect(mockBalanceOf).toHaveBeenCalledWith(mockUserAddress);
+    expect(result).toBe(mockBalance);
+  });
+
+  it('should return undefined when contract is invalid', async () => {
+    // Mock Contract to return an object without balanceOf method
+    (Contract as jest.Mock).mockImplementation(() => ({
+      // Empty object without balanceOf method
+    }));
+
+    const result = await fetchTokenBalance(
+      mockAddress,
+      mockUserAddress,
+      mockProvider,
+    );
+
+    expect(BrowserProvider).toHaveBeenCalledWith(mockProvider);
+    expect(Contract).toHaveBeenCalledWith(
+      mockAddress,
+      abiERC20,
+      expect.anything(),
+    );
+    expect(result).toBeUndefined();
   });
 });

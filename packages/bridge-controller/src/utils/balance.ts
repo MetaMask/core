@@ -7,12 +7,13 @@ export const fetchTokenBalance = async (
   address: string,
   userAddress: string,
   provider: Provider,
-): Promise<bigint> => {
+): Promise<bigint | undefined> => {
   const ethersProvider = new BrowserProvider(provider);
   const tokenContract = new Contract(address, abiERC20, ethersProvider);
-  const tokenBalancePromise = tokenContract
-    ? tokenContract.balanceOf(userAddress)
-    : Promise.resolve();
+  const tokenBalancePromise =
+    typeof tokenContract?.balanceOf === 'function'
+      ? tokenContract.balanceOf(userAddress)
+      : Promise.resolve(undefined);
   return await tokenBalancePromise;
 };
 
