@@ -117,25 +117,24 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.stopAllPolling();
     this.#abortController?.abort('Quote request updated');
 
-    const { bridgeState } = this.state;
     const updatedQuoteRequest = {
       ...DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest,
       ...paramsToUpdate,
     };
 
-    this.update((_state) => {
-      _state.bridgeState = {
-        ...bridgeState,
-        quoteRequest: updatedQuoteRequest,
-        quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
-        quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesLoadingStatus:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
-        quoteFetchError: DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError,
-        quotesRefreshCount: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount,
-        quotesInitialLoadTime:
-          DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime,
-      };
+    this.update((state) => {
+      state.bridgeState.quoteRequest = updatedQuoteRequest;
+      state.bridgeState.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
+      state.bridgeState.quotesLastFetched =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched;
+      state.bridgeState.quotesLoadingStatus =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus;
+      state.bridgeState.quoteFetchError =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
+      state.bridgeState.quotesRefreshCount =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
+      state.bridgeState.quotesInitialLoadTime =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
     });
 
     if (isValidQuoteRequest(updatedQuoteRequest)) {
@@ -180,20 +179,19 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.stopAllPolling();
     this.#abortController?.abort(RESET_STATE_ABORT_MESSAGE);
 
-    this.update((_state) => {
-      _state.bridgeState = {
+    this.update((state) => {
+      state.bridgeState = {
         ...DEFAULT_BRIDGE_CONTROLLER_STATE,
         quotes: [],
-        bridgeFeatureFlags: _state.bridgeState.bridgeFeatureFlags,
+        bridgeFeatureFlags: state.bridgeState.bridgeFeatureFlags,
       };
     });
   };
 
   setBridgeFeatureFlags = async () => {
-    const { bridgeState } = this.state;
     const bridgeFeatureFlags = await fetchBridgeFeatureFlags();
-    this.update((_state) => {
-      _state.bridgeState = { ...bridgeState, bridgeFeatureFlags };
+    this.update((state) => {
+      state.bridgeState.bridgeFeatureFlags = bridgeFeatureFlags;
     });
     this.setIntervalLength(
       bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG].refreshRate,
@@ -204,19 +202,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     networkClientId: _networkClientId,
     updatedQuoteRequest,
   }: BridgePollingInput) => {
+    const { bridgeState } = this.state;
     this.#abortController?.abort('New quote request');
     this.#abortController = new AbortController();
     if (updatedQuoteRequest.srcChainId === updatedQuoteRequest.destChainId) {
       return;
     }
-    const { bridgeState } = this.state;
-    this.update((_state) => {
-      _state.bridgeState = {
-        ...bridgeState,
-        quotesLoadingStatus: RequestStatus.LOADING,
-        quoteRequest: updatedQuoteRequest,
-        quoteFetchError: DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError,
-      };
+    this.update((state) => {
+      state.bridgeState.quotesLoadingStatus = RequestStatus.LOADING;
+      state.bridgeState.quoteRequest = updatedQuoteRequest;
+      state.bridgeState.quoteFetchError =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
     });
 
     try {
@@ -231,12 +227,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
       const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
 
-      this.update((_state) => {
-        _state.bridgeState = {
-          ..._state.bridgeState,
-          quotes: quotesWithL1GasFees,
-          quotesLoadingStatus: RequestStatus.FETCHED,
-        };
+      this.update((state) => {
+        state.bridgeState.quotes = quotesWithL1GasFees;
+        state.bridgeState.quotesLoadingStatus = RequestStatus.FETCHED;
       });
     } catch (error) {
       const isAbortError = (error as Error).name === 'AbortError';
@@ -245,13 +238,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
 
-      this.update((_state) => {
-        _state.bridgeState = {
-          ...bridgeState,
-          quoteFetchError:
-            error instanceof Error ? error.message : 'Unknown error',
-          quotesLoadingStatus: RequestStatus.ERROR,
-        };
+      this.update((state) => {
+        state.bridgeState.quoteFetchError =
+          error instanceof Error ? error.message : 'Unknown error';
+        state.bridgeState.quotesLoadingStatus = RequestStatus.ERROR;
       });
       console.log('Failed to fetch bridge quotes', error);
     } finally {
@@ -270,16 +260,13 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
       // Update quote fetching stats
       const quotesLastFetched = Date.now();
-      this.update((_state) => {
-        _state.bridgeState = {
-          ..._state.bridgeState,
-          quotesInitialLoadTime:
-            updatedQuotesRefreshCount === 1 && this.#quotesFirstFetched
-              ? quotesLastFetched - this.#quotesFirstFetched
-              : bridgeState.quotesInitialLoadTime,
-          quotesLastFetched,
-          quotesRefreshCount: updatedQuotesRefreshCount,
-        };
+      this.update((state) => {
+        state.bridgeState.quotesInitialLoadTime =
+          updatedQuotesRefreshCount === 1 && this.#quotesFirstFetched
+            ? quotesLastFetched - this.#quotesFirstFetched
+            : bridgeState.quotesInitialLoadTime;
+        state.bridgeState.quotesLastFetched = quotesLastFetched;
+        state.bridgeState.quotesRefreshCount = updatedQuotesRefreshCount;
       });
     }
   };
