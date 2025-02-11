@@ -7,13 +7,11 @@
   },
   "references": [
     { "path": "../accounts-controller/tsconfig.build.json" },
-    { "path": "../approval-controller/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
-    { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
-    { "path": "../preferences-controller/tsconfig.build.json" },
-    { "path": "../polling-controller/tsconfig.build.json" }
+    { "path": "../polling-controller/tsconfig.build.json" },
+    { "path": "../transaction-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }
