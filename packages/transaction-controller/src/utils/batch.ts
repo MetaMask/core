@@ -104,13 +104,16 @@ export async function addTransactionBatch(
 
   log('Adding batch transaction', txParams, networkClientId);
 
-  const { transactionMeta } = await addTransaction(txParams, {
+  const { transactionMeta, result } = await addTransaction(txParams, {
     nestedTransactions,
     networkClientId,
     requireApproval,
   });
 
   const batchId = transactionMeta.id;
+
+  // Wait for the transaction to be published.
+  await result;
 
   return {
     batchId,
