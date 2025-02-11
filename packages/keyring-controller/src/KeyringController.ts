@@ -826,6 +826,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase.
    */
   async exportSeedPhrase(password: string): Promise<Uint8Array> {
+    this.#assertIsUnlocked();
     await this.verifyPassword(password);
     assertHasUint8ArrayMnemonic(this.#keyrings[0]);
     return this.#keyrings[0].mnemonic;
