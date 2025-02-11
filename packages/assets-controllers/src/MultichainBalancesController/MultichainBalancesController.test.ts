@@ -15,14 +15,12 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuidv4 } from 'uuid';
 
-import {
-  MultichainBalancesController,
-  getDefaultMultichainBalancesControllerState,
-} from './MultichainBalancesController';
+import { MultichainBalancesController } from '.';
 import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
-} from './MultichainBalancesController';
+} from '.';
+import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
@@ -122,6 +120,31 @@ function getRootMessenger(): Messenger<RootAction, RootEvent> {
   return new Messenger<RootAction, RootEvent>();
 }
 
+/**
+ * Constructs the restricted messenger for the MultichainBalancesController.
+ *
+ * @param messenger - The root messenger.
+ * @returns The unrestricted messenger suited for MultichainBalancesController.
+ */
+function getRestrictedMessenger(
+  messenger: Messenger<RootAction, RootEvent>,
+): MultichainBalancesControllerMessenger {
+  return messenger.getRestricted({
+    name: 'MultichainBalancesController',
+    allowedActions: [
+      'SnapController:handleRequest',
+      'AccountsController:listMultichainAccounts',
+      'MultichainAssetsController:getState',
+    ],
+    allowedEvents: [
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+      'AccountsController:accountBalancesUpdated',
+      'MultichainAssetsController:stateChange',
+    ],
+  });
+}
+
 const setupController = ({
   state = getDefaultMultichainBalancesControllerState(),
   mocks,
@@ -133,20 +156,7 @@ const setupController = ({
   };
 } = {}) => {
   const messenger = getRootMessenger();
-
-  const multichainBalancesMessenger: MultichainBalancesControllerMessenger =
-    messenger.getRestricted({
-      name: 'MultichainBalancesController',
-      allowedActions: [
-        'SnapController:handleRequest',
-        'AccountsController:listMultichainAccounts',
-      ],
-      allowedEvents: [
-        'AccountsController:accountAdded',
-        'AccountsController:accountRemoved',
-        'AccountsController:accountBalancesUpdated',
-      ],
-    });
+  const multichainBalancesMessenger = getRestrictedMessenger(messenger);
 
   const mockSnapHandleRequest = jest.fn();
   messenger.registerActionHandler(
@@ -164,6 +174,16 @@ const setupController = ({
     ),
   );
 
+  const mockGetAssetsState = jest.fn().mockReturnValue({
+    accountsAssets: {
+      [mockBtcAccount.id]: [mockBtcNativeAsset],
+    },
+  });
+  messenger.registerActionHandler(
+    'MultichainAssetsController:getState',
+    mockGetAssetsState,
+  );
+
   const controller = new MultichainBalancesController({
     messenger: multichainBalancesMessenger,
     state,
@@ -174,6 +194,7 @@ const setupController = ({
     messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
+    mockGetAssetsState,
   };
 };
 
@@ -193,7 +214,22 @@ async function waitForAllPromises(): Promise<void> {
 
 describe('BalancesController', () => {
   it('initialize with default state', () => {
-    const { controller } = setupController({});
+    const messenger = getRootMessenger();
+    const multichainBalancesMessenger = getRestrictedMessenger(messenger);
+
+    messenger.registerActionHandler('SnapController:handleRequest', jest.fn());
+    messenger.registerActionHandler(
+      'AccountsController:listMultichainAccounts',
+      jest.fn().mockReturnValue([]),
+    );
+    messenger.registerActionHandler(
+      'MultichainAssetsController:getState',
+      jest.fn(),
+    );
+
+    const controller = new MultichainBalancesController({
+      messenger: multichainBalancesMessenger,
+    });
     expect(controller.state).toStrictEqual({ balances: {} });
   });
 
@@ -204,26 +240,6 @@ describe('BalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
-  });
-
-  it('updates balances when "AccountsController:accountAdded" is fired', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
-      setupController({
-        mocks: {
-          listMultichainAccounts: [],
-        },
-      });
-
-    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
-    messenger.publish('AccountsController:accountAdded', mockBtcAccount);
-
-    await waitForAllPromises();
-
-    expect(controller.state).toStrictEqual({
-      balances: {
-        [mockBtcAccount.id]: mockBalanceResult,
-      },
-    });
   });
 
   it('updates balances when "AccountsController:accountRemoved" is fired', async () => {
@@ -288,25 +304,6 @@ describe('BalancesController', () => {
 
     await controller.updateBalance(mockBtcAccount.id);
     await waitForAllPromises();
-
-    expect(controller.state.balances).toStrictEqual({});
-  });
-
-  it('handles errors gracefully when constructing the controller', async () => {
-    // This method will be used in the constructor of that controller.
-    const updateBalanceSpy = jest.spyOn(
-      MultichainBalancesController.prototype,
-      'updateBalance',
-    );
-    updateBalanceSpy.mockRejectedValue(
-      new Error('Something unexpected happen'),
-    );
-
-    const { controller } = setupController({
-      mocks: {
-        listMultichainAccounts: [mockBtcAccount],
-      },
-    });
 
     expect(controller.state.balances).toStrictEqual({});
   });
@@ -385,6 +382,43 @@ describe('BalancesController', () => {
         listMultichainAccounts: [mockBtcAccount],
       },
     });
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('handles an account with no assets in MultichainAssetsController state', async () => {
+    const { controller, mockGetAssetsState } = setupController({
+      mocks: {
+        handleRequestReturnValue: {},
+      },
+    });
+
+    mockGetAssetsState.mockReturnValue({
+      accountsAssets: {},
+    });
+
+    await controller.updateBalance(mockBtcAccount.id);
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual({});
+  });
+
+  it('updates balances when receiving "MultichainAssetsController:stateChange" event', async () => {
+    const { controller, messenger } = setupController();
+
+    messenger.publish(
+      'MultichainAssetsController:stateChange',
+      {
+        assetsMetadata: {},
+        accountsAssets: {
+          [mockBtcAccount.id]: [mockBtcNativeAsset],
+        },
+      },
+      [],
+    );
 
     await waitForAllPromises();
 
