@@ -25,7 +25,7 @@ import {
   RequestStatus,
 } from './types';
 import type { BridgeControllerMessenger } from './types';
-import { sumHexes } from './utils';
+import { getDefaultBridgeControllerState, sumHexes } from './utils';
 import { hasSufficientBalance } from './utils/balance';
 import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
 import { isValidQuoteRequest } from './utils/quote';
@@ -77,7 +77,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       messenger,
       state: {
         bridgeState: {
-          ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+          ...getDefaultBridgeControllerState(),
           ...state,
         },
       },
