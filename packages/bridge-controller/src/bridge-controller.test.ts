@@ -4,7 +4,7 @@ import { Contract } from 'ethers';
 import nock from 'nock';
 
 import { BridgeController } from './bridge-controller';
-import { DEFAULT_BRIDGE_CONTROLLER_STATE } from './constants';
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import type { BridgeControllerMessenger, QuoteResponse } from './types';

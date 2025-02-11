@@ -8,12 +8,12 @@ import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { BrowserProvider, Contract } from 'ethers';
 
-import { REFRESH_INTERVAL_MS } from './constants';
+import { REFRESH_INTERVAL_MS } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-  METABRIDGE_CHAIN_TO_ADDRESS_MAP,
-} from './constants';
+  METABRIDGE_CHAIN_TO_ADDRESS_MAP
+} from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import {
   type L1GasFees,

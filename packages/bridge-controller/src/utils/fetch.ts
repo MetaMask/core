@@ -16,7 +16,10 @@ import {
   QUOTE_RESPONSE_VALIDATORS,
   FEE_DATA_VALIDATORS,
 } from './validators';
-import { BRIDGE_CLIENT_ID, REFRESH_INTERVAL_MS } from '../constants';
+import {
+  REFRESH_INTERVAL_MS,
+  BRIDGE_CLIENT_ID_EXTENSION,
+} from '../constants/bridge';
 import type { SwapsTokenObject } from '../constants/tokens';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
@@ -30,7 +33,7 @@ import type {
 } from '../types';
 import { BridgeFlag, FeeType, BridgeFeatureFlagsKey } from '../types';
 
-const CLIENT_ID_HEADER = { 'X-Client-Id': BRIDGE_CLIENT_ID };
+const CLIENT_ID_HEADER = { 'X-Client-Id': BRIDGE_CLIENT_ID_EXTENSION };
 // TODO put this back in once we have a fetchWithCache equivalent
 // const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 
