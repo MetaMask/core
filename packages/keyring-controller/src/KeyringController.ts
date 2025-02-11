@@ -2178,6 +2178,10 @@ export class KeyringController extends BaseController<
       }
 
       const updatedKeyrings = await this.#getUpdatedKeyrings();
+      if (updatedKeyrings.length !== this.#keyringsMetadata.length) {
+        throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
+      }
+
       this.update((state) => {
         state.vault = updatedState.vault;
         state.keyrings = updatedKeyrings;
@@ -2185,9 +2189,6 @@ export class KeyringController extends BaseController<
         if (updatedState.encryptionKey) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
-        }
-        if (updatedKeyrings.length < this.#keyringsMetadata.length) {
-          throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
         }
       });
 
