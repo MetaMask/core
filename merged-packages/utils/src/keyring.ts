@@ -10,6 +10,9 @@ import type { Json } from './json';
  * This type is used to validate the constructor signature and the `type`
  * static property on Keyring classes. See the {@link Keyring} type for more
  * information.
+ *
+ * @deprecated This type has been moved to the `@metamask/keyring-utils` package.
+ * See {@link https://github.com/MetaMask/accounts/tree/main/packages/keyring-utils Keyring Utils}.
  */
 export type KeyringClass<State extends Json> = {
   /**
@@ -43,6 +46,9 @@ export type KeyringClass<State extends Json> = {
  * private key directly. The keyring (and in particular the keyring state)
  * should be treated with care though, just in case it does contain sensitive
  * material such as a private key.
+ *
+ * @deprecated This type has been moved to the `@metamask/keyring-utils` package.
+ * See {@link https://github.com/MetaMask/accounts/tree/main/packages/keyring-utils Keyring Utils}.
  */
 export type Keyring<State extends Json> = {
   /**
