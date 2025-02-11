@@ -56,20 +56,10 @@ export type AccountInformation = {
  * @deprecated accounts - Use accountsByChainId instead.
  */
 export type AccountTrackerControllerState = {
-  /**
-   * @deprecated Use `accountsByChainId` instead.
-   */
-  accounts: { [address: string]: AccountInformation };
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
 };
 
 const accountTrackerMetadata = {
-  accounts: {
-    persist: true,
-    anonymous: false,
-    // Deprecated: This field is no longer recommended. Use accountsByChainId instead.
-    deprecated: true,
-  },
   accountsByChainId: {
     persist: true,
     anonymous: false,
@@ -188,7 +178,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       name: controllerName,
       messenger,
       state: {
-        accounts: {},
         accountsByChainId: {
           [chainId]: {},
         },
@@ -314,13 +303,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       const { chainId, ethQuery } =
         this.#getCorrectNetworkClient(networkClientId);
       this.syncAccounts(chainId);
-      const { accounts, accountsByChainId } = this.state;
+      const { accountsByChainId } = this.state;
       const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
         'PreferencesController:getState',
       );
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
-        ? Object.keys(accounts)
+        ? Object.keys(accountsByChainId[chainId])
         : [toChecksumHexAddress(selectedAccount.address)];
 
       const accountsForChain = { ...accountsByChainId[chainId] };
