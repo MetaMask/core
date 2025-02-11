@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 
 /**
  * Mocking Utility - create a mock Eth sent notification
+ *
  * @returns Mock raw Eth sent notification
  */
 export function createMockNotificationEthSent(): OnChainRawNotification {
@@ -39,6 +39,7 @@ export function createMockNotificationEthSent(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock Eth Received notification
+ *
  * @returns Mock raw Eth Received notification
  */
 export function createMockNotificationEthReceived(): OnChainRawNotification {
@@ -74,6 +75,7 @@ export function createMockNotificationEthReceived(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock ERC20 sent notification
+ *
  * @returns Mock raw ERC20 sent notification
  */
 export function createMockNotificationERC20Sent(): OnChainRawNotification {
@@ -115,6 +117,7 @@ export function createMockNotificationERC20Sent(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock ERC20 received notification
+ *
  * @returns Mock raw ERC20 received notification
  */
 export function createMockNotificationERC20Received(): OnChainRawNotification {
@@ -156,6 +159,7 @@ export function createMockNotificationERC20Received(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock ERC721 sent notification
+ *
  * @returns Mock raw ERC721 sent notification
  */
 export function createMockNotificationERC721Sent(): OnChainRawNotification {
@@ -200,6 +204,7 @@ export function createMockNotificationERC721Sent(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock ERC721 received notification
+ *
  * @returns Mock raw ERC721 received notification
  */
 export function createMockNotificationERC721Received(): OnChainRawNotification {
@@ -244,6 +249,7 @@ export function createMockNotificationERC721Received(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock ERC1155 sent notification
+ *
  * @returns Mock raw ERC1155 sent notification
  */
 export function createMockNotificationERC1155Sent(): OnChainRawNotification {
@@ -288,6 +294,7 @@ export function createMockNotificationERC1155Sent(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock ERC1155 received notification
+ *
  * @returns Mock raw ERC1155 received notification
  */
 export function createMockNotificationERC1155Received(): OnChainRawNotification {
@@ -332,6 +339,7 @@ export function createMockNotificationERC1155Received(): OnChainRawNotification 
 
 /**
  * Mocking Utility - create a mock MetaMask Swaps notification
+ *
  * @returns Mock raw MetaMask Swaps notification
  */
 export function createMockNotificationMetaMaskSwapsCompleted(): OnChainRawNotification {
@@ -382,6 +390,7 @@ export function createMockNotificationMetaMaskSwapsCompleted(): OnChainRawNotifi
 
 /**
  * Mocking Utility - create a mock RocketPool Stake Completed notification
+ *
  * @returns Mock raw RocketPool Stake Completed notification
  */
 export function createMockNotificationRocketPoolStakeCompleted(): OnChainRawNotification {
@@ -431,6 +440,7 @@ export function createMockNotificationRocketPoolStakeCompleted(): OnChainRawNoti
 
 /**
  * Mocking Utility - create a mock RocketPool Un-staked notification
+ *
  * @returns Mock raw RocketPool Un-staked notification
  */
 export function createMockNotificationRocketPoolUnStakeCompleted(): OnChainRawNotification {
@@ -480,6 +490,7 @@ export function createMockNotificationRocketPoolUnStakeCompleted(): OnChainRawNo
 
 /**
  * Mocking Utility - create a mock Lido Stake Completed notification
+ *
  * @returns Mock raw Lido Stake Completed notification
  */
 export function createMockNotificationLidoStakeCompleted(): OnChainRawNotification {
@@ -529,6 +540,7 @@ export function createMockNotificationLidoStakeCompleted(): OnChainRawNotificati
 
 /**
  * Mocking Utility - create a mock Lido Withdrawal Requested notification
+ *
  * @returns Mock raw Lido Withdrawal Requested notification
  */
 export function createMockNotificationLidoWithdrawalRequested(): OnChainRawNotification {
@@ -578,6 +590,7 @@ export function createMockNotificationLidoWithdrawalRequested(): OnChainRawNotif
 
 /**
  * Mocking Utility - create a mock Lido Withdrawal Completed notification
+ *
  * @returns Mock raw Lido Withdrawal Completed notification
  */
 export function createMockNotificationLidoWithdrawalCompleted(): OnChainRawNotification {
@@ -627,6 +640,7 @@ export function createMockNotificationLidoWithdrawalCompleted(): OnChainRawNotif
 
 /**
  * Mocking Utility - create a mock Lido Withdrawal Ready notification
+ *
  * @returns Mock raw Lido Withdrawal Ready notification
  */
 export function createMockNotificationLidoReadyToBeWithdrawn(): OnChainRawNotification {
@@ -663,6 +677,7 @@ export function createMockNotificationLidoReadyToBeWithdrawn(): OnChainRawNotifi
 
 /**
  * Mocking Utility - create a mock Aave V3 Health Factor notification
+ *
  * @returns Mock raw Aave V3 Health Factor notification
  */
 export function createMockNotificationAaveV3HealthFactor(): OnChainRawNotification {
@@ -687,6 +702,7 @@ export function createMockNotificationAaveV3HealthFactor(): OnChainRawNotificati
 
 /**
  * Mocking Utility - create a mock ENS Expiration notification
+ *
  * @returns Mock raw ENS Expiration notification
  */
 export function createMockNotificationEnsExpiration(): OnChainRawNotification {
@@ -712,6 +728,7 @@ export function createMockNotificationEnsExpiration(): OnChainRawNotification {
 
 /**
  * Mocking Utility - create a mock Lido Staking Rewards notification
+ *
  * @returns Mock raw Lido Staking Rewards notification
  */
 export function createMockNotificationLidoStakingRewards(): OnChainRawNotification {
@@ -739,6 +756,7 @@ export function createMockNotificationLidoStakingRewards(): OnChainRawNotificati
 
 /**
  * Mocking Utility - create a mock Notional Loan Expiration notification
+ *
  * @returns Mock raw Notional Loan Expiration notification
  */
 export function createMockNotificationNotionalLoanExpiration(): OnChainRawNotification {
@@ -769,6 +787,7 @@ export function createMockNotificationNotionalLoanExpiration(): OnChainRawNotifi
 
 /**
  * Mocking Utility - create a mock Rocketpool Staking Rewards notification
+ *
  * @returns Mock raw Rocketpool Staking Rewards notification
  */
 export function createMockNotificationRocketpoolStakingRewards(): OnChainRawNotification {
@@ -796,6 +815,7 @@ export function createMockNotificationRocketpoolStakingRewards(): OnChainRawNoti
 
 /**
  * Mocking Utility - create a mock SparkFi Health Factor notification
+ *
  * @returns Mock raw SparkFi Health Factor notification
  */
 export function createMockNotificationSparkFiHealthFactor(): OnChainRawNotification {
@@ -820,6 +840,7 @@ export function createMockNotificationSparkFiHealthFactor(): OnChainRawNotificat
 
 /**
  * Mocking Utility - creates an array of raw on-chain notifications
+ *
  * @returns Array of raw on-chain notifications
  */
 export function createMockRawOnChainNotifications(): OnChainRawNotification[] {
