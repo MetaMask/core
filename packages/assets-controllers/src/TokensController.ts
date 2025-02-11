@@ -663,10 +663,12 @@ export class TokensController extends BaseController<
           aggregators,
           name,
         };
+
         const previousImportedIndex = newTokens.findIndex(
           (token) =>
             token.address.toLowerCase() === checksumAddress.toLowerCase(),
         );
+
         if (previousImportedIndex !== -1) {
           // Update existing data of imported token
           newTokens[previousImportedIndex] = newEntry;

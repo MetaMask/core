@@ -375,4 +375,26 @@ describe('MultiChainAssetsRatesController', () => {
 
     expect(updateSpy).toHaveBeenCalled();
   });
+
+  it('should return an empty array if no assets are found', async () => {
+    const { controller, messenger } = setupController();
+
+    const snapSpy = jest.fn().mockResolvedValue({ conversionRates: {} });
+    messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
+
+    messenger.publish(
+      'MultichainAssetsController:stateChange',
+      {
+        accountsAssets: {
+          account1: [],
+        },
+        assetsMetadata: {},
+      },
+      [],
+    );
+
+    await controller.updateAssetsRates();
+
+    expect(controller.state.conversionRates).toStrictEqual({});
+  });
 });

@@ -299,6 +299,26 @@ describe('TokensController', () => {
     );
   });
 
+  it('should not add detected tokens if token is already imported', async () => {
+    await withController(async ({ controller }) => {
+      await controller.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
+
+      await controller.addDetectedTokens([
+        { address: '0x01', symbol: 'barA', decimals: 2 },
+      ]);
+
+      expect(
+        controller.state.allDetectedTokens[ChainId.mainnet]?.[
+          defaultMockInternalAccount.address
+        ],
+      ).toBeUndefined();
+    });
+  });
+
   it('should add detected tokens', async () => {
     await withController(async ({ controller }) => {
       await controller.addDetectedTokens([

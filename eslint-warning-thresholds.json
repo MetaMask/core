@@ -97,7 +97,6 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
     "import-x/namespace": 11,
-    "import-x/order": 3,
     "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {

@@ -29,12 +29,6 @@ import BN from 'bn.js';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import {
-  buildCustomRpcEndpoint,
-  buildInfuraNetworkConfiguration,
-} from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
 import * as MutliChainAccountsServiceModule from './multi-chain-accounts-service';
 import {
@@ -66,6 +60,12 @@ import type {
   TokensControllerState,
 } from './TokensController';
 import { getDefaultTokensState } from './TokensController';
+import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -282,6 +282,24 @@ describe('TokenDetectionController', () => {
           expect(mockTokens.calledOnce).toBe(true);
           await advanceTime({ clock, duration: DEFAULT_INTERVAL * 1.5 });
           expect(mockTokens.calledTwice).toBe(false);
+        },
+      );
+    });
+
+    it('should not poll if the controller is not active', async () => {
+      await withController(
+        {
+          isKeyringUnlocked: true,
+        },
+        async ({ controller }) => {
+          controller.setIntervalLength(10);
+
+          await controller._executePoll({
+            chainIds: [ChainId.mainnet],
+            address: defaultSelectedAccount.address,
+          });
+
+          expect(controller.isActive).toBe(false);
         },
       );
     });
@@ -653,7 +671,6 @@ describe('TokenDetectionController', () => {
           mockMultiChainAccountsService();
           mockTokensGetState({
             ...getDefaultTokensState(),
-            ignoredTokens: [sampleTokenA.address],
           });
           mockTokenListGetState({
             ...getDefaultTokenListState(),
