@@ -38,6 +38,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
+import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
@@ -48,12 +49,10 @@ import {
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from './token-service';
 import type {
-  TokenListMap,
   TokenListStateChange,
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
-import { cloneDeep } from 'lodash';
 
 /**
  * @type SuggestedAssetMeta
@@ -398,8 +397,6 @@ export class TokensController extends BaseController<
 
     const accountAddress =
       this.#getAddressOrSelectedAddress(interactingAddress);
-    const isInteractingWithWalletAccount =
-      this.#isInteractingWithWallet(accountAddress);
 
     try {
       address = toChecksumHexAddress(address);
@@ -743,33 +740,6 @@ export class TokensController extends BaseController<
   }
 
   /**
-   * This is a function that updates the tokens name for the tokens name if it is not defined.
-   *
-   * @param tokenList - Represents the fetched token list from service API
-   * @param tokenAttribute - Represents the token attribute that we want to update on the token list
-   */
-  #updateTokensAttribute(
-    tokenList: TokenListMap,
-    tokenAttribute: keyof Token & keyof TokenListToken,
-  ) {
-    const chainId = this.#chainId;
-    const accountAddress = this.#getSelectedAddress();
-    const tokens = [...this.state.allTokens[chainId][accountAddress]];
-
-    const newTokens = tokens.map((token) => {
-      const newToken = tokenList[token.address.toLowerCase()];
-
-      return !token[tokenAttribute] && newToken?.[tokenAttribute]
-        ? { ...token, [tokenAttribute]: newToken[tokenAttribute] }
-        : { ...token };
-    });
-
-    this.update((state) => {
-      state.allTokens[chainId][accountAddress] = newTokens;
-    });
-  }
-
-  /**
    * Detects whether or not a token is ERC-721 compatible.
    *
    * @param tokenAddress - The token contract address.
@@ -1083,12 +1053,6 @@ export class TokensController extends BaseController<
     }
 
     return this.#getSelectedAddress();
-  }
-
-  #isInteractingWithWallet(address: string | undefined) {
-    const selectedAddress = this.#getSelectedAddress();
-
-    return selectedAddress === address;
   }
 
   /**

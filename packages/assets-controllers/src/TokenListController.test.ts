@@ -586,6 +586,7 @@ describe('TokenListController', () => {
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
 
+    expect(controller.state.tokensChainsCache).toStrictEqual({});
     controller.destroy();
   });
 
@@ -594,6 +595,8 @@ describe('TokenListController', () => {
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
       .persist();
+
+    jest.spyOn(Date, 'now').mockImplementation(() => 100);
     const selectedNetworkClientId = 'selectedNetworkClientId';
     const messenger = getMessenger();
     const getNetworkClientById = buildMockGetNetworkClientById({
@@ -627,6 +630,84 @@ describe('TokenListController', () => {
     });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
+    console.log(
+      'controller.state.tokensChainsCache ......',
+      JSON.stringify(controller.state.tokensChainsCache),
+    );
+
+    expect(controller.state.tokensChainsCache).toStrictEqual({
+      '0x1': {
+        timestamp: 100,
+        data: {
+          '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f': {
+            address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
+            symbol: 'SNX',
+            decimals: 18,
+            occurrences: 11,
+            name: 'Synthetix',
+            iconUrl:
+              'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
+            aggregators: [
+              'Aave',
+              'Bancor',
+              'CMC',
+              'Crypto.com',
+              'CoinGecko',
+              '1inch',
+              'Paraswap',
+              'PMM',
+              'Synthetix',
+              'Zapper',
+              'Zerion',
+              '0x',
+            ],
+          },
+          '0x514910771af9ca656af840dff83e8264ecf986ca': {
+            address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+            symbol: 'LINK',
+            decimals: 18,
+            occurrences: 11,
+            name: 'Chainlink',
+            iconUrl:
+              'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+            aggregators: [
+              'Aave',
+              'Bancor',
+              'CMC',
+              'Crypto.com',
+              'CoinGecko',
+              '1inch',
+              'Paraswap',
+              'PMM',
+              'Zapper',
+              'Zerion',
+              '0x',
+            ],
+          },
+          '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c': {
+            address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+            symbol: 'BNT',
+            decimals: 18,
+            occurrences: 11,
+            name: 'Bancor',
+            iconUrl:
+              'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+            aggregators: [
+              'Bancor',
+              'CMC',
+              'CoinGecko',
+              '1inch',
+              'Paraswap',
+              'PMM',
+              'Zapper',
+              'Zerion',
+              '0x',
+            ],
+          },
+        },
+      },
+      '0x539': { timestamp: 100, data: {} },
+    });
     controller.destroy();
   });
 

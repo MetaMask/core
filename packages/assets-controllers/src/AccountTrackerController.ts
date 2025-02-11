@@ -22,7 +22,7 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
-import { type Hex, assert } from '@metamask/utils';
+import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
 
@@ -201,8 +201,18 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   private syncAccounts(newChainId: string) {
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const {
+      configuration: { chainId: currentChainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
 
-    const existing = Object.keys(accountsByChainId?.[newChainId] ?? {});
+    const existing = Object.keys(accountsByChainId?.[currentChainId] ?? {});
+
     if (!accountsByChainId[newChainId]) {
       accountsByChainId[newChainId] = {};
       existing.forEach((address) => {
