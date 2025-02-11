@@ -22,8 +22,11 @@ export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
 
 export const BRIDGE_DEV_API_BASE_URL = 'https://bridge.dev-api.cx.metamask.io';
 export const BRIDGE_PROD_API_BASE_URL = 'https://bridge.api.cx.metamask.io';
-export const BRIDGE_CLIENT_ID_EXTENSION = 'extension';
-export const BRIDGE_CLIENT_ID_MOBILE = 'mobile';
+
+export enum BridgeClientId {
+  EXTENSION = 'extension',
+  MOBILE = 'mobile',
+}
 
 export const ETH_USDT_ADDRESS = '0xdac17f958d2ee523a2206206994597c13d831ec7';
 export const METABRIDGE_ETHEREUM_ADDRESS =

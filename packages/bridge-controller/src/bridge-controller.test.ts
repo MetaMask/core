@@ -5,7 +5,7 @@ import nock from 'nock';
 
 import { BridgeController } from './bridge-controller';
 import {
-  BRIDGE_CLIENT_ID_EXTENSION,
+  BridgeClientId,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
@@ -46,7 +46,7 @@ describe('BridgeController', function () {
     bridgeController = new BridgeController({
       messenger: messengerMock,
       getLayer1GasFee: getLayer1GasFeeMock,
-      clientId: BRIDGE_CLIENT_ID_EXTENSION,
+      clientId: BridgeClientId.EXTENSION,
     });
   });
 
@@ -317,7 +317,7 @@ describe('BridgeController', function () {
         insufficientBal: false,
       },
       expect.any(AbortSignal),
-      BRIDGE_CLIENT_ID_EXTENSION,
+      BridgeClientId.EXTENSION,
     );
     expect(
       bridgeController.state.bridgeState.quotesLastFetched,
@@ -469,7 +469,7 @@ describe('BridgeController', function () {
         insufficientBal: true,
       },
       expect.any(AbortSignal),
-      BRIDGE_CLIENT_ID_EXTENSION,
+      BridgeClientId.EXTENSION,
     );
     expect(
       bridgeController.state.bridgeState.quotesLastFetched,
@@ -666,7 +666,7 @@ describe('BridgeController', function () {
           insufficientBal: true,
         },
         expect.any(AbortSignal),
-        BRIDGE_CLIENT_ID_EXTENSION,
+        BridgeClientId.EXTENSION,
       );
       expect(
         bridgeController.state.bridgeState.quotesLastFetched,

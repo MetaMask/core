@@ -8,6 +8,7 @@ import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { BrowserProvider, Contract } from 'ethers';
 
+import type { BridgeClientId } from './constants/bridge';
 import { REFRESH_INTERVAL_MS } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
@@ -69,7 +70,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
-    clientId: string;
+    clientId: BridgeClientId;
     getLayer1GasFee: (params: {
       transactionParams: TransactionParams;
       chainId: ChainId;
