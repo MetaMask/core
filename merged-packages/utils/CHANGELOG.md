@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.2.0]
+### Added
+- Add optional `signEip7702Authorization` method to `Keyring` type ([#231](https://github.com/MetaMask/utils/pull/231))
+
 ## [11.1.0]
 ### Added
 - Add additional CAIP-19 types (`CaipAsset{Namespace,Reference,TokenId}` support ([#227](https://github.com/MetaMask/utils/pull/227))
@@ -292,7 +296,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v11.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v11.2.0...HEAD
+[11.2.0]: https://github.com/MetaMask/utils/compare/v11.1.0...v11.2.0
 [11.1.0]: https://github.com/MetaMask/utils/compare/v11.0.1...v11.1.0
 [11.0.1]: https://github.com/MetaMask/utils/compare/v11.0.0...v11.0.1
 [11.0.0]: https://github.com/MetaMask/utils/compare/v10.0.1...v11.0.0
