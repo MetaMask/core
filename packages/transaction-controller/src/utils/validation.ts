@@ -456,10 +456,18 @@ function validateAuthorization(authorization: Authorization) {
   ensureFieldIsValidHex(authorization, 'address');
   validateHexLength(authorization.address, 20, 'address');
 
-  for (const field of ['chainId', 'nonce', 'r', 's', 'yParity'] as const) {
+  for (const field of ['chainId', 'nonce', 'r', 's'] as const) {
     if (authorization[field]) {
       ensureFieldIsValidHex(authorization, field);
     }
+  }
+
+  const { yParity } = authorization;
+
+  if (yParity && !['0x', '0x1'].includes(yParity)) {
+    throw rpcErrors.invalidParams(
+      `Invalid transaction params: yParity must be '0x' or '0x1'. got: ${yParity}`,
+    );
   }
 }
 

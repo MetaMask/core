@@ -539,7 +539,7 @@ describe('validation', () => {
         );
       });
 
-      it.each(['chainId', 'nonce', 'r', 's', 'yParity'])(
+      it.each(['chainId', 'nonce', 'r', 's'])(
         'throws if %s provided but not hexadecimal',
         (property) => {
           expect(() =>
@@ -561,6 +561,26 @@ describe('validation', () => {
           );
         },
       );
+
+      it('throws if yParity is not 0x or 0x1', () => {
+        expect(() =>
+          validateTxParams({
+            authorizationList: [
+              {
+                address: FROM_MOCK,
+                yParity: '0x2' as never,
+              },
+            ],
+            from: FROM_MOCK,
+            to: TO_MOCK,
+            type: TransactionEnvelopeType.setCode,
+          }),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            `Invalid transaction params: yParity must be '0x' or '0x1'. got: 0x2`,
+          ),
+        );
+      });
     });
   });
 
