@@ -4,12 +4,15 @@ import { Contract } from 'ethers';
 import nock from 'nock';
 
 import { BridgeController } from './bridge-controller';
-import { DEFAULT_BRIDGE_CONTROLLER_STATE } from './constants/bridge';
+import {
+  BRIDGE_CLIENT_ID_EXTENSION,
+  DEFAULT_BRIDGE_CONTROLLER_STATE,
+} from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import type { BridgeControllerMessenger, QuoteResponse } from './types';
-import { getBridgeApiBaseUrl } from './utils/bridge';
 import * as balanceUtils from './utils/balance';
+import { getBridgeApiBaseUrl } from './utils/bridge';
 import * as fetchUtils from './utils/fetch';
 import mockBridgeQuotesErc20Native from '../../../tests/bridge-controller/mock-quotes-erc20-native.json';
 import mockBridgeQuotesNativeErc20Eth from '../../../tests/bridge-controller/mock-quotes-native-erc20-eth.json';
@@ -43,6 +46,7 @@ describe('BridgeController', function () {
     bridgeController = new BridgeController({
       messenger: messengerMock,
       getLayer1GasFee: getLayer1GasFeeMock,
+      clientId: BRIDGE_CLIENT_ID_EXTENSION,
     });
   });
 
@@ -313,6 +317,7 @@ describe('BridgeController', function () {
         insufficientBal: false,
       },
       expect.any(AbortSignal),
+      BRIDGE_CLIENT_ID_EXTENSION,
     );
     expect(
       bridgeController.state.bridgeState.quotesLastFetched,
@@ -464,6 +469,7 @@ describe('BridgeController', function () {
         insufficientBal: true,
       },
       expect.any(AbortSignal),
+      BRIDGE_CLIENT_ID_EXTENSION,
     );
     expect(
       bridgeController.state.bridgeState.quotesLastFetched,
@@ -660,6 +666,7 @@ describe('BridgeController', function () {
           insufficientBal: true,
         },
         expect.any(AbortSignal),
+        BRIDGE_CLIENT_ID_EXTENSION,
       );
       expect(
         bridgeController.state.bridgeState.quotesLastFetched,

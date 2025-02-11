@@ -8,6 +8,7 @@ import {
 } from './fetch';
 import mockBridgeQuotesErc20Erc20 from '../../../../tests/bridge-controller/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../../../tests/bridge-controller/mock-quotes-native-erc20.json';
+import { BRIDGE_CLIENT_ID_EXTENSION } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -54,7 +55,7 @@ describe('Bridge utils', () => {
 
       (handleFetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const result = await fetchBridgeFeatureFlags();
+      const result = await fetchBridgeFeatureFlags(BRIDGE_CLIENT_ID_EXTENSION);
 
       expect(handleFetch).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
@@ -119,7 +120,7 @@ describe('Bridge utils', () => {
 
       (handleFetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const result = await fetchBridgeFeatureFlags();
+      const result = await fetchBridgeFeatureFlags(BRIDGE_CLIENT_ID_EXTENSION);
 
       expect(handleFetch).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
@@ -143,7 +144,9 @@ describe('Bridge utils', () => {
 
       (handleFetch as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(fetchBridgeFeatureFlags()).rejects.toThrow(mockError);
+      await expect(
+        fetchBridgeFeatureFlags(BRIDGE_CLIENT_ID_EXTENSION),
+      ).rejects.toThrow(mockError);
     });
   });
 
@@ -178,7 +181,7 @@ describe('Bridge utils', () => {
 
       (handleFetch as jest.Mock).mockResolvedValue(mockResponse);
 
-      const result = await fetchBridgeTokens('0xa');
+      const result = await fetchBridgeTokens('0xa', BRIDGE_CLIENT_ID_EXTENSION);
 
       expect(handleFetch).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getTokens?chainId=10',
@@ -214,7 +217,9 @@ describe('Bridge utils', () => {
 
       (handleFetch as jest.Mock).mockRejectedValue(mockError);
 
-      await expect(fetchBridgeTokens('0xa')).rejects.toThrow(mockError);
+      await expect(
+        fetchBridgeTokens('0xa', BRIDGE_CLIENT_ID_EXTENSION),
+      ).rejects.toThrow(mockError);
     });
   });
 
@@ -234,6 +239,7 @@ describe('Bridge utils', () => {
           slippage: 0.5,
         },
         signal,
+        BRIDGE_CLIENT_ID_EXTENSION,
       );
 
       expect(handleFetch).toHaveBeenCalledWith(
@@ -266,6 +272,7 @@ describe('Bridge utils', () => {
           slippage: 0.5,
         },
         signal,
+        BRIDGE_CLIENT_ID_EXTENSION,
       );
 
       expect(handleFetch).toHaveBeenCalledWith(
@@ -317,6 +324,7 @@ describe('Bridge utils', () => {
           slippage: 0.5,
         },
         signal,
+        BRIDGE_CLIENT_ID_EXTENSION,
       );
 
       expect(handleFetch).toHaveBeenCalledWith(

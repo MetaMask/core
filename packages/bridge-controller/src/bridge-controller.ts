@@ -54,6 +54,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   #quotesFirstFetched: number | undefined;
 
+  readonly #clientId: string;
+
   readonly #getLayer1GasFee: (params: {
     transactionParams: TransactionParams;
     chainId: ChainId;
@@ -62,10 +64,12 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   constructor({
     messenger,
     state,
+    clientId,
     getLayer1GasFee,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
+    clientId: string;
     getLayer1GasFee: (params: {
       transactionParams: TransactionParams;
       chainId: ChainId;
@@ -86,6 +90,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.setIntervalLength(REFRESH_INTERVAL_MS);
 
     this.#abortController = new AbortController();
+    this.#getLayer1GasFee = getLayer1GasFee;
+    this.#clientId = clientId;
+
     // Register action handlers
     this.messagingSystem.registerActionHandler(
       `${BRIDGE_CONTROLLER_NAME}:setBridgeFeatureFlags`,
@@ -103,8 +110,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       `${BRIDGE_CONTROLLER_NAME}:getBridgeERC20Allowance`,
       this.getBridgeERC20Allowance.bind(this),
     );
-
-    this.#getLayer1GasFee = getLayer1GasFee;
   }
 
   _executePoll = async (pollingInput: BridgePollingInput) => {
@@ -189,7 +194,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   setBridgeFeatureFlags = async () => {
-    const bridgeFeatureFlags = await fetchBridgeFeatureFlags();
+    const bridgeFeatureFlags = await fetchBridgeFeatureFlags(this.#clientId);
     this.update((state) => {
       state.bridgeState.bridgeFeatureFlags = bridgeFeatureFlags;
     });
@@ -223,6 +228,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // Linters accurately say that it's defined
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         this.#abortController!.signal as AbortSignal,
+        this.#clientId,
       );
 
       const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);

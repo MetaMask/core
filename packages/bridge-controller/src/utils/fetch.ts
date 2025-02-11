@@ -5,7 +5,7 @@ import { hexToNumber, numberToHex } from '@metamask/utils';
 import {
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
-  getBridgeApiBaseUrl
+  getBridgeApiBaseUrl,
 } from './bridge';
 import {
   FEATURE_FLAG_VALIDATORS,
@@ -16,10 +16,7 @@ import {
   QUOTE_RESPONSE_VALIDATORS,
   FEE_DATA_VALIDATORS,
 } from './validators';
-import {
-  REFRESH_INTERVAL_MS,
-  BRIDGE_CLIENT_ID_EXTENSION,
-} from '../constants/bridge';
+import { REFRESH_INTERVAL_MS } from '../constants/bridge';
 import type { SwapsTokenObject } from '../constants/tokens';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
@@ -33,19 +30,25 @@ import type {
 } from '../types';
 import { BridgeFlag, FeeType, BridgeFeatureFlagsKey } from '../types';
 
-const CLIENT_ID_HEADER = { 'X-Client-Id': BRIDGE_CLIENT_ID_EXTENSION };
 // TODO put this back in once we have a fetchWithCache equivalent
 // const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
+
+export const getClientIdHeader = (clientId: string) => ({
+  'X-Client-Id': clientId,
+});
 
 /**
  * Fetches the bridge feature flags
  *
+ * @param clientId - The client ID for metrics
  * @returns The bridge feature flags
  */
-export async function fetchBridgeFeatureFlags(): Promise<BridgeFeatureFlags> {
+export async function fetchBridgeFeatureFlags(
+  clientId: string,
+): Promise<BridgeFeatureFlags> {
   const url = `${getBridgeApiBaseUrl()}/getAllFeatureFlags`;
   const rawFeatureFlags = await handleFetch(url, {
-    headers: CLIENT_ID_HEADER,
+    headers: getClientIdHeader(clientId),
   });
 
   if (
@@ -85,10 +88,12 @@ export async function fetchBridgeFeatureFlags(): Promise<BridgeFeatureFlags> {
  * Returns a list of enabled (unblocked) tokens
  *
  * @param chainId - The chain ID to fetch tokens for
+ * @param clientId - The client ID for metrics
  * @returns A list of enabled (unblocked) tokens
  */
 export async function fetchBridgeTokens(
   chainId: Hex,
+  clientId: string,
 ): Promise<Record<string, SwapsTokenObject>> {
   // TODO make token api v2 call
   const url = `${getBridgeApiBaseUrl()}/getTokens?chainId=${hexToNumber(
@@ -99,7 +104,7 @@ export async function fetchBridgeTokens(
   // If we allow selecting dest networks which the user has not imported,
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await handleFetch(url, {
-    headers: CLIENT_ID_HEADER,
+    headers: getClientIdHeader(clientId),
   });
 
   const nativeToken =
@@ -131,11 +136,13 @@ export async function fetchBridgeTokens(
  *
  * @param request - The quote request
  * @param signal - The abort signal
+ * @param clientId - The client ID for metrics
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuotes(
   request: QuoteRequest,
   signal: AbortSignal,
+  clientId: string,
 ): Promise<QuoteResponse[]> {
   const queryParams = new URLSearchParams({
     walletAddress: request.walletAddress,
@@ -150,7 +157,7 @@ export async function fetchBridgeQuotes(
   });
   const url = `${getBridgeApiBaseUrl()}/getQuote?${queryParams}`;
   const quotes = await handleFetch(url, {
-    headers: CLIENT_ID_HEADER,
+    headers: getClientIdHeader(clientId),
     signal,
   });
 
