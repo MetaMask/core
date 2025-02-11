@@ -6,39 +6,31 @@ import type {
   MultichainNetworkMetadata,
 } from './MultichainNetworkController';
 
-export const btcNativeAsset = `${BtcScope.Mainnet}/slip44:0`;
-export const solNativeAsset = `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
+export const BTC_NATIVE_ASSET = `${BtcScope.Mainnet}/slip44:0`;
+export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
 
-export const MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
+export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
   string,
   MultichainNetworkConfiguration
 > = {
   [BtcScope.Mainnet]: {
     chainId: BtcScope.Mainnet,
-
     name: 'Bitcoin Mainnet',
-
     blockExplorers: {
       urls: ['https://blockstream.info'],
       defaultIndex: 0,
     },
-
-    nativeCurrency: btcNativeAsset,
-
+    nativeCurrency: BTC_NATIVE_ASSET,
     isEvm: false,
   },
   [SolScope.Mainnet]: {
     chainId: SolScope.Mainnet,
-
     name: 'Solana Mainnet',
-
     blockExplorers: {
       urls: ['https://explorer.solana.com'],
       defaultIndex: 0,
     },
-
-    nativeCurrency: solNativeAsset,
-
+    nativeCurrency: SOL_NATIVE_ASSET,
     isEvm: false,
   },
 };

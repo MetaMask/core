@@ -14,7 +14,7 @@ import type {
 } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
 
-import { MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
+import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -102,8 +102,7 @@ function setupController({
     state: {
       selectedMultichainNetworkChainId: SolScope.Mainnet,
       multichainNetworkConfigurationsByChainId:
-        MULTICHAIN_NETWORK_CONFIGURATIONS,
-      multichainNetworksMetadata: {},
+        AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
       isEvmSelected: true,
       ...options.state,
     },
@@ -150,42 +149,12 @@ describe('MultichainNetworkController', () => {
   });
 
   describe('setActiveNetwork', () => {
-    it('should throw error when both EVM and non-EVM networks are provided', async () => {
-      const { controller } = setupController();
-      await expect(
-        controller.setActiveNetwork({
-          evmNetworkClientId: InfuraNetworkType.mainnet,
-          nonEvmChainId: SolScope.Mainnet,
-        }),
-      ).rejects.toThrow('Cannot set both EVM and non-EVM networks!');
-    });
-
-    it('should throw error if nonEvmChainId is an empty string', async () => {
-      const { controller } = setupController();
-      await expect(
-        controller.setActiveNetwork({
-          nonEvmChainId: '' as CaipChainId,
-        }),
-      ).rejects.toThrow('Non-EVM chain ID is required!');
-    });
-
-    it('should throw error if evmNetworkClientId is an empty string', async () => {
-      const { controller } = setupController();
-      await expect(
-        controller.setActiveNetwork({
-          evmNetworkClientId: '',
-        }),
-      ).rejects.toThrow('EVM client ID is required!');
-    });
-
     it('should set non-EVM network when same non-EVM chain ID is active', async () => {
       // By default, Solana is selected but is NOT active (aka EVM network is active)
       const { controller, publishSpy } = setupController();
 
       // Set active network to Solana
-      await controller.setActiveNetwork({
-        nonEvmChainId: SolScope.Mainnet,
-      });
+      await controller.setActiveNetwork(SolScope.Mainnet);
 
       // Check that the Solana is now the selected network
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
@@ -203,13 +172,20 @@ describe('MultichainNetworkController', () => {
     });
 
     it('should throw error when unsupported non-EVM chainId is provided', async () => {
-      const { controller } = setupController();
-      const unsupportedChainId = 'non-existent-chain:0';
+      // Only support Solana
+      const { controller } = setupController({
+        options: {
+          state: {
+            multichainNetworkConfigurationsByChainId: {
+              ...AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS[SolScope.Mainnet],
+            },
+          },
+        },
+      });
 
+      // Switch to Bitcoin, which for testing purposes is not supported
       await expect(
-        controller.setActiveNetwork({
-          nonEvmChainId: unsupportedChainId,
-        }),
+        controller.setActiveNetwork(BtcScope.Mainnet),
       ).rejects.toThrow('Non-EVM chain ID is not supported!');
     });
 
@@ -220,9 +196,7 @@ describe('MultichainNetworkController', () => {
       });
 
       // Set active network to Bitcoin
-      await controller.setActiveNetwork({
-        nonEvmChainId: BtcScope.Mainnet,
-      });
+      await controller.setActiveNetwork(BtcScope.Mainnet);
 
       // Check that the Solana is now the selected network
       expect(controller.state.selectedMultichainNetworkChainId).toBe(
@@ -248,9 +222,7 @@ describe('MultichainNetworkController', () => {
         })),
       });
 
-      await controller.setActiveNetwork({
-        evmNetworkClientId: selectedNetworkClientId,
-      });
+      await controller.setActiveNetwork(selectedNetworkClientId);
 
       // Check that EVM network is selected
       expect(controller.state.isEvmSelected).toBe(true);
@@ -273,9 +245,7 @@ describe('MultichainNetworkController', () => {
       });
       const evmNetworkClientId = 'linea';
 
-      await controller.setActiveNetwork({
-        evmNetworkClientId,
-      });
+      await controller.setActiveNetwork(evmNetworkClientId);
 
       // Check that EVM network is selected
       expect(controller.state.isEvmSelected).toBe(true);

@@ -11,10 +11,16 @@ import type {
   NetworkStatus,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetStateAction,
+  NetworkClientId,
 } from '@metamask/network-controller';
-import type { CaipAssetType, CaipChainId } from '@metamask/utils';
+import {
+  isCaipChainId,
+  type CaipAssetType,
+  type CaipChainId,
+} from '@metamask/utils';
 
 import { getChainIdForNonEvmAddress } from './utils';
+import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -28,7 +34,6 @@ export type CommonNetworkConfiguration = {
    * EVM network flag.
    */
   isEvm: boolean;
-
   /**
    * The block explorers of the network.
    */
@@ -36,17 +41,14 @@ export type CommonNetworkConfiguration = {
     urls: string[];
     defaultIndex: number;
   };
-
   /**
    * The chain ID of the network.
    */
   chainId: CaipChainId;
-
   /**
    * The name of the network.
    */
   name: string;
-
   /**
    * The native asset type of the network.
    */
@@ -89,10 +91,6 @@ export type MultichainNetworkControllerState = {
    */
   selectedMultichainNetworkChainId: CaipChainId;
   /**
-   * The metadata of the networks.
-   */
-  multichainNetworksMetadata: Record<string, MultichainNetworkMetadata>;
-  /**
    * Whether EVM or non-EVM network is selected
    */
   isEvmSelected: boolean;
@@ -105,9 +103,9 @@ export type MultichainNetworkControllerState = {
  */
 export const getDefaultMultichainNetworkControllerState =
   (): MultichainNetworkControllerState => ({
-    multichainNetworkConfigurationsByChainId: {},
+    multichainNetworkConfigurationsByChainId:
+      AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
     selectedMultichainNetworkChainId: SolScope.Mainnet,
-    multichainNetworksMetadata: {},
     isEvmSelected: true,
   });
 
@@ -204,7 +202,6 @@ export type MultichainNetworkControllerMessenger =
 const multichainNetworkControllerMetadata = {
   multichainNetworkConfigurationsByChainId: { persist: true, anonymous: true },
   selectedMultichainNetworkChainId: { persist: true, anonymous: true },
-  multichainNetworksMetadata: { persist: true, anonymous: true },
   isEvmSelected: { persist: true, anonymous: true },
 } satisfies StateMetadata<MultichainNetworkControllerState>;
 
@@ -239,79 +236,16 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
-   * Handles switching between EVM and non-EVM networks.
+   * Sets the active EVM network.
    *
-   * @param args - The arguments to set the active network.
-   * @param args.evmNetworkClientId - The client ID of the EVM network to set active.
-   * @param args.nonEvmChainId - The chain ID of the non-EVM network to set active.
+   * @param id - The client ID of the EVM network to set active.
    */
-  async setActiveNetwork({
-    evmNetworkClientId,
-    nonEvmChainId,
-  }: {
-    evmNetworkClientId?: string;
-    nonEvmChainId?: CaipChainId;
-  }): Promise<void> {
-    // Throw an error if both EVM and non-EVM networks are set
-    if (evmNetworkClientId !== undefined && nonEvmChainId !== undefined) {
-      throw new Error('Cannot set both EVM and non-EVM networks!');
-    }
-
-    // Handle non-EVM networks
-    if (nonEvmChainId !== undefined) {
-      // Handle EVM networks
-      if (nonEvmChainId.length === 0) {
-        throw new Error('Non-EVM chain ID is required!');
-      }
-
-      // Prevent setting same network
-      if (nonEvmChainId === this.state.selectedMultichainNetworkChainId) {
-        // Indicate that the non-EVM network is selected
-        this.update((state) => {
-          state.isEvmSelected = false;
-        });
-
-        // Notify listeners that setActiveNetwork was called
-        this.messagingSystem.publish(
-          'MultichainNetworkController:networkDidChange',
-          { nonEvmChainId },
-        );
-        return;
-      }
-
-      // Check if the non-EVM chain ID is supported
-      if (
-        !Object.keys(
-          this.state.multichainNetworkConfigurationsByChainId,
-        ).includes(nonEvmChainId)
-      ) {
-        throw new Error('Non-EVM chain ID is not supported!');
-      }
-
-      // Notify listeners that setActiveNetwork was called
-      this.messagingSystem.publish(
-        'MultichainNetworkController:networkDidChange',
-        { nonEvmChainId },
-      );
-
-      this.update((state) => {
-        state.selectedMultichainNetworkChainId = nonEvmChainId;
-        state.isEvmSelected = false;
-      });
-
-      return;
-    }
-
-    // Handle EVM networks
-    if (!evmNetworkClientId) {
-      throw new Error('EVM client ID is required!');
-    }
-
+  async #setActiveEvmNetwork(id: NetworkClientId): Promise<void> {
     // Notify listeners that setActiveNetwork was called
     this.messagingSystem.publish(
       'MultichainNetworkController:networkDidChange',
       {
-        evmNetworkClientId,
+        evmNetworkClientId: id,
       },
     );
 
@@ -325,16 +259,75 @@ export class MultichainNetworkController extends BaseController<
       'NetworkController:getState',
     );
 
-    if (evmNetworkClientId === selectedNetworkClientId) {
+    if (id === selectedNetworkClientId) {
       // EVM network is already selected, no need to update NetworkController
       return;
     }
 
     // Update evm active network
-    await this.messagingSystem.call(
-      'NetworkController:setActiveNetwork',
-      evmNetworkClientId,
+    await this.messagingSystem.call('NetworkController:setActiveNetwork', id);
+  }
+
+  /**
+   * Sets the active non-EVM network.
+   *
+   * @param id - The chain ID of the non-EVM network to set active.
+   */
+  #setActiveNonEvmNetwork(id: CaipChainId): void {
+    // Prevent setting same network
+    if (id === this.state.selectedMultichainNetworkChainId) {
+      // Indicate that the non-EVM network is selected
+      this.update((state) => {
+        state.isEvmSelected = false;
+      });
+
+      // Notify listeners that setActiveNetwork was called
+      this.messagingSystem.publish(
+        'MultichainNetworkController:networkDidChange',
+        { nonEvmChainId: id },
+      );
+      return;
+    }
+
+    // Check if the non-EVM chain ID is supported
+    if (
+      !Object.keys(
+        this.state.multichainNetworkConfigurationsByChainId,
+      ).includes(id)
+    ) {
+      throw new Error('Non-EVM chain ID is not supported!');
+    }
+
+    // Notify listeners that setActiveNetwork was called
+    this.messagingSystem.publish(
+      'MultichainNetworkController:networkDidChange',
+      { nonEvmChainId: id },
     );
+
+    this.update((state) => {
+      state.selectedMultichainNetworkChainId = id;
+      state.isEvmSelected = false;
+    });
+  }
+
+  /**
+   * Switches to a non-EVM network.
+   *
+   * @param nonEvmChainId - The chain ID of the non-EVM network to set active.
+   */
+  async setActiveNetwork(nonEvmChainId: CaipChainId): Promise<void>;
+
+  /**
+   * Switches to an EVM network.
+   *
+   * @param evmNetworkClientId - The client ID of the EVM network to set active.
+   */
+  async setActiveNetwork(evmNetworkClientId: NetworkClientId): Promise<void>;
+
+  async setActiveNetwork(id: CaipChainId | NetworkClientId): Promise<void> {
+    isCaipChainId(id)
+      ? this.#setActiveNonEvmNetwork(id)
+      : await this.#setActiveEvmNetwork(id);
   }
 
   /**
