@@ -25,6 +25,7 @@ export enum KeyringControllerError {
   UnsupportedSignUserOperation = 'KeyringController - The keyring for the current address does not support the method signUserOperation.',
   UnsupportedVerifySeedPhrase = 'KeyringController - The keyring does not support the method verifySeedPhrase.',
   NoAccountOnKeychain = "KeyringController - The keychain doesn't have accounts.",
+  ControllerLocked = 'KeyringController - The operation cannot be completed while the controller is locked.',
   MissingCredentials = 'KeyringController - Cannot persist vault without password and encryption key',
   MissingVaultData = 'KeyringController - Cannot persist vault without vault information',
   ExpiredCredentials = 'KeyringController - Encryption key and salt provided are expired',

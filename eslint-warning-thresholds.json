@@ -574,12 +574,8 @@
     "promise/always-return": 2
   },
   "packages/transaction-controller/src/TransactionController.ts": {
-    "@typescript-eslint/prefer-readonly": 11,
     "jsdoc/check-tag-names": 35,
-    "jsdoc/require-returns": 5,
-    "jsdoc/tag-lines": 1,
-    "prettier/prettier": 1,
-    "no-unused-private-class-members": 1
+    "jsdoc/require-returns": 5
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
     "import-x/order": 4,
@@ -610,9 +606,6 @@
   "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.test.ts": {
     "import-x/order": 1,
     "jsdoc/tag-lines": 1
-  },
-  "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.ts": {
-    "@typescript-eslint/prefer-readonly": 2
   },
   "packages/transaction-controller/src/gas-flows/ScrollLayer1GasFeeFlow.test.ts": {
     "import-x/order": 1
@@ -671,9 +664,6 @@
   "packages/transaction-controller/src/helpers/TransactionPoller.ts": {
     "@typescript-eslint/prefer-readonly": 1,
     "jsdoc/tag-lines": 2
-  },
-  "packages/transaction-controller/src/types.ts": {
-    "jsdoc/tag-lines": 4
   },
   "packages/transaction-controller/src/utils/external-transactions.test.ts": {
     "import-x/order": 1
@@ -761,13 +751,6 @@
     "@typescript-eslint/no-unused-vars": 1
   },
   "packages/transaction-controller/src/utils/utils.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/transaction-controller/src/utils/validation.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/transaction-controller/src/utils/validation.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 2,
     "import-x/order": 1
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
