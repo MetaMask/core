@@ -4,14 +4,14 @@ export const isValidQuoteRequest = (
   partialRequest: Partial<QuoteRequest>,
   requireAmount = true,
 ): partialRequest is QuoteRequest => {
-  const STRING_FIELDS = ['srcTokenAddress', 'destTokenAddress'];
+  const stringFields = ['srcTokenAddress', 'destTokenAddress'];
   if (requireAmount) {
-    STRING_FIELDS.push('srcTokenAmount');
+    stringFields.push('srcTokenAmount');
   }
-  const NUMBER_FIELDS = ['srcChainId', 'destChainId', 'slippage'];
+  const numberFields = ['srcChainId', 'destChainId', 'slippage'];
 
   return (
-    STRING_FIELDS.every(
+    stringFields.every(
       (field) =>
         field in partialRequest &&
         typeof partialRequest[field as keyof typeof partialRequest] ===
@@ -20,7 +20,7 @@ export const isValidQuoteRequest = (
         partialRequest[field as keyof typeof partialRequest] !== '' &&
         partialRequest[field as keyof typeof partialRequest] !== null,
     ) &&
-    NUMBER_FIELDS.every(
+    numberFields.every(
       (field) =>
         field in partialRequest &&
         typeof partialRequest[field as keyof typeof partialRequest] ===
