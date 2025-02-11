@@ -14,7 +14,7 @@ import type {
 } from '@metamask/network-controller';
 import type { CaipChainId } from '@metamask/utils';
 
-import { multichainNetworkConfigurations } from './constants';
+import { MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -23,7 +23,7 @@ import {
   getDefaultMultichainNetworkControllerState,
   MultichainNetworkController,
 } from './MultichainNetworkController';
-import { createMockInternalAccount } from './test/utils';
+import { createMockInternalAccount } from '../test/utils';
 
 const controllerName = 'MultichainNetworkController';
 
@@ -101,7 +101,8 @@ function setupController({
     messenger: options.messenger || controllerMessenger,
     state: {
       selectedMultichainNetworkChainId: SolScope.Mainnet,
-      multichainNetworkConfigurationsByChainId: multichainNetworkConfigurations,
+      multichainNetworkConfigurationsByChainId:
+        MULTICHAIN_NETWORK_CONFIGURATIONS,
       multichainNetworksMetadata: {},
       isEvmSelected: true,
       ...options.state,

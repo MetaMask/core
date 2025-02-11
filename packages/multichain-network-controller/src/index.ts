@@ -1,2 +1,2 @@
 export * from './MultichainNetworkController';
-export { multichainNetworkConfigurations, networksMetadata } from './constants';
+export * from './constants';

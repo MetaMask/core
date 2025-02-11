@@ -9,7 +9,7 @@ import type {
 export const btcNativeAsset = `${BtcScope.Mainnet}/slip44:0`;
 export const solNativeAsset = `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
 
-export const multichainNetworkConfigurations: Record<
+export const MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
   string,
   MultichainNetworkConfiguration
 > = {
@@ -43,7 +43,7 @@ export const multichainNetworkConfigurations: Record<
   },
 };
 
-export const networksMetadata: Record<string, MultichainNetworkMetadata> = {
+export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
   [BtcScope.Mainnet]: {
     features: [],
     status: NetworkStatus.Available,

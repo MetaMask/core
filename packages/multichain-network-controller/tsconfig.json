@@ -8,5 +8,5 @@
     { "path": "../network-controller" },
     { "path": "../keyring-controller" }
   ],
-  "include": ["../../types", "./src", "./tests"]
+  "include": ["../../types", "./src", "./tests", "test"]
 }
