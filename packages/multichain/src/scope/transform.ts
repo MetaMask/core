@@ -61,6 +61,7 @@ export const normalizeScope = (
 
 /**
  * Merges two NormalizedScopeObjects
+ *
  * @param scopeObjectA - The first scope object to merge.
  * @param scopeObjectB - The second scope object to merge.
  * @returns The merged scope object.
@@ -170,6 +171,7 @@ export const mergeInternalScopes = (
 
 /**
  * Normalizes and merges a set of ExternalScopesObjects into a NormalizedScopesObject (i.e. a set of NormalizedScopeObjects where references are flattened).
+ *
  * @param scopes - The external scopes to normalize and merge.
  * @returns The normalized and merged scopes.
  */
