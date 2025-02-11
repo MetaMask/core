@@ -2185,7 +2185,7 @@ export class KeyringController extends BaseController<
       this.update((state) => {
         state.vault = updatedState.vault;
         state.keyrings = updatedKeyrings;
-        state.keyringsMetadata = this.#keyringsMetadata;
+        state.keyringsMetadata = this.#keyringsMetadata.slice();
         if (updatedState.encryptionKey) {
           state.encryptionKey = updatedState.encryptionKey;
           state.encryptionSalt = JSON.parse(updatedState.vault as string).salt;
@@ -2295,8 +2295,7 @@ export class KeyringController extends BaseController<
 
     this.#keyrings.push(keyring);
     if (this.#keyringsMetadata.length < this.#keyrings.length) {
-      // FIXME: For some reason, metadata is not always an extensible array, so .push() is not working
-      this.#keyringsMetadata = [...this.#keyringsMetadata, newKeyringMetadata];
+      this.#keyringsMetadata.push(newKeyringMetadata);
     }
 
     return keyring;
