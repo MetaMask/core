@@ -1,5 +1,5 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import { StakeSdk, StakingApiService } from '@metamask/stake-sdk';
 
@@ -30,12 +30,12 @@ jest.mock('@metamask/stake-sdk', () => ({
 }));
 
 /**
- * Builds a new instance of the ControllerMessenger class for the AccountsController.
+ * Builds a new instance of the Messenger class for the AccountsController.
  *
- * @returns A new instance of the ControllerMessenger class for the AccountsController.
+ * @returns A new instance of the Messenger class for the AccountsController.
  */
 function buildMessenger() {
-  return new ControllerMessenger<
+  return new Messenger<
     EarnControllerActions | AllowedActions,
     EarnControllerEvents | AllowedEvents
   >();

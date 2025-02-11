@@ -48,7 +48,6 @@ const arrangeMocks = async ({
     env: {
       isAccountSyncingEnabled,
     },
-    getMetaMetricsState: () => true,
     state: {
       ...baseState,
       ...stateOverrides,

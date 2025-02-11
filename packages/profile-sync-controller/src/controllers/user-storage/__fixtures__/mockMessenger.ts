@@ -58,8 +58,6 @@ export function createCustomUserStorageMessenger(props?: {
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignOut',
       'AuthenticationController:performSignIn',
-      'NotificationServicesController:disableNotificationServices',
-      'NotificationServicesController:selectIsNotificationServicesEnabled',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
       'NetworkController:getState',
@@ -126,14 +124,6 @@ export function mockUserStorageMessenger(
   const mockAuthPerformSignOut = typedMockFn(
     'AuthenticationController:performSignOut',
   );
-
-  const mockNotificationServicesIsEnabled = typedMockFn(
-    'NotificationServicesController:selectIsNotificationServicesEnabled',
-  ).mockReturnValue(true);
-
-  const mockNotificationServicesDisableNotifications = typedMockFn(
-    'NotificationServicesController:disableNotificationServices',
-  ).mockResolvedValue();
 
   const mockKeyringAddNewAccount = typedMockFn(
     'KeyringController:addNewAccount',
@@ -204,20 +194,6 @@ export function mockUserStorageMessenger(
       return mockAuthIsSignedIn();
     }
 
-    if (
-      actionType ===
-      'NotificationServicesController:selectIsNotificationServicesEnabled'
-    ) {
-      return mockNotificationServicesIsEnabled();
-    }
-
-    if (
-      actionType ===
-      'NotificationServicesController:disableNotificationServices'
-    ) {
-      return mockNotificationServicesDisableNotifications();
-    }
-
     if (actionType === 'AuthenticationController:performSignOut') {
       return mockAuthPerformSignOut();
     }
@@ -272,8 +248,6 @@ export function mockUserStorageMessenger(
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
-    mockNotificationServicesIsEnabled,
-    mockNotificationServicesDisableNotifications,
     mockAuthPerformSignOut,
     mockKeyringAddNewAccount,
     mockAccountsUpdateAccountMetadata,

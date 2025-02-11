@@ -808,6 +808,22 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
     return { ...messengerMocks, mockCreateOnChainTriggers };
   };
 
+  it('should sign a user in if not already signed in', async () => {
+    const mocks = arrangeMocks();
+    mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
+    mocks.mockIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
+    const controller = new NotificationServicesController({
+      messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    await controller.enableMetamaskNotifications();
+
+    expect(mocks.mockIsSignedIn).toHaveBeenCalled();
+    expect(mocks.mockAuthPerformSignIn).toHaveBeenCalled();
+    expect(mocks.mockIsSignedIn()).toBe(true);
+  });
+
   it('create new notifications when switched on and no new notifications', async () => {
     const mocks = arrangeMocks();
     mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
@@ -943,6 +959,7 @@ const typedMockAction = <Action extends { handler: AnyFunc }>() =>
 
 /**
  * Jest Mock Utility - Mock Notification Messenger
+ *
  * @returns mock notification messenger and other messenger mocks
  */
 function mockNotificationMessenger() {
@@ -955,13 +972,13 @@ function mockNotificationMessenger() {
       'KeyringController:getState',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:isSignedIn',
+      'AuthenticationController:performSignIn',
       'NotificationServicesPushController:disablePushNotifications',
       'NotificationServicesPushController:enablePushNotifications',
       'NotificationServicesPushController:updateTriggerPushNotifications',
       'UserStorageController:getStorageKey',
       'UserStorageController:performGetStorage',
       'UserStorageController:performSetStorage',
-      'UserStorageController:enableProfileSyncing',
     ],
     allowedEvents: [
       'KeyringController:stateChange',
@@ -984,6 +1001,11 @@ function mockNotificationMessenger() {
       true,
     );
 
+  const mockAuthPerformSignIn =
+    typedMockAction<AuthenticationController.AuthenticationControllerPerformSignIn>().mockResolvedValue(
+      'New Access Token',
+    );
+
   const mockDisablePushNotifications =
     typedMockAction<NotificationServicesPushControllerDisablePushNotifications>();
 
@@ -997,9 +1019,6 @@ function mockNotificationMessenger() {
     typedMockAction<UserStorageController.UserStorageControllerGetStorageKey>().mockResolvedValue(
       'MOCK_STORAGE_KEY',
     );
-
-  const mockEnableProfileSyncing =
-    typedMockAction<UserStorageController.UserStorageControllerEnableProfileSyncing>();
 
   const mockPerformGetStorage =
     typedMockAction<UserStorageController.UserStorageControllerPerformGetStorage>().mockResolvedValue(
@@ -1032,6 +1051,11 @@ function mockNotificationMessenger() {
       return mockIsSignedIn();
     }
 
+    if (actionType === 'AuthenticationController:performSignIn') {
+      mockIsSignedIn.mockReturnValue(true);
+      return mockAuthPerformSignIn();
+    }
+
     if (
       actionType ===
       'NotificationServicesPushController:disablePushNotifications'
@@ -1057,10 +1081,6 @@ function mockNotificationMessenger() {
       return mockGetStorageKey();
     }
 
-    if (actionType === 'UserStorageController:enableProfileSyncing') {
-      return mockEnableProfileSyncing();
-    }
-
     if (actionType === 'UserStorageController:performGetStorage') {
       return mockPerformGetStorage(params[0]);
     }
@@ -1080,6 +1100,7 @@ function mockNotificationMessenger() {
     mockListAccounts,
     mockGetBearerToken,
     mockIsSignedIn,
+    mockAuthPerformSignIn,
     mockDisablePushNotifications,
     mockEnablePushNotifications,
     mockUpdateTriggerPushNotifications,
@@ -1091,6 +1112,7 @@ function mockNotificationMessenger() {
 
 /**
  * Jest Mock Utility - Mock Auth Failure Assertions
+ *
  * @param mocks - mock messenger
  * @returns mock test auth scenarios
  */
@@ -1115,6 +1137,7 @@ function arrangeFailureAuthAssertions(
 
 /**
  * Jest Mock Utility - Mock User Storage Failure Assertions
+ *
  * @param mocks - mock messenger
  * @returns mock test user storage key scenarios (e.g. no storage key, rejected storage key)
  */
@@ -1134,6 +1157,7 @@ function arrangeFailureUserStorageKeyAssertions(
 
 /**
  * Jest Mock Utility - Mock User Storage Failure Assertions
+ *
  * @param mocks - mock messenger
  * @returns mock test user storage scenarios
  */

@@ -16,23 +16,6 @@ describe('RestrictedMessenger', () => {
       ).toThrow('Messenger not provided');
     });
 
-    it('should throw if both controllerMessenger and messenger are provided', () => {
-      const messenger = new Messenger<never, never>();
-
-      expect(
-        () =>
-          new RestrictedMessenger({
-            controllerMessenger: messenger,
-            messenger,
-            name: 'Test',
-            allowedActions: [],
-            allowedEvents: [],
-          }),
-      ).toThrow(
-        `Both messenger properties provided. Provide message using only 'messenger' option, 'controllerMessenger' is deprecated`,
-      );
-    });
-
     it('should accept messenger parameter', () => {
       type CountAction = {
         type: 'CountController:count';
@@ -47,37 +30,6 @@ describe('RestrictedMessenger', () => {
         never
       >({
         messenger,
-        name: 'CountController',
-        allowedActions: [],
-        allowedEvents: [],
-      });
-
-      let count = 0;
-      restrictedMessenger.registerActionHandler(
-        'CountController:count',
-        (increment: number) => {
-          count += increment;
-        },
-      );
-      restrictedMessenger.call('CountController:count', 1);
-
-      expect(count).toBe(1);
-    });
-
-    it('should accept controllerMessenger parameter', () => {
-      type CountAction = {
-        type: 'CountController:count';
-        handler: (increment: number) => void;
-      };
-      const messenger = new Messenger<CountAction, never>();
-      const restrictedMessenger = new RestrictedMessenger<
-        'CountController',
-        CountAction,
-        never,
-        never,
-        never
-      >({
-        controllerMessenger: messenger,
         name: 'CountController',
         allowedActions: [],
         allowedEvents: [],

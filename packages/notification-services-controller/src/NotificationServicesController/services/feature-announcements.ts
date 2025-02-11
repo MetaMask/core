@@ -35,9 +35,7 @@ type Env = {
  */
 export type ContentfulResult = {
   includes?: {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     Entry?: Entry[];
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     Asset?: Asset[];
   };
   items?: TypeFeatureAnnouncement[];
@@ -149,6 +147,7 @@ const fetchFeatureAnnouncementNotifications = async (
 
 /**
  * Gets Feature Announcement from our services
+ *
  * @param env - environment for feature announcements
  * @param previewToken - the preview token to use if needed
  * @returns Raw Feature Announcements

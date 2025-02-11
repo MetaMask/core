@@ -1,6 +1,6 @@
 {
   "name": "@metamask/token-search-discovery-controller",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "description": "Manages token search and discovery through the Portfolio API",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "since-latest-release": "../../scripts/since-latest-release.sh"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.1.1",
+    "@metamask/base-controller": "^8.0.0",
     "@metamask/utils": "^11.1.0"
   },
   "devDependencies": {
