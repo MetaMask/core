@@ -84,9 +84,6 @@ describe('TokensController', () => {
   it('should set default state', async () => {
     await withController(({ controller }) => {
       expect(controller.state).toStrictEqual({
-        tokens: [],
-        ignoredTokens: [],
-        detectedTokens: [],
         allTokens: {},
         allIgnoredTokens: {},
         allDetectedTokens: {},
@@ -2902,18 +2899,6 @@ describe('TokensController', () => {
           'TokenListController:stateChange',
           // @ts-expect-error Passing a partial TokensState for brevity
           {
-            tokenList: {
-              '0x01': {
-                address: '0x01',
-                symbol: 'bar',
-                decimals: 2,
-                occurrences: 1,
-                name: 'BarName',
-                iconUrl:
-                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
-                aggregators: ['Aave'],
-              },
-            },
             tokensChainsCache: {
               [ChainId.mainnet]: {
                 timestamp: 1,
@@ -3133,26 +3118,6 @@ describe('TokensController', () => {
   describe('resetState', () => {
     it('resets the state to default state', async () => {
       const initialState: TokensControllerState = {
-        detectedTokens: [
-          {
-            address: '0x01',
-            symbol: 'barA',
-            decimals: 2,
-            aggregators: [],
-            image: undefined,
-            name: undefined,
-          },
-        ],
-        tokens: [
-          {
-            address: '0x02',
-            symbol: 'barB',
-            decimals: 2,
-            aggregators: [],
-            image: undefined,
-            name: undefined,
-          },
-        ],
         allTokens: {
           [ChainId.mainnet]: {
             '0x0001': [
@@ -3167,7 +3132,6 @@ describe('TokensController', () => {
             ],
           },
         },
-        ignoredTokens: ['0x03'],
         allIgnoredTokens: {
           [ChainId.mainnet]: {
             '0x0001': ['0x03'],
@@ -3200,9 +3164,6 @@ describe('TokensController', () => {
           controller.resetState();
 
           expect(controller.state).toStrictEqual({
-            tokens: [],
-            ignoredTokens: [],
-            detectedTokens: [],
             allTokens: {},
             allIgnoredTokens: {},
             allDetectedTokens: {},
