@@ -570,17 +570,11 @@
   "packages/transaction-controller/src/TransactionController.test.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "import-x/namespace": 1,
-    "import-x/order": 4,
-    "jsdoc/tag-lines": 1,
     "promise/always-return": 2
   },
   "packages/transaction-controller/src/TransactionController.ts": {
     "jsdoc/check-tag-names": 35,
     "jsdoc/require-returns": 5
-  },
-  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
-    "import-x/order": 4,
-    "jsdoc/tag-lines": 1
   },
   "packages/transaction-controller/src/api/accounts-api.test.ts": {
     "import-x/order": 1,

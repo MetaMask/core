@@ -100,12 +100,8 @@ import {
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import type { KeyringControllerSignAuthorization } from './utils/eip7702';
-import {
-  isAccountUpgradedToEIP7702,
-  signAuthorizationList,
-} from './utils/eip7702';
+import { signAuthorizationList } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import { getEIP7702SupportedChains } from './utils/feature-flags';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
