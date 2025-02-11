@@ -374,12 +374,6 @@
     "@typescript-eslint/no-unsafe-enum-comparison": 4,
     "jsdoc/tag-lines": 4
   },
-  "packages/multichain/src/scope/transform.ts": {
-    "jsdoc/tag-lines": 3
-  },
-  "packages/multichain/src/scope/types.ts": {
-    "jsdoc/tag-lines": 1
-  },
   "packages/multichain/src/scope/validation.ts": {
     "jsdoc/tag-lines": 2
   },
