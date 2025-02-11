@@ -61,9 +61,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   constructor({
     messenger,
+    state,
     getLayer1GasFee,
   }: {
     messenger: BridgeControllerMessenger;
+    state?: Partial<BridgeControllerState>;
     getLayer1GasFee: (params: {
       transactionParams: TransactionParams;
       chainId: ChainId;
@@ -74,7 +76,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       metadata,
       messenger,
       state: {
-        bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
+        bridgeState: {
+          ...DEFAULT_BRIDGE_CONTROLLER_STATE,
+          ...state,
+        },
       },
     });
 
