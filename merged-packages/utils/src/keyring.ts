@@ -170,6 +170,22 @@ export type Keyring<State extends Json> = {
   ): Promise<string>;
 
   /**
+   * Sign an EIP-7702 authorization. This is a signing method for authorizing a
+   * specific contract on a specific chain.
+   *
+   * @param address - The address of the account to use for signing.
+   * @param authorization - An array containing the chain ID, contract address,
+   * and nonce.
+   * @param options - Signing options; differs between keyrings.
+   * @returns The signed authorization as a hex string.
+   */
+  signEip7702Authorization?(
+    address: Hex,
+    authorization: [chainId: number, contractAddress: Hex, nonce: number],
+    options?: Record<string, unknown>,
+  ): Promise<string>;
+
+  /**
    * Sign a message. This is equivalent to the `eth_sign` Ethereum JSON-RPC
    * method, which is exposed by MetaMask as the method `personal_sign`. See
    * the Ethereum JSON-RPC API documentation for more details.
