@@ -100,13 +100,13 @@ describe('EIP-7702 Utils', () => {
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 
     baseMessenger.registerActionHandler(
-      'KeyringController:signAuthorization',
+      'KeyringController:signEip7702AuthorizationMessage',
       signAuthorizationMock,
     );
 
     controllerMessenger = baseMessenger.getRestricted({
       name: 'TransactionController',
-      allowedActions: ['KeyringController:signAuthorization'],
+      allowedActions: ['KeyringController:signEip7702AuthorizationMessage'],
       allowedEvents: [],
     });
   });

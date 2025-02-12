@@ -25,8 +25,13 @@ export type KeyringControllerAuthorization = [
 ];
 
 export type KeyringControllerSignAuthorization = {
-  type: 'KeyringController:signAuthorization';
-  handler: (authorization: KeyringControllerAuthorization) => Promise<string>;
+  type: 'KeyringController:signEip7702AuthorizationMessage';
+  handler: (authorization: {
+    chainId: number;
+    contractAddress: string;
+    from: string;
+    nonce: number;
+  }) => Promise<string>;
 };
 
 export const DELEGATION_PREFIX = '0xef0100';
@@ -196,13 +201,20 @@ async function signAuthorization(
     index,
   );
 
+  const { txParams } = transactionMeta;
+  const { from } = txParams;
   const { address, chainId, nonce } = finalAuthorization;
   const chainIdDecimal = parseInt(chainId, 16);
   const nonceDecimal = parseInt(nonce, 16);
 
   const signature = await messenger.call(
-    'KeyringController:signAuthorization',
-    [chainIdDecimal, address, nonceDecimal],
+    'KeyringController:signEip7702AuthorizationMessage',
+    {
+      chainId: chainIdDecimal,
+      contractAddress: address,
+      from,
+      nonce: nonceDecimal,
+    },
   );
 
   const r = signature.slice(0, 66) as Hex;
