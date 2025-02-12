@@ -57,7 +57,8 @@ export type EvmNetworkConfiguration = CommonNetworkConfiguration & {
   isEvm: true;
   /**
    * The native asset type of the network.
-   * For EVM we use a string because there's no standard for tickers to be translated to Caip asset ID.
+   * For EVM, this is the network ticker since there is no standard between
+   * tickers and Caip IDs.
    */
   nativeCurrency: string;
   /**
