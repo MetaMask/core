@@ -2,9 +2,10 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
+import { isJsonRpcFailure } from '@metamask/utils';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
-import type { Block } from './types';
+import type { AbstractRpcService, Block } from './types';
 import { timeout } from './utils/timeout';
 
 const RETRIABLE_ERRORS: string[] = [
@@ -18,9 +19,22 @@ const RETRIABLE_ERRORS: string[] = [
   'Failed to fetch',
 ];
 
+/**
+ * @deprecated Please use {@link JsonRpcRequestWithOrigin} instead.
+ */
 export interface PayloadWithOrigin extends JsonRpcRequest {
   origin?: string;
 }
+
+/**
+ * Like a JSON-RPC request, but includes an optional `origin` property.
+ * This will be included in the request as a header if specified.
+ */
+type JsonRpcRequestWithOrigin<Params extends JsonRpcParams> =
+  JsonRpcRequest<Params> & {
+    origin?: string;
+  };
+
 interface Request {
   method: string;
   headers: Record<string, string>;
@@ -32,32 +46,150 @@ interface FetchConfig {
 }
 
 /**
- * Create middleware for sending a JSON-RPC request to the given RPC URL.
+ * Creates middleware for sending a JSON-RPC request through the given RPC
+ * service.
  *
- * @param options - Options
- * @param options.btoa - Generates a base64-encoded string from a binary string.
- * @param options.fetch - The `fetch` function; expected to be equivalent to `window.fetch`.
- * @param options.rpcUrl - The URL to send the request to.
- * @param options.originHttpHeaderKey - If provider, the origin field for each JSON-RPC request
- * will be attached to each outgoing fetch request under this header.
+ * @param args - The arguments to this function.
+ * @param args.rpcService - The RPC service to use.
+ * @param args.options - Options.
+ * @param args.options.originHttpHeaderKey - If provided, the origin field for
+ * each JSON-RPC request will be attached to each outgoing fetch request under
+ * this header.
  * @returns The fetch middleware.
  */
-export function createFetchMiddleware({
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  btoa,
-  // eslint-disable-next-line @typescript-eslint/no-shadow
-  fetch,
+export function createFetchMiddleware(args: {
+  rpcService: AbstractRpcService;
+  options?: {
+    originHttpHeaderKey?: string;
+  };
+}): JsonRpcMiddleware<JsonRpcParams, Json>;
+
+/**
+ * Creates middleware for sending a JSON-RPC request to the given RPC URL.
+ *
+ * @deprecated This overload is deprecated — please pass an `RpcService`
+ * instance from `@metamask/network-controller` instead.
+ * @param args - The arguments to this function.
+ * @param args.btoa - Generates a base64-encoded string from a binary string.
+ * @param args.fetch - The `fetch` function; expected to be equivalent to
+ * `window.fetch`.
+ * @param args.rpcUrl - The URL to send the request to.
+ * @param args.originHttpHeaderKey - If provided, the origin field for each
+ * JSON-RPC request will be attached to each outgoing fetch request under this
+ * header.
+ * @returns The fetch middleware.
+ */
+// eslint-disable-next-line @typescript-eslint/unified-signatures
+export function createFetchMiddleware(args: {
+  btoa: (stringToEncode: string) => string;
+  fetch: typeof fetch;
+  rpcUrl: string;
+  originHttpHeaderKey?: string;
+}): JsonRpcMiddleware<JsonRpcParams, Json>;
+
+export function createFetchMiddleware(
+  args:
+    | {
+        rpcService: AbstractRpcService;
+        options?: {
+          originHttpHeaderKey?: string;
+        };
+      }
+    | {
+        btoa: (stringToEncode: string) => string;
+        fetch: typeof fetch;
+        rpcUrl: string;
+        originHttpHeaderKey?: string;
+      },
+): JsonRpcMiddleware<JsonRpcParams, Json> {
+  if ('rpcService' in args) {
+    return createFetchMiddlewareWithRpcService(args);
+  }
+  return createFetchMiddlewareWithoutRpcService(args);
+}
+
+/**
+ * Creates middleware for sending a JSON-RPC request through the given RPC
+ * service.
+ *
+ * @param args - The arguments to this function.
+ * @param args.rpcService - The RPC service to use.
+ * @param args.options - Options.
+ * @param args.options.originHttpHeaderKey - If provided, the origin field for
+ * each JSON-RPC request will be attached to each outgoing fetch request under
+ * this header.
+ * @returns The fetch middleware.
+ */
+function createFetchMiddlewareWithRpcService({
+  rpcService,
+  options = {},
+}: {
+  rpcService: AbstractRpcService;
+  options?: {
+    originHttpHeaderKey?: string;
+  };
+}): JsonRpcMiddleware<JsonRpcParams, Json> {
+  return createAsyncMiddleware(
+    async (req: JsonRpcRequestWithOrigin<JsonRpcParams>, res) => {
+      const headers =
+        'originHttpHeaderKey' in options &&
+        options.originHttpHeaderKey !== undefined &&
+        req.origin !== undefined
+          ? { [options.originHttpHeaderKey]: req.origin }
+          : {};
+
+      const jsonRpcResponse = await rpcService.request(
+        {
+          id: req.id,
+          jsonrpc: req.jsonrpc,
+          method: req.method,
+          params: req.params,
+        },
+        {
+          headers,
+        },
+      );
+
+      if (isJsonRpcFailure(jsonRpcResponse)) {
+        throw rpcErrors.internal({
+          data: jsonRpcResponse.error,
+        });
+      }
+
+      // Discard the `id` and `jsonrpc` fields in the response body
+      // (the JSON-RPC engine will fill those in)
+      res.result = jsonRpcResponse.result;
+    },
+  );
+}
+
+/**
+ * Creates middleware for sending a JSON-RPC request to the given RPC URL.
+ *
+ * @param args - The arguments to this function.
+ * @param args.btoa - Generates a base64-encoded string from a binary string.
+ * @param args.fetch - The `fetch` function; expected to be equivalent to
+ * `window.fetch`.
+ * @param args.rpcUrl - The URL to send the request to.
+ * @param args.originHttpHeaderKey - If provider, the origin field for each
+ * JSON-RPC request will be attached to each outgoing fetch request under this
+ * header.
+ * @returns The fetch middleware.
+ */
+function createFetchMiddlewareWithoutRpcService({
+  btoa: givenBtoa,
+  fetch: givenFetch,
   rpcUrl,
   originHttpHeaderKey,
 }: {
   btoa: (stringToEncode: string) => string;
-  fetch: typeof global.fetch;
+  fetch: typeof fetch;
   rpcUrl: string;
   originHttpHeaderKey?: string;
 }): JsonRpcMiddleware<JsonRpcParams, Json> {
   return createAsyncMiddleware(async (req, res, _next) => {
     const { fetchUrl, fetchParams } = createFetchConfigFromReq({
-      btoa,
+      btoa: givenBtoa,
       req,
       rpcUrl,
       originHttpHeaderKey,
@@ -68,7 +200,7 @@ export function createFetchMiddleware({
     const retryInterval = 1000;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const fetchRes = await fetch(fetchUrl, fetchParams);
+        const fetchRes = await givenFetch(fetchUrl, fetchParams);
         // check for http errrors
         checkForHttpErrors(fetchRes);
         // parse response body
@@ -141,6 +273,9 @@ function parseResponse(fetchRes: Response, body: Record<string, Block>): Block {
 /**
  * Generate `fetch` configuration for sending the given request to an RPC API.
  *
+ * @deprecated This function was created to support a now-deprecated signature
+ * for {@link createFetchMiddleware}. It will be removed in a future major
+ * version.
  * @param options - Options
  * @param options.btoa - Generates a base64-encoded string from a binary string.
  * @param options.rpcUrl - The URL to send the request to.

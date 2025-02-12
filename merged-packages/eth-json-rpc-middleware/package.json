@@ -24,7 +24,8 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "prepack": "./scripts/prepack.sh",
-    "test": "jest",
+    "test": "jest && yarn build:clean && yarn test:types",
+    "test:types": "tsd --files 'src/**/*.test-d.ts'",
     "test:watch": "jest --watch"
   },
   "dependencies": {
@@ -48,6 +49,7 @@
     "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
+    "@metamask/network-controller": "22.2.0",
     "@types/btoa": "^1.2.3",
     "@types/jest": "^27.4.1",
     "@types/node": "^18.16",
@@ -68,6 +70,7 @@
     "rimraf": "^3.0.2",
     "ts-jest": "^27.1.4",
     "ts-node": "^10.7.0",
+    "tsd": "^0.31.2",
     "typescript": "~4.8.4"
   },
   "packageManager": "yarn@3.2.1",

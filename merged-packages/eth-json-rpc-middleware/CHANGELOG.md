@@ -6,7 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Changed
-- Bump `@metamask/utils` to `^11.1.0`
+- Bump `@metamask/utils` to `^11.1.0` ([#358](https://github.com/MetaMask/eth-json-rpc-middleware/pull/358))
+- Deprecate passing an RPC endpoint to `createFetchMiddleware`, and add a way to pass an RPC service instead ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/357))
+  - The new, recommended method signature is now `createFetchMiddleware({ rpcService: AbstractRpcService; options?: { originHttpHeaderKey?: string; } })`, where `AbstractRpcService` matches the same interface from `@metamask/network-controller`
+  - This allows us to support automatic failover to a secondary node when the network goes down
+  - The existing method signature `createFetchMiddleware({ btoa: typeof btoa; fetch: typeof fetch; rpcUrl: string; originHttpHeaderKey?: string; })` will be removed in a future major version
 
 ## [15.1.2]
 ### Changed
