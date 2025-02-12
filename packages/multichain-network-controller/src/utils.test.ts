@@ -2,10 +2,11 @@ import { BtcScope, SolScope, type CaipChainId } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
 
 import {
+  toEvmCaipChainId,
   getChainIdForNonEvmAddress,
   checkIfSupportedCaipChainId,
-  updateNetworkConfiguration,
-  updateNetworkConfigurations,
+  toMultichainNetworkConfiguration,
+  toMultichainNetworkConfigurationsByChainId,
 } from './utils';
 
 describe('utils', () => {
@@ -36,7 +37,7 @@ describe('utils', () => {
     });
   });
 
-  describe('updateNetworkConfiguration', () => {
+  describe('toMultichainNetworkConfiguration', () => {
     it('updates the network configuration for a single EVM network', () => {
       const network: NetworkConfiguration = {
         chainId: '0x1',
@@ -47,7 +48,7 @@ describe('utils', () => {
         rpcEndpoints: [],
         defaultRpcEndpointIndex: 0,
       };
-      expect(updateNetworkConfiguration(network)).toStrictEqual({
+      expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
         chainId: 'eip155:1',
         isEvm: true,
         name: 'Ethereum Mainnet',
@@ -58,7 +59,7 @@ describe('utils', () => {
     });
   });
 
-  describe('updateNetworkConfigurations', () => {
+  describe('toMultichainNetworkConfigurationsByChainId', () => {
     it('updates the network configurations for multiple EVM networks', () => {
       const networks: Record<string, NetworkConfiguration> = {
         '0x1': {
@@ -80,7 +81,9 @@ describe('utils', () => {
           defaultRpcEndpointIndex: 0,
         },
       };
-      expect(updateNetworkConfigurations(networks)).toStrictEqual({
+      expect(
+        toMultichainNetworkConfigurationsByChainId(networks),
+      ).toStrictEqual({
         'eip155:1': {
           chainId: 'eip155:1',
           isEvm: true,
@@ -98,6 +101,14 @@ describe('utils', () => {
           defaultBlockExplorerUrlIndex: 0,
         },
       });
+    });
+  });
+
+  describe('toEvmCaipChainId', () => {
+    it('converts a hex chain ID to a CAIP chain ID', () => {
+      expect(toEvmCaipChainId('0x1')).toBe('eip155:1');
+      expect(toEvmCaipChainId('0xe708')).toBe('eip155:59144');
+      expect(toEvmCaipChainId('0x539')).toBe('eip155:1337');
     });
   });
 });
