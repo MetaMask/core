@@ -8,6 +8,7 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
 } from './feature-flags';
+import { ABI_IERC7821 } from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
@@ -16,7 +17,6 @@ import type {
   AuthorizationList,
   TransactionMeta,
 } from '../types';
-import { ABI_IERC7821 } from '../constants';
 
 export type KeyringControllerAuthorization = [
   chainId: number,
