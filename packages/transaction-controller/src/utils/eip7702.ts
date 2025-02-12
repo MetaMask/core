@@ -1,4 +1,4 @@
-import { AbiCoder, defaultAbiCoder } from '@ethersproject/abi';
+import { defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
