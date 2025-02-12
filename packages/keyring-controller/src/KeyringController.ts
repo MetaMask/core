@@ -254,7 +254,7 @@ export type KeyringControllerOptions = {
 );
 
 /**
- * Keyring object to return in fullUpdate
+ * A keyring object representation.
  */
 export type KeyringObject = {
   /**
