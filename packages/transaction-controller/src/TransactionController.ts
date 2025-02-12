@@ -46,7 +46,6 @@ import { Mutex } from 'async-mutex';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
-import type { Patch } from 'immer';
 import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
@@ -936,14 +935,8 @@ export class TransactionController extends BaseController<
       onTransactionsUpdate: (listener) => {
         this.messagingSystem.subscribe(
           'TransactionController:stateChange',
-          (_newState, patches: Patch[]) => {
-            const hasTransactionPatches = patches.some((patch) => {
-              return patch.path.includes('transactions');
-            });
-            if (hasTransactionPatches) {
-              listener();
-            }
-          },
+          listener,
+          (state) => state.transactions,
         );
       },
       getTransactions: () => this.state.transactions,
