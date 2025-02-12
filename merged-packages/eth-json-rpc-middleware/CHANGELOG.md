@@ -5,12 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [15.2.0]
+### Added
+- Add a way to pass an RPC service to `createFetchMiddleware` ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/357))
+  - The new, recommended function signature is now `createFetchMiddleware({ rpcService: AbstractRpcService; options?: { originHttpHeaderKey?: string; } })`, where `AbstractRpcService` matches the same interface from `@metamask/network-controller`
+  - This allows us to support automatic failover to a secondary node when the network goes down
+
 ### Changed
 - Bump `@metamask/utils` to `^11.1.0` ([#358](https://github.com/MetaMask/eth-json-rpc-middleware/pull/358))
-- Deprecate passing an RPC endpoint to `createFetchMiddleware`, and add a way to pass an RPC service instead ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/357))
-  - The new, recommended method signature is now `createFetchMiddleware({ rpcService: AbstractRpcService; options?: { originHttpHeaderKey?: string; } })`, where `AbstractRpcService` matches the same interface from `@metamask/network-controller`
-  - This allows us to support automatic failover to a secondary node when the network goes down
-  - The existing method signature `createFetchMiddleware({ btoa: typeof btoa; fetch: typeof fetch; rpcUrl: string; originHttpHeaderKey?: string; })` will be removed in a future major version
+
+### Deprecated
+- Deprecate passing an RPC endpoint to `createFetchMiddleware` ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/357))
+  - See recommended function signature above
+  - The existing signature `createFetchMiddleware({ btoa: typeof btoa; fetch: typeof fetch; rpcUrl: string; originHttpHeaderKey?: string; })` will be removed in a future major version
+- Deprecate `PayloadWithOrigin` type ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/357))
+  - There is no replacement for this type; it will be removed in a future major version.
 
 ## [15.1.2]
 ### Changed
@@ -249,7 +259,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.2.0...HEAD
+[15.2.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.2...v15.2.0
 [15.1.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.1...v15.1.2
 [15.1.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.0...v15.1.1
 [15.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.0.1...v15.1.0
