@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.1.0]
 
-### Uncategorized
+### Added
 
-- feat: add new keyring type for oneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
-- fix: throw explicit error when `KeyringController` is locked ([#5172](https://github.com/MetaMask/core/pull/5172))
+- Add new keyring type for OneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
+
+### Changed
+
+- A specific error message is thrown when any operation is attempted while the controller is locked ([#5172](https://github.com/MetaMask/core/pull/5172))
 
 ## [19.0.7]
 
