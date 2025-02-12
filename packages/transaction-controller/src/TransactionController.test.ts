@@ -2357,7 +2357,7 @@ describe('TransactionController', () => {
 
         try {
           await result;
-        } catch (_error) {
+        } catch {
           // Ignore user rejected error as it is expected
         }
         await finishedPromise;
