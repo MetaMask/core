@@ -568,7 +568,6 @@
     "jsdoc/tag-lines": 4
   },
   "packages/transaction-controller/src/TransactionController.test.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
     "import-x/namespace": 1,
     "import-x/order": 4,
     "jsdoc/tag-lines": 1,
