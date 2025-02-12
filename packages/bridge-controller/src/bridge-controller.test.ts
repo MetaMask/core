@@ -575,9 +575,11 @@ describe('BridgeController', function () {
       // Setup
       const mockMessenger = {
         call: jest.fn().mockImplementation((methodName) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (methodName === 'NetworkController:getNetworkClientById') {
             return { provider: null };
           }
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (methodName === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'testNetworkClientId' };
           }
@@ -803,7 +805,7 @@ describe('BridgeController', function () {
     // Verify state wasn't updated due to abort
     expect(bridgeController.state.bridgeState.quoteFetchError).toBeUndefined();
     expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(0);
-    expect(bridgeController.state.bridgeState.quotes).toEqual([]);
+    expect(bridgeController.state.bridgeState.quotes).toStrictEqual([]);
 
     // Test reset abort
     fetchBridgeQuotesSpy.mockRejectedValueOnce('Reset controller state');
@@ -816,6 +818,6 @@ describe('BridgeController', function () {
     // Verify state wasn't updated due to reset
     expect(bridgeController.state.bridgeState.quoteFetchError).toBeUndefined();
     expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(0);
-    expect(bridgeController.state.bridgeState.quotes).toEqual([]);
+    expect(bridgeController.state.bridgeState.quotes).toStrictEqual([]);
   });
 });
