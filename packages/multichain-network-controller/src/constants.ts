@@ -22,16 +22,12 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
   [BtcScope.Mainnet]: {
     chainId: BtcScope.Mainnet,
     name: 'Bitcoin Mainnet',
-    blockExplorerUrls: ['https://blockstream.info'],
-    defaultBlockExplorerUrlIndex: 0,
     nativeCurrency: BTC_NATIVE_ASSET,
     isEvm: false,
   },
   [SolScope.Mainnet]: {
     chainId: SolScope.Mainnet,
     name: 'Solana Mainnet',
-    blockExplorerUrls: ['https://explorer.solana.com'],
-    defaultBlockExplorerUrlIndex: 0,
     nativeCurrency: SOL_NATIVE_ASSET,
     isEvm: false,
   },

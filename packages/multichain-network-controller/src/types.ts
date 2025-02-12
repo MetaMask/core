@@ -1,9 +1,9 @@
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { BtcScope, SolScope } from '@metamask/keyring-api';
+import type { BtcScope, CaipChainId, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
@@ -28,17 +28,9 @@ export type CommonNetworkConfiguration = {
    */
   isEvm: boolean;
   /**
-   * The block explorers of the network.
-   */
-  blockExplorerUrls: string[];
-  /**
-   * The index of the default block explorer URL.
-   */
-  defaultBlockExplorerUrlIndex: number;
-  /**
    * The chain ID of the network.
    */
-  chainId: SupportedCaipChainId;
+  chainId: CaipChainId;
   /**
    * The name of the network.
    */
@@ -55,21 +47,21 @@ export type NonEvmNetworkConfiguration = CommonNetworkConfiguration & {
 
 // TODO: The controller only supports non-EVM network configurations at the moment
 // Once we support Caip chain IDs for EVM networks, we can re-enable EVM network configurations
-// export type EvmNetworkConfiguration = CommonNetworkConfiguration & {
-//   isEvm: true;
-//   /**
-//    * The RPC endpoints of the network.
-//    */
-//   rpcEndpoints: string[];
-//   /**
-//    * The index of the default RPC endpoint.
-//    */
-//   defaultRpcEndpointIndex: number;
-// };
+export type EvmNetworkConfiguration = CommonNetworkConfiguration & {
+  isEvm: true;
+  /**
+   * The block explorers of the network.
+   */
+  blockExplorerUrls: string[];
+  /**
+   * The index of the default block explorer URL.
+   */
+  defaultBlockExplorerUrlIndex: number;
+};
 
 export type MultichainNetworkConfiguration =
-  // | EvmNetworkConfiguration
-  NonEvmNetworkConfiguration;
+  | EvmNetworkConfiguration
+  | NonEvmNetworkConfiguration;
 
 /**
  * State used by the {@link MultichainNetworkController} to cache network configurations.
@@ -79,7 +71,7 @@ export type MultichainNetworkControllerState = {
    * The network configurations by chain ID.
    */
   multichainNetworkConfigurationsByChainId: Record<
-    SupportedCaipChainId,
+    CaipChainId,
     MultichainNetworkConfiguration
   >;
   /**
@@ -165,8 +157,7 @@ export type MultichainNetworkControllerAllowedEvents =
 /**
  * Messenger type for the MultichainNetworkController.
  */
-export type MultichainNetworkControllerMessenger =
-  RestrictedControllerMessenger<
+export type MultichainNetworkControllerMessenger = RestrictedMessenger<
     typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
     MultichainNetworkControllerAllowedActions,
     MultichainNetworkControllerAllowedEvents,
