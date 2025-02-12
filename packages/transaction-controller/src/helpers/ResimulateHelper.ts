@@ -116,7 +116,7 @@ export class ResimulateHelper {
 
   #stop(transactionMeta: TransactionMeta) {
     const { id: transactionId } = transactionMeta;
-    if (transactionMeta.isActive || !this.#timeoutIds.has(transactionId)) {
+    if (!this.#timeoutIds.has(transactionId)) {
       return;
     }
 
