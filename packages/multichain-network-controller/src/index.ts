@@ -3,6 +3,7 @@ export * from './constants';
 export * from './types';
 export {
   checkIfSupportedCaipChainId,
-  updateNetworkConfiguration,
-  updateNetworkConfigurations,
+  toMultichainNetworkConfiguration,
+  toMultichainNetworkConfigurationsByChainId,
+  toEvmCaipChainId,
 } from './utils';
