@@ -1,6 +1,11 @@
 import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
-import { type CaipChainId, toCaipChainId, hexToNumber } from '@metamask/utils';
+import {
+  type CaipChainId,
+  KnownCaipNamespace,
+  toCaipChainId,
+  hexToNumber,
+} from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
 import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
@@ -49,7 +54,10 @@ export const updateNetworkConfiguration = (
   network: NetworkConfiguration,
 ): MultichainNetworkConfiguration => {
   return {
-    chainId: toCaipChainId('eip155', hexToNumber(network.chainId).toString()),
+    chainId: toCaipChainId(
+      KnownCaipNamespace.Eip155,
+      hexToNumber(network.chainId).toString(),
+    ),
     isEvm: true,
     name: network.name,
     // @ts-expect-error - The nativeCurrency is not typed in the NetworkController
@@ -72,8 +80,10 @@ export const updateNetworkConfigurations = (
   Object.entries(networkConfigurationsByChainId).reduce(
     (acc, [chainId, network]) => ({
       ...acc,
-      [toCaipChainId('eip155', hexToNumber(chainId).toString())]:
-        updateNetworkConfiguration(network),
+      [toCaipChainId(
+        KnownCaipNamespace.Eip155,
+        hexToNumber(chainId).toString(),
+      )]: updateNetworkConfiguration(network),
     }),
     {},
   );
