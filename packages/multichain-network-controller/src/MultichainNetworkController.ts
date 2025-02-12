@@ -131,7 +131,7 @@ export class MultichainNetworkController extends BaseController<
     if (isCaipChainId(id)) {
       const isSupportedCaipChainId = checkIfSupportedCaipChainId(id);
       if (!isSupportedCaipChainId) {
-        throw new Error(`Unsupported Caip chain ID: ${id}`);
+        throw new Error(`Unsupported Caip chain ID: ${String(id)}`);
       }
       return this.#setActiveNonEvmNetwork(id);
     }
