@@ -60,7 +60,6 @@ export const updateNetworkConfiguration = (
     ),
     isEvm: true,
     name: network.name,
-    // @ts-expect-error - The nativeCurrency is not typed in the NetworkController
     nativeCurrency: network.nativeCurrency,
     blockExplorerUrls: network.blockExplorerUrls,
     defaultBlockExplorerUrlIndex: network.defaultBlockExplorerUrlIndex || 0,

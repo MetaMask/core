@@ -35,20 +35,31 @@ export type CommonNetworkConfiguration = {
    * The name of the network.
    */
   name: string;
+};
+
+export type NonEvmNetworkConfiguration = CommonNetworkConfiguration & {
+  /**
+   * EVM network flag.
+   */
+  isEvm: false;
   /**
    * The native asset type of the network.
    */
   nativeCurrency: CaipAssetType;
 };
 
-export type NonEvmNetworkConfiguration = CommonNetworkConfiguration & {
-  isEvm: false;
-};
-
 // TODO: The controller only supports non-EVM network configurations at the moment
 // Once we support Caip chain IDs for EVM networks, we can re-enable EVM network configurations
 export type EvmNetworkConfiguration = CommonNetworkConfiguration & {
+  /**
+   * EVM network flag.
+   */
   isEvm: true;
+  /**
+   * The native asset type of the network.
+   * For EVM we use a string because there's no standard for tickers to be translated to Caip asset ID.
+   */
+  nativeCurrency: string;
   /**
    * The block explorers of the network.
    */
