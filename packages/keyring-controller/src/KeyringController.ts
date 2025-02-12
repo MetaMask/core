@@ -19,11 +19,6 @@ import type {
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type {
-  PersonalMessageParams,
-  TypedMessageParams,
-  Eip7702AuthorizationMessageParams,
-} from '@metamask/message-manager';
-import type {
   Eip1024EncryptedData,
   Hex,
   Json,
@@ -46,6 +41,11 @@ import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
 
 import { KeyringControllerError } from './constants';
+import type {
+  Eip7702AuthorizationParams,
+  PersonalMessageParams,
+  TypedMessageParams,
+} from './types';
 
 const name = 'KeyringController';
 
@@ -1140,14 +1140,14 @@ export class KeyringController extends BaseController<
   /**
    * Signs EIP-7702 Authorization message by calling down into a specific keyring.
    *
-   * @param messageParams - EIP7702AuthorizationMessageParams object to sign.
+   * @param params - EIP7702AuthorizationParams object to sign.
    * @returns Promise resolving to an EIP-7702 Authorization signature.
    * @throws Will throw UnsupportedSignEIP7702Authorization if the keyring does not support signing EIP-7702 Authorization messages.
    */
   async signEip7702Authorization(
-    messageParams: Eip7702AuthorizationMessageParams,
+    params: Eip7702AuthorizationParams,
   ): Promise<string> {
-    const from = ethNormalize(messageParams.from) as Hex;
+    const from = ethNormalize(params.from) as Hex;
 
     const keyring = (await this.getKeyringForAccount(from)) as EthKeyring<Json>;
 
@@ -1157,8 +1157,8 @@ export class KeyringController extends BaseController<
       );
     }
 
-    const { chainId, nonce } = messageParams;
-    const contractAddress = ethNormalize(messageParams.contractAddress) as
+    const { chainId, nonce } = params;
+    const contractAddress = ethNormalize(params.contractAddress) as
       | Hex
       | undefined;
 
