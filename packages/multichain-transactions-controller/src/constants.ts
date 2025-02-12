@@ -18,15 +18,3 @@ export enum MultichainNativeAsset {
   SolanaDevnet = `${MultichainNetwork.SolanaDevnet}/slip44:501`,
   SolanaTestnet = `${MultichainNetwork.SolanaTestnet}/slip44:501`,
 }
-
-/**
- * Maps network identifiers to their corresponding native asset types.
- * Each network is mapped to an array containing its native asset for consistency.
- */
-export const NETWORK_ASSETS_MAP: Record<string, MultichainNativeAsset[]> = {
-  [MultichainNetwork.Solana]: [MultichainNativeAsset.Solana],
-  [MultichainNetwork.SolanaTestnet]: [MultichainNativeAsset.SolanaTestnet],
-  [MultichainNetwork.SolanaDevnet]: [MultichainNativeAsset.SolanaDevnet],
-  [MultichainNetwork.Bitcoin]: [MultichainNativeAsset.Bitcoin],
-  [MultichainNetwork.BitcoinTestnet]: [MultichainNativeAsset.BitcoinTestnet],
-};
