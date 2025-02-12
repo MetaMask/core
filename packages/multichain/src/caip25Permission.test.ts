@@ -1,9 +1,6 @@
 import {
   CaveatMutatorOperation,
-  type PermissionConstraint,
-  type PermissionOptions,
   PermissionType,
-  constructPermission,
 } from '@metamask/permission-controller';
 
 import type { Caip25CaveatValue } from './caip25Permission';

@@ -4,14 +4,12 @@ import type {
   EndowmentGetterParams,
   ValidPermissionSpecification,
   PermissionValidatorConstraint,
-  PermissionFactory,
   PermissionConstraint,
   EndowmentCaveatSpecificationConstraint,
 } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
   PermissionType,
-  constructPermission,
 } from '@metamask/permission-controller';
 import type { CaipAccountId, Json } from '@metamask/utils';
 import {
