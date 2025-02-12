@@ -11,7 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- feat: Add `MultichainNetworkController` to handle both EVM and non-EVM network and account switching ([#5215](https://github.com/MetaMask/core/pull/5215))
+## [24.0.0]
+
+### Added
+
+- **BREAKING:** Add `@metamask/network-controller` `^22.2.1` as a dev and peer dependency ([#5215](https://github.com/MetaMask/core/pull/5215))
+- **BREAKING:** Added `MultichainNetworkController:didNetworkChange` to allowed events and handle keeping accounts in sync with network changes ([#5215](https://github.com/MetaMask/core/pull/5215))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^19.0.0` to `^19.1.0` ([#5215](https://github.com/MetaMask/core/pull/5215))
 
 ## [23.1.0]
 
