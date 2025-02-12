@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: expose all user storage methods through messenger actions ([#5311](https://github.com/MetaMask/core/pull/5311))
+- Release 298.0.0 ([#5314](https://github.com/MetaMask/core/pull/5314))
+
 ## [7.0.1]
 
 ### Changed

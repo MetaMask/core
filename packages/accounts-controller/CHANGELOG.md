@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: Add `MultichainNetworkController` to handle both EVM and non-EVM network and account switching ([#5215](https://github.com/MetaMask/core/pull/5215))
+
 ## [23.1.0]
 
 ### Added

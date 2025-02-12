@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- RpcService: Regard node-fetch errors as retriable ([#5298](https://github.com/MetaMask/core/pull/5298))
+
 ## [22.2.1]
 
 ### Changed
