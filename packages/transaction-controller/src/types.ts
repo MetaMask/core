@@ -9,8 +9,6 @@ import type { Operation } from 'fast-json-patch';
 /**
  * Given a record, ensures that each property matches the `Json` type.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 type MakeJsonCompatible<T> = T extends Json
   ? T
   : {
@@ -478,70 +476,52 @@ export enum TransactionStatus {
   /**
    * The initial state of a transaction before user approval.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   unapproved = 'unapproved',
 
   /**
    * The transaction has been approved by the user but is not yet signed.
    * This status is usually brief but may be longer for scenarios like hardware wallet usage.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   approved = 'approved',
 
   /**
    * The transaction is signed and in the process of being submitted to the network.
    * This status is typically short-lived but can be longer for certain cases, such as smart transactions.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   signed = 'signed',
 
   /**
    * The transaction has been submitted to the network and is awaiting confirmation.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   submitted = 'submitted',
 
   /**
    * The transaction has been successfully executed and confirmed on the blockchain.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   confirmed = 'confirmed',
 
   /**
    * The transaction encountered an error during execution on the blockchain and failed.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   failed = 'failed',
 
   /**
    * The transaction was superseded by another transaction, resulting in its dismissal.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   dropped = 'dropped',
 
   /**
    * The transaction was rejected by the user and not processed further.
    * This is a final state.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   rejected = 'rejected',
 
   /**
    * @deprecated This status is no longer used.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   cancelled = 'cancelled',
 }
 
@@ -549,16 +529,11 @@ export enum TransactionStatus {
  * Options for wallet device.
  */
 export enum WalletDevice {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   MM_MOBILE = 'metamask_mobile',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   MM_EXTENSION = 'metamask_extension',
   OTHER = 'other_device',
 }
 
-/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * The type of the transaction.
  */
@@ -707,7 +682,6 @@ export enum TransactionType {
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
-/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
@@ -717,6 +691,13 @@ export type TransactionParams = {
    * A list of addresses and storage keys that the transaction plans to access.
    */
   accessList?: AccessList;
+
+  /**
+   * Array of authorizations to set code on EOA accounts.
+   * Only supported in `setCode` transactions.
+   * Introduced in EIP-7702.
+   */
+  authorizationList?: AuthorizationList;
 
   /**
    * Network ID as per EIP-155.
@@ -1009,8 +990,6 @@ export enum TransactionEnvelopeType {
   /**
    * A legacy transaction, the very first type.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   legacy = '0x0',
 
   /**
@@ -1018,8 +997,6 @@ export enum TransactionEnvelopeType {
    * specifying the state that a transaction would act upon in advance and
    * theoretically save on gas fees.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   accessList = '0x1',
 
   /**
@@ -1030,9 +1007,14 @@ export enum TransactionEnvelopeType {
    * the maxPriorityFeePerGas (maximum amount of gwei per gas from the
    * transaction fee to distribute to miner).
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   feeMarket = '0x2',
+
+  /**
+   * Adds code to externally owned accounts according to the signed authorizations
+   * in the new `authorizationList` parameter.
+   * Introduced in EIP-7702.
+   */
+  setCode = '0x4',
 }
 
 /**
@@ -1040,8 +1022,6 @@ export enum TransactionEnvelopeType {
  */
 export enum UserFeeLevel {
   CUSTOM = 'custom',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   DAPP_SUGGESTED = 'dappSuggested',
   MEDIUM = 'medium',
 }
@@ -1117,8 +1097,6 @@ export type TransactionError = {
 export type SecurityAlertResponse = {
   reason: string;
   features?: string[];
-  // This is API specific hence naming convention is not followed.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: string;
   providerRequestsCount?: Record<string, number>;
 };
@@ -1196,6 +1174,7 @@ export type GasFeeFlowResponse = {
 export type GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
+   *
    * @param transactionMeta - The transaction metadata.
    * @returns Whether the gas fee flow supports the transaction.
    */
@@ -1203,6 +1182,7 @@ export type GasFeeFlow = {
 
   /**
    * Get gas fee estimates for a specific transaction.
+   *
    * @param request - The gas fee flow request.
    * @returns The gas fee flow response containing the gas fee estimates.
    */
@@ -1228,6 +1208,7 @@ export type Layer1GasFeeFlowResponse = {
 export type Layer1GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
+   *
    * @param transactionMeta - The transaction metadata.
    * @returns Whether the layer1 gas fee flow supports the transaction.
    */
@@ -1235,6 +1216,7 @@ export type Layer1GasFeeFlow = {
 
   /**
    * Get layer 1 gas fee estimates for a specific transaction.
+   *
    * @param request - The gas fee flow request.
    * @returns The gas fee flow response containing the layer 1 gas fee estimate.
    */
@@ -1260,14 +1242,8 @@ export type SimulationBalanceChange = {
 
 /** Token standards supported by simulation. */
 export enum SimulationTokenStandard {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc20 = 'erc20',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc721 = 'erc721',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc1155 = 'erc1155',
 }
 
@@ -1373,3 +1349,40 @@ export type SubmitHistoryEntry = {
 export type InternalAccount = ReturnType<
   AccountsController['getSelectedAccount']
 >;
+
+/**
+ * An authorization to be included in a `setCode` transaction.
+ * Specifies code to be added to the authorization signer's EOA account.
+ * Introduced in EIP-7702.
+ */
+export type Authorization = {
+  /** Address of a smart contract that contains the code to be set. */
+  address: Hex;
+
+  /**
+   * Specific chain the authorization applies to.
+   * If not provided, defaults to the chain ID of the transaction.
+   */
+  chainId?: Hex;
+
+  /**
+   * Nonce at which the authorization will be valid.
+   * If not provided, defaults to the nonce following the transaction's nonce.
+   */
+  nonce?: Hex;
+
+  /** R component of the signature. */
+  r?: Hex;
+
+  /** S component of the signature. */
+  s?: Hex;
+
+  /** Y parity generated from the signature. */
+  yParity?: Hex;
+};
+
+/**
+ * An array of authorizations to be included in a `setCode` transaction.
+ * Introduced in EIP-7702.
+ */
+export type AuthorizationList = Authorization[];
