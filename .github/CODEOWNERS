@@ -43,6 +43,7 @@
 ## Wallet API Platform Team
 /packages/multichain                       @MetaMask/wallet-api-platform-engineers
 /packages/queued-request-controller        @MetaMask/wallet-api-platform-engineers
+/packages/selected-network-controller      @MetaMask/wallet-api-platform-engineers
 
 ## Wallet Framework Team
 /packages/base-controller              @MetaMask/wallet-framework-engineers
@@ -62,7 +63,6 @@
 /packages/network-controller           @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/snaps-devs
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
-/packages/selected-network-controller  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/profile-sync-controller      @MetaMask/notifications @MetaMask/identity
 
 ## Package Release related
