@@ -1,45 +1,47 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  ExtractEventPayload,
-  RestrictedMessenger,
+import {
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  type ExtractEventPayload,
+  type RestrictedMessenger,
+  BaseController,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
-import type {
-  SnapKeyringAccountAssetListUpdatedEvent,
-  SnapKeyringAccountBalancesUpdatedEvent,
-  SnapKeyringAccountTransactionsUpdatedEvent,
+import {
+  type SnapKeyringAccountAssetListUpdatedEvent,
+  type SnapKeyringAccountBalancesUpdatedEvent,
+  type SnapKeyringAccountTransactionsUpdatedEvent,
+  SnapKeyring,
 } from '@metamask/eth-snap-keyring';
-import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import {
   EthAccountType,
   EthMethod,
   EthScope,
   isEvmAccountType,
 } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
-import type {
-  KeyringControllerState,
-  KeyringControllerGetKeyringForAccountAction,
-  KeyringControllerGetKeyringsByTypeAction,
-  KeyringControllerGetAccountsAction,
-  KeyringControllerStateChangeEvent,
+import {
+  type KeyringControllerState,
+  type KeyringControllerGetKeyringForAccountAction,
+  type KeyringControllerGetKeyringsByTypeAction,
+  type KeyringControllerGetAccountsAction,
+  type KeyringControllerStateChangeEvent,
+  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
   SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import type { CaipChainId } from '@metamask/utils';
 import {
   type Keyring,
   type Json,
+  type CaipChainId,
   isCaipChainId,
   parseCaipChainId,
 } from '@metamask/utils';
 
+import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
@@ -179,17 +181,6 @@ export type AccountsControllerAccountTransactionsUpdatedEvent = {
 export type AccountsControllerAccountAssetListUpdatedEvent = {
   type: `${typeof controllerName}:accountAssetListUpdated`;
   payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
-};
-
-// Re-define event here to avoid circular dependency with MultichainNetworkController
-type MultichainNetworkControllerNetworkDidChangeEvent = {
-  type: `MultichainNetworkController:networkDidChange`;
-  payload: [
-    {
-      evmNetworkClientId?: string;
-      nonEvmChainId?: CaipChainId;
-    },
-  ];
 };
 
 export type AllowedEvents =
@@ -1138,26 +1129,21 @@ export class AccountsController extends BaseController<
   /**
    * Handles the change in multichain network by updating the selected account.
    *
-   * @param args - The arguments to handle the multichain network change.
-   * @param args.evmNetworkClientId - The ID of the EVM client.
-   * @param args.nonEvmChainId - The CAIP2 of the non-EVM chain.
+   * @param id - The EVM client ID or non-EVM chain ID that changed.
    */
-  readonly #handleMultichainNetworkChange = ({
-    evmNetworkClientId,
-    nonEvmChainId,
-  }: {
-    evmNetworkClientId?: string;
-    nonEvmChainId?: CaipChainId;
-  }) => {
+  readonly #handleMultichainNetworkChange = (
+    id: NetworkClientId | CaipChainId,
+  ) => {
     let accountId: string;
 
-    if (nonEvmChainId) {
+    // We only support non-EVM Caip chain IDs at the moment. Ex Solana and Bitcoin
+    // MultichainNetworkController will handle throwing an error if the Caip chain ID is not supported
+    if (isCaipChainId(id)) {
       // Update selected account to non evm account
-      const lastSelectedNonEvmAccount =
-        this.getSelectedMultichainAccount(nonEvmChainId);
+      const lastSelectedNonEvmAccount = this.getSelectedMultichainAccount(id);
       // @ts-expect-error - This should never be undefined, otherwise it's a bug that should be handled
       accountId = lastSelectedNonEvmAccount.id;
-    } else if (evmNetworkClientId) {
+    } else {
       // Update selected account to evm account
       const lastSelectedEvmAccount = this.getSelectedAccount();
       accountId = lastSelectedEvmAccount.id;

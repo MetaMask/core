@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
+import { InfuraNetworkType } from '@metamask/controller-utils';
 import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
@@ -17,9 +18,10 @@ import type {
   InternalAccount,
   InternalAccountType,
 } from '@metamask/keyring-internal-api';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
-import { type CaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import * as uuid from 'uuid';
 import type { V4Options } from 'uuid';
 
@@ -31,11 +33,11 @@ import type {
   AllowedEvents,
 } from './AccountsController';
 import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
-import { createMockInternalAccount } from './tests/mocks';
 import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
 } from './utils';
+import { createMockInternalAccount } from './tests/mocks';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
@@ -340,10 +342,7 @@ function setupAccountsController({
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;
-  triggerMultichainNetworkChange: (args: {
-    evmNetworkClientId?: string;
-    nonEvmChainId?: CaipChainId;
-  }) => void;
+  triggerMultichainNetworkChange: (id: NetworkClientId | CaipChainId) => void;
 } {
   const accountsControllerMessenger =
     buildAccountsControllerMessenger(messenger);
@@ -353,18 +352,8 @@ function setupAccountsController({
     state: { ...defaultState, ...initialState },
   });
 
-  const triggerMultichainNetworkChange = ({
-    evmNetworkClientId,
-    nonEvmChainId,
-  }: {
-    evmNetworkClientId?: string;
-    nonEvmChainId?: CaipChainId;
-  }) => {
-    messenger.publish('MultichainNetworkController:networkDidChange', {
-      evmNetworkClientId,
-      nonEvmChainId,
-    });
-  };
+  const triggerMultichainNetworkChange = (id: NetworkClientId | CaipChainId) =>
+    messenger.publish('MultichainNetworkController:networkDidChange', id);
 
   return { accountsController, messenger, triggerMultichainNetworkChange };
 }
@@ -1575,9 +1564,7 @@ describe('AccountsController', () => {
         });
 
       // Triggered from network switch to Bitcoin mainnet
-      triggerMultichainNetworkChange({
-        nonEvmChainId: BtcScope.Mainnet,
-      });
+      triggerMultichainNetworkChange(BtcScope.Mainnet);
 
       // BTC account is now selected
       expect(accountsController.state.internalAccounts.selectedAccount).toBe(
@@ -1592,7 +1579,7 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: {
-                [mockNewerEvmAccount.id]: mockNewerEvmAccount,
+                [mockOlderEvmAccount.id]: mockOlderEvmAccount,
                 [mockBtcAccount.id]: mockBtcAccount,
               },
               selectedAccount: mockBtcAccount.id,
@@ -1602,13 +1589,11 @@ describe('AccountsController', () => {
         });
 
       // Triggered from network switch to Bitcoin mainnet
-      triggerMultichainNetworkChange({
-        evmNetworkClientId: EthScope.Mainnet,
-      });
+      triggerMultichainNetworkChange(InfuraNetworkType.mainnet);
 
       // ETH mainnet account is now selected
       expect(accountsController.state.internalAccounts.selectedAccount).toBe(
-        mockNewerEvmAccount.id,
+        mockOlderEvmAccount.id,
       );
     });
   });
