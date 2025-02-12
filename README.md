@@ -39,6 +39,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/multichain`](packages/multichain)
+- [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
@@ -85,6 +86,7 @@ linkStyle default opacity:0.5
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   multichain(["@metamask/multichain"]);
+  multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
@@ -143,6 +145,8 @@ linkStyle default opacity:0.5
   multichain --> json_rpc_engine;
   multichain --> network_controller;
   multichain --> permission_controller;
+  multichain_network_controller --> base_controller;
+  multichain_network_controller --> keyring_controller;
   multichain_transactions_controller --> base_controller;
   multichain_transactions_controller --> polling_controller;
   multichain_transactions_controller --> accounts_controller;
