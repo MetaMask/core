@@ -4,7 +4,10 @@ import { type CaipChainId, toCaipChainId, hexToNumber } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
 import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
-import type { SupportedCaipChainId, MultichainNetworkConfiguration } from './types';
+import type {
+  SupportedCaipChainId,
+  MultichainNetworkConfiguration,
+} from './types';
 
 /**
  * Returns the chain id of the non-EVM network based on the account address.
