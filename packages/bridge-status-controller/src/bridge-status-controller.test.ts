@@ -74,6 +74,11 @@ const executePollingWithPendingStatus = async () => {
 };
 
 describe('BridgeStatusController', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.clearAllTimers();
+  });
+
   describe('constructor', () => {
     it('should setup correctly', () => {
       const bridgeStatusController = new BridgeStatusController({

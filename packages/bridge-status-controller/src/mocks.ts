@@ -318,8 +318,14 @@ export const MockTxHistory = {
       }),
       targetContractAddress: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
       initialDestAssetBalance: undefined,
-      pricingData: { amountSent: '1.234' },
+      pricingData: {
+        amountSent: '1.234',
+        amountSentInUsd: undefined,
+        quotedGasInUsd: undefined,
+        quotedReturnInUsd: undefined,
+      },
       hasApprovalTx: false,
+      completionTime: undefined,
     },
   }),
   getComplete: ({
