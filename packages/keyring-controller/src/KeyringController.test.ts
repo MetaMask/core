@@ -1402,10 +1402,19 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0] as Hex;
           await expect(controller.removeAccount(account)).rejects.toThrow(
-            KeyringControllerError.NoHdKeyring,
+            KeyringControllerError.LastAccountInPrimaryKeyring,
           );
           expect(controller.state.keyrings).toHaveLength(1);
           expect(controller.state.keyrings[0].accounts).toHaveLength(1);
+        });
+      });
+
+      it('should not remove primary keyring if it has no accounts even if it has more than one HD keyring', async () => {
+        await withController(async ({ controller }) => {
+          await controller.addNewKeyring(KeyringTypes.hd);
+          await expect(
+            controller.removeAccount(controller.state.keyrings[0].accounts[0]),
+          ).rejects.toThrow(KeyringControllerError.LastAccountInPrimaryKeyring);
         });
       });
 

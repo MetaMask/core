@@ -1094,6 +1094,18 @@ export class KeyringController extends BaseController<
         address,
       )) as EthKeyring<Json>;
 
+      const keyringIndex = this.state.keyrings.findIndex((kr) =>
+        kr.accounts.includes(address),
+      );
+
+      const isPrimaryKeyring = keyringIndex === 0;
+      const shouldRemoveKeyring = (await keyring.getAccounts()).length === 1;
+
+      // Primary keyring should never be removed, so we need to keep at least one account in it
+      if (isPrimaryKeyring && shouldRemoveKeyring) {
+        throw new Error(KeyringControllerError.LastAccountInPrimaryKeyring);
+      }
+
       // Not all the keyrings support this, so we have to check
       if (!keyring.removeAccount) {
         throw new Error(KeyringControllerError.UnsupportedRemoveAccount);
@@ -1106,9 +1118,7 @@ export class KeyringController extends BaseController<
       // type would need to be updated for a full non-EVM support.
       keyring.removeAccount(address as Hex);
 
-      const accounts = await keyring.getAccounts();
-      // Check if this was the last/only account
-      if (accounts.length === 0) {
+      if (shouldRemoveKeyring) {
         await this.#removeEmptyKeyrings();
       }
     });
