@@ -686,13 +686,13 @@ export class KeyringController extends BaseController<
     this.#assertIsUnlocked();
 
     return this.#persistOrRollback(async () => {
-      const selectedKeyring = this.getKeyringsByType(
-        'HD Key Tree',
-      )[0] as EthKeyring<Json>;
-      if (!selectedKeyring) {
+      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+        | EthKeyring<Json>
+        | undefined;
+      if (!primaryKeyring) {
         throw new Error('No HD keyring found');
       }
-      const oldAccounts = await selectedKeyring.getAccounts();
+      const oldAccounts = await primaryKeyring.getAccounts();
 
       if (accountCount && oldAccounts.length !== accountCount) {
         if (accountCount > oldAccounts.length) {
@@ -708,7 +708,7 @@ export class KeyringController extends BaseController<
         return existingAccount;
       }
 
-      const [addedAccountAddress] = await selectedKeyring.addAccounts(1);
+      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
       await this.#verifySeedPhrase();
 
       return addedAccountAddress;
@@ -1412,16 +1412,6 @@ export class KeyringController extends BaseController<
    */
   async verifySeedPhrase(keyringId?: string): Promise<Uint8Array> {
     this.#assertIsUnlocked();
-    const keyring = this.#getKeyringByIdOrDefault(keyringId);
-
-    if (!keyring) {
-      throw new Error(KeyringControllerError.NoHdKeyring);
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-    if (keyring.type !== KeyringTypes.hd) {
-      throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
-    }
 
     return this.#withControllerLock(async () =>
       this.#verifySeedPhrase(keyringId),
@@ -1894,7 +1884,7 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-return (await this.#newKeyring(KeyringTypes.qr)) as unknown as QRKeyring;
+    return (await this.#newKeyring(KeyringTypes.qr)) as unknown as QRKeyring;
   }
 
   /**
@@ -1974,9 +1964,13 @@ return (await this.#newKeyring(KeyringTypes.qr)) as unknown as QRKeyring;
 
     const keyring = this.#getKeyringByIdOrDefault(keyringId);
 
-    // This will never going to be undefined because we are checking for it in all of the callers
     if (!keyring) {
-      throw new Error('No HD keyring found.');
+      throw new Error(KeyringControllerError.KeyringNotFound);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+    if (keyring.type !== KeyringTypes.hd) {
+      throw new Error(KeyringControllerError.UnsupportedVerifySeedPhrase);
     }
 
     assertHasUint8ArrayMnemonic(keyring);

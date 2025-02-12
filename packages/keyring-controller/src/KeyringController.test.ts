@@ -261,12 +261,11 @@ describe('KeyringController', () => {
     });
   });
 
-  describe('behavior when keyring metadata length mismatch', () => {
+  describe('when the keyringMetadata length is different from the number of keyrings', () => {
     it('should throw an error if the keyring metadata length mismatch', async () => {
-      let vaultWithOneKeyring;
-      await withController(async ({ controller }) => {
-        vaultWithOneKeyring = controller.state.vault;
-      });
+      const vaultWithOneKeyring = await withController(
+        async ({ controller }) => controller.state.vault,
+      );
 
       await withController(
         {
@@ -468,10 +467,15 @@ describe('KeyringController', () => {
           );
         });
 
-        it('should restore same vault if old seedWord is used', async () => {
+        it('should call encryptor.encrypt with the same keyrings if old seedWord is used', async () => {
           await withController(
             { cacheEncryptionKey },
-            async ({ controller, initialState }) => {
+            async ({ controller, encryptor }) => {
+              const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+              const serializedKeyring = await controller.withKeyring(
+                { type: 'HD Key Tree' },
+                async (keyring) => keyring.serialize(),
+              );
               const currentSeedWord =
                 await controller.exportSeedPhrase(password);
 
@@ -479,7 +483,13 @@ describe('KeyringController', () => {
                 password,
                 currentSeedWord,
               );
-              expect(initialState.vault).toStrictEqual(controller.state.vault);
+
+              expect(encryptSpy).toHaveBeenCalledWith(password, [
+                {
+                  data: serializedKeyring,
+                  type: 'HD Key Tree',
+                },
+              ]);
             },
           );
         });
@@ -1448,6 +1458,19 @@ describe('KeyringController', () => {
           ).rejects.toThrow(
             'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
+        });
+      });
+
+      it('should remove the keyring if last account is removed and its not primary keyring', async () => {
+        await withController(async ({ controller }) => {
+          await controller.addNewKeyring(KeyringTypes.hd);
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyringsMetadata).toHaveLength(2);
+          await controller.removeAccount(
+            controller.state.keyrings[1].accounts[0],
+          );
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyringsMetadata).toHaveLength(1);
         });
       });
     });
@@ -2682,7 +2705,7 @@ describe('KeyringController', () => {
         await controller.submitPassword('123');
 
         await expect(controller.verifySeedPhrase()).rejects.toThrow(
-          'KeyringController - No HD Keyring found',
+          KeyringControllerError.KeyringNotFound,
         );
       });
     });
@@ -4050,6 +4073,8 @@ describe('KeyringController', () => {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller, initialState }) => {
+            // We're mocking BaseController .update() to throw an error, as it's the last operation
+            // that is called before the function is rolled back.
             jest.spyOn(controller, 'update' as never).mockImplementation(() => {
               throw new Error('You will never be able to change me!');
             });
