@@ -176,9 +176,30 @@ describe('TokenSearchDiscoveryController', () => {
     });
   });
 
+  describe('getTopLosers', () => {
+    it('should return top losers results', async () => {
+      const results = await mainController.getTopLosers({});
+      expect(results).toStrictEqual(mockTrendingResults);
+    });
+  });
+
   describe('error handling', () => {
     class ErrorTokenSearchService extends AbstractTokenSearchApiService {
       async searchTokens(): Promise<TokenSearchResponseItem[]> {
+        return [];
+      }
+    }
+
+    class ErrorTokenDiscoveryService extends AbstractTokenDiscoveryApiService {
+      async getTrendingTokensByChains(): Promise<MoralisTokenResponseItem[]> {
+        return [];
+      }
+
+      async getTopGainersByChains(): Promise<MoralisTokenResponseItem[]> {
+        return [];
+      }
+
+      async getTopLosersByChains(): Promise<MoralisTokenResponseItem[]> {
         return [];
       }
     }
@@ -197,7 +218,7 @@ describe('TokenSearchDiscoveryController', () => {
     it('should handle discovery service errors', async () => {
       const errorController = new TokenSearchDiscoveryController({
         tokenSearchService: new MockTokenSearchService(),
-        tokenDiscoveryService: new MockTokenDiscoveryService(),
+        tokenDiscoveryService: new ErrorTokenDiscoveryService(),
         messenger: getRestrictedMessenger(),
       });
 

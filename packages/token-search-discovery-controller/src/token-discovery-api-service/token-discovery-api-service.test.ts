@@ -124,4 +124,26 @@ describe('TokenDiscoveryApiService', () => {
       expect(results).toStrictEqual(mockTrendingResponse);
     });
   });
+
+  describe('getTopGainersByChains', () => {
+    it('should return top gainers results', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-gainers-by-chains')
+        .reply(200, mockTrendingResponse);
+
+      const results = await service.getTopGainersByChains({});
+      expect(results).toStrictEqual(mockTrendingResponse);
+    });
+  });
+
+  describe('getTopLosersByChains', () => {
+    it('should return top losers results', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-losers-by-chains')
+        .reply(200, mockTrendingResponse);
+
+      const results = await service.getTopLosersByChains({});
+      expect(results).toStrictEqual(mockTrendingResponse);
+    });
+  });
 });
