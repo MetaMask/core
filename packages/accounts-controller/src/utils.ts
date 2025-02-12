@@ -27,6 +27,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.trezor: {
       return 'Trezor';
     }
+    case KeyringTypes.oneKey: {
+      return 'OneKey';
+    }
     case KeyringTypes.ledger: {
       return 'Ledger';
     }
