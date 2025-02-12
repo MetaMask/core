@@ -172,7 +172,7 @@ export const caip25CaveatBuilder = ({
       const mergedValue: Caip25CaveatValue = {
         requiredScopes: mergedRequiredScopes,
         optionalScopes: mergedOptionalScopes,
-        isMultichainOrigin: rightValue.isMultichainOrigin,
+        isMultichainOrigin: leftValue.isMultichainOrigin,
       };
 
       const partialDiff = diffScopesForCaip25CaveatValue(
@@ -197,7 +197,6 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
   targetName: typeof Caip25EndowmentPermissionName;
   endowmentGetter: (_options?: EndowmentGetterParams) => null;
   validator: PermissionValidatorConstraint;
-  factory: PermissionFactory<PermissionConstraint, Record<string, unknown>>;
   allowedCaveats: Readonly<NonEmptyArray<string>> | null;
 }>;
 
@@ -226,11 +225,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
           `${Caip25EndowmentPermissionName} error: Invalid caveats. There must be a single caveat of type "${Caip25CaveatType}".`,
         );
       }
-    },
-    factory: (permissionOptions, _requestData) => {
-      return constructPermission({
-        ...permissionOptions,
-      });
     },
   };
 };

@@ -45,39 +45,9 @@ describe('caip25EndowmentBuilder', () => {
         endowmentGetter: expect.any(Function),
         allowedCaveats: [Caip25CaveatType],
         validator: expect.any(Function),
-        factory: expect.any(Function),
       });
 
       expect(specification.endowmentGetter()).toBeNull();
-    });
-
-    describe('factory', () => {
-      const { factory } = caip25EndowmentBuilder.specificationBuilder({
-        methodHooks: {
-          findNetworkClientIdByChainId: jest.fn(),
-          listAccounts: jest.fn(),
-        },
-      });
-
-      it('should call `constructPermission` with provided options', () => {
-        const mockRequestData = { origin: 'test.com' };
-        const mockOptions: PermissionOptions<PermissionConstraint> = {
-          caveats: [
-            {
-              type: Caip25CaveatType,
-              value: {
-                requiredScopes: {},
-                optionalScopes: {},
-                isMultichainOrigin: true,
-              },
-            },
-          ],
-          target: Caip25EndowmentPermissionName,
-          invoker: 'test.com',
-        };
-        factory(mockOptions, mockRequestData);
-        expect(constructPermission).toHaveBeenCalledWith({ ...mockOptions });
-      });
     });
   });
 
