@@ -5,7 +5,7 @@ export type {
   SupportedCaipChainId,
   CommonNetworkConfiguration,
   NonEvmNetworkConfiguration,
-  EvmNetworkConfiguration
+  EvmNetworkConfiguration,
   MultichainNetworkConfiguration,
   MultichainNetworkControllerState,
   MultichainNetworkControllerGetStateAction,
