@@ -1,19 +1,19 @@
-import {
-  BRIDGE_API_BASE_URL,
-  BRIDGE_CLIENT_ID,
-} from '../../../../shared/constants/bridge';
-import fetchWithCache from '../../../../shared/lib/fetch-with-cache';
-import {
+import type { Quote } from '@metamask/bridge-controller';
+import { getBridgeApiBaseUrl } from '@metamask/bridge-controller';
+
+import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
   StatusRequestDto,
-} from '../../../../shared/types/bridge-status';
-import type { Quote } from '../../../../shared/types/bridge';
+  FetchFunction,
+} from './types';
 import { validateResponse, validators } from './validators';
 
-const CLIENT_ID_HEADER = { 'X-Client-Id': BRIDGE_CLIENT_ID };
+export const getClientIdHeader = (clientId: string) => ({
+  'X-Client-Id': clientId,
+});
 
-export const BRIDGE_STATUS_BASE_URL = `${BRIDGE_API_BASE_URL}/getTxStatus`;
+export const BRIDGE_STATUS_BASE_URL = `${getBridgeApiBaseUrl()}/getTxStatus`;
 
 export const getStatusRequestDto = (
   statusRequest: StatusRequestWithSrcTxHash,
@@ -38,6 +38,8 @@ export const getStatusRequestDto = (
 
 export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
+  clientId: string,
+  fetchFn: FetchFunction,
 ) => {
   const statusRequestDto = getStatusRequestDto(statusRequest);
   const params = new URLSearchParams(statusRequestDto);
@@ -45,11 +47,8 @@ export const fetchBridgeTxStatus = async (
   // Fetch
   const url = `${BRIDGE_STATUS_BASE_URL}?${params.toString()}`;
 
-  const rawTxStatus = await fetchWithCache({
-    url,
-    fetchOptions: { method: 'GET', headers: CLIENT_ID_HEADER },
-    cacheOptions: { cacheRefreshTime: 0 },
-    functionName: 'fetchBridgeTxStatus',
+  const rawTxStatus = await fetchFn(url, {
+    headers: getClientIdHeader(clientId),
   });
 
   // Validate

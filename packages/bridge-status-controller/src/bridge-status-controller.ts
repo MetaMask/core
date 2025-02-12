@@ -1,20 +1,20 @@
-import { StateMetadata } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
+import type { BridgeClientId } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { Hex } from '@metamask/utils';
-// eslint-disable-next-line import/no-restricted-paths
-import {
-  StatusTypes,
-  BridgeStatusControllerState,
-  StartPollingForBridgeTxStatusArgsSerialized,
-  BridgeStatusState,
-} from '../../../../shared/types/bridge-status';
-import { decimalToPrefixedHex } from '../../../../shared/modules/conversion.utils';
+import { numberToHex, type Hex } from '@metamask/utils';
+
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_STATE,
   REFRESH_INTERVAL_MS,
 } from './constants';
-import { BridgeStatusControllerMessenger } from './types';
+import { StatusTypes, type BridgeStatusControllerMessenger } from './types';
+import type {
+  BridgeStatusControllerState,
+  StartPollingForBridgeTxStatusArgsSerialized,
+  BridgeStatusState,
+  FetchFunction,
+} from './types';
 import { fetchBridgeTxStatus, getStatusRequestWithSrcTxHash } from './utils';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
@@ -40,12 +40,20 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
 > {
   #pollingTokensByTxMetaId: Record<SrcTxMetaId, string> = {};
 
+  readonly #clientId: BridgeClientId;
+
+  readonly #fetchFn: FetchFunction;
+
   constructor({
     messenger,
     state,
+    clientId,
+    fetchFn,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: { bridgeStatusState?: Partial<BridgeStatusState> };
+    clientId: BridgeClientId;
+    fetchFn: FetchFunction;
   }) {
     super({
       name: BRIDGE_STATUS_CONTROLLER_NAME,
@@ -60,6 +68,9 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
         },
       },
     });
+
+    this.#clientId = clientId;
+    this.#fetchFn = fetchFn;
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -81,8 +92,8 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
   }
 
   resetState = () => {
-    this.update((_state) => {
-      _state.bridgeStatusState = {
+    this.update((state) => {
+      state.bridgeStatusState = {
         ...DEFAULT_BRIDGE_STATUS_STATE,
       };
     });
@@ -97,8 +108,8 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
   }) => {
     // Wipe all networks for this address
     if (ignoreNetwork) {
-      this.update((_state) => {
-        _state.bridgeStatusState = {
+      this.update((state) => {
+        state.bridgeStatusState = {
           ...DEFAULT_BRIDGE_STATUS_STATE,
         };
       });
@@ -116,7 +127,7 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
     }
   };
 
-  #restartPollingForIncompleteHistoryItems = () => {
+  readonly #restartPollingForIncompleteHistoryItems = () => {
     // Check for historyItems that do not have a status of complete and restart polling
     const { bridgeStatusState } = this.state;
     const historyItems = Object.values(bridgeStatusState.txHistory);
@@ -214,7 +225,7 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
 
-  #fetchBridgeTxStatus = async ({
+  readonly #fetchBridgeTxStatus = async ({
     bridgeTxMetaId,
   }: FetchBridgeTxStatusArgs) => {
     const { bridgeStatusState } = this.state;
@@ -235,7 +246,11 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
         historyItem.quote,
         srcTxHash,
       );
-      const status = await fetchBridgeTxStatus(statusRequest);
+      const status = await fetchBridgeTxStatus(
+        statusRequest,
+        this.#clientId,
+        this.#fetchFn,
+      );
       const newBridgeHistoryItem = {
         ...historyItem,
         status,
@@ -250,8 +265,8 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
       // TODO In theory we can skip checking status if it's not the current account/network
       // we need to keep track of the account that this is associated with as well so that we don't show it in Activity list for other accounts
       // First stab at this will not stop polling when you are on a different account
-      this.update((_state) => {
-        _state.bridgeStatusState = {
+      this.update((state) => {
+        state.bridgeStatusState = {
           ...bridgeStatusState,
           txHistory: {
             ...bridgeStatusState.txHistory,
@@ -287,7 +302,7 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
     }
   };
 
-  #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {
+  readonly #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {
     const { bridgeStatusState } = this.state;
     // Prefer the srcTxHash from bridgeStatusState so we don't have to l ook up in TransactionController
     // But it is possible to have bridgeHistoryItem in state without the srcTxHash yet when it is an STX
@@ -308,14 +323,14 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
     return txMeta?.hash;
   };
 
-  #updateSrcTxHash = (bridgeTxMetaId: string, srcTxHash: string) => {
+  readonly #updateSrcTxHash = (bridgeTxMetaId: string, srcTxHash: string) => {
     const { bridgeStatusState } = this.state;
     if (bridgeStatusState.txHistory[bridgeTxMetaId].status.srcChain.txHash) {
       return;
     }
 
-    this.update((_state) => {
-      _state.bridgeStatusState = {
+    this.update((state) => {
+      state.bridgeStatusState = {
         ...bridgeStatusState,
         txHistory: {
           ...bridgeStatusState.txHistory,
@@ -336,16 +351,17 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
 
   // Wipes the bridge status for the given address and chainId
   // Will match only source chainId to the selectedChainId
-  #wipeBridgeStatusByChainId = (address: string, selectedChainId: Hex) => {
+  readonly #wipeBridgeStatusByChainId = (
+    address: string,
+    selectedChainId: Hex,
+  ) => {
     const sourceTxMetaIdsToDelete = Object.keys(
       this.state.bridgeStatusState.txHistory,
     ).filter((txMetaId) => {
       const bridgeHistoryItem =
         this.state.bridgeStatusState.txHistory[txMetaId];
 
-      const hexSourceChainId = decimalToPrefixedHex(
-        bridgeHistoryItem.quote.srcChainId,
-      );
+      const hexSourceChainId = numberToHex(bridgeHistoryItem.quote.srcChainId);
 
       return (
         bridgeHistoryItem.account === address &&
@@ -363,13 +379,13 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
       }
     });
 
-    this.update((_state) => {
-      _state.bridgeStatusState.txHistory = sourceTxMetaIdsToDelete.reduce(
+    this.update((state) => {
+      state.bridgeStatusState.txHistory = sourceTxMetaIdsToDelete.reduce(
         (acc, sourceTxMetaId) => {
           delete acc[sourceTxMetaId];
           return acc;
         },
-        _state.bridgeStatusState.txHistory,
+        state.bridgeStatusState.txHistory,
       );
     });
   };

@@ -1,4 +1,4 @@
-import { BridgeStatusState } from '../../../../shared/types/bridge-status';
+import type { BridgeStatusState } from './types';
 
 export const REFRESH_INTERVAL_MS = 10 * 1000;
 

@@ -1,12 +1,13 @@
-import { TransactionMeta } from '@metamask/transaction-controller';
-import {
+import type { TransactionMeta } from '@metamask/transaction-controller';
+
+import type {
   BridgeId,
   StatusResponse,
   StatusTypes,
   ActionTypes,
   StartPollingForBridgeTxStatusArgsSerialized,
   BridgeHistoryItem,
-} from '../../../../shared/types/bridge-status';
+} from './types';
 
 export const MockStatusResponse = {
   getPending: ({

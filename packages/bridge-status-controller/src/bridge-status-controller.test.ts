@@ -1,14 +1,16 @@
-import { flushPromises } from '../../../../test/lib/timer-helpers';
-import { Numeric } from '../../../../shared/modules/Numeric';
+import { BridgeClientId } from '@metamask/bridge-controller';
+import { numberToHex } from '@metamask/utils';
+
 import BridgeStatusController from './bridge-status-controller';
-import { BridgeStatusControllerMessenger } from './types';
 import { DEFAULT_BRIDGE_STATUS_STATE } from './constants';
-import * as bridgeStatusUtils from './utils';
 import {
   MockStatusResponse,
   MockTxHistory,
   getMockStartPollingForBridgeTxStatusArgs,
 } from './mocks';
+import type { BridgeStatusControllerMessenger } from './types';
+import * as bridgeStatusUtils from './utils';
+import { flushPromises } from '../../../tests/helpers';
 
 const EMPTY_INIT_STATE = {
   bridgeStatusState: { ...DEFAULT_BRIDGE_STATUS_STATE },
@@ -29,7 +31,7 @@ const getMessengerMock = ({
       } else if (method === 'NetworkController:getNetworkClientById') {
         return {
           configuration: {
-            chainId: new Numeric(srcChainId, 10).toPrefixedHexString(),
+            chainId: numberToHex(srcChainId),
           },
         };
       }
@@ -38,13 +40,15 @@ const getMessengerMock = ({
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
     registerInitialEventPayload: jest.fn(),
-  } as unknown as jest.Mocked<BridgeStatusControllerMessenger>);
+  }) as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
 
 const executePollingWithPendingStatus = async () => {
   // Setup
   jest.useFakeTimers();
   const bridgeStatusController = new BridgeStatusController({
     messenger: getMessengerMock(),
+    clientId: BridgeClientId.EXTENSION,
+    fetchFn: jest.fn(),
   });
   const startPollingSpy = jest.spyOn(bridgeStatusController, 'startPolling');
   const fetchBridgeTxStatusSpy = jest.spyOn(
@@ -53,7 +57,7 @@ const executePollingWithPendingStatus = async () => {
   );
 
   // Execution
-  await bridgeStatusController.startPollingForBridgeTxStatus(
+  bridgeStatusController.startPollingForBridgeTxStatus(
     getMockStartPollingForBridgeTxStatusArgs(),
   );
   fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
@@ -74,13 +78,17 @@ describe('BridgeStatusController', () => {
     it('should setup correctly', () => {
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
       });
-      expect(bridgeStatusController.state).toEqual(EMPTY_INIT_STATE);
+      expect(bridgeStatusController.state).toStrictEqual(EMPTY_INIT_STATE);
     });
     it('rehydrates the tx history state', async () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
         state: {
           bridgeStatusState: {
             txHistory: MockTxHistory.getPending(),
@@ -89,7 +97,7 @@ describe('BridgeStatusController', () => {
       });
 
       // Execution
-      await bridgeStatusController.startPollingForBridgeTxStatus(
+      bridgeStatusController.startPollingForBridgeTxStatus(
         getMockStartPollingForBridgeTxStatusArgs(),
       );
 
@@ -115,6 +123,8 @@ describe('BridgeStatusController', () => {
             txHistory: MockTxHistory.getPending(),
           },
         },
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
       });
       jest.advanceTimersByTime(10000);
       await flushPromises();
@@ -128,10 +138,12 @@ describe('BridgeStatusController', () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
       });
 
       // Execution
-      await bridgeStatusController.startPollingForBridgeTxStatus(
+      bridgeStatusController.startPollingForBridgeTxStatus(
         getMockStartPollingForBridgeTxStatusArgs(),
       );
 
@@ -150,21 +162,21 @@ describe('BridgeStatusController', () => {
       // Assertions
       expect(startPollingSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalled();
-      expect(bridgeStatusController.state.bridgeStatusState.txHistory).toEqual(
-        MockTxHistory.getPending(),
-      );
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory,
+      ).toStrictEqual(MockTxHistory.getPending());
     });
     it('stops polling when the status response is complete', async () => {
       // Setup
       jest.useFakeTimers();
-      jest
-        .spyOn(Date, 'now')
-        .mockImplementation(
-          () =>
-            MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10,
-        );
+      jest.spyOn(Date, 'now').mockImplementation(() => {
+        // eslint-disable-next-line jest/no-conditional-in-test
+        return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
+      });
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest.spyOn(
         bridgeStatusUtils,
@@ -176,7 +188,7 @@ describe('BridgeStatusController', () => {
       );
 
       // Execution
-      await bridgeStatusController.startPollingForBridgeTxStatus(
+      bridgeStatusController.startPollingForBridgeTxStatus(
         getMockStartPollingForBridgeTxStatusArgs(),
       );
       fetchBridgeTxStatusSpy.mockImplementationOnce(async () => {
@@ -187,9 +199,9 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       expect(stopPollingByNetworkClientIdSpy).toHaveBeenCalledTimes(1);
-      expect(bridgeStatusController.state.bridgeStatusState.txHistory).toEqual(
-        MockTxHistory.getComplete(),
-      );
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory,
+      ).toStrictEqual(MockTxHistory.getComplete());
 
       jest.restoreAllMocks();
     });
@@ -199,13 +211,13 @@ describe('BridgeStatusController', () => {
       const { bridgeStatusController } =
         await executePollingWithPendingStatus();
 
-      expect(bridgeStatusController.state.bridgeStatusState.txHistory).toEqual(
-        MockTxHistory.getPending(),
-      );
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory,
+      ).toStrictEqual(MockTxHistory.getPending());
       bridgeStatusController.resetState();
-      expect(bridgeStatusController.state.bridgeStatusState.txHistory).toEqual(
-        EMPTY_INIT_STATE.bridgeStatusState.txHistory,
-      );
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory,
+      ).toStrictEqual(EMPTY_INIT_STATE.bridgeStatusState.txHistory);
     });
   });
   describe('wipeBridgeStatus', () => {
@@ -216,8 +228,10 @@ describe('BridgeStatusController', () => {
       let getSelectedAccountCalledTimes = 0;
       const messengerMock = {
         call: jest.fn((method: string) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (method === 'AccountsController:getSelectedAccount') {
             let account;
+            // eslint-disable-next-line jest/no-conditional-in-test
             if (getSelectedAccountCalledTimes === 0) {
               account = '0xaccount1';
             } else {
@@ -225,16 +239,19 @@ describe('BridgeStatusController', () => {
             }
             getSelectedAccountCalledTimes += 1;
             return { address: account };
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
           ) {
             return 'networkClientId';
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'networkClientId' };
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getNetworkClientById') {
             return {
               configuration: {
-                chainId: new Numeric(42161, 10).toPrefixedHexString(),
+                chainId: numberToHex(42161),
               },
             };
           }
@@ -246,6 +263,8 @@ describe('BridgeStatusController', () => {
       } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
       const bridgeStatusController = new BridgeStatusController({
         messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
@@ -296,25 +315,29 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.state.bridgeStatusState.txHistory,
       );
       expect(txHistoryItems).toHaveLength(1);
-      expect(txHistoryItems[0].account).toEqual('0xaccount2');
+      expect(txHistoryItems[0].account).toBe('0xaccount2');
     });
     it('wipes the bridge status for all networks if ignoreNetwork is true', () => {
       // Setup
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (method === 'AccountsController:getSelectedAccount') {
             return { address: '0xaccount1' };
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
           ) {
             return 'networkClientId';
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'networkClientId' };
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getNetworkClientById') {
             return {
               configuration: {
-                chainId: new Numeric(42161, 10).toPrefixedHexString(),
+                chainId: numberToHex(42161),
               },
             };
           }
@@ -326,6 +349,8 @@ describe('BridgeStatusController', () => {
       } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
       const bridgeStatusController = new BridgeStatusController({
         messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
@@ -368,20 +393,20 @@ describe('BridgeStatusController', () => {
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
           .quote.srcChainId,
-      ).toEqual(42161);
+      ).toBe(42161);
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
           .quote.destChainId,
-      ).toEqual(1);
+      ).toBe(1);
 
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
           .quote.srcChainId,
-      ).toEqual(10);
+      ).toBe(10);
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
           .quote.destChainId,
-      ).toEqual(123);
+      ).toBe(123);
 
       bridgeStatusController.wipeBridgeStatus({
         address: '0xaccount1',
@@ -399,19 +424,23 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (method === 'AccountsController:getSelectedAccount') {
             return { address: '0xaccount1' };
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
           ) {
             return 'networkClientId';
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'networkClientId' };
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getNetworkClientById') {
             return {
               configuration: {
                 // This is what controls the selectedNetwork and what gets wiped in this test
-                chainId: new Numeric(42161, 10).toPrefixedHexString(),
+                chainId: numberToHex(42161),
               },
             };
           }
@@ -423,6 +452,8 @@ describe('BridgeStatusController', () => {
       } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
       const bridgeStatusController = new BridgeStatusController({
         messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
       });
       const fetchBridgeTxStatusSpy = jest
         .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
@@ -465,20 +496,20 @@ describe('BridgeStatusController', () => {
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
           .quote.srcChainId,
-      ).toEqual(42161);
+      ).toBe(42161);
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
           .quote.destChainId,
-      ).toEqual(1);
+      ).toBe(1);
 
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
           .quote.srcChainId,
-      ).toEqual(10);
+      ).toBe(10);
       expect(
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
           .quote.destChainId,
-      ).toEqual(123);
+      ).toBe(123);
 
       bridgeStatusController.wipeBridgeStatus({
         address: '0xaccount1',
@@ -490,8 +521,8 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.state.bridgeStatusState.txHistory,
       );
       expect(txHistoryItems).toHaveLength(1);
-      expect(txHistoryItems[0].quote.srcChainId).toEqual(10);
-      expect(txHistoryItems[0].quote.destChainId).toEqual(123);
+      expect(txHistoryItems[0].quote.srcChainId).toBe(10);
+      expect(txHistoryItems[0].quote.destChainId).toBe(123);
     });
   });
 });

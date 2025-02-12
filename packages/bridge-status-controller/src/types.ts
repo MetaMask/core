@@ -5,32 +5,30 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import type {
+  ChainId,
+  Quote,
+  QuoteMetadata,
+  QuoteResponse,
+} from '@metamask/bridge-controller';
+import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
-import type {
-  TransactionControllerState,
-  TransactionMeta,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type { ChainId, Quote, QuoteMetadata, QuoteResponse } from './bridge';
 import type BridgeStatusController from './bridge-status-controller';
 import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import type {
-  BridgeHistoryItem,
-  BridgeStatusAction,
-  BridgeStatusControllerState,
-} from '../../../../shared/types/bridge-status';
-import type { SmartTransactionsMetaMaskState } from '../modules/selectors';
-import type {
-  NetworkState,
-  ProviderConfigState,
-} from '../modules/selectors/networks';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
+
+export type FetchFunction = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+) => Promise<any>;
 
 export enum StatusTypes {
   UNKNOWN = 'UNKNOWN',
@@ -255,15 +253,6 @@ export type BridgeStatusState = {
 export type BridgeStatusControllerState = {
   bridgeStatusState: BridgeStatusState;
 };
-
-export type BridgeStatusAppState = ProviderConfigState & {
-  metamask: BridgeStatusControllerState;
-};
-
-export type MetricsBackgroundState = BridgeStatusAppState['metamask'] &
-  SmartTransactionsMetaMaskState['metamask'] &
-  NetworkState['metamask'] &
-  TransactionControllerState;
 
 // Actions
 type BridgeStatusControllerAction<

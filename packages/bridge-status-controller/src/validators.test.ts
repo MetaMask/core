@@ -1,4 +1,4 @@
-import { StatusResponse } from '../../../../shared/types/bridge-status';
+import type { StatusResponse } from './types';
 import { validateResponse, validators } from './validators';
 
 const BridgeTxStatusResponses = {
@@ -218,7 +218,6 @@ const BridgeTxStatusResponses = {
 
 describe('validators', () => {
   describe('bridgeStatusValidator', () => {
-    // @ts-expect-error - it.each is a function
     it.each([
       {
         input: BridgeTxStatusResponses.STATUS_PENDING_VALID,

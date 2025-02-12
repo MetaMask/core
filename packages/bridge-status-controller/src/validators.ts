@@ -1,18 +1,55 @@
-import { validHex, validateData } from '../../../../shared/lib/swaps-utils';
-import { isValidHexAddress } from '../../../../shared/modules/hexstring-utils';
-import {
-  BridgeId,
-  DestChainStatus,
-  SrcChainStatus,
-  Asset,
-  StatusTypes,
-} from '../../../../shared/types/bridge-status';
+import { isValidHexAddress } from '@metamask/controller-utils';
+
+import type { DestChainStatus, SrcChainStatus, Asset } from './types';
+import { BridgeId, StatusTypes } from './types';
 import { BRIDGE_STATUS_BASE_URL } from './utils';
 
 type Validator<ExpectedResponse, DataToValidate> = {
   property: keyof ExpectedResponse | string;
   type: string;
   validator: (value: DataToValidate) => boolean;
+};
+
+export const validHex = (value: unknown) =>
+  typeof value === 'string' && Boolean(value.match(/^0x[a-f0-9]+$/u));
+const isValidObject = (v: unknown): v is object =>
+  typeof v === 'object' && v !== null;
+
+export const validateData = <ExpectedResponse, DataToValidate>(
+  validators: Validator<ExpectedResponse, DataToValidate>[],
+  object: unknown,
+  urlUsed: string,
+  logError = true,
+): object is ExpectedResponse => {
+  return validators.every(({ property, type, validator }) => {
+    const types = type.split('|');
+    const propertyString = String(property);
+
+    const valid =
+      isValidObject(object) &&
+      types.some(
+        (_type) =>
+          typeof object[propertyString as keyof typeof object] === _type,
+      ) &&
+      (!validator || validator(object[propertyString as keyof typeof object]));
+
+    if (!valid && logError) {
+      const value = isValidObject(object)
+        ? object[propertyString as keyof typeof object]
+        : undefined;
+      const typeString = isValidObject(object)
+        ? typeof object[propertyString as keyof typeof object]
+        : 'undefined';
+
+      console.error(
+        `response to GET ${urlUsed} invalid for property ${String(property)}; value was:`,
+        value,
+        '| type was: ',
+        typeString,
+      );
+    }
+    return valid;
+  });
 };
 
 export const validateResponse = <ExpectedResponse, DataToValidate>(
