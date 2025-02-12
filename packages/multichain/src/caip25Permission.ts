@@ -386,16 +386,17 @@ function removeScope(
 }
 
 /**
+ * Returns the differential between two provided CAIP-25 permission caveat value scopes.
  *
  * @param originalValue - The existing CAIP-25 permission caveat value.
  * @param mergedValue - The result from merging existing and incoming CAIP-25 permission caveat values.
- * @param scopeToMerge - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
+ * @param scopeToDiff - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
  * @returns The differential between original and merged CAIP-25 permission caveat values.
  */
 function diffScopesForCaip25CaveatValue(
   originalValue: Caip25CaveatValue,
   mergedValue: Caip25CaveatValue,
-  scopeToMerge: keyof Pick<
+  scopeToDiff: keyof Pick<
     Caip25CaveatValue,
     'optionalScopes' | 'requiredScopes'
   >,
@@ -403,27 +404,27 @@ function diffScopesForCaip25CaveatValue(
   const diff = cloneDeep(originalValue);
 
   for (const [scopeString, mergedScopeObject] of Object.entries(
-    mergedValue[scopeToMerge],
+    mergedValue[scopeToDiff],
   )) {
     const internalScopeString = scopeString as InternalScopeString;
-    const originalScopeObject = diff[scopeToMerge][internalScopeString];
+    const originalScopeObject = diff[scopeToDiff][internalScopeString];
 
     if (originalScopeObject) {
       const newAccounts = mergedScopeObject.accounts.filter(
         (account) =>
-          !diff[scopeToMerge][
+          !diff[scopeToDiff][
             scopeString as InternalScopeString
           ]?.accounts.includes(account),
       );
       if (newAccounts.length > 0) {
-        diff[scopeToMerge][internalScopeString] = {
+        diff[scopeToDiff][internalScopeString] = {
           accounts: newAccounts,
         };
         continue;
       }
-      delete diff[scopeToMerge][internalScopeString];
+      delete diff[scopeToDiff][internalScopeString];
     } else {
-      diff[scopeToMerge][internalScopeString] = mergedScopeObject;
+      diff[scopeToDiff][internalScopeString] = mergedScopeObject;
     }
   }
 
