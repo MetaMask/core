@@ -118,6 +118,7 @@ linkStyle default opacity:0.5
   assets_controllers --> approval_controller;
   assets_controllers --> keyring_controller;
   assets_controllers --> network_controller;
+  assets_controllers --> permission_controller;
   assets_controllers --> preferences_controller;
   base_controller --> json_rpc_engine;
   composable_controller --> base_controller;
