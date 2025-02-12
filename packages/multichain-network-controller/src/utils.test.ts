@@ -1,8 +1,11 @@
 import { BtcScope, SolScope, type CaipChainId } from '@metamask/keyring-api';
+import { type NetworkConfiguration } from '@metamask/network-controller';
 
 import {
   getChainIdForNonEvmAddress,
   checkIfSupportedCaipChainId,
+  updateNetworkConfiguration,
+  updateNetworkConfigurations,
 } from './utils';
 
 describe('utils', () => {
@@ -30,6 +33,71 @@ describe('utils', () => {
 
     it('returns false for unsupported CAIP chain IDs', () => {
       expect(checkIfSupportedCaipChainId('eip155:1')).toBe(false);
+    });
+  });
+
+  describe('updateNetworkConfiguration', () => {
+    it('updates the network configuration a single EVM network', () => {
+      const network: NetworkConfiguration = {
+        chainId: '0x1',
+        name: 'Ethereum Mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+        rpcEndpoints: [],
+        defaultRpcEndpointIndex: 0,
+      };
+      expect(updateNetworkConfiguration(network)).toStrictEqual({
+        chainId: 'eip155:1',
+        isEvm: true,
+        name: 'Ethereum Mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    });
+  });
+
+  describe('updateNetworkConfigurations', () => {
+    it('updates the network configurations for EVM networks', () => {
+      const networks: Record<string, NetworkConfiguration> = {
+        '0x1': {
+          chainId: '0x1',
+          name: 'Ethereum Mainnet',
+          nativeCurrency: 'ETH',
+          blockExplorerUrls: ['https://etherscan.io'],
+          defaultBlockExplorerUrlIndex: 0,
+          rpcEndpoints: [],
+          defaultRpcEndpointIndex: 0,
+        },
+        '0xe708': {
+          chainId: '0xe708',
+          name: 'Linea',
+          nativeCurrency: 'ETH',
+          blockExplorerUrls: ['https://lineascan.build'],
+          defaultBlockExplorerUrlIndex: 0,
+          rpcEndpoints: [],
+          defaultRpcEndpointIndex: 0,
+        },
+      };
+      expect(updateNetworkConfigurations(networks)).toStrictEqual({
+        'eip155:1': {
+          chainId: 'eip155:1',
+          isEvm: true,
+          name: 'Ethereum Mainnet',
+          nativeCurrency: 'ETH',
+          blockExplorerUrls: ['https://etherscan.io'],
+          defaultBlockExplorerUrlIndex: 0,
+        },
+        'eip155:59144': {
+          chainId: 'eip155:59144',
+          isEvm: true,
+          name: 'Linea',
+          nativeCurrency: 'ETH',
+          blockExplorerUrls: ['https://lineascan.build'],
+          defaultBlockExplorerUrlIndex: 0,
+        },
+      });
     });
   });
 });
