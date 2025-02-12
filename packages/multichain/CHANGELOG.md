@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
+### Changed
 
-- Fix invalid type import path in `@metamask/multichain` ([#5313](https://github.com/MetaMask/core/pull/5313))
+- **BREAKING:** Bump `@metamask/network-controller` dev and peer dependency from `^22.2.1` to `^23.0.0`
 
 ## [2.1.1]
 
