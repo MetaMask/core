@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.0.0]
 
-### Uncategorized
-
-## [24.0.0]
-
 ### Added
 
 - **BREAKING:** Add `@metamask/network-controller` `^22.2.1` as a dev and peer dependency ([#5215](https://github.com/MetaMask/core/pull/5215))
