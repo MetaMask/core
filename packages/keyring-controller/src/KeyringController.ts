@@ -1161,16 +1161,6 @@ export class KeyringController extends BaseController<
       | Hex
       | undefined;
 
-    if (!contractAddress === undefined) {
-      throw new Error('Contract address must be a 20-byte hex string');
-    }
-    if (typeof chainId !== 'number' || chainId < 0) {
-      throw new Error('Chain ID must be a non-negative number');
-    }
-    if (typeof nonce !== 'number' || nonce < 0) {
-      throw new Error('Nonce must be a non-negativenumber');
-    }
-
     return await keyring.signEip7702Authorization(from, [
       chainId,
       contractAddress as Hex,
