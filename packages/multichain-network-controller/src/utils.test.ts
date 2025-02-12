@@ -37,7 +37,7 @@ describe('utils', () => {
   });
 
   describe('updateNetworkConfiguration', () => {
-    it('updates the network configuration a single EVM network', () => {
+    it('updates the network configuration for a single EVM network', () => {
       const network: NetworkConfiguration = {
         chainId: '0x1',
         name: 'Ethereum Mainnet',
@@ -59,7 +59,7 @@ describe('utils', () => {
   });
 
   describe('updateNetworkConfigurations', () => {
-    it('updates the network configurations for EVM networks', () => {
+    it('updates the network configurations for multiple EVM networks', () => {
       const networks: Record<string, NetworkConfiguration> = {
         '0x1': {
           chainId: '0x1',
