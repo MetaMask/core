@@ -8,7 +8,6 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
 } from './feature-flags';
-import { ABI_IERC7821 } from '../abi/IERC7821';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
@@ -17,6 +16,7 @@ import type {
   AuthorizationList,
   TransactionMeta,
 } from '../types';
+import { ABI_IERC7821 } from '../constants';
 
 export type KeyringControllerAuthorization = [
   chainId: number,
@@ -31,11 +31,7 @@ export type KeyringControllerSignAuthorization = {
 
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
-
-export type FeatureFlagsEIP7702 = {
-  contractAddresses?: Record<Hex, Hex[]>;
-  supportedChains?: Hex[];
-};
+export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
 
 const log = createModuleLogger(projectLogger, 'eip-7702');
 
@@ -121,12 +117,10 @@ export function generateEIP7702BatchTransaction(
     ];
   });
 
+  // Single batch mode, no opData.
   const mode = '0x01'.padEnd(66, '0');
 
-  const callData = defaultAbiCoder.encode(
-    ['(address,uint256,bytes)[]'],
-    [calls],
-  );
+  const callData = defaultAbiCoder.encode([CALLS_SIGNATURE], [calls]);
 
   const data = erc7821Contract.encodeFunctionData(BATCH_FUNCTION_NAME, [
     mode,
