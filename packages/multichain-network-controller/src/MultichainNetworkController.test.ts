@@ -7,22 +7,25 @@ import {
   BtcAccountType,
   SolAccountType,
   type KeyringAccountType,
+  CaipChainId,
 } from '@metamask/keyring-api';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
-import type { CaipChainId } from '@metamask/utils';
 
-import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
+import {
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+  DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
+} from './constants';
 import {
   type AllowedActions,
   type AllowedEvents,
   type MultichainNetworkControllerAllowedActions,
   type MultichainNetworkControllerAllowedEvents,
-  getDefaultMultichainNetworkControllerState,
-  MultichainNetworkController,
-} from './MultichainNetworkController';
+  type MultichainNetworkControllerState,
+} from './types';
+import { MultichainNetworkController } from './MultichainNetworkController';
 import { createMockInternalAccount } from '../test/utils';
 
 const controllerName = 'MultichainNetworkController';
@@ -101,8 +104,8 @@ function setupController({
     messenger: options.messenger || controllerMessenger,
     state: {
       selectedMultichainNetworkChainId: SolScope.Mainnet,
-      multichainNetworkConfigurationsByChainId:
-        AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+      // multichainNetworkConfigurationsByChainId:
+      //   DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
       isEvmSelected: true,
       ...options.state,
     },
@@ -140,10 +143,10 @@ describe('MultichainNetworkController', () => {
   describe('constructor', () => {
     it('should set default state', () => {
       const { controller } = setupController({
-        options: { state: getDefaultMultichainNetworkControllerState() },
+        options: { state: DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE },
       });
       expect(controller.state).toStrictEqual(
-        getDefaultMultichainNetworkControllerState(),
+        DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
       );
     });
   });
@@ -167,26 +170,36 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:networkDidChange',
-        { nonEvmChainId: SolScope.Mainnet },
+        SolScope.Mainnet,
       );
     });
 
     it('should throw error when unsupported non-EVM chainId is provided', async () => {
-      // Only support Solana
-      const { controller } = setupController({
-        options: {
-          state: {
-            multichainNetworkConfigurationsByChainId: {
-              ...AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS[SolScope.Mainnet],
-            },
-          },
-        },
+      const { controller } = setupController();
+      const unsupportedChainId = 'eip155:1' as CaipChainId;
+
+      await expect(
+        controller.setActiveNetwork(unsupportedChainId),
+      ).rejects.toThrow(`Unsupported Caip chain ID: ${unsupportedChainId}`);
+    });
+
+    it('should do nothing when same non-EVM chain ID is set and active', async () => {
+      // By default, Solana is selected and active
+      const { controller, publishSpy } = setupController({
+        options: { state: { isEvmSelected: false } },
       });
 
-      // Switch to Bitcoin, which for testing purposes is not supported
-      await expect(
-        controller.setActiveNetwork(BtcScope.Mainnet),
-      ).rejects.toThrow('Non-EVM chain ID is not supported!');
+      // Set active network to Solana
+      await controller.setActiveNetwork(SolScope.Mainnet);
+
+      expect(controller.state.selectedMultichainNetworkChainId).toBe(
+        SolScope.Mainnet,
+      );
+
+      expect(controller.state.isEvmSelected).toBe(false);
+
+      // Check that the messenger published the correct event
+      expect(publishSpy).not.toHaveBeenCalled();
     });
 
     it('should set non-EVM network when different non-EVM chain ID is active', async () => {
@@ -209,7 +222,7 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:networkDidChange',
-        { nonEvmChainId: BtcScope.Mainnet },
+        BtcScope.Mainnet,
       );
     });
 
@@ -230,7 +243,7 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:networkDidChange',
-        { evmNetworkClientId: selectedNetworkClientId },
+        selectedNetworkClientId,
       );
 
       // Check that NetworkController:setActiveNetwork was not called
@@ -253,7 +266,7 @@ describe('MultichainNetworkController', () => {
       // Check that the messenger published the correct event
       expect(publishSpy).toHaveBeenCalledWith(
         'MultichainNetworkController:networkDidChange',
-        { evmNetworkClientId },
+        evmNetworkClientId,
       );
 
       // Check that NetworkController:setActiveNetwork was not called
