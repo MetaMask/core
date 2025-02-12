@@ -3,8 +3,6 @@ import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
 import log from 'loglevel';
 
-import { processNotification } from '../../../NotificationServicesController';
-import { createMockNotificationEthSent } from '../../../NotificationServicesController/__fixtures__';
 import * as PushWebModule from './push-web';
 import {
   createRegToken,
@@ -12,6 +10,8 @@ import {
   listenToPushNotificationsReceived,
   listenToPushNotificationsClicked,
 } from './push-web';
+import { processNotification } from '../../../NotificationServicesController';
+import { createMockNotificationEthSent } from '../../../NotificationServicesController/__fixtures__';
 
 jest.mock('firebase/app');
 jest.mock('firebase/messaging');

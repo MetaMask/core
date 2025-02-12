@@ -458,5 +458,3 @@ export class Messenger<
     });
   }
 }
-
-export { Messenger as ControllerMessenger };

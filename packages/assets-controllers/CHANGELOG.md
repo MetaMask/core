@@ -7,9 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [49.0.0]
+
+### Added
+
+- Add new `MultiChainTokensRatesController` ([#5175](https://github.com/MetaMask/core/pull/5175))
+  - A controller that manages multi‑chain token conversion rates within MetaMask. Its primary goal is to periodically poll for updated conversion rates of tokens associated with non‑EVM accounts (those using Snap metadata), ensuring that the conversion data remains up‑to‑date across supported chains.
+- Add `updateBalance` to MultichainBalancesController ([#5295](https://github.com/MetaMask/core/pull/5295))
+
 ### Changed
 
+- **BREAKING:** MultichainBalancesController messenger must now allow `MultichainAssetsController:getState` action and `MultichainAssetsController:stateChange` event ([#5295](https://github.com/MetaMask/core/pull/5295))
+- Update `MultichainBalancesController` to get the full list of assets from `MultichainAssetsController` state instead of only requesting the native token ([#5295](https://github.com/MetaMask/core/pull/5295))
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/polling-controller` from `^12.0.2` to `^12.0.3` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+### Removed
+
+- **BREAKING:** `NETWORK_ASSETS_MAP`, `MultichainNetworks`, and `MultichainNativeAssets` are no longer exported ([#5295](https://github.com/MetaMask/core/pull/5295))
+
+## [48.0.0]
+
+### Added
+
+- Add `MultichainAssetsController` for non-EVM assets ([#5138](https://github.com/MetaMask/core/pull/5138))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^22.0.0` to `^23.0.0` ([#5292](https://github.com/MetaMask/core/pull/5292))
+- Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
 - Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Removed polling mechanism in the `MultichainBalancesController` and now relies on the new `AccountsController:accountBalancesUpdated` event ([#5221](https://github.com/MetaMask/core/pull/5221))
+
+### Fixed
+
+- The tokens state is now updated only when the `tokenChainId` matches the currently selected chain ID. ([#5257](https://github.com/MetaMask/core/pull/5257))
 
 ## [47.0.0]
 
@@ -1361,7 +1394,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@47.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@49.0.0...HEAD
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@48.0.0...@metamask/assets-controllers@49.0.0
+[48.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@47.0.0...@metamask/assets-controllers@48.0.0
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.1...@metamask/assets-controllers@47.0.0
 [46.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.0...@metamask/assets-controllers@46.0.1
 [46.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.2...@metamask/assets-controllers@46.0.0
