@@ -71,22 +71,19 @@ export class ResimulateHelper {
     allTransactionIds.forEach((transactionId) => {
       const transactionMeta = unapprovedTransactions.find(
         (tx) => tx.id === transactionId,
-      );
+      ) as TransactionMeta;
 
-      if (transactionMeta && transactionMeta.isActive) {
+      if (transactionMeta?.isActive) {
         this.#start(transactionMeta);
       } else {
-        this.#stop({
-          id: transactionId,
-          isActive: false,
-        } as unknown as TransactionMeta);
+        this.#stop(transactionMeta);
       }
     });
   }
 
   #start(transactionMeta: TransactionMeta) {
     const { id: transactionId } = transactionMeta;
-    if (!transactionMeta.isActive || this.#timeoutIds.has(transactionId)) {
+    if (this.#timeoutIds.has(transactionId)) {
       return;
     }
 
@@ -100,18 +97,21 @@ export class ResimulateHelper {
         .finally(() => {
           // Schedule the next execution
           if (this.#timeoutIds.has(transactionId)) {
-            const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
-            this.#timeoutIds.set(transactionId, timeoutId);
+            this.#queueUpdate(transactionId, listener);
           }
         });
     };
 
     // Start the first execution
-    const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
-    this.#timeoutIds.set(transactionId, timeoutId);
+    this.#queueUpdate(transactionId, listener);
     log(
       `Started resimulating transaction ${transactionId} every ${RESIMULATE_INTERVAL_MS} milliseconds`,
     );
+  }
+
+  #queueUpdate(transactionId: string, listener: () => void) {
+    const timeoutId = setTimeout(listener, RESIMULATE_INTERVAL_MS);
+    this.#timeoutIds.set(transactionId, timeoutId);
   }
 
   #stop(transactionMeta: TransactionMeta) {
@@ -121,7 +121,9 @@ export class ResimulateHelper {
     }
 
     this.#removeListener(transactionId);
-    log(`Stopped resimulating transaction ${transactionId} every 3 seconds`);
+    log(
+      `Stopped resimulating transaction ${transactionId} every ${RESIMULATE_INTERVAL_MS} milliseconds`,
+    );
   }
 
   #removeListener(id: string) {
