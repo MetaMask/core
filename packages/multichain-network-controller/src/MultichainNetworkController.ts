@@ -6,7 +6,7 @@ import { isCaipChainId } from '@metamask/utils';
 
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
-  DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
+  getDefaultMultichainNetworkControllerState,
 } from './constants';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
@@ -43,7 +43,7 @@ export class MultichainNetworkController extends BaseController<
       name: MULTICHAIN_NETWORK_CONTROLLER_NAME,
       metadata: MULTICHAIN_NETWORK_CONTROLLER_METADATA,
       state: {
-        ...DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
+        ...getDefaultMultichainNetworkControllerState(),
         ...state,
       },
     });

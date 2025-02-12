@@ -56,13 +56,13 @@ export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
  *
  * @returns The default state of the {@link MultichainNetworkController}.
  */
-export const DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE: MultichainNetworkControllerState =
-  {
+export const getDefaultMultichainNetworkControllerState =
+  (): MultichainNetworkControllerState => ({
     multichainNetworkConfigurationsByChainId:
       AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
     selectedMultichainNetworkChainId: SolScope.Mainnet,
     isEvmSelected: true,
-  };
+  });
 
 /**
  * {@link MultichainNetworkController}'s metadata.

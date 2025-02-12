@@ -14,7 +14,7 @@ import type {
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
 
-import { DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE } from './constants';
+import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
 import {
   type AllowedActions,
@@ -99,8 +99,6 @@ function setupController({
     messenger: options.messenger || controllerMessenger,
     state: {
       selectedMultichainNetworkChainId: SolScope.Mainnet,
-      // multichainNetworkConfigurationsByChainId:
-      //   DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
       isEvmSelected: true,
       ...options.state,
     },
@@ -138,10 +136,10 @@ describe('MultichainNetworkController', () => {
   describe('constructor', () => {
     it('should set default state', () => {
       const { controller } = setupController({
-        options: { state: DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE },
+        options: { state: getDefaultMultichainNetworkControllerState() },
       });
       expect(controller.state).toStrictEqual(
-        DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
+        getDefaultMultichainNetworkControllerState(),
       );
     });
   });

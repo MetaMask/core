@@ -107,6 +107,7 @@ linkStyle default opacity:0.5
   user_operation_controller(["@metamask/user-operation-controller"]);
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
+  accounts_controller --> network_controller;
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
