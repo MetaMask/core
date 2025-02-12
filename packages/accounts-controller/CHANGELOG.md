@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add new keyring type for oneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
+
 ## [23.0.1]
 
 ### Changed

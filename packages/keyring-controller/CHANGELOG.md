@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add new keyring type for oneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
+- fix: throw explicit error when `KeyringController` is locked ([#5172](https://github.com/MetaMask/core/pull/5172))
+
 ## [19.0.7]
 
 ### Changed
