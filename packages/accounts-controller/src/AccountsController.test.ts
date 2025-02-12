@@ -33,11 +33,11 @@ import type {
   AllowedEvents,
 } from './AccountsController';
 import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
+import { createMockInternalAccount } from './tests/mocks';
 import {
   getUUIDOptionsFromAddressOfNormalAccount,
   keyringTypeToName,
 } from './utils';
-import { createMockInternalAccount } from './tests/mocks';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');

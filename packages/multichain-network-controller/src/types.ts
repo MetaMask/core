@@ -1,7 +1,7 @@
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+  type RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -165,11 +165,10 @@ export type MultichainNetworkControllerAllowedEvents =
 /**
  * Messenger type for the MultichainNetworkController.
  */
-export type MultichainNetworkControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
-    MultichainNetworkControllerAllowedActions,
-    MultichainNetworkControllerAllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type MultichainNetworkControllerMessenger = RestrictedMessenger<
+  typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
+  MultichainNetworkControllerAllowedActions,
+  MultichainNetworkControllerAllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;

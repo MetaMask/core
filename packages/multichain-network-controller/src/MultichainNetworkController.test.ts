@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
 import {
   BtcScope,
@@ -51,7 +51,7 @@ function setupController({
     Parameters<NetworkControllerSetActiveNetworkAction['handler']>
   >;
 } = {}) {
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     MultichainNetworkControllerAllowedActions,
     MultichainNetworkControllerAllowedEvents
   >();
