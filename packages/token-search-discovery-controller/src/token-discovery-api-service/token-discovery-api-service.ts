@@ -18,14 +18,17 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
   }
 
   async getTrendingTokensByChains(
-    trendingTokensParams: TrendingTokensParams,
+    trendingTokensParams?: TrendingTokensParams,
   ): Promise<MoralisTokenResponseItem[]> {
     const url = new URL('/tokens-search/trending-by-chains', this.#baseUrl);
 
-    if (trendingTokensParams.chains && trendingTokensParams.chains.length > 0) {
+    if (
+      trendingTokensParams?.chains &&
+      trendingTokensParams.chains.length > 0
+    ) {
       url.searchParams.append('chains', trendingTokensParams.chains.join());
     }
-    if (trendingTokensParams.limit) {
+    if (trendingTokensParams?.limit) {
       url.searchParams.append('limit', trendingTokensParams.limit);
     }
 
@@ -46,14 +49,14 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
   }
 
   async getTopLosersByChains(
-    topLosersParams: TopLosersParams,
+    topLosersParams?: TopLosersParams,
   ): Promise<MoralisTokenResponseItem[]> {
     const url = new URL('/tokens-search/top-losers-by-chains', this.#baseUrl);
 
-    if (topLosersParams.chains && topLosersParams.chains.length > 0) {
+    if (topLosersParams?.chains && topLosersParams.chains.length > 0) {
       url.searchParams.append('chains', topLosersParams.chains.join());
     }
-    if (topLosersParams.limit) {
+    if (topLosersParams?.limit) {
       url.searchParams.append('limit', topLosersParams.limit);
     }
 
@@ -74,14 +77,14 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
   }
 
   async getTopGainersByChains(
-    topGainersParams: TopGainersParams,
+    topGainersParams?: TopGainersParams,
   ): Promise<MoralisTokenResponseItem[]> {
     const url = new URL('/tokens-search/top-gainers-by-chains', this.#baseUrl);
 
-    if (topGainersParams.chains && topGainersParams.chains.length > 0) {
+    if (topGainersParams?.chains && topGainersParams.chains.length > 0) {
       url.searchParams.append('chains', topGainersParams.chains.join());
     }
-    if (topGainersParams.limit) {
+    if (topGainersParams?.limit) {
       url.searchParams.append('limit', topGainersParams.limit);
     }
 
