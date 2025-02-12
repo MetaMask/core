@@ -268,7 +268,7 @@ export type KeyringObject = {
 };
 
 /**
- * Keyring metadata
+ * Additional information related to a keyring.
  */
 export type KeyringMetadata = {
   /**
