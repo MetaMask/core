@@ -122,16 +122,16 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Switches to a non-EVM network.
    *
-   * @param nonEvmChainId - The chain ID of the non-EVM network to set active.
+   * @param id - The chain ID of the non-EVM network to set active.
    */
-  async setActiveNetwork(nonEvmChainId: SupportedCaipChainId): Promise<void>;
+  async setActiveNetwork(id: SupportedCaipChainId): Promise<void>;
 
   /**
    * Switches to an EVM network.
    *
-   * @param evmNetworkClientId - The client ID of the EVM network to set active.
+   * @param id - The client ID of the EVM network to set active.
    */
-  async setActiveNetwork(evmNetworkClientId: NetworkClientId): Promise<void>;
+  async setActiveNetwork(id: NetworkClientId): Promise<void>;
 
   async setActiveNetwork(
     id: SupportedCaipChainId | NetworkClientId,

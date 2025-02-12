@@ -14,21 +14,16 @@ import type {
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
 
-import {
-  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
-  DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
-} from './constants';
+import { DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE } from './constants';
 import {
   type AllowedActions,
   type AllowedEvents,
   type MultichainNetworkControllerAllowedActions,
   type MultichainNetworkControllerAllowedEvents,
-  type MultichainNetworkControllerState,
+  MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from './types';
 import { MultichainNetworkController } from './MultichainNetworkController';
 import { createMockInternalAccount } from '../test/utils';
-
-const controllerName = 'MultichainNetworkController';
 
 /**
  * Setup a test controller instance.
@@ -87,11 +82,11 @@ function setupController({
   );
 
   const controllerMessenger = messenger.getRestricted<
-    typeof controllerName,
+    typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
     AllowedActions['type'],
     AllowedEvents['type']
   >({
-    name: controllerName,
+    name: MULTICHAIN_NETWORK_CONTROLLER_NAME,
     allowedActions: [
       'NetworkController:setActiveNetwork',
       'NetworkController:getState',
