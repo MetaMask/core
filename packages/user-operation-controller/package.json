@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "24.0.1",
+  "version": "25.0.0",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "MetaMask",
@@ -66,8 +66,8 @@
     "@metamask/eth-block-tracker": "^11.0.3",
     "@metamask/gas-fee-controller": "^22.0.3",
     "@metamask/keyring-controller": "^19.1.0",
-    "@metamask/network-controller": "^22.2.1",
-    "@metamask/transaction-controller": "^45.1.0",
+    "@metamask/network-controller": "^23.0.0",
+    "@metamask/transaction-controller": "^46.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -81,8 +81,8 @@
     "@metamask/eth-block-tracker": ">=9",
     "@metamask/gas-fee-controller": "^22.0.0",
     "@metamask/keyring-controller": "^19.0.0",
-    "@metamask/network-controller": "^22.0.0",
-    "@metamask/transaction-controller": "^45.0.0"
+    "@metamask/network-controller": "^23.0.0",
+    "@metamask/transaction-controller": "^46.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

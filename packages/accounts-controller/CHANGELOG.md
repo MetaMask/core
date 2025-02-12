@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
 ### Uncategorized
 
 - feat: Add `MultichainNetworkController` to handle both EVM and non-EVM network and account switching ([#5215](https://github.com/MetaMask/core/pull/5215))
@@ -448,7 +450,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.1.0...@metamask/accounts-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.1...@metamask/accounts-controller@23.1.0
 [23.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.0...@metamask/accounts-controller@23.0.1
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@22.0.0...@metamask/accounts-controller@23.0.0

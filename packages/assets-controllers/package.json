@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "49.0.0",
+  "version": "50.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -77,16 +77,16 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/accounts-controller": "^23.1.0",
+    "@metamask/accounts-controller": "^24.0.0",
     "@metamask/approval-controller": "^7.1.3",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-controller": "^19.1.0",
     "@metamask/keyring-internal-api": "^4.0.1",
     "@metamask/keyring-snap-client": "^3.0.3",
-    "@metamask/network-controller": "^22.2.1",
+    "@metamask/network-controller": "^23.0.0",
     "@metamask/permission-controller": "^11.0.6",
-    "@metamask/preferences-controller": "^15.0.2",
+    "@metamask/preferences-controller": "^16.0.0",
     "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.19.0",
     "@metamask/snaps-sdk": "^6.17.1",
@@ -105,12 +105,12 @@
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^23.0.1",
+    "@metamask/accounts-controller": "^24.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^19.0.0",
-    "@metamask/network-controller": "^22.0.0",
+    "@metamask/network-controller": "^23.0.0",
     "@metamask/permission-controller": "^11.0.0",
-    "@metamask/preferences-controller": "^15.0.0",
+    "@metamask/preferences-controller": "^16.0.0",
     "@metamask/providers": "^18.1.0",
     "@metamask/snaps-controllers": "^9.19.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"

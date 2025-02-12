@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [50.0.0]
+
 ### Uncategorized
 
 - Release 298.0.0 ([#5314](https://github.com/MetaMask/core/pull/5314))
@@ -1398,7 +1400,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@49.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@50.0.0...HEAD
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@49.0.0...@metamask/assets-controllers@50.0.0
 [49.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@48.0.0...@metamask/assets-controllers@49.0.0
 [48.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@47.0.0...@metamask/assets-controllers@48.0.0
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.1...@metamask/assets-controllers@47.0.0
