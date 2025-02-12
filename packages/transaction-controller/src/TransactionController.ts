@@ -1076,6 +1076,7 @@ export class TransactionController extends BaseController<
       permittedAddresses,
       selectedAddress,
       txParams,
+      type,
     });
 
     const isEIP1559Compatible =

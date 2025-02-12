@@ -19,6 +19,7 @@ import {
   type TransactionBatchRequest,
   type TransactionBatchResult,
   type TransactionParams,
+  TransactionType,
 } from '../types';
 
 type AddTransactionBatchRequest = {
@@ -108,6 +109,7 @@ export async function addTransactionBatch(
     nestedTransactions,
     networkClientId,
     requireApproval,
+    type: TransactionType.batch,
   });
 
   const batchId = transactionMeta.id;

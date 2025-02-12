@@ -6,7 +6,7 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './validation';
-import { TransactionEnvelopeType } from '../types';
+import { TransactionEnvelopeType, TransactionType } from '../types';
 import type { TransactionParams } from '../types';
 
 const FROM_MOCK = '0x1678a085c290ebd122dc42cba69373b5953b831d';
@@ -694,6 +694,21 @@ describe('validation', () => {
           'External transactions to internal accounts are not supported',
         ),
       );
+    });
+
+    it('does not throw if external and to is internal account but type is batch', async () => {
+      expect(
+        await validateTransactionOrigin({
+          from: FROM_MOCK,
+          internalAccounts: [TO_MOCK],
+          origin: 'test-origin',
+          selectedAddress: '0x123',
+          txParams: {
+            to: TO_MOCK,
+          } as TransactionParams,
+          type: TransactionType.batch,
+        }),
+      ).toBeUndefined();
     });
   });
 

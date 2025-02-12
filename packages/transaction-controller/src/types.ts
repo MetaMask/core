@@ -545,6 +545,12 @@ export enum WalletDevice {
  */
 export enum TransactionType {
   /**
+   * A batch transaction that includes multiple nested transactions.
+   * Introduced in EIP-7702.
+   */
+  batch = 'batch',
+
+  /**
    * A transaction that bridges tokens to a different chain through Metamask Bridge.
    */
   bridge = 'bridge',
