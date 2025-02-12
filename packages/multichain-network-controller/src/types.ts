@@ -158,9 +158,9 @@ export type MultichainNetworkControllerAllowedEvents =
  * Messenger type for the MultichainNetworkController.
  */
 export type MultichainNetworkControllerMessenger = RestrictedMessenger<
-    typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
-    MultichainNetworkControllerAllowedActions,
-    MultichainNetworkControllerAllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+  typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
+  MultichainNetworkControllerAllowedActions,
+  MultichainNetworkControllerAllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
