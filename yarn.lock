@@ -2582,7 +2582,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^0.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2619,20 +2619,20 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
-    "@metamask/accounts-controller": "npm:^23.0.0"
+    "@metamask/accounts-controller": "npm:^23.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^7.1.1"
+    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/bridge-controller": "npm:^0.0.0"
     "@metamask/controller-utils": "npm:^11.5.0"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/network-controller": "npm:^22.2.0"
-    "@metamask/polling-controller": "npm:^12.0.2"
-    "@metamask/transaction-controller": "npm:^45.0.0"
+    "@metamask/network-controller": "npm:^22.2.1"
+    "@metamask/polling-controller": "npm:^12.0.3"
+    "@metamask/transaction-controller": "npm:^45.1.0"
     "@metamask/utils": "npm:^11.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
-    ethereumjs-util: "npm:^7.0.10"
     ethers: "npm:^6.12.0"
     jest: "npm:^27.5.1"
     jest-environment-jsdom: "npm:^27.5.1"
@@ -2643,8 +2643,9 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/network-controller": ^22.0.0
-    "@metamask/transaction-controller": ^45.0.0
+    "@metamask/accounts-controller": ^23.1.0
+    "@metamask/network-controller": ^22.2.1
+    "@metamask/transaction-controller": ^45.1.0
   languageName: unknown
   linkType: soft
 
