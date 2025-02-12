@@ -1,6 +1,5 @@
 import type { Caveat } from '@metamask/permission-controller';
 import type { JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
-import type { NormalizedScopesObject } from 'src/scope/types';
 
 import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -8,6 +7,7 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
+import type { NormalizedScopesObject } from '../scope/types';
 
 /**
  * Handler for the `wallet_getSession` RPC method as specified by [CAIP-312](https://chainagnostic.org/CAIPs/caip-312).

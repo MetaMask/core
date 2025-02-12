@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.0]
+
+### Added
+
+- Add new keyring type for OneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
+
+### Changed
+
+- A specific error message is thrown when any operation is attempted while the controller is locked ([#5172](https://github.com/MetaMask/core/pull/5172))
+
 ## [19.0.7]
 
 ### Changed
@@ -660,7 +670,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.1.0...HEAD
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.7...@metamask/keyring-controller@19.1.0
 [19.0.7]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.6...@metamask/keyring-controller@19.0.7
 [19.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.5...@metamask/keyring-controller@19.0.6
 [19.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.4...@metamask/keyring-controller@19.0.5
