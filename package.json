@@ -87,6 +87,7 @@
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-promise": "^7.1.0",
     "execa": "^5.0.0",
+    "github-codeowners": "^0.2.1",
     "isomorphic-fetch": "^3.0.0",
     "jest": "^27.5.1",
     "jest-silent-reporter": "^0.5.0",
