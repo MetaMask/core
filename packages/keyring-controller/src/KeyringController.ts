@@ -57,6 +57,7 @@ export enum KeyringTypes {
   hd = 'HD Key Tree',
   qr = 'QR Hardware Wallet Device',
   trezor = 'Trezor Hardware',
+  oneKey = 'OneKey Hardware',
   ledger = 'Ledger Hardware',
   lattice = 'Lattice Hardware',
   snap = 'Snap Keyring',
