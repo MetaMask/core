@@ -1,3 +1,4 @@
+import { AbiCoder, defaultAbiCoder } from '@ethersproject/abi';
 import { Contract } from '@ethersproject/contracts';
 import { query, toHex } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
@@ -7,7 +8,7 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
 } from './feature-flags';
-import { ABI_SIMPLE_DELEGATE_CONTRACT } from '../abi/SimpleDelegateContract';
+import { ABI_IERC7821 } from '../abi/IERC7821';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
@@ -108,24 +109,28 @@ export function generateEIP7702BatchTransaction(
   from: Hex,
   transactions: BatchTransactionParams[],
 ): BatchTransactionParams {
-  const delegationContract = Contract.getInterface(
-    ABI_SIMPLE_DELEGATE_CONTRACT,
-  );
+  const erc7821Contract = Contract.getInterface(ABI_IERC7821);
 
-  const args = transactions.map((transaction) => {
+  const calls = transactions.map((transaction) => {
     const { data, to, value } = transaction;
 
     return [
-      data ?? '0x',
       to ?? '0x0000000000000000000000000000000000000000',
       value ?? '0x0',
+      data ?? '0x',
     ];
   });
 
-  log('Args', args);
+  const mode = '0x01'.padEnd(66, '0');
 
-  const data = delegationContract.encodeFunctionData(BATCH_FUNCTION_NAME, [
-    args,
+  const callData = defaultAbiCoder.encode(
+    ['(address,uint256,bytes)[]'],
+    [calls],
+  );
+
+  const data = erc7821Contract.encodeFunctionData(BATCH_FUNCTION_NAME, [
+    mode,
+    callData,
   ]) as Hex;
 
   log('Transaction data', data);
