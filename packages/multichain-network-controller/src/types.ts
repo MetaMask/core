@@ -3,7 +3,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import type { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
@@ -101,10 +101,9 @@ export type MultichainNetworkControllerGetStateAction =
     MultichainNetworkControllerState
   >;
 
-type SetActiveNetworkMethod = {
-  (id: SupportedCaipChainId): Promise<void>;
-  (id: NetworkClientId): Promise<void>;
-};
+export type SetActiveNetworkMethod = (
+  id: SupportedCaipChainId | NetworkClientId,
+) => Promise<void>;
 
 export type MultichainNetworkControllerSetActiveNetworkAction = {
   type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:setActiveNetwork`;

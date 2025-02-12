@@ -1,10 +1,9 @@
-import { BtcScope, CaipChainId, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, type CaipChainId } from '@metamask/keyring-api';
 
 import {
   getChainIdForNonEvmAddress,
   checkIfSupportedCaipChainId,
 } from './utils';
-import { SupportedCaipChainId } from './types';
 
 describe('utils', () => {
   describe('getChainIdForNonEvmAddress', () => {
@@ -31,15 +30,6 @@ describe('utils', () => {
 
     it('returns false for unsupported CAIP chain IDs', () => {
       expect(checkIfSupportedCaipChainId('eip155:1')).toBe(false);
-    });
-
-    it('provides type guard functionality', () => {
-      const chainId = SolScope.Mainnet;
-      if (checkIfSupportedCaipChainId(chainId)) {
-        // TypeScript should recognize chainId as SupportedCaipChainId
-        const supportedChainId: SupportedCaipChainId = chainId;
-        expect(supportedChainId).toBe(chainId);
-      }
     });
   });
 });

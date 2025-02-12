@@ -1,6 +1,6 @@
+import { type StateMetadata } from '@metamask/base-controller';
 import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
-import { type StateMetadata } from '@metamask/base-controller';
 
 import type {
   MultichainNetworkConfiguration,

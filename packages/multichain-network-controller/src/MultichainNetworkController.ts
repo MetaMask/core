@@ -2,11 +2,12 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
+import { isCaipChainId } from '@metamask/utils';
 
 import {
-  checkIfSupportedCaipChainId,
-  getChainIdForNonEvmAddress,
-} from './utils';
+  MULTICHAIN_NETWORK_CONTROLLER_METADATA,
+  DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
+} from './constants';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
@@ -14,10 +15,9 @@ import {
   type SupportedCaipChainId,
 } from './types';
 import {
-  MULTICHAIN_NETWORK_CONTROLLER_METADATA,
-  DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE,
-} from './constants';
-import { isCaipChainId } from '@metamask/utils';
+  checkIfSupportedCaipChainId,
+  getChainIdForNonEvmAddress,
+} from './utils';
 
 /**
  * The MultichainNetworkController is responsible for fetching and caching account
@@ -120,19 +120,11 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
-   * Switches to a non-EVM network.
+   * Sets the active network.
    *
-   * @param id - The chain ID of the non-EVM network to set active.
+   * @param id - The non-EVM Caip chain ID or EVM client ID of the network to set active.
+   * @returns - A promise that resolves when the network is set active.
    */
-  async setActiveNetwork(id: SupportedCaipChainId): Promise<void>;
-
-  /**
-   * Switches to an EVM network.
-   *
-   * @param id - The client ID of the EVM network to set active.
-   */
-  async setActiveNetwork(id: NetworkClientId): Promise<void>;
-
   async setActiveNetwork(
     id: SupportedCaipChainId | NetworkClientId,
   ): Promise<void> {
@@ -141,10 +133,10 @@ export class MultichainNetworkController extends BaseController<
       if (!isSupportedCaipChainId) {
         throw new Error(`Unsupported Caip chain ID: ${id}`);
       }
-      this.#setActiveNonEvmNetwork(id);
-    } else {
-      this.#setActiveEvmNetwork(id);
+      return this.#setActiveNonEvmNetwork(id);
     }
+
+    return await this.#setActiveEvmNetwork(id);
   }
 
   /**

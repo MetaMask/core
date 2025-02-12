@@ -9,7 +9,6 @@ import {
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { v4 } from 'uuid';
 
 /**
  * Creates a mock internal account. This is a duplicated function from the accounts-controller package
@@ -30,7 +29,7 @@ import { v4 } from 'uuid';
  * @returns A mock internal account.
  */
 export const createMockInternalAccount = ({
-  id = v4(),
+  id = 'dummy-id',
   address = '0x2990079bcdee240329a520d2444386fc119da21a',
   type = EthAccountType.Eoa,
   name = 'Account 1',

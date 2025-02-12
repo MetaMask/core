@@ -7,7 +7,7 @@ import {
   BtcAccountType,
   SolAccountType,
   type KeyringAccountType,
-  CaipChainId,
+  type CaipChainId,
 } from '@metamask/keyring-api';
 import type {
   NetworkControllerGetStateAction,
@@ -15,6 +15,7 @@ import type {
 } from '@metamask/network-controller';
 
 import { DEFAULT_MULTICHAIN_NETWORK_CONTROLLER_STATE } from './constants';
+import { MultichainNetworkController } from './MultichainNetworkController';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -22,8 +23,7 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from './types';
-import { MultichainNetworkController } from './MultichainNetworkController';
-import { createMockInternalAccount } from '../test/utils';
+import { createMockInternalAccount } from '../tests/utils';
 
 /**
  * Setup a test controller instance.
