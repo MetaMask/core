@@ -576,8 +576,6 @@
   },
   "packages/transaction-controller/src/TransactionController.ts": {
     "jsdoc/check-tag-names": 35,
-    "jsdoc/tag-lines": 1,
-    "no-unused-private-class-members": 1,
     "jsdoc/require-returns": 5
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
