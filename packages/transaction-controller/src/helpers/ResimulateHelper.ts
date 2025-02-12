@@ -76,7 +76,7 @@ export class ResimulateHelper {
       if (transactionMeta?.isActive) {
         this.#start(transactionMeta);
       } else {
-        this.#stop(transactionMeta);
+        this.#stop(transactionId);
       }
     });
   }
@@ -114,8 +114,7 @@ export class ResimulateHelper {
     this.#timeoutIds.set(transactionId, timeoutId);
   }
 
-  #stop(transactionMeta: TransactionMeta) {
-    const { id: transactionId } = transactionMeta;
+  #stop(transactionId: string) {
     if (!this.#timeoutIds.has(transactionId)) {
       return;
     }
