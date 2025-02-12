@@ -1,4 +1,3 @@
-import { handleFetch } from '@metamask/controller-utils';
 import { ZeroAddress } from 'ethers';
 
 import {
@@ -11,10 +10,7 @@ import mockBridgeQuotesNativeErc20 from '../../../../tests/bridge-controller/moc
 import { BridgeClientId } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  handleFetch: jest.fn(),
-}));
+const mockFetchFn = jest.fn();
 
 describe('Bridge utils', () => {
   describe('fetchBridgeFeatureFlags', () => {
@@ -53,11 +49,14 @@ describe('Bridge utils', () => {
         },
       };
 
-      (handleFetch as jest.Mock).mockResolvedValue(mockResponse);
+      mockFetchFn.mockResolvedValue(mockResponse);
 
-      const result = await fetchBridgeFeatureFlags(BridgeClientId.EXTENSION);
+      const result = await fetchBridgeFeatureFlags(
+        BridgeClientId.EXTENSION,
+        mockFetchFn,
+      );
 
-      expect(handleFetch).toHaveBeenCalledWith(
+      expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
         {
           headers: { 'X-Client-Id': 'extension' },
@@ -118,11 +117,14 @@ describe('Bridge utils', () => {
         },
       };
 
-      (handleFetch as jest.Mock).mockResolvedValue(mockResponse);
+      mockFetchFn.mockResolvedValue(mockResponse);
 
-      const result = await fetchBridgeFeatureFlags(BridgeClientId.EXTENSION);
+      const result = await fetchBridgeFeatureFlags(
+        BridgeClientId.EXTENSION,
+        mockFetchFn,
+      );
 
-      expect(handleFetch).toHaveBeenCalledWith(
+      expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
         {
           headers: { 'X-Client-Id': 'extension' },
@@ -142,10 +144,10 @@ describe('Bridge utils', () => {
     it('should handle fetch error', async () => {
       const mockError = new Error('Failed to fetch');
 
-      (handleFetch as jest.Mock).mockRejectedValue(mockError);
+      mockFetchFn.mockRejectedValue(mockError);
 
       await expect(
-        fetchBridgeFeatureFlags(BridgeClientId.EXTENSION),
+        fetchBridgeFeatureFlags(BridgeClientId.EXTENSION, mockFetchFn),
       ).rejects.toThrow(mockError);
     });
   });
@@ -179,11 +181,15 @@ describe('Bridge utils', () => {
         },
       ];
 
-      (handleFetch as jest.Mock).mockResolvedValue(mockResponse);
+      mockFetchFn.mockResolvedValue(mockResponse);
 
-      const result = await fetchBridgeTokens('0xa', BridgeClientId.EXTENSION);
+      const result = await fetchBridgeTokens(
+        '0xa',
+        BridgeClientId.EXTENSION,
+        mockFetchFn,
+      );
 
-      expect(handleFetch).toHaveBeenCalledWith(
+      expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getTokens?chainId=10',
         {
           headers: { 'X-Client-Id': 'extension' },
@@ -215,17 +221,17 @@ describe('Bridge utils', () => {
     it('should handle fetch error', async () => {
       const mockError = new Error('Failed to fetch');
 
-      (handleFetch as jest.Mock).mockRejectedValue(mockError);
+      mockFetchFn.mockRejectedValue(mockError);
 
       await expect(
-        fetchBridgeTokens('0xa', BridgeClientId.EXTENSION),
+        fetchBridgeTokens('0xa', BridgeClientId.EXTENSION, mockFetchFn),
       ).rejects.toThrow(mockError);
     });
   });
 
   describe('fetchBridgeQuotes', () => {
     it('should fetch bridge quotes successfully, no approvals', async () => {
-      (handleFetch as jest.Mock).mockResolvedValue(mockBridgeQuotesNativeErc20);
+      mockFetchFn.mockResolvedValue(mockBridgeQuotesNativeErc20);
       const { signal } = new AbortController();
 
       const result = await fetchBridgeQuotes(
@@ -240,9 +246,10 @@ describe('Bridge utils', () => {
         },
         signal,
         BridgeClientId.EXTENSION,
+        mockFetchFn,
       );
 
-      expect(handleFetch).toHaveBeenCalledWith(
+      expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
         {
           headers: { 'X-Client-Id': 'extension' },
@@ -254,7 +261,7 @@ describe('Bridge utils', () => {
     });
 
     it('should fetch bridge quotes successfully, with approvals', async () => {
-      (handleFetch as jest.Mock).mockResolvedValue([
+      mockFetchFn.mockResolvedValue([
         ...mockBridgeQuotesErc20Erc20,
         { ...mockBridgeQuotesErc20Erc20[0], approval: null },
         { ...mockBridgeQuotesErc20Erc20[0], trade: null },
@@ -273,9 +280,10 @@ describe('Bridge utils', () => {
         },
         signal,
         BridgeClientId.EXTENSION,
+        mockFetchFn,
       );
 
-      expect(handleFetch).toHaveBeenCalledWith(
+      expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
         {
           headers: { 'X-Client-Id': 'extension' },
@@ -287,7 +295,7 @@ describe('Bridge utils', () => {
     });
 
     it('should filter out malformed bridge quotes', async () => {
-      (handleFetch as jest.Mock).mockResolvedValue([
+      mockFetchFn.mockResolvedValue([
         ...mockBridgeQuotesErc20Erc20,
         ...mockBridgeQuotesErc20Erc20.map(
           ({ quote, ...restOfQuote }) => restOfQuote,
@@ -325,9 +333,10 @@ describe('Bridge utils', () => {
         },
         signal,
         BridgeClientId.EXTENSION,
+        mockFetchFn,
       );
 
-      expect(handleFetch).toHaveBeenCalledWith(
+      expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
         {
           headers: { 'X-Client-Id': 'extension' },

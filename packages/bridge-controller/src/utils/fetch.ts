@@ -1,4 +1,3 @@
-import { handleFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber, numberToHex } from '@metamask/utils';
 
@@ -27,6 +26,7 @@ import type {
   QuoteResponse,
   TxData,
   BridgeFeatureFlags,
+  FetchFunction,
 } from '../types';
 import { BridgeFlag, FeeType, BridgeFeatureFlagsKey } from '../types';
 
@@ -41,13 +41,15 @@ export const getClientIdHeader = (clientId: string) => ({
  * Fetches the bridge feature flags
  *
  * @param clientId - The client ID for metrics
+ * @param fetchFn - The fetch function to use
  * @returns The bridge feature flags
  */
 export async function fetchBridgeFeatureFlags(
   clientId: string,
+  fetchFn: FetchFunction,
 ): Promise<BridgeFeatureFlags> {
   const url = `${getBridgeApiBaseUrl()}/getAllFeatureFlags`;
-  const rawFeatureFlags = await handleFetch(url, {
+  const rawFeatureFlags = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
   });
 
@@ -89,11 +91,13 @@ export async function fetchBridgeFeatureFlags(
  *
  * @param chainId - The chain ID to fetch tokens for
  * @param clientId - The client ID for metrics
+ * @param fetchFn - The fetch function to use
  * @returns A list of enabled (unblocked) tokens
  */
 export async function fetchBridgeTokens(
   chainId: Hex,
   clientId: string,
+  fetchFn: FetchFunction,
 ): Promise<Record<string, SwapsTokenObject>> {
   // TODO make token api v2 call
   const url = `${getBridgeApiBaseUrl()}/getTokens?chainId=${hexToNumber(
@@ -103,7 +107,7 @@ export async function fetchBridgeTokens(
   // TODO we will need to cache these. In Extension fetchWithCache is used. This is due to the following:
   // If we allow selecting dest networks which the user has not imported,
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
-  const tokens = await handleFetch(url, {
+  const tokens = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
   });
 
@@ -137,12 +141,14 @@ export async function fetchBridgeTokens(
  * @param request - The quote request
  * @param signal - The abort signal
  * @param clientId - The client ID for metrics
+ * @param fetchFn - The fetch function to use
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuotes(
   request: QuoteRequest,
   signal: AbortSignal,
   clientId: string,
+  fetchFn: FetchFunction,
 ): Promise<QuoteResponse[]> {
   const queryParams = new URLSearchParams({
     walletAddress: request.walletAddress,
@@ -156,7 +162,7 @@ export async function fetchBridgeQuotes(
     resetApproval: request.resetApproval ? 'true' : 'false',
   });
   const url = `${getBridgeApiBaseUrl()}/getQuote?${queryParams}`;
-  const quotes = await handleFetch(url, {
+  const quotes = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
     signal,
   });

@@ -14,6 +14,12 @@ import type { BigNumber } from 'bignumber.js';
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 
+export type FetchFunction = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+) => Promise<any>;
+
 /**
  * The types of assets that a user can send
  *

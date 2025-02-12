@@ -25,7 +25,7 @@ import {
   BridgeFeatureFlagsKey,
   RequestStatus,
 } from './types';
-import type { BridgeControllerMessenger } from './types';
+import type { BridgeControllerMessenger, FetchFunction } from './types';
 import { hasSufficientBalance } from './utils/balance';
 import { getDefaultBridgeControllerState, sumHexes } from './utils/bridge';
 import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
@@ -62,11 +62,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     chainId: ChainId;
   }) => Promise<string>;
 
+  readonly #fetchFn: FetchFunction;
+
   constructor({
     messenger,
     state,
     clientId,
     getLayer1GasFee,
+    fetchFn,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -75,6 +78,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       transactionParams: TransactionParams;
       chainId: ChainId;
     }) => Promise<string>;
+    fetchFn: FetchFunction;
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -93,6 +97,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#abortController = new AbortController();
     this.#getLayer1GasFee = getLayer1GasFee;
     this.#clientId = clientId;
+    this.#fetchFn = fetchFn;
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -195,7 +200,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   setBridgeFeatureFlags = async () => {
-    const bridgeFeatureFlags = await fetchBridgeFeatureFlags(this.#clientId);
+    const bridgeFeatureFlags = await fetchBridgeFeatureFlags(
+      this.#clientId,
+      this.#fetchFn,
+    );
     this.update((state) => {
       state.bridgeState.bridgeFeatureFlags = bridgeFeatureFlags;
     });
@@ -230,6 +238,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         this.#abortController!.signal as AbortSignal,
         this.#clientId,
+        this.#fetchFn,
       );
 
       const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);

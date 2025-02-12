@@ -18,6 +18,7 @@ import mockBridgeQuotesErc20Native from '../../../tests/bridge-controller/mock-q
 import mockBridgeQuotesNativeErc20Eth from '../../../tests/bridge-controller/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../../../tests/bridge-controller/mock-quotes-native-erc20.json';
 import { flushPromises } from '../../../tests/helpers';
+import { handleFetch } from '../../controller-utils/src';
 
 const EMPTY_INIT_STATE = {
   bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
@@ -38,6 +39,7 @@ jest.mock('ethers', () => {
   };
 });
 const getLayer1GasFeeMock = jest.fn();
+const mockFetchFn = handleFetch;
 
 describe('BridgeController', function () {
   let bridgeController: BridgeController;
@@ -47,6 +49,7 @@ describe('BridgeController', function () {
       messenger: messengerMock,
       getLayer1GasFee: getLayer1GasFeeMock,
       clientId: BridgeClientId.EXTENSION,
+      fetchFn: mockFetchFn,
     });
   });
 
@@ -318,6 +321,7 @@ describe('BridgeController', function () {
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
+      mockFetchFn,
     );
     expect(
       bridgeController.state.bridgeState.quotesLastFetched,
@@ -470,6 +474,7 @@ describe('BridgeController', function () {
       },
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
+      mockFetchFn,
     );
     expect(
       bridgeController.state.bridgeState.quotesLastFetched,
@@ -594,6 +599,7 @@ describe('BridgeController', function () {
         messenger: mockMessenger,
         clientId: BridgeClientId.EXTENSION,
         getLayer1GasFee: jest.fn(),
+        fetchFn: mockFetchFn,
       });
 
       // Test
@@ -698,6 +704,7 @@ describe('BridgeController', function () {
         },
         expect.any(AbortSignal),
         BridgeClientId.EXTENSION,
+        mockFetchFn,
       );
       expect(
         bridgeController.state.bridgeState.quotesLastFetched,
