@@ -3321,7 +3321,6 @@ __metadata:
     "@metamask/eth-simple-keyring": "npm:^8.1.0"
     "@metamask/keyring-api": "npm:^17.0.0"
     "@metamask/keyring-internal-api": "npm:^4.0.1"
-    "@metamask/message-manager": "npm:^12.0.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
@@ -3425,7 +3424,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/message-manager@npm:^12.0.1, @metamask/message-manager@workspace:packages/message-manager":
+"@metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
