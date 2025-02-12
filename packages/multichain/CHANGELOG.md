@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/network-controller` dev and peer dependency from `^22.2.1` to `^23.0.0`
+- **BREAKING:** Bump `@metamask/network-controller` dev and peer dependency from `^22.2.1` to `^22.2.2`
 
 ## [2.1.1]
 
