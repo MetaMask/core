@@ -936,7 +936,7 @@ export class TransactionController extends BaseController<
         this.messagingSystem.subscribe(
           'TransactionController:stateChange',
           listener,
-          (state) => state.transactions,
+          (controllerState) => controllerState.transactions,
         );
       },
       getTransactions: () => this.state.transactions,
