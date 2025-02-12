@@ -63,7 +63,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.1.0",
-    "@metamask/network-controller": "^23.0.0",
+    "@metamask/network-controller": "^22.2.2",
     "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.19.0",
     "@types/jest": "^27.4.1",
@@ -77,7 +77,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^19.1.0",
-    "@metamask/network-controller": "^23.0.0",
+    "@metamask/network-controller": "^22.2.2",
     "@metamask/providers": "^18.1.0",
     "@metamask/snaps-controllers": "^9.19.0",
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"

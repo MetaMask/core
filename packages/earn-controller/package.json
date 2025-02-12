@@ -55,7 +55,7 @@
   "devDependencies": {
     "@metamask/accounts-controller": "^24.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^23.0.0",
+    "@metamask/network-controller": "^22.2.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -66,7 +66,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^24.0.0",
-    "@metamask/network-controller": "^23.0.0"
+    "@metamask/network-controller": "^22.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

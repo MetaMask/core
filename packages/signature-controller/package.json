@@ -60,7 +60,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.1.0",
     "@metamask/logging-controller": "^6.0.4",
-    "@metamask/network-controller": "^23.0.0",
+    "@metamask/network-controller": "^22.2.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -73,7 +73,7 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^19.0.0",
     "@metamask/logging-controller": "^6.0.0",
-    "@metamask/network-controller": "^23.0.0"
+    "@metamask/network-controller": "^22.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
