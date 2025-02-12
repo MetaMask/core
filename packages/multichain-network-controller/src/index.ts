@@ -15,4 +15,9 @@ export type {
   MultichainNetworkControllerEvents,
   MultichainNetworkControllerMessenger,
 } from './types';
-export { checkIfSupportedCaipChainId } from './utils';
+export {
+  checkIfSupportedCaipChainId,
+  toMultichainNetworkConfiguration,
+  toMultichainNetworkConfigurationsByChainId,
+  toEvmCaipChainId,
+} from './utils';

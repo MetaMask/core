@@ -3,7 +3,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { BtcScope, SolScope } from '@metamask/keyring-api';
+import type { BtcScope, CaipChainId, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
@@ -28,6 +28,40 @@ export type CommonNetworkConfiguration = {
    */
   isEvm: boolean;
   /**
+   * The chain ID of the network.
+   */
+  chainId: CaipChainId;
+  /**
+   * The name of the network.
+   */
+  name: string;
+};
+
+export type NonEvmNetworkConfiguration = CommonNetworkConfiguration & {
+  /**
+   * EVM network flag.
+   */
+  isEvm: false;
+  /**
+   * The native asset type of the network.
+   */
+  nativeCurrency: CaipAssetType;
+};
+
+// TODO: The controller only supports non-EVM network configurations at the moment
+// Once we support Caip chain IDs for EVM networks, we can re-enable EVM network configurations
+export type EvmNetworkConfiguration = CommonNetworkConfiguration & {
+  /**
+   * EVM network flag.
+   */
+  isEvm: true;
+  /**
+   * The native asset type of the network.
+   * For EVM, this is the network ticker since there is no standard between
+   * tickers and Caip IDs.
+   */
+  nativeCurrency: string;
+  /**
    * The block explorers of the network.
    */
   blockExplorerUrls: string[];
@@ -35,41 +69,11 @@ export type CommonNetworkConfiguration = {
    * The index of the default block explorer URL.
    */
   defaultBlockExplorerUrlIndex: number;
-  /**
-   * The chain ID of the network.
-   */
-  chainId: SupportedCaipChainId;
-  /**
-   * The name of the network.
-   */
-  name: string;
-  /**
-   * The native asset type of the network.
-   */
-  nativeCurrency: CaipAssetType;
 };
-
-export type NonEvmNetworkConfiguration = CommonNetworkConfiguration & {
-  isEvm: false;
-};
-
-// TODO: The controller only supports non-EVM network configurations at the moment
-// Once we support Caip chain IDs for EVM networks, we can re-enable EVM network configurations
-// export type EvmNetworkConfiguration = CommonNetworkConfiguration & {
-//   isEvm: true;
-//   /**
-//    * The RPC endpoints of the network.
-//    */
-//   rpcEndpoints: string[];
-//   /**
-//    * The index of the default RPC endpoint.
-//    */
-//   defaultRpcEndpointIndex: number;
-// };
 
 export type MultichainNetworkConfiguration =
-  // | EvmNetworkConfiguration
-  NonEvmNetworkConfiguration;
+  | EvmNetworkConfiguration
+  | NonEvmNetworkConfiguration;
 
 /**
  * State used by the {@link MultichainNetworkController} to cache network configurations.
@@ -79,7 +83,7 @@ export type MultichainNetworkControllerState = {
    * The network configurations by chain ID.
    */
   multichainNetworkConfigurationsByChainId: Record<
-    SupportedCaipChainId,
+    CaipChainId,
     MultichainNetworkConfiguration
   >;
   /**
