@@ -1894,10 +1894,7 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    return (await this.#newKeyring(
-      KeyringTypes.qr,
-      undefined,
-    )) as unknown as QRKeyring;
+return (await this.#newKeyring(KeyringTypes.qr)) as unknown as QRKeyring;
   }
 
   /**
