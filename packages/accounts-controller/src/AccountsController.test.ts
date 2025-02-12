@@ -1959,6 +1959,7 @@ describe('AccountsController', () => {
       KeyringTypes.simple,
       KeyringTypes.hd,
       KeyringTypes.trezor,
+      KeyringTypes.oneKey,
       KeyringTypes.ledger,
       KeyringTypes.lattice,
       KeyringTypes.qr,
