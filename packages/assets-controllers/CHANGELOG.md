@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^22.2.1` to `^22.2.2`
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.1.0` to `^24.0.0`
+- Removed legacy poll function to prevent redundant polling ([#5311](https://github.com/MetaMask/core/pull/5311))
+
+### Fixed
+
+- Ensure that the polling is not triggered on the constructor with the initialisation of the controller ([#5311](https://github.com/MetaMask/core/pull/5311))
 
 ## [49.0.0]
 
