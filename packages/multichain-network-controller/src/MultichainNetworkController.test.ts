@@ -269,6 +269,7 @@ describe('MultichainNetworkController', () => {
       // Check that NetworkController:setActiveNetwork was not called
       expect(mockSetActiveNetwork).toHaveBeenCalledWith(evmNetworkClientId);
     });
+
     it('should not do anything when same EVM network is set and active', async () => {
       const { controller, publishSpy } = setupController({
         getNetworkState: jest.fn().mockImplementation(() => ({

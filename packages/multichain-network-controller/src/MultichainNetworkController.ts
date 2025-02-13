@@ -77,17 +77,17 @@ export class MultichainNetworkController extends BaseController<
       });
     }
 
+    // Only notify the network controller if the selected evm network is different
+    if (shouldNotifyNetworkChange) {
+      await this.messagingSystem.call('NetworkController:setActiveNetwork', id);
+    }
+
     // Only publish the networkDidChange event if either the EVM network is different or we're switching between EVM and non-EVM networks
     if (shouldSetEvmActive || shouldNotifyNetworkChange) {
       this.messagingSystem.publish(
         'MultichainNetworkController:networkDidChange',
         id,
       );
-    }
-
-    // Only notify the network controller if the selected evm network is different
-    if (shouldNotifyNetworkChange) {
-      await this.messagingSystem.call('NetworkController:setActiveNetwork', id);
     }
   }
 
