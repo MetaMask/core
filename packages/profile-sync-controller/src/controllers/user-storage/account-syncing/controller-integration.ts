@@ -123,7 +123,7 @@ export async function syncInternalAccountsWithUserStorage(
   }
 
   const {
-    maxNumberOfAccountsToAdd = 100,
+    maxNumberOfAccountsToAdd = Infinity,
     onAccountAdded,
     onAccountNameUpdated,
     onAccountSyncErroneousSituation,
