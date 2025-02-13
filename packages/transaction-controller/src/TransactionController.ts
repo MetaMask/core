@@ -65,6 +65,12 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import type { ResimulateResponse } from './helpers/ResimulateHelper';
+import {
+  ResimulateHelper,
+  hasSimulationDataChanged,
+  shouldResimulate,
+} from './helpers/ResimulateHelper';
 import { projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
@@ -110,8 +116,6 @@ import {
   getNextNonce,
 } from './utils/nonce';
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
-import type { ResimulateResponse } from './utils/resimulate';
-import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
@@ -925,6 +929,18 @@ export class TransactionController extends BaseController<
       'TransactionController:stateChange',
       this.#checkForPendingTransactionAndStartPolling,
     );
+
+    new ResimulateHelper({
+      simulateTransaction: this.#updateSimulationData.bind(this),
+      onTransactionsUpdate: (listener) => {
+        this.messagingSystem.subscribe(
+          'TransactionController:stateChange',
+          listener,
+          (controllerState) => controllerState.transactions,
+        );
+      },
+      getTransactions: () => this.state.transactions,
+    });
 
     this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
@@ -1860,6 +1876,33 @@ export class TransactionController extends BaseController<
     );
 
     return this.getTransaction(txId);
+  }
+
+  /**
+   * Update the isActive state of a transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param isActive - The active state.
+   */
+  setTransactionActive(transactionId: string, isActive: boolean) {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(`Transaction with id ${transactionId} not found`);
+    }
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#setTransactionActive - Transaction isActive updated',
+        skipHistory: true,
+        skipValidation: true,
+        skipResimulateCheck: true,
+      },
+      (updatedTransactionMeta) => {
+        updatedTransactionMeta.isActive = isActive;
+      },
+    );
   }
 
   /**
