@@ -93,6 +93,34 @@ const MockStatusResponse = {
       },
     },
   }),
+  getFailed: ({
+    srcTxHash = '0xsrcTxHash1',
+    srcChainId = 42161,
+    destChainId = 10,
+  } = {}) => ({
+    status: 'FAILED' as StatusTypes,
+    srcChain: {
+      chainId: srcChainId,
+      txHash: srcTxHash,
+      amount: '991250000000000',
+      token: {
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: srcChainId,
+        symbol: 'ETH',
+        decimals: 18,
+        name: 'ETH',
+        coinKey: 'ETH',
+        logoURI:
+          'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+        priceUSD: '2518.47',
+        icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+      },
+    },
+    destChain: {
+      chainId: destChainId,
+      token: {},
+    },
+  }),
 };
 
 const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
@@ -536,6 +564,7 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.state.bridgeStatusState.txHistory,
       ).toStrictEqual(MockTxHistory.getComplete());
 
+      // Cleanup
       jest.restoreAllMocks();
     });
     it('does not poll if the srcTxHash is not available', async () => {
@@ -603,6 +632,94 @@ describe('BridgeStatusController', () => {
         bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
           .status.srcChain.txHash,
       ).toBeUndefined();
+
+      // Cleanup
+      jest.restoreAllMocks();
+    });
+    it('emits bridgeTransactionComplete event when the status response is complete', async () => {
+      // Setup
+      jest.useFakeTimers();
+      jest.spyOn(Date, 'now').mockImplementation(() => {
+        return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
+      });
+
+      const messengerMock = getMessengerMock();
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+      });
+
+      const fetchBridgeTxStatusSpy = jest
+        .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+        .mockImplementationOnce(async () => {
+          return MockStatusResponse.getComplete();
+        });
+
+      // Execution
+      bridgeStatusController.startPollingForBridgeTxStatus(
+        getMockStartPollingForBridgeTxStatusArgs(),
+      );
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(messengerMock.publish).toHaveBeenCalledWith(
+        'BridgeStatusController:bridgeTransactionComplete',
+        {
+          bridgeHistoryItem: expect.objectContaining({
+            txMetaId: 'bridgeTxMetaId1',
+            status: expect.objectContaining({
+              status: 'COMPLETE',
+            }),
+          }),
+        },
+      );
+
+      // Cleanup
+      jest.restoreAllMocks();
+    });
+    it('emits bridgeTransactionFailed event when the status response is failed', async () => {
+      // Setup
+      jest.useFakeTimers();
+      jest.spyOn(Date, 'now').mockImplementation(() => {
+        return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
+      });
+
+      const messengerMock = getMessengerMock();
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+      });
+
+      const fetchBridgeTxStatusSpy = jest
+        .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+        .mockImplementationOnce(async () => {
+          return MockStatusResponse.getFailed();
+        });
+
+      // Execution
+      bridgeStatusController.startPollingForBridgeTxStatus(
+        getMockStartPollingForBridgeTxStatusArgs(),
+      );
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+      expect(messengerMock.publish).toHaveBeenCalledWith(
+        'BridgeStatusController:bridgeTransactionFailed',
+        {
+          bridgeHistoryItem: expect.objectContaining({
+            txMetaId: 'bridgeTxMetaId1',
+            status: expect.objectContaining({
+              status: 'FAILED',
+            }),
+          }),
+        },
+      );
 
       // Cleanup
       jest.restoreAllMocks();
