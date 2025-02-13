@@ -142,7 +142,7 @@ export class MultichainNetworkController extends BaseController<
    *
    * @param account - The account that was changed
    */
-  readonly #handleSelectedAccountChange = (account: InternalAccount) => {
+  #handleOnSelectedAccountChange(account: InternalAccount) {
     const { type: accountType, address: accountAddress } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
@@ -180,7 +180,7 @@ export class MultichainNetworkController extends BaseController<
 
     // No need to publish NetworkController:setActiveNetwork because EVM accounts falls back to use the last selected non-EVM network
     // DO NOT publish MultichainNetworkController:networkDidChange to prevent circular listener loops
-  };
+  }
 
   /**
    * Subscribes to message events.
@@ -189,7 +189,7 @@ export class MultichainNetworkController extends BaseController<
     // Handle network switch when account is changed
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      this.#handleSelectedAccountChange,
+      (account) => this.#handleOnSelectedAccountChange(account),
     );
   }
 
