@@ -3,11 +3,12 @@
 
 import { rpcErrors } from '@metamask/rpc-errors';
 import nock from 'nock';
+import { FetchError } from 'node-fetch';
 import { useFakeTimers } from 'sinon';
 import type { SinonFakeTimers } from 'sinon';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
-import { NETWORK_UNREACHABLE_ERRORS, RpcService } from './rpc-service';
+import { RpcService } from './rpc-service';
 import { DEFAULT_CIRCUIT_BREAK_DURATION } from '../../../controller-utils/src/create-service-policy';
 
 describe('RpcService', () => {
@@ -22,10 +23,58 @@ describe('RpcService', () => {
   });
 
   describe('request', () => {
-    describe.each([...NETWORK_UNREACHABLE_ERRORS].slice(0, 1))(
-      `if making the request throws a "%s" error (as a "network unreachable" error)`,
-      (errorMessage) => {
-        const error = new TypeError(errorMessage);
+    // NOTE: Keep this list synced with CONNECTION_ERRORS
+    describe.each([
+      {
+        constructorName: 'TypeError',
+        message: 'network error',
+      },
+      {
+        constructorName: 'TypeError',
+        message: 'Failed to fetch',
+      },
+      {
+        constructorName: 'TypeError',
+        message: 'NetworkError when attempting to fetch resource.',
+      },
+      {
+        constructorName: 'TypeError',
+        message: 'The Internet connection appears to be offline.',
+      },
+      {
+        constructorName: 'TypeError',
+        message: 'Load failed',
+      },
+      {
+        constructorName: 'TypeError',
+        message: 'Network request failed',
+      },
+      {
+        constructorName: 'FetchError',
+        message: 'request to https://foo.com failed',
+      },
+      {
+        constructorName: 'TypeError',
+        message: 'fetch failed',
+      },
+      {
+        constructorName: 'TypeError',
+        message: 'terminated',
+      },
+    ])(
+      `if making the request throws the $message error`,
+      ({ constructorName, message }) => {
+        let error;
+        switch (constructorName) {
+          case 'FetchError':
+            error = new FetchError(message, 'system');
+            break;
+          case 'TypeError':
+            error = new TypeError(message);
+            break;
+          default:
+            throw new Error(`Unknown constructor ${constructorName}`);
+        }
         testsForRetriableFetchErrors({
           getClock: () => clock,
           producedError: error,
@@ -58,6 +107,145 @@ describe('RpcService', () => {
         });
       },
     );
+
+    describe('if the endpoint URL was not mocked via Nock', () => {
+      it('re-throws the error without retrying the request', async () => {
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+        });
+
+        const promise = service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        });
+        await expect(promise).rejects.toThrow('Nock: Disallowed net connect');
+      });
+
+      it('does not forward the request to a failover service if given one', async () => {
+        const failoverService = buildMockRpcService();
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+          failoverService,
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await ignoreRejection(service.request(jsonRpcRequest));
+        expect(failoverService.request).not.toHaveBeenCalled();
+      });
+
+      it('does not call onBreak', async () => {
+        const onBreakListener = jest.fn();
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl: 'https://rpc.example.chain',
+        });
+        service.onBreak(onBreakListener);
+
+        const promise = service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        });
+        await ignoreRejection(promise);
+        expect(onBreakListener).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('if the endpoint URL was mocked via Nock, but not the RPC method', () => {
+      it('re-throws the error without retrying the request', async () => {
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_incorrectMethod',
+            params: [],
+          })
+          .reply(500);
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl,
+        });
+
+        const promise = service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        });
+        await expect(promise).rejects.toThrow('Nock: No match for request');
+      });
+
+      it('does not forward the request to a failover service if given one', async () => {
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_incorrectMethod',
+            params: [],
+          })
+          .reply(500);
+        const failoverService = buildMockRpcService();
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl,
+          failoverService,
+        });
+
+        const jsonRpcRequest = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: 'eth_chainId',
+          params: [],
+        };
+        await ignoreRejection(service.request(jsonRpcRequest));
+        expect(failoverService.request).not.toHaveBeenCalled();
+      });
+
+      it('does not call onBreak', async () => {
+        const endpointUrl = 'https://rpc.example.chain';
+        nock(endpointUrl)
+          .post('/', {
+            id: 1,
+            jsonrpc: '2.0',
+            method: 'eth_incorrectMethod',
+            params: [],
+          })
+          .reply(500);
+        const onBreakListener = jest.fn();
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl,
+        });
+        service.onBreak(onBreakListener);
+
+        const promise = service.request({
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        });
+        await ignoreRejection(promise);
+        expect(onBreakListener).not.toHaveBeenCalled();
+      });
+    });
 
     describe('if making the request throws an unknown error', () => {
       it('re-throws the error without retrying the request', async () => {
@@ -129,7 +317,7 @@ describe('RpcService', () => {
     });
 
     describe.each([503, 504])(
-      'if the endpoint consistently has a %d response',
+      'if the endpoint has a %d response',
       (httpStatus) => {
         testsForRetriableResponses({
           getClock: () => clock,
@@ -191,7 +379,7 @@ describe('RpcService', () => {
         const jsonRpcRequest = {
           id: 1,
           jsonrpc: '2.0' as const,
-          method: 'eth_chainId',
+          method: 'eth_unknownMethod',
           params: [],
         };
         await ignoreRejection(service.request(jsonRpcRequest));
@@ -219,7 +407,7 @@ describe('RpcService', () => {
         const promise = service.request({
           id: 1,
           jsonrpc: '2.0',
-          method: 'eth_chainId',
+          method: 'eth_unknownMethod',
           params: [],
         });
         await ignoreRejection(promise);
@@ -259,7 +447,7 @@ describe('RpcService', () => {
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
-            method: 'eth_unknownMethod',
+            method: 'eth_chainId',
             params: [],
           })
           .reply(429);
@@ -287,7 +475,7 @@ describe('RpcService', () => {
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
-            method: 'eth_unknownMethod',
+            method: 'eth_chainId',
             params: [],
           })
           .reply(429);
@@ -355,7 +543,7 @@ describe('RpcService', () => {
           .post('/', {
             id: 1,
             jsonrpc: '2.0',
-            method: 'eth_unknownMethod',
+            method: 'eth_chainId',
             params: [],
           })
           .reply(500, {
