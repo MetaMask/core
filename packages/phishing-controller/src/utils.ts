@@ -283,7 +283,11 @@ export const getHostnameFromUrl = (url: string): string | null => {
   let hostname;
   try {
     hostname = new URL(url).hostname;
-  } catch (error) {
+    // above will not throw if 'http://.' is passed. in fact, any string with a dot will pass.
+    if (!hostname || hostname.split('.').join('') === '') {
+      return null;
+    }
+  } catch {
     return null;
   }
   return hostname;

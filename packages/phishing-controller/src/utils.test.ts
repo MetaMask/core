@@ -555,7 +555,13 @@ describe('getHostname', () => {
   });
 
   it('should return null for an invalid URL', () => {
-    const url = 'invalid-url';
+    let url = 'invalid-url';
+    expect(getHostnameFromUrl(url)).toBeNull();
+
+    url = 'http://.';
+    expect(getHostnameFromUrl(url)).toBeNull();
+
+    url = 'http://..';
     expect(getHostnameFromUrl(url)).toBeNull();
   });
 
