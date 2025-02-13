@@ -564,7 +564,6 @@
     "jsdoc/tag-lines": 4
   },
   "packages/transaction-controller/src/TransactionController.test.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
     "import-x/namespace": 1,
     "import-x/order": 4,
     "jsdoc/tag-lines": 1,
@@ -699,13 +698,6 @@
   },
   "packages/transaction-controller/src/utils/nonce.test.ts": {
     "import-x/order": 1
-  },
-  "packages/transaction-controller/src/utils/resimulate.test.ts": {
-    "import-x/order": 2
-  },
-  "packages/transaction-controller/src/utils/resimulate.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 7
   },
   "packages/transaction-controller/src/utils/retry.test.ts": {
     "import-x/order": 1
