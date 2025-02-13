@@ -172,6 +172,11 @@ type TransactionMetaBase = {
   firstRetryBlockNumber?: string;
 
   /**
+   * Whether the transaction is active.
+   */
+  isActive?: boolean;
+
+  /**
    * Whether the transaction is the first time interaction.
    */
   isFirstTimeInteraction?: boolean;
