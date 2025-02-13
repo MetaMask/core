@@ -3461,7 +3461,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/keyring-api": "npm:^17.0.0"
     "@metamask/keyring-controller": "npm:^19.1.0"
-    "@metamask/network-controller": "npm:^22.2.1"
+    "@metamask/network-controller": "npm:^22.2.2"
     "@metamask/utils": "npm:^11.1.0"
     "@solana/addresses": "npm:^2.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -3475,7 +3475,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/network-controller": ^22.2.1
+    "@metamask/network-controller": ^22.2.2
   languageName: unknown
   linkType: soft
 
@@ -3561,7 +3561,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@npm:^22.2.1, @metamask/network-controller@npm:^22.2.2, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@npm:^22.2.2, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
