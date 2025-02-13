@@ -157,6 +157,8 @@ export class MultichainNetworkController extends BaseController<
       this.update((state) => {
         state.isEvmSelected = true;
       });
+
+      // No need to publish NetworkController:setActiveNetwork because EVM accounts falls back to use the last selected EVM network
       return;
     }
 
