@@ -1,11 +1,13 @@
 import { BridgeClientId, FeeType } from '@metamask/bridge-controller';
 
 import type { StatusRequestWithSrcTxHash, FetchFunction } from './types';
-import { fetchBridgeTxStatus, BRIDGE_STATUS_BASE_URL } from './utils';
+import {
+  fetchBridgeTxStatus,
+  BRIDGE_STATUS_BASE_URL,
+  getStatusRequestDto,
+} from './utils';
 
-describe('fetchBridgeTxStatus', () => {
-  const mockClientId = BridgeClientId.EXTENSION;
-
+describe('utils', () => {
   const mockStatusRequest: StatusRequestWithSrcTxHash = {
     bridgeId: 'socket',
     srcTxHash: '0x123',
@@ -79,58 +81,97 @@ describe('fetchBridgeTxStatus', () => {
     },
   };
 
-  it('should successfully fetch and validate bridge transaction status', async () => {
-    const mockFetch: FetchFunction = jest
-      .fn()
-      .mockResolvedValue(mockValidResponse);
+  describe('fetchBridgeTxStatus', () => {
+    const mockClientId = BridgeClientId.EXTENSION;
 
-    const result = await fetchBridgeTxStatus(
-      mockStatusRequest,
-      mockClientId,
-      mockFetch,
-    );
+    it('should successfully fetch and validate bridge transaction status', async () => {
+      const mockFetch: FetchFunction = jest
+        .fn()
+        .mockResolvedValue(mockValidResponse);
 
-    // Verify the fetch was called with correct parameters
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining(BRIDGE_STATUS_BASE_URL),
-      {
-        headers: { 'X-Client-Id': mockClientId },
-      },
-    );
+      const result = await fetchBridgeTxStatus(
+        mockStatusRequest,
+        mockClientId,
+        mockFetch,
+      );
 
-    // Verify URL contains all required parameters
-    const callUrl = (mockFetch as jest.Mock).mock.calls[0][0];
-    expect(callUrl).toContain(`bridgeId=${mockStatusRequest.bridgeId}`);
-    expect(callUrl).toContain(`srcTxHash=${mockStatusRequest.srcTxHash}`);
-    expect(callUrl).toContain(
-      `requestId=${mockStatusRequest.quote?.requestId}`,
-    );
+      // Verify the fetch was called with correct parameters
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining(BRIDGE_STATUS_BASE_URL),
+        {
+          headers: { 'X-Client-Id': mockClientId },
+        },
+      );
 
-    // Verify response
-    expect(result).toStrictEqual(mockValidResponse);
+      // Verify URL contains all required parameters
+      const callUrl = (mockFetch as jest.Mock).mock.calls[0][0];
+      expect(callUrl).toContain(`bridgeId=${mockStatusRequest.bridgeId}`);
+      expect(callUrl).toContain(`srcTxHash=${mockStatusRequest.srcTxHash}`);
+      expect(callUrl).toContain(
+        `requestId=${mockStatusRequest.quote?.requestId}`,
+      );
+
+      // Verify response
+      expect(result).toStrictEqual(mockValidResponse);
+    });
+
+    it('should throw error when response validation fails', async () => {
+      const invalidResponse = {
+        invalid: 'response',
+      };
+
+      const mockFetch: FetchFunction = jest
+        .fn()
+        .mockResolvedValue(invalidResponse);
+
+      await expect(
+        fetchBridgeTxStatus(mockStatusRequest, mockClientId, mockFetch),
+      ).rejects.toThrow('Invalid response from bridge');
+    });
+
+    it('should handle fetch errors', async () => {
+      const mockFetch: FetchFunction = jest
+        .fn()
+        .mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        fetchBridgeTxStatus(mockStatusRequest, mockClientId, mockFetch),
+      ).rejects.toThrow('Network error');
+    });
   });
 
-  it('should throw error when response validation fails', async () => {
-    const invalidResponse = {
-      invalid: 'response',
-    };
+  describe('getStatusRequestDto', () => {
+    it('should handle status request with quote', () => {
+      const result = getStatusRequestDto(mockStatusRequest);
 
-    const mockFetch: FetchFunction = jest
-      .fn()
-      .mockResolvedValue(invalidResponse);
+      expect(result).toStrictEqual({
+        bridgeId: 'socket',
+        srcTxHash: '0x123',
+        bridge: 'socket',
+        srcChainId: '1',
+        destChainId: '137',
+        refuel: 'false',
+        requestId: 'req-123',
+      });
+    });
 
-    await expect(
-      fetchBridgeTxStatus(mockStatusRequest, mockClientId, mockFetch),
-    ).rejects.toThrow('Invalid response from bridge');
-  });
+    it('should handle status request without quote', () => {
+      const statusRequestWithoutQuote = {
+        ...mockStatusRequest,
+        quote: undefined,
+      };
 
-  it('should handle fetch errors', async () => {
-    const mockFetch: FetchFunction = jest
-      .fn()
-      .mockRejectedValue(new Error('Network error'));
+      const result = getStatusRequestDto(statusRequestWithoutQuote);
 
-    await expect(
-      fetchBridgeTxStatus(mockStatusRequest, mockClientId, mockFetch),
-    ).rejects.toThrow('Network error');
+      expect(result).toStrictEqual({
+        bridgeId: 'socket',
+        srcTxHash: '0x123',
+        bridge: 'socket',
+        srcChainId: '1',
+        destChainId: '137',
+        refuel: 'false',
+      });
+      expect(result).not.toHaveProperty('requestId');
+    });
   });
 });
