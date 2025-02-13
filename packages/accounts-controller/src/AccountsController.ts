@@ -1131,7 +1131,7 @@ export class AccountsController extends BaseController<
    *
    * @param id - The EVM client ID or non-EVM chain ID that changed.
    */
-  readonly #handleMultichainNetworkChange = (
+  readonly #handleOnMultichainNetworkChange = (
     id: NetworkClientId | CaipChainId,
   ) => {
     let accountId: string;
@@ -1154,6 +1154,8 @@ export class AccountsController extends BaseController<
         Date.now();
       currentState.internalAccounts.selectedAccount = accountId;
     });
+
+    // DO NOT publish AccountsController:setSelectedAccount to prevent circular listener loops
   };
 
   /**
@@ -1218,7 +1220,7 @@ export class AccountsController extends BaseController<
     // Handle account change when multichain network is changed
     this.messagingSystem.subscribe(
       'MultichainNetworkController:networkDidChange',
-      this.#handleMultichainNetworkChange,
+      this.#handleOnMultichainNetworkChange,
     );
   }
 
