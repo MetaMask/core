@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.21.0]
 
+### Added
+
+- Lock conditional checks when initializing accounts inside the `NotificationServicesController` ([#5323](https://github.com/MetaMask/core/pull/5323))
+- Accounts initialize call when the wallet is unlocked ([#5323](https://github.com/MetaMask/core/pull/5323))
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/profile-sync-controller` peer dependency from `^7.0.1` to `^8.0.0`
