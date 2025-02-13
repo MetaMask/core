@@ -55,6 +55,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.1.0",
+    "@metamask/network-controller": "^22.2.1",
     "@types/jest": "^27.4.1",
     "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
@@ -67,8 +68,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^23.0.0",
-    "@metamask/network-controller": "^22.1.1"
+    "@metamask/network-controller": "^22.2.1"
   },
   "engines": {
     "node": "^18.18 || >=20"
