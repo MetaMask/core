@@ -16,9 +16,6 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/accounts-controller/src/utils.ts": {
-    "jsdoc/tag-lines": 3
-  },
   "packages/address-book-controller/src/AddressBookController.ts": {
     "jsdoc/check-tag-names": 13
   },
