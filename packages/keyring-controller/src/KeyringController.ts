@@ -119,7 +119,7 @@ export type KeyringControllerSignMessageAction = {
 };
 
 export type KeyringControllerSignAuthorizationMessageAction = {
-  type: `${typeof name}:signEip7702AuthorizationMessage`;
+  type: `${typeof name}:signEip7702Authorization`;
   handler: KeyringController['signEip7702Authorization'];
 };
 
@@ -1777,7 +1777,7 @@ export class KeyringController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${name}:signEip7702AuthorizationMessage`,
+      `${name}:signEip7702Authorization`,
       this.signEip7702Authorization.bind(this),
     );
 
