@@ -527,6 +527,41 @@ describe('BridgeStatusController', () => {
 
       jest.restoreAllMocks();
     });
+    it('does not poll if the srcTxHash is not available', async () => {
+      // Setup
+      jest.useFakeTimers();
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: getMessengerMock(),
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+      });
+      const fetchBridgeTxStatusSpy = jest.spyOn(
+        bridgeStatusUtils,
+        'fetchBridgeTxStatus',
+      );
+
+      // Start polling with args that have no srcTxHash
+      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
+      startPollingArgs.statusRequest.srcTxHash = undefined;
+      bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
+
+      // Advance timer to trigger polling
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+
+      // Assertions
+      expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory,
+      ).toHaveProperty('bridgeTxMetaId1');
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
+          .status.srcChain.txHash,
+      ).toBeUndefined();
+
+      // Cleanup
+      jest.restoreAllMocks();
+    });
   });
   describe('resetState', () => {
     it('resets the state', async () => {
