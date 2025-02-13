@@ -1,8 +1,22 @@
-// packages/app-metadata/src/types.ts
-import { ControllerGetStateAction, ControllerStateChangeEvent, RestrictedMessenger } from '@metamask/base-controller';
+import {
+  BaseController,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedMessenger,
+} from '@metamask/base-controller';
 
 // Unique name for the controller
-export const controllerName = 'AppMetadataController';
+const controllerName = 'AppMetadataController';
+
+/**
+ * The options that AppMetadataController takes.
+ */
+export type AppMetadataControllerOptions = {
+  state?: Partial<AppMetadataControllerState>;
+  messenger: AppMetadataControllerMessenger;
+  currentMigrationVersion?: number;
+  currentAppVersion?: string;
+};
 
 /**
  * The state of the AppMetadataController
@@ -17,12 +31,13 @@ export type AppMetadataControllerState = {
 /**
  * Function to get default state of the {@link AppMetadataController}.
  */
-export const getDefaultAppMetadataControllerState = (): AppMetadataControllerState => ({
-  currentAppVersion: '',
-  previousAppVersion: '',
-  previousMigrationVersion: 0,
-  currentMigrationVersion: 0,
-});
+export const getDefaultAppMetadataControllerState =
+  (): AppMetadataControllerState => ({
+    currentAppVersion: '',
+    previousAppVersion: '',
+    previousMigrationVersion: 0,
+    currentMigrationVersion: 0,
+  });
 
 /**
  * Returns the state of the {@link AppMetadataController}.
@@ -33,6 +48,11 @@ export type AppMetadataControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Actions exposed by the {@link AppMetadataController}.
+ */
+export type AppMetadataControllerActions = AppMetadataControllerGetStateAction;
+
+/**
  * Event emitted when the state of the {@link AppMetadataController} changes.
  */
 export type AppMetadataControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -40,50 +60,60 @@ export type AppMetadataControllerStateChangeEvent = ControllerStateChangeEvent<
   AppMetadataControllerState
 >;
 
-/**
- * Actions exposed by the {@link AppMetadataController}.
- */
-export type AppMetadataControllerActions = AppMetadataControllerGetStateAction;
+export type AppMetadataControllerEvents = AppMetadataControllerStateChangeEvent;
 
 /**
- * Events emitted by the {@link AppMetadataController}.
+ * Actions that this controller is allowed to call.
  */
-export type AppMetadataControllerEvents = AppMetadataControllerStateChangeEvent;
+type AllowedActions = never;
+
+/**
+ * Events that this controller is allowed to subscribe.
+ */
+type AllowedEvents = never;
 
 /**
  * Messenger type for the {@link AppMetadataController}.
  */
-export type AppMetadataControllerMessenger = RestrictedMessenger<
+type AppMetadataControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  AppMetadataControllerActions,
-  AppMetadataControllerEvents,
-  never,
-  never
+  AppMetadataControllerActions | AllowedActions,
+  AppMetadataControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
 
 /**
- * Metadata configuration for state persistence and anonymity.
+ * {@link AppMetadataController}'s metadata.
+ *
+ * This allows us to choose if fields of the state should be persisted or not
+ * using the `persist` flag; and if they can be sent to Sentry or not, using
+ * the `anonymous` flag.
  */
-export const controllerMetadata = {
-  currentAppVersion: { persist: true, anonymous: true },
-  previousAppVersion: { persist: true, anonymous: true },
-  previousMigrationVersion: { persist: true, anonymous: true },
-  currentMigrationVersion: { persist: true, anonymous: true },
+const controllerMetadata = {
+  currentAppVersion: {
+    persist: true,
+    anonymous: true,
+  },
+  previousAppVersion: {
+    persist: true,
+    anonymous: true,
+  },
+  previousMigrationVersion: {
+    persist: true,
+    anonymous: true,
+  },
+  currentMigrationVersion: {
+    persist: true,
+    anonymous: true,
+  },
 };
 
-// packages/app-metadata/src/AppMetadataController.ts
-import { BaseController } from '@metamask/base-controller';
-import {
-  AppMetadataControllerState,
-  getDefaultAppMetadataControllerState,
-  AppMetadataControllerMessenger,
-  controllerMetadata,
-  controllerName,
-} from './types';
-
 /**
- * The AppMetadata controller stores metadata about the current application,
- * including versioning and migration history.
+ * The AppMetadata controller stores metadata about the current extension instance,
+ * including the currently and previously installed versions, and the most recently
+ * run migration.
+ *
  */
 export default class AppMetadataController extends BaseController<
   typeof controllerName,
@@ -91,59 +121,64 @@ export default class AppMetadataController extends BaseController<
   AppMetadataControllerMessenger
 > {
   /**
-   * Constructs an AppMetadataController.
+   * Constructs a AppMetadata controller.
    *
-   * @param options - Controller options.
+   * @param options - the controller options
+   * @param options.state - Initial controller state.
+   * @param options.messenger - Messenger used to communicate with BaseV2 controller.
+   * @param options.currentMigrationVersion
+   * @param options.currentAppVersion
    */
   constructor({
     state = {},
     messenger,
     currentAppVersion = '',
     currentMigrationVersion = 0,
-  }: {
-    state?: Partial<AppMetadataControllerState>;
-    messenger: AppMetadataControllerMessenger;
-    currentAppVersion?: string;
-    currentMigrationVersion?: number;
-  }) {
+  }: AppMetadataControllerOptions) {
     super({
       name: controllerName,
       metadata: controllerMetadata,
-      state: { ...getDefaultAppMetadataControllerState(), ...state },
+      state: {
+        ...getDefaultAppMetadataControllerState(),
+        ...state,
+      },
       messenger,
     });
 
     this.#maybeUpdateAppVersion(currentAppVersion);
+
     this.#maybeUpdateMigrationVersion(currentMigrationVersion);
   }
 
   /**
-   * Updates the app version in state, tracking previous versions.
+   * Updates the currentAppVersion in state, and sets the previousAppVersion to the old currentAppVersion.
+   *
+   * @param maybeNewAppVersion
    */
   #maybeUpdateAppVersion(maybeNewAppVersion: string): void {
-    const oldVersion = this.state.currentAppVersion;
-    if (maybeNewAppVersion !== oldVersion) {
+    const oldCurrentAppVersion = this.state.currentAppVersion;
+
+    if (maybeNewAppVersion !== oldCurrentAppVersion) {
       this.update((state) => {
         state.currentAppVersion = maybeNewAppVersion;
-        state.previousAppVersion = oldVersion;
+        state.previousAppVersion = oldCurrentAppVersion;
       });
     }
   }
 
   /**
-   * Updates the migration version in state.
+   * Updates the migrationVersion in state.
+   *
+   * @param maybeNewMigrationVersion
    */
   #maybeUpdateMigrationVersion(maybeNewMigrationVersion: number): void {
-    const oldMigrationVersion = this.state.currentMigrationVersion;
-    if (maybeNewMigrationVersion !== oldMigrationVersion) {
+    const oldCurrentMigrationVersion = this.state.currentMigrationVersion;
+
+    if (maybeNewMigrationVersion !== oldCurrentMigrationVersion) {
       this.update((state) => {
-        state.previousMigrationVersion = oldMigrationVersion;
+        state.previousMigrationVersion = oldCurrentMigrationVersion;
         state.currentMigrationVersion = maybeNewMigrationVersion;
       });
     }
   }
 }
-
-// packages/app-metadata/src/index.ts
-export { default as AppMetadataController } from './AppMetadataController';
-export * from './types';

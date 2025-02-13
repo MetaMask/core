@@ -1,175 +1,154 @@
-// packages/app-metadata/src/types.ts
-import { ControllerGetStateAction, ControllerStateChangeEvent, RestrictedMessenger } from '@metamask/base-controller';
-
-// Unique name for the controller
-export const controllerName = 'AppMetadataController';
-
-/**
- * The state of the AppMetadataController
- */
-export type AppMetadataControllerState = {
-  currentAppVersion: string;
-  previousAppVersion: string;
-  previousMigrationVersion: number;
-  currentMigrationVersion: number;
-};
-
-/**
- * Function to get default state of the {@link AppMetadataController}.
- */
-export const getDefaultAppMetadataControllerState = (): AppMetadataControllerState => ({
-  currentAppVersion: '',
-  previousAppVersion: '',
-  previousMigrationVersion: 0,
-  currentMigrationVersion: 0,
-});
-
-/**
- * Returns the state of the {@link AppMetadataController}.
- */
-export type AppMetadataControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  AppMetadataControllerState
->;
-
-/**
- * Event emitted when the state of the {@link AppMetadataController} changes.
- */
-export type AppMetadataControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  AppMetadataControllerState
->;
-
-/**
- * Actions exposed by the {@link AppMetadataController}.
- */
-export type AppMetadataControllerActions = AppMetadataControllerGetStateAction;
-
-/**
- * Events emitted by the {@link AppMetadataController}.
- */
-export type AppMetadataControllerEvents = AppMetadataControllerStateChangeEvent;
-
-/**
- * Messenger type for the {@link AppMetadataController}.
- */
-export type AppMetadataControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  AppMetadataControllerActions,
-  AppMetadataControllerEvents,
-  never,
-  never
->;
-
-/**
- * Metadata configuration for state persistence and anonymity.
- */
-export const controllerMetadata = {
-  currentAppVersion: { persist: true, anonymous: true },
-  previousAppVersion: { persist: true, anonymous: true },
-  previousMigrationVersion: { persist: true, anonymous: true },
-  currentMigrationVersion: { persist: true, anonymous: true },
-};
-
-// packages/app-metadata/src/AppMetadataController.ts
-import { BaseController } from '@metamask/base-controller';
-import {
-  AppMetadataControllerState,
+import { Messenger } from '@metamask/base-controller';
+import AppMetadataController, {
   getDefaultAppMetadataControllerState,
-  AppMetadataControllerMessenger,
-  controllerMetadata,
-  controllerName,
-} from './types';
-
-/**
- * The AppMetadata controller stores metadata about the current application,
- * including versioning and migration history.
- */
-export default class AppMetadataController extends BaseController<
-  typeof controllerName,
-  AppMetadataControllerState,
-  AppMetadataControllerMessenger
-> {
-  /**
-   * Constructs an AppMetadataController.
-   *
-   * @param options - Controller options.
-   */
-  constructor({
-    state = {},
-    messenger,
-    currentAppVersion = '',
-    currentMigrationVersion = 0,
-  }: {
-    state?: Partial<AppMetadataControllerState>;
-    messenger: AppMetadataControllerMessenger;
-    currentAppVersion?: string;
-    currentMigrationVersion?: number;
-  }) {
-    super({
-      name: controllerName,
-      metadata: controllerMetadata,
-      state: { ...getDefaultAppMetadataControllerState(), ...state },
-      messenger,
-    });
-
-    this.#maybeUpdateAppVersion(currentAppVersion);
-    this.#maybeUpdateMigrationVersion(currentMigrationVersion);
-  }
-
-  /**
-   * Updates the app version in state, tracking previous versions.
-   */
-  #maybeUpdateAppVersion(maybeNewAppVersion: string): void {
-    const oldVersion = this.state.currentAppVersion;
-    if (maybeNewAppVersion !== oldVersion) {
-      this.update((state) => {
-        state.currentAppVersion = maybeNewAppVersion;
-        state.previousAppVersion = oldVersion;
-      });
-    }
-  }
-
-  /**
-   * Updates the migration version in state.
-   */
-  #maybeUpdateMigrationVersion(maybeNewMigrationVersion: number): void {
-    const oldMigrationVersion = this.state.currentMigrationVersion;
-    if (maybeNewMigrationVersion !== oldMigrationVersion) {
-      this.update((state) => {
-        state.previousMigrationVersion = oldMigrationVersion;
-        state.currentMigrationVersion = maybeNewMigrationVersion;
-      });
-    }
-  }
-}
-
-// packages/app-metadata/src/index.ts
-export { default as AppMetadataController } from './AppMetadataController';
-export * from './types';
-
-// packages/app-metadata/tests/AppMetadataController.test.ts
-import { AppMetadataController, getDefaultAppMetadataControllerState } from '../src';
+  type AppMetadataControllerOptions,
+} from './AppMetadataController';
 
 describe('AppMetadataController', () => {
-  it('should initialize with default state', () => {
-    const controller = new AppMetadataController({ messenger: {} as any });
-    expect(controller.state).toEqual(getDefaultAppMetadataControllerState());
-  });
+  describe('constructor', () => {
+    it('accepts initial state and does not modify it if currentMigrationVersion and platform.getVersion() match respective values in state', async () => {
+      const initState = {
+        currentAppVersion: '1',
+        previousAppVersion: '1',
+        previousMigrationVersion: 1,
+        currentMigrationVersion: 1,
+      };
+      withController(
+        {
+          state: initState,
+          currentMigrationVersion: 1,
+          currentAppVersion: '1',
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initState);
+        },
+      );
+    });
 
-  it('should update the app version correctly', () => {
-    const controller = new AppMetadataController({ messenger: {} as any, currentAppVersion: '1.0.0' });
-    expect(controller.state.currentAppVersion).toBe('1.0.0');
-    controller["#maybeUpdateAppVersion"]('1.0.1');
-    expect(controller.state.previousAppVersion).toBe('1.0.0');
-    expect(controller.state.currentAppVersion).toBe('1.0.1');
-  });
+    it('sets default state and does not modify it', () => {
+      withController({ state: {} }, ({ controller }) => {
+        expect(controller.state).toStrictEqual(
+          getDefaultAppMetadataControllerState(),
+        );
+      });
+    });
 
-  it('should update the migration version correctly', () => {
-    const controller = new AppMetadataController({ messenger: {} as any, currentMigrationVersion: 1 });
-    expect(controller.state.currentMigrationVersion).toBe(1);
-    controller["#maybeUpdateMigrationVersion"](2);
-    expect(controller.state.previousMigrationVersion).toBe(1);
-    expect(controller.state.currentMigrationVersion).toBe(2);
+    it('sets default state and does not modify it if options version parameters match respective default values', () => {
+      withController(
+        {
+          state: {},
+          currentMigrationVersion: 0,
+          currentAppVersion: '',
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(
+            getDefaultAppMetadataControllerState(),
+          );
+        },
+      );
+    });
+
+    it('updates the currentAppVersion state property if options.currentAppVersion does not match the default value', () => {
+      withController(
+        {
+          state: {},
+          currentMigrationVersion: 0,
+          currentAppVersion: '1',
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({
+            ...getDefaultAppMetadataControllerState(),
+            currentAppVersion: '1',
+          });
+        },
+      );
+    });
+
+    it('updates the currentAppVersion and previousAppVersion state properties if options.currentAppVersion, currentAppVersion and previousAppVersion are all different', () => {
+      withController(
+        {
+          state: {
+            currentAppVersion: '2',
+            previousAppVersion: '1',
+          },
+          currentAppVersion: '3',
+          currentMigrationVersion: 0,
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({
+            ...getDefaultAppMetadataControllerState(),
+            currentAppVersion: '3',
+            previousAppVersion: '2',
+          });
+        },
+      );
+    });
+
+    it('updates the currentMigrationVersion state property if the currentMigrationVersion param does not match the default value', () => {
+      withController(
+        {
+          state: {},
+          currentMigrationVersion: 1,
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({
+            ...getDefaultAppMetadataControllerState(),
+            currentMigrationVersion: 1,
+          });
+        },
+      );
+    });
+
+    it('updates the currentMigrationVersion and previousMigrationVersion state properties if the currentMigrationVersion param, the currentMigrationVersion state property and the previousMigrationVersion state property are all different', () => {
+      withController(
+        {
+          state: {
+            currentMigrationVersion: 2,
+            previousMigrationVersion: 1,
+          },
+          currentMigrationVersion: 3,
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({
+            ...getDefaultAppMetadataControllerState(),
+            currentMigrationVersion: 3,
+            previousMigrationVersion: 2,
+          });
+        },
+      );
+    });
   });
 });
+
+type WithControllerOptions = Partial<AppMetadataControllerOptions>;
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+}: {
+  controller: AppMetadataController;
+}) => ReturnValue;
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): ReturnValue {
+  const [options = {}, fn] = args.length === 2 ? args : [{}, args[0]];
+
+  const messenger = new Messenger<never, never>();
+
+  const appMetadataControllerMessenger = messenger.getRestricted({
+    name: 'AppMetadataController',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+
+  return fn({
+    controller: new AppMetadataController({
+      messenger: appMetadataControllerMessenger,
+      ...options,
+    }),
+  });
+}
