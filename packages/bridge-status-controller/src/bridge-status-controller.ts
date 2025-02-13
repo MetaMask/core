@@ -167,7 +167,6 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
       initialDestAssetBalance,
       targetContractAddress,
     } = startPollingForBridgeTxStatusArgs;
-    const { bridgeStatusState } = this.state;
     const { address: account } = this.#getSelectedAccount();
 
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
