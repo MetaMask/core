@@ -14,11 +14,11 @@ import type { BridgeControllerMessenger, QuoteResponse } from './types';
 import * as balanceUtils from './utils/balance';
 import { getBridgeApiBaseUrl } from './utils/bridge';
 import * as fetchUtils from './utils/fetch';
-import mockBridgeQuotesErc20Native from '../../../tests/bridge-controller/mock-quotes-erc20-native.json';
-import mockBridgeQuotesNativeErc20Eth from '../../../tests/bridge-controller/mock-quotes-native-erc20-eth.json';
-import mockBridgeQuotesNativeErc20 from '../../../tests/bridge-controller/mock-quotes-native-erc20.json';
 import { flushPromises } from '../../../tests/helpers';
 import { handleFetch } from '../../controller-utils/src';
+import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json';
+import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
+import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 
 const EMPTY_INIT_STATE = {
   bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
