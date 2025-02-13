@@ -158,7 +158,6 @@ export class MultichainNetworkController extends BaseController<
         state.isEvmSelected = true;
       });
 
-      // No need to publish NetworkController:setActiveNetwork because EVM accounts falls back to use the last selected EVM network
       return;
     }
 
@@ -180,7 +179,7 @@ export class MultichainNetworkController extends BaseController<
       state.isEvmSelected = false;
     });
 
-    // No need to publish NetworkController:setActiveNetwork because EVM accounts falls back to use the last selected non-EVM network
+    // No need to publish NetworkController:setActiveNetwork because EVM accounts falls back to use the last selected EVM network
     // DO NOT publish MultichainNetworkController:networkDidChange to prevent circular listener loops
   }
 
