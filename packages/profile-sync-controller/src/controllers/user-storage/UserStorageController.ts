@@ -247,23 +247,11 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
-export type UserStorageControllerAccountSyncingInProgress = {
-  type: `${typeof controllerName}:accountSyncingInProgress`;
-  payload: [boolean];
-};
-export type UserStorageControllerAccountSyncingComplete = {
-  type: `${typeof controllerName}:accountSyncingComplete`;
-  payload: [boolean];
-};
-export type Events =
-  | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete;
+
+export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
   | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Account Syncing Events
