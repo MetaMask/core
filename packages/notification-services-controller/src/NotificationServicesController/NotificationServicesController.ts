@@ -445,6 +445,9 @@ export default class NotificationServicesController extends BaseController<
   };
 
   readonly #accounts = {
+    // Flag to ensure we only setup once
+    isNotificationAccountsSetup: false,
+
     /**
      * Used to get list of addresses from keyring (wallet addresses)
      *
@@ -492,8 +495,11 @@ export default class NotificationServicesController extends BaseController<
      *
      * @returns result from list accounts
      */
-    initialize: () => {
-      return this.#accounts.listAccounts();
+    initialize: async (): Promise<void> => {
+      if (this.#isUnlocked && !this.#accounts.isNotificationAccountsSetup) {
+        await this.#accounts.listAccounts();
+        this.#accounts.isNotificationAccountsSetup = true;
+      }
     },
 
     /**
@@ -562,9 +568,10 @@ export default class NotificationServicesController extends BaseController<
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
 
-    this.#keyringController.setupLockedStateSubscriptions(
-      this.#pushNotifications.initializePushNotifications,
-    );
+    this.#keyringController.setupLockedStateSubscriptions(async () => {
+      await this.#accounts.initialize();
+      await this.#pushNotifications.initializePushNotifications();
+    });
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#accounts.initialize();
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
