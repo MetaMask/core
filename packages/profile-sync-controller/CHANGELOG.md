@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat: expose all user storage methods through messenger actions ([#5311](https://github.com/MetaMask/core/pull/5311))
 - fix: change `maxNumberOfAccountsToAdd` default value from `100` to `Infinity` ([#5322](https://github.com/MetaMask/core/pull/5322))
 
+### Removed
+
+- Removed unused events from `UserStorageController` ([#5324](https://github.com/MetaMask/core/pull/5324))
+
 ## [7.0.1]
 
 ### Changed
