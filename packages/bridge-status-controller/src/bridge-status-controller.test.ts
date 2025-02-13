@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-conditional-in-test */
 import { BridgeClientId } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
@@ -336,6 +337,8 @@ const MockTxHistory = {
 const getMessengerMock = ({
   account = '0xaccount1',
   srcChainId = 42161,
+  txHash = '0xsrcTxHash1',
+  txMetaId = 'bridgeTxMetaId1',
 } = {}) =>
   ({
     call: jest.fn((method: string) => {
@@ -350,6 +353,15 @@ const getMessengerMock = ({
           configuration: {
             chainId: numberToHex(srcChainId),
           },
+        };
+      } else if (method === 'TransactionController:getState') {
+        return {
+          transactions: [
+            {
+              id: txMetaId,
+              hash: txHash,
+            },
+          ],
         };
       }
       return null;
@@ -492,7 +504,6 @@ describe('BridgeStatusController', () => {
       // Setup
       jest.useFakeTimers();
       jest.spyOn(Date, 'now').mockImplementation(() => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         return MockTxHistory.getComplete().bridgeTxMetaId1.completionTime ?? 10;
       });
       const bridgeStatusController = new BridgeStatusController({
@@ -530,8 +541,42 @@ describe('BridgeStatusController', () => {
     it('does not poll if the srcTxHash is not available', async () => {
       // Setup
       jest.useFakeTimers();
+
+      const messengerMock = {
+        call: jest.fn((method: string) => {
+          if (method === 'AccountsController:getSelectedAccount') {
+            return { address: '0xaccount1' };
+          } else if (
+            method === 'NetworkController:findNetworkClientIdByChainId'
+          ) {
+            return 'networkClientId';
+          } else if (method === 'NetworkController:getState') {
+            return { selectedNetworkClientId: 'networkClientId' };
+          } else if (method === 'NetworkController:getNetworkClientById') {
+            return {
+              configuration: {
+                chainId: numberToHex(42161),
+              },
+            };
+          } else if (method === 'TransactionController:getState') {
+            return {
+              transactions: [
+                {
+                  id: 'bridgeTxMetaId1',
+                  hash: undefined,
+                },
+              ],
+            };
+          }
+          return null;
+        }),
+        publish: jest.fn(),
+        registerActionHandler: jest.fn(),
+        registerInitialEventPayload: jest.fn(),
+      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+
       const bridgeStatusController = new BridgeStatusController({
-        messenger: getMessengerMock(),
+        messenger: messengerMock,
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
       });
@@ -585,10 +630,9 @@ describe('BridgeStatusController', () => {
       let getSelectedAccountCalledTimes = 0;
       const messengerMock = {
         call: jest.fn((method: string) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (method === 'AccountsController:getSelectedAccount') {
             let account;
-            // eslint-disable-next-line jest/no-conditional-in-test
+
             if (getSelectedAccountCalledTimes === 0) {
               account = '0xaccount1';
             } else {
@@ -596,15 +640,12 @@ describe('BridgeStatusController', () => {
             }
             getSelectedAccountCalledTimes += 1;
             return { address: account };
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
           ) {
             return 'networkClientId';
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'networkClientId' };
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getNetworkClientById') {
             return {
               configuration: {
@@ -679,18 +720,14 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (method === 'AccountsController:getSelectedAccount') {
             return { address: '0xaccount1' };
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
           ) {
             return 'networkClientId';
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'networkClientId' };
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getNetworkClientById') {
             return {
               configuration: {
@@ -781,18 +818,14 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (method === 'AccountsController:getSelectedAccount') {
             return { address: '0xaccount1' };
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
           ) {
             return 'networkClientId';
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getState') {
             return { selectedNetworkClientId: 'networkClientId' };
-            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (method === 'NetworkController:getNetworkClientById') {
             return {
               configuration: {
