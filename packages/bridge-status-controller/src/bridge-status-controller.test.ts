@@ -724,6 +724,75 @@ describe('BridgeStatusController', () => {
       // Cleanup
       jest.restoreAllMocks();
     });
+    it('updates the srcTxHash when one is available', async () => {
+      // Setup
+      jest.useFakeTimers();
+      let getStateCallCount = 0;
+
+      const messengerMock = {
+        call: jest.fn((method: string) => {
+          if (method === 'AccountsController:getSelectedAccount') {
+            return { address: '0xaccount1' };
+          } else if (
+            method === 'NetworkController:findNetworkClientIdByChainId'
+          ) {
+            return 'networkClientId';
+          } else if (method === 'NetworkController:getState') {
+            return { selectedNetworkClientId: 'networkClientId' };
+          } else if (method === 'NetworkController:getNetworkClientById') {
+            return {
+              configuration: {
+                chainId: numberToHex(42161),
+              },
+            };
+          } else if (method === 'TransactionController:getState') {
+            getStateCallCount += 1;
+            return {
+              transactions: [
+                {
+                  id: 'bridgeTxMetaId1',
+                  hash: getStateCallCount === 0 ? undefined : '0xnewTxHash',
+                },
+              ],
+            };
+          }
+          return null;
+        }),
+        publish: jest.fn(),
+        registerActionHandler: jest.fn(),
+        registerInitialEventPayload: jest.fn(),
+      } as unknown as jest.Mocked<BridgeStatusControllerMessenger>;
+
+      const bridgeStatusController = new BridgeStatusController({
+        messenger: messengerMock,
+        clientId: BridgeClientId.EXTENSION,
+        fetchFn: jest.fn(),
+      });
+
+      // Start polling with no srcTxHash
+      const startPollingArgs = getMockStartPollingForBridgeTxStatusArgs();
+      startPollingArgs.statusRequest.srcTxHash = undefined;
+      bridgeStatusController.startPollingForBridgeTxStatus(startPollingArgs);
+
+      // Verify initial state has no srcTxHash
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
+          .status.srcChain.txHash,
+      ).toBeUndefined();
+
+      // Advance timer to trigger polling with new hash
+      jest.advanceTimersByTime(10000);
+      await flushPromises();
+
+      // Verify the srcTxHash was updated
+      expect(
+        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
+          .status.srcChain.txHash,
+      ).toBe('0xnewTxHash');
+
+      // Cleanup
+      jest.restoreAllMocks();
+    });
   });
   describe('resetState', () => {
     it('resets the state', async () => {
