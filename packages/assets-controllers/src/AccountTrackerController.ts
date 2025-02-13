@@ -146,8 +146,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
 
-  #handle?: ReturnType<typeof setTimeout>;
-
   /**
    * Creates an AccountTracker instance.
    *
@@ -197,10 +195,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     this.#includeStakedAssets = includeStakedAssets;
 
     this.setIntervalLength(interval);
-
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.poll();
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
@@ -307,29 +301,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       chainId,
       ethQuery: new EthQuery(provider),
     };
-  }
-
-  /**
-   * Starts a new polling interval.
-   *
-   * @param interval - Polling interval trigger a 'refresh'.
-   */
-  async poll(interval?: number): Promise<void> {
-    if (interval) {
-      this.setIntervalLength(interval);
-    }
-
-    if (this.#handle) {
-      clearTimeout(this.#handle);
-    }
-
-    await this.refresh();
-
-    this.#handle = setTimeout(() => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.poll(this.getIntervalLength());
-    }, this.getIntervalLength());
   }
 
   /**
