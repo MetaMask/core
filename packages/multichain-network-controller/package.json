@@ -68,7 +68,8 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^22.2.1"
+    "@metamask/accounts-controller": "^23.0.0",
+    "@metamask/network-controller": "^22.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
