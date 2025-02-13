@@ -2371,6 +2371,7 @@ __metadata:
     webextension-polyfill: "npm:^0.12.0"
   peerDependencies:
     "@metamask/keyring-controller": ^19.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/providers": ^18.1.0
     "@metamask/snaps-controllers": ^9.19.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
@@ -2474,6 +2475,7 @@ __metadata:
     "@metamask/keyring-internal-api": "npm:^4.0.1"
     "@metamask/keyring-snap-client": "npm:^3.0.3"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
+    "@metamask/multichain-network-controller": "npm:^0.0.0"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/polling-controller": "npm:^12.0.3"
@@ -2511,6 +2513,7 @@ __metadata:
     "@metamask/accounts-controller": ^23.0.1
     "@metamask/approval-controller": ^7.0.0
     "@metamask/keyring-controller": ^19.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/permission-controller": ^11.0.0
     "@metamask/preferences-controller": ^15.0.0
@@ -2766,6 +2769,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/accounts-controller": ^23.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/network-controller": ^22.1.1
   languageName: unknown
   linkType: soft
@@ -3452,7 +3456,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
+"@metamask/multichain-network-controller@npm:^0.0.0, @metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-network-controller@workspace:packages/multichain-network-controller"
   dependencies:
@@ -3474,7 +3478,7 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/accounts-controller": ^24.0.0
+    "@metamask/accounts-controller": ^23.0.0
     "@metamask/network-controller": ^22.0.0
   languageName: unknown
   linkType: soft
@@ -3490,6 +3494,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^19.1.0"
     "@metamask/keyring-internal-api": "npm:^4.0.1"
     "@metamask/keyring-snap-client": "npm:^3.0.3"
+    "@metamask/multichain-network-controller": "npm:^0.0.0"
     "@metamask/polling-controller": "npm:^12.0.3"
     "@metamask/snaps-controllers": "npm:^9.19.0"
     "@metamask/snaps-sdk": "npm:^6.17.1"
@@ -3507,6 +3512,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/accounts-controller": ^23.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/snaps-controllers": ^9.19.0
   languageName: unknown
   linkType: soft
@@ -3622,10 +3628,12 @@ __metadata:
     "@contentful/rich-text-html-renderer": "npm:^16.5.2"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
+    "@metamask/accounts-controller": "npm:^23.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/controller-utils": "npm:^11.5.0"
     "@metamask/keyring-controller": "npm:^19.1.0"
+    "@metamask/multichain-network-controller": "npm:^0.0.0"
     "@metamask/profile-sync-controller": "npm:^7.0.1"
     "@metamask/utils": "npm:^11.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -3645,6 +3653,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/keyring-controller": ^19.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/profile-sync-controller": ^7.0.0
   languageName: unknown
   linkType: soft
@@ -3819,6 +3828,7 @@ __metadata:
     "@metamask/keyring-api": "npm:^17.0.0"
     "@metamask/keyring-controller": "npm:^19.1.0"
     "@metamask/keyring-internal-api": "npm:^4.0.1"
+    "@metamask/multichain-network-controller": "npm:^0.0.0"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/snaps-controllers": "npm:^9.19.0"
@@ -3843,6 +3853,7 @@ __metadata:
   peerDependencies:
     "@metamask/accounts-controller": ^23.0.0
     "@metamask/keyring-controller": ^19.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/providers": ^18.1.0
     "@metamask/snaps-controllers": ^9.19.0
@@ -4208,6 +4219,7 @@ __metadata:
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/gas-fee-controller": "npm:^22.0.3"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
+    "@metamask/multichain-network-controller": "npm:^0.0.0"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/nonce-tracker": "npm:^6.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
@@ -4236,6 +4248,7 @@ __metadata:
     "@metamask/approval-controller": ^7.0.0
     "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^22.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/network-controller": ^22.0.0
   languageName: unknown
   linkType: soft
@@ -4274,6 +4287,7 @@ __metadata:
     "@metamask/eth-block-tracker": ">=9"
     "@metamask/gas-fee-controller": ^22.0.0
     "@metamask/keyring-controller": ^19.0.0
+    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/transaction-controller": ^45.0.0
   languageName: unknown

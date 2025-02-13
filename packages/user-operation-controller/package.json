@@ -81,6 +81,7 @@
     "@metamask/eth-block-tracker": ">=9",
     "@metamask/gas-fee-controller": "^22.0.0",
     "@metamask/keyring-controller": "^19.0.0",
+    "@metamask/multichain-network-controller": "^0.0.0",
     "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^45.0.0"
   },

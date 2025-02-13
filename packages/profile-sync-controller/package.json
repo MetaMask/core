@@ -118,6 +118,7 @@
     "@metamask/accounts-controller": "^23.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-internal-api": "^4.0.1",
+    "@metamask/multichain-network-controller": "^0.0.0",
     "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.19.0",
     "@types/jest": "^27.4.1",
@@ -135,6 +136,7 @@
   "peerDependencies": {
     "@metamask/accounts-controller": "^23.0.0",
     "@metamask/keyring-controller": "^19.0.0",
+    "@metamask/multichain-network-controller": "^0.0.0",
     "@metamask/network-controller": "^22.0.0",
     "@metamask/providers": "^18.1.0",
     "@metamask/snaps-controllers": "^9.19.0",

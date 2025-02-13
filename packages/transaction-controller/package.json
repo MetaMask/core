@@ -76,6 +76,7 @@
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^22.0.3",
+    "@metamask/multichain-network-controller": "^0.0.0",
     "@metamask/network-controller": "^22.2.1",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
@@ -96,6 +97,7 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/eth-block-tracker": ">=9",
     "@metamask/gas-fee-controller": "^22.0.0",
+    "@metamask/multichain-network-controller": "^0.0.0",
     "@metamask/network-controller": "^22.0.0"
   },
   "engines": {
