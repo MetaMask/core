@@ -52,8 +52,7 @@ export type AccountInformation = {
  * @type AccountTrackerControllerState
  *
  * Account tracker controller state
- * @property accounts - Map of addresses to account information
- * @deprecated accounts - Use accountsByChainId instead.
+ * @property accountsByChainId - Map of addresses to account information by chain
  */
 export type AccountTrackerControllerState = {
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
