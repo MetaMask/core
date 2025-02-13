@@ -9,10 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 
-### Uncategorized
+### Changed
 
+- **BREAKING:** Bump `@metamask/network-controller` dev and peer dependency from `^22.2.1` to `^22.2.2`
+- **BREAKING:** Bump `@metamask/accounts-controller` dev and peer dependency from `^23.1.0` to `^24.0.0`
 - feat: expose all user storage methods through messenger actions ([#5311](https://github.com/MetaMask/core/pull/5311))
-- Release 298.0.0 ([#5314](https://github.com/MetaMask/core/pull/5314))
 
 ## [7.0.1]
 
