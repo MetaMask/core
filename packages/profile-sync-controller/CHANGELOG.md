@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Peer dependencies `@metamask/keyring-controller` and `@metamask/network-controller` are no longer also direct dependencies ([#5464](https://github.com/MetaMask/core/pull/5464)))
+
 ## [10.0.0]
 
 ### Changed

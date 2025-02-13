@@ -72,7 +72,6 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^26.0.0",
-    "@metamask/bridge-controller": "^5.0.0",
     "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^48.0.0"
   },

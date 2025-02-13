@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `@metamask/network-controller` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464)))
+
 ## [26.0.0]
 
 ### Changed
