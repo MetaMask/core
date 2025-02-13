@@ -2478,7 +2478,7 @@ __metadata:
     "@metamask/network-controller": "npm:^22.2.2"
     "@metamask/permission-controller": "npm:^11.0.6"
     "@metamask/polling-controller": "npm:^12.0.3"
-    "@metamask/preferences-controller": "npm:^16.0.0"
+    "@metamask/preferences-controller": "npm:^15.0.2"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/snaps-controllers": "npm:^9.19.0"
@@ -2514,7 +2514,7 @@ __metadata:
     "@metamask/keyring-controller": ^19.0.0
     "@metamask/network-controller": ^22.2.2
     "@metamask/permission-controller": ^11.0.0
-    "@metamask/preferences-controller": ^16.0.0
+    "@metamask/preferences-controller": ^15.0.2
     "@metamask/providers": ^18.1.0
     "@metamask/snaps-controllers": ^9.19.0
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
@@ -3786,7 +3786,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@npm:^16.0.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@npm:^15.0.2, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
