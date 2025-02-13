@@ -226,7 +226,11 @@ describe('MultichainNetworkController', () => {
         getNetworkState: jest.fn().mockImplementation(() => ({
           selectedNetworkClientId,
         })),
+        options: { state: { isEvmSelected: false } },
       });
+
+      // Check that EVM network is not selected
+      expect(controller.state.isEvmSelected).toBe(false);
 
       await controller.setActiveNetwork(selectedNetworkClientId);
 
@@ -264,6 +268,26 @@ describe('MultichainNetworkController', () => {
 
       // Check that NetworkController:setActiveNetwork was not called
       expect(mockSetActiveNetwork).toHaveBeenCalledWith(evmNetworkClientId);
+    });
+
+    it('should not do anything when same EVM network is set and active', async () => {
+      const { controller, publishSpy } = setupController({
+        getNetworkState: jest.fn().mockImplementation(() => ({
+          selectedNetworkClientId: InfuraNetworkType.mainnet,
+        })),
+        options: { state: { isEvmSelected: true } },
+      });
+
+      // EVM network is already active
+      expect(controller.state.isEvmSelected).toBe(true);
+
+      await controller.setActiveNetwork(InfuraNetworkType.mainnet);
+
+      // EVM network is still active
+      expect(controller.state.isEvmSelected).toBe(true);
+
+      // Check that the messenger published the correct event
+      expect(publishSpy).not.toHaveBeenCalled();
     });
   });
 
