@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/earn-controller",
-  "version": "0.2.1",
-  "description": "Manages state for earning features and coordinates interactions between staking services, SDK integrations, and other controllers to enable users to participate in various earning opportunities",
+  "name": "@metamask/multichain-network-controller",
+  "version": "0.0.0",
+  "description": "Multichain network controller",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/earn-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/multichain-network-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,28 +37,30 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/earn-controller",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/earn-controller",
-    "publish:preview": "yarn npm publish --tag preview",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain-network-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain-network-controller",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "since-latest-release": "../../scripts/since-latest-release.sh"
+    "publish:preview": "yarn npm publish --tag preview"
   },
   "dependencies": {
-    "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.0",
-    "@metamask/controller-utils": "^11.5.0",
-    "@metamask/stake-sdk": "^1.0.0"
+    "@metamask/keyring-api": "^17.0.0",
+    "@metamask/utils": "^11.1.0",
+    "@solana/addresses": "^2.0.0"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^23.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^22.2.1",
+    "@metamask/keyring-controller": "^19.1.0",
     "@types/jest": "^27.4.1",
+    "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
+    "immer": "^9.0.6",
     "jest": "^27.5.1",
+    "nock": "^13.3.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
