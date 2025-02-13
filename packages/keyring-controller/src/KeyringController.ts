@@ -2298,18 +2298,48 @@ export class KeyringController extends BaseController<
    * using the given `opts`. The keyring is built using the keyring builder
    * registered for the given `type`.
    *
+   * The internal keyring and keyring metadata arrays are updated with the new
+   * keyring as well.
+   *
    * @param type - The type of keyring to add.
-   * @param data - The data to restore a previously serialized keyring.
+   * @param data - Keyring initialization options.
    * @returns The new keyring.
    * @throws If the keyring includes duplicated accounts.
    */
   async #newKeyring(type: string, data?: unknown): Promise<EthKeyring<Json>> {
-    this.#assertControllerMutexIsLocked();
+    const keyring = await this.#createKeyring(type, data);
 
-    const newKeyringMetadata: KeyringMetadata = {
-      id: ulid(),
-      name: '',
-    };
+    this.#keyrings.push(keyring);
+    this.#keyringsMetadata.push(getDefaultKeyringMetadata());
+    if (this.#keyrings.length !== this.#keyringsMetadata.length) {
+      throw new Error('Keyring metadata missing');
+    }
+
+    return keyring;
+  }
+
+  /**
+   * Instantiate, initialize and return a keyring of the given `type` using the
+   * given `opts`. The keyring is built using the keyring builder registered
+   * for the given `type`.
+   *
+   * The keyring might be new, or it might be restored from the vault. This
+   * function should only be called from `#newKeyring` or `#restoreKeyring`,
+   * for the "new" and "restore" cases respectively.
+   *
+   * The internal keyring and keyring metadata arrays are *not* updated, the
+   * caller is expected to update them.
+   *
+   * @param type - The type of keyring to add.
+   * @param data - Keyring initialization options.
+   * @returns The new keyring.
+   * @throws If the keyring includes duplicated accounts.
+   */
+  async #createKeyring(
+    type: string,
+    data?: unknown,
+  ): Promise<EthKeyring<Json>> {
+    this.#assertControllerMutexIsLocked();
 
     const keyringBuilder = this.#getKeyringBuilderForType(type);
 
@@ -2349,11 +2379,6 @@ export class KeyringController extends BaseController<
       this.#subscribeToQRKeyringEvents(keyring as unknown as QRKeyring);
     }
 
-    this.#keyrings.push(keyring);
-    if (this.#keyringsMetadata.length < this.#keyrings.length) {
-      this.#keyringsMetadata.push(newKeyringMetadata);
-    }
-
     return keyring;
   }
 
@@ -2383,7 +2408,15 @@ export class KeyringController extends BaseController<
 
     try {
       const { type, data } = serialized;
-      return await this.#newKeyring(type, data);
+      const keyring = await this.#createKeyring(type, data);
+      this.#keyrings.push(keyring);
+      // If metadata is missing, assume the data is from an installation before
+      // we had keyring metadata.
+      if (this.#keyringsMetadata.length < this.#keyrings.length) {
+        console.log(`Adding missing metadata for '${type}' keyring`);
+        this.#keyringsMetadata.push(getDefaultKeyringMetadata());
+      }
+      return keyring;
     } catch (_) {
       this.#unsupportedKeyrings.push(serialized);
       return undefined;
@@ -2615,6 +2648,15 @@ async function withLock<Result>(
   } finally {
     releaseLock();
   }
+}
+
+/**
+ * Generate a new keyring metadata object.
+ *
+ * @returns Keyring metadata.
+ */
+function getDefaultKeyringMetadata(): KeyringMetadata {
+  return { id: ulid(), name: '' };
 }
 
 export default KeyringController;
