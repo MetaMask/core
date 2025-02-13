@@ -5,8 +5,8 @@ import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
 } from './fetch';
-import mockBridgeQuotesErc20Erc20 from '../../../../tests/bridge-controller/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20 from '../../../../tests/bridge-controller/mock-quotes-native-erc20.json';
+import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
+import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
 import { BridgeClientId } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 
