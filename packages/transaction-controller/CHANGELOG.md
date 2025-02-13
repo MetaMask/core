@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adds ability of re-simulating transaction depending on the `isActive` property on `transactionMeta` ([#5189](https://github.com/MetaMask/core/pull/5189))
+  - `isActive` property is expected to set by client.
+  - Re-simulation of transactions will occur every 3 seconds if `isActive` is `true`.
+- Adds `setTransactionActive` function to update the `isActive` property on `transactionMeta`. ([#5189](https://github.com/MetaMask/core/pull/5189))
+
 ## [45.1.0]
 
 ### Added
