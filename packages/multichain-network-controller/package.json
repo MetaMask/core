@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-network-controller",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "Multichain network controller",
   "keywords": [
     "MetaMask",
