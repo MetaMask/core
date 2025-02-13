@@ -18,21 +18,58 @@ import type { AbstractRpcService } from './abstract-rpc-service';
 import type { AddToCockatielEventData, FetchOptions } from './shared';
 
 /**
- * The list of error messages that represent a failure to reach the network.
+ * The list of error messages that represent a failure to connect to the network.
  *
  * This list was derived from Sindre Sorhus's `is-network-error` package:
  * <https://github.com/sindresorhus/is-network-error/blob/7bbfa8be9482ce1427a21fbff60e3ee1650dd091/index.js>
  */
-export const NETWORK_UNREACHABLE_ERRORS = new Set([
-  'network error', // Chrome
-  'Failed to fetch', // Chrome
-  'NetworkError when attempting to fetch resource.', // Firefox
-  'The Internet connection appears to be offline.', // Safari 16
-  'Load failed', // Safari 17+
-  'Network request failed', // `cross-fetch`
-  'fetch failed', // Undici (Node.js)
-  'terminated', // Undici (Node.js)
-]);
+export const CONNECTION_ERRORS = [
+  // Chrome
+  {
+    constructorName: 'TypeError',
+    pattern: /network error/u,
+  },
+  // Chrome
+  {
+    constructorName: 'TypeError',
+    pattern: /Failed to fetch/u,
+  },
+  // Firefox
+  {
+    constructorName: 'TypeError',
+    pattern: /NetworkError when attempting to fetch resource\./u,
+  },
+  // Safari 16
+  {
+    constructorName: 'TypeError',
+    pattern: /The Internet connection appears to be offline\./u,
+  },
+  // Safari 17+
+  {
+    constructorName: 'TypeError',
+    pattern: /Load failed/u,
+  },
+  // `cross-fetch`
+  {
+    constructorName: 'TypeError',
+    pattern: /Network request failed/u,
+  },
+  // `node-fetch`
+  {
+    constructorName: 'FetchError',
+    pattern: /request to (.+) failed/u,
+  },
+  // Undici (Node.js)
+  {
+    constructorName: 'TypeError',
+    pattern: /fetch failed/u,
+  },
+  // Undici (Node.js)
+  {
+    constructorName: 'TypeError',
+    pattern: /terminated/u,
+  },
+];
 
 /**
  * Determines whether the given error represents a failure to reach the network
@@ -43,13 +80,39 @@ export const NETWORK_UNREACHABLE_ERRORS = new Set([
  * particular scenario, and we need to account for this.
  *
  * @param error - The error.
- * @returns True if the error indicates that the network is unreachable, and
- * false otherwise.
+ * @returns True if the error indicates that the network cannot be connected to,
+ * and false otherwise.
  */
-export default function isNetworkUnreachableError(error: unknown) {
+export default function isConnectionError(error: unknown) {
+  if (!(typeof error === 'object' && error !== null && 'message' in error)) {
+    return false;
+  }
+
+  const { message } = error;
+
   return (
-    error instanceof TypeError && NETWORK_UNREACHABLE_ERRORS.has(error.message)
+    typeof message === 'string' &&
+    !isNockError(message) &&
+    CONNECTION_ERRORS.some(({ constructorName, pattern }) => {
+      return (
+        error.constructor.name === constructorName && pattern.test(message)
+      );
+    })
   );
+}
+
+/**
+ * Determines whether the given error message refers to a Nock error.
+ *
+ * It's important that if we failed to mock a request in a test, the resulting
+ * error does not cause the request to be retried so that we can see it right
+ * away.
+ *
+ * @param message - The error message to test.
+ * @returns True if the message indicates a missing Nock mock, false otherwise.
+ */
+function isNockError(message: string) {
+  return message.includes('Nock:');
 }
 
 /**
@@ -145,7 +208,7 @@ export class RpcService implements AbstractRpcService {
       retryFilterPolicy: handleWhen((error) => {
         return (
           // Ignore errors where the request failed to establish
-          isNetworkUnreachableError(error) ||
+          isConnectionError(error) ||
           // Ignore server sent HTML error pages or truncated JSON responses
           error.message.includes('not valid JSON') ||
           // Ignore server overload errors
