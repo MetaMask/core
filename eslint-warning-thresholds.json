@@ -35,8 +35,7 @@
     "no-shadow": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
-    "import-x/namespace": 2,
-    "import-x/order": 2
+    "import-x/namespace": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
     "jsdoc/check-tag-names": 5,
