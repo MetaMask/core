@@ -1131,7 +1131,9 @@ export class AccountsController extends BaseController<
    *
    * @param id - The EVM client ID or non-EVM chain ID that changed.
    */
-  #handleOnMultichainNetworkDidChange = (id: NetworkClientId | CaipChainId) => {
+  readonly #handleOnMultichainNetworkDidChange = (
+    id: NetworkClientId | CaipChainId,
+  ) => {
     let accountId: string;
 
     // We only support non-EVM Caip chain IDs at the moment. Ex Solana and Bitcoin
