@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-restricted-matchers */
 /* eslint-disable jest/no-conditional-in-test */
 import { BridgeClientId } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
