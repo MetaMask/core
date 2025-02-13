@@ -199,15 +199,9 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
       },
       hasApprovalTx: Boolean(quoteResponse.approval),
     };
-    this.update((_state) => {
-      _state.bridgeStatusState = {
-        ...bridgeStatusState,
-        txHistory: {
-          ...bridgeStatusState.txHistory,
-          // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
-          [bridgeTxMeta.id]: txHistoryItem,
-        },
-      };
+    this.update((state) => {
+      // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
+      state.bridgeStatusState.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
 
     this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
@@ -266,13 +260,8 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
       // we need to keep track of the account that this is associated with as well so that we don't show it in Activity list for other accounts
       // First stab at this will not stop polling when you are on a different account
       this.update((state) => {
-        state.bridgeStatusState = {
-          ...bridgeStatusState,
-          txHistory: {
-            ...bridgeStatusState.txHistory,
-            [bridgeTxMetaId]: newBridgeHistoryItem,
-          },
-        };
+        state.bridgeStatusState.txHistory[bridgeTxMetaId] =
+          newBridgeHistoryItem;
       });
 
       const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
@@ -330,22 +319,8 @@ export default class BridgeStatusController extends StaticIntervalPollingControl
     }
 
     this.update((state) => {
-      state.bridgeStatusState = {
-        ...bridgeStatusState,
-        txHistory: {
-          ...bridgeStatusState.txHistory,
-          [bridgeTxMetaId]: {
-            ...bridgeStatusState.txHistory[bridgeTxMetaId],
-            status: {
-              ...bridgeStatusState.txHistory[bridgeTxMetaId].status,
-              srcChain: {
-                ...bridgeStatusState.txHistory[bridgeTxMetaId].status.srcChain,
-                txHash: srcTxHash,
-              },
-            },
-          },
-        },
-      };
+      state.bridgeStatusState.txHistory[bridgeTxMetaId].status.srcChain.txHash =
+        srcTxHash;
     });
   };
 
