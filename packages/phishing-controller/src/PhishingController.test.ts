@@ -17,7 +17,11 @@ import {
   PHISHING_DETECTION_SCAN_ENDPOINT,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
-import { PhishingDetectorResultType } from './types';
+import {
+  PhishingDetectionScanResult,
+  PhishingDetectorResultType,
+  RecommendedAction,
+} from './types';
 import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
@@ -2372,12 +2376,10 @@ describe('PhishingController', () => {
     let controller: PhishingController;
     let clock: sinon.SinonFakeTimers;
     const testUrl: string = 'https://example.com';
-    const mockResponse = {
+    const mockResponse: PhishingDetectionScanResult = {
       domainName: 'example.com',
-      recommendedAction: 'NONE',
-      riskFactors: [],
+      recommendedAction: RecommendedAction.None,
       verified: true,
-      status: 'COMPLETE',
     };
 
     beforeEach(() => {
