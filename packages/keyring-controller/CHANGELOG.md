@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KeyringController:withKeyring` action ([#5332](https://github.com/MetaMask/core/pull/5332))
+  - The action can be used to consume the `withKeyring` method of the `KeyringController` class
+
 ## [19.1.0]
 
 ### Added
