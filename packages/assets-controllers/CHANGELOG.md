@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core/pull/5290))
+
 ## [50.0.0]
 
 ### Changed
