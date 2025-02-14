@@ -271,14 +271,27 @@ describe('KeyringController', () => {
         {
           skipVaultCreation: true,
           state: {
-            vault: vaultWithOneKeyring,
+            vault: vaultWithOneKeyring, // pass non-empty vault
             keyringsMetadata: [
               { id: '1', name: '' },
               { id: '2', name: '' },
             ],
           },
         },
-        async ({ controller }) => {
+        async ({ controller, encryptor }) => {
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+            {
+              type: 'HD Key Tree',
+              data: {
+                keyrings: [
+                  {
+                    type: 'HD Key Tree',
+                    accounts: ['0x123'],
+                  },
+                ],
+              },
+            },
+          ]);
           await controller.submitPassword(password);
           await expect(controller.addNewAccount()).rejects.toThrow(
             'KeyringController - keyring metadata length mismatch',
