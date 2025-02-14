@@ -541,7 +541,7 @@ describe('roundToNearestMinute', () => {
   });
 });
 
-describe('getHostname', () => {
+describe('getHostnameFromURL', () => {
   it('should extract the hostname from a valid URL', () => {
     const url = 'https://www.example.com/path?query=string';
     const expectedHostname = 'www.example.com';
