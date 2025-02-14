@@ -4,7 +4,7 @@ import { BridgeClientId } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 
-import BridgeStatusController from './bridge-status-controller';
+import { BridgeStatusController } from './bridge-status-controller';
 import { DEFAULT_BRIDGE_STATUS_STATE } from './constants';
 import type { BridgeStatusControllerMessenger } from './types';
 import type {
