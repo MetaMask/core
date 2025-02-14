@@ -3301,6 +3301,28 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-controller@npm:@metamask-previews/keyring-controller@19.1.0-preview-cd1fb95d":
+  version: 19.1.0-preview-cd1fb95d
+  resolution: "@metamask-previews/keyring-controller@npm:19.1.0-preview-cd1fb95d"
+  dependencies:
+    "@ethereumjs/util": "npm:^8.1.0"
+    "@keystonehq/metamask-airgapped-keyring": "npm:^0.14.1"
+    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/browser-passworder": "npm:^4.3.0"
+    "@metamask/eth-hd-keyring": "npm:^7.0.4"
+    "@metamask/eth-sig-util": "npm:^8.0.0"
+    "@metamask/eth-simple-keyring": "npm:^6.0.5"
+    "@metamask/keyring-api": "npm:^17.0.0"
+    "@metamask/keyring-internal-api": "npm:^4.0.1"
+    "@metamask/message-manager": "npm:^12.0.1"
+    "@metamask/utils": "npm:^11.1.0"
+    async-mutex: "npm:^0.5.0"
+    ethereumjs-wallet: "npm:^1.0.1"
+    immer: "npm:^9.0.6"
+  checksum: 10/d059f3a74f7a6a6dce9ced5c7134228436596c19937e306f930188df92cda897d2bcf27f8072479eec852e9371934e3526bd5f3212c0dc939c0a1f7a22ddf74a
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@npm:^19.1.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -3817,7 +3839,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/keyring-api": "npm:^17.0.0"
-    "@metamask/keyring-controller": "npm:^19.1.0"
+    "@metamask/keyring-controller": "npm:@metamask-previews/keyring-controller@19.1.0-preview-cd1fb95d"
     "@metamask/keyring-internal-api": "npm:^4.0.1"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/providers": "npm:^18.1.1"
