@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bump `@metamask/eth-json-rpc-infura` to `^10.1.0`
   - Bump `@metamask/eth-json-rpc-middleware` to `^15.1.0`
 
+### Fixed
+
+- Fix `findNetworkClientIdByChainId` to return the network client ID for the chain's configured default RPC endpoint instead of its first listed RPC endpoint ([#5344](https://github.com/MetaMask/core/pull/5344))
+
 ## [22.2.1]
 
 ### Changed

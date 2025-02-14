@@ -969,48 +969,81 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('findNetworkConfigurationByChainId', () => {
-    it('returns the network configuration for the given chainId', async () => {
-      await withController(
-        { infuraProjectId: 'some-infura-project-id' },
-        async ({ controller }) => {
-          const fakeNetworkClient = buildFakeClient();
-          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-
-          const networkClientId =
-            controller.findNetworkClientIdByChainId('0x1');
-          expect(networkClientId).toBe('mainnet');
+  describe.each([
+    [
+      'findNetworkClientIdByChainId',
+      (
+        {
+          controller,
+        }: {
+          controller: NetworkController;
         },
-      );
-    });
-
-    it('throws if the chainId doesnt exist in the configuration', async () => {
-      await withController(
-        { infuraProjectId: 'some-infura-project-id' },
-        async ({ controller }) => {
-          const fakeNetworkClient = buildFakeClient();
-          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-          expect(() =>
-            controller.findNetworkClientIdByChainId('0xdeadbeef'),
-          ).toThrow("Couldn't find networkClientId for chainId");
+        args: Parameters<NetworkController['findNetworkClientIdByChainId']>,
+      ): ReturnType<NetworkController['findNetworkClientIdByChainId']> =>
+        controller.findNetworkClientIdByChainId(...args),
+    ],
+    [
+      'NetworkController:findNetworkClientIdByChainId',
+      (
+        {
+          messenger,
+        }: {
+          messenger: Messenger<
+            NetworkControllerActions,
+            NetworkControllerEvents
+          >;
         },
-      );
-    });
-
-    it('is callable from the controller messenger', async () => {
+        args: Parameters<NetworkController['findNetworkClientIdByChainId']>,
+      ): ReturnType<NetworkController['findNetworkClientIdByChainId']> =>
+        messenger.call(
+          'NetworkController:findNetworkClientIdByChainId',
+          ...args,
+        ),
+    ],
+  ])('%s', (_desc, findNetworkClientIdByChainId) => {
+    it('returns the ID of the network client corresponding to the default RPC endpoint for the given chain', async () => {
       await withController(
-        { infuraProjectId: 'some-infura-project-id' },
-        async ({ messenger }) => {
-          const fakeNetworkClient = buildFakeClient();
-          mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
-
-          const networkClientId = messenger.call(
-            'NetworkController:findNetworkClientIdByChainId',
-            '0x1',
+        {
+          state: buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+            networkConfigurationsByChainId: {
+              '0x1337': buildCustomNetworkConfiguration({
+                chainId: '0x1337' as const,
+                defaultRpcEndpointIndex: 1,
+                rpcEndpoints: [
+                  {
+                    name: 'Test Endpoint 1',
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                    type: RpcEndpointType.Custom,
+                  },
+                  {
+                    name: 'Test Endpoint 2',
+                    networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                    url: 'https://test.network/2',
+                    type: RpcEndpointType.Custom,
+                  },
+                ],
+              }),
+            },
+          }),
+        },
+        ({ controller, messenger }) => {
+          const networkClientId = findNetworkClientIdByChainId(
+            { controller, messenger },
+            ['0x1337'],
           );
-          expect(networkClientId).toBe('mainnet');
+
+          expect(networkClientId).toBe('BBBB-BBBB-BBBB-BBBB');
         },
       );
+    });
+
+    it('throws if there are no network clients registered for the given chain', async () => {
+      await withController(({ controller, messenger }) => {
+        expect(() =>
+          findNetworkClientIdByChainId({ controller, messenger }, ['0x999999']),
+        ).toThrow('Invalid chain ID "0x999999"');
+      });
     });
   });
 
