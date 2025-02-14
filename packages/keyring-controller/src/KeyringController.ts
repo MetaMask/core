@@ -118,7 +118,7 @@ export type KeyringControllerSignMessageAction = {
   handler: KeyringController['signMessage'];
 };
 
-export type KeyringControllerSignAuthorizationAction = {
+export type KeyringControllerSignEip7702AuthorizationAction = {
   type: `${typeof name}:signEip7702Authorization`;
   handler: KeyringController['signEip7702Authorization'];
 };
@@ -211,7 +211,7 @@ export type KeyringControllerQRKeyringStateChangeEvent = {
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerSignMessageAction
-  | KeyringControllerSignAuthorizationAction
+  | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
   | KeyringControllerDecryptMessageAction
