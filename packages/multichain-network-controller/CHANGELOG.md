@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1]
 
-### Uncategorized
+### Fixed
 
-- chore: Add state change event to multichain network controller ([#5331](https://github.com/MetaMask/core.git/pull/5331))
+- fix: Add missing state change event to `MultichainNetworkController` ([#5331](https://github.com/MetaMask/core.git/pull/5331))
 
 ## [0.1.0]
 
