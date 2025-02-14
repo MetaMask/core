@@ -1,13 +1,5 @@
 import type { Eip1193Provider } from 'ethers';
 
-import { ValidationError } from '../errors';
-import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
-import {
-  MESSAGE_SIGNING_SNAP,
-  connectSnap,
-  isSnapConnected,
-} from '../utils/messaging-signing-snap-requests';
-import { validateLoginResponse } from '../utils/validate-login-response';
 import { authenticate, authorizeOIDC, getNonce } from './services';
 import type {
   AuthConfig,
@@ -18,9 +10,17 @@ import type {
   LoginResponse,
   UserProfile,
 } from './types';
+import { ValidationError } from '../errors';
+import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
+import {
+  MESSAGE_SIGNING_SNAP,
+  connectSnap,
+  isSnapConnected,
+} from '../utils/messaging-signing-snap-requests';
+import { validateLoginResponse } from '../utils/validate-login-response';
 
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 type JwtBearerAuth_SRP_Options = {
   storage: AuthStorageOptions;
   signing?: AuthSigningOptions;
@@ -52,9 +52,9 @@ const getDefaultEIP6963SigningOptions = (
 });
 
 export class SRPJwtBearerAuth implements IBaseAuth {
-  #config: AuthConfig;
+  readonly #config: AuthConfig;
 
-  #options: Required<JwtBearerAuth_SRP_Options>;
+  readonly #options: Required<JwtBearerAuth_SRP_Options>;
 
   #customProvider?: Eip1193Provider;
 

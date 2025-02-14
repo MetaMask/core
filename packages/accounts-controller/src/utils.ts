@@ -27,6 +27,9 @@ export function keyringTypeToName(keyringType: string): string {
     case KeyringTypes.trezor: {
       return 'Trezor';
     }
+    case KeyringTypes.oneKey: {
+      return 'OneKey';
+    }
     case KeyringTypes.ledger: {
       return 'Ledger';
     }
@@ -47,6 +50,7 @@ export function keyringTypeToName(keyringType: string): string {
 
 /**
  * Generates a UUID v4 options from a given Ethereum address.
+ *
  * @param address - The Ethereum address to generate the UUID from.
  * @returns The UUID v4 options.
  */
@@ -62,6 +66,7 @@ export function getUUIDOptionsFromAddressOfNormalAccount(
 
 /**
  * Generates a UUID from a given Ethereum address.
+ *
  * @param address - The Ethereum address to generate the UUID from.
  * @returns The generated UUID.
  */
@@ -71,6 +76,7 @@ export function getUUIDFromAddressOfNormalAccount(address: string): string {
 
 /**
  * Check if a keyring type is considered a "normal" keyring.
+ *
  * @param keyringType - The account's keyring type.
  * @returns True if the keyring type is considered a "normal" keyring, false otherwise.
  */

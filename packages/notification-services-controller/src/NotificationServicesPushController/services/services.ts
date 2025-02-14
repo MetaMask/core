@@ -1,13 +1,13 @@
 import log from 'loglevel';
 
-import type { Types } from '../../NotificationServicesController';
-import type { PushNotificationEnv } from '../types';
 import * as endpoints from './endpoints';
 import type { CreateRegToken, DeleteRegToken } from './push';
 import {
   listenToPushNotificationsClicked,
   listenToPushNotificationsReceived,
 } from './push/push-web';
+import type { Types } from '../../NotificationServicesController';
+import type { PushNotificationEnv } from '../types';
 
 export type RegToken = {
   token: string;
@@ -18,9 +18,8 @@ export type RegToken = {
  * Links API Response Shape
  */
 export type LinksResult = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   trigger_ids: string[];
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   registration_tokens: RegToken[];
 };
 
@@ -63,9 +62,7 @@ export async function updateLinksAPI(
 ): Promise<boolean> {
   try {
     const body: LinksResult = {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       trigger_ids: triggers,
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       registration_tokens: regTokens,
     };
     const response = await fetch(endpoints.REGISTRATION_TOKENS_ENDPOINT, {

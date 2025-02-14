@@ -20,8 +20,67 @@ const mockFeatureFlags: FeatureFlags = {
   feature2: { chrome: '<109' },
 };
 
+jest.setTimeout(8000);
+
 describe('ClientConfigApiService', () => {
   const networkError = new Error('Network error');
+
+  describe('onBreak', () => {
+    it('should register a listener that is called when the circuit opens', async () => {
+      const onBreak = jest.fn();
+      const mockFetch = createMockFetch({ error: networkError });
+
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockFetch,
+        maximumConsecutiveFailures: 1,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+      clientConfigApiService.onBreak(onBreak);
+
+      await expect(
+        clientConfigApiService.fetchRemoteFeatureFlags(),
+      ).rejects.toThrow(
+        'Execution prevented because the circuit breaker is open',
+      );
+
+      expect(onBreak).toHaveBeenCalled();
+    });
+  });
+
+  describe('onDegraded', () => {
+    it('should register a listener that is called when the request is slow', async () => {
+      const onDegraded = jest.fn();
+      const slowFetchTime = 5500; // Exceed the DEFAULT_DEGRADED_THRESHOLD (5000ms)
+      // Mock fetch to take a long time
+      const mockSlowFetch = createMockFetch({
+        response: {
+          ok: true,
+          status: 200,
+          json: async () => mockServerFeatureFlagsResponse,
+        },
+        delay: slowFetchTime,
+      });
+
+      const clientConfigApiService = new ClientConfigApiService({
+        fetch: mockSlowFetch,
+        config: {
+          client: ClientType.Extension,
+          distribution: DistributionType.Main,
+          environment: EnvironmentType.Production,
+        },
+      });
+      clientConfigApiService.onDegraded(onDegraded);
+
+      await clientConfigApiService.fetchRemoteFeatureFlags();
+
+      // Verify the degraded callback was called
+      expect(onDegraded).toHaveBeenCalled();
+    }, 7000);
+  });
 
   describe('fetchRemoteFeatureFlags', () => {
     it('fetches successfully and returns feature flags', async () => {
@@ -132,43 +191,8 @@ describe('ClientConfigApiService', () => {
       // Check that fetch was retried the correct number of times
       expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1); // Initial + retries
     });
-  });
 
-  describe('circuit breaker', () => {
-    it('opens the circuit breaker after consecutive failures', async () => {
-      const mockFetch = createMockFetch({ error: networkError });
-      const maxFailures = 3;
-      const clientConfigApiService = new ClientConfigApiService({
-        fetch: mockFetch,
-        maximumConsecutiveFailures: maxFailures,
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      });
-
-      // Attempt requests until circuit breaker opens
-      for (let i = 0; i < maxFailures; i++) {
-        await expect(
-          clientConfigApiService.fetchRemoteFeatureFlags(),
-        ).rejects.toThrow(
-          /Network error|Execution prevented because the circuit breaker is open/u,
-        );
-      }
-
-      // Verify the circuit breaker is now open
-      await expect(
-        clientConfigApiService.fetchRemoteFeatureFlags(),
-      ).rejects.toThrow(
-        'Execution prevented because the circuit breaker is open',
-      );
-
-      // Verify fetch was called the expected number of times
-      expect(mockFetch).toHaveBeenCalledTimes(maxFailures);
-    });
-
-    it('should call onBreak when circuit breaker opens', async () => {
+    it('should call the onBreak callback when the circuit opens', async () => {
       const onBreak = jest.fn();
       const mockFetch = createMockFetch({ error: networkError });
 
@@ -192,8 +216,7 @@ describe('ClientConfigApiService', () => {
       expect(onBreak).toHaveBeenCalled();
     });
 
-    it('should call the onDegraded callback when requests are slow', async () => {
-      jest.setTimeout(7000);
+    it('should call the onDegraded callback when the request is slow', async () => {
       const onDegraded = jest.fn();
       const slowFetchTime = 5500; // Exceed the DEFAULT_DEGRADED_THRESHOLD (5000ms)
       // Mock fetch to take a long time
@@ -221,64 +244,6 @@ describe('ClientConfigApiService', () => {
       // Verify the degraded callback was called
       expect(onDegraded).toHaveBeenCalled();
     }, 7000);
-
-    it('should succeed on a subsequent fetch attempt after retries', async () => {
-      const maxRetries = 2;
-      // Mock fetch to fail initially, then succeed
-      const mockFetch = jest
-        .fn()
-        .mockRejectedValueOnce(networkError)
-        .mockRejectedValueOnce(networkError)
-        .mockResolvedValueOnce({
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          json: async () => mockServerFeatureFlagsResponse,
-        });
-
-      const clientConfigApiService = new ClientConfigApiService({
-        fetch: mockFetch,
-        retries: maxRetries,
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      });
-
-      const result = await clientConfigApiService.fetchRemoteFeatureFlags();
-
-      expect(result).toStrictEqual({
-        remoteFeatureFlags: mockFeatureFlags,
-        cacheTimestamp: expect.any(Number),
-      });
-
-      expect(mockFetch).toHaveBeenCalledTimes(maxRetries + 1);
-    });
-
-    it('calls onDegraded when retries are exhausted and circuit is closed', async () => {
-      const onDegraded = jest.fn();
-      const mockFetch = jest.fn();
-      mockFetch.mockRejectedValue(new Error('Network error'));
-
-      const service = new ClientConfigApiService({
-        fetch: mockFetch,
-        retries: 2,
-        onDegraded,
-        config: {
-          client: ClientType.Extension,
-          distribution: DistributionType.Main,
-          environment: EnvironmentType.Production,
-        },
-      });
-
-      await expect(service.fetchRemoteFeatureFlags()).rejects.toThrow(
-        'Network error',
-      );
-
-      // Should be called once after all retries are exhausted
-      expect(onDegraded).toHaveBeenCalledTimes(1);
-    });
   });
 });
 

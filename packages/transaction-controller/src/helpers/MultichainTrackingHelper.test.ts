@@ -307,6 +307,7 @@ describe('MultichainTrackingHelper', () => {
         provider: MOCK_PROVIDERS.mainnet,
         blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
         chainId: '0x1',
+        networkClientId: 'mainnet',
       });
 
       expect(helper.has('mainnet')).toBe(true);

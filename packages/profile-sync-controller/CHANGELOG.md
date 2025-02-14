@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Added
+
+- Add `perform{BatchSetStorage,DeleteStorage,BatchDeleteStorage}` as messenger actions ([#5311](https://github.com/MetaMask/core/pull/5311))
+- Add optional `validateAgainstSchema` option when creating user storage entry paths ([#5326](https://github.com/MetaMask/core/pull/5326))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.0.0` to `^24.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
+- Change `maxNumberOfAccountsToAdd` default value from `100` to `Infinity` ([#5322](https://github.com/MetaMask/core/pull/5322))
+
+### Removed
+
+- Removed unused events from `UserStorageController` ([#5324](https://github.com/MetaMask/core/pull/5324))
+
+## [7.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/keyring-controller` from `^19.0.6` to `^19.0.7` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/network-controller` from `^22.2.0` to `^22.2.1` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^22.0.0` to `^23.0.0` ([#5292](https://github.com/MetaMask/core/pull/5292))
+
+## [6.0.0]
+
+### Changed
+
+- Improve logic & dependencies between profile sync, auth, user storage & notifications ([#5275](https://github.com/MetaMask/core/pull/5275))
+- Mark `@metamask/snaps-controllers` peer dependency bump as breaking in CHANGELOG ([#5267](https://github.com/MetaMask/core/pull/5267))
+- Fix eslint warnings & errors ([#5261](https://github.com/MetaMask/core/pull/5261))
+- Rename `ControllerMessenger` to `Messenger` ([#5244](https://github.com/MetaMask/core/pull/5244))
+- Bump snaps-sdk to v6.16.0 ([#5220](https://github.com/MetaMask/core/pull/5220))
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.10.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/snaps-sdk` from `^6.16.0` to `^6.17.1` ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
+
+### Removed
+
+- **BREAKING:** Remove metametrics dependencies in UserStorageController ([#5278](https://github.com/MetaMask/core/pull/5278))
+
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+
 ## [4.1.1]
 
 ### Changed
@@ -428,7 +483,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.1...@metamask/profile-sync-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.0...@metamask/profile-sync-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@6.0.0...@metamask/profile-sync-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@5.0.0...@metamask/profile-sync-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.1.1...@metamask/profile-sync-controller@5.0.0
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.1.0...@metamask/profile-sync-controller@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.0.1...@metamask/profile-sync-controller@4.1.0
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.0.0...@metamask/profile-sync-controller@4.0.1

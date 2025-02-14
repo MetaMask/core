@@ -1,10 +1,5 @@
 import log from 'loglevel';
 
-import {
-  mockEndpointGetPushNotificationLinks,
-  mockEndpointUpdatePushNotificationLinks,
-} from '../__fixtures__/mockServices';
-import type { PushNotificationEnv } from '../types/firebase';
 import * as PushWebModule from './push/push-web';
 import {
   activatePushNotifications,
@@ -14,6 +9,11 @@ import {
   updateLinksAPI,
   updateTriggerPushNotifications,
 } from './services';
+import {
+  mockEndpointGetPushNotificationLinks,
+  mockEndpointUpdatePushNotificationLinks,
+} from '../__fixtures__/mockServices';
+import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors
 const mockErrorLog = () =>

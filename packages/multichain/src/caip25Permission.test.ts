@@ -89,6 +89,8 @@ describe('caip25EndowmentBuilder', () => {
                 accounts: [],
               },
             },
+            sessionProperties: {},
+            isMultichainOrigin: true,
           },
         });
       });
@@ -118,6 +120,8 @@ describe('caip25EndowmentBuilder', () => {
               },
             },
             optionalScopes: {},
+            sessionProperties: {},
+            isMultichainOrigin: true,
           },
         });
       });
@@ -150,6 +154,8 @@ describe('caip25EndowmentBuilder', () => {
               },
             },
             optionalScopes: {},
+            sessionProperties: {},
+            isMultichainOrigin: true,
           },
         });
       });
@@ -228,6 +234,7 @@ describe('caip25EndowmentBuilder', () => {
             },
           },
           optionalScopes: {},
+          sessionProperties: {},
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
@@ -240,6 +247,7 @@ describe('caip25EndowmentBuilder', () => {
               },
             },
             optionalScopes: {},
+            sessionProperties: {},
             isMultichainOrigin: true,
           },
         });
@@ -253,6 +261,7 @@ describe('caip25EndowmentBuilder', () => {
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
@@ -265,6 +274,7 @@ describe('caip25EndowmentBuilder', () => {
                 accounts: ['eip155:1:0x2'],
               },
             },
+            sessionProperties: {},
             isMultichainOrigin: true,
           },
         });
@@ -285,6 +295,7 @@ describe('caip25EndowmentBuilder', () => {
               accounts: ['eip155:3:0x1', 'eip155:3:0x2'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
@@ -304,6 +315,7 @@ describe('caip25EndowmentBuilder', () => {
                 accounts: ['eip155:3:0x2'],
               },
             },
+            sessionProperties: {},
             isMultichainOrigin: true,
           },
         });

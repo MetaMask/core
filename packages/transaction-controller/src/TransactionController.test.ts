@@ -5,7 +5,7 @@ import type {
   AddApprovalRequest,
   AddResult,
 } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -50,6 +50,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import { shouldResimulate } from './helpers/ResimulateHelper';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -86,14 +87,13 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
-import { shouldResimulate } from './utils/resimulate';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
 
-type UnrestrictedControllerMessenger = ControllerMessenger<
+type UnrestrictedMessenger = Messenger<
   TransactionControllerActions | AllowedActions,
   TransactionControllerEvents | AllowedEvents
 >;
@@ -115,7 +115,10 @@ jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
 jest.mock('./utils/layer1-gas-fee-flow');
-jest.mock('./utils/resimulate');
+jest.mock('./helpers/ResimulateHelper', () => ({
+  ...jest.requireActual('./helpers/ResimulateHelper'),
+  shouldResimulate: jest.fn(),
+}));
 jest.mock('./utils/simulation');
 jest.mock('./utils/swaps');
 jest.mock('uuid');
@@ -291,7 +294,7 @@ function buildMockGasFeeFlow(): jest.Mocked<GasFeeFlow> {
  * @returns A promise that resolves with the transaction meta when the transaction is finished.
  */
 function waitForTransactionFinished(
-  messenger: ControllerMessenger<
+  messenger: Messenger<
     TransactionControllerActions | AllowedActions,
     TransactionControllerEvents | AllowedEvents
   >,
@@ -388,7 +391,7 @@ const INTERNAL_ACCOUNT_MOCK: InternalAccount = {
   id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
   address: ACCOUNT_MOCK,
   type: 'eip155:eoa',
-  scopes: ['eip155'],
+  scopes: ['eip155:0'],
   options: {},
   methods: [],
   metadata: {
@@ -591,8 +594,7 @@ describe('TransactionController', () => {
         listener(networkState);
       });
     };
-    const unrestrictedMessenger: UnrestrictedControllerMessenger =
-      new ControllerMessenger();
+    const unrestrictedMessenger: UnrestrictedMessenger = new Messenger();
     const getNetworkClientById = buildMockGetNetworkClientById(
       mockNetworkClientConfigurationsByNetworkClientId,
     );
@@ -694,7 +696,7 @@ describe('TransactionController', () => {
    * finally the mocked version of the action handler itself.
    */
   function mockAddTransactionApprovalRequest(
-    messenger: UnrestrictedControllerMessenger,
+    messenger: UnrestrictedMessenger,
     options:
       | {
           state: 'approved';
@@ -2355,7 +2357,7 @@ describe('TransactionController', () => {
 
         try {
           await result;
-        } catch (error) {
+        } catch {
           // Ignore user rejected error as it is expected
         }
         await finishedPromise;
@@ -6074,6 +6076,43 @@ describe('TransactionController', () => {
           blockTime: 123,
         },
       );
+    });
+  });
+
+  describe('setTransactionActive', () => {
+    it('throws if transaction does not exist', async () => {
+      const { controller } = setupController();
+      expect(() => controller.setTransactionActive('123', true)).toThrow(
+        'Transaction with id 123 not found',
+      );
+    });
+
+    it('updates the isActive state of a transaction', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status: TransactionStatus.unapproved,
+                history: [{}],
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              } as unknown as TransactionMeta,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.setTransactionActive(transactionId, true);
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.isActive).toBe(true);
     });
   });
 });

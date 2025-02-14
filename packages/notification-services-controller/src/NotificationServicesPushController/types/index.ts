@@ -1,1 +1,1 @@
-export * from './firebase';
+export type * from './firebase';

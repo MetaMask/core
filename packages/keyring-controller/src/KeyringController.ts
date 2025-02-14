@@ -4,7 +4,7 @@ import type {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
 } from '@keystonehq/metamask-airgapped-keyring';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import HDKeyring from '@metamask/eth-hd-keyring';
@@ -52,32 +52,20 @@ const name = 'KeyringController';
  * Available keyring types
  */
 export enum KeyringTypes {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   simple = 'Simple Key Pair',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   hd = 'HD Key Tree',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   qr = 'QR Hardware Wallet Device',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   trezor = 'Trezor Hardware',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+  oneKey = 'OneKey Hardware',
   ledger = 'Ledger Hardware',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   lattice = 'Lattice Hardware',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   snap = 'Snap Keyring',
 }
 
 /**
  * Custody keyring types are a special case, as they are not a single type
  * but they all start with the prefix "Custody".
+ *
  * @param keyringType - The type of the keyring.
  * @returns Whether the keyring type is a custody keyring.
  */
@@ -86,21 +74,31 @@ export const isCustodyKeyring = (keyringType: string): boolean => {
 };
 
 /**
- * @type KeyringControllerState
- *
- * Keyring controller state
- * @property vault - Encrypted string representing keyring data
- * @property isUnlocked - Whether vault is unlocked
- * @property keyringTypes - Account types
- * @property keyrings - Group of accounts
- * @property encryptionKey - Keyring encryption key
- * @property encryptionSalt - Keyring encryption salt
+ * The KeyringController state
  */
 export type KeyringControllerState = {
+  /**
+   * Encrypted array of serialized keyrings data.
+   */
   vault?: string;
+  /**
+   * Whether the vault has been decrypted successfully and
+   * keyrings contained within are deserialized and available.
+   */
   isUnlocked: boolean;
+  /**
+   * Representations of managed keyrings.
+   */
   keyrings: KeyringObject[];
+  /**
+   * The encryption key derived from the password and used to encrypt
+   * the vault. This is only stored if the `cacheEncryptionKey` option
+   * is enabled.
+   */
   encryptionKey?: string;
+  /**
+   * The salt used to derive the encryption key from the password.
+   */
   encryptionSalt?: string;
 };
 
@@ -179,6 +177,11 @@ export type KeyringControllerAddNewAccountAction = {
   handler: KeyringController['addNewAccount'];
 };
 
+export type KeyringControllerWithKeyringAction = {
+  type: `${typeof name}:withKeyring`;
+  handler: KeyringController['withKeyring'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -218,7 +221,8 @@ export type KeyringControllerActions =
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction
-  | KeyringControllerAddNewAccountAction;
+  | KeyringControllerAddNewAccountAction
+  | KeyringControllerWithKeyringAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -227,7 +231,7 @@ export type KeyringControllerEvents =
   | KeyringControllerAccountRemovedEvent
   | KeyringControllerQRKeyringStateChangeEvent;
 
-export type KeyringControllerMessenger = RestrictedControllerMessenger<
+export type KeyringControllerMessenger = RestrictedMessenger<
   typeof name,
   KeyringControllerActions,
   KeyringControllerEvents,
@@ -251,14 +255,16 @@ export type KeyringControllerOptions = {
 );
 
 /**
- * @type KeyringObject
- *
- * Keyring object to return in fullUpdate
- * @property type - Keyring type
- * @property accounts - Associated accounts
+ * A keyring object representation.
  */
 export type KeyringObject = {
+  /**
+   * Accounts associated with the keyring.
+   */
   accounts: string[];
+  /**
+   * Keyring type.
+   */
   type: string;
 };
 
@@ -266,11 +272,7 @@ export type KeyringObject = {
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   privateKey = 'privateKey',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   json = 'json',
 }
 
@@ -404,13 +406,11 @@ export type KeyringSelector =
  *
  * @param releaseLock - A function to release the lock.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-type MutuallyExclusiveCallback<T> = ({
+type MutuallyExclusiveCallback<Result> = ({
   releaseLock,
 }: {
   releaseLock: MutexInterface.Releaser;
-}) => Promise<T>;
+}) => Promise<Result>;
 
 /**
  * Get builder function for `Keyring`
@@ -586,17 +586,17 @@ export class KeyringController extends BaseController<
 
   readonly #vaultOperationMutex = new Mutex();
 
-  #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
+  readonly #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
+
+  readonly #unsupportedKeyrings: SerializedKeyring[];
+
+  readonly #encryptor: GenericEncryptor | ExportableKeyEncryptor;
+
+  readonly #cacheEncryptionKey: boolean;
 
   #keyrings: EthKeyring<Json>[];
 
-  #unsupportedKeyrings: SerializedKeyring[];
-
   #password?: string;
-
-  #encryptor: GenericEncryptor | ExportableKeyEncryptor;
-
-  #cacheEncryptionKey: boolean;
 
   #qrKeyringStateListener?: (
     state: ReturnType<IQRKeyringState['getState']>,
@@ -609,7 +609,7 @@ export class KeyringController extends BaseController<
    * @param options.encryptor - An optional object for defining encryption schemes.
    * @param options.keyringBuilders - Set a new name for account.
    * @param options.cacheEncryptionKey - Whether to cache or not encryption key.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
    */
   constructor(options: KeyringControllerOptions) {
@@ -662,6 +662,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the added account address.
    */
   async addNewAccount(accountCount?: number): Promise<string> {
+    this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
         | EthKeyring<Json>
@@ -669,6 +671,7 @@ export class KeyringController extends BaseController<
       if (!primaryKeyring) {
         throw new Error('No HD keyring found');
       }
+
       const oldAccounts = await primaryKeyring.getAccounts();
 
       if (accountCount && oldAccounts.length !== accountCount) {
@@ -707,6 +710,8 @@ export class KeyringController extends BaseController<
     // We still uses `Hex` here, since we are not using this method when creating
     // and account using a "Snap Keyring". This function assume the `keyring` is
     // ethereum compatible, but "Snap Keyring" might not be.
+    this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       const oldAccounts = await this.#getAccountsFromKeyrings();
 
@@ -765,6 +770,7 @@ export class KeyringController extends BaseController<
    * If there is a pre-existing locked vault, it will be replaced.
    *
    * @param password - Password to unlock the new vault.
+   * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndKeychain(password: string) {
     return this.#persistOrRollback(async () => {
@@ -789,6 +795,8 @@ export class KeyringController extends BaseController<
     type: KeyringTypes | string,
     opts?: unknown,
   ): Promise<unknown> {
+    this.#assertIsUnlocked();
+
     if (type === KeyringTypes.qr) {
       return this.getOrAddQRKeyring();
     }
@@ -825,6 +833,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase.
    */
   async exportSeedPhrase(password: string): Promise<Uint8Array> {
+    this.#assertIsUnlocked();
     await this.verifyPassword(password);
     assertHasUint8ArrayMnemonic(this.#keyrings[0]);
     return this.#keyrings[0].mnemonic;
@@ -856,6 +865,7 @@ export class KeyringController extends BaseController<
    * @returns A promise resolving to an array of addresses.
    */
   async getAccounts(): Promise<string[]> {
+    this.#assertIsUnlocked();
     return this.state.keyrings.reduce<string[]>(
       (accounts, keyring) => accounts.concat(keyring.accounts),
       [],
@@ -874,6 +884,7 @@ export class KeyringController extends BaseController<
     account: string,
     opts?: Record<string, unknown>,
   ): Promise<string> {
+    this.#assertIsUnlocked();
     const address = ethNormalize(account) as Hex;
     const keyring = (await this.getKeyringForAccount(
       account,
@@ -897,6 +908,7 @@ export class KeyringController extends BaseController<
     from: string;
     data: Eip1024EncryptedData;
   }): Promise<string> {
+    this.#assertIsUnlocked();
     const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
@@ -919,6 +931,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
+    this.#assertIsUnlocked();
     const address = normalize(account);
 
     const candidates = await Promise.all(
@@ -958,6 +971,7 @@ export class KeyringController extends BaseController<
    * @returns An array of keyrings of the given type.
    */
   getKeyringsByType(type: KeyringTypes | string): unknown[] {
+    this.#assertIsUnlocked();
     return this.#keyrings.filter((keyring) => keyring.type === type);
   }
 
@@ -969,6 +983,7 @@ export class KeyringController extends BaseController<
    * operation completes.
    */
   async persistAllKeyrings(): Promise<boolean> {
+    this.#assertIsUnlocked();
     return this.#persistOrRollback(async () => true);
   }
 
@@ -986,10 +1001,11 @@ export class KeyringController extends BaseController<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     args: any[],
   ): Promise<string> {
+    this.#assertIsUnlocked();
     return this.#persistOrRollback(async () => {
       let privateKey;
       switch (strategy) {
-        case 'privateKey':
+        case AccountImportStrategy.privateKey:
           const [importedKey] = args;
           if (!importedKey) {
             throw new Error('Cannot import an empty key.');
@@ -1013,7 +1029,7 @@ export class KeyringController extends BaseController<
 
           privateKey = remove0x(prefixed);
           break;
-        case 'json':
+        case AccountImportStrategy.json:
           let wallet;
           const [input, password] = args;
           try {
@@ -1024,7 +1040,7 @@ export class KeyringController extends BaseController<
           privateKey = bytesToHex(wallet.getPrivateKey());
           break;
         default:
-          throw new Error(`Unexpected import strategy: '${strategy}'`);
+          throw new Error(`Unexpected import strategy: '${String(strategy)}'`);
       }
       const newKeyring = (await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
@@ -1042,6 +1058,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the account is removed.
    */
   async removeAccount(address: string): Promise<void> {
+    this.#assertIsUnlocked();
+
     await this.#persistOrRollback(async () => {
       const keyring = (await this.getKeyringForAccount(
         address,
@@ -1054,7 +1072,6 @@ export class KeyringController extends BaseController<
 
       // The `removeAccount` method of snaps keyring is async. We have to update
       // the interface of the other keyrings to be async as well.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       // FIXME: We do cast to `Hex` to makes the type checker happy here, and
       // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
       // type would need to be updated for a full non-EVM support.
@@ -1076,6 +1093,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   async setLocked(): Promise<void> {
+    this.#assertIsUnlocked();
+
     return this.#withRollback(async () => {
       this.#unsubscribeFromQRKeyringsEvents();
 
@@ -1100,6 +1119,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to a signed message string.
    */
   async signMessage(messageParams: PersonalMessageParams): Promise<string> {
+    this.#assertIsUnlocked();
+
     if (!messageParams.data) {
       throw new Error("Can't sign an empty message");
     }
@@ -1122,6 +1143,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to a signed message string.
    */
   async signPersonalMessage(messageParams: PersonalMessageParams) {
+    this.#assertIsUnlocked();
     const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
@@ -1147,6 +1169,8 @@ export class KeyringController extends BaseController<
     messageParams: TypedMessageParams,
     version: SignTypedDataVersion,
   ): Promise<string> {
+    this.#assertIsUnlocked();
+
     try {
       if (
         ![
@@ -1196,6 +1220,7 @@ export class KeyringController extends BaseController<
     from: string,
     opts?: Record<string, unknown>,
   ): Promise<TxData> {
+    this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
@@ -1220,6 +1245,7 @@ export class KeyringController extends BaseController<
     transactions: EthBaseTransaction[],
     executionContext: KeyringExecutionContext,
   ): Promise<EthBaseUserOperation> {
+    this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
@@ -1250,6 +1276,7 @@ export class KeyringController extends BaseController<
     userOp: EthUserOperation,
     executionContext: KeyringExecutionContext,
   ): Promise<EthUserOperationPatch> {
+    this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
@@ -1275,6 +1302,7 @@ export class KeyringController extends BaseController<
     userOp: EthUserOperation,
     executionContext: KeyringExecutionContext,
   ): Promise<string> {
+    this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
@@ -1294,11 +1322,8 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving when the operation completes.
    */
   changePassword(password: string): Promise<void> {
+    this.#assertIsUnlocked();
     return this.#persistOrRollback(async () => {
-      if (!this.state.isUnlocked) {
-        throw new Error(KeyringControllerError.MissingCredentials);
-      }
-
       assertIsValidPassword(password);
 
       this.#password = password;
@@ -1356,6 +1381,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the seed phrase as Uint8Array.
    */
   async verifySeedPhrase(): Promise<Uint8Array> {
+    this.#assertIsUnlocked();
     return this.#withControllerLock(async () => this.#verifySeedPhrase());
   }
 
@@ -1425,6 +1451,8 @@ export class KeyringController extends BaseController<
       createIfMissing: false,
     },
   ): Promise<CallbackResult> {
+    this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       let keyring: SelectedKeyring | undefined;
 
@@ -1472,6 +1500,7 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   getQRKeyring(): QRKeyring | undefined {
+    this.#assertIsUnlocked();
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
     return this.getKeyringsByType(KeyringTypes.qr)[0] as unknown as QRKeyring;
   }
@@ -1483,6 +1512,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `addNewKeyring` and `withKeyring` instead.
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
+    this.#assertIsUnlocked();
+
     return (
       this.getQRKeyring() ||
       (await this.#persistOrRollback(async () => this.#addQRKeyring()))
@@ -1499,6 +1530,8 @@ export class KeyringController extends BaseController<
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
+    this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
       keyring.deserialize(serialized);
@@ -1512,6 +1545,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async resetQRKeyringState(): Promise<void> {
+    this.#assertIsUnlocked();
+
     (await this.getOrAddQRKeyring()).resetStore();
   }
 
@@ -1523,6 +1558,8 @@ export class KeyringController extends BaseController<
    * instead.
    */
   async getQRKeyringState(): Promise<IQRKeyringState> {
+    this.#assertIsUnlocked();
+
     return (await this.getOrAddQRKeyring()).getMemStore();
   }
 
@@ -1534,6 +1571,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async submitQRCryptoHDKey(cryptoHDKey: string): Promise<void> {
+    this.#assertIsUnlocked();
+
     (await this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
   }
 
@@ -1545,6 +1584,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async submitQRCryptoAccount(cryptoAccount: string): Promise<void> {
+    this.#assertIsUnlocked();
+
     (await this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
   }
 
@@ -1560,6 +1601,8 @@ export class KeyringController extends BaseController<
     requestId: string,
     ethSignature: string,
   ): Promise<void> {
+    this.#assertIsUnlocked();
+
     (await this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
   }
 
@@ -1570,6 +1613,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async cancelQRSignRequest(): Promise<void> {
+    this.#assertIsUnlocked();
+
     (await this.getOrAddQRKeyring()).cancelSignRequest();
   }
 
@@ -1580,6 +1625,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async cancelQRSynchronization(): Promise<void> {
+    this.#assertIsUnlocked();
+
     (await this.getOrAddQRKeyring()).cancelSync();
   }
 
@@ -1595,6 +1642,8 @@ export class KeyringController extends BaseController<
   async connectQRHardware(
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {
+    this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       try {
         const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
@@ -1635,6 +1684,8 @@ export class KeyringController extends BaseController<
    * @deprecated Use `withKeyring` instead.
    */
   async unlockQRHardwareWalletAccount(index: number): Promise<void> {
+    this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
 
@@ -1644,6 +1695,8 @@ export class KeyringController extends BaseController<
   }
 
   async getAccountKeyringType(account: string): Promise<string> {
+    this.#assertIsUnlocked();
+
     const keyring = (await this.getKeyringForAccount(
       account,
     )) as EthKeyring<Json>;
@@ -1660,6 +1713,8 @@ export class KeyringController extends BaseController<
     removedAccounts: string[];
     remainingAccounts: string[];
   }> {
+    this.#assertIsUnlocked();
+
     return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring();
 
@@ -1746,6 +1801,11 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:addNewAccount`,
       this.addNewAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:withKeyring`,
+      this.withKeyring.bind(this),
     );
   }
 
@@ -2201,9 +2261,6 @@ export class KeyringController extends BaseController<
       // NOTE: Not all keyrings implement this method in a asynchronous-way. Using `await` for
       // non-thenable will still be valid (despite not being really useful). It allows us to cover both
       // cases and allow retro-compatibility too.
-      // FIXME: For some reason, it seems that eslint is complaining about this call being non-thenable
-      // even though it is... For now, we just disable it:
-      // eslint-disable-next-line @typescript-eslint/await-thenable
       await keyring.generateRandomMnemonic();
       await keyring.addAccounts(1);
     }
@@ -2349,18 +2406,29 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Assert that the controller is unlocked.
+   *
+   * @throws If the controller is locked.
+   */
+  #assertIsUnlocked(): void {
+    if (!this.state.isUnlocked) {
+      throw new Error(KeyringControllerError.ControllerLocked);
+    }
+  }
+
+  /**
    * Execute the given function after acquiring the controller lock
    * and save the keyrings to state after it, or rollback to their
    * previous state in case of error.
    *
-   * @param fn - The function to execute.
+   * @param callback - The function to execute.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+  async #persistOrRollback<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
     return this.#withRollback(async ({ releaseLock }) => {
-      const callbackResult = await fn({ releaseLock });
+      const callbackResult = await callback({ releaseLock });
       // State is committed only if the operation is successful
       await this.#updateVault();
 
@@ -2372,18 +2440,18 @@ export class KeyringController extends BaseController<
    * Execute the given function after acquiring the controller lock
    * and rollback keyrings and password states in case of error.
    *
-   * @param fn - The function to execute atomically.
+   * @param callback - The function to execute atomically.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #withRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+  async #withRollback<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
       const currentPassword = this.#password;
 
       try {
-        return await fn({ releaseLock });
+        return await callback({ releaseLock });
       } catch (e) {
         // Keyrings and password are restored to their previous state
         await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
@@ -2414,13 +2482,13 @@ export class KeyringController extends BaseController<
    * controller and that changes its state is executed in a mutually exclusive way,
    * preventing unsafe concurrent access that could lead to unpredictable behavior.
    *
-   * @param fn - The function to execute while the controller mutex is locked.
+   * @param callback - The function to execute while the controller mutex is locked.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #withControllerLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
-    return withLock(this.#controllerOperationMutex, fn);
+  async #withControllerLock<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
+    return withLock(this.#controllerOperationMutex, callback);
   }
 
   /**
@@ -2431,15 +2499,15 @@ export class KeyringController extends BaseController<
    * This ensures that each operation that interacts with the vault
    * is executed in a mutually exclusive way.
    *
-   * @param fn - The function to execute while the vault mutex is locked.
+   * @param callback - The function to execute while the vault mutex is locked.
    * @returns The result of the function.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  async #withVaultLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
+  async #withVaultLock<Result>(
+    callback: MutuallyExclusiveCallback<Result>,
+  ): Promise<Result> {
     this.#assertControllerMutexIsLocked();
 
-    return withLock(this.#vaultOperationMutex, fn);
+    return withLock(this.#vaultOperationMutex, callback);
   }
 }
 
@@ -2449,19 +2517,17 @@ export class KeyringController extends BaseController<
  * error is thrown.
  *
  * @param mutex - The mutex to lock.
- * @param fn - The function to execute while the mutex is locked.
+ * @param callback - The function to execute while the mutex is locked.
  * @returns The result of the function.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-async function withLock<T>(
+async function withLock<Result>(
   mutex: Mutex,
-  fn: MutuallyExclusiveCallback<T>,
-): Promise<T> {
+  callback: MutuallyExclusiveCallback<Result>,
+): Promise<Result> {
   const releaseLock = await mutex.acquire();
 
   try {
-    return await fn({ releaseLock });
+    return await callback({ releaseLock });
   } finally {
     releaseLock();
   }

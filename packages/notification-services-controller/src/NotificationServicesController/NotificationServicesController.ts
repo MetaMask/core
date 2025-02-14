@@ -1,5 +1,5 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
@@ -227,8 +227,8 @@ export type AllowedActions =
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
   | AuthenticationController.AuthenticationControllerIsSignedIn
+  | AuthenticationController.AuthenticationControllerPerformSignIn
   // User Storage Controller Requests
-  | UserStorageController.UserStorageControllerEnableProfileSyncing
   | UserStorageController.UserStorageControllerGetStorageKey
   | UserStorageController.UserStorageControllerPerformGetStorage
   | UserStorageController.UserStorageControllerPerformSetStorage
@@ -271,14 +271,13 @@ export type AllowedEvents =
   | NotificationServicesPushControllerOnNewNotification;
 
 // Type for the messenger of NotificationServicesController
-export type NotificationServicesControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    Actions | AllowedActions,
-    Events | AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+export type NotificationServicesControllerMessenger = RestrictedMessenger<
+  typeof controllerName,
+  Actions | AllowedActions,
+  Events | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 type FeatureAnnouncementEnv = {
   spaceId: string;
@@ -295,7 +294,7 @@ export default class NotificationServicesController extends BaseController<
   NotificationServicesControllerMessenger
 > {
   // Temporary boolean as push notifications are not yet enabled on mobile
-  #isPushIntegrated = true;
+  readonly #isPushIntegrated: boolean = true;
 
   // Flag to check is notifications have been setup when the browser/extension is initialized.
   // We want to re-initialize push notifications when the browser/extension is refreshed
@@ -304,7 +303,7 @@ export default class NotificationServicesController extends BaseController<
 
   #isUnlocked = false;
 
-  #keyringController = {
+  readonly #keyringController = {
     setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
@@ -325,7 +324,7 @@ export default class NotificationServicesController extends BaseController<
     },
   };
 
-  #auth = {
+  readonly #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
         'AuthenticationController:getBearerToken',
@@ -334,14 +333,14 @@ export default class NotificationServicesController extends BaseController<
     isSignedIn: () => {
       return this.messagingSystem.call('AuthenticationController:isSignedIn');
     },
-  };
-
-  #storage = {
-    enableProfileSyncing: async () => {
+    signIn: async () => {
       return await this.messagingSystem.call(
-        'UserStorageController:enableProfileSyncing',
+        'AuthenticationController:performSignIn',
       );
     },
+  };
+
+  readonly #storage = {
     getStorageKey: () => {
       return this.messagingSystem.call('UserStorageController:getStorageKey');
     },
@@ -360,7 +359,7 @@ export default class NotificationServicesController extends BaseController<
     },
   };
 
-  #pushNotifications = {
+  readonly #pushNotifications = {
     subscribeToPushNotifications: async () => {
       await this.messagingSystem.call(
         'NotificationServicesPushController:subscribeToPushNotifications',
@@ -445,7 +444,10 @@ export default class NotificationServicesController extends BaseController<
     },
   };
 
-  #accounts = {
+  readonly #accounts = {
+    // Flag to ensure we only setup once
+    isNotificationAccountsSetup: false,
+
     /**
      * Used to get list of addresses from keyring (wallet addresses)
      *
@@ -493,8 +495,11 @@ export default class NotificationServicesController extends BaseController<
      *
      * @returns result from list accounts
      */
-    initialize: () => {
-      return this.#accounts.listAccounts();
+    initialize: async (): Promise<void> => {
+      if (this.#isUnlocked && !this.#accounts.isNotificationAccountsSetup) {
+        await this.#accounts.listAccounts();
+        this.#accounts.isNotificationAccountsSetup = true;
+      }
     },
 
     /**
@@ -505,7 +510,7 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         async () => {
           if (!this.state.isNotificationServicesEnabled) {
             return;
@@ -527,7 +532,7 @@ export default class NotificationServicesController extends BaseController<
     },
   };
 
-  #featureAnnouncementEnv: FeatureAnnouncementEnv;
+  readonly #featureAnnouncementEnv: FeatureAnnouncementEnv;
 
   /**
    * Creates a NotificationServicesController instance.
@@ -563,9 +568,10 @@ export default class NotificationServicesController extends BaseController<
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
 
-    this.#keyringController.setupLockedStateSubscriptions(
-      this.#pushNotifications.initializePushNotifications,
-    );
+    this.#keyringController.setupLockedStateSubscriptions(async () => {
+      await this.#accounts.initialize();
+      await this.#pushNotifications.initializePushNotifications();
+    });
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#accounts.initialize();
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -632,15 +638,6 @@ export default class NotificationServicesController extends BaseController<
     return { bearerToken, storageKey };
   }
 
-  #performEnableProfileSyncing = async () => {
-    try {
-      await this.#storage.enableProfileSyncing();
-    } catch (e) {
-      log.error('Failed to enable profile syncing', e);
-      throw new Error('Failed to enable profile syncing');
-    }
-  };
-
   #assertUserStorage(
     storage: UserStorage | null,
   ): asserts storage is UserStorage {
@@ -669,7 +666,7 @@ export default class NotificationServicesController extends BaseController<
     try {
       const userStorage: UserStorage = JSON.parse(userStorageString);
       return userStorage;
-    } catch (error) {
+    } catch {
       log.error('Unable to parse User Storage');
       return null;
     }
@@ -825,8 +822,6 @@ export default class NotificationServicesController extends BaseController<
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
-      await this.#performEnableProfileSyncing();
-
       const { bearerToken, storageKey } =
         await this.#getValidStorageKeyAndBearerToken();
 
@@ -897,6 +892,12 @@ export default class NotificationServicesController extends BaseController<
   public async enableMetamaskNotifications() {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
+
+      const isSignedIn = this.#auth.isSignedIn();
+      if (!isSignedIn) {
+        await this.#auth.signIn();
+      }
+
       await this.createOnChainTriggers();
     } catch (e) {
       log.error('Unable to enable notifications', e);
@@ -1088,6 +1089,7 @@ export default class NotificationServicesController extends BaseController<
    * **Action** - When a user views the notification list page/dropdown
    *
    * @param previewToken - the preview token to use if needed
+   * @returns A promise that resolves to the list of notifications.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
   public async fetchAndUpdateMetamaskNotifications(

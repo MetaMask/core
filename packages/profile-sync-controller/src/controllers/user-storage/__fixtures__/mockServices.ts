@@ -1,11 +1,6 @@
 import nock from 'nock';
 
 import {
-  USER_STORAGE_FEATURE_NAMES,
-  type UserStoragePathWithFeatureAndKey,
-  type UserStoragePathWithFeatureOnly,
-} from '../../../shared/storage-schema';
-import {
   getMockUserStorageGetResponse,
   getMockUserStoragePutResponse,
   getMockUserStorageAllFeatureEntriesResponse,
@@ -14,6 +9,11 @@ import {
   deleteMockUserStorageAllFeatureEntriesResponse,
   deleteMockUserStorageResponse,
 } from './mockResponses';
+import {
+  USER_STORAGE_FEATURE_NAMES,
+  type UserStoragePathWithFeatureAndKey,
+  type UserStoragePathWithFeatureOnly,
+} from '../../../shared/storage-schema';
 
 type MockReply = {
   status: nock.StatusCode;

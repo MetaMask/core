@@ -1,5 +1,5 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import {
   NFT_API_BASE_URL,
   ChainId,
@@ -1650,7 +1650,7 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
+  const messenger = new Messenger<AllowedActions, AllowedEvents>();
 
   messenger.registerActionHandler(
     'NetworkController:getState',
@@ -1681,22 +1681,20 @@ async function withController<ReturnValue>(
     }),
   );
 
-  const controllerMessenger = messenger.getRestricted({
-    name: controllerName,
-    allowedActions: [
-      'NetworkController:getState',
-      'NetworkController:getNetworkClientById',
-      'PreferencesController:getState',
-      'AccountsController:getSelectedAccount',
-    ],
-    allowedEvents: [
-      'NetworkController:stateChange',
-      'PreferencesController:stateChange',
-    ],
-  });
-
   const controller = new NftDetectionController({
-    messenger: controllerMessenger,
+    messenger: messenger.getRestricted({
+      name: controllerName,
+      allowedActions: [
+        'NetworkController:getState',
+        'NetworkController:getNetworkClientById',
+        'PreferencesController:getState',
+        'AccountsController:getSelectedAccount',
+      ],
+      allowedEvents: [
+        'NetworkController:stateChange',
+        'PreferencesController:stateChange',
+      ],
+    }),
     disabled: true,
     addNft: jest.fn(),
     getNftState: getDefaultNftControllerState,

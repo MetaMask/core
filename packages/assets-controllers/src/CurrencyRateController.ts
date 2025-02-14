@@ -1,5 +1,5 @@
 import type {
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -51,7 +51,7 @@ export type CurrencyRateControllerActions = GetCurrencyRateState;
 
 type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
-type CurrencyRateMessenger = RestrictedControllerMessenger<
+type CurrencyRateMessenger = RestrictedMessenger<
   typeof name,
   CurrencyRateControllerActions | AllowedActions,
   CurrencyRateControllerEvents,

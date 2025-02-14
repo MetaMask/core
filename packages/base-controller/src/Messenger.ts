@@ -407,7 +407,7 @@ export class Messenger<
    * namespace. Ownership allows registering actions and publishing events, as well as
    * unregistering actions and clearing event subscriptions.
    *
-   * @param options - Controller messenger options.
+   * @param options - Messenger options.
    * @param options.name - The name of the thing this messenger will be handed to (e.g. the
    * controller name). This grants "ownership" of actions and events under this namespace to the
    * restricted messenger returned.
@@ -458,5 +458,3 @@ export class Messenger<
     });
   }
 }
-
-export { Messenger as ControllerMessenger };

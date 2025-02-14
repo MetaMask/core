@@ -1,3 +1,4 @@
+import * as Utils from './utils';
 import {
   MOCK_USER_STORAGE_ACCOUNT,
   MOCK_USER_STORAGE_CHAIN,
@@ -10,7 +11,6 @@ import {
   TRIGGER_TYPES,
 } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
-import * as Utils from './utils';
 
 describe('metamask-notifications/utils - initializeUserStorage()', () => {
   it('creates a new user storage object based on the accounts provided', () => {

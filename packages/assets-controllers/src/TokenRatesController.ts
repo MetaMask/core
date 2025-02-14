@@ -6,7 +6,7 @@ import type {
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import {
   safelyExecute,
@@ -159,7 +159,7 @@ export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
 /**
  * The messenger of the {@link TokenRatesController} for communication.
  */
-export type TokenRatesControllerMessenger = RestrictedControllerMessenger<
+export type TokenRatesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   TokenRatesControllerActions | AllowedActions,
   TokenRatesControllerEvents | AllowedEvents,
@@ -238,7 +238,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #pollState = PollState.Inactive;
 
-  #tokenPricesService: AbstractTokenPricesService;
+  readonly #tokenPricesService: AbstractTokenPricesService;
 
   #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
 
@@ -263,7 +263,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * @param options.interval - The polling interval in ms
    * @param options.disabled - Boolean to track if network requests are blocked
    * @param options.tokenPricesService - An object in charge of retrieving token price
-   * @param options.messenger - The controller messenger instance for communication
+   * @param options.messenger - The messenger instance for communication
    * @param options.state - Initial state to set on this controller
    */
   constructor({

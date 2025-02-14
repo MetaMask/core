@@ -1,40 +1,47 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+import {
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  type ExtractEventPayload,
+  type RestrictedMessenger,
+  BaseController,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
-import { SnapKeyring } from '@metamask/eth-snap-keyring';
+import {
+  type SnapKeyringAccountAssetListUpdatedEvent,
+  type SnapKeyringAccountBalancesUpdatedEvent,
+  type SnapKeyringAccountTransactionsUpdatedEvent,
+  SnapKeyring,
+} from '@metamask/eth-snap-keyring';
 import {
   EthAccountType,
   EthMethod,
-  EthScopes,
+  EthScope,
   isEvmAccountType,
 } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
-import type {
-  KeyringControllerState,
-  KeyringControllerGetKeyringForAccountAction,
-  KeyringControllerGetKeyringsByTypeAction,
-  KeyringControllerGetAccountsAction,
-  KeyringControllerStateChangeEvent,
+import {
+  type KeyringControllerState,
+  type KeyringControllerGetKeyringForAccountAction,
+  type KeyringControllerGetKeyringsByTypeAction,
+  type KeyringControllerGetAccountsAction,
+  type KeyringControllerStateChangeEvent,
+  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
   SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import type { CaipChainId } from '@metamask/utils';
 import {
   type Keyring,
   type Json,
+  type CaipChainId,
   isCaipChainId,
   parseCaipChainId,
 } from '@metamask/utils';
-import type { Draft } from 'immer';
 
+import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
@@ -161,7 +168,28 @@ export type AccountsControllerAccountRenamedEvent = {
   payload: [InternalAccount];
 };
 
-export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
+export type AccountsControllerAccountBalancesUpdatesEvent = {
+  type: `${typeof controllerName}:accountBalancesUpdated`;
+  payload: SnapKeyringAccountBalancesUpdatedEvent['payload'];
+};
+
+export type AccountsControllerAccountTransactionsUpdatedEvent = {
+  type: `${typeof controllerName}:accountTransactionsUpdated`;
+  payload: SnapKeyringAccountTransactionsUpdatedEvent['payload'];
+};
+
+export type AccountsControllerAccountAssetListUpdatedEvent = {
+  type: `${typeof controllerName}:accountAssetListUpdated`;
+  payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
+};
+
+export type AllowedEvents =
+  | SnapStateChange
+  | KeyringControllerStateChangeEvent
+  | SnapKeyringAccountAssetListUpdatedEvent
+  | SnapKeyringAccountBalancesUpdatedEvent
+  | SnapKeyringAccountTransactionsUpdatedEvent
+  | MultichainNetworkControllerNetworkDidChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
@@ -169,9 +197,12 @@ export type AccountsControllerEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountRenamedEvent;
+  | AccountsControllerAccountRenamedEvent
+  | AccountsControllerAccountBalancesUpdatesEvent
+  | AccountsControllerAccountTransactionsUpdatedEvent
+  | AccountsControllerAccountAssetListUpdatedEvent;
 
-export type AccountsControllerMessenger = RestrictedControllerMessenger<
+export type AccountsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AccountsControllerActions | AllowedActions,
   AccountsControllerEvents | AllowedEvents,
@@ -204,7 +235,7 @@ export const EMPTY_ACCOUNT = {
   options: {},
   methods: [],
   type: EthAccountType.Eoa,
-  scopes: [EthScopes.Namespace],
+  scopes: [EthScope.Eoa],
   metadata: {
     name: '',
     keyring: {
@@ -251,16 +282,7 @@ export class AccountsController extends BaseController<
       },
     });
 
-    this.messagingSystem.subscribe(
-      'SnapController:stateChange',
-      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
-    );
-
-    this.messagingSystem.subscribe(
-      'KeyringController:stateChange',
-      (keyringState) => this.#handleOnKeyringStateChange(keyringState),
-    );
-
+    this.#subscribeToMessageEvents();
     this.#registerMessageHandlers();
   }
 
@@ -386,6 +408,7 @@ export class AccountsController extends BaseController<
   /**
    * Returns the account with the specified address.
    * ! This method will only return the first account that matches the address
+   *
    * @param address - The address of the account to retrieve.
    * @returns The account with the specified address, or undefined if not found.
    */
@@ -403,7 +426,7 @@ export class AccountsController extends BaseController<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccountExpect(accountId);
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
         Date.now();
       currentState.internalAccounts.selectedAccount = account.id;
@@ -451,7 +474,7 @@ export class AccountsController extends BaseController<
       throw new Error('Account name already exists');
     }
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       const internalAccount = {
         ...account,
         metadata: { ...account.metadata, ...metadata },
@@ -487,42 +510,47 @@ export class AccountsController extends BaseController<
     const accounts: Record<string, InternalAccount> = [
       ...normalAccounts,
       ...snapAccounts,
-    ].reduce((internalAccountMap, internalAccount) => {
-      const keyringTypeName = keyringTypeToName(
-        internalAccount.metadata.keyring.type,
-      );
-      const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
-      if (keyringAccountIndex) {
-        keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
-      } else {
-        keyringTypes.set(keyringTypeName, 1);
-      }
+    ].reduce(
+      (internalAccountMap, internalAccount) => {
+        const keyringTypeName = keyringTypeToName(
+          internalAccount.metadata.keyring.type,
+        );
+        const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
+        if (keyringAccountIndex) {
+          keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
+        } else {
+          keyringTypes.set(keyringTypeName, 1);
+        }
 
-      const existingAccount = previousAccounts[internalAccount.id];
+        const existingAccount = previousAccounts[internalAccount.id];
 
-      internalAccountMap[internalAccount.id] = {
-        ...internalAccount,
+        internalAccountMap[internalAccount.id] = {
+          ...internalAccount,
 
-        metadata: {
-          ...internalAccount.metadata,
-          name:
-            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
-            `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          importTime:
-            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
-            Date.now(),
-          lastSelected:
-            this.#populateExistingMetadata(
-              existingAccount?.id,
-              'lastSelected',
-            ) ?? 0,
-        },
-      };
+          metadata: {
+            ...internalAccount.metadata,
+            name:
+              this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+              `${keyringTypeName} ${keyringAccountIndex + 1}`,
+            importTime:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'importTime',
+              ) ?? Date.now(),
+            lastSelected:
+              this.#populateExistingMetadata(
+                existingAccount?.id,
+                'lastSelected',
+              ) ?? 0,
+          },
+        };
 
-      return internalAccountMap;
-    }, {} as Record<string, InternalAccount>);
+        return internalAccountMap;
+      },
+      {} as Record<string, InternalAccount>,
+    );
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       currentState.internalAccounts.accounts = accounts;
 
       if (
@@ -556,7 +584,7 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState: Draft<AccountsControllerState>) => {
+      this.update((currentState) => {
         currentState.internalAccounts = backup.internalAccounts;
       });
     }
@@ -564,6 +592,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Generates an internal account for a non-Snap account.
+   *
    * @param address - The address of the account.
    * @param type - The type of the account.
    * @returns The generated internal account.
@@ -584,7 +613,7 @@ export class AccountsController extends BaseController<
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ],
-      scopes: [EthScopes.Namespace],
+      scopes: [EthScope.Eoa],
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
@@ -659,7 +688,7 @@ export class AccountsController extends BaseController<
           EthMethod.SignTypedDataV3,
           EthMethod.SignTypedDataV4,
         ],
-        scopes: [EthScopes.Namespace],
+        scopes: [EthScope.Eoa],
         type: EthAccountType.Eoa,
         metadata: {
           name: this.#populateExistingMetadata(id, 'name') ?? '',
@@ -675,6 +704,23 @@ export class AccountsController extends BaseController<
     }
 
     return internalAccounts;
+  }
+
+  /**
+   * Re-publish an account event.
+   *
+   * @param event - The event type. This is a unique identifier for this event.
+   * @param payload - The event payload. The type of the parameters for each event handler must
+   * match the type of this payload.
+   * @template EventType - A Snap keyring event type.
+   */
+  #handleOnSnapKeyringAccountEvent<
+    EventType extends AccountsControllerEvents['type'],
+  >(
+    event: EventType,
+    ...payload: ExtractEventPayload<AccountsControllerEvents, EventType>
+  ): void {
+    this.messagingSystem.publish(event, ...payload);
   }
 
   /**
@@ -786,7 +832,7 @@ export class AccountsController extends BaseController<
         }
       }
 
-      this.update((currentState: Draft<AccountsControllerState>) => {
+      this.update((currentState) => {
         if (deletedAccounts.length > 0) {
           for (const account of deletedAccounts) {
             currentState.internalAccounts.accounts = this.#handleAccountRemoved(
@@ -848,7 +894,7 @@ export class AccountsController extends BaseController<
       (account) => account.metadata.snap,
     );
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
+    this.update((currentState) => {
       accounts.forEach((account) => {
         const currentAccount =
           currentState.internalAccounts.accounts[account.id];
@@ -866,6 +912,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Returns the list of accounts for a given keyring type.
+   *
    * @param keyringType - The type of keyring.
    * @param accounts - Accounts to filter by keyring type.
    * @returns The list of accounts associcated with this keyring type.
@@ -912,6 +959,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Returns the next account number for a given keyring type.
+   *
    * @param keyringType - The type of keyring.
    * @param accounts - Existing accounts to check for the next available account number.
    * @returns An object containing the account prefix and index to use.
@@ -949,8 +997,6 @@ export class AccountsController extends BaseController<
 
     const index = Math.max(
       keyringAccounts.length + 1,
-      // ESLint is confused; this is a number.
-      // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       lastDefaultIndexUsedForKeyringType + 1,
     );
 
@@ -959,7 +1005,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Checks if an account is compatible with a given chain namespace.
-   * @private
+   *
    * @param account - The account to check compatibility for.
    * @param chainId - The CAIP2 to check compatibility with.
    * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
@@ -988,6 +1034,7 @@ export class AccountsController extends BaseController<
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
+   *
    * @param accountsState - AccountsController accounts state that is to be mutated.
    * @param account - The address and keyring type object of the new account.
    * @returns The updated AccountsController accounts state.
@@ -1060,6 +1107,7 @@ export class AccountsController extends BaseController<
 
   /**
    * Handles the removal of an account from the internal accounts list.
+   *
    * @param accountsState - AccountsController accounts state that is to be mutated.
    * @param accountId - The ID of the account to be removed.
    * @returns The updated AccountsController state.
@@ -1079,14 +1127,44 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Handles the change in multichain network by updating the selected account.
+   *
+   * @param id - The EVM client ID or non-EVM chain ID that changed.
+   */
+  #handleOnMultichainNetworkDidChange(id: NetworkClientId | CaipChainId) {
+    let accountId: string;
+
+    // We only support non-EVM Caip chain IDs at the moment. Ex Solana and Bitcoin
+    // MultichainNetworkController will handle throwing an error if the Caip chain ID is not supported
+    if (isCaipChainId(id)) {
+      // Update selected account to non evm account
+      const lastSelectedNonEvmAccount = this.getSelectedMultichainAccount(id);
+      // @ts-expect-error - This should never be undefined, otherwise it's a bug that should be handled
+      accountId = lastSelectedNonEvmAccount.id;
+    } else {
+      // Update selected account to evm account
+      const lastSelectedEvmAccount = this.getSelectedAccount();
+      accountId = lastSelectedEvmAccount.id;
+    }
+
+    this.update((currentState) => {
+      currentState.internalAccounts.accounts[accountId].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = accountId;
+    });
+
+    // DO NOT publish AccountsController:setSelectedAccount to prevent circular listener loops
+  }
+
+  /**
    * Retrieves the value of a specific metadata key for an existing account.
+   *
    * @param accountId - The ID of the account.
    * @param metadataKey - The key of the metadata to retrieve.
    * @param account - The account object to retrieve the metadata key from.
    * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
     accountId: string,
     metadataKey: T,
@@ -1097,8 +1175,55 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Subscribes to message events.
+   */
+  #subscribeToMessageEvents() {
+    this.messagingSystem.subscribe(
+      'SnapController:stateChange',
+      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
+    );
+
+    this.messagingSystem.subscribe(
+      'KeyringController:stateChange',
+      (keyringState) => this.#handleOnKeyringStateChange(keyringState),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountAssetListUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountAssetListUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountBalancesUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountBalancesUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    this.messagingSystem.subscribe(
+      'SnapKeyring:accountTransactionsUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountTransactionsUpdated',
+          snapAccountEvent,
+        ),
+    );
+
+    // Handle account change when multichain network is changed
+    this.messagingSystem.subscribe(
+      'MultichainNetworkController:networkDidChange',
+      (id) => this.#handleOnMultichainNetworkDidChange(id),
+    );
+  }
+
+  /**
    * Registers message handlers for the AccountsController.
-   * @private
    */
   #registerMessageHandlers() {
     this.messagingSystem.registerActionHandler(
