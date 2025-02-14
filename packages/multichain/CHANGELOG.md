@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Fix invalid type import path in `@metamask/multichain` ([#5313](https://github.com/MetaMask/core/pull/5313))
-
 ## [2.1.1]
 
 ### Changed
