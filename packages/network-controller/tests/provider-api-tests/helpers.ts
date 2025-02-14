@@ -79,8 +79,7 @@ type Response = {
   result?: any;
   httpStatus?: number;
 };
-type ResponseBody = { body: JSONRPCResponse };
-type BodyOrResponse = ResponseBody | Response;
+type BodyOrResponse = { body: JSONRPCResponse | string } | Response;
 type CurriedMockRpcCallOptions = {
   request: Request;
   // The response data.
@@ -143,7 +142,7 @@ function mockRpcCall({
   // for consistency with makeRpcCall, assume that the `body` contains it
   const { method, params = [], ...rest } = request;
   let httpStatus = 200;
-  let completeResponse: JSONRPCResponse = { id: 2, jsonrpc: '2.0' };
+  let completeResponse: JSONRPCResponse | string = { id: 2, jsonrpc: '2.0' };
   if (response !== undefined) {
     if ('body' in response) {
       completeResponse = response.body;
@@ -195,6 +194,10 @@ function mockRpcCall({
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return nockRequest.reply(httpStatus, (_, requestBody: any) => {
+      if (typeof completeResponse === 'string') {
+        return completeResponse;
+      }
+
       if (response !== undefined && !('body' in response)) {
         if (response.id === undefined) {
           completeResponse.id = requestBody.id;
@@ -485,17 +488,25 @@ export async function withNetworkClient(
   const clientUnderTest =
     providerType === 'infura'
       ? createNetworkClient({
-          network: infuraNetwork,
-          infuraProjectId: MOCK_INFURA_PROJECT_ID,
-          type: NetworkClientType.Infura,
-          chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
-          ticker: BUILT_IN_NETWORKS[infuraNetwork].ticker,
+          configuration: {
+            network: infuraNetwork,
+            infuraProjectId: MOCK_INFURA_PROJECT_ID,
+            type: NetworkClientType.Infura,
+            chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
+            ticker: BUILT_IN_NETWORKS[infuraNetwork].ticker,
+          },
+          fetch,
+          btoa,
         })
       : createNetworkClient({
-          chainId: customChainId,
-          rpcUrl: customRpcUrl,
-          type: NetworkClientType.Custom,
-          ticker: customTicker,
+          configuration: {
+            chainId: customChainId,
+            rpcUrl: customRpcUrl,
+            type: NetworkClientType.Custom,
+            ticker: customTicker,
+          },
+          fetch,
+          btoa,
         });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
