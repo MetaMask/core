@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/multichain-network-controller",
+  "name": "@metamask/bridge-controller",
   "version": "0.0.0",
-  "description": "Multichain network controller",
+  "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/multichain-network-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/bridge-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,30 +37,35 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain-network-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain-network-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/bridge-controller",
+    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "publish:preview": "yarn npm publish --tag preview"
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
-    "@metamask/keyring-api": "^17.0.0",
-    "@metamask/utils": "^11.2.0",
-    "@solana/addresses": "^2.0.0"
+    "@metamask/controller-utils": "^11.5.0",
+    "@metamask/metamask-eth-abis": "^3.1.1",
+    "@metamask/polling-controller": "^12.0.3",
+    "@metamask/utils": "^11.1.0",
+    "ethers": "^6.12.0"
   },
   "devDependencies": {
+    "@metamask/accounts-controller": "^23.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.1.0",
+    "@metamask/eth-json-rpc-provider": "^4.1.8",
+    "@metamask/json-rpc-engine": "^10.0.3",
     "@metamask/network-controller": "^22.2.1",
+    "@metamask/transaction-controller": "^45.1.0",
     "@types/jest": "^27.4.1",
-    "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
-    "immer": "^9.0.6",
     "jest": "^27.5.1",
+    "jest-environment-jsdom": "^27.5.1",
+    "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
@@ -69,7 +74,8 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^23.0.0",
-    "@metamask/network-controller": "^22.0.0"
+    "@metamask/network-controller": "^22.0.0",
+    "@metamask/transaction-controller": "^45.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
