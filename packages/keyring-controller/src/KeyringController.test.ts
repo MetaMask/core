@@ -106,7 +106,7 @@ describe('KeyringController', () => {
     it('allows overwriting the built-in Simple keyring builder', async () => {
       const mockSimpleKeyringBuilder =
         // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
-        // @ts-expect-error
+        // @ts-expect-error keyring types are mismatched
         buildKeyringBuilderWithSpy(SimpleKeyring);
       await withController(
         { keyringBuilders: [mockSimpleKeyringBuilder] },
@@ -120,7 +120,7 @@ describe('KeyringController', () => {
 
     it('allows overwriting the built-in HD keyring builder', async () => {
       // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
-      // @ts-expect-error
+      // @ts-expect-error keyring types are mismatched
       const mockHdKeyringBuilder = buildKeyringBuilderWithSpy(HDKeyring);
       await withController(
         { keyringBuilders: [mockHdKeyringBuilder] },
@@ -566,7 +566,7 @@ describe('KeyringController', () => {
             jest
               .spyOn(HDKeyring.prototype, 'getAccounts')
               // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
-              // @ts-expect-error
+              // @ts-expect-error keyring types are mismatched
               .mockResolvedValue([]);
             await withController(
               { cacheEncryptionKey, skipVaultCreation: true },
