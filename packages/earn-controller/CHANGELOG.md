@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- feat: EarnController add resetCache arg to stakingApiService.getPooledStakes() ([#5334](https://github.com/MetaMask/core/pull/5334))
+- Add resetCache arg to `refreshPooledStakingData` and `refreshPooledStakes` in EarnController ([#5334](https://github.com/MetaMask/core/pull/5334))
 
 ## [0.3.0]
 
