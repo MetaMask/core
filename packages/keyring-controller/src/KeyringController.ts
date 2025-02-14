@@ -430,7 +430,10 @@ export function keyringBuilderFactory(KeyringConstructor: KeyringClass<Json>) {
 }
 
 const defaultKeyringBuilders = [
+  // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
+  // @ts-expect-error
   keyringBuilderFactory(SimpleKeyring),
+  // @ts-expect-error
   keyringBuilderFactory(HDKeyring),
 ];
 
