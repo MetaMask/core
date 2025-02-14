@@ -168,6 +168,8 @@ let mockedStakingApiService: Partial<StakingApiService>;
 
 describe('EarnController', () => {
   beforeEach(() => {
+    jest.clearAllMocks();
+
     // Apply StakeSdk mock before initializing EarnController
     (StakeSdk.create as jest.Mock).mockImplementation(() => ({
       pooledStakingContract: {
@@ -292,6 +294,32 @@ describe('EarnController', () => {
       expect(controller.state.lastUpdated).toBeDefined();
     });
 
+    it('does not invalidate cache when refreshing state', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakingData();
+
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        // First call occurs during setupController()
+        2,
+        ['0x1234'],
+        1,
+        false,
+      );
+    });
+
+    it('invalidates cache when refreshing state', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakingData(true);
+
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        // First call occurs during setupController()
+        2,
+        ['0x1234'],
+        1,
+        true,
+      );
+    });
+
     it('handles API errors gracefully', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       mockedStakingApiService = {
@@ -335,6 +363,47 @@ describe('EarnController', () => {
         mockVaultData,
       );
       expect(controller.state.pooled_staking.isEligible).toBe(false);
+    });
+  });
+
+  describe('refreshPooledStakes', () => {
+    it('fetches without resetting cache when resetCache is false', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes(false);
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        ['0x1234'],
+        1,
+        false,
+      );
+    });
+
+    it('fetches without resetting cache when resetCache is undefined', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes();
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        ['0x1234'],
+        1,
+        false,
+      );
+    });
+
+    it('fetches while resetting cache', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes(true);
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        ['0x1234'],
+        1,
+        true,
+      );
     });
   });
 
