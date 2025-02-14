@@ -594,7 +594,12 @@ describe('MultichainTransactionsController', () => {
       },
     });
 
-    const initialStateSnapshot = { ...controller.state.nonEvmTransactions };
+    const initialStateSnapshot = {
+      [TEST_ACCOUNT_ID]: {
+        ...controller.state.nonEvmTransactions[TEST_ACCOUNT_ID],
+        lastUpdated: expect.any(Number),
+      },
+    };
 
     messenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: undefined,
