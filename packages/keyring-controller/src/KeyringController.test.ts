@@ -1,4 +1,5 @@
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
+import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
@@ -1867,10 +1868,9 @@ describe('KeyringController', () => {
       it('should sign transaction', async () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0];
-          const txParams = {
+          const txParams: TypedTxData = {
             chainId: 5,
             data: '0x1',
-            from: account,
             gasLimit: '0x5108',
             gasPrice: '0x5108',
             to: '0x51253087e6f8358b5f10c0a94315d69db3357859',
@@ -1891,13 +1891,11 @@ describe('KeyringController', () => {
       });
 
       it('should not sign transaction if from account is not provided', async () => {
-        await withController(async ({ controller, initialState }) => {
+        await withController(async ({ controller }) => {
           await expect(async () => {
-            const account = initialState.keyrings[0].accounts[0];
-            const txParams = {
+            const txParams: TypedTxData = {
               chainId: 5,
               data: '0x1',
-              from: account,
               gasLimit: '0x5108',
               gasPrice: '0x5108',
               to: '0x51253087e6f8358b5f10c0a94315d69db3357859',
@@ -3877,7 +3875,7 @@ describe('KeyringController', () => {
           }
         });
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         messenger.subscribe('KeyringController:stateChange', listener);
 
         await controller.submitPassword(password);
