@@ -1,10 +1,10 @@
-import { toUtf8 } from '@ethereumjs/util';
+import { bytesToUtf8 } from '@ethereumjs/util';
 import { Contract } from '@ethersproject/contracts';
 import type { Web3Provider } from '@ethersproject/providers';
 import { decodeSingle } from '@metamask/abi-utils';
 import { ERC20 } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { assertIsStrictHexString } from '@metamask/utils';
+import { assertIsStrictHexString, hexToBytes } from '@metamask/utils';
 import type BN from 'bn.js';
 
 import { ethersBigNumberToBN } from '../assetsUtil';
@@ -98,7 +98,7 @@ export class ERC20Standard {
 
     // Parse as bytes - treat empty string as failure
     try {
-      const utf8 = toUtf8(result);
+      const utf8 = bytesToUtf8(hexToBytes(result));
       if (utf8.length > 0) {
         return utf8;
       }
