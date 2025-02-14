@@ -1,13 +1,13 @@
 import type { Quote } from '@metamask/bridge-controller';
 import { getBridgeApiBaseUrl } from '@metamask/bridge-controller';
 
+import { validateResponse, validators } from './validators';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
   StatusRequestDto,
   FetchFunction,
-} from './types';
-import { validateResponse, validators } from './validators';
+} from '../types';
 
 export const getClientIdHeader = (clientId: string) => ({
   'X-Client-Id': clientId,

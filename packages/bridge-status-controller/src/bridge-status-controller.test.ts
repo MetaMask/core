@@ -14,7 +14,7 @@ import type {
   StartPollingForBridgeTxStatusArgsSerialized,
   BridgeHistoryItem,
 } from './types';
-import * as bridgeStatusUtils from './utils';
+import * as bridgeStatusUtils from './utils/bridge-status';
 import { flushPromises } from '../../../tests/helpers';
 
 const EMPTY_INIT_STATE = {

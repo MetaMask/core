@@ -1,11 +1,11 @@
 import { BridgeClientId, FeeType } from '@metamask/bridge-controller';
 
-import type { StatusRequestWithSrcTxHash, FetchFunction } from './types';
 import {
   fetchBridgeTxStatus,
   BRIDGE_STATUS_BASE_URL,
   getStatusRequestDto,
-} from './utils';
+} from './bridge-status';
+import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
 
 describe('utils', () => {
   const mockStatusRequest: StatusRequestWithSrcTxHash = {

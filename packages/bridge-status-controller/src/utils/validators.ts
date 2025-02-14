@@ -1,8 +1,8 @@
 import { isValidHexAddress } from '@metamask/controller-utils';
 
-import type { DestChainStatus, SrcChainStatus, Asset } from './types';
-import { BridgeId, StatusTypes } from './types';
-import { BRIDGE_STATUS_BASE_URL } from './utils';
+import { BRIDGE_STATUS_BASE_URL } from './bridge-status';
+import type { DestChainStatus, SrcChainStatus, Asset } from '../types';
+import { BridgeId, StatusTypes } from '../types';
 
 type Validator<ExpectedResponse, DataToValidate> = {
   property: keyof ExpectedResponse | string;

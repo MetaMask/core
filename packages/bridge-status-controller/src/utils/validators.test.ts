@@ -1,5 +1,5 @@
-import type { StatusResponse } from './types';
 import { validateResponse, validators } from './validators';
+import type { StatusResponse } from '../types';
 
 const BridgeTxStatusResponses = {
   STATUS_PENDING_VALID: {

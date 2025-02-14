@@ -15,7 +15,10 @@ import type {
   BridgeStatusState,
   FetchFunction,
 } from './types';
-import { fetchBridgeTxStatus, getStatusRequestWithSrcTxHash } from './utils';
+import {
+  fetchBridgeTxStatus,
+  getStatusRequestWithSrcTxHash,
+} from './utils/bridge-status';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
