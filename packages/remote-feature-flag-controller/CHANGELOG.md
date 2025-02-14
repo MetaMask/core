@@ -11,9 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- Add line break after export / import
-- Move generateDeterministicRandomNumber export to index file
-- Move method export towards top of file
 - Export generateDeterministicRandomNumber for use within mobile
 
 ## [1.4.0]
