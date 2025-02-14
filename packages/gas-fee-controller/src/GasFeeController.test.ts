@@ -14,6 +14,7 @@ import type {
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import nock from 'nock';
 import * as sinon from 'sinon';
 
 import {
@@ -76,11 +77,27 @@ const setupNetworkController = async ({
     allowedEvents: [],
   });
 
+  const infuraProjectId = '123';
+
   const networkController = new NetworkController({
     messenger: restrictedMessenger,
     state,
-    infuraProjectId: '123',
+    infuraProjectId,
   });
+
+  nock('https://mainnet.infura.io')
+    .post(`/v3/${infuraProjectId}`, {
+      id: /^\d+$/u,
+      jsonrpc: '2.0',
+      method: 'eth_blockNumber',
+      params: [],
+    })
+    .reply(200, {
+      id: 1,
+      jsonrpc: '2.0',
+      result: '0x1',
+    })
+    .persist();
 
   if (initializeProvider) {
     // Call this without awaiting to simulate what the extension or mobile app
@@ -291,7 +308,7 @@ describe('GasFeeController', () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     gasFeeController.destroy();
     const { blockTracker } = networkController.getProviderAndBlockTracker();
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
