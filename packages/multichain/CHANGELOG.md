@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [3.0.0]
-
-### Changed
-
-- **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^22.2.1` to `^22.2.2` ([#5318](https://github.com/MetaMask/core/pull/5318))
-
 ## [2.1.1]
 
 ### Changed
@@ -80,8 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@3.0.0...HEAD
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.1...@metamask/multichain@3.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.1...HEAD
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.0...@metamask/multichain@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.0.0...@metamask/multichain@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.2...@metamask/multichain@2.0.0
