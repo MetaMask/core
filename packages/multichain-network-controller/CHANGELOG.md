@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- fix: Add missing state change event to `MultichainNetworkController` ([#5331](https://github.com/MetaMask/core.git/pull/5331))
+- Add `MultichainNetworkController:stateChange` to list of subscribable `MultichainNetworkController` messenger events ([#5331](https://github.com/MetaMask/core.git/pull/5331))
 
 ## [0.1.0]
 
