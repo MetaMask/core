@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 
 import {
   MOCK_ACCESS_TOKEN,
@@ -193,6 +193,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     const { messenger } = createMockAuthenticationMessenger();
     mockAuthenticationFlowEndpoints();
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.accessToken = 'ACCESS_TOKEN_1';
 
@@ -222,6 +223,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
 
     // Invalid/old state
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.accessToken = 'ACCESS_TOKEN_1';
 
@@ -280,6 +282,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     const { messenger } = createMockAuthenticationMessenger();
     mockAuthenticationFlowEndpoints();
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.profile.identifierId = 'ID_1';
 
@@ -310,6 +313,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
 
     // Invalid/old state
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.profile.identifierId = 'ID_1';
 
@@ -339,10 +343,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
  * @returns Auth Messenger
  */
 function createAuthenticationMessenger() {
-  const messenger = new ControllerMessenger<
-    Actions | AllowedActions,
-    AllowedEvents
-  >();
+  const messenger = new Messenger<Actions | AllowedActions, AllowedEvents>();
   return messenger.getRestricted({
     name: 'AuthenticationController',
     allowedActions: [

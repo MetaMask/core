@@ -1,7 +1,7 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -117,7 +117,7 @@ export type AllowedEvents =
   | KeyringControllerUnlockEvent;
 
 // Messenger
-export type AuthenticationControllerMessenger = RestrictedControllerMessenger<
+export type AuthenticationControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   Actions | AllowedActions,
   Events | AllowedEvents,
@@ -134,11 +134,11 @@ export default class AuthenticationController extends BaseController<
   AuthenticationControllerState,
   AuthenticationControllerMessenger
 > {
-  #metametrics: MetaMetricsAuth;
+  readonly #metametrics: MetaMetricsAuth;
 
   #isUnlocked = false;
 
-  #keyringController = {
+  readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',

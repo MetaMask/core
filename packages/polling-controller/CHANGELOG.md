@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.3]
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Removed
+
+- **BREAKING:** Remove `BlockTrackerPollingControllerV1`, `StaticIntervalPollingControllerV1` ([#5018](https://github.com/MetaMask/core/pull/5018/))
 
 ## [12.0.2]
 
@@ -225,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.3...HEAD
+[12.0.3]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.2...@metamask/polling-controller@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.1...@metamask/polling-controller@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.0...@metamask/polling-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@11.0.0...@metamask/polling-controller@12.0.0

@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -24,7 +24,7 @@ const setupController = ({
   config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
   tokens?: Partial<TokensControllerState>;
 } = {}) => {
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     TokenBalancesControllerActions | AllowedActions,
     TokenBalancesControllerEvents | AllowedEvents
   >();

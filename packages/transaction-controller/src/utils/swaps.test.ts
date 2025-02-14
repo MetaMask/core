@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { query } from '@metamask/controller-utils';
 
 import { CHAIN_IDS } from '../constants';
@@ -45,7 +45,7 @@ describe('updateSwapsTransaction', () => {
         destinationTokenSymbol: 'DAI',
       },
     };
-    messenger = new ControllerMessenger<
+    messenger = new Messenger<
       TransactionControllerActions | AllowedActions,
       TransactionControllerEvents | AllowedEvents
     >().getRestricted({

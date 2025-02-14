@@ -4,7 +4,7 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   ActionConstraint,
-  RestrictedControllerMessenger,
+  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
@@ -201,7 +201,7 @@ export type AllowedEvents =
 /**
  * The messenger of the {@link AssetsContractController}.
  */
-export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
+export type AssetsContractControllerMessenger = RestrictedMessenger<
   typeof name,
   AssetsContractControllerActions | AllowedActions,
   AssetsContractControllerEvents | AllowedEvents,
@@ -229,7 +229,7 @@ export class AssetsContractController {
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
-   * @param options.messenger - The controller messenger.
+   * @param options.messenger - The messenger.
    * @param options.chainId - The chain ID of the current network.
    */
   constructor({
@@ -328,8 +328,8 @@ export class AssetsContractController {
           `NetworkController:getNetworkClientById`,
           networkClientId,
         ).provider
-      : this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
-          ?.provider ?? this.#provider;
+      : (this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
+          ?.provider ?? this.#provider);
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);

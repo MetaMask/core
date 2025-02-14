@@ -1,4 +1,4 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { Messenger } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
@@ -9,6 +9,12 @@ import {
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
 
+import type {
+  AccountTrackerControllerMessenger,
+  AllowedActions,
+  AllowedEvents,
+} from './AccountTrackerController';
+import { AccountTrackerController } from './AccountTrackerController';
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
@@ -19,12 +25,6 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import type {
-  AccountTrackerControllerMessenger,
-  AllowedActions,
-  AllowedEvents,
-} from './AccountTrackerController';
-import { AccountTrackerController } from './AccountTrackerController';
 
 jest.mock('@metamask/controller-utils', () => {
   return {
@@ -95,12 +95,6 @@ describe('AccountTrackerController', () => {
   });
 
   describe('refresh', () => {
-    beforeEach(() => {
-      jest
-        .spyOn(AccountTrackerController.prototype, 'poll')
-        .mockImplementationOnce(async () => Promise.resolve());
-    });
-
     describe('without networkClientId', () => {
       it('should sync addresses', async () => {
         const mockAddress1 = '0xbabe9bbeab5f83a755ac92c7a09b9ab3ff527f8c';
@@ -787,8 +781,11 @@ describe('AccountTrackerController', () => {
     });
   });
 
-  it('should call refresh every interval on legacy polling', async () => {
-    const pollSpy = jest.spyOn(AccountTrackerController.prototype, 'poll');
+  it('should call refresh every interval on polling', async () => {
+    const pollSpy = jest.spyOn(
+      AccountTrackerController.prototype,
+      '_executePoll',
+    );
     await withController(
       {
         options: { interval: 100 },
@@ -798,6 +795,11 @@ describe('AccountTrackerController', () => {
       },
       async ({ controller }) => {
         jest.spyOn(controller, 'refresh').mockResolvedValue();
+
+        await controller.startPolling({
+          networkClientId: 'networkClientId1',
+        });
+        await advanceTime({ clock, duration: 1 });
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
@@ -813,7 +815,6 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every interval for each networkClientId being polled', async () => {
-    jest.spyOn(AccountTrackerController.prototype, 'poll').mockResolvedValue();
     const networkClientId1 = 'networkClientId1';
     const networkClientId2 = 'networkClientId2';
     await withController(
@@ -867,6 +868,27 @@ describe('AccountTrackerController', () => {
       },
     );
   });
+
+  it('should not call polling twice', async () => {
+    await withController(
+      {
+        options: { interval: 100 },
+      },
+      async ({ controller }) => {
+        const refreshSpy = jest
+          .spyOn(controller, 'refresh')
+          .mockResolvedValue();
+
+        expect(refreshSpy).not.toHaveBeenCalled();
+        controller.startPolling({
+          networkClientId: 'networkClientId1',
+        });
+
+        await advanceTime({ clock, duration: 1 });
+        expect(refreshSpy).toHaveBeenCalledTimes(1);
+      },
+    );
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
@@ -911,7 +933,7 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new ControllerMessenger<
+  const messenger = new Messenger<
     ExtractAvailableAction<AccountTrackerControllerMessenger> | AllowedActions,
     ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
   >();

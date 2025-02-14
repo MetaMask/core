@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.0.0]
+
+### Added
+
+- **BREAKING:** Now requires `MultichainNetworkController:didNetworkChange` event to be registered on the messenger ([#5215](https://github.com/MetaMask/core/pull/5215))
+  - This will be used to keep accounts in sync with EVM and non-EVM network changes.
+
+### Changed
+
+- **BREAKING:** Add `@metamask/network-controller@^22.0.0` peer dependency ([#5215](https://github.com/MetaMask/core/pull/5215)), ([#5327](https://github.com/MetaMask/core/pull/5327))
+
+## [23.1.0]
+
+### Added
+
+- Add new keyring type for OneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
+
+## [23.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+## [23.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/snaps-controllers` peer dependency from `^9.7.0` to `^9.19.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
+- Bump `@metamask/eth-snap-keyring` from `^9.1.1` to `^10.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
+- Bump `@metamask/snaps-sdk` from `^6.7.0` to `^6.17.1` ([#5220](https://github.com/MetaMask/core/pull/5220)), ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/snaps-utils` from `^8.9.0` to `^8.10.0` ([#5265](https://github.com/MetaMask/core/pull/5265))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Fixed
+
+- Properly exports public members ([#5224](https://github.com/MetaMask/core/pull/5224))
+  - The new events (`AccountsController:account{AssetList,Balances,Transactions}Updated`) from the previous versions but were not exported.
+
+## [22.0.0]
+
+### Added
+
+- Add `AccountsController:account{AssetList,Balances,Transactions}Updated` events ([#5190](https://github.com/MetaMask/core/pull/5190))
+  - Those events are being sent from Account Snaps (through the Snap keyring) and are being re-published by the `AccountController`.
+
+### Changed
+
+- **BREAKING:** Now requires `SnapKeyring:account{AssetList,Balances,Transactions}Updated` events to be registered on the messenger ([#5190](https://github.com/MetaMask/core/pull/5190))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-internal-api` from `^2.0.1` to `^4.0.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/eth-snap-keyring` from `^8.1.1` to `^9.1.1` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+
 ## [21.0.2]
 
 ### Changed
@@ -402,7 +455,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.1.0...@metamask/accounts-controller@24.0.0
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.1...@metamask/accounts-controller@23.1.0
+[23.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.0...@metamask/accounts-controller@23.0.1
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@22.0.0...@metamask/accounts-controller@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.2...@metamask/accounts-controller@22.0.0
 [21.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.1...@metamask/accounts-controller@21.0.2
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@21.0.0...@metamask/accounts-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@20.0.2...@metamask/accounts-controller@21.0.0
