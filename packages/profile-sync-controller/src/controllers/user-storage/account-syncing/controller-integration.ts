@@ -173,8 +173,13 @@ export async function syncInternalAccountsWithUserStorage(
         internalAccountsList.length;
 
       // Create new accounts to match the user storage accounts list
+      await getMessenger().call(
+        'KeyringController:addNewAccounts',
+        numberOfAccountsToAdd,
+      );
+
+      // We keep the loop below for analytics purposes for now
       for (let i = 0; i < numberOfAccountsToAdd; i++) {
-        await getMessenger().call('KeyringController:addNewAccount');
         onAccountAdded?.();
       }
     }
