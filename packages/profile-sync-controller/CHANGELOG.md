@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `perform{BatchSetStorage,DeleteStorage,BatchDeleteStorage}` as messenger actions ([#5311](https://github.com/MetaMask/core/pull/5311))
+- Add optional `validateAgainstSchema` option when creating user storage entry paths ([#5326](https://github.com/MetaMask/core/pull/5326))
 
 ### Changed
 
