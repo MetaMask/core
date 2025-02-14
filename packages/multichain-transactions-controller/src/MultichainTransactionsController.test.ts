@@ -486,7 +486,7 @@ describe('MultichainTransactionsController', () => {
       controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
 
     expect(finalTransactions).toHaveLength(2);
-    expect(finalTransactions).toEqual(
+    expect(finalTransactions).toStrictEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: '123', status: 'failed' }),
         expect.objectContaining({ id: '456', status: 'submitted' }),
@@ -517,7 +517,7 @@ describe('MultichainTransactionsController', () => {
           },
         ],
         handleRequestReturnValue: {
-          // @ts-ignore
+          // @ts-expect-error we don't care about the return value here
           data: [],
           next: null,
         },
@@ -547,7 +547,7 @@ describe('MultichainTransactionsController', () => {
       mocks: {
         listMultichainAccounts: [],
         handleRequestReturnValue: {
-          // @ts-ignore
+          // @ts-expect-error we don't care about the return value here
           data: [],
           next: null,
         },
@@ -587,7 +587,7 @@ describe('MultichainTransactionsController', () => {
           },
         ],
         handleRequestReturnValue: {
-          // @ts-ignore
+          // @ts-expect-error we don't care about the return value here
           data: [],
           next: null,
         },
@@ -687,7 +687,7 @@ describe('MultichainTransactionsController', () => {
     const finalTransactions =
       controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
     expect(finalTransactions[0].timestamp).toBe(1000);
-    expect(finalTransactions[1].timestamp).toBe(null);
-    expect(finalTransactions[2].timestamp).toBe(null);
+    expect(finalTransactions[1].timestamp).toBeNull();
+    expect(finalTransactions[2].timestamp).toBeNull();
   });
 });
