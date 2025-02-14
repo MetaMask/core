@@ -2,6 +2,7 @@ import { Messenger } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import type {
   KeyringControllerGetAccountsAction,
+  KeyringControllerGetStateAction,
   KeyringControllerState,
 } from '@metamask/keyring-controller';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
@@ -39,6 +40,7 @@ import type {
   NotificationServicesPushControllerUpdateTriggerPushNotifications,
   NotificationServicesControllerMessenger,
   NotificationServicesControllerState,
+  NotificationServicesPushControllerSubscribeToNotifications,
 } from './NotificationServicesController';
 import { processFeatureAnnouncement } from './processors';
 import { processNotification } from './processors/process-notifications';
@@ -186,40 +188,152 @@ describe('metamask-notifications - constructor()', () => {
     });
   });
 
-  it('initializes push notifications', async () => {
-    const { messenger, mockEnablePushNotifications } = arrangeMocks();
+  const arrangeActInitialisePushNotifications = (
+    modifications?: (mocks: ReturnType<typeof arrangeMocks>) => void,
+  ) => {
+    // Arrange
+    const mocks = arrangeMocks();
+    modifications?.(mocks);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _controller = new NotificationServicesController({
-      messenger,
+    // Act
+    new NotificationServicesController({
+      messenger: mocks.messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { isNotificationServicesEnabled: true },
     });
+
+    return mocks;
+  };
+
+  it('initializes push notifications', async () => {
+    const { mockEnablePushNotifications } =
+      arrangeActInitialisePushNotifications();
 
     await waitFor(() => {
       expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
   });
 
-  it('fails to initialize push notifications', async () => {
-    const { messenger, mockPerformGetStorage, mockEnablePushNotifications } =
-      arrangeMocks();
+  it('does not initialise push notifications if the wallet is locked', async () => {
+    const { mockEnablePushNotifications, mockSubscribeToPushNotifications } =
+      arrangeActInitialisePushNotifications((mocks) => {
+        mocks.mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: false, // Wallet Locked
+        } as MockVar);
+      });
 
-    // test when user storage is empty
-    mockPerformGetStorage.mockResolvedValue(null);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _controller = new NotificationServicesController({
-      messenger,
-      env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { isNotificationServicesEnabled: true },
+    await waitFor(() => {
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
     });
+    await waitFor(() => {
+      expect(mockSubscribeToPushNotifications).toHaveBeenCalled();
+    });
+  });
+
+  it('should re-initialise push notifications if wallet was locked, and then is unlocked', async () => {
+    // Test Wallet Lock
+    const {
+      globalMessenger,
+      mockEnablePushNotifications,
+      mockSubscribeToPushNotifications,
+    } = arrangeActInitialisePushNotifications((mocks) => {
+      mocks.mockKeyringControllerGetState.mockReturnValue({
+        isUnlocked: false, // Wallet Locked
+      } as MockVar);
+    });
+
+    await waitFor(() => {
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(mockSubscribeToPushNotifications).toHaveBeenCalled();
+    });
+
+    // Test Wallet Unlock
+    jest.clearAllMocks();
+    await globalMessenger.publish('KeyringController:unlock');
+    await waitFor(() => {
+      expect(mockEnablePushNotifications).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(mockSubscribeToPushNotifications).not.toHaveBeenCalled();
+    });
+  });
+
+  it('bails push notification initialisation if fails to get notification storage', async () => {
+    const { mockPerformGetStorage, mockEnablePushNotifications } =
+      arrangeActInitialisePushNotifications((mocks) => {
+        // test when user storage is empty
+        mocks.mockPerformGetStorage.mockResolvedValue(null);
+      });
 
     await waitFor(() => {
       expect(mockPerformGetStorage).toHaveBeenCalled();
     });
 
-    expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+    });
+  });
+
+  const arrangeActInitialiseNotificationAccountTracking = (
+    modifications?: (mocks: ReturnType<typeof arrangeMocks>) => void,
+  ) => {
+    // Arrange
+    const mocks = arrangeMocks();
+    modifications?.(mocks);
+
+    // Act
+    new NotificationServicesController({
+      messenger: mocks.messenger,
+      env: {
+        featureAnnouncements: featureAnnouncementsEnv,
+        isPushIntegrated: false,
+      },
+      state: { isNotificationServicesEnabled: true },
+    });
+
+    return mocks;
+  };
+
+  it('should initialse accounts to track notifications on', async () => {
+    const { mockListAccounts } =
+      arrangeActInitialiseNotificationAccountTracking();
+    await waitFor(() => {
+      expect(mockListAccounts).toHaveBeenCalled();
+    });
+  });
+
+  it('should not initialise accounts if wallet is locked', async () => {
+    const { mockListAccounts } =
+      arrangeActInitialiseNotificationAccountTracking((mocks) => {
+        mocks.mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: false,
+        } as MockVar);
+      });
+    await waitFor(() => {
+      expect(mockListAccounts).not.toHaveBeenCalled();
+    });
+  });
+
+  it('should re-initialise if the wallet was locked, and then unlocked', async () => {
+    // Test Wallet Locked
+    const { globalMessenger, mockListAccounts } =
+      arrangeActInitialiseNotificationAccountTracking((mocks) => {
+        mocks.mockKeyringControllerGetState.mockReturnValue({
+          isUnlocked: false,
+        } as MockVar);
+      });
+    await waitFor(() => {
+      expect(mockListAccounts).not.toHaveBeenCalled();
+    });
+
+    // Test Wallet Unlock
+    jest.clearAllMocks();
+    await globalMessenger.publish('KeyringController:unlock');
+    await waitFor(() => {
+      expect(mockListAccounts).toHaveBeenCalled();
+    });
   });
 });
 
@@ -976,6 +1090,7 @@ function mockNotificationMessenger() {
       'NotificationServicesPushController:disablePushNotifications',
       'NotificationServicesPushController:enablePushNotifications',
       'NotificationServicesPushController:updateTriggerPushNotifications',
+      'NotificationServicesPushController:subscribeToPushNotifications',
       'UserStorageController:getStorageKey',
       'UserStorageController:performGetStorage',
       'UserStorageController:performSetStorage',
@@ -1015,6 +1130,9 @@ function mockNotificationMessenger() {
   const mockUpdateTriggerPushNotifications =
     typedMockAction<NotificationServicesPushControllerUpdateTriggerPushNotifications>();
 
+  const mockSubscribeToPushNotifications =
+    typedMockAction<NotificationServicesPushControllerSubscribeToNotifications>();
+
   const mockGetStorageKey =
     typedMockAction<UserStorageController.UserStorageControllerGetStorageKey>().mockResolvedValue(
       'MOCK_STORAGE_KEY',
@@ -1028,6 +1146,11 @@ function mockNotificationMessenger() {
   const mockPerformSetStorage =
     typedMockAction<UserStorageController.UserStorageControllerPerformSetStorage>();
 
+  const mockKeyringControllerGetState =
+    typedMockAction<KeyringControllerGetStateAction>().mockReturnValue({
+      isUnlocked: true,
+    } as MockVar);
+
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     const [actionType] = args;
 
@@ -1040,7 +1163,7 @@ function mockNotificationMessenger() {
     }
 
     if (actionType === 'KeyringController:getState') {
-      return { isUnlocked: true } as MockVar;
+      return mockKeyringControllerGetState();
     }
 
     if (actionType === 'AuthenticationController:getBearerToken') {
@@ -1077,6 +1200,13 @@ function mockNotificationMessenger() {
       return mockUpdateTriggerPushNotifications(params[0]);
     }
 
+    if (
+      actionType ===
+      'NotificationServicesPushController:subscribeToPushNotifications'
+    ) {
+      return mockSubscribeToPushNotifications();
+    }
+
     if (actionType === 'UserStorageController:getStorageKey') {
       return mockGetStorageKey();
     }
@@ -1104,9 +1234,11 @@ function mockNotificationMessenger() {
     mockDisablePushNotifications,
     mockEnablePushNotifications,
     mockUpdateTriggerPushNotifications,
+    mockSubscribeToPushNotifications,
     mockGetStorageKey,
     mockPerformGetStorage,
     mockPerformSetStorage,
+    mockKeyringControllerGetState,
   };
 }
 
