@@ -21,6 +21,8 @@ import {
 export const controllerName = 'RemoteFeatureFlagController';
 export const DEFAULT_CACHE_DURATION = 24 * 60 * 60 * 1000; // 1 day
 
+export { generateDeterministicRandomNumber };
+
 // === STATE ===
 
 export type RemoteFeatureFlagControllerState = {
@@ -81,8 +83,6 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     cacheTimestamp: 0,
   };
 }
-
-export { generateDeterministicRandomNumber };
 
 /**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
