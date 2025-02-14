@@ -17,11 +17,8 @@ import {
   PHISHING_DETECTION_SCAN_ENDPOINT,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
-import {
-  PhishingDetectionScanResult,
-  PhishingDetectorResultType,
-  RecommendedAction,
-} from './types';
+import type { PhishingDetectionScanResult } from './types';
+import { PhishingDetectorResultType, RecommendedAction } from './types';
 import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
