@@ -18,7 +18,7 @@ import type {
 import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import type BridgeStatusController from './bridge-status-controller';
+import type { BridgeStatusController } from './bridge-status-controller';
 import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 
 // All fields need to be types not interfaces, same with their children fields
