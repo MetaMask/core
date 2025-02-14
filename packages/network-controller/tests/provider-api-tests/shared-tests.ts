@@ -20,35 +20,6 @@ export function buildInfuraClientRetriesExhaustedErrorMessage(reason: string) {
 }
 
 /**
- * Constructs an error message that JsonRpcEngine would produce in the event
- * that the response object is empty as it leaves the middleware.
- *
- * @param method - The RPC method.
- * @returns The error message.
- */
-export function buildJsonRpcEngineEmptyResponseErrorMessage(method: string) {
-  return new RegExp(
-    `^JsonRpcEngine: Response has no error or result for request:.+"method": "${method}"`,
-    'us',
-  );
-}
-
-/**
- * Constructs an error message that `fetch` with throw if it cannot make a
- * request.
- *
- * @param url - The URL being fetched
- * @param reason - The reason.
- * @returns The error message.
- */
-export function buildFetchFailedErrorMessage(url: string, reason: string) {
-  return new RegExp(
-    `^request to ${url}(/[^/ ]*)+ failed, reason: ${reason}`,
-    'us',
-  );
-}
-
-/**
  * Defines tests that are common to both the Infura and JSON-RPC network client.
  *
  * @param providerType - The type of provider being tested, which determines

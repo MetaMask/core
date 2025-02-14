@@ -37,6 +37,9 @@
 ## Snaps Team
 /packages/rate-limit-controller            @MetaMask/snaps-devs
 
+## Swaps-Bridge Team
+/packages/bridge-controller                @MetaMask/swaps-engineers
+
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 
@@ -112,4 +115,5 @@
 /packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/token-search-discovery-controller/package.json      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
 /packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
-
+/packages/bridge-controller/package.json                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
+/packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers

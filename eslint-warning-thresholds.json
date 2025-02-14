@@ -32,8 +32,7 @@
     "no-shadow": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
-    "import-x/namespace": 2,
-    "import-x/order": 2
+    "import-x/namespace": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
     "jsdoc/check-tag-names": 5,
@@ -417,32 +416,19 @@
     "jsdoc/tag-lines": 1,
     "prettier/prettier": 1
   },
-  "packages/network-controller/src/create-auto-managed-network-client.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/network-controller/src/create-network-client.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1
-  },
   "packages/network-controller/tests/NetworkController.test.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "@typescript-eslint/prefer-promise-reject-errors": 1,
-    "import-x/order": 1,
-    "jest/no-conditional-in-test": 4
+    "import-x/order": 1
   },
   "packages/network-controller/tests/create-network-client.test.ts": {
     "import-x/order": 1
-  },
-  "packages/network-controller/tests/provider-api-tests/block-param.ts": {
-    "jest/no-conditional-in-test": 1
   },
   "packages/network-controller/tests/provider-api-tests/helpers.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 1,
     "import-x/namespace": 1,
     "import-x/no-named-as-default-member": 1,
     "promise/catch-or-return": 1
-  },
-  "packages/network-controller/tests/provider-api-tests/no-block-param.ts": {
-    "jest/no-conditional-in-test": 2
   },
   "packages/permission-controller/src/Permission.ts": {
     "prettier/prettier": 11
