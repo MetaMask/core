@@ -1,5 +1,9 @@
 import { Messenger } from '@metamask/base-controller';
-import type { CaipAssetType, Transaction } from '@metamask/keyring-api';
+import type {
+  AccountTransactionsUpdatedEventPayload,
+  CaipAssetType,
+  Transaction,
+} from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
@@ -433,36 +437,274 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('updates transactions when receiving "AccountsController:accountTransactionsUpdated" event', async () => {
+    const TEST_ACCOUNT_ID = 'test-account-id';
+
+    const mockSolAccount = {
+      address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+      id: TEST_ACCOUNT_ID,
+      metadata: {
+        name: 'Solana Account 1',
+        importTime: Date.now(),
+        keyring: {
+          type: KeyringTypes.snap,
+        },
+        snap: {
+          id: 'mock-sol-snap',
+          name: 'mock-sol-snap',
+          enabled: true,
+        },
+        lastSelected: 0,
+      },
+      scopes: [SolScope.Devnet],
+      options: {},
+      methods: [SolMethod.SendAndConfirmTransaction],
+      type: SolAccountType.DataAccount,
+    };
+
+    const existingTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'confirmed' as const,
+    };
+
+    const newTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '456',
+      status: 'submitted' as const,
+    };
+
+    const updatedExistingTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'failed' as const,
+    };
+
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
-          [mockBtcAccount.id]: {
-            transactions: [],
+          [mockSolAccount.id]: {
+            transactions: [existingTransaction],
             next: null,
             lastUpdated: Date.now(),
           },
         },
       },
     });
-    const transactionUpdate = {
-      transactions: {
-        [mockBtcAccount.id]: mockTransactionResult.data,
-      },
-    };
 
-    messenger.publish(
-      'AccountsController:accountTransactionsUpdated',
-      transactionUpdate,
-    );
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockSolAccount.id]: [updatedExistingTransaction, newTransaction],
+      },
+    });
 
     await waitForAllPromises();
 
-    expect(
-      controller.state.nonEvmTransactions[mockBtcAccount.id],
-    ).toStrictEqual({
-      transactions: mockTransactionResult.data,
+    const finalTransactions =
+      controller.state.nonEvmTransactions[mockSolAccount.id].transactions;
+
+    expect(finalTransactions).toHaveLength(2);
+    expect(finalTransactions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: '123', status: 'failed' }),
+        expect.objectContaining({ id: '456', status: 'submitted' }),
+      ]),
+    );
+  });
+
+  it('handles empty transaction updates gracefully', async () => {
+    const TEST_ACCOUNT_ID = 'test-account-id';
+
+    const initialState = {
+      nonEvmTransactions: {
+        [TEST_ACCOUNT_ID]: {
+          transactions: [],
+          next: null,
+          lastUpdated: Date.now(),
+        },
+      },
+    };
+
+    const { controller, messenger } = setupController({
+      state: initialState,
+      mocks: {
+        listMultichainAccounts: [
+          {
+            ...mockBtcAccount,
+            id: TEST_ACCOUNT_ID,
+          },
+        ],
+        handleRequestReturnValue: {
+          // @ts-ignore
+          data: [],
+          next: null,
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {},
+    });
+
+    await waitForAllPromises();
+
+    expect(controller.state.nonEvmTransactions[TEST_ACCOUNT_ID]).toStrictEqual({
+      transactions: [],
       next: null,
       lastUpdated: expect.any(Number),
     });
+  });
+
+  it('ignores transaction updates for unknown accounts', async () => {
+    const UNKNOWN_ACCOUNT_ID = 'unknown-account-id';
+
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {},
+      },
+      mocks: {
+        listMultichainAccounts: [],
+        handleRequestReturnValue: {
+          // @ts-ignore
+          data: [],
+          next: null,
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [UNKNOWN_ACCOUNT_ID]: mockTransactionResult.data,
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(controller.state.nonEvmTransactions).toStrictEqual({});
+  });
+
+  it('handles undefined transactions in update payload', async () => {
+    const TEST_ACCOUNT_ID = 'test-account-id';
+    const initialState = {
+      nonEvmTransactions: {
+        [TEST_ACCOUNT_ID]: {
+          transactions: [],
+          next: null,
+          lastUpdated: Date.now(),
+        },
+      },
+    };
+
+    const { controller, messenger } = setupController({
+      state: initialState,
+      mocks: {
+        listMultichainAccounts: [
+          {
+            ...mockBtcAccount,
+            id: TEST_ACCOUNT_ID,
+          },
+        ],
+        handleRequestReturnValue: {
+          // @ts-ignore
+          data: [],
+          next: null,
+        },
+      },
+    });
+
+    const initialStateSnapshot = { ...controller.state.nonEvmTransactions };
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: undefined,
+    } as unknown as AccountTransactionsUpdatedEventPayload);
+
+    await waitForAllPromises();
+
+    expect(controller.state.nonEvmTransactions).toStrictEqual(
+      initialStateSnapshot,
+    );
+  });
+
+  it('sorts transactions by timestamp (newest first)', async () => {
+    const TEST_ACCOUNT_ID = 'test-account-id';
+    const olderTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      timestamp: 1000,
+    };
+    const newerTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '456',
+      timestamp: 2000,
+    };
+
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
+            transactions: [olderTransaction],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [TEST_ACCOUNT_ID]: [newerTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    const finalTransactions =
+      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
+    expect(finalTransactions[0].timestamp).toBe(2000);
+    expect(finalTransactions[1].timestamp).toBe(1000);
+  });
+
+  it('sorts transactions by timestamp and handles null timestamps', async () => {
+    const TEST_ACCOUNT_ID = 'test-account-id';
+    const nullTimestampTx1 = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      timestamp: null,
+    };
+    const nullTimestampTx2 = {
+      ...mockTransactionResult.data[0],
+      id: '456',
+      timestamp: null,
+    };
+    const withTimestampTx = {
+      ...mockTransactionResult.data[0],
+      id: '789',
+      timestamp: 1000,
+    };
+
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
+            transactions: [nullTimestampTx1],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [TEST_ACCOUNT_ID]: [withTimestampTx, nullTimestampTx2],
+      },
+    });
+
+    await waitForAllPromises();
+
+    const finalTransactions =
+      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
+    expect(finalTransactions[0].timestamp).toBe(1000);
+    expect(finalTransactions[1].timestamp).toBe(null);
+    expect(finalTransactions[2].timestamp).toBe(null);
   });
 });

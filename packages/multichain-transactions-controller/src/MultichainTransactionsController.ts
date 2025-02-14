@@ -331,19 +331,56 @@ export class MultichainTransactionsController extends BaseController<
 
   /**
    * Handles transaction updates received from the AccountsController.
+   * Uses a Map to deduplicate transactions by ID, ensuring we keep the latest version
+   * of each transaction while preserving older transactions and transactions from other accounts.
+   * Transactions are sorted by timestamp (newest first).
    *
    * @param transactionsUpdate - The transaction update event containing new transactions.
    */
   #handleOnAccountTransactionsUpdated(
     transactionsUpdate: AccountTransactionsUpdatedEventPayload,
   ): void {
-    this.update((state: Draft<MultichainTransactionsControllerState>) => {
-      Object.entries(transactionsUpdate.transactions).forEach(
+    const updatedTransactions: Record<string, Transaction[]> = {};
+
+    if (!transactionsUpdate?.transactions) {
+      return;
+    }
+
+    Object.entries(transactionsUpdate.transactions).forEach(
+      ([accountId, newTransactions]) => {
+        if (!(accountId in this.state.nonEvmTransactions)) {
+          return;
+        }
+
+        const existing = this.state.nonEvmTransactions[accountId].transactions;
+        const transactionMap = new Map();
+
+        existing.forEach((tx) => {
+          transactionMap.set(tx.id, tx);
+        });
+
+        newTransactions.forEach((tx) => {
+          transactionMap.set(tx.id, tx);
+        });
+
+        updatedTransactions[accountId] = Array.from(transactionMap.values());
+      },
+    );
+
+    Object.keys(updatedTransactions).forEach((accountId) => {
+      updatedTransactions[accountId].sort(
+        (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+      );
+    });
+
+    this.update((state) => {
+      Object.entries(updatedTransactions).forEach(
         ([accountId, transactions]) => {
-          if (accountId in state.nonEvmTransactions) {
-            state.nonEvmTransactions[accountId].transactions = transactions;
-            state.nonEvmTransactions[accountId].lastUpdated = Date.now();
-          }
+          state.nonEvmTransactions[accountId] = {
+            ...state.nonEvmTransactions[accountId],
+            transactions,
+            lastUpdated: Date.now(),
+          };
         },
       );
     });
