@@ -1,3 +1,4 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
@@ -286,9 +287,10 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
 
-    expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(
-      MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
-        MOCK_INTERNAL_ACCOUNTS.ONE.length,
+    expect(messengerMocks.mockKeyringWithKeyring).toHaveBeenCalledTimes(1);
+    expect(messengerMocks.mockKeyringWithKeyring).toHaveBeenCalledWith(
+      { type: KeyringTypes.hd },
+      expect.any(Function),
     );
 
     expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
@@ -555,7 +557,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
     expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
 
-    expect(messengerMocks.mockKeyringAddNewAccount).not.toHaveBeenCalled();
+    expect(messengerMocks.mockKeyringWithKeyring).not.toHaveBeenCalled();
   });
 
   describe('User storage name is a default name', () => {

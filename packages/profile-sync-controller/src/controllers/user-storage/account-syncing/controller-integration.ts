@@ -1,4 +1,5 @@
 import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
@@ -173,8 +174,18 @@ export async function syncInternalAccountsWithUserStorage(
         internalAccountsList.length;
 
       // Create new accounts to match the user storage accounts list
+      await getMessenger().call(
+        'KeyringController:withKeyring',
+        {
+          type: KeyringTypes.hd,
+        },
+        async (keyring) => {
+          keyring.addAccounts(numberOfAccountsToAdd);
+        },
+      );
+
+      // Keeping this for analytics purposes, but should probably be re-thought
       for (let i = 0; i < numberOfAccountsToAdd; i++) {
-        await getMessenger().call('KeyringController:addNewAccount');
         onAccountAdded?.();
       }
     }

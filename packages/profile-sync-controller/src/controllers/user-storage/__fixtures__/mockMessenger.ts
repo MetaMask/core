@@ -51,7 +51,6 @@ export function createCustomUserStorageMessenger(props?: {
     name: 'UserStorageController',
     allowedActions: [
       'KeyringController:getState',
-      'KeyringController:addNewAccount',
       'SnapController:handleRequest',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
@@ -125,9 +124,7 @@ export function mockUserStorageMessenger(
     'AuthenticationController:performSignOut',
   );
 
-  const mockKeyringAddNewAccount = typedMockFn(
-    'KeyringController:addNewAccount',
-  );
+  const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
 
   // Untyped mock as there is a TS(2742) issue.
   // This will return `InternalAccount[]`
@@ -202,8 +199,9 @@ export function mockUserStorageMessenger(
       return { isUnlocked: true };
     }
 
-    if (actionType === 'KeyringController:addNewAccount') {
-      return mockKeyringAddNewAccount();
+    if (actionType === 'KeyringController:withKeyring') {
+      const [, ...params] = typedArgs;
+      return mockKeyringWithKeyring(...params);
     }
 
     if (actionType === 'AccountsController:listAccounts') {
@@ -249,7 +247,7 @@ export function mockUserStorageMessenger(
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
     mockAuthPerformSignOut,
-    mockKeyringAddNewAccount,
+    mockKeyringWithKeyring,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,
