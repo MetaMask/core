@@ -563,6 +563,9 @@ describe('getHostname', () => {
 
     url = 'http://..';
     expect(getHostnameFromUrl(url)).toBeNull();
+
+    url = 'about:blank';
+    expect(getHostnameFromUrl(url)).toBeNull();
   });
 
   it('should return null for a hostname', () => {
