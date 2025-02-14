@@ -36,7 +36,7 @@ type SrcTxMetaId = string;
 export type FetchBridgeTxStatusArgs = {
   bridgeTxMetaId: string;
 };
-export default class BridgeStatusController extends StaticIntervalPollingController<BridgeStatusPollingInput>()<
+export class BridgeStatusController extends StaticIntervalPollingController<BridgeStatusPollingInput>()<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger
