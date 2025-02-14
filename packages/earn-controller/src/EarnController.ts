@@ -11,10 +11,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import {
   StakeSdk,
@@ -298,9 +298,10 @@ export class EarnController extends BaseController<
    * Fetches updated stake information including lifetime rewards, assets, and exit requests
    * from the staking API service and updates the state.
    *
+   * @param resetCache - Control whether the BE cache should be invalidated.
    * @returns A promise that resolves when the stakes data has been updated
    */
-  async refreshPooledStakes(): Promise<void> {
+  async refreshPooledStakes(resetCache = false): Promise<void> {
     const currentAccount = this.#getCurrentAccount();
     if (!currentAccount?.address) {
       return;
@@ -312,6 +313,7 @@ export class EarnController extends BaseController<
       await this.#stakingApiService.getPooledStakes(
         [currentAccount.address],
         chainId,
+        resetCache,
       );
 
     this.update((state) => {
@@ -363,14 +365,15 @@ export class EarnController extends BaseController<
    * This method allows partial success, meaning some data may update while other requests fail.
    * All errors are collected and thrown as a single error message.
    *
+   * @param resetCache - Control whether the BE cache should be invalidated.
    * @returns A promise that resolves when all possible data has been updated
    * @throws {Error} If any of the refresh operations fail, with concatenated error messages
    */
-  async refreshPooledStakingData(): Promise<void> {
+  async refreshPooledStakingData(resetCache = false): Promise<void> {
     const errors: Error[] = [];
 
     await Promise.all([
-      this.refreshPooledStakes().catch((error) => {
+      this.refreshPooledStakes(resetCache).catch((error) => {
         errors.push(error);
       }),
       this.refreshStakingEligibility().catch((error) => {
