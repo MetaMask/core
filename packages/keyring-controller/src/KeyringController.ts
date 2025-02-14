@@ -731,6 +731,45 @@ export class KeyringController extends BaseController<
     });
   }
 
+  async addNewAccounts(
+    numberOfAccountsToAdd: number,
+    accountCount?: number,
+  ): Promise<string | string[]> {
+    this.#assertIsUnlocked();
+
+    return this.#persistOrRollback(async () => {
+      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
+        | EthKeyring<Json>
+        | undefined;
+      if (!primaryKeyring) {
+        throw new Error('No HD keyring found');
+      }
+
+      const oldAccounts = await primaryKeyring.getAccounts();
+
+      if (accountCount && oldAccounts.length !== accountCount) {
+        if (accountCount > oldAccounts.length) {
+          throw new Error('Accounts out of sequence');
+        }
+        // we return the accounts already existing starting at index `accountCount`
+        const existingAccounts = oldAccounts.slice(accountCount);
+
+        if (!existingAccounts[0]) {
+          throw new Error(`Can't find account at index ${accountCount}`);
+        }
+
+        return existingAccounts;
+      }
+
+      const newAccounts = await primaryKeyring.addAccounts(
+        numberOfAccountsToAdd,
+      );
+      await this.#verifySeedPhrase();
+
+      return newAccounts;
+    });
+  }
+
   /**
    * Effectively the same as creating a new keychain then populating it
    * using the given seed phrase.
@@ -2213,7 +2252,6 @@ export class KeyringController extends BaseController<
    * Instantiate, initialize and return a new keyring of the given `type`,
    * using the given `opts`. The keyring is built using the keyring builder
    * registered for the given `type`.
-   *
    *
    * @param type - The type of keyring to add.
    * @param data - The data to restore a previously serialized keyring.

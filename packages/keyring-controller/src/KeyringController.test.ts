@@ -379,6 +379,98 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('addNewAccounts', () => {
+    it('should add new accounts', async () => {
+      await withController(async ({ controller, initialState }) => {
+        const numberOfAccountsToAdd = 2;
+        const newAccounts = await controller.addNewAccounts(
+          numberOfAccountsToAdd,
+        );
+        expect(newAccounts).toHaveLength(numberOfAccountsToAdd);
+        expect(controller.state.keyrings[0].accounts).toHaveLength(
+          initialState.keyrings[0].accounts.length + numberOfAccountsToAdd,
+        );
+      });
+    });
+
+    describe('when accountCount is provided', () => {
+      it('should add news accounts if accountCount is in sequence', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const accountCount = initialState.keyrings[0].accounts.length;
+          const newAccounts = await controller.addNewAccounts(2, accountCount);
+          expect(newAccounts).toHaveLength(2);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
+            accountCount + 2,
+          );
+        });
+      });
+
+      it('should throw an error if accountCount is out of sequence', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const accountCount = initialState.keyrings[0].accounts.length;
+          await expect(
+            controller.addNewAccounts(1, accountCount + 1),
+          ).rejects.toThrow('Accounts out of sequence');
+        });
+      });
+
+      it('should not add new accounts if called twice with the same accountCount param', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const accountCount = initialState.keyrings[0].accounts.length;
+          const firstAccountsAdded = await controller.addNewAccounts(
+            2,
+            accountCount,
+          );
+          const secondAccountsAdded = await controller.addNewAccounts(
+            2,
+            accountCount,
+          );
+          expect(firstAccountsAdded).toStrictEqual(secondAccountsAdded);
+          expect(controller.state.keyrings[0].accounts).toHaveLength(
+            initialState.keyrings[0].accounts.length + 2,
+          );
+        });
+      });
+
+      it('should throw instead of returning undefined', async () => {
+        await withController(async ({ controller }) => {
+          jest.spyOn(controller, 'getKeyringsByType').mockReturnValueOnce([
+            {
+              getAccounts: () => [undefined, undefined],
+            },
+          ]);
+
+          await expect(controller.addNewAccounts(2, 1)).rejects.toThrow(
+            "Can't find account at index 1",
+          );
+        });
+      });
+    });
+
+    it('should throw an error if there is no primary keyring', async () => {
+      await withController(async ({ controller, encryptor }) => {
+        await controller.setLocked();
+        jest
+          .spyOn(encryptor, 'decrypt')
+          .mockResolvedValueOnce([{ type: 'Unsupported', data: '' }]);
+        await controller.submitPassword('123');
+
+        await expect(controller.addNewAccounts(1)).rejects.toThrow(
+          'No HD keyring found',
+        );
+      });
+    });
+
+    it('should throw error when the controller is locked', async () => {
+      await withController(async ({ controller }) => {
+        await controller.setLocked();
+        await expect(controller.addNewAccounts(1)).rejects.toThrow(
+          KeyringControllerError.ControllerLocked,
+        );
+      });
+    });
+  });
+
   describe('addNewKeyring', () => {
     describe('when there is a builder for the given type', () => {
       it('should add new keyring', async () => {
@@ -3877,7 +3969,7 @@ describe('KeyringController', () => {
           }
         });
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         messenger.subscribe('KeyringController:stateChange', listener);
 
         await controller.submitPassword(password);
