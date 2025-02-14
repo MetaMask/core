@@ -11,9 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- MVP release of `MultichainNetworkController` to handle both EVM and non-EVM network and account switching ([#5215](https://github.com/MetaMask/core/pull/5215))
-- Added allowed actions - `NetworkControllerGetStateAction | NetworkControllerSetActiveNetworkAction`. The `MultichainNetworkController` acts as a proxy for the `NetworkController` and will update it based on EVM network changes.
-- Added allowed events - `AccountsControllerSelectedAccountChangeEvent` to allowed events. This is used to subscribe to the `AccountsController:selectedAccountChange` event from the `AccountsController` and is responsible for updating active network based on account changes (both EVM and non-EVM).
+- Initial release ([#5215](https://github.com/MetaMask/core/pull/5215))
+  - Handle both EVM and non-EVM network and account switching for the associated network.
+  - Added `NetworkControllerSetActiveNetworkAction`
+  - Act as a proxy for the `NetworkController` (for EVM network changes).
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.1.0...HEAD
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/multichain-network-controller@0.1.0

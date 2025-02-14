@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 
+### Added
+
+- Add `perform{BatchSetStorage,DeleteStorage,BatchDeleteStorage}` as messenger actions ([#5311](https://github.com/MetaMask/core/pull/5311))
+
 ### Changed
 
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.1.0` to `^24.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
-- feat: expose all user storage methods through messenger actions ([#5311](https://github.com/MetaMask/core/pull/5311))
-- fix: change `maxNumberOfAccountsToAdd` default value from `100` to `Infinity` ([#5322](https://github.com/MetaMask/core/pull/5322))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.0.0` to `^24.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
+- Change `maxNumberOfAccountsToAdd` default value from `100` to `Infinity` ([#5322](https://github.com/MetaMask/core/pull/5322))
 
 ### Removed
 

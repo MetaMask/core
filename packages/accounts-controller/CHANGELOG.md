@@ -11,12 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Added `MultichainNetworkController:didNetworkChange` to allowed events and handle keeping accounts in sync with network changes ([#5215](https://github.com/MetaMask/core/pull/5215))
+- **BREAKING:** Now requires `MultichainNetworkController:didNetworkChange` event to be registered on the messenger ([#5215](https://github.com/MetaMask/core/pull/5215))
+  - This will be used to keep accounts in sync with EVM and non-EVM network changes.
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^22.2.1` to `^22.2.2` ([#5318](https://github.com/MetaMask/core/pull/5318))
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^19.0.0` to `^19.1.0` ([#5215](https://github.com/MetaMask/core/pull/5215))
+- **BREAKING:** Add `@metamask/network-controller@^22.0.0` peer dependency ([#5215](https://github.com/MetaMask/core/pull/5215)), ([#5327](https://github.com/MetaMask/core/pull/5327))
 
 ## [23.1.0]
 
