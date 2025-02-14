@@ -2489,11 +2489,14 @@ describe('PhishingController', () => {
         'http://#',
         'http://##',
         'http://##/',
+        'chrome://extensions',
+        'file://some_file.pdf',
+        'about:blank',
       ];
 
       for (const invalidUrl of invalidUrls) {
         await expect(controller.scanUrl(invalidUrl)).rejects.toThrow(
-          'Invalid URL provided',
+          'invalid web url',
         );
       }
     });

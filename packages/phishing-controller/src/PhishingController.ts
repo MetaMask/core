@@ -575,16 +575,25 @@ export class PhishingController extends BaseController<
   }
 
   /**
-   * Scan a URL for phishing. It will only scan the hostname of the URL.
+   * Scan a URL for phishing. It will only scan the hostname of the URL. It also only supports
+   * web URLs.
    *
    * @param url - The URL to scan.
    * @returns The phishing detection scan result.
    */
   async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
+    if (
+      !url.toLowerCase().startsWith('http://') &&
+      !url.toLowerCase().startsWith('https://')
+    ) {
+      throw new Error('invalid web url');
+    }
+
     const hostname = getHostnameFromUrl(url);
     if (!hostname) {
-      throw new Error('Invalid URL provided');
+      throw new Error('invalid web url');
     }
+
     const response = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
