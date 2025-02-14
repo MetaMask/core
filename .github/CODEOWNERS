@@ -37,12 +37,16 @@
 ## Snaps Team
 /packages/rate-limit-controller            @MetaMask/snaps-devs
 
+## Swaps-Bridge Team
+/packages/bridge-controller                @MetaMask/swaps-engineers
+
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 
 ## Wallet API Platform Team
 /packages/multichain                       @MetaMask/wallet-api-platform-engineers
 /packages/queued-request-controller        @MetaMask/wallet-api-platform-engineers
+/packages/selected-network-controller      @MetaMask/wallet-api-platform-engineers
 
 ## Wallet Framework Team
 /packages/base-controller              @MetaMask/wallet-framework-engineers
@@ -62,7 +66,6 @@
 /packages/network-controller           @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/snaps-devs
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
-/packages/selected-network-controller  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/profile-sync-controller      @MetaMask/notifications @MetaMask/identity
 
 ## Package Release related
@@ -112,4 +115,5 @@
 /packages/multichain-transactions-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/token-search-discovery-controller/package.json      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
 /packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
-
+/packages/bridge-controller/package.json                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
+/packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers

@@ -42,7 +42,8 @@
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
+    { "path": "./packages/user-operation-controller/tsconfig.build.json" },
+    { "path": "./packages/multichain-network-controller/tsconfig.build.json" }
   ],
   "files": [],
   "include": []
