@@ -20,7 +20,7 @@ export function mockUserStorageMessengerForAccountSyncing(options?: {
 }) {
   const messengerMocks = mockUserStorageMessenger();
 
-  messengerMocks.mockKeyringAddNewAccount.mockImplementation(async () => {
+  messengerMocks.mockKeyringWithKeyring.mockImplementation(async () => {
     messengerMocks.baseMessenger.publish(
       'AccountsController:accountAdded',
       MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
