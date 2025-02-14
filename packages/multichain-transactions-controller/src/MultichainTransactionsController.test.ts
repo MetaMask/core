@@ -439,26 +439,9 @@ describe('MultichainTransactionsController', () => {
   it('updates transactions when receiving "AccountsController:accountTransactionsUpdated" event', async () => {
     const TEST_ACCOUNT_ID = 'test-account-id';
 
-    const mockSolAccount = {
-      address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+    const mockSolAccountWithId = {
+      ...mockSolAccount,
       id: TEST_ACCOUNT_ID,
-      metadata: {
-        name: 'Solana Account 1',
-        importTime: Date.now(),
-        keyring: {
-          type: KeyringTypes.snap,
-        },
-        snap: {
-          id: 'mock-sol-snap',
-          name: 'mock-sol-snap',
-          enabled: true,
-        },
-        lastSelected: 0,
-      },
-      scopes: [SolScope.Devnet],
-      options: {},
-      methods: [SolMethod.SendAndConfirmTransaction],
-      type: SolAccountType.DataAccount,
     };
 
     const existingTransaction = {
@@ -482,7 +465,7 @@ describe('MultichainTransactionsController', () => {
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
-          [mockSolAccount.id]: {
+          [mockSolAccountWithId.id]: {
             transactions: [existingTransaction],
             next: null,
             lastUpdated: Date.now(),
@@ -493,14 +476,14 @@ describe('MultichainTransactionsController', () => {
 
     messenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
-        [mockSolAccount.id]: [updatedExistingTransaction, newTransaction],
+        [mockSolAccountWithId.id]: [updatedExistingTransaction, newTransaction],
       },
     });
 
     await waitForAllPromises();
 
     const finalTransactions =
-      controller.state.nonEvmTransactions[mockSolAccount.id].transactions;
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
 
     expect(finalTransactions).toHaveLength(2);
     expect(finalTransactions).toEqual(
