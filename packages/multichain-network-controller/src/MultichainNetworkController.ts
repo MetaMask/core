@@ -58,29 +58,37 @@ export class MultichainNetworkController extends BaseController<
    * @param id - The client ID of the EVM network to set active.
    */
   async #setActiveEvmNetwork(id: NetworkClientId): Promise<void> {
-    // Notify listeners that setActiveNetwork was called
-    this.messagingSystem.publish(
-      'MultichainNetworkController:networkDidChange',
-      id,
-    );
-
-    // Indicate that the non-EVM network is not selected
-    this.update((state) => {
-      state.isEvmSelected = true;
-    });
-
-    // Prevent setting same network
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
 
-    if (id === selectedNetworkClientId) {
-      // EVM network is already selected, no need to update NetworkController
+    const shouldSetEvmActive = !this.state.isEvmSelected;
+    const shouldNotifyNetworkChange = id !== selectedNetworkClientId;
+
+    // No changes needed if EVM is active and network is already selected
+    if (!shouldSetEvmActive && !shouldNotifyNetworkChange) {
       return;
     }
 
-    // Update evm active network
-    await this.messagingSystem.call('NetworkController:setActiveNetwork', id);
+    // Update EVM selection state if needed
+    if (shouldSetEvmActive) {
+      this.update((state) => {
+        state.isEvmSelected = true;
+      });
+    }
+
+    // Only notify the network controller if the selected evm network is different
+    if (shouldNotifyNetworkChange) {
+      await this.messagingSystem.call('NetworkController:setActiveNetwork', id);
+    }
+
+    // Only publish the networkDidChange event if either the EVM network is different or we're switching between EVM and non-EVM networks
+    if (shouldSetEvmActive || shouldNotifyNetworkChange) {
+      this.messagingSystem.publish(
+        'MultichainNetworkController:networkDidChange',
+        id,
+      );
+    }
   }
 
   /**
@@ -89,34 +97,24 @@ export class MultichainNetworkController extends BaseController<
    * @param id - The chain ID of the non-EVM network to set active.
    */
   #setActiveNonEvmNetwork(id: SupportedCaipChainId): void {
-    if (id === this.state.selectedMultichainNetworkChainId) {
-      if (!this.state.isEvmSelected) {
-        // Same non-EVM network is already selected, no need to update
-        return;
-      }
-
-      // Indicate that the non-EVM network is selected
-      this.update((state) => {
-        state.isEvmSelected = false;
-      });
-
-      // Notify listeners that setActiveNetwork was called
-      this.messagingSystem.publish(
-        'MultichainNetworkController:networkDidChange',
-        id,
-      );
+    if (
+      id === this.state.selectedMultichainNetworkChainId &&
+      !this.state.isEvmSelected
+    ) {
+      // Same non-EVM network is already selected, no need to update
+      return;
     }
-
-    // Notify listeners that setActiveNetwork was called
-    this.messagingSystem.publish(
-      'MultichainNetworkController:networkDidChange',
-      id,
-    );
 
     this.update((state) => {
       state.selectedMultichainNetworkChainId = id;
       state.isEvmSelected = false;
     });
+
+    // Notify listeners that the network changed
+    this.messagingSystem.publish(
+      'MultichainNetworkController:networkDidChange',
+      id,
+    );
   }
 
   /**
@@ -144,7 +142,7 @@ export class MultichainNetworkController extends BaseController<
    *
    * @param account - The account that was changed
    */
-  readonly #handleSelectedAccountChange = (account: InternalAccount) => {
+  #handleOnSelectedAccountChange(account: InternalAccount) {
     const { type: accountType, address: accountAddress } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
@@ -159,6 +157,7 @@ export class MultichainNetworkController extends BaseController<
       this.update((state) => {
         state.isEvmSelected = true;
       });
+
       return;
     }
 
@@ -179,7 +178,10 @@ export class MultichainNetworkController extends BaseController<
       state.selectedMultichainNetworkChainId = nonEvmChainId;
       state.isEvmSelected = false;
     });
-  };
+
+    // No need to publish NetworkController:setActiveNetwork because EVM accounts falls back to use the last selected EVM network
+    // DO NOT publish MultichainNetworkController:networkDidChange to prevent circular listener loops
+  }
 
   /**
    * Subscribes to message events.
@@ -188,7 +190,7 @@ export class MultichainNetworkController extends BaseController<
     // Handle network switch when account is changed
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      this.#handleSelectedAccountChange,
+      (account) => this.#handleOnSelectedAccountChange(account),
     );
   }
 
