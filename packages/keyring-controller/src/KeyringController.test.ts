@@ -3838,6 +3838,28 @@ describe('KeyringController', () => {
         });
       });
     });
+
+    describe('withKeyring', () => {
+      it('should call withKeyring', async () => {
+        await withController(
+          { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async ({ controller, messenger }) => {
+            await controller.addNewKeyring(MockKeyring.type);
+
+            const actionReturnValue = await messenger.call(
+              'KeyringController:withKeyring',
+              { type: MockKeyring.type },
+              async (keyring) => {
+                expect(keyring.type).toBe(MockKeyring.type);
+                return keyring.type;
+              },
+            );
+
+            expect(actionReturnValue).toBe(MockKeyring.type);
+          },
+        );
+      });
+    });
   });
 
   describe('run conditions', () => {
