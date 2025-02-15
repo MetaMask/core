@@ -20,6 +20,7 @@ import {
   createMockUserStorageWithTriggers,
 } from './__fixtures__/mock-notification-user-storage';
 import { createMockNotificationEthSent } from './__fixtures__/mock-raw-notifications';
+import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
 import {
   mockFetchFeatureAnnouncementNotifications,
   mockBatchCreateTriggers,
@@ -110,7 +111,7 @@ describe('metamask-notifications - constructor()', () => {
     const { messenger, globalMessenger, mockListAccounts } = arrangeMocks();
 
     // initialize controller with 1 address
-    mockListAccounts.mockResolvedValueOnce(['addr1']);
+    mockListAccounts.mockResolvedValueOnce([ADDRESS_1]);
     const controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -124,7 +125,7 @@ describe('metamask-notifications - constructor()', () => {
       .mockResolvedValue({} as UserStorage);
 
     // listAccounts has a new address
-    mockListAccounts.mockResolvedValueOnce(['addr1', 'addr2']);
+    mockListAccounts.mockResolvedValueOnce([ADDRESS_1, ADDRESS_2]);
     await actPublishKeyringStateChange(globalMessenger);
 
     expect(mockUpdate).not.toHaveBeenCalled();
@@ -140,7 +141,7 @@ describe('metamask-notifications - constructor()', () => {
       env: { featureAnnouncements: featureAnnouncementsEnv },
       state: {
         isNotificationServicesEnabled: true,
-        subscriptionAccountsSeen: ['addr1'],
+        subscriptionAccountsSeen: [ADDRESS_1],
       },
     });
 
@@ -164,25 +165,25 @@ describe('metamask-notifications - constructor()', () => {
     };
 
     // Act - if list accounts has been seen, then will not update
-    await act(['addr1'], () => {
+    await act([ADDRESS_1], () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
     });
 
     // Act - if a new address in list, then will update
-    await act(['addr1', 'addr2'], () => {
+    await act([ADDRESS_1, ADDRESS_2], () => {
       expect(mockUpdate).toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
     });
 
     // Act - if the list doesn't have an address, then we need to delete
-    await act(['addr2'], () => {
+    await act([ADDRESS_2], () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(mockDelete).toHaveBeenCalled();
     });
 
     // If the address is added back to the list, because it is seen we won't update
-    await act(['addr1', 'addr2'], () => {
+    await act([ADDRESS_1, ADDRESS_2], () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
     });
@@ -251,7 +252,7 @@ describe('metamask-notifications - constructor()', () => {
 
     // Test Wallet Unlock
     jest.clearAllMocks();
-    await globalMessenger.publish('KeyringController:unlock');
+    globalMessenger.publish('KeyringController:unlock');
     await waitFor(() => {
       expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
@@ -330,7 +331,7 @@ describe('metamask-notifications - constructor()', () => {
 
     // Test Wallet Unlock
     jest.clearAllMocks();
-    await globalMessenger.publish('KeyringController:unlock');
+    globalMessenger.publish('KeyringController:unlock');
     await waitFor(() => {
       expect(mockListAccounts).toHaveBeenCalled();
     });
@@ -534,7 +535,7 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
       mockUpdateTriggerPushNotifications,
       mockPerformSetStorage,
     } = arrangeMocks();
-    const MOCK_ACCOUNT = 'MOCK_ACCOUNT2';
+    const MOCK_ACCOUNT = ADDRESS_1;
     const controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -924,7 +925,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
 
   it('should sign a user in if not already signed in', async () => {
     const mocks = arrangeMocks();
-    mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
+    mocks.mockListAccounts.mockResolvedValue([ADDRESS_1]);
     mocks.mockIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
     const controller = new NotificationServicesController({
       messenger: mocks.messenger,
@@ -940,7 +941,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
 
   it('create new notifications when switched on and no new notifications', async () => {
     const mocks = arrangeMocks();
-    mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
+    mocks.mockListAccounts.mockResolvedValue([ADDRESS_1]);
     const controller = new NotificationServicesController({
       messenger: mocks.messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
@@ -963,8 +964,8 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
 
   it('not create new notifications when enabling an account already in storage', async () => {
     const mocks = arrangeMocks();
-    mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
-    const userStorage = createMockFullUserStorage({ address: '0xAddr1' });
+    mocks.mockListAccounts.mockResolvedValue([ADDRESS_1]);
+    const userStorage = createMockFullUserStorage({ address: ADDRESS_1 });
     mocks.mockPerformGetStorage.mockResolvedValue(JSON.stringify(userStorage));
     const controller = new NotificationServicesController({
       messenger: mocks.messenger,
