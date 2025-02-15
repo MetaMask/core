@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 
+## [50.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.0.1` to `^24.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
+- Removed legacy poll function to prevent redundant polling ([#5321](https://github.com/MetaMask/core/pull/5321))
+
+### Fixed
+
+- Ensure that the polling is not triggered on the constructor with the initialisation of the controller ([#5321](https://github.com/MetaMask/core/pull/5321))
+
 ## [49.0.0]
 
 ### Added
@@ -1398,7 +1409,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@49.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@50.0.0...HEAD
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@49.0.0...@metamask/assets-controllers@50.0.0
 [49.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@48.0.0...@metamask/assets-controllers@49.0.0
 [48.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@47.0.0...@metamask/assets-controllers@48.0.0
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.1...@metamask/assets-controllers@47.0.0

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KeyringController:withKeyring` action ([#5332](https://github.com/MetaMask/core/pull/5332))
+  - The action can be used to consume the `withKeyring` method of the `KeyringController` class
+
 ### Changed
 
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))

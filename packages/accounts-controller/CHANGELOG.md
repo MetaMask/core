@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 
+## [24.0.0]
+
+### Added
+
+- **BREAKING:** Now requires `MultichainNetworkController:didNetworkChange` event to be registered on the messenger ([#5215](https://github.com/MetaMask/core/pull/5215))
+  - This will be used to keep accounts in sync with EVM and non-EVM network changes.
+
+### Changed
+
+- **BREAKING:** Add `@metamask/network-controller@^22.0.0` peer dependency ([#5215](https://github.com/MetaMask/core/pull/5215)), ([#5327](https://github.com/MetaMask/core/pull/5327))
+
 ## [23.1.0]
 
 ### Added
@@ -448,7 +459,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.0.0...HEAD
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.1.0...@metamask/accounts-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.1...@metamask/accounts-controller@23.1.0
 [23.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.0...@metamask/accounts-controller@23.0.1
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@22.0.0...@metamask/accounts-controller@23.0.0
