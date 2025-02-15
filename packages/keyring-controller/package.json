@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/util": "^8.1.0",
+    "@ethereumjs/util": "^9.1.0",
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
     "@metamask/base-controller": "^8.0.0",
     "@metamask/browser-passworder": "^4.3.0",
@@ -63,8 +63,8 @@
     "immer": "^9.0.6"
   },
   "devDependencies": {
-    "@ethereumjs/common": "^3.2.0",
-    "@ethereumjs/tx": "^4.2.0",
+    "@ethereumjs/common": "^4.4.0",
+    "@ethereumjs/tx": "^5.4.0",
     "@keystonehq/bc-ur-registry-eth": "^0.19.0",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",

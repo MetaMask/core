@@ -1,5 +1,5 @@
-import type { TxData, TypedTransaction } from '@ethereumjs/tx';
-import { isValidPrivate, toBuffer, getBinarySize } from '@ethereumjs/util';
+import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
+import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
 import type {
   MetaMaskKeyring as QRKeyring,
   IKeyringState as IQRKeyringState,
@@ -33,6 +33,7 @@ import {
   assertIsStrictHexString,
   bytesToHex,
   hasProperty,
+  hexToBytes,
   isObject,
   isStrictHexString,
   isValidHexAddress,
@@ -1014,7 +1015,7 @@ export class KeyringController extends BaseController<
 
           let bufferedPrivateKey;
           try {
-            bufferedPrivateKey = toBuffer(prefixed);
+            bufferedPrivateKey = hexToBytes(prefixed);
           } catch {
             throw new Error('Cannot import invalid private key.');
           }
@@ -1219,7 +1220,7 @@ export class KeyringController extends BaseController<
     transaction: TypedTransaction,
     from: string,
     opts?: Record<string, unknown>,
-  ): Promise<TxData> {
+  ): Promise<TypedTxData> {
     this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
@@ -1229,6 +1230,7 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.UnsupportedSignTransaction);
     }
 
+    // @ts-expect-error Upgrade keyring package
     return await keyring.signTransaction(address, transaction, opts);
   }
 
