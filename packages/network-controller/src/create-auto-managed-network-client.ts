@@ -59,15 +59,26 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * part of the network client is serving as the receiver. The network client is
  * then cached for subsequent usages.
  *
- * @param networkClientConfiguration - The configuration object that will be
+ * @param args - The arguments.
+ * @param args.networkClientConfiguration - The configuration object that will be
  * used to instantiate the network client when it is needed.
+ * @param args.fetch - A function that can be used to make an HTTP request,
+ * compatible with the Fetch API.
+ * @param args.btoa - A function that can be used to convert a binary string
+ * into base-64.
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
->(
-  networkClientConfiguration: Configuration,
-): AutoManagedNetworkClient<Configuration> {
+>({
+  networkClientConfiguration,
+  fetch: givenFetch,
+  btoa: givenBtoa,
+}: {
+  networkClientConfiguration: Configuration;
+  fetch: typeof fetch;
+  btoa: typeof btoa;
+}): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
 
   const providerProxy = new Proxy(UNINITIALIZED_TARGET, {
@@ -78,7 +89,11 @@ export function createAutoManagedNetworkClient<
         return networkClient?.provider;
       }
 
-      networkClient ??= createNetworkClient(networkClientConfiguration);
+      networkClient ??= createNetworkClient({
+        configuration: networkClientConfiguration,
+        fetch: givenFetch,
+        btoa: givenBtoa,
+      });
       if (networkClient === undefined) {
         throw new Error(
           "It looks like `createNetworkClient` didn't return anything. Perhaps it's being mocked?",
@@ -115,7 +130,11 @@ export function createAutoManagedNetworkClient<
       if (propertyName === REFLECTIVE_PROPERTY_NAME) {
         return true;
       }
-      networkClient ??= createNetworkClient(networkClientConfiguration);
+      networkClient ??= createNetworkClient({
+        configuration: networkClientConfiguration,
+        fetch: givenFetch,
+        btoa: givenBtoa,
+      });
       const { provider } = networkClient;
       return propertyName in provider;
     },
@@ -131,7 +150,11 @@ export function createAutoManagedNetworkClient<
           return networkClient?.blockTracker;
         }
 
-        networkClient ??= createNetworkClient(networkClientConfiguration);
+        networkClient ??= createNetworkClient({
+          configuration: networkClientConfiguration,
+          fetch: givenFetch,
+          btoa: givenBtoa,
+        });
         if (networkClient === undefined) {
           throw new Error(
             "It looks like createNetworkClient returned undefined. Perhaps it's mocked?",
@@ -168,7 +191,11 @@ export function createAutoManagedNetworkClient<
         if (propertyName === REFLECTIVE_PROPERTY_NAME) {
           return true;
         }
-        networkClient ??= createNetworkClient(networkClientConfiguration);
+        networkClient ??= createNetworkClient({
+          configuration: networkClientConfiguration,
+          fetch: givenFetch,
+          btoa: givenBtoa,
+        });
         const { blockTracker } = networkClient;
         return propertyName in blockTracker;
       },

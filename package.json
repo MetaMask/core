@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "298.0.0",
+  "version": "301.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -93,6 +93,7 @@
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "prettier": "^3.3.3",
+    "prettier-2": "npm:prettier@^2.8.8",
     "prettier-plugin-packagejson": "^2.4.5",
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
