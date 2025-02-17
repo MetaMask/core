@@ -77,6 +77,7 @@ const commonConfig = { chain: Chain.Goerli, hardfork: Hardfork.Berlin };
 describe('KeyringController', () => {
   afterEach(() => {
     sinon.restore();
+    jest.resetAllMocks();
   });
 
   describe('constructor', () => {
@@ -260,6 +261,46 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('when the keyringMetadata length is different from the number of keyrings', () => {
+    it('should throw an error if the keyring metadata length mismatch', async () => {
+      const vaultWithOneKeyring = await withController(
+        async ({ controller }) => controller.state.vault,
+      );
+
+      await withController(
+        {
+          skipVaultCreation: true,
+          state: {
+            vault: vaultWithOneKeyring, // pass non-empty vault
+            keyringsMetadata: [
+              { id: '1', name: '' },
+              { id: '2', name: '' },
+            ],
+          },
+        },
+        async ({ controller, encryptor }) => {
+          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+            {
+              type: 'HD Key Tree',
+              data: {
+                keyrings: [
+                  {
+                    type: 'HD Key Tree',
+                    accounts: ['0x123'],
+                  },
+                ],
+              },
+            },
+          ]);
+          await controller.submitPassword(password);
+          await expect(controller.addNewAccount()).rejects.toThrow(
+            KeyringControllerError.KeyringMetadataLengthMismatch,
+          );
+        },
+      );
+    });
+  });
+
   describe('addNewAccountForKeyring', () => {
     describe('when accountCount is not provided', () => {
       it('should add new account', async () => {
@@ -420,6 +461,7 @@ describe('KeyringController', () => {
             { cacheEncryptionKey },
             async ({ controller, initialState }) => {
               const initialVault = controller.state.vault;
+              const initialKeyringsMetadata = controller.state.keyringsMetadata;
               await controller.createNewVaultAndRestore(
                 password,
                 uint8ArraySeed,
@@ -427,14 +469,26 @@ describe('KeyringController', () => {
               expect(controller.state).not.toBe(initialState);
               expect(controller.state.vault).toBeDefined();
               expect(controller.state.vault).toStrictEqual(initialVault);
+              expect(controller.state.keyringsMetadata).toHaveLength(
+                initialKeyringsMetadata.length,
+              );
+              // new keyring metadata should be generated
+              expect(controller.state.keyringsMetadata).not.toStrictEqual(
+                initialKeyringsMetadata,
+              );
             },
           );
         });
 
-        it('should restore same vault if old seedWord is used', async () => {
+        it('should call encryptor.encrypt with the same keyrings if old seedWord is used', async () => {
           await withController(
             { cacheEncryptionKey },
-            async ({ controller, initialState }) => {
+            async ({ controller, encryptor }) => {
+              const encryptSpy = jest.spyOn(encryptor, 'encrypt');
+              const serializedKeyring = await controller.withKeyring(
+                { type: 'HD Key Tree' },
+                async (keyring) => keyring.serialize(),
+              );
               const currentSeedWord =
                 await controller.exportSeedPhrase(password);
 
@@ -442,7 +496,13 @@ describe('KeyringController', () => {
                 password,
                 currentSeedWord,
               );
-              expect(initialState).toStrictEqual(controller.state);
+
+              expect(encryptSpy).toHaveBeenCalledWith(password, [
+                {
+                  data: serializedKeyring,
+                  type: 'HD Key Tree',
+                },
+              ]);
             },
           );
         });
@@ -695,10 +755,26 @@ describe('KeyringController', () => {
 
     describe('when mnemonic is exportable', () => {
       describe('when correct password is provided', () => {
-        it('should export seed phrase', async () => {
+        it('should export seed phrase without keyringId', async () => {
           await withController(async ({ controller }) => {
             const seed = await controller.exportSeedPhrase(password);
             expect(seed).not.toBe('');
+          });
+        });
+
+        it('should export seed phrase with valid keyringId', async () => {
+          await withController(async ({ controller, initialState }) => {
+            const keyringId = initialState.keyringsMetadata[0].id;
+            const seed = await controller.exportSeedPhrase(password, keyringId);
+            expect(seed).not.toBe('');
+          });
+        });
+
+        it('should throw error if keyringId is invalid', async () => {
+          await withController(async ({ controller }) => {
+            await expect(
+              controller.exportSeedPhrase(password, 'invalid-id'),
+            ).rejects.toThrow('Keyring not found');
           });
         });
       });
@@ -706,13 +782,27 @@ describe('KeyringController', () => {
       describe('when wrong password is provided', () => {
         it('should export seed phrase', async () => {
           await withController(async ({ controller, encryptor }) => {
-            sinon
-              .stub(encryptor, 'decrypt')
-              .throws(new Error('Invalid password'));
+            jest
+              .spyOn(encryptor, 'decrypt')
+              .mockRejectedValueOnce(new Error('Invalid password'));
             await expect(controller.exportSeedPhrase('')).rejects.toThrow(
               'Invalid password',
             );
           });
+        });
+
+        it('should throw invalid password error with valid keyringId', async () => {
+          await withController(
+            async ({ controller, encryptor, initialState }) => {
+              const keyringId = initialState.keyringsMetadata[0].id;
+              jest
+                .spyOn(encryptor, 'decrypt')
+                .mockRejectedValueOnce(new Error('Invalid password'));
+              await expect(
+                controller.exportSeedPhrase('', keyringId),
+              ).rejects.toThrow('Invalid password');
+            },
+          );
         });
       });
     });
@@ -759,26 +849,17 @@ describe('KeyringController', () => {
 
       describe('when wrong password is provided', () => {
         it('should throw error', async () => {
-          await withController(
-            async ({ controller, initialState, encryptor }) => {
-              const account = initialState.keyrings[0].accounts[0];
-              sinon
-                .stub(encryptor, 'decrypt')
-                .rejects(new Error('Invalid password'));
-
-              await expect(
-                controller.exportAccount('', account),
-              ).rejects.toThrow('Invalid password');
-
-              await expect(
-                controller.exportAccount('JUNK_VALUE', account),
-              ).rejects.toThrow('Invalid password');
-            },
-          );
+          await withController(async ({ controller, encryptor }) => {
+            jest
+              .spyOn(encryptor, 'decrypt')
+              .mockRejectedValueOnce(new Error('Invalid password'));
+            await expect(controller.exportSeedPhrase('')).rejects.toThrow(
+              'Invalid password',
+            );
+          });
         });
       });
     });
-
     describe('when the keyring for the given address does not support exportAccount', () => {
       it('should throw error', async () => {
         const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
@@ -1116,6 +1197,10 @@ describe('KeyringController', () => {
             const modifiedState = {
               ...initialState,
               keyrings: [initialState.keyrings[0], newKeyring],
+              keyringsMetadata: [
+                initialState.keyringsMetadata[0],
+                controller.state.keyringsMetadata[1],
+              ],
             };
             expect(controller.state).toStrictEqual(modifiedState);
             expect(importedAccountAddress).toBe(address);
@@ -1189,6 +1274,10 @@ describe('KeyringController', () => {
             const modifiedState = {
               ...initialState,
               keyrings: [initialState.keyrings[0], newKeyring],
+              keyringsMetadata: [
+                initialState.keyringsMetadata[0],
+                controller.state.keyringsMetadata[1],
+              ],
             };
             expect(controller.state).toStrictEqual(modifiedState);
             expect(importedAccountAddress).toBe(address);
@@ -1312,10 +1401,19 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0] as Hex;
           await expect(controller.removeAccount(account)).rejects.toThrow(
-            KeyringControllerError.NoHdKeyring,
+            KeyringControllerError.LastAccountInPrimaryKeyring,
           );
           expect(controller.state.keyrings).toHaveLength(1);
           expect(controller.state.keyrings[0].accounts).toHaveLength(1);
+        });
+      });
+
+      it('should not remove primary keyring if it has no accounts even if it has more than one HD keyring', async () => {
+        await withController(async ({ controller }) => {
+          await controller.addNewKeyring(KeyringTypes.hd);
+          await expect(
+            controller.removeAccount(controller.state.keyrings[0].accounts[0]),
+          ).rejects.toThrow(KeyringControllerError.LastAccountInPrimaryKeyring);
         });
       });
 
@@ -1368,6 +1466,19 @@ describe('KeyringController', () => {
           ).rejects.toThrow(
             'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
+        });
+      });
+
+      it('should remove the keyring if last account is removed and its not primary keyring', async () => {
+        await withController(async ({ controller }) => {
+          await controller.addNewKeyring(KeyringTypes.hd);
+          expect(controller.state.keyrings).toHaveLength(2);
+          expect(controller.state.keyringsMetadata).toHaveLength(2);
+          await controller.removeAccount(
+            controller.state.keyrings[1].accounts[0],
+          );
+          expect(controller.state.keyrings).toHaveLength(1);
+          expect(controller.state.keyringsMetadata).toHaveLength(1);
         });
       });
     });
@@ -2548,6 +2659,15 @@ describe('KeyringController', () => {
       });
     });
 
+    it('should return seedphrase for a specific keyring', async () => {
+      await withController(async ({ controller }) => {
+        const seedPhrase = await controller.verifySeedPhrase(
+          controller.state.keyringsMetadata[0].id,
+        );
+        expect(seedPhrase).toBeDefined();
+      });
+    });
+
     it('should throw if mnemonic is not defined', async () => {
       await withController(async ({ controller }) => {
         const primaryKeyring = controller.getKeyringsByType(
@@ -2573,6 +2693,17 @@ describe('KeyringController', () => {
       );
     });
 
+    it('should throw unsupported seed phrase error when keyring is not HD', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addNewKeyring(KeyringTypes.simple, [privateKey]);
+
+        const keyringId = controller.state.keyringsMetadata[1].id;
+        await expect(controller.verifySeedPhrase(keyringId)).rejects.toThrow(
+          KeyringControllerError.UnsupportedVerifySeedPhrase,
+        );
+      });
+    });
+
     it('should throw an error if there is no primary keyring', async () => {
       await withController(async ({ controller, encryptor }) => {
         await controller.setLocked();
@@ -2582,7 +2713,7 @@ describe('KeyringController', () => {
         await controller.submitPassword('123');
 
         await expect(controller.verifySeedPhrase()).rejects.toThrow(
-          'No HD keyring found',
+          KeyringControllerError.KeyringNotFound,
         );
       });
     });
@@ -2779,15 +2910,68 @@ describe('KeyringController', () => {
       });
     });
 
-    it('should throw error when the controller is locked', async () => {
-      await withController(async ({ controller }) => {
-        await controller.setLocked();
+    describe('when the keyring is selected by id', () => {
+      it('should call the given function with the selected keyring', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const fn = jest.fn();
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const selector = { id: initialState.keyringsMetadata[0].id };
 
-        await expect(
-          controller.withKeyring({ type: KeyringTypes.hd }, async (keyring) =>
-            keyring.getAccounts(),
-          ),
-        ).rejects.toThrow(KeyringControllerError.ControllerLocked);
+          await controller.withKeyring(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith(keyring);
+        });
+      });
+
+      it('should return the result of the function', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const fn = async () => Promise.resolve('hello');
+          const selector = { id: initialState.keyringsMetadata[0].id };
+
+          expect(await controller.withKeyring(selector, fn)).toBe('hello');
+        });
+      });
+
+      it('should throw an error if the callback returns the selected keyring', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const selector = { id: initialState.keyringsMetadata[0].id };
+
+          await expect(
+            controller.withKeyring(selector, async (selectedKeyring) => {
+              return selectedKeyring;
+            }),
+          ).rejects.toThrow(KeyringControllerError.UnsafeDirectKeyringAccess);
+        });
+      });
+
+      describe('when the keyring is not found', () => {
+        it('should throw an error if the keyring is not found and `createIfMissing` is false', async () => {
+          await withController(
+            async ({ controller, initialState: _initialState }) => {
+              const selector = { id: 'non-existent-id' };
+              const fn = jest.fn();
+
+              await expect(
+                controller.withKeyring(selector, fn),
+              ).rejects.toThrow(KeyringControllerError.KeyringNotFound);
+              expect(fn).not.toHaveBeenCalled();
+            },
+          );
+        });
+
+        it('should throw an error even if `createIfMissing` is true', async () => {
+          await withController(
+            async ({ controller, initialState: _initialState }) => {
+              const selector = { id: 'non-existent-id' };
+              const fn = jest.fn();
+
+              await expect(
+                controller.withKeyring(selector, fn, { createIfMissing: true }),
+              ).rejects.toThrow(KeyringControllerError.KeyringNotFound);
+              expect(fn).not.toHaveBeenCalled();
+            },
+          );
+        });
       });
     });
   });
@@ -3898,8 +4082,7 @@ describe('KeyringController', () => {
             await controller.persistAllKeyrings();
           }
         });
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
         messenger.subscribe('KeyringController:stateChange', listener);
 
         await controller.submitPassword(password);
@@ -3915,20 +4098,18 @@ describe('KeyringController', () => {
       it('should rollback the controller keyrings if the keyring creation fails', async () => {
         const mockAddress = '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4';
         stubKeyringClassWithAccount(MockKeyring, mockAddress);
-        // Mocking the serialize method to throw an error will
-        // halt the controller everytime it tries to persist the keyring,
-        // making it impossible to update the vault
-        jest
-          .spyOn(MockKeyring.prototype, 'serialize')
-          .mockImplementation(async () => {
-            throw new Error('You will never be able to persist me!');
-          });
+
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
           async ({ controller, initialState }) => {
+            // We're mocking BaseController .update() to throw an error, as it's the last operation
+            // that is called before the function is rolled back.
+            jest.spyOn(controller, 'update' as never).mockImplementation(() => {
+              throw new Error('You will never be able to change me!');
+            });
             await expect(
               controller.addNewKeyring(MockKeyring.type),
-            ).rejects.toThrow('You will never be able to persist me!');
+            ).rejects.toThrow('You will never be able to change me!');
 
             expect(controller.state).toStrictEqual(initialState);
             await expect(

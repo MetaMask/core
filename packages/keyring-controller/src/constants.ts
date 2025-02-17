@@ -23,6 +23,7 @@ export enum KeyringControllerError {
   UnsupportedPrepareUserOperation = 'KeyringController - The keyring for the current address does not support the method prepareUserOperation.',
   UnsupportedPatchUserOperation = 'KeyringController - The keyring for the current address does not support the method patchUserOperation.',
   UnsupportedSignUserOperation = 'KeyringController - The keyring for the current address does not support the method signUserOperation.',
+  UnsupportedVerifySeedPhrase = 'KeyringController - The keyring does not support the method verifySeedPhrase.',
   NoAccountOnKeychain = "KeyringController - The keychain doesn't have accounts.",
   ControllerLocked = 'KeyringController - The operation cannot be completed while the controller is locked.',
   MissingCredentials = 'KeyringController - Cannot persist vault without password and encryption key',
@@ -32,4 +33,6 @@ export enum KeyringControllerError {
   DataType = 'KeyringController - Incorrect data type provided',
   NoHdKeyring = 'KeyringController - No HD Keyring found',
   ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
+  KeyringMetadataLengthMismatch = 'KeyringController - keyring metadata length mismatch',
+  LastAccountInPrimaryKeyring = 'KeyringController - Last account in primary keyring cannot be removed',
 }
