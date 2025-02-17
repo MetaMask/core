@@ -163,6 +163,8 @@ const setupController = async (
       allowedEvents: [],
     }),
     infuraProjectId,
+    fetch,
+    btoa,
   });
   await networkController.initializeProvider();
   const { provider, blockTracker } =

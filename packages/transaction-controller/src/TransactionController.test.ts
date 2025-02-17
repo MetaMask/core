@@ -43,6 +43,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import { shouldResimulate } from './helpers/ResimulateHelper';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -80,7 +81,6 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
-import { shouldResimulate } from './utils/resimulate';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -117,7 +117,10 @@ jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
 jest.mock('./utils/layer1-gas-fee-flow');
-jest.mock('./utils/resimulate');
+jest.mock('./helpers/ResimulateHelper', () => ({
+  ...jest.requireActual('./helpers/ResimulateHelper'),
+  shouldResimulate: jest.fn(),
+}));
 jest.mock('./utils/simulation');
 jest.mock('./utils/swaps');
 jest.mock('uuid');
@@ -2365,7 +2368,7 @@ describe('TransactionController', () => {
 
         try {
           await result;
-        } catch (error) {
+        } catch {
           // Ignore user rejected error as it is expected
         }
         await finishedPromise;
@@ -6070,6 +6073,43 @@ describe('TransactionController', () => {
           blockTime: 123,
         },
       );
+    });
+  });
+
+  describe('setTransactionActive', () => {
+    it('throws if transaction does not exist', async () => {
+      const { controller } = setupController();
+      expect(() => controller.setTransactionActive('123', true)).toThrow(
+        'Transaction with id 123 not found',
+      );
+    });
+
+    it('updates the isActive state of a transaction', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status: TransactionStatus.unapproved,
+                history: [{}],
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              } as unknown as TransactionMeta,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.setTransactionActive(transactionId, true);
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.isActive).toBe(true);
     });
   });
 
