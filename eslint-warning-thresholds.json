@@ -243,7 +243,7 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "import-x/namespace": 15,
+    "import-x/namespace": 14,
     "jest/no-conditional-in-test": 8
   },
   "packages/keyring-controller/src/KeyringController.ts": {

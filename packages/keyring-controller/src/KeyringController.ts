@@ -2309,11 +2309,11 @@ export class KeyringController extends BaseController<
   async #newKeyring(type: string, data?: unknown): Promise<EthKeyring<Json>> {
     const keyring = await this.#createKeyring(type, data);
 
-    this.#keyrings.push(keyring);
-    this.#keyringsMetadata.push(getDefaultKeyringMetadata());
     if (this.#keyrings.length !== this.#keyringsMetadata.length) {
       throw new Error('Keyring metadata missing');
     }
+    this.#keyrings.push(keyring);
+    this.#keyringsMetadata.push(getDefaultKeyringMetadata());
 
     return keyring;
   }

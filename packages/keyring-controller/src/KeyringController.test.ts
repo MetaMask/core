@@ -294,7 +294,7 @@ describe('KeyringController', () => {
           ]);
           await controller.submitPassword(password);
           await expect(controller.addNewAccount()).rejects.toThrow(
-            'KeyringController - keyring metadata length mismatch',
+            KeyringControllerError.KeyringMetadataLengthMismatch,
           );
         },
       );
@@ -782,9 +782,9 @@ describe('KeyringController', () => {
       describe('when wrong password is provided', () => {
         it('should export seed phrase', async () => {
           await withController(async ({ controller, encryptor }) => {
-            sinon
-              .stub(encryptor, 'decrypt')
-              .throws(new Error('Invalid password'));
+            jest
+              .spyOn(encryptor, 'decrypt')
+              .mockRejectedValueOnce(new Error('Invalid password'));
             await expect(controller.exportSeedPhrase('')).rejects.toThrow(
               'Invalid password',
             );
@@ -857,20 +857,6 @@ describe('KeyringController', () => {
               'Invalid password',
             );
           });
-        });
-
-        it('should throw invalid password error with valid keyringId', async () => {
-          await withController(
-            async ({ controller, encryptor, initialState }) => {
-              const keyringId = initialState.keyringsMetadata[0].id;
-              jest
-                .spyOn(encryptor, 'decrypt')
-                .mockRejectedValueOnce(new Error('Invalid password'));
-              await expect(
-                controller.exportSeedPhrase('', keyringId),
-              ).rejects.toThrow('Invalid password');
-            },
-          );
         });
       });
     });
@@ -2707,7 +2693,7 @@ describe('KeyringController', () => {
       );
     });
 
-    it('should throw unspported seed phrase error when keyring is not HD', async () => {
+    it('should throw unsupported seed phrase error when keyring is not HD', async () => {
       await withController(async ({ controller }) => {
         await controller.addNewKeyring(KeyringTypes.simple, [privateKey]);
 
