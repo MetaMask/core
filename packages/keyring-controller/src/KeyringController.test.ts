@@ -2699,7 +2699,7 @@ describe('KeyringController', () => {
 
         const keyringId = controller.state.keyringsMetadata[1].id;
         await expect(controller.verifySeedPhrase(keyringId)).rejects.toThrow(
-          'KeyringController - The keyring does not support the method verifySeedPhrase.',
+          KeyringControllerError.UnsupportedVerifySeedPhrase,
         );
       });
     });
@@ -4060,7 +4060,6 @@ describe('KeyringController', () => {
             await controller.persistAllKeyrings();
           }
         });
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 
         messenger.subscribe('KeyringController:stateChange', listener);
 

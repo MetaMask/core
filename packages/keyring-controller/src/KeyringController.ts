@@ -1516,10 +1516,7 @@ export class KeyringController extends BaseController<
           )) as SelectedKeyring;
         }
       } else if ('id' in selector) {
-        const index = this.state.keyringsMetadata.findIndex(
-          (metadata) => metadata.id === selector.id,
-        );
-        keyring = this.#keyrings[index] as SelectedKeyring;
+        keyring = this.#getKeyringById(selector.id) as SelectedKeyring;
       }
 
       if (!keyring) {
@@ -1854,6 +1851,19 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Get the keyring by id.
+   *
+   * @param keyringId - The id of the keyring.
+   * @returns The keyring.
+   */
+  #getKeyringById(keyringId: string): EthKeyring<Json> | undefined {
+    const index = this.state.keyringsMetadata.findIndex(
+      (metadata) => metadata.id === keyringId,
+    );
+    return this.#keyrings[index];
+  }
+
+  /**
    * Get the keyring by id or return the first keyring if the id is not found.
    *
    * @param keyringId - The id of the keyring.
@@ -1864,10 +1874,7 @@ export class KeyringController extends BaseController<
       return this.#keyrings[0] as EthKeyring<Json>;
     }
 
-    const index = this.state.keyringsMetadata.findIndex(
-      (metadata) => metadata.id === keyringId,
-    );
-    return this.#keyrings[index];
+    return this.#getKeyringById(keyringId);
   }
 
   /**
