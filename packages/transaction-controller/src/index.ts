@@ -32,6 +32,7 @@ export {
 export type {
   Authorization,
   AuthorizationList,
+  BatchTransactionParams,
   DappSuggestedGasFees,
   DefaultGasEstimates,
   FeeMarketEIP1559Values,
@@ -52,6 +53,8 @@ export type {
   SimulationError,
   SimulationToken,
   SimulationTokenBalanceChange,
+  TransactionBatchRequest,
+  TransactionBatchResult,
   TransactionError,
   TransactionHistory,
   TransactionHistoryEntry,
