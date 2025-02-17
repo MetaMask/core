@@ -1381,8 +1381,6 @@ describe('TransactionController', () => {
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         result_type: 'Malicious',
         reason: 'blur_farming',
         description:

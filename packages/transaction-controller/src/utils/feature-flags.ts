@@ -7,9 +7,15 @@ export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
 
 export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_EIP_7702]: {
+    /**
+     * All contract addresses that support EIP-7702 batch transactions.
+     * Keyed by chain ID.
+     * First address in each array is the contract that standard EOAs will be upgraded to.
+     */
     contractAddresses: Record<Hex, Hex[]>;
+
+    /** Chains enabled for EIP-7702 batch transactions. */
     supportedChains: Hex[];
-    upgradeContractAddress: Hex;
   };
 };
 
