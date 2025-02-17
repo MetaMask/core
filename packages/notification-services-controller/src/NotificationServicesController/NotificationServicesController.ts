@@ -5,7 +5,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { toChecksumHexAddress } from '@metamask/controller-utils';
+import {
+  isValidHexAddress,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 import type {
   KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
@@ -458,7 +461,9 @@ export default class NotificationServicesController extends BaseController<
       const nonChecksumAccounts = await this.messagingSystem.call(
         'KeyringController:getAccounts',
       );
-      const accounts = nonChecksumAccounts.map((a) => toChecksumHexAddress(a));
+      const accounts = nonChecksumAccounts
+        .map((a) => toChecksumHexAddress(a))
+        .filter((a) => isValidHexAddress(a));
       const currentAccountsSet = new Set(accounts);
       const prevAccountsSet = new Set(this.state.subscriptionAccountsSeen);
 
@@ -665,6 +670,7 @@ export default class NotificationServicesController extends BaseController<
 
     try {
       const userStorage: UserStorage = JSON.parse(userStorageString);
+      Utils.cleanUserStorage(userStorage);
       return userStorage;
     } catch {
       log.error('Unable to parse User Storage');
