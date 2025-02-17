@@ -242,13 +242,12 @@
     "n/no-unsupported-features/node-builtins": 1
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
-    "import-x/namespace": 16,
+    "import-x/namespace": 14,
     "jest/no-conditional-in-test": 8
   },
   "packages/keyring-controller/src/KeyringController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 5,
-    "@typescript-eslint/no-unused-vars": 2,
-    "jsdoc/tag-lines": 1
+    "@typescript-eslint/no-unused-vars": 2
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
     "@typescript-eslint/prefer-readonly": 1
@@ -552,17 +551,11 @@
   },
   "packages/transaction-controller/src/TransactionController.test.ts": {
     "import-x/namespace": 1,
-    "import-x/order": 4,
-    "jsdoc/tag-lines": 1,
     "promise/always-return": 2
   },
   "packages/transaction-controller/src/TransactionController.ts": {
     "jsdoc/check-tag-names": 35,
     "jsdoc/require-returns": 5
-  },
-  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
-    "import-x/order": 4,
-    "jsdoc/tag-lines": 1
   },
   "packages/transaction-controller/src/api/accounts-api.test.ts": {
     "import-x/order": 1,

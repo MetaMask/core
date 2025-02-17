@@ -67,6 +67,7 @@
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/snaps-devs
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller      @MetaMask/notifications @MetaMask/identity
+/packages/remote-feature-flag-controller @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ## Package Release related
 /packages/accounts-controller/package.json        @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
@@ -103,6 +104,8 @@
 /packages/multichain/CHANGELOG.md                 @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/CHANGELOG.md  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+/packages/selected-network-controller/package.json @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+/packages/selected-network-controller/CHANGELOG.md @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/signature-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/rate-limit-controller/package.json      @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
@@ -117,3 +120,5 @@
 /packages/token-search-discovery-controller/CHANGELOG.md      @MetaMask/portfolio @MetaMask/wallet-framework-engineers
 /packages/bridge-controller/package.json                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
 /packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
+/packages/remote-feature-flag-controller/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
+/packages/remote-feature-flag-controller/CHANGELOG.md @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers

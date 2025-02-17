@@ -6,7 +6,11 @@ import { isStrictHexString, remove0x } from '@metamask/utils';
 
 import { isEIP1559Transaction } from './utils';
 import type { Authorization } from '../types';
-import { TransactionEnvelopeType, type TransactionParams } from '../types';
+import {
+  TransactionEnvelopeType,
+  TransactionType,
+  type TransactionParams,
+} from '../types';
 
 const TRANSACTION_ENVELOPE_TYPES_FEE_MARKET = [
   TransactionEnvelopeType.feeMarket,
@@ -25,28 +29,34 @@ type GasFieldsToValidate =
  *
  * @param options - Options bag.
  * @param options.from - The address from which the transaction is initiated.
+ * @param options.internalAccounts - The internal accounts added to the wallet.
  * @param options.origin - The origin or source of the transaction.
  * @param options.permittedAddresses - The permitted accounts for the given origin.
  * @param options.selectedAddress - The currently selected Ethereum address in the wallet.
  * @param options.txParams - The transaction parameters.
+ * @param options.type - The transaction type.
  * @throws Throws an error if the transaction is not permitted.
  */
 export async function validateTransactionOrigin({
   from,
+  internalAccounts,
   origin,
   permittedAddresses,
   selectedAddress,
   txParams,
+  type,
 }: {
   from: string;
+  internalAccounts?: string[];
   origin?: string;
   permittedAddresses?: string[];
-  selectedAddress: string;
+  selectedAddress?: string;
   txParams: TransactionParams;
+  type?: TransactionType;
 }) {
   const isInternal = origin === ORIGIN_METAMASK;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
-  const { authorizationList, type } = txParams;
+  const { authorizationList, to, type: envelopeType } = txParams;
 
   if (isInternal && from !== selectedAddress) {
     throw rpcErrors.internal({
@@ -65,10 +75,22 @@ export async function validateTransactionOrigin({
 
   if (
     isExternal &&
-    (authorizationList || type === TransactionEnvelopeType.setCode)
+    (authorizationList || envelopeType === TransactionEnvelopeType.setCode)
   ) {
     throw rpcErrors.invalidParams(
       'External EIP-7702 transactions are not supported',
+    );
+  }
+
+  if (
+    isExternal &&
+    internalAccounts?.some(
+      (account) => account.toLowerCase() === to?.toLowerCase(),
+    ) &&
+    type !== TransactionType.batch
+  ) {
+    throw rpcErrors.invalidParams(
+      'External transactions to internal accounts are not supported',
     );
   }
 }
@@ -447,10 +469,18 @@ function validateAuthorization(authorization: Authorization) {
   ensureFieldIsValidHex(authorization, 'address');
   validateHexLength(authorization.address, 20, 'address');
 
-  for (const field of ['chainId', 'nonce', 'r', 's', 'yParity'] as const) {
+  for (const field of ['chainId', 'nonce', 'r', 's'] as const) {
     if (authorization[field]) {
       ensureFieldIsValidHex(authorization, field);
     }
+  }
+
+  const { yParity } = authorization;
+
+  if (yParity && !['0x', '0x1'].includes(yParity)) {
+    throw rpcErrors.invalidParams(
+      `Invalid transaction params: yParity must be '0x' or '0x1'. got: ${yParity}`,
+    );
   }
 }
 
