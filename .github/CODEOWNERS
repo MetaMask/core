@@ -53,6 +53,7 @@
 /packages/build-utils                  @MetaMask/wallet-framework-engineers
 /packages/composable-controller        @MetaMask/wallet-framework-engineers
 /packages/controller-utils             @MetaMask/wallet-framework-engineers
+/packages/example-controllers          @MetaMask/wallet-framework-engineers
 /packages/polling-controller           @MetaMask/wallet-framework-engineers
 /packages/preferences-controller       @MetaMask/wallet-framework-engineers
 
@@ -63,6 +64,7 @@
 /packages/eth-json-rpc-provider        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/json-rpc-engine              @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/json-rpc-middleware-stream   @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+/packages/multichain-network-controller  @MetaMask/wallet-framework-engineers @MetaMask/accounts-engineers @MetaMask/metamask-assets
 /packages/network-controller           @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/snaps-devs
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
