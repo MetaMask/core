@@ -19,10 +19,6 @@ import type {
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type {
-  PersonalMessageParams,
-  TypedMessageParams,
-} from '@metamask/message-manager';
-import type {
   Eip1024EncryptedData,
   Hex,
   Json,
@@ -47,6 +43,11 @@ import type { Patch } from 'immer';
 import { ulid } from 'ulid';
 
 import { KeyringControllerError } from './constants';
+import type {
+  Eip7702AuthorizationParams,
+  PersonalMessageParams,
+  TypedMessageParams,
+} from './types';
 
 const name = 'KeyringController';
 
@@ -121,6 +122,11 @@ export type KeyringControllerGetStateAction = {
 export type KeyringControllerSignMessageAction = {
   type: `${typeof name}:signMessage`;
   handler: KeyringController['signMessage'];
+};
+
+export type KeyringControllerSignEip7702AuthorizationAction = {
+  type: `${typeof name}:signEip7702Authorization`;
+  handler: KeyringController['signEip7702Authorization'];
 };
 
 export type KeyringControllerSignPersonalMessageAction = {
@@ -216,6 +222,7 @@ export type KeyringControllerQRKeyringStateChangeEvent = {
 export type KeyringControllerActions =
   | KeyringControllerGetStateAction
   | KeyringControllerSignMessageAction
+  | KeyringControllerSignEip7702AuthorizationAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
   | KeyringControllerDecryptMessageAction
@@ -452,7 +459,10 @@ export function keyringBuilderFactory(KeyringConstructor: KeyringClass<Json>) {
 }
 
 const defaultKeyringBuilders = [
+  // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
+  // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
+  // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(HDKeyring),
 ];
 
@@ -1183,6 +1193,38 @@ export class KeyringController extends BaseController<
   }
 
   /**
+   * Signs EIP-7702 Authorization message by calling down into a specific keyring.
+   *
+   * @param params - EIP7702AuthorizationParams object to sign.
+   * @returns Promise resolving to an EIP-7702 Authorization signature.
+   * @throws Will throw UnsupportedSignEIP7702Authorization if the keyring does not support signing EIP-7702 Authorization messages.
+   */
+  async signEip7702Authorization(
+    params: Eip7702AuthorizationParams,
+  ): Promise<string> {
+    const from = ethNormalize(params.from) as Hex;
+
+    const keyring = (await this.getKeyringForAccount(from)) as EthKeyring<Json>;
+
+    if (!keyring.signEip7702Authorization) {
+      throw new Error(
+        KeyringControllerError.UnsupportedSignEip7702Authorization,
+      );
+    }
+
+    const { chainId, nonce } = params;
+    const contractAddress = ethNormalize(params.contractAddress) as
+      | Hex
+      | undefined;
+
+    return await keyring.signEip7702Authorization(from, [
+      chainId,
+      contractAddress as Hex,
+      nonce,
+    ]);
+  }
+
+  /**
    * Signs personal message by calling down into a specific keyring.
    *
    * @param messageParams - PersonalMessageParams object to sign.
@@ -1793,6 +1835,11 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:signMessage`,
       this.signMessage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:signEip7702Authorization`,
+      this.signEip7702Authorization.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
