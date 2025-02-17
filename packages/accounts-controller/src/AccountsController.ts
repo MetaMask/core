@@ -23,7 +23,6 @@ import {
   type KeyringControllerGetKeyringsByTypeAction,
   type KeyringControllerGetAccountsAction,
   type KeyringControllerStateChangeEvent,
-  type KeyringMetadata,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -214,7 +213,6 @@ export type AccountsControllerMessenger = RestrictedMessenger<
 type AddressAndKeyringTypeObject = {
   address: string;
   type: string;
-  metadata: KeyringMetadata;
 };
 
 const accountsControllerMetadata = {
@@ -741,14 +739,13 @@ export class AccountsController extends BaseController<
       const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
       const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
 
-      for (const [index, keyring] of keyringState.keyrings.entries()) {
+      for (const keyring of keyringState.keyrings) {
         if (keyring.type === KeyringTypes.snap) {
           updatedSnapKeyringAddresses.push(
             ...keyring.accounts.map((address) => {
               return {
                 address,
                 type: keyring.type,
-                metadata: keyringState.keyringsMetadata[index],
               };
             }),
           );
@@ -758,7 +755,6 @@ export class AccountsController extends BaseController<
               return {
                 address,
                 type: keyring.type,
-                metadata: keyringState.keyringsMetadata[index],
               };
             }),
           );
