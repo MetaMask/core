@@ -24,10 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `AccountTrackerController:state`
       - `accounts` (replaced by `accountsByChainId`)
 
-### Changed
-
-- Updated `TokensController`, `TokenListController`, and `AccountTrackerController` to use per-chain state variants. ([#5310](https://github.com/MetaMask/core/pull/5310))
-
 ## [50.0.0]
 
 ### Changed
