@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.0]
 
-### Changed
+### Added
 
-- Export generateDeterministicRandomNumber for use within mobile
+- Export generateDeterministicRandomNumber for use within mobile ([#5341](https://github.com/MetaMask/core/pull/5341))
 
 ## [1.4.0]
 
