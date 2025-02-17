@@ -860,7 +860,9 @@ async function expectCodeowner(workspace, workspaceBasename) {
   const codeownerRules = codeownersFile.split('\n');
 
   const packageCodeownerRule = codeownerRules.find((rule) =>
-    rule.startsWith(`/packages/${workspaceBasename}`),
+    // Matcher includes intentional trailing space to ensure there is a package-wide rule, not
+    // just a rule for specific files/directories in the package.
+    rule.startsWith(`/packages/${workspaceBasename} `),
   );
 
   if (!packageCodeownerRule) {
