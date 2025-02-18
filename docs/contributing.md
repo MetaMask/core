@@ -4,6 +4,7 @@
 
 - [Setting up your development environment](#setting-up-your-development-environment)
 - [Understanding codeowners](#understanding-codeowners)
+- [Understanding code guidelines](#understanding-code-guidelines)
 - [Writing and running tests](#writing-and-running-tests)
 - [Linting](#linting)
 - [Building](#building)
@@ -27,6 +28,13 @@
 Although maintenance of this repository is superintended by the Wallet Framework team, the responsibility of maintenance is expected to be shared among multiple teams at MetaMask. In fact, some teams have codeownership over specific packages. The exact allocation is governed by the [`CODEOWNERS`](../.github/CODEOWNERS) file.
 
 **If your team is listed as a codeowner for a package, you may change, approve pull requests, and create releases without consulting the Wallet Framework team.** Alternatively, if you feel that your team should be granted codeownership over a specific package, you can submit a pull request to change `CODEOWNERS`.
+
+## Understanding code guidelines
+
+All code in this repo should not only follow the [MetaMask contributor guidelines](https://github.com/MetaMask/contributor-docs) but also the guidelines contained in this repo:
+
+- [Package guidelines](./package-guidelines.md)
+- [Controller guidelines](./controller-guidelines.md)
 
 ## Writing and running tests
 

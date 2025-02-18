@@ -8,6 +8,7 @@ import type {
 } from '../types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import {
+  cleanUserStorage,
   makeApiCall,
   toggleUserStorageTriggerStatus,
   traverseUserStorageTriggers,
@@ -94,6 +95,8 @@ export async function createOnChainTriggers(
       true,
     );
   }
+
+  cleanUserStorage(userStorage);
 }
 
 /**

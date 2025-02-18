@@ -172,6 +172,11 @@ type TransactionMetaBase = {
   firstRetryBlockNumber?: string;
 
   /**
+   * Whether the transaction is active.
+   */
+  isActive?: boolean;
+
+  /**
    * Whether the transaction is the first time interaction.
    */
   isFirstTimeInteraction?: boolean;
@@ -216,6 +221,12 @@ type TransactionMetaBase = {
    * Additional gas fees to cover the cost of persisting data on layer 1 for layer 2 networks.
    */
   layer1GasFee?: Hex;
+
+  /**
+   * Parameters for any nested transactions encoded in the data.
+   * For example, in an atomic batch transaction via EIP-7702.
+   */
+  nestedTransactions?: BatchTransactionParams[];
 
   /**
    * The ID of the network client used by the transaction.
@@ -538,6 +549,12 @@ export enum WalletDevice {
  * The type of the transaction.
  */
 export enum TransactionType {
+  /**
+   * A batch transaction that includes multiple nested transactions.
+   * Introduced in EIP-7702.
+   */
+  batch = 'batch',
+
   /**
    * A transaction that bridges tokens to a different chain through Metamask Bridge.
    */
@@ -1386,3 +1403,54 @@ export type Authorization = {
  * Introduced in EIP-7702.
  */
 export type AuthorizationList = Authorization[];
+
+/**
+ * The parameters of a transaction within an atomic batch.
+ */
+export type BatchTransactionParams = {
+  /** Data used to invoke a function on the target smart contract or EOA. */
+  data?: Hex;
+
+  /** Address of the target contract or EOA. */
+  to?: Hex;
+
+  /** Native balance to transfer with the transaction. */
+  value?: Hex;
+};
+
+/**
+ * Specification for a single transaction within a batch request.
+ */
+export type TransactionBatchSingleRequest = {
+  /** Parameters of the single transaction. */
+  params: BatchTransactionParams;
+};
+
+/**
+ * Request to submit a batch of transactions.
+ * Currently only atomic batches are supported via EIP-7702.
+ */
+export type TransactionBatchRequest = {
+  /** Address of the account to submit the transaction batch. */
+  from: Hex;
+
+  /** ID of the network client to submit the transaction. */
+  networkClientId: NetworkClientId;
+
+  /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
+  origin?: string;
+
+  /** Whether an approval request should be created to require confirmation from the user. */
+  requireApproval?: boolean;
+
+  /** Transactions to be submitted as part of the batch. */
+  transactions: TransactionBatchSingleRequest[];
+};
+
+/**
+ * Result from submitting a transaction batch.
+ */
+export type TransactionBatchResult = {
+  /** ID of the batch to locate related transactions. */
+  batchId: string;
+};

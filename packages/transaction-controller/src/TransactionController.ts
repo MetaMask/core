@@ -1,5 +1,8 @@
 import type { TypedTransaction } from '@ethereumjs/tx';
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetStateAction,
+} from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -39,6 +42,7 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x, hexToNumber } from '@metamask/utils';
@@ -65,6 +69,12 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import type { ResimulateResponse } from './helpers/ResimulateHelper';
+import {
+  ResimulateHelper,
+  hasSimulationDataChanged,
+  shouldResimulate,
+} from './helpers/ResimulateHelper';
 import { projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
@@ -84,6 +94,9 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
   SubmitHistoryEntry,
+  TransactionBatchRequest,
+  TransactionBatchResult,
+  BatchTransactionParams,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -91,6 +104,7 @@ import {
   TransactionStatus,
   SimulationErrorCode,
 } from './types';
+import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import type { KeyringControllerSignAuthorization } from './utils/eip7702';
 import { signAuthorizationList } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
@@ -110,8 +124,6 @@ import {
   getNextNonce,
 } from './utils/nonce';
 import { prepareTransaction, serializeTransaction } from './utils/prepare';
-import type { ResimulateResponse } from './utils/resimulate';
-import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
@@ -338,10 +350,12 @@ const controllerName = 'TransactionController';
  */
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetStateAction
   | AddApprovalRequest
   | KeyringControllerSignAuthorization
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -926,6 +940,18 @@ export class TransactionController extends BaseController<
       this.#checkForPendingTransactionAndStartPolling,
     );
 
+    new ResimulateHelper({
+      simulateTransaction: this.#updateSimulationData.bind(this),
+      onTransactionsUpdate: (listener) => {
+        this.messagingSystem.subscribe(
+          'TransactionController:stateChange',
+          listener,
+          (controllerState) => controllerState.transactions,
+        );
+      },
+      getTransactions: () => this.state.transactions,
+    });
+
     this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
   }
@@ -952,6 +978,38 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Add a batch of transactions to be submitted after approval.
+   *
+   * @param request - Request object containing the transactions to add.
+   * @returns Result object containing the generated batch ID.
+   */
+  async addTransactionBatch(
+    request: TransactionBatchRequest,
+  ): Promise<TransactionBatchResult> {
+    return await addTransactionBatch({
+      addTransaction: this.addTransaction.bind(this),
+      getChainId: this.#getChainId.bind(this),
+      getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
+      messenger: this.messagingSystem,
+      request,
+    });
+  }
+
+  /**
+   * Determine which chains support atomic batch transactions with the given account address.
+   *
+   * @param address - The address of the account to check.
+   * @returns  The supported chain IDs.
+   */
+  async isAtomicBatchSupported(address: Hex): Promise<Hex[]> {
+    return isAtomicBatchSupported({
+      address,
+      getEthQuery: (chainId) => this.#getEthQuery({ chainId }),
+      messenger: this.messagingSystem,
+    });
+  }
+
+  /**
    * Add a new unapproved transaction to state. Parameters will be validated, a
    * unique transaction id will be generated, and gas and gasPrice will be calculated
    * if not provided. If A `<tx.id>:unapproved` hub event will be emitted once added.
@@ -961,6 +1019,7 @@ export class TransactionController extends BaseController<
    * @param options.actionId - Unique ID to prevent duplicate requests.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.method - RPC method that requested the transaction.
+   * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
    * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param options.securityAlertResponse - Response from security validator.
@@ -979,6 +1038,7 @@ export class TransactionController extends BaseController<
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
       method?: string;
+      nestedTransactions?: BatchTransactionParams[];
       networkClientId: NetworkClientId;
       origin?: string;
       requireApproval?: boolean | undefined;
@@ -998,6 +1058,7 @@ export class TransactionController extends BaseController<
       actionId,
       deviceConfirmedOn,
       method,
+      nestedTransactions,
       networkClientId,
       origin,
       requireApproval,
@@ -1022,13 +1083,16 @@ export class TransactionController extends BaseController<
         : await this.getPermittedAccounts?.(origin);
 
     const selectedAddress = this.#getSelectedAccount().address;
+    const internalAccounts = this.#getInternalAccounts();
 
     await validateTransactionOrigin({
       from: txParams.from,
+      internalAccounts,
       origin,
       permittedAddresses,
       selectedAddress,
       txParams,
+      type,
     });
 
     const isEIP1559Compatible =
@@ -1063,6 +1127,7 @@ export class TransactionController extends BaseController<
           deviceConfirmedOn,
           id: random(),
           isFirstTimeInteraction: undefined,
+          nestedTransactions,
           networkClientId,
           origin,
           securityAlertResponse,
@@ -1863,6 +1928,33 @@ export class TransactionController extends BaseController<
   }
 
   /**
+   * Update the isActive state of a transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param isActive - The active state.
+   */
+  setTransactionActive(transactionId: string, isActive: boolean) {
+    const transactionMeta = this.getTransaction(transactionId);
+
+    if (!transactionMeta) {
+      throw new Error(`Transaction with id ${transactionId} not found`);
+    }
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#setTransactionActive - Transaction isActive updated',
+        skipHistory: true,
+        skipValidation: true,
+        skipResimulateCheck: true,
+      },
+      (updatedTransactionMeta) => {
+        updatedTransactionMeta.isActive = isActive;
+      },
+    );
+  }
+
+  /**
    * Signs and returns the raw transaction data for provided transaction params list.
    *
    * @param listOfTxParams - The list of transaction params to approve.
@@ -2534,7 +2626,7 @@ export class TransactionController extends BaseController<
 
       const rawTx = await this.#trace(
         { name: 'Sign', parentContext: traceContext },
-        () => this.signTransaction(transactionMeta, transactionMeta.txParams),
+        () => this.signTransaction(transactionMeta),
       );
 
       if (!this.beforePublish(transactionMeta)) {
@@ -3122,8 +3214,9 @@ export class TransactionController extends BaseController<
 
   private async signTransaction(
     transactionMeta: TransactionMeta,
-    txParams: TransactionParams,
   ): Promise<string | undefined> {
+    const { txParams } = transactionMeta;
+
     log('Signing transaction', txParams);
 
     const { authorizationList, from } = txParams;
@@ -3176,6 +3269,7 @@ export class TransactionController extends BaseController<
     const transactionMetaWithRsv = {
       ...this.updateTransactionMetaRSV(transactionMetaFromHook, signedTx),
       status: TransactionStatus.signed as const,
+      txParams: finalTxParams,
     };
 
     this.updateTransaction(
@@ -3707,6 +3801,14 @@ export class TransactionController extends BaseController<
 
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
+
+  #getInternalAccounts(): string[] {
+    const state = this.messagingSystem.call('AccountsController:getState');
+
+    return Object.values(state.internalAccounts?.accounts ?? {})
+      .filter((account) => account.type === 'eip155:eoa')
+      .map((account) => account.address);
   }
 
   #updateSubmitHistory(transactionMeta: TransactionMeta, hash: string): void {

@@ -15,7 +15,7 @@ import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerAddNewAccountAction,
+  type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -244,7 +244,7 @@ export type AllowedActions =
   // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
-  | KeyringControllerAddNewAccountAction
+  | KeyringControllerWithKeyringAction
   // Network Syncing
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction
@@ -256,23 +256,11 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
-export type UserStorageControllerAccountSyncingInProgress = {
-  type: `${typeof controllerName}:accountSyncingInProgress`;
-  payload: [boolean];
-};
-export type UserStorageControllerAccountSyncingComplete = {
-  type: `${typeof controllerName}:accountSyncingComplete`;
-  payload: [boolean];
-};
-export type Events =
-  | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete;
+
+export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
   | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Account Syncing Events

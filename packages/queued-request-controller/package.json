@@ -52,7 +52,7 @@
     "@metamask/json-rpc-engine": "^10.0.3",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/swappable-obj-proxy": "^2.3.0",
-    "@metamask/utils": "^11.1.0"
+    "@metamask/utils": "^11.2.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
