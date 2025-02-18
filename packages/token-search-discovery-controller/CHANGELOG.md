@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- All param types (e.g. `TokenSearchParams`, `TrendingTokensParams`, etc.) inherit from `ParamsBase`
+- Add eponymous methods to the `TokenDiscoveryApiService`
+  - Add `getTopGainersByChains`
+  - Add `getTopLosersByChains`
+
+### Changed
+
+- **BREAKING:** Renamed `TokenTrendingResponseItem` name to `MoralisTokenResponseItem`
+
 ## [2.1.0]
 
 ### Added

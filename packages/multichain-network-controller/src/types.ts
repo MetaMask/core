@@ -138,7 +138,8 @@ export type MultichainNetworkControllerActions =
  * Events emitted by {@link MultichainNetworkController}.
  */
 export type MultichainNetworkControllerEvents =
-  MultichainNetworkControllerNetworkDidChangeEvent;
+  | MultichainNetworkControllerStateChange
+  | MultichainNetworkControllerNetworkDidChangeEvent;
 
 /**
  * Actions that this controller is allowed to call.

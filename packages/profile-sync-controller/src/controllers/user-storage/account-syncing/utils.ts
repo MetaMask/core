@@ -6,7 +6,7 @@ import {
   USER_STORAGE_VERSION,
   LOCALIZED_DEFAULT_ACCOUNT_NAMES,
 } from './constants';
-import type { UserStorageAccount } from './types';
+import type { AccountSyncingOptions, UserStorageAccount } from './types';
 
 /**
  * Tells if the given name is a default account name.
@@ -44,13 +44,62 @@ export const mapInternalAccountToUserStorageAccount = (
 };
 
 /**
- * Checks if the given internal account has the correct keyring type.
+ * Transforms a list of any internal accounts to a list of internal accounts that
+ * have the correct keyring type and are from the primary SRP.
+ *
+ * @param internalAccountsList - The list of internal accounts
+ * @param options - Parameters used for checking if the internal account is from the primary SRP
+ * @returns Returns a list of internal accounts that have the correct keyring type and are from the primary SRP.
+ */
+export async function mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList(
+  internalAccountsList: InternalAccount[],
+  options: AccountSyncingOptions,
+): Promise<InternalAccount[]> {
+  const { getMessenger } = options;
+
+  const primarySRPHdKeyringAccountsAddresses = (await getMessenger().call(
+    'KeyringController:withKeyring',
+    {
+      type: KeyringTypes.hd,
+      index: 0,
+    },
+    async (keyring) => {
+      return await keyring.getAccounts();
+    },
+  )) as string[];
+
+  return internalAccountsList.filter((account) =>
+    primarySRPHdKeyringAccountsAddresses?.includes(account.address),
+  );
+}
+
+/**
+ * Checks if the given internal account is from the primary SRP and is from the HD keyring.
  *
  * @param account - The internal account to check
- * @returns Returns true if the internal account has the correct keyring type, false otherwise.
+ * @param options - Parameters used for checking if the internal account is from the primary SRP
+ * @returns Returns true if the internal account is from the primary SRP, false otherwise.
  */
-export function doesInternalAccountHaveCorrectKeyringType(
+export async function isInternalAccountFromPrimarySRPHdKeyring(
   account: InternalAccount,
-) {
-  return account.metadata.keyring.type === String(KeyringTypes.hd);
+  options: AccountSyncingOptions,
+): Promise<boolean> {
+  if (account.metadata.keyring.type !== KeyringTypes.hd) {
+    return false;
+  }
+
+  const { getMessenger } = options;
+
+  const primarySRPHdKeyringAccountsAddresses = (await getMessenger().call(
+    'KeyringController:withKeyring',
+    {
+      type: KeyringTypes.hd,
+      index: 0,
+    },
+    async (keyring) => {
+      return await keyring.getAccounts();
+    },
+  )) as string[];
+
+  return primarySRPHdKeyringAccountsAddresses.includes(account.address);
 }
