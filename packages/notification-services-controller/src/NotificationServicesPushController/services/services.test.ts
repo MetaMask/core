@@ -4,15 +4,11 @@ import * as PushWebModule from './push/push-web';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
-  getPushNotificationLinks,
   listenToPushNotifications,
   updateLinksAPI,
   updateTriggerPushNotifications,
 } from './services';
-import {
-  mockEndpointGetPushNotificationLinks,
-  mockEndpointUpdatePushNotificationLinks,
-} from '../__fixtures__/mockServices';
+import { mockEndpointUpdatePushNotificationLinks } from '../__fixtures__/mockServices';
 import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors
@@ -26,24 +22,6 @@ const MOCK_TRIGGERS = ['1', '2', '3'];
 const MOCK_JWT = 'MOCK_JWT';
 
 describe('NotificationServicesPushController Services', () => {
-  describe('getPushNotificationLinks', () => {
-    it('should return reg token links', async () => {
-      const mockAPI = mockEndpointGetPushNotificationLinks();
-      const result = await getPushNotificationLinks(MOCK_JWT);
-      expect(mockAPI.isDone()).toBe(true);
-      expect(result?.registration_tokens).toBeDefined();
-      expect(result?.trigger_ids).toBeDefined();
-    });
-
-    it('should return null if given a bad response', async () => {
-      const mockAPI = mockEndpointGetPushNotificationLinks({ status: 500 });
-      mockErrorLog();
-      const result = await getPushNotificationLinks(MOCK_JWT);
-      expect(mockAPI.isDone()).toBe(true);
-      expect(result).toBeNull();
-    });
-  });
-
   describe('updateLinksAPI', () => {
     const act = async () =>
       await updateLinksAPI(MOCK_JWT, MOCK_TRIGGERS, [
@@ -74,10 +52,7 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('activatePushNotifications', () => {
-    const arrangeMocks = (override?: {
-      mockGet?: { status: number };
-      mockPut?: { status: number };
-    }) => {
+    const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
       const params = {
         bearerToken: MOCK_JWT,
         triggers: MOCK_TRIGGERS,
@@ -96,7 +71,6 @@ describe('NotificationServicesPushController Services', () => {
         params,
         mobileParams,
         apis: {
-          mockGet: mockEndpointGetPushNotificationLinks(override?.mockGet),
           mockPut: mockEndpointUpdatePushNotificationLinks(override?.mockPut),
         },
       };
@@ -106,7 +80,6 @@ describe('NotificationServicesPushController Services', () => {
       const { params, apis } = arrangeMocks();
       const result = await activatePushNotifications(params);
 
-      expect(apis.mockGet.isDone()).toBe(true);
       expect(params.createRegToken).toHaveBeenCalled();
       expect(apis.mockPut.isDone()).toBe(true);
 
@@ -118,23 +91,10 @@ describe('NotificationServicesPushController Services', () => {
       mockErrorLog();
       const result = await activatePushNotifications(mobileParams);
 
-      expect(apis.mockGet.isDone()).toBe(true);
       expect(mobileParams.createRegToken).not.toHaveBeenCalled();
       expect(apis.mockPut.isDone()).toBe(true);
 
       expect(result).toBe(MOCK_MOBILE_FCM_TOKEN);
-    });
-
-    it('should return null if unable to get links from API', async () => {
-      const { params, apis } = arrangeMocks({ mockGet: { status: 500 } });
-      mockErrorLog();
-      const result = await activatePushNotifications(params);
-
-      expect(apis.mockGet.isDone()).toBe(true);
-      expect(params.createRegToken).not.toHaveBeenCalled();
-      expect(apis.mockPut.isDone()).toBe(false);
-
-      expect(result).toBeNull();
     });
 
     it('should return null if unable to create new registration token', async () => {
@@ -143,7 +103,6 @@ describe('NotificationServicesPushController Services', () => {
 
       const result = await activatePushNotifications(params);
 
-      expect(apis.mockGet.isDone()).toBe(true);
       expect(params.createRegToken).toHaveBeenCalled();
       expect(apis.mockPut.isDone()).toBe(false);
 
@@ -152,10 +111,7 @@ describe('NotificationServicesPushController Services', () => {
   });
 
   describe('deactivatePushNotifications', () => {
-    const arrangeMocks = (override?: {
-      mockGet?: { status: number };
-      mockPut?: { status: number };
-    }) => {
+    const arrangeMocks = () => {
       const params = {
         regToken: MOCK_REG_TOKEN,
         bearerToken: MOCK_JWT,
@@ -166,80 +122,41 @@ describe('NotificationServicesPushController Services', () => {
 
       return {
         params,
-        apis: {
-          mockGet: mockEndpointGetPushNotificationLinks(override?.mockGet),
-          mockPut: mockEndpointUpdatePushNotificationLinks(override?.mockPut),
-        },
       };
     };
 
     it('should successfully delete the registration token', async () => {
-      const { params, apis } = arrangeMocks();
+      const { params } = arrangeMocks();
       const result = await deactivatePushNotifications(params);
 
-      expect(apis.mockGet.isDone()).toBe(true);
-      expect(apis.mockPut.isDone()).toBe(true);
       expect(params.deleteRegToken).toHaveBeenCalled();
-
       expect(result).toBe(true);
     });
 
     it('should return early when there is no registration token to delete', async () => {
-      const { params, apis } = arrangeMocks();
+      const { params } = arrangeMocks();
       mockErrorLog();
       const result = await deactivatePushNotifications({
         ...params,
         regToken: '',
       });
 
-      expect(apis.mockGet.isDone()).toBe(false);
-      expect(apis.mockPut.isDone()).toBe(false);
       expect(params.deleteRegToken).not.toHaveBeenCalled();
-
       expect(result).toBe(true);
     });
 
-    it('should return false when unable to get links api', async () => {
-      const { params, apis } = arrangeMocks({ mockGet: { status: 500 } });
-      mockErrorLog();
-      const result = await deactivatePushNotifications(params);
-
-      expect(apis.mockGet.isDone()).toBe(true);
-      expect(apis.mockPut.isDone()).toBe(false);
-      expect(params.deleteRegToken).not.toHaveBeenCalled();
-
-      expect(result).toBe(false);
-    });
-
-    it('should return false when unable to update links api', async () => {
-      const { params, apis } = arrangeMocks({ mockPut: { status: 500 } });
-      const result = await deactivatePushNotifications(params);
-
-      expect(apis.mockGet.isDone()).toBe(true);
-      expect(apis.mockPut.isDone()).toBe(true);
-      expect(params.deleteRegToken).not.toHaveBeenCalled();
-
-      expect(result).toBe(false);
-    });
-
     it('should return false when unable to delete the existing reg token', async () => {
-      const { params, apis } = arrangeMocks();
+      const { params } = arrangeMocks();
       params.deleteRegToken.mockResolvedValue(false);
       const result = await deactivatePushNotifications(params);
 
-      expect(apis.mockGet.isDone()).toBe(true);
-      expect(apis.mockPut.isDone()).toBe(true);
       expect(params.deleteRegToken).toHaveBeenCalled();
-
       expect(result).toBe(false);
     });
   });
 
   describe('updateTriggerPushNotifications', () => {
-    const arrangeMocks = (override?: {
-      mockGet?: { status: number };
-      mockPut?: { status: number };
-    }) => {
+    const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
       const params = {
         regToken: MOCK_REG_TOKEN,
         bearerToken: MOCK_JWT,
@@ -253,7 +170,6 @@ describe('NotificationServicesPushController Services', () => {
       return {
         params,
         apis: {
-          mockGet: mockEndpointGetPushNotificationLinks(override?.mockGet),
           mockPut: mockEndpointUpdatePushNotificationLinks(override?.mockPut),
         },
       };
@@ -264,27 +180,12 @@ describe('NotificationServicesPushController Services', () => {
       mockErrorLog();
       const result = await updateTriggerPushNotifications(params);
 
-      expect(apis.mockGet.isDone()).toBe(true);
       expect(params.deleteRegToken).toHaveBeenCalled();
       expect(params.createRegToken).toHaveBeenCalled();
       expect(apis.mockPut.isDone()).toBe(true);
 
       expect(result.fcmToken).toBeDefined();
       expect(result.isTriggersLinkedToPushNotifications).toBe(true);
-    });
-
-    it('should return early if fails to get links api', async () => {
-      const { params, apis } = arrangeMocks({ mockGet: { status: 500 } });
-      mockErrorLog();
-      const result = await updateTriggerPushNotifications(params);
-
-      expect(apis.mockGet.isDone()).toBe(true);
-      expect(params.deleteRegToken).not.toHaveBeenCalled();
-      expect(params.createRegToken).not.toHaveBeenCalled();
-      expect(apis.mockPut.isDone()).toBe(false);
-
-      expect(result.fcmToken).toBeUndefined();
-      expect(result.isTriggersLinkedToPushNotifications).toBe(false);
     });
 
     it('should throw error if fails to create reg token', async () => {
