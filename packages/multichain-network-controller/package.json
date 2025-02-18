@@ -49,12 +49,12 @@
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
     "@metamask/keyring-api": "^17.0.0",
-    "@metamask/utils": "^11.1.0",
+    "@metamask/utils": "^11.2.0",
     "@solana/addresses": "^2.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.1.0",
+    "@metamask/keyring-controller": "^19.2.0",
     "@metamask/network-controller": "^22.2.1",
     "@types/jest": "^27.4.1",
     "@types/uuid": "^8.3.0",
