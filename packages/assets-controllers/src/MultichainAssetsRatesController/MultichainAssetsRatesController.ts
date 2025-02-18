@@ -213,8 +213,8 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'MultichainAssetsController:stateChange',
-      async (multiChainAssetsState: MultichainAssetsControllerState) => {
-        this.#accountsAssets = multiChainAssetsState.accountsAssets;
+      async (multichainAssetsState: MultichainAssetsControllerState) => {
+        this.#accountsAssets = multichainAssetsState.accountsAssets;
         await this.updateAssetsRates();
       },
     );
