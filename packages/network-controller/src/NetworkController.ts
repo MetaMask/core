@@ -28,7 +28,11 @@ import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
-import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import {
+  DEFAULT_INFURA_FAILOVER_URL,
+  INFURA_BLOCKED_KEY,
+  NetworkStatus,
+} from './constants';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
@@ -95,6 +99,10 @@ export enum RpcEndpointType {
  * separate type.
  */
 export type InfuraRpcEndpoint = {
+  /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: string[];
   /**
    * The optional user-facing nickname of the endpoint.
    */
@@ -569,6 +577,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
+          failoverUrls: [DEFAULT_INFURA_FAILOVER_URL],
           networkClientId: infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,
@@ -2446,6 +2455,7 @@ export class NetworkController extends BaseController<
             type: NetworkClientType.Infura,
             chainId: networkFields.chainId,
             network: addedRpcEndpoint.networkClientId,
+            failoverEndpointUrls: addedRpcEndpoint.failoverUrls,
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
@@ -2617,6 +2627,7 @@ export class NetworkController extends BaseController<
               networkClientConfiguration: {
                 type: NetworkClientType.Infura,
                 network: infuraNetworkName,
+                failoverEndpointUrls: rpcEndpoint.failoverUrls,
                 infuraProjectId: this.#infuraProjectId,
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,

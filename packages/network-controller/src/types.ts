@@ -18,27 +18,40 @@ export enum NetworkClientType {
 }
 
 /**
+ * A configuration object that can be used to create a client for a network.
+ */
+type CommonNetworkClientConfiguration = {
+  /**
+   * The chain ID of the network.
+   */
+  chainId: Hex;
+  /**
+   * The name of the currency to use for the chain.
+   */
+  ticker: string;
+};
+
+/**
  * A configuration object that can be used to create a client for a custom
  * network.
  */
-export type CustomNetworkClientConfiguration = {
-  chainId: Hex;
-  rpcUrl: string;
-  ticker: string;
-  type: NetworkClientType.Custom;
-};
+export type CustomNetworkClientConfiguration =
+  CommonNetworkClientConfiguration & {
+    rpcUrl: string;
+    type: NetworkClientType.Custom;
+  };
 
 /**
  * A configuration object that can be used to create a client for an Infura
  * network.
  */
-export type InfuraNetworkClientConfiguration = {
-  chainId: Hex;
-  network: InfuraNetworkType;
-  infuraProjectId: string;
-  ticker: string;
-  type: NetworkClientType.Infura;
-};
+export type InfuraNetworkClientConfiguration =
+  CommonNetworkClientConfiguration & {
+    network: InfuraNetworkType;
+    infuraProjectId: string;
+    failoverEndpointUrls: string[];
+    type: NetworkClientType.Infura;
+  };
 
 /**
  * A configuration object that can be used to create a client for a network.
