@@ -1724,10 +1724,10 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0];
 
-          for (const invalidContractAddress of [undefined, null] as any as [
-            string,
-            string,
-          ]) {
+          for (const invalidContractAddress of [
+            undefined,
+            null,
+          ] as unknown as string[]) {
             await expect(
               controller.signEip7702Authorization({
                 from: account,
