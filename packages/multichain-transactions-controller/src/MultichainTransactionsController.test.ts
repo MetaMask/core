@@ -537,32 +537,27 @@ describe('MultichainTransactionsController', () => {
     });
   });
 
-  it('ignores transaction updates for unknown accounts', async () => {
-    const UNKNOWN_ACCOUNT_ID = 'unknown-account-id';
+  it('initializes new accounts with empty transactions array when receiving updates', async () => {
+    const NEW_ACCOUNT_ID = 'new-account-id';
 
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {},
       },
-      mocks: {
-        listMultichainAccounts: [],
-        handleRequestReturnValue: {
-          // @ts-expect-error we don't care about the return value here
-          data: [],
-          next: null,
-        },
-      },
     });
 
     messenger.publish('AccountsController:accountTransactionsUpdated', {
       transactions: {
-        [UNKNOWN_ACCOUNT_ID]: mockTransactionResult.data,
+        [NEW_ACCOUNT_ID]: mockTransactionResult.data,
       },
     });
 
     await waitForAllPromises();
 
-    expect(controller.state.nonEvmTransactions).toStrictEqual({});
+    expect(controller.state.nonEvmTransactions[NEW_ACCOUNT_ID]).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      lastUpdated: expect.any(Number),
+    });
   });
 
   it('handles undefined transactions in update payload', async () => {

@@ -331,9 +331,6 @@ export class MultichainTransactionsController extends BaseController<
 
   /**
    * Handles transaction updates received from the AccountsController.
-   * Uses a Map to deduplicate transactions by ID, ensuring we keep the latest version
-   * of each transaction while preserving older transactions and transactions from other accounts.
-   * Transactions are sorted by timestamp (newest first).
    *
    * @param transactionsUpdate - The transaction update event containing new transactions.
    */
@@ -348,30 +345,30 @@ export class MultichainTransactionsController extends BaseController<
 
     Object.entries(transactionsUpdate.transactions).forEach(
       ([accountId, newTransactions]) => {
-        if (!(accountId in this.state.nonEvmTransactions)) {
-          return;
-        }
+        // Account might not have any transactions yet, so use `[]` in that case.
+        const oldTransactions =
+          this.state.nonEvmTransactions[accountId]?.transactions ?? [];
 
-        const existing = this.state.nonEvmTransactions[accountId].transactions;
-        const transactionMap = new Map();
+        // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
+        // of each transaction while preserving older transactions and transactions from other accounts.
+        // Transactions are sorted by timestamp (newest first).
+        const transactions = new Map();
 
-        existing.forEach((tx) => {
-          transactionMap.set(tx.id, tx);
+        oldTransactions.forEach((tx) => {
+          transactions.set(tx.id, tx);
         });
 
         newTransactions.forEach((tx) => {
-          transactionMap.set(tx.id, tx);
+          transactions.set(tx.id, tx);
         });
 
-        updatedTransactions[accountId] = Array.from(transactionMap.values());
+        // Sorted by timestamp (newest first). If the timestamp is not provided, those
+        // transactions will be put in the end of this list.
+        updatedTransactions[accountId] = Array.from(transactions.values()).sort(
+          (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+        );
       },
     );
-
-    Object.keys(updatedTransactions).forEach((accountId) => {
-      updatedTransactions[accountId].sort(
-        (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
-      );
-    });
 
     this.update((state) => {
       Object.entries(updatedTransactions).forEach(
