@@ -9,15 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.2.0]
 
-### Uncategorized
-
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
-
 ### Added
 
+- Add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
 - Add `KeyringController:withKeyring` action ([#5332](https://github.com/MetaMask/core/pull/5332))
   - The action can be used to consume the `withKeyring` method of the `KeyringController` class
+- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
 
 ## [19.1.0]
 

@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.1.0]
 
-### Uncategorized
+### Added
 
-- feat: use `KeyringController:withKeyring` for account syncing operations ([#5345](https://github.com/MetaMask/core/pull/5345))
 - Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core/pull/5290))
+
+### Changed
+
+- Use `KeyringController:withKeyring` for account syncing operations ([#5345](https://github.com/MetaMask/core/pull/5345))
 
 ## [8.0.0]
 
