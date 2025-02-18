@@ -117,7 +117,7 @@ const setupController = ({
     currentCurrency: 'USD',
   }));
 
-  const multiChainAssetsRatesControllerMessenger = messenger.getRestricted({
+  const multichainAssetsRatesControllerMessenger = messenger.getRestricted({
     name: 'MultichainAssetsRatesController',
     allowedActions: [
       'AccountsController:listMultichainAccounts',
@@ -136,7 +136,7 @@ const setupController = ({
 
   return {
     controller: new MultichainAssetsRatesController({
-      messenger: multiChainAssetsRatesControllerMessenger,
+      messenger: multichainAssetsRatesControllerMessenger,
       ...config,
     }),
     messenger,
