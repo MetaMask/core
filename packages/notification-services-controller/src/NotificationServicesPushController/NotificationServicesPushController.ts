@@ -286,14 +286,9 @@ export default class NotificationServicesPushController extends BaseController<
 
   /**
    * Disables push notifications for the application.
-   * This method handles the process of disabling push notifications by:
-   * 1. Unregistering the service worker to stop listening for messages.
-   * 2. Sending a request to the server to unregister the device using the FCM token.
-   * 3. Removing the FCM token from the state to complete the process.
-   *
-   * @param UUIDs - An array of UUIDs for which push notifications should be disabled.
+   * This removes the registration token on this device, and ensures we unsubscribe from any listeners
    */
-  async disablePushNotifications(UUIDs: string[]) {
+  async disablePushNotifications() {
     if (!this.#config.isPushEnabled) {
       return;
     }

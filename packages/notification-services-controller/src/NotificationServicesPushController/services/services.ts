@@ -1,5 +1,3 @@
-import log from 'loglevel';
-
 import * as endpoints from './endpoints';
 import type { CreateRegToken, DeleteRegToken } from './push';
 import {
