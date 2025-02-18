@@ -3,6 +3,7 @@ import type {
   AccountTransactionsUpdatedEventPayload,
   CaipAssetType,
   Transaction,
+  TransactionsPage,
 } from '@metamask/keyring-api';
 import {
   BtcAccountType,
@@ -134,7 +135,7 @@ const setupController = ({
   state?: MultichainTransactionsControllerState;
   mocks?: {
     listMultichainAccounts?: InternalAccount[];
-    handleRequestReturnValue?: Record<CaipAssetType, Transaction>;
+    handleRequestReturnValue?: TransactionsPage;
   };
 } = {}) => {
   const messenger = new Messenger<AllowedActions, AllowedEvents>();
@@ -195,6 +196,9 @@ async function waitForAllPromises(): Promise<void> {
   // synchronous calls.
   await new Promise(process.nextTick);
 }
+
+const NEW_ACCOUNT_ID = 'new-account-id';
+const TEST_ACCOUNT_ID = 'test-account-id';
 
 describe('MultichainTransactionsController', () => {
   it('initialize with default state', () => {
@@ -437,8 +441,6 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('updates transactions when receiving "AccountsController:accountTransactionsUpdated" event', async () => {
-    const TEST_ACCOUNT_ID = 'test-account-id';
-
     const mockSolAccountWithId = {
       ...mockSolAccount,
       id: TEST_ACCOUNT_ID,
@@ -488,38 +490,21 @@ describe('MultichainTransactionsController', () => {
     expect(finalTransactions).toHaveLength(2);
     expect(finalTransactions).toStrictEqual(
       expect.arrayContaining([
-        expect.objectContaining({ id: '123', status: 'failed' }),
-        expect.objectContaining({ id: '456', status: 'submitted' }),
+        expect.objectContaining(updatedExistingTransaction),
+        expect.objectContaining(newTransaction),
       ]),
     );
   });
 
   it('handles empty transaction updates gracefully', async () => {
-    const TEST_ACCOUNT_ID = 'test-account-id';
-
-    const initialState = {
-      nonEvmTransactions: {
-        [TEST_ACCOUNT_ID]: {
-          transactions: [],
-          next: null,
-          lastUpdated: Date.now(),
-        },
-      },
-    };
-
     const { controller, messenger } = setupController({
-      state: initialState,
-      mocks: {
-        listMultichainAccounts: [
-          {
-            ...mockBtcAccount,
-            id: TEST_ACCOUNT_ID,
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
+            transactions: [],
+            next: null,
+            lastUpdated: Date.now(),
           },
-        ],
-        handleRequestReturnValue: {
-          // @ts-expect-error we don't care about the return value here
-          data: [],
-          next: null,
         },
       },
     });
@@ -538,8 +523,6 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('initializes new accounts with empty transactions array when receiving updates', async () => {
-    const NEW_ACCOUNT_ID = 'new-account-id';
-
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {},
@@ -561,28 +544,19 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('handles undefined transactions in update payload', async () => {
-    const TEST_ACCOUNT_ID = 'test-account-id';
-    const initialState = {
-      nonEvmTransactions: {
-        [TEST_ACCOUNT_ID]: {
-          transactions: [],
-          next: null,
-          lastUpdated: Date.now(),
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
+            transactions: [],
+            next: null,
+            lastUpdated: Date.now(),
+          },
         },
       },
-    };
-
-    const { controller, messenger } = setupController({
-      state: initialState,
       mocks: {
-        listMultichainAccounts: [
-          {
-            ...mockBtcAccount,
-            id: TEST_ACCOUNT_ID,
-          },
-        ],
+        listMultichainAccounts: [],
         handleRequestReturnValue: {
-          // @ts-expect-error we don't care about the return value here
           data: [],
           next: null,
         },
@@ -608,7 +582,6 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('sorts transactions by timestamp (newest first)', async () => {
-    const TEST_ACCOUNT_ID = 'test-account-id';
     const olderTransaction = {
       ...mockTransactionResult.data[0],
       id: '123',
@@ -642,12 +615,11 @@ describe('MultichainTransactionsController', () => {
 
     const finalTransactions =
       controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
-    expect(finalTransactions[0].timestamp).toBe(2000);
-    expect(finalTransactions[1].timestamp).toBe(1000);
+    expect(finalTransactions[0]).toBe(newerTransaction);
+    expect(finalTransactions[1]).toBe(olderTransaction);
   });
 
   it('sorts transactions by timestamp and handles null timestamps', async () => {
-    const TEST_ACCOUNT_ID = 'test-account-id';
     const nullTimestampTx1 = {
       ...mockTransactionResult.data[0],
       id: '123',
@@ -686,8 +658,8 @@ describe('MultichainTransactionsController', () => {
 
     const finalTransactions =
       controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
-    expect(finalTransactions[0].timestamp).toBe(1000);
-    expect(finalTransactions[1].timestamp).toBeNull();
-    expect(finalTransactions[2].timestamp).toBeNull();
+    expect(finalTransactions[0]).toBe(withTimestampTx);
+    expect(finalTransactions[1]).toBe(nullTimestampTx1);
+    expect(finalTransactions[2]).toBe(nullTimestampTx2);
   });
 });
