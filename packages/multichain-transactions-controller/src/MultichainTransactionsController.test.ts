@@ -2,7 +2,6 @@ import { Messenger } from '@metamask/base-controller';
 import type {
   AccountTransactionsUpdatedEventPayload,
   CaipAssetType,
-  Transaction,
   TransactionsPage,
 } from '@metamask/keyring-api';
 import {
