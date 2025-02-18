@@ -92,18 +92,6 @@ describe('NotificationServicesPushController', () => {
       await controller.disablePushNotifications(MOCK_TRIGGERS);
       expect(controller.state.fcmToken).toBe('');
     });
-
-    it('should fail if a jwt token is not provided', async () => {
-      arrangeServicesMocks();
-      mockErrorLog();
-      const { controller, messenger } = arrangeMockMessenger();
-      mockAuthBearerTokenCall(messenger).mockResolvedValue(
-        null as unknown as string,
-      );
-      await expect(controller.disablePushNotifications([])).rejects.toThrow(
-        expect.any(Error),
-      );
-    });
   });
 
   describe('updateTriggerPushNotifications', () => {
@@ -127,7 +115,6 @@ describe('NotificationServicesPushController', () => {
       const args = spy.mock.calls[0][0];
       expect(args.bearerToken).toBe(MOCK_JWT);
       expect(args.triggers).toBe(MOCK_TRIGGERS);
-      expect(args.regToken).toBe(controller.state.fcmToken);
     });
   });
 });

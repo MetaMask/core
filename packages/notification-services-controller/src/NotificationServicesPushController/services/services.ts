@@ -24,30 +24,6 @@ export type LinksResult = {
 };
 
 /**
- * Fetches push notification links from a remote endpoint using a BearerToken for authorization.
- *
- * @param bearerToken - The JSON Web Token used for authorization.
- * @returns A promise that resolves with the links result or null if an error occurs.
- */
-export async function getPushNotificationLinks(
-  bearerToken: string,
-): Promise<LinksResult | null> {
-  try {
-    const response = await fetch(endpoints.REGISTRATION_TOKENS_ENDPOINT, {
-      headers: { Authorization: `Bearer ${bearerToken}` },
-    });
-    if (!response.ok) {
-      log.error('Failed to fetch the push notification links');
-      throw new Error('Failed to fetch the push notification links');
-    }
-    return response.json() as Promise<LinksResult>;
-  } catch (error) {
-    log.error('Failed to fetch the push notification links', error);
-    return null;
-  }
-}
-
-/**
  * Updates the push notification links on a remote API.
  *
  * @param bearerToken - The JSON Web Token used for authorization.
@@ -103,29 +79,18 @@ export async function activatePushNotifications(
   const { bearerToken, triggers, env, createRegToken, platform, fcmToken } =
     params;
 
-  const notificationLinks = await getPushNotificationLinks(bearerToken);
-
-  if (!notificationLinks) {
-    return null;
-  }
-
   const regToken = fcmToken ?? (await createRegToken(env).catch(() => null));
   if (!regToken) {
     return null;
   }
 
-  const newRegTokens = new Set(notificationLinks.registration_tokens);
-  newRegTokens.add({ token: regToken, platform });
-
-  await updateLinksAPI(bearerToken, triggers, Array.from(newRegTokens));
+  await updateLinksAPI(bearerToken, triggers, [{ token: regToken, platform }]);
   return regToken;
 }
 
 type DeactivatePushNotificationsParams = {
   // Push Links
   regToken: string;
-  bearerToken: string;
-  triggers: string[];
 
   // Push Un-registration
   env: PushNotificationEnv;
@@ -133,37 +98,20 @@ type DeactivatePushNotificationsParams = {
 };
 
 /**
- * Disables push notifications by removing the registration token and unlinking triggers.
+ * Disables push notifications by removing the registration token
+ * We do not need to unlink triggers, and remove old reg tokens (this is cleaned up in the back-end)
  *
  * @param params - Deactivate Push Params
- * @returns A promise that resolves with true if notifications were successfully disabled, false otherwise.
+ * @returns A promise that resolves with true if push notifications were successfully disabled, false otherwise.
  */
 export async function deactivatePushNotifications(
   params: DeactivatePushNotificationsParams,
 ): Promise<boolean> {
-  const { regToken, bearerToken, triggers, env, deleteRegToken } = params;
+  const { regToken, env, deleteRegToken } = params;
 
   // if we don't have a reg token, then we can early return
   if (!regToken) {
     return true;
-  }
-
-  const notificationLinks = await getPushNotificationLinks(bearerToken);
-  if (!notificationLinks) {
-    return false;
-  }
-
-  const filteredRegTokens = notificationLinks.registration_tokens.filter(
-    (r) => r.token !== regToken,
-  );
-
-  const isTokenRemovedFromAPI = await updateLinksAPI(
-    bearerToken,
-    triggers,
-    filteredRegTokens,
-  );
-  if (!isTokenRemovedFromAPI) {
-    return false;
   }
 
   const isTokenRemovedFromFCM = await deleteRegToken(env);
@@ -176,7 +124,6 @@ export async function deactivatePushNotifications(
 
 type UpdateTriggerPushNotificationsParams = {
   // Push Links
-  regToken: string;
   bearerToken: string;
   triggers: string[];
 
@@ -207,7 +154,6 @@ export async function updateTriggerPushNotifications(
 }> {
   const {
     bearerToken,
-    regToken,
     triggers,
     createRegToken,
     platform,
@@ -215,38 +161,21 @@ export async function updateTriggerPushNotifications(
     env,
   } = params;
 
-  const notificationLinks = await getPushNotificationLinks(bearerToken);
-  if (!notificationLinks) {
-    return { isTriggersLinkedToPushNotifications: false };
-  }
-  // Create new registration token if doesn't exist
-  const hasRegToken = Boolean(
-    regToken &&
-      notificationLinks.registration_tokens.some((r) => r.token === regToken),
-  );
-
-  let newRegToken: string | null = null;
-  if (!hasRegToken) {
-    await deleteRegToken(env);
-    newRegToken = await createRegToken(env);
-    if (!newRegToken) {
-      throw new Error('Failed to create a new registration token');
-    }
-    notificationLinks.registration_tokens.push({
-      token: newRegToken,
-      platform,
-    });
+  await deleteRegToken(env);
+  const newRegToken = await createRegToken(env);
+  if (!newRegToken) {
+    throw new Error('Failed to create a new registration token');
   }
 
   const isTriggersLinkedToPushNotifications = await updateLinksAPI(
     bearerToken,
     triggers,
-    notificationLinks.registration_tokens,
+    [{ token: newRegToken, platform }],
   );
 
   return {
     isTriggersLinkedToPushNotifications,
-    fcmToken: newRegToken ?? null,
+    fcmToken: newRegToken,
   };
 }
 

@@ -298,14 +298,11 @@ export default class NotificationServicesPushController extends BaseController<
       return;
     }
 
-    const bearerToken = await this.#getAndAssertBearerToken();
     let isPushNotificationsDisabled: boolean;
 
     try {
       // Send a request to the server to unregister the token/device
       isPushNotificationsDisabled = await deactivatePushNotifications({
-        bearerToken,
-        triggers: UUIDs,
         env: this.#env,
         deleteRegToken,
         regToken: this.state.fcmToken,
@@ -356,7 +353,6 @@ export default class NotificationServicesPushController extends BaseController<
         createRegToken,
         deleteRegToken,
         platform: this.#config.platform,
-        regToken: this.state.fcmToken,
       });
 
       // update the state with the new FCM token
