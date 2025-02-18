@@ -1724,7 +1724,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0];
 
-          for (const contractAddress of [undefined, null] as any as [
+          for (const invalidContractAddress of [undefined, null] as any as [
             string,
             string,
           ]) {
@@ -1732,7 +1732,7 @@ describe('KeyringController', () => {
               controller.signEip7702Authorization({
                 from: account,
                 chainId,
-                contractAddress,
+                contractAddress: invalidContractAddress,
                 nonce,
               }),
             ).rejects.toThrow(
