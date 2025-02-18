@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Use `KeyringController:withKeyring` for account syncing operations ([#5345](https://github.com/MetaMask/core/pull/5345))
+  - Add accounts in bulk during big sync
+  - Filter and keep only HD accounts from the primary SRP for all account sync operations
 
 ## [8.0.0]
 
