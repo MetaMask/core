@@ -134,6 +134,37 @@ describe('TokenDiscoveryApiService', () => {
       const results = await service.getTopGainersByChains({});
       expect(results).toStrictEqual(mockTrendingResponse);
     });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-gainers-by-chains')
+        .reply(500, 'Server Error');
+
+      await expect(service.getTopGainersByChains({})).rejects.toThrow(
+        'Portfolio API request failed with status: 500',
+      );
+    });
+
+    it.each([
+      {
+        params: { chains: ['1'], limit: '5' },
+        expectedPath: '/tokens-search/top-gainers-by-chains?chains=1&limit=5',
+      },
+      {
+        params: { chains: ['1', '137'] },
+        expectedPath: '/tokens-search/top-gainers-by-chains?chains=1,137',
+      },
+    ])(
+      'should construct correct URL for params: $params',
+      async ({ params, expectedPath }) => {
+        nock(TEST_API_URLS.PORTFOLIO_API)
+          .get(expectedPath)
+          .reply(200, mockTrendingResponse);
+
+        const result = await service.getTopGainersByChains(params);
+        expect(result).toStrictEqual(mockTrendingResponse);
+      },
+    );
   });
 
   describe('getTopLosersByChains', () => {
@@ -144,6 +175,59 @@ describe('TokenDiscoveryApiService', () => {
 
       const results = await service.getTopLosersByChains({});
       expect(results).toStrictEqual(mockTrendingResponse);
+    });
+
+    it('should handle API errors', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/top-losers-by-chains')
+        .reply(500, 'Server Error');
+
+      await expect(service.getTopLosersByChains({})).rejects.toThrow(
+        'Portfolio API request failed with status: 500',
+      );
+    });
+
+    it.each([
+      {
+        params: { chains: ['1'], limit: '5' },
+        expectedPath: '/tokens-search/top-losers-by-chains?chains=1&limit=5',
+      },
+      {
+        params: { chains: ['1', '137'] },
+        expectedPath: '/tokens-search/top-losers-by-chains?chains=1,137',
+      },
+    ])(
+      'should construct correct URL for params: $params',
+      async ({ params, expectedPath }) => {
+        nock(TEST_API_URLS.PORTFOLIO_API)
+          .get(expectedPath)
+          .reply(200, mockTrendingResponse);
+
+        const result = await service.getTopLosersByChains(params);
+        expect(result).toStrictEqual(mockTrendingResponse);
+      },
+    );
+  });
+
+  describe('error handling', () => {
+    it('should handle network errors', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/trending-by-chains')
+        .reply(500, 'Server Error');
+
+      await expect(service.getTrendingTokensByChains({})).rejects.toThrow(
+        'Portfolio API request failed with status: 500',
+      );
+    });
+
+    it('should handle malformed JSON responses', async () => {
+      nock(TEST_API_URLS.PORTFOLIO_API)
+        .get('/tokens-search/trending-by-chains')
+        .reply(200, 'invalid json');
+
+      await expect(service.getTrendingTokensByChains({})).rejects.toThrow(
+        'invalid json response body at',
+      );
     });
   });
 });
