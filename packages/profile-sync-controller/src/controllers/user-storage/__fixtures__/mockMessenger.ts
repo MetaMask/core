@@ -1,5 +1,6 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import { MOCK_STORAGE_KEY_SIGNATURE } from '.';
 import type {
@@ -51,7 +52,7 @@ export function createCustomUserStorageMessenger(props?: {
     name: 'UserStorageController',
     allowedActions: [
       'KeyringController:getState',
-      'KeyringController:addNewAccount',
+      'KeyringController:withKeyring',
       'SnapController:handleRequest',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
@@ -125,13 +126,12 @@ export function mockUserStorageMessenger(
     'AuthenticationController:performSignOut',
   );
 
-  const mockKeyringAddNewAccount = typedMockFn(
-    'KeyringController:addNewAccount',
-  );
+  const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
 
-  // Untyped mock as there is a TS(2742) issue.
-  // This will return `InternalAccount[]`
   const mockAccountsListAccounts = jest.fn();
+
+  const mockKeyringGetAccounts = jest.fn();
+  const mockKeyringAddAccounts = jest.fn();
 
   const mockAccountsUpdateAccountMetadata = typedMockFn(
     'AccountsController:updateAccountMetadata',
@@ -202,8 +202,16 @@ export function mockUserStorageMessenger(
       return { isUnlocked: true };
     }
 
-    if (actionType === 'KeyringController:addNewAccount') {
-      return mockKeyringAddNewAccount();
+    if (actionType === 'KeyringController:withKeyring') {
+      const [, ...params] = typedArgs;
+      const [, operation] = params;
+
+      const keyring = {
+        getAccounts: mockKeyringGetAccounts,
+        addAccounts: mockKeyringAddAccounts,
+      } as unknown as EthKeyring<never>;
+
+      return operation(keyring);
     }
 
     if (actionType === 'AccountsController:listAccounts') {
@@ -249,7 +257,9 @@ export function mockUserStorageMessenger(
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
     mockAuthPerformSignOut,
-    mockKeyringAddNewAccount,
+    mockKeyringGetAccounts,
+    mockKeyringAddAccounts,
+    mockKeyringWithKeyring,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,
