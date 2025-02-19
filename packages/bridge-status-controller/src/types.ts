@@ -183,6 +183,7 @@ export enum BridgeStatusAction {
   START_POLLING_FOR_BRIDGE_TX_STATUS = 'startPollingForBridgeTxStatus',
   WIPE_BRIDGE_STATUS = 'wipeBridgeStatus',
   GET_STATE = 'getState',
+  RESET_STATE = 'resetState',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -268,9 +269,19 @@ export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
 >;
 
 // Maps to BridgeController function names
-type BridgeStatusControllerActions =
-  | BridgeStatusControllerAction<BridgeStatusAction.START_POLLING_FOR_BRIDGE_TX_STATUS>
-  | BridgeStatusControllerAction<BridgeStatusAction.WIPE_BRIDGE_STATUS>
+export type BridgeStatusControllerStartPollingForBridgeTxStatusAction =
+  BridgeStatusControllerAction<BridgeStatusAction.START_POLLING_FOR_BRIDGE_TX_STATUS>;
+
+export type BridgeStatusControllerWipeBridgeStatusAction =
+  BridgeStatusControllerAction<BridgeStatusAction.WIPE_BRIDGE_STATUS>;
+
+export type BridgeStatusControllerResetStateAction =
+  BridgeStatusControllerAction<BridgeStatusAction.RESET_STATE>;
+
+export type BridgeStatusControllerActions =
+  | BridgeStatusControllerStartPollingForBridgeTxStatusAction
+  | BridgeStatusControllerWipeBridgeStatusAction
+  | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction;
 
 // Events
@@ -289,7 +300,7 @@ export type BridgeStatusControllerBridgeTransactionFailedEvent = {
   payload: [{ bridgeHistoryItem: BridgeHistoryItem }];
 };
 
-type BridgeStatusControllerEvents =
+export type BridgeStatusControllerEvents =
   | BridgeStatusControllerStateChangeEvent
   | BridgeStatusControllerBridgeTransactionCompleteEvent
   | BridgeStatusControllerBridgeTransactionFailedEvent;
