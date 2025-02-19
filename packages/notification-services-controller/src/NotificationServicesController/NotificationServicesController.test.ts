@@ -1017,6 +1017,7 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     // Act - final state
     expect(controller.state.isUpdatingMetamaskNotifications).toBe(false);
     expect(controller.state.isNotificationServicesEnabled).toBe(false);
+    expect(controller.state.isFeatureAnnouncementsEnabled).toBe(false);
     expect(controller.state.metamaskNotificationsList).toStrictEqual([
       createMockSnapNotification(),
     ]);
@@ -1101,6 +1102,7 @@ function mockNotificationMessenger() {
       'KeyringController:lock',
       'KeyringController:unlock',
       'NotificationServicesPushController:onNewNotifications',
+      'NotificationServicesPushController:stateChange',
     ],
   });
 

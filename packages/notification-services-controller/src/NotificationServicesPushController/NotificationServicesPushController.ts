@@ -8,19 +8,19 @@ import { BaseController } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import { createRegToken, deleteRegToken } from './services/push/push-web';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
-  listenToPushNotifications,
   updateTriggerPushNotifications,
 } from './services/services';
 import type { PushNotificationEnv } from './types';
+import type { PushService } from './types/push-service-interface';
 import type { Types } from '../NotificationServicesController';
 
 const controllerName = 'NotificationServicesPushController';
 
 export type NotificationServicesPushControllerState = {
+  isPushEnabled: boolean;
   fcmToken: string;
 };
 
@@ -90,44 +90,56 @@ export type NotificationServicesPushControllerMessenger = RestrictedMessenger<
 >;
 
 export const defaultState: NotificationServicesPushControllerState = {
+  isPushEnabled: true,
   fcmToken: '',
 };
 const metadata: StateMetadata<NotificationServicesPushControllerState> = {
+  isPushEnabled: {
+    persist: true,
+    anonymous: true,
+  },
   fcmToken: {
     persist: true,
     anonymous: true,
   },
 };
 
-type ControllerConfig = {
-  /**
-   * Config to turn on/off push notifications.
-   * This is currently linked to MV3 builds on extension.
-   */
-  isPushEnabled: boolean;
+const defaultPushEnv: PushNotificationEnv = {
+  apiKey: '',
+  authDomain: '',
+  storageBucket: '',
+  projectId: '',
+  messagingSenderId: '',
+  appId: '',
+  measurementId: '',
+  vapidKey: '',
+};
 
+export type ControllerConfig = {
   /**
-   * Must handle when a push notification is received.
-   * You must call `registration.showNotification` or equivalent to show the notification on web/mobile
+   * Global switch to determine to use push notifications
+   * Allows us to control Builds on extension (MV2 vs MV3)
    */
-  onPushNotificationReceived: (
-    notification: Types.INotification,
-  ) => void | Promise<void>;
-
-  /**
-   * Must handle when a push notification is clicked.
-   * You must call `event.notification.close();` or equivalent for closing and opening notification in a new window.
-   */
-  onPushNotificationClicked: (
-    event: NotificationEvent,
-    notification?: Types.INotification,
-  ) => void;
+  isPushFeatureEnabled?: boolean;
 
   /**
    * determine the config used for push notification services
    */
   platform: 'extension' | 'mobile';
+
+  /**
+   * Push Service Interface
+   * - create reg token
+   * - delete reg token
+   * - subscribe to push notifications
+   */
+  pushService: PushService;
 };
+
+type StateCommand =
+  | { type: 'enable'; fcmToken: string }
+  | { type: 'disable' }
+  | { type: 'update'; fcmToken: string };
 
 /**
  * Manages push notifications for the application, including enabling, disabling, and updating triggers for push notifications.
@@ -155,7 +167,8 @@ export default class NotificationServicesPushController extends BaseController<
   }: {
     messenger: NotificationServicesPushControllerMessenger;
     state: NotificationServicesPushControllerState;
-    env: PushNotificationEnv;
+    /** Push Environment is only required for extension */
+    env?: PushNotificationEnv;
     config: ControllerConfig;
   }) {
     super({
@@ -165,7 +178,7 @@ export default class NotificationServicesPushController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#env = env;
+    this.#env = env ?? defaultPushEnv;
     this.#config = config;
 
     this.#registerMessageHandlers();
@@ -204,33 +217,44 @@ export default class NotificationServicesPushController extends BaseController<
     return bearerToken;
   }
 
+  updatePushState(command: StateCommand) {
+    if (command.type === 'enable') {
+      this.update((state) => {
+        state.isPushEnabled = true;
+        state.fcmToken = command.fcmToken;
+      });
+    }
+
+    if (command.type === 'disable') {
+      this.update((state) => {
+        state.isPushEnabled = false;
+        state.fcmToken = '';
+      });
+    }
+
+    if (command.type === 'update') {
+      this.update((state) => {
+        state.isPushEnabled = true;
+        state.fcmToken = command.fcmToken;
+      });
+    }
+  }
+
   async subscribeToPushNotifications() {
+    if (!this.#config.isPushFeatureEnabled) {
+      return;
+    }
+
     if (this.#pushListenerUnsubscribe) {
       this.#pushListenerUnsubscribe();
       this.#pushListenerUnsubscribe = undefined;
     }
 
     try {
-      this.#pushListenerUnsubscribe = await listenToPushNotifications({
-        env: this.#env,
-        listenToPushReceived: async (n) => {
-          this.messagingSystem.publish(
-            'NotificationServicesPushController:onNewNotifications',
-            n,
-          );
-          await this.#config.onPushNotificationReceived(n);
-        },
-        listenToPushClicked: (e, n) => {
-          if (n) {
-            this.messagingSystem.publish(
-              'NotificationServicesPushController:pushNotificationClicked',
-              n,
-            );
-          }
-
-          this.#config.onPushNotificationClicked(e, n);
-        },
-      });
+      this.#pushListenerUnsubscribe =
+        (await this.#config.pushService.subscribeToPushNotifications(
+          this.#env,
+        )) ?? undefined;
     } catch {
       // Do nothing, we are silently failing if push notification registration fails
     }
@@ -245,10 +269,9 @@ export default class NotificationServicesPushController extends BaseController<
    * 3. Sending the FCM token to the server responsible for sending notifications, to register the device.
    *
    * @param UUIDs - An array of UUIDs to enable push notifications for.
-   * @param fcmToken - The optional FCM token to use for push notifications.
    */
-  async enablePushNotifications(UUIDs: string[], fcmToken?: string) {
-    if (!this.#config.isPushEnabled) {
+  async enablePushNotifications(UUIDs: string[]) {
+    if (!this.#config.isPushFeatureEnabled) {
       return;
     }
 
@@ -261,19 +284,16 @@ export default class NotificationServicesPushController extends BaseController<
       // If there is a bearer token, lets try to refresh/create new reg token
       if (bearerToken) {
         // Activate Push Notifications
-        const regToken = await activatePushNotifications({
+        const fcmToken = await activatePushNotifications({
           bearerToken,
           triggers: UUIDs,
           env: this.#env,
-          fcmToken,
-          createRegToken,
+          createRegToken: this.#config.pushService.createRegToken,
           platform: this.#config.platform,
         }).catch(() => null);
 
-        if (regToken) {
-          this.update((state) => {
-            state.fcmToken = regToken;
-          });
+        if (fcmToken) {
+          this.updatePushState({ type: 'enable', fcmToken });
         }
       }
     } catch {
@@ -289,17 +309,15 @@ export default class NotificationServicesPushController extends BaseController<
    * This removes the registration token on this device, and ensures we unsubscribe from any listeners
    */
   async disablePushNotifications() {
-    if (!this.#config.isPushEnabled) {
+    if (!this.#config.isPushFeatureEnabled) {
       return;
     }
 
-    let isPushNotificationsDisabled: boolean;
-
     try {
       // Send a request to the server to unregister the token/device
-      isPushNotificationsDisabled = await deactivatePushNotifications({
+      await deactivatePushNotifications({
         env: this.#env,
-        deleteRegToken,
+        deleteRegToken: this.#config.pushService.deleteRegToken,
         regToken: this.state.fcmToken,
       });
     } catch (error) {
@@ -310,20 +328,11 @@ export default class NotificationServicesPushController extends BaseController<
       throw new Error(errorMessage);
     }
 
-    // Remove the FCM token from the state
-    if (!isPushNotificationsDisabled) {
-      return;
-    }
-
     // Unsubscribe from push notifications
     this.#pushListenerUnsubscribe?.();
 
     // Update State
-    if (isPushNotificationsDisabled) {
-      this.update((state) => {
-        state.fcmToken = '';
-      });
-    }
+    this.updatePushState({ type: 'disable' });
   }
 
   /**
@@ -334,7 +343,7 @@ export default class NotificationServicesPushController extends BaseController<
    * @param UUIDs - An array of UUIDs that should trigger push notifications.
    */
   async updateTriggerPushNotifications(UUIDs: string[]) {
-    if (!this.#config.isPushEnabled) {
+    if (!this.#config.isPushFeatureEnabled) {
       return;
     }
 
@@ -345,16 +354,14 @@ export default class NotificationServicesPushController extends BaseController<
         bearerToken,
         triggers: UUIDs,
         env: this.#env,
-        createRegToken,
-        deleteRegToken,
+        createRegToken: this.#config.pushService.createRegToken,
+        deleteRegToken: this.#config.pushService.deleteRegToken,
         platform: this.#config.platform,
       });
 
       // update the state with the new FCM token
       if (fcmToken) {
-        this.update((state) => {
-          state.fcmToken = fcmToken;
-        });
+        this.updatePushState({ type: 'update', fcmToken });
       }
     } catch (error) {
       const errorMessage = `Failed to update triggers for push notifications: ${
