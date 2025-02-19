@@ -49,7 +49,6 @@
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
     "@metamask/controller-utils": "^11.5.0",
-    "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/polling-controller": "^12.0.3",
     "@metamask/transaction-controller": "^46.0.0",
     "@metamask/utils": "^11.2.0"
