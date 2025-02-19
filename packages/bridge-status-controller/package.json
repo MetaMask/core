@@ -58,8 +58,6 @@
     "@metamask/accounts-controller": "^24.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/bridge-controller": "^0.0.0",
-    "@metamask/eth-json-rpc-provider": "^4.1.8",
-    "@metamask/json-rpc-engine": "^10.0.3",
     "@metamask/network-controller": "^22.2.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
