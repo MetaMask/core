@@ -3951,6 +3951,21 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/sample-controllers@workspace:packages/sample-controllers":
+  version: 0.0.0-use.local
+  resolution: "@metamask/sample-controllers@workspace:packages/sample-controllers"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/scure-bip39@npm:^2.1.1":
   version: 2.1.1
   resolution: "@metamask/scure-bip39@npm:2.1.1"

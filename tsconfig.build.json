@@ -18,6 +18,7 @@
     { "path": "./packages/keyring-controller/tsconfig.build.json" },
     { "path": "./packages/logging-controller/tsconfig.build.json" },
     { "path": "./packages/message-manager/tsconfig.build.json" },
+    { "path": "./packages/multichain-network-controller/tsconfig.build.json" },
     {
       "path": "./packages/multichain-transactions-controller/tsconfig.build.json"
     },
@@ -36,14 +37,14 @@
     { "path": "./packages/queued-request-controller/tsconfig.build.json" },
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
+    { "path": "./packages/sample-controllers/tsconfig.build.json" },
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
     {
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" },
-    { "path": "./packages/multichain-network-controller/tsconfig.build.json" }
+    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
   ],
   "files": [],
   "include": []
