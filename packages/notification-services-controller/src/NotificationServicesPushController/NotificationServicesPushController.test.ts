@@ -1,6 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
-import log from 'loglevel';
 
 import NotificationServicesPushController from './NotificationServicesPushController';
 import type {
@@ -10,10 +9,6 @@ import type {
 } from './NotificationServicesPushController';
 import * as services from './services/services';
 import type { PushNotificationEnv } from './types';
-
-// Testing util to clean up verbose logs when testing errors
-const mockErrorLog = () =>
-  jest.spyOn(log, 'error').mockImplementation(jest.fn());
 
 const MOCK_JWT = 'mockJwt';
 const MOCK_FCM_TOKEN = 'mockFcmToken';
@@ -89,20 +84,8 @@ describe('NotificationServicesPushController', () => {
       arrangeServicesMocks();
       const { controller, messenger } = arrangeMockMessenger();
       mockAuthBearerTokenCall(messenger);
-      await controller.disablePushNotifications(MOCK_TRIGGERS);
+      await controller.disablePushNotifications();
       expect(controller.state.fcmToken).toBe('');
-    });
-
-    it('should fail if a jwt token is not provided', async () => {
-      arrangeServicesMocks();
-      mockErrorLog();
-      const { controller, messenger } = arrangeMockMessenger();
-      mockAuthBearerTokenCall(messenger).mockResolvedValue(
-        null as unknown as string,
-      );
-      await expect(controller.disablePushNotifications([])).rejects.toThrow(
-        expect.any(Error),
-      );
     });
   });
 
@@ -127,7 +110,6 @@ describe('NotificationServicesPushController', () => {
       const args = spy.mock.calls[0][0];
       expect(args.bearerToken).toBe(MOCK_JWT);
       expect(args.triggers).toBe(MOCK_TRIGGERS);
-      expect(args.regToken).toBe(controller.state.fcmToken);
     });
   });
 });

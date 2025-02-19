@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0]
+
+### Added
+
+- Lock conditional checks when initializing accounts inside the `NotificationServicesController` ([#5323](https://github.com/MetaMask/core/pull/5323))
+- Accounts initialize call when the wallet is unlocked ([#5323](https://github.com/MetaMask/core/pull/5323))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/profile-sync-controller` peer dependency from `^7.0.0` to `^8.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
+
 ## [0.20.1]
 
 ### Changed
@@ -308,7 +319,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.21.0...HEAD
+[0.21.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.1...@metamask/notification-services-controller@0.21.0
 [0.20.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.20.0...@metamask/notification-services-controller@0.20.1
 [0.20.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.19.0...@metamask/notification-services-controller@0.20.0
 [0.19.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.18.0...@metamask/notification-services-controller@0.19.0

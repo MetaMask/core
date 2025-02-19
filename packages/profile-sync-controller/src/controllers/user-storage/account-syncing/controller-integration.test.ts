@@ -286,11 +286,13 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
 
-    expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(
+    const numberOfAddedAccounts =
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
-        MOCK_INTERNAL_ACCOUNTS.ONE.length,
-    );
+      MOCK_INTERNAL_ACCOUNTS.ONE.length;
 
+    expect(messengerMocks.mockKeyringAddAccounts).toHaveBeenCalledWith(
+      numberOfAddedAccounts,
+    );
     expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
 
     expect(controller.state.hasAccountSyncingSyncedAtLeastOnce).toBe(true);
@@ -555,7 +557,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
     expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
 
-    expect(messengerMocks.mockKeyringAddNewAccount).not.toHaveBeenCalled();
+    expect(messengerMocks.mockKeyringAddAccounts).not.toHaveBeenCalled();
   });
 
   describe('User storage name is a default name', () => {
