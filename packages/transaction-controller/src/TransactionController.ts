@@ -2518,9 +2518,11 @@ export class TransactionController extends BaseController<
           if (error?.code === errorCodes.provider.userRejectedRequest) {
             this.cancelTransaction(transactionId, actionId);
 
-            throw providerErrors.userRejectedRequest(
-              'MetaMask Tx Signature: User denied transaction signature.',
-            );
+            throw providerErrors.userRejectedRequest({
+              message:
+                'MetaMask Tx Signature: User denied transaction signature.',
+              data: error?.data,
+            });
           } else {
             this.failTransaction(meta, error, actionId);
           }
