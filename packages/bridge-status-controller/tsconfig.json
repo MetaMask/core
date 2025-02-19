@@ -9,8 +9,8 @@
     { "path": "../base-controller" },
     { "path": "../bridge-controller" },
     { "path": "../controller-utils" },
-    { "path": "../polling-controller" },
     { "path": "../network-controller" },
+    { "path": "../polling-controller" },
     { "path": "../transaction-controller" }
   ],
   "include": ["../../types", "./src"]
