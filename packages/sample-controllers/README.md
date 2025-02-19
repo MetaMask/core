@@ -1,6 +1,6 @@
 # `@metamask/sample-controllers`
 
-Sample controllers package
+This package is designed to illustrate best practices for controller packages and controller files, including tests.
 
 ## Installation
 

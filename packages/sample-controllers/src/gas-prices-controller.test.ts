@@ -1,16 +1,16 @@
 import { Messenger } from '@metamask/base-controller';
-import { GasPricesController } from '@metamask/example-controllers';
-import type { GasPricesControllerMessenger } from '@metamask/example-controllers';
+import { GasPricesController } from '@metamask/sample-controllers';
+import type { GasPricesControllerMessenger } from '@metamask/sample-controllers';
 
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../packages/base-controller/tests/helpers';
 import type { AbstractGasPricesService } from './gas-prices-service/abstract-gas-prices-service';
 import {
   getDefaultNetworkControllerState,
   type NetworkControllerGetStateAction,
 } from './network-controller-types';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
 
 describe('GasPricesController', () => {
   describe('constructor', () => {

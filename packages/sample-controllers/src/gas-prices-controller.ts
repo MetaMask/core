@@ -193,7 +193,7 @@ export class GasPricesController extends BaseController<
   /**
    * The service object that is used to obtain gas prices.
    */
-  #gasPricesService: AbstractGasPricesService;
+  readonly #gasPricesService: AbstractGasPricesService;
 
   /**
    * Constructs a new {@link GasPricesController}.
@@ -238,9 +238,8 @@ export class GasPricesController extends BaseController<
    */
   async updateGasPrices() {
     const { chainId } = this.messagingSystem.call('NetworkController:getState');
-    const gasPricesResponse = await this.#gasPricesService.fetchGasPrices(
-      chainId,
-    );
+    const gasPricesResponse =
+      await this.#gasPricesService.fetchGasPrices(chainId);
     this.update((state) => {
       state.gasPricesByChainId[chainId] = {
         ...gasPricesResponse,

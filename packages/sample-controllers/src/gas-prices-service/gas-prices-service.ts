@@ -38,7 +38,7 @@ type GasPricesResponse = {
  * ```
  */
 export class GasPricesService {
-  #fetch: typeof fetch;
+  readonly #fetch: typeof fetch;
 
   /**
    * Constructs a new GasPricesService object.
@@ -58,6 +58,7 @@ export class GasPricesService {
    * chain.
    *
    * @param chainId - The chain ID for which you want to fetch gas prices.
+   * @returns The gas prices for the given chain.
    */
   async fetchGasPrices(chainId: Hex) {
     const response = await this.#fetch(
