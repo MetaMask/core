@@ -1720,27 +1720,24 @@ describe('KeyringController', () => {
         });
       });
 
-      it('should throw error if contract address is not provided', async () => {
-        await withController(async ({ controller, initialState }) => {
-          const account = initialState.keyrings[0].accounts[0];
-
-          for (const invalidContractAddress of [
-            undefined,
-            null,
-          ] as unknown as string[]) {
+      it.each([undefined, null])(
+        'should throw error if contract address is %s',
+        async (invalidContractAddress) => {
+          await withController(async ({ controller, initialState }) => {
+            const account = initialState.keyrings[0].accounts[0];
             await expect(
               controller.signEip7702Authorization({
                 from: account,
                 chainId,
-                contractAddress: invalidContractAddress,
+                contractAddress: invalidContractAddress as unknown as string,
                 nonce,
               }),
             ).rejects.toThrow(
-              'KeyringController - The EIP-7702 Authorization is invalid. No contract address provided.',
+              KeyringControllerError.MissingEip7702AuthorizationContractAddress,
             );
-          }
-        });
-      });
+          });
+        },
+      );
     });
 
     describe('when the keyring for the given address does not support signEip7702Authorization', () => {
