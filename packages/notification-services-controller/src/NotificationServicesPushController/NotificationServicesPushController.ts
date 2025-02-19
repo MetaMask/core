@@ -217,7 +217,7 @@ export default class NotificationServicesPushController extends BaseController<
     return bearerToken;
   }
 
-  updatePushState(command: StateCommand) {
+  #updatePushState(command: StateCommand) {
     if (command.type === 'enable') {
       this.update((state) => {
         state.isPushEnabled = true;
@@ -293,7 +293,7 @@ export default class NotificationServicesPushController extends BaseController<
         }).catch(() => null);
 
         if (fcmToken) {
-          this.updatePushState({ type: 'enable', fcmToken });
+          this.#updatePushState({ type: 'enable', fcmToken });
         }
       }
     } catch {
@@ -332,7 +332,7 @@ export default class NotificationServicesPushController extends BaseController<
     this.#pushListenerUnsubscribe?.();
 
     // Update State
-    this.updatePushState({ type: 'disable' });
+    this.#updatePushState({ type: 'disable' });
   }
 
   /**
@@ -361,7 +361,7 @@ export default class NotificationServicesPushController extends BaseController<
 
       // update the state with the new FCM token
       if (fcmToken) {
-        this.updatePushState({ type: 'update', fcmToken });
+        this.#updatePushState({ type: 'update', fcmToken });
       }
     } catch (error) {
       const errorMessage = `Failed to update triggers for push notifications: ${

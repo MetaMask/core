@@ -36,34 +36,14 @@ import type {
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
-import type { NotificationServicesPushControllerStateChangeEvent } from '../NotificationServicesPushController';
-
-// TODO: Fix Circular Type Dependencies
-// This indicates that control flow of messages is everywhere, lets orchestrate these better
-export type NotificationServicesPushControllerEnablePushNotifications = {
-  type: `NotificationServicesPushController:enablePushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerDisablePushNotifications = {
-  type: `NotificationServicesPushController:disablePushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerUpdateTriggerPushNotifications = {
-  type: `NotificationServicesPushController:updateTriggerPushNotifications`;
-  handler: (UUIDs: string[]) => Promise<void>;
-};
-
-export type NotificationServicesPushControllerSubscribeToNotifications = {
-  type: `NotificationServicesPushController:subscribeToPushNotifications`;
-  handler: () => Promise<void>;
-};
-
-export type NotificationServicesPushControllerOnNewNotification = {
-  type: `NotificationServicesPushController:onNewNotifications`;
-  payload: [INotification];
-};
+import type {
+  NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerUpdateTriggerPushNotificationsAction,
+  NotificationServicesPushControllerSubscribeToNotificationsAction,
+  NotificationServicesPushControllerStateChangeEvent,
+  NotificationServicesPushControllerOnNewNotificationEvent,
+} from '../NotificationServicesPushController';
 
 // Unique name for the controller
 const controllerName = 'NotificationServicesController';
@@ -230,10 +210,10 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformGetStorage
   | UserStorageController.UserStorageControllerPerformSetStorage
   // Push Notifications Controller Requests
-  | NotificationServicesPushControllerEnablePushNotifications
-  | NotificationServicesPushControllerDisablePushNotifications
-  | NotificationServicesPushControllerUpdateTriggerPushNotifications
-  | NotificationServicesPushControllerSubscribeToNotifications;
+  | NotificationServicesPushControllerEnablePushNotificationsAction
+  | NotificationServicesPushControllerDisablePushNotificationsAction
+  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
+  | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 // Events
 export type NotificationServicesControllerStateChangeEvent =
@@ -265,7 +245,7 @@ export type AllowedEvents =
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Push Notification Events
-  | NotificationServicesPushControllerOnNewNotification
+  | NotificationServicesPushControllerOnNewNotificationEvent
   | NotificationServicesPushControllerStateChangeEvent;
 
 // Type for the messenger of NotificationServicesController
@@ -370,11 +350,10 @@ export default class NotificationServicesController extends BaseController<
         log.error('Silently failed to enable push notifications', e);
       }
     },
-    disablePushNotifications: async (UUIDs: string[]) => {
+    disablePushNotifications: async () => {
       try {
         await this.messagingSystem.call(
           'NotificationServicesPushController:disablePushNotifications',
-          UUIDs,
         );
       } catch (e) {
         log.error('Silently failed to disable push notifications', e);
@@ -409,17 +388,18 @@ export default class NotificationServicesController extends BaseController<
 
       // If wallet is unlocked, we can create a fresh push subscription
       // Otherwise we can subscribe to original subscription
-      if (this.#keyringController.isUnlocked) {
-        const storage = await this.#getUserStorage();
-        if (!storage) {
-          return;
+      try {
+        if (!this.#keyringController.isUnlocked) {
+          throw new Error('Keyring is locked');
         }
-        const uuids = Utils.getAllUUIDs(storage);
-
-        await this.#pushNotifications.enablePushNotifications(uuids);
+        await this.enablePushNotifications();
         this.#pushNotifications.isSetup = true;
-      } else {
-        await this.#pushNotifications.subscribeToPushNotifications();
+      } catch {
+        await this.#pushNotifications
+          .subscribeToPushNotifications()
+          .catch(() => {
+            // do nothing
+          });
       }
     },
   };
@@ -731,6 +711,25 @@ export default class NotificationServicesController extends BaseController<
     });
   }
 
+  /**
+   * Public method to expose enabling push notifications
+   */
+  public async enablePushNotifications() {
+    const storage = await this.#getUserStorage();
+    if (!storage) {
+      throw new Error('Unable to get triggers');
+    }
+    const uuids = Utils.getAllUUIDs(storage);
+    await this.#pushNotifications.enablePushNotifications(uuids);
+  }
+
+  /**
+   * Public method to expose disabling push notifications
+   */
+  public async disablePushNotifications() {
+    await this.#pushNotifications.disablePushNotifications();
+  }
+
   public async checkAccountsPresence(
     accounts: string[],
   ): Promise<Record<string, boolean>> {
@@ -888,10 +887,7 @@ export default class NotificationServicesController extends BaseController<
 
     // Attempt Disable Push Notifications
     try {
-      const userStorage = await this.#getUserStorage();
-      this.#assertUserStorage(userStorage);
-      const UUIDs = Utils.getAllUUIDs(userStorage);
-      await this.#pushNotifications.disablePushNotifications(UUIDs);
+      await this.#pushNotifications.disablePushNotifications();
     } catch {
       // Do nothing
     }
@@ -956,8 +952,11 @@ export default class NotificationServicesController extends BaseController<
         UUIDs,
       );
 
-      // Delete these UUIDs from the push notifications
-      await this.#pushNotifications.disablePushNotifications(UUIDs);
+      // Update Push Notifications with new list of IDs
+      const remainingTriggerIds = Utils.getAllUUIDs(userStorage);
+      await this.#pushNotifications.updatePushNotifications(
+        remainingTriggerIds,
+      );
 
       // Update User Storage
       await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
