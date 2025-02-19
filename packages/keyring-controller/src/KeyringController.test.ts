@@ -1719,6 +1719,25 @@ describe('KeyringController', () => {
           );
         });
       });
+
+      it.each([undefined, null])(
+        'should throw error if contract address is %s',
+        async (invalidContractAddress) => {
+          await withController(async ({ controller, initialState }) => {
+            const account = initialState.keyrings[0].accounts[0];
+            await expect(
+              controller.signEip7702Authorization({
+                from: account,
+                chainId,
+                contractAddress: invalidContractAddress as unknown as string,
+                nonce,
+              }),
+            ).rejects.toThrow(
+              KeyringControllerError.MissingEip7702AuthorizationContractAddress,
+            );
+          });
+        },
+      );
     });
 
     describe('when the keyring for the given address does not support signEip7702Authorization', () => {

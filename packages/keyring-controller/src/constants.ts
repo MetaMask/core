@@ -25,6 +25,7 @@ export enum KeyringControllerError {
   UnsupportedPatchUserOperation = 'KeyringController - The keyring for the current address does not support the method patchUserOperation.',
   UnsupportedSignUserOperation = 'KeyringController - The keyring for the current address does not support the method signUserOperation.',
   UnsupportedVerifySeedPhrase = 'KeyringController - The keyring does not support the method verifySeedPhrase.',
+  MissingEip7702AuthorizationContractAddress = 'KeyringController - The EIP-7702 Authorization is invalid. No contract address provided.',
   NoAccountOnKeychain = "KeyringController - The keychain doesn't have accounts.",
   ControllerLocked = 'KeyringController - The operation cannot be completed while the controller is locked.',
   MissingCredentials = 'KeyringController - Cannot persist vault without password and encryption key',
