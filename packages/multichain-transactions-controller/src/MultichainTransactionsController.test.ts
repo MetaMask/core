@@ -485,14 +485,10 @@ describe('MultichainTransactionsController', () => {
 
     const finalTransactions =
       controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
-
-    expect(finalTransactions).toHaveLength(2);
-    expect(finalTransactions).toStrictEqual(
-      expect.arrayContaining([
-        expect.objectContaining(updatedExistingTransaction),
-        expect.objectContaining(newTransaction),
-      ]),
-    );
+    expect(finalTransactions).toStrictEqual([
+      updatedExistingTransaction,
+      newTransaction,
+    ]);
   });
 
   it('handles empty transaction updates gracefully', async () => {
@@ -614,8 +610,10 @@ describe('MultichainTransactionsController', () => {
 
     const finalTransactions =
       controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
-    expect(finalTransactions[0]).toBe(newerTransaction);
-    expect(finalTransactions[1]).toBe(olderTransaction);
+    expect(finalTransactions).toStrictEqual([
+      newerTransaction,
+      olderTransaction,
+    ]);
   });
 
   it('sorts transactions by timestamp and handles null timestamps', async () => {
@@ -657,8 +655,10 @@ describe('MultichainTransactionsController', () => {
 
     const finalTransactions =
       controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
-    expect(finalTransactions[0]).toBe(withTimestampTx);
-    expect(finalTransactions[1]).toBe(nullTimestampTx1);
-    expect(finalTransactions[2]).toBe(nullTimestampTx2);
+    expect(finalTransactions).toStrictEqual([
+      withTimestampTx,
+      nullTimestampTx1,
+      nullTimestampTx2,
+    ]);
   });
 });
