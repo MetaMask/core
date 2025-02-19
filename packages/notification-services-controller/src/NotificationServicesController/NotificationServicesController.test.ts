@@ -206,7 +206,7 @@ describe('metamask-notifications - constructor()', () => {
     return mocks;
   };
 
-  it('initializes push notifications', async () => {
+  it('initialises push notifications', async () => {
     const { mockEnablePushNotifications } =
       arrangeActInitialisePushNotifications();
 

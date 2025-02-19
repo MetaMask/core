@@ -12,4 +12,4 @@ export * as Constants from './constants';
 export * from './constants';
 export * as Mocks from './__fixtures__';
 export * as UI from './ui';
-export * from '../shared/to-raw-notification';
+export * from '../shared';

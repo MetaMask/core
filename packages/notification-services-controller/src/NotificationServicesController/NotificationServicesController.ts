@@ -198,12 +198,6 @@ export type NotificationServicesControllerDisableNotificationServices = {
   handler: NotificationServicesController['disableNotificationServices'];
 };
 
-export type NotificationServicesControllerSelectIsNotificationServicesEnabled =
-  {
-    type: `${typeof controllerName}:selectIsNotificationServicesEnabled`;
-    handler: NotificationServicesController['selectIsNotificationServicesEnabled'];
-  };
-
 export type NotificationServicesControllerGetNotificationsByType = {
   type: `${typeof controllerName}:getNotificationsByType`;
   handler: NotificationServicesController['getNotificationsByType'];
@@ -219,7 +213,6 @@ export type Actions =
   | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled
   | NotificationServicesControllerGetNotificationsByType
   | NotificationServicesControllerDeleteNotificationsById;
 
@@ -583,11 +576,6 @@ export default class NotificationServicesController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:selectIsNotificationServicesEnabled`,
-      this.selectIsNotificationServicesEnabled.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
       `${controllerName}:getNotificationsByType`,
       this.getNotificationsByType.bind(this),
     );
@@ -662,18 +650,6 @@ export default class NotificationServicesController extends BaseController<
       log.error('Unable to parse User Storage');
       return null;
     }
-  }
-
-  /**
-   * Retrieves the current enabled state of MetaMask notifications.
-   *
-   * This method directly returns the boolean value of `isMetamaskNotificationsEnabled`
-   * from the controller's state, indicating whether MetaMask notifications are currently enabled.
-   *
-   * @returns The enabled state of MetaMask notifications.
-   */
-  public selectIsNotificationServicesEnabled(): boolean {
-    return this.state.isNotificationServicesEnabled;
   }
 
   /**
