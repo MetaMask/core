@@ -475,7 +475,6 @@ export default class NotificationServicesController extends BaseController<
     subscribe: () => {
       this.messagingSystem.subscribe(
         'KeyringController:stateChange',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
           if (!this.state.isNotificationServicesEnabled) {
             return;
