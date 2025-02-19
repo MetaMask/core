@@ -20,13 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for automatic failover when Infura is down ([#5630](https://github.com/MetaMask/core/pull/5630))
   - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverEndpointUrls`.
   - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
-  - The default NetworkController state has been updated so that all Infura RPC endpoints will use Quicknode as a failover. Migrating existing state to set `failoverEndpointUrls` is recommended.
 
 ### Changed
 
 - **BREAKING:** `NetworkController` constructor now takes two required options, `fetch` and `btoa` ([#5290](https://github.com/MetaMask/core/pull/5290))
-  - These are passed along to functions that create the JSON-RPC middleware
+  - These are passed along to functions that create the JSON-RPC middleware.
 - **BREAKING:** Add required property `failoverEndpointUrls` to `InfuraRpcEndpoint` ([#5630](https://github.com/MetaMask/core/pull/5630))
+  - Migrating existing state to set `failoverEndpointUrls` for each Infura RPC endpoint is recommended.
 - **BREAKING:** Add required property `failoverEndpointUrls` to `InfuraNetworkClientConfiguration` ([#5630](https://github.com/MetaMask/core/pull/5630))
 - Synchronize retry logic and error handling behavior between Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
   - A request to a custom endpoint that returns a 418 response will no longer return a JSON-RPC response with the error "Request is being rate limited"

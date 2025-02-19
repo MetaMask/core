@@ -387,9 +387,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "failoverUrls": Array [
-                      "https://quicknode.com",
-                    ],
+                    "failoverUrls": Array [],
                     "networkClientId": "mainnet",
                     "type": "infura",
                     "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
@@ -404,9 +402,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "GoerliETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "failoverUrls": Array [
-                      "https://quicknode.com",
-                    ],
+                    "failoverUrls": Array [],
                     "networkClientId": "goerli",
                     "type": "infura",
                     "url": "https://goerli.infura.io/v3/{infuraProjectId}",
@@ -421,9 +417,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "SepoliaETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "failoverUrls": Array [
-                      "https://quicknode.com",
-                    ],
+                    "failoverUrls": Array [],
                     "networkClientId": "sepolia",
                     "type": "infura",
                     "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
@@ -438,9 +432,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "failoverUrls": Array [
-                      "https://quicknode.com",
-                    ],
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-goerli",
                     "type": "infura",
                     "url": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
@@ -455,9 +447,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "failoverUrls": Array [
-                      "https://quicknode.com",
-                    ],
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-sepolia",
                     "type": "infura",
                     "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
@@ -472,9 +462,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "failoverUrls": Array [
-                      "https://quicknode.com",
-                    ],
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-mainnet",
                     "type": "infura",
                     "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
@@ -504,7 +492,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'GoerliETH',
                 rpcEndpoints: [
                   {
-                    failoverUrls: ['https://quicknode.com'],
+                    failoverUrls: [],
                     name: 'Goerli',
                     networkClientId: InfuraNetworkType.goerli,
                     type: RpcEndpointType.Infura,
@@ -536,9 +524,7 @@ describe('NetworkController', () => {
                   "nativeCurrency": "GoerliETH",
                   "rpcEndpoints": Array [
                     Object {
-                      "failoverUrls": Array [
-                        "https://quicknode.com",
-                      ],
+                      "failoverUrls": Array [],
                       "name": "Goerli",
                       "networkClientId": "goerli",
                       "type": "infura",
@@ -1079,7 +1065,7 @@ describe('NetworkController', () => {
 
               expect(networkClient.configuration).toStrictEqual({
                 chainId: ChainId[InfuraNetworkType.mainnet],
-                failoverEndpointUrls: ['https://quicknode.com'],
+                failoverEndpointUrls: [],
                 infuraProjectId,
                 network: InfuraNetworkType.mainnet,
                 ticker: NetworksTicker[InfuraNetworkType.mainnet],
@@ -1195,7 +1181,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   chainId: '0x5',
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: 'GoerliETH',
@@ -1208,7 +1194,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xe704',
                   ticker: 'LineaETH',
@@ -1221,7 +1207,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xe708',
                   ticker: 'ETH',
@@ -1234,7 +1220,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xe705',
                   ticker: 'LineaETH',
@@ -1247,7 +1233,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0x1',
                   ticker: 'ETH',
@@ -1260,7 +1246,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
@@ -1760,7 +1746,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: [],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1813,7 +1799,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: [],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -2366,9 +2352,7 @@ describe('NetworkController', () => {
       describe(`given the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
-            buildInfuraNetworkClientConfiguration(infuraNetworkType, {
-              failoverEndpointUrls: ['https://quicknode.com'],
-            }),
+            buildInfuraNetworkClientConfiguration(infuraNetworkType),
           operation: async (controller) => {
             await controller.setProviderType(infuraNetworkType);
           },
@@ -3038,9 +3022,7 @@ describe('NetworkController', () => {
       describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
-            buildInfuraNetworkClientConfiguration(infuraNetworkType, {
-              failoverEndpointUrls: ['https://quicknode.com'],
-            }),
+            buildInfuraNetworkClientConfiguration(infuraNetworkType),
           initialState: {
             selectedNetworkClientId: infuraNetworkType,
           },
@@ -12494,9 +12476,7 @@ describe('NetworkController', () => {
         describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
           refreshNetworkTests({
             expectedNetworkClientConfiguration:
-              buildInfuraNetworkClientConfiguration(infuraNetworkType, {
-                failoverEndpointUrls: ['https://quicknode.com'],
-              }),
+              buildInfuraNetworkClientConfiguration(infuraNetworkType),
             initialState: {
               selectedNetworkClientId: infuraNetworkType,
             },
@@ -14384,7 +14364,7 @@ function refreshNetworkTests({
             if (isInfuraNetworkType(selectedNetworkClientId)) {
               initializationNetworkClientConfiguration = {
                 chainId: ChainId[selectedNetworkClientId],
-                failoverEndpointUrls: ['https://quicknode.com'],
+                failoverEndpointUrls: [],
                 infuraProjectId: 'infura-project-id',
                 network: selectedNetworkClientId,
                 ticker: NetworksTicker[selectedNetworkClientId],

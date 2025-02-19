@@ -26,8 +26,3 @@ export enum NetworkStatus {
 }
 
 export const INFURA_BLOCKED_KEY = 'countryBlocked';
-
-/**
- * The default endpoint URL to hit when Infura is down.
- */
-export const DEFAULT_INFURA_FAILOVER_URL = 'https://quicknode.com';

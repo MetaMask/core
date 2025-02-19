@@ -28,11 +28,7 @@ import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
-import {
-  DEFAULT_INFURA_FAILOVER_URL,
-  INFURA_BLOCKED_KEY,
-  NetworkStatus,
-} from './constants';
+import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
@@ -577,7 +573,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
-          failoverUrls: [DEFAULT_INFURA_FAILOVER_URL],
+          failoverUrls: [],
           networkClientId: infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,
@@ -1248,9 +1244,8 @@ export class NetworkController extends BaseController<
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
-        networkClientId,
-      );
+      updatedIsEIP1559Compatible =
+        await this.#determineEIP1559Compatibility(networkClientId);
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
       debugLog('NetworkController: lookupNetworkByClientId: ', error);
