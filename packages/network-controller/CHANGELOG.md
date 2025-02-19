@@ -18,9 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use exponential backoff / jitter when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
   - As requests are retried, the delay between retries will increase exponentially (using random variance to prevent bursts)
 - Add support for automatic failover when Infura is down ([#5630](https://github.com/MetaMask/core/pull/5630))
-  - An Infura RPC endpoint can now be configured with a list of failover URLs (see "Changed" for details).
+  - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverEndpointUrls`.
   - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
-  - All Infura RPC endpoints are configured to use Quicknode by default.
+  - The default NetworkController state has been updated so that all Infura RPC endpoints will use Quicknode as a failover. Migrating existing state to set `failoverEndpointUrls` is recommended.
 
 ### Changed
 

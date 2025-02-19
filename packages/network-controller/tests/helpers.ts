@@ -150,7 +150,7 @@ export function buildInfuraNetworkClientConfiguration(
   return {
     type: NetworkClientType.Infura,
     network,
-    failoverEndpointUrls: ['https://quicknode.com'],
+    failoverEndpointUrls: [],
     infuraProjectId: 'test-infura-project-id',
     chainId: ChainId[network],
     ticker: NetworksTicker[network],
@@ -322,16 +322,12 @@ export function buildInfuraNetworkConfiguration(
  */
 export function buildInfuraRpcEndpoint(
   infuraNetworkType: InfuraNetworkType,
-  {
-    failoverUrls = ['https://quicknode.com'],
-  }: { failoverUrls?: string[] } = {},
+  { failoverUrls = [] }: { failoverUrls?: string[] } = {},
 ): InfuraRpcEndpoint {
   return {
     failoverUrls,
     networkClientId: infuraNetworkType,
     type: RpcEndpointType.Infura as const,
-    // False negative - this is a string.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
   };
 }

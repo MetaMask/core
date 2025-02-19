@@ -21,13 +21,7 @@ export enum NetworkClientType {
  * A configuration object that can be used to create a client for a network.
  */
 type CommonNetworkClientConfiguration = {
-  /**
-   * The chain ID of the network.
-   */
   chainId: Hex;
-  /**
-   * The name of the currency to use for the chain.
-   */
   ticker: string;
 };
 

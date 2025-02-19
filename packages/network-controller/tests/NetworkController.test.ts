@@ -608,8 +608,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                 },
               },
               infuraProjectId,
@@ -631,7 +639,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -810,8 +818,16 @@ describe('NetworkController', () => {
                       }),
                     ],
                   }),
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                 },
               },
               infuraProjectId,
@@ -858,7 +874,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -903,6 +919,13 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
@@ -949,7 +972,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -1361,8 +1384,16 @@ describe('NetworkController', () => {
                 state: {
                   selectedNetworkClientId: infuraNetworkType,
                   networkConfigurationsByChainId: {
-                    [infuraChainId]:
-                      buildInfuraNetworkConfiguration(infuraNetworkType),
+                    [infuraChainId]: buildInfuraNetworkConfiguration(
+                      infuraNetworkType,
+                      {
+                        rpcEndpoints: [
+                          buildInfuraRpcEndpoint(infuraNetworkType, {
+                            failoverUrls: ['https://some.failover.endpoint'],
+                          }),
+                        ],
+                      },
+                    ),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
                       nativeCurrency: 'TEST',
@@ -1418,7 +1449,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1462,8 +1493,16 @@ describe('NetworkController', () => {
                 state: {
                   selectedNetworkClientId: infuraNetworkType,
                   networkConfigurationsByChainId: {
-                    [infuraChainId]:
-                      buildInfuraNetworkConfiguration(infuraNetworkType),
+                    [infuraChainId]: buildInfuraNetworkConfiguration(
+                      infuraNetworkType,
+                      {
+                        rpcEndpoints: [
+                          buildInfuraRpcEndpoint(infuraNetworkType, {
+                            failoverUrls: ['https://some.failover.endpoint'],
+                          }),
+                        ],
+                      },
+                    ),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
                       nativeCurrency: 'TEST',
@@ -1525,7 +1564,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1570,8 +1609,16 @@ describe('NetworkController', () => {
                 state: {
                   selectedNetworkClientId: infuraNetworkType,
                   networkConfigurationsByChainId: {
-                    [infuraChainId]:
-                      buildInfuraNetworkConfiguration(infuraNetworkType),
+                    [infuraChainId]: buildInfuraNetworkConfiguration(
+                      infuraNetworkType,
+                      {
+                        rpcEndpoints: [
+                          buildInfuraRpcEndpoint(infuraNetworkType, {
+                            failoverUrls: ['https://some.failover.endpoint'],
+                          }),
+                        ],
+                      },
+                    ),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
                       nativeCurrency: 'TEST',
@@ -1627,7 +1674,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1819,6 +1866,13 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   [ChainId.goerli]: buildInfuraNetworkConfiguration(
                     InfuraNetworkType.goerli,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -1886,7 +1940,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: ChainId[InfuraNetworkType.goerli],
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: InfuraNetworkType.goerli,
                     ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -1921,6 +1975,13 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   [ChainId.goerli]: buildInfuraNetworkConfiguration(
                     InfuraNetworkType.goerli,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -1994,7 +2055,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: ChainId[InfuraNetworkType.goerli],
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: InfuraNetworkType.goerli,
                     ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -2034,6 +2095,13 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   [ChainId.goerli]: buildInfuraNetworkConfiguration(
                     InfuraNetworkType.goerli,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -2101,7 +2169,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: ChainId[InfuraNetworkType.goerli],
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: InfuraNetworkType.goerli,
                     ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -2298,7 +2366,9 @@ describe('NetworkController', () => {
       describe(`given the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
-            buildInfuraNetworkClientConfiguration(infuraNetworkType),
+            buildInfuraNetworkClientConfiguration(infuraNetworkType, {
+              failoverEndpointUrls: ['https://quicknode.com'],
+            }),
           operation: async (controller) => {
             await controller.setProviderType(infuraNetworkType);
           },
@@ -2968,7 +3038,9 @@ describe('NetworkController', () => {
       describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
         refreshNetworkTests({
           expectedNetworkClientConfiguration:
-            buildInfuraNetworkClientConfiguration(infuraNetworkType),
+            buildInfuraNetworkClientConfiguration(infuraNetworkType, {
+              failoverEndpointUrls: ['https://quicknode.com'],
+            }),
           initialState: {
             selectedNetworkClientId: infuraNetworkType,
           },
@@ -3701,8 +3773,12 @@ describe('NetworkController', () => {
               infuraProjectId,
             },
             ({ controller }) => {
-              const defaultRpcEndpoint =
-                buildInfuraRpcEndpoint(infuraNetworkType);
+              const defaultRpcEndpoint = buildInfuraRpcEndpoint(
+                infuraNetworkType,
+                {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                },
+              );
 
               controller.addNetwork({
                 blockExplorerUrls: [],
@@ -3731,7 +3807,7 @@ describe('NetworkController', () => {
                 {
                   networkClientConfiguration: {
                     infuraProjectId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     chainId: infuraChainId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -3774,7 +3850,7 @@ describe('NetworkController', () => {
               ).toMatchObject({
                 [infuraNetworkType]: {
                   chainId: infuraChainId,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   network: infuraNetworkType,
                   type: NetworkClientType.Infura,
                 },
@@ -3830,7 +3906,7 @@ describe('NetworkController', () => {
                     url: 'https://test.endpoint/2',
                   },
                   {
-                    failoverUrls: ['https://quicknode.com'],
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3861,7 +3937,7 @@ describe('NetworkController', () => {
                     url: 'https://test.endpoint/2',
                   },
                   {
-                    failoverUrls: ['https://quicknode.com'],
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3910,7 +3986,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
-                    failoverUrls: ['https://quicknode.com'],
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3930,7 +4006,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
-                    failoverUrls: ['https://quicknode.com'],
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3973,7 +4049,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
-                    failoverUrls: ['https://quicknode.com'],
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3993,7 +4069,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
-                    failoverUrls: ['https://quicknode.com'],
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -5104,7 +5180,7 @@ describe('NetworkController', () => {
                 ).toHaveBeenNthCalledWith(3, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: [],
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -5121,7 +5197,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   [infuraNetworkType]: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: [],
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -5176,8 +5252,12 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                const infuraRpcEndpoint =
-                  buildInfuraRpcEndpoint(infuraNetworkType);
+                const infuraRpcEndpoint = buildInfuraRpcEndpoint(
+                  infuraNetworkType,
+                  {
+                    failoverUrls: ['https://some.failover.endpoint'],
+                  },
+                );
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -5196,7 +5276,7 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
                     {
-                      failoverUrls: ['https://quicknode.com'],
+                      failoverUrls: ['https://some.failover.endpoint'],
                       networkClientId: infuraNetworkType,
                       type: RpcEndpointType.Infura,
                       // This is a string.
@@ -5242,8 +5322,12 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                const infuraRpcEndpoint =
-                  buildInfuraRpcEndpoint(infuraNetworkType);
+                const infuraRpcEndpoint = buildInfuraRpcEndpoint(
+                  infuraNetworkType,
+                  {
+                    failoverUrls: ['https://some.failover.endpoint'],
+                  },
+                );
 
                 const updatedNetworkConfiguration =
                   await controller.updateNetwork(infuraChainId, {
@@ -5259,7 +5343,7 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
                     {
-                      failoverUrls: ['https://quicknode.com'],
+                      failoverUrls: ['https://some.failover.endpoint'],
                       networkClientId: infuraNetworkType,
                       type: RpcEndpointType.Infura,
                       // This is a string.
@@ -5285,7 +5369,11 @@ describe('NetworkController', () => {
             );
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                rpcEndpoints: [buildInfuraRpcEndpoint(infuraNetworkType)],
+                rpcEndpoints: [
+                  buildInfuraRpcEndpoint(infuraNetworkType, {
+                    failoverUrls: ['https://some.failover.endpoint'],
+                  }),
+                ],
               });
 
             await withController(
@@ -5362,7 +5450,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   [infuraNetworkType]: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -10512,7 +10600,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: [],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -10576,7 +10664,9 @@ describe('NetworkController', () => {
 
             const [defaultRpcEndpoint, customRpcEndpoint1, customRpcEndpoint2] =
               [
-                buildInfuraRpcEndpoint(infuraNetworkType),
+                buildInfuraRpcEndpoint(infuraNetworkType, {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                }),
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
@@ -10620,7 +10710,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -10683,7 +10773,9 @@ describe('NetworkController', () => {
 
             const [defaultRpcEndpoint, customRpcEndpoint1, customRpcEndpoint2] =
               [
-                buildInfuraRpcEndpoint(infuraNetworkType),
+                buildInfuraRpcEndpoint(infuraNetworkType, {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                }),
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
@@ -10728,7 +10820,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -10801,7 +10893,9 @@ describe('NetworkController', () => {
 
             const [defaultRpcEndpoint, customRpcEndpoint1, customRpcEndpoint2] =
               [
-                buildInfuraRpcEndpoint(infuraNetworkType),
+                buildInfuraRpcEndpoint(infuraNetworkType, {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                }),
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
@@ -10845,7 +10939,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
-                      failoverEndpointUrls: ['https://quicknode.com'],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -12400,7 +12494,9 @@ describe('NetworkController', () => {
         describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
           refreshNetworkTests({
             expectedNetworkClientConfiguration:
-              buildInfuraNetworkClientConfiguration(infuraNetworkType),
+              buildInfuraNetworkClientConfiguration(infuraNetworkType, {
+                failoverEndpointUrls: ['https://quicknode.com'],
+              }),
             initialState: {
               selectedNetworkClientId: infuraNetworkType,
             },
@@ -12541,8 +12637,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12578,7 +12682,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12610,8 +12714,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12657,7 +12769,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12704,8 +12816,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12753,7 +12873,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12787,8 +12907,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12824,7 +12952,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12857,8 +12985,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12904,7 +13040,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12942,8 +13078,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12996,7 +13140,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -13033,8 +13177,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -13091,7 +13243,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
-                    failoverEndpointUrls: ['https://quicknode.com'],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -13235,6 +13387,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13250,7 +13409,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13304,6 +13463,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13329,7 +13495,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13404,6 +13570,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13431,7 +13604,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13488,6 +13661,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13503,7 +13683,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13559,6 +13739,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13574,7 +13761,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13630,6 +13817,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13662,7 +13856,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13717,6 +13911,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13753,7 +13954,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
-                  failoverEndpointUrls: ['https://quicknode.com'],
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
