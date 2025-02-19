@@ -262,14 +262,16 @@ type BridgeStatusControllerAction<
   handler: BridgeStatusController[FunctionName];
 };
 
+export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
+  typeof BRIDGE_STATUS_CONTROLLER_NAME,
+  BridgeStatusControllerState
+>;
+
 // Maps to BridgeController function names
 type BridgeStatusControllerActions =
   | BridgeStatusControllerAction<BridgeStatusAction.START_POLLING_FOR_BRIDGE_TX_STATUS>
   | BridgeStatusControllerAction<BridgeStatusAction.WIPE_BRIDGE_STATUS>
-  | ControllerGetStateAction<
-      typeof BRIDGE_STATUS_CONTROLLER_NAME,
-      BridgeStatusControllerState
-    >;
+  | BridgeStatusControllerGetStateAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
