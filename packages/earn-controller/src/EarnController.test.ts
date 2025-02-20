@@ -26,6 +26,7 @@ jest.mock('@metamask/stake-sdk', () => ({
     getPooledStakes: jest.fn(),
     getPooledStakingEligibility: jest.fn(),
     getVaultData: jest.fn(),
+    getVaultDailyApys: jest.fn(),
   })),
 }));
 
@@ -102,6 +103,7 @@ const mockPooledStakes = {
   assets: '1000',
   exitRequests: [],
 };
+
 const mockVaultMetadata = {
   apy: '5.5',
   capacity: '1000000',
@@ -109,6 +111,72 @@ const mockVaultMetadata = {
   totalAssets: '500000',
   vaultAddress: '0xabcd',
 };
+
+const mockPooledStakingVaultDailyApys = [
+  {
+    id: 1,
+    chain_id: 1,
+    vault_address: '0xabc',
+    timestamp: '2025-02-19T00:00:00.000Z',
+    daily_apy: '2.273150114369428540',
+    created_at: '2025-02-20T01:00:00.686Z',
+    updated_at: '2025-02-20T01:00:00.686Z',
+  },
+  {
+    id: 2,
+    chain_id: 1,
+    vault_address: '0xabc',
+    timestamp: '2025-02-18T00:00:00.000Z',
+    daily_apy: '2.601753752988867146',
+    created_at: '2025-02-19T01:00:00.460Z',
+    updated_at: '2025-02-19T01:00:00.460Z',
+  },
+  {
+    id: 3,
+    chain_id: 1,
+    vault_address: '0xabc',
+    timestamp: '2025-02-17T00:00:00.000Z',
+    daily_apy: '2.371788704658418308',
+    created_at: '2025-02-18T01:00:00.579Z',
+    updated_at: '2025-02-18T01:00:00.579Z',
+  },
+  {
+    id: 4,
+    chain_id: 1,
+    vault_address: '0xabc',
+    timestamp: '2025-02-16T00:00:00.000Z',
+    daily_apy: '2.037130166329167644',
+    created_at: '2025-02-17T01:00:00.368Z',
+    updated_at: '2025-02-17T01:00:00.368Z',
+  },
+  {
+    id: 5,
+    chain_id: 1,
+    vault_address: '0xabc',
+    timestamp: '2025-02-15T00:00:00.000Z',
+    daily_apy: '2.495509141072538330',
+    created_at: '2025-02-16T01:00:00.737Z',
+    updated_at: '2025-02-16T01:00:00.737Z',
+  },
+  {
+    id: 6,
+    chain_id: 1,
+    vault_address: '0xabc',
+    timestamp: '2025-02-14T00:00:00.000Z',
+    daily_apy: '2.760147959320520741',
+    created_at: '2025-02-15T01:00:00.521Z',
+    updated_at: '2025-02-15T01:00:00.521Z',
+  },
+  {
+    id: 7,
+    chain_id: 1,
+    vault_address: '0xabc',
+    timestamp: '2025-02-13T00:00:00.000Z',
+    daily_apy: '2.620957696005122124',
+    created_at: '2025-02-14T01:00:00.438Z',
+    updated_at: '2025-02-14T01:00:00.438Z',
+  },
+];
 
 const setupController = ({
   options = {},
@@ -186,6 +254,9 @@ describe('EarnController', () => {
         eligible: true,
       }),
       getVaultData: jest.fn().mockResolvedValue(mockVaultMetadata),
+      getVaultDailyApys: jest
+        .fn()
+        .mockResolvedValue(mockPooledStakingVaultDailyApys),
     } as Partial<StakingApiService>;
 
     StakingApiServiceMock.mockImplementation(
@@ -206,6 +277,7 @@ describe('EarnController', () => {
           exchangeRate: '1.5',
           vaultMetadata: mockVaultMetadata,
           isEligible: true,
+          vaultDailyApys: mockPooledStakingVaultDailyApys,
         },
         lastUpdated: 1234567890,
       };
@@ -289,6 +361,7 @@ describe('EarnController', () => {
         pooledStakes: mockPooledStakes,
         exchangeRate: '1.5',
         vaultMetadata: mockVaultMetadata,
+        vaultDailyApys: mockPooledStakingVaultDailyApys,
         isEligible: true,
       });
       expect(controller.state.lastUpdated).toBeDefined();

@@ -22,6 +22,7 @@ import {
   type PooledStake,
   type StakeSdkConfig,
   type VaultData,
+  type VaultDailyApy,
 } from '@metamask/stake-sdk';
 
 export const controllerName = 'EarnController';
@@ -30,6 +31,7 @@ export type PooledStakingState = {
   pooledStakes: PooledStake;
   exchangeRate: string;
   vaultMetadata: VaultData;
+  vaultDailyApys: VaultDailyApy[];
   isEligible: boolean;
 };
 
@@ -107,6 +109,7 @@ export function getDefaultEarnControllerState(): EarnControllerState {
         totalAssets: '0',
         vaultAddress: '0x0000000000000000000000000000000000000000',
       },
+      vaultDailyApys: [],
       isEligible: false,
     },
     stablecoin_lending: {
@@ -361,6 +364,30 @@ export class EarnController extends BaseController<
   }
 
   /**
+   * Refreshes pooled staking vault daily apys for the current chain.
+   * Updates the pooled staking vault daily apys controller state.
+   *
+   * @param days - The number of days to fetch pooled staking vault daily apys for (defaults to 30).
+   * @param order - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards).
+   * @returns A promise that resolves when the pooled staking vault daily apys have been updated.
+   */
+  async refreshPooledStakingVaultDailyApys(
+    days = 30,
+    order: 'asc' | 'desc' = 'desc',
+  ): Promise<void> {
+    const chainId = this.#getCurrentChainId();
+    const vaultDailyApys = await this.#stakingApiService.getVaultDailyApys(
+      chainId,
+      days,
+      order,
+    );
+
+    this.update((state) => {
+      state.pooled_staking.vaultDailyApys = vaultDailyApys;
+    });
+  }
+
+  /**
    * Refreshes all pooled staking related data including stakes, eligibility, and vault data.
    * This method allows partial success, meaning some data may update while other requests fail.
    * All errors are collected and thrown as a single error message.
@@ -380,6 +407,9 @@ export class EarnController extends BaseController<
         errors.push(error);
       }),
       this.refreshVaultMetadata().catch((error) => {
+        errors.push(error);
+      }),
+      this.refreshPooledStakingVaultDailyApys().catch((error) => {
         errors.push(error);
       }),
     ]);
