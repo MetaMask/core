@@ -89,10 +89,6 @@ export type PhishingDetectionScanResult = {
    */
   recommendedAction: RecommendedAction;
   /**
-   * Is true if the domain is on our allowlist.
-   */
-  verified: boolean;
-  /**
    * An optional error message that exists if:
    * - The link requested is not a valid web URL.
    * - Failed to fetch the result from the phishing detector.

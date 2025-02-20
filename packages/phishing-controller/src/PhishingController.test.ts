@@ -2376,7 +2376,6 @@ describe('PhishingController', () => {
     const mockResponse: PhishingDetectionScanResult = {
       domainName: 'example.com',
       recommendedAction: RecommendedAction.None,
-      verified: true,
     };
 
     beforeEach(() => {
@@ -2416,7 +2415,6 @@ describe('PhishingController', () => {
         expect(response).toMatchObject({
           domainName: '',
           recommendedAction: RecommendedAction.None,
-          verified: false,
           fetchError: `${statusCode} ${statusText}`,
         });
         expect(scope.isDone()).toBe(true);
@@ -2436,7 +2434,6 @@ describe('PhishingController', () => {
       expect(response).toMatchObject({
         domainName: '',
         recommendedAction: RecommendedAction.None,
-        verified: false,
         fetchError: 'timeout of 8000ms exceeded',
       });
       expect(scope.isDone()).toBe(false);
@@ -2516,7 +2513,6 @@ describe('PhishingController', () => {
         expect(response).toMatchObject({
           domainName: '',
           recommendedAction: RecommendedAction.None,
-          verified: false,
           fetchError: 'url is not a valid web URL',
         });
       }

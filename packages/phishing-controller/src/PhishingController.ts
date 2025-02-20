@@ -589,7 +589,6 @@ export class PhishingController extends BaseController<
       return {
         domainName: '',
         recommendedAction: RecommendedAction.None,
-        verified: false,
         fetchError: 'url is not a valid web URL',
       };
     }
@@ -622,14 +621,12 @@ export class PhishingController extends BaseController<
       return {
         domainName: '',
         recommendedAction: RecommendedAction.None,
-        verified: false,
         fetchError: 'timeout of 8000ms exceeded',
       };
     } else if ('error' in response) {
       return {
         domainName: '',
         recommendedAction: RecommendedAction.None,
-        verified: false,
         fetchError: response.error,
       };
     }
