@@ -2395,19 +2395,35 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should throw error on failed request', async () => {
-      const scope = nock(PHISHING_DETECTION_BASE_URL)
-        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
-        .query({ url: 'example.com' })
-        .reply(500);
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'should return a PhishingDetectionScanResult with a fetchError on %i status code',
+      async (statusCode, statusText) => {
+        const scope = nock(PHISHING_DETECTION_BASE_URL)
+          .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+          .query({ url: 'example.com' })
+          .reply(statusCode);
 
-      await expect(controller.scanUrl(testUrl)).rejects.toThrow(
-        'request failed: 500 Internal Server Error',
-      );
-      expect(scope.isDone()).toBe(true);
-    });
+        const response = await controller.scanUrl(testUrl);
+        expect(response).toMatchObject({
+          domainName: '',
+          recommendedAction: RecommendedAction.None,
+          verified: false,
+          fetchError: `${statusCode} ${statusText}`,
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
 
-    it('should timeout after 8000ms', async () => {
+    it('should return a PhishingDetectionScanResult with a fetchError on timeout', async () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
         .query({ url: testUrl })
@@ -2416,9 +2432,13 @@ describe('PhishingController', () => {
 
       const promise = controller.scanUrl(testUrl);
       clock.tick(8000);
-      await expect(promise).rejects.toThrow(
-        'request failed: Request timed out',
-      );
+      const response = await promise;
+      expect(response).toMatchObject({
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        verified: false,
+        fetchError: 'timeout of 8000ms exceeded',
+      });
       expect(scope.isDone()).toBe(false);
     });
 
@@ -2471,7 +2491,7 @@ describe('PhishingController', () => {
       expect(scope.isDone()).toBe(true);
     });
 
-    it('should throw error for invalid URLs', async () => {
+    it('should return a PhishingDetectionScanResult with a fetchError on invalid URLs', async () => {
       const invalidUrls = [
         'not-a-url',
         'http://',
@@ -2492,9 +2512,13 @@ describe('PhishingController', () => {
       ];
 
       for (const invalidUrl of invalidUrls) {
-        await expect(controller.scanUrl(invalidUrl)).rejects.toThrow(
-          'invalid web url',
-        );
+        const response = await controller.scanUrl(invalidUrl);
+        expect(response).toMatchObject({
+          domainName: '',
+          recommendedAction: RecommendedAction.None,
+          verified: false,
+          fetchError: 'url is not a valid web URL',
+        });
       }
     });
 

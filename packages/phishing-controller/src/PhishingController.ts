@@ -15,12 +15,14 @@ import {
   PhishingDetectorResultType,
   type PhishingDetectorResult,
   type PhishingDetectionScanResult,
+  RecommendedAction,
 } from './types';
 import {
   applyDiffs,
   fetchTimeNow,
   getHostnameFromUrl,
   roundToNearestMinute,
+  getHostnameFromWebUrl,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -582,16 +584,14 @@ export class PhishingController extends BaseController<
    * @returns The phishing detection scan result.
    */
   async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
-    if (
-      !url.toLowerCase().startsWith('http://') &&
-      !url.toLowerCase().startsWith('https://')
-    ) {
-      throw new Error('invalid web url');
-    }
-
-    const hostname = getHostnameFromUrl(url);
-    if (!hostname) {
-      throw new Error('invalid web url');
+    const [hostname, ok] = getHostnameFromWebUrl(url);
+    if (!ok) {
+      return {
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        verified: false,
+        fetchError: 'url is not a valid web URL',
+      };
     }
 
     const response = await safelyExecuteWithTimeout(
@@ -606,7 +606,6 @@ export class PhishingController extends BaseController<
           },
         );
         if (!res.ok) {
-          // Instead of throwing inside safelyExecuteWithTimeout, return an error object
           return {
             error: `${res.status} ${res.statusText}`,
           };
@@ -618,11 +617,21 @@ export class PhishingController extends BaseController<
       8000,
     );
 
-    // Need to do it this way because safelyExecuteWithTimeout returns undefined for both timeouts and
+    // Need to do it this way because safelyExecuteWithTimeout returns undefined for both timeouts and errors.
     if (!response) {
-      throw new Error('request failed: Request timed out');
+      return {
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        verified: false,
+        fetchError: 'timeout of 8000ms exceeded',
+      };
     } else if ('error' in response) {
-      throw new Error(`request failed: ${response.error}`);
+      return {
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        verified: false,
+        fetchError: response.error,
+      };
     }
 
     return response;
