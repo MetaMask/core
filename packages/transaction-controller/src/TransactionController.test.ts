@@ -5427,6 +5427,7 @@ describe('TransactionController', () => {
       const newType = TransactionEnvelopeType.feeMarket;
       const { controller } = setupController({
         options: { state: { transactions: [transactionMeta] } },
+        updateToInitialState: true,
       });
 
       controller.updateCustodialTransaction(transactionId, {
@@ -5455,6 +5456,7 @@ describe('TransactionController', () => {
             ],
           },
         },
+        updateToInitialState: true,
       });
 
       controller.updateCustodialTransaction(transactionId, {
