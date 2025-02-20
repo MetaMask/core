@@ -240,7 +240,7 @@ export default class NotificationServicesPushController extends BaseController<
     }
   }
 
-  async subscribeToPushNotifications() {
+  public async subscribeToPushNotifications() {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -270,7 +270,7 @@ export default class NotificationServicesPushController extends BaseController<
    *
    * @param UUIDs - An array of UUIDs to enable push notifications for.
    */
-  async enablePushNotifications(UUIDs: string[]) {
+  public async enablePushNotifications(UUIDs: string[]) {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -308,7 +308,7 @@ export default class NotificationServicesPushController extends BaseController<
    * Disables push notifications for the application.
    * This removes the registration token on this device, and ensures we unsubscribe from any listeners
    */
-  async disablePushNotifications() {
+  public async disablePushNotifications() {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -342,7 +342,7 @@ export default class NotificationServicesPushController extends BaseController<
    *
    * @param UUIDs - An array of UUIDs that should trigger push notifications.
    */
-  async updateTriggerPushNotifications(UUIDs: string[]) {
+  public async updateTriggerPushNotifications(UUIDs: string[]) {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
