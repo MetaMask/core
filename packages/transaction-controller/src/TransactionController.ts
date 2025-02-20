@@ -1977,6 +1977,7 @@ export class TransactionController extends BaseController<
    * @param options.maxFeePerGas - The new max fee per gas value to be assigned
    * @param options.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
    * @param options.nonce - The new nonce value to be assigned
+   * @param options.type
    */
   updateCustodialTransaction(
     transactionId: string,
@@ -1989,6 +1990,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas,
       maxPriorityFeePerGas,
       nonce,
+      type,
     }: {
       errorMessage?: string;
       hash?: string;
@@ -2000,6 +2002,7 @@ export class TransactionController extends BaseController<
       maxFeePerGas?: string;
       maxPriorityFeePerGas?: string;
       nonce?: string;
+      type?: TransactionEnvelopeType;
     },
   ) {
     const transactionMeta = this.getTransaction(transactionId);
@@ -2051,6 +2054,16 @@ export class TransactionController extends BaseController<
     if (maxPriorityFeePerGas) {
       updatedTransactionMeta.txParams.maxPriorityFeePerGas =
         maxPriorityFeePerGas;
+    }
+
+    if (type) {
+      updatedTransactionMeta.txParams.type = type;
+
+      // If the type was reverted to legacy, we need to remove the maxFeePerGas and maxPriorityFeePerGas values
+      if (type === TransactionEnvelopeType.legacy) {
+        updatedTransactionMeta.txParams.maxFeePerGas = undefined;
+        updatedTransactionMeta.txParams.maxPriorityFeePerGas = undefined;
+      }
     }
 
     if (nonce) {
