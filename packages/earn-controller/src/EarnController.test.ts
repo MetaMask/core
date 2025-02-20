@@ -507,9 +507,21 @@ describe('EarnController', () => {
       address: '0x1234',
     });
 
-    it('updates staking data when network changes', () => {
+    it('updates vault data when network changes', () => {
       const { controller, messenger } = setupController();
-      jest.spyOn(controller, 'refreshPooledStakingData').mockResolvedValue();
+
+      jest
+        .spyOn(controller, 'refreshPooledStakingVaultMetadata')
+        .mockResolvedValue();
+      jest
+        .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
+        .mockResolvedValue();
+      jest
+        .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
+        .mockResolvedValue();
+
+      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+
       messenger.publish(
         'NetworkController:stateChange',
         {
@@ -519,17 +531,31 @@ describe('EarnController', () => {
         [],
       );
 
-      expect(controller.refreshPooledStakingData).toHaveBeenCalled();
+      expect(
+        controller.refreshPooledStakingVaultMetadata,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        controller.refreshPooledStakingVaultDailyApys,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        controller.refreshPooledStakingVaultApyAverages,
+      ).toHaveBeenCalledTimes(1);
+      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
     });
 
-    it('updates staking data when selected account changes', () => {
+    it('updates staking eligibility when selected account changes', () => {
       const { controller, messenger } = setupController();
-      jest.spyOn(controller, 'refreshPooledStakingData').mockResolvedValue();
+
+      jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
+      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+
       messenger.publish(
         'AccountsController:selectedAccountChange',
         firstAccount,
       );
-      expect(controller.refreshPooledStakingData).toHaveBeenCalled();
+
+      expect(controller.refreshStakingEligibility).toHaveBeenCalledTimes(1);
+      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
     });
   });
 });

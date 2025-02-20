@@ -235,7 +235,10 @@ export class EarnController extends BaseController<
           this.#selectedNetworkClientId
         ) {
           this.#initializeSDK(networkControllerState.selectedNetworkClientId);
-          this.refreshPooledStakingData().catch(console.error);
+          this.refreshPooledStakingVaultMetadata().catch(console.error);
+          this.refreshPooledStakingVaultDailyApys().catch(console.error);
+          this.refreshPooledStakingVaultApyAverages().catch(console.error);
+          this.refreshPooledStakes().catch(console.error);
         }
         this.#selectedNetworkClientId =
           networkControllerState.selectedNetworkClientId;
@@ -246,7 +249,8 @@ export class EarnController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       () => {
-        this.refreshPooledStakingData().catch(console.error);
+        this.refreshStakingEligibility().catch(console.error);
+        this.refreshPooledStakes().catch(console.error);
       },
     );
   }
@@ -360,13 +364,13 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Refreshes vault metadata for the current chain.
+   * Refreshes pooled staking vault metadata for the current chain.
    * Updates the vault metadata in the controller state including APY, capacity,
    * fee percentage, total assets, and vault address.
    *
    * @returns A promise that resolves when the vault metadata has been updated
    */
-  async refreshVaultMetadata(): Promise<void> {
+  async refreshPooledStakingVaultMetadata(): Promise<void> {
     const chainId = this.#getCurrentChainId();
     const vaultMetadata = await this.#stakingApiService.getVaultData(chainId);
 
@@ -434,7 +438,7 @@ export class EarnController extends BaseController<
       this.refreshStakingEligibility().catch((error) => {
         errors.push(error);
       }),
-      this.refreshVaultMetadata().catch((error) => {
+      this.refreshPooledStakingVaultMetadata().catch((error) => {
         errors.push(error);
       }),
       this.refreshPooledStakingVaultDailyApys().catch((error) => {
