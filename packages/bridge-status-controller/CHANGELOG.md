@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Feat/bridge status controller ([#5317](https://github.com/MetaMask/core/pull/5317))
+
 ### Added
 
 - Initial release
