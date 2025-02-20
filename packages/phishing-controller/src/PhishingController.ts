@@ -583,7 +583,7 @@ export class PhishingController extends BaseController<
    * @param url - The URL to scan.
    * @returns The phishing detection scan result.
    */
-  async scanUrl(url: string): Promise<PhishingDetectionScanResult> {
+  scanUrl = async (url: string): Promise<PhishingDetectionScanResult> => {
     const [hostname, ok] = getHostnameFromWebUrl(url);
     if (!ok) {
       return {
@@ -635,7 +635,7 @@ export class PhishingController extends BaseController<
     }
 
     return response;
-  }
+  };
 
   /**
    * Update the stalelist configuration.
