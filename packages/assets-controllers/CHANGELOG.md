@@ -11,6 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
+- Update Release 304.0.0
+- Initialize Release 304.0.0
+- chore: updates handleOnAccountTransactionsUpdated ([#5339](https://github.com/MetaMask/core/pull/5339))
+- fix: Persist user rejection optional data in rejected error ([#5355](https://github.com/MetaMask/core/pull/5355))
+- refactor(keyring-controller): ensure authorization contract address is provided ([#5353](https://github.com/MetaMask/core/pull/5353))
+- feat: optimise push controller API calls ([#5358](https://github.com/MetaMask/core/pull/5358))
+- ci: Add CODEOWNER constraints ([#5352](https://github.com/MetaMask/core/pull/5352))
+- Add top gainers losers to token discovery service ([#5309](https://github.com/MetaMask/core/pull/5309))
+- feat: use `KeyringController:withKeyring` for account syncing operations ([#5345](https://github.com/MetaMask/core/pull/5345))
+- Release 302.0.0 ([#5346](https://github.com/MetaMask/core/pull/5346))
+- chore: Add missing CODEOWNER package rules ([#5351](https://github.com/MetaMask/core/pull/5351))
+- chore: fix remote-feature-flag-controller CODEOWNERS ([#5350](https://github.com/MetaMask/core/pull/5350))
+- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
+- chore: fix selected-network-controller CODEOWNERS ([#5349](https://github.com/MetaMask/core/pull/5349))
+- feat: support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+- fix: only allow hex addresses when creating notifications ([#5343](https://github.com/MetaMask/core/pull/5343))
+- Export generateDeterministicRandomNumber for use within mobile ([#5341](https://github.com/MetaMask/core/pull/5341))
+- Release/301.0.0 ([#5342](https://github.com/MetaMask/core/pull/5342))
+- Release/300.0.0 ([#5340](https://github.com/MetaMask/core/pull/5340))
+- feat: EarnController add resetCache arg to stakingApiService.getPooledStakes() ([#5334](https://github.com/MetaMask/core/pull/5334))
+- Discourage the use of barrel exports ([#5304](https://github.com/MetaMask/core/pull/5304))
+- chore: Add state change event to multichain network controller ([#5331](https://github.com/MetaMask/core/pull/5331))
+- Use Prettier 2 for Jest ([#5330](https://github.com/MetaMask/core/pull/5330))
+- feat: add `KeyringController:withKeyring` action ([#5332](https://github.com/MetaMask/core/pull/5332))
 - fix: process first call to update the rates controller then start polling ([#5364](https://github.com/MetaMask/core.git/pull/5364))
 - chore: bump `@metamask/keyring-{snap-client,internal-api}` versions ([#5356](https://github.com/MetaMask/core.git/pull/5356))
 - fix: rename MultichainAssetsRatesController ([#5354](https://github.com/MetaMask/core.git/pull/5354))
@@ -1416,80 +1440,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@51.0.0...HEAD
-[51.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@50.0.0...@metamask/assets-controllers@51.0.0
-[50.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@49.0.0...@metamask/assets-controllers@50.0.0
-[49.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@48.0.0...@metamask/assets-controllers@49.0.0
-[48.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@47.0.0...@metamask/assets-controllers@48.0.0
-[47.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@46.0.1...@metamask/assets-controllers@47.0.0
-[46.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@46.0.0...@metamask/assets-controllers@46.0.1
-[46.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@45.1.2...@metamask/assets-controllers@46.0.0
-[45.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@45.1.1...@metamask/assets-controllers@45.1.2
-[45.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@45.1.0...@metamask/assets-controllers@45.1.1
-[45.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@45.0.0...@metamask/assets-controllers@45.1.0
-[45.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@44.1.0...@metamask/assets-controllers@45.0.0
-[44.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@44.0.1...@metamask/assets-controllers@44.1.0
-[44.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@44.0.0...@metamask/assets-controllers@44.0.1
-[44.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@43.1.1...@metamask/assets-controllers@44.0.0
-[43.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@43.1.0...@metamask/assets-controllers@43.1.1
-[43.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@43.0.0...@metamask/assets-controllers@43.1.0
-[43.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@42.0.0...@metamask/assets-controllers@43.0.0
-[42.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@41.0.0...@metamask/assets-controllers@42.0.0
-[41.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@40.0.0...@metamask/assets-controllers@41.0.0
-[40.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@39.0.0...@metamask/assets-controllers@40.0.0
-[39.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@38.3.0...@metamask/assets-controllers@39.0.0
-[38.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@38.2.0...@metamask/assets-controllers@38.3.0
-[38.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@38.1.0...@metamask/assets-controllers@38.2.0
-[38.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@38.0.1...@metamask/assets-controllers@38.1.0
-[38.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@38.0.0...@metamask/assets-controllers@38.0.1
-[38.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@37.0.0...@metamask/assets-controllers@38.0.0
-[37.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0
-[36.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@35.0.0...@metamask/assets-controllers@36.0.0
-[35.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@34.0.0...@metamask/assets-controllers@35.0.0
-[34.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@33.0.0...@metamask/assets-controllers@34.0.0
-[33.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@32.0.0...@metamask/assets-controllers@33.0.0
-[32.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@31.0.0...@metamask/assets-controllers@32.0.0
-[31.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@30.0.0...@metamask/assets-controllers@31.0.0
-[30.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@29.0.0...@metamask/assets-controllers@30.0.0
-[29.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@28.0.0...@metamask/assets-controllers@29.0.0
-[28.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@27.2.0...@metamask/assets-controllers@28.0.0
-[27.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@27.1.0...@metamask/assets-controllers@27.2.0
-[27.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@27.0.1...@metamask/assets-controllers@27.1.0
-[27.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@27.0.0...@metamask/assets-controllers@27.0.1
-[27.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@26.0.0...@metamask/assets-controllers@27.0.0
-[26.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@25.0.0...@metamask/assets-controllers@26.0.0
-[25.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@24.0.0...@metamask/assets-controllers@25.0.0
-[24.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
-[23.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@23.0.0...@metamask/assets-controllers@23.1.0
-[23.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@22.0.0...@metamask/assets-controllers@23.0.0
-[22.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@21.0.0...@metamask/assets-controllers@22.0.0
-[21.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@20.0.0...@metamask/assets-controllers@21.0.0
-[20.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@19.0.0...@metamask/assets-controllers@20.0.0
-[19.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@18.0.0...@metamask/assets-controllers@19.0.0
-[18.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@17.0.0...@metamask/assets-controllers@18.0.0
-[17.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@16.0.0...@metamask/assets-controllers@17.0.0
-[16.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@15.0.0...@metamask/assets-controllers@16.0.0
-[15.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@14.0.0...@metamask/assets-controllers@15.0.0
-[14.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@13.0.0...@metamask/assets-controllers@14.0.0
-[13.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@12.0.0...@metamask/assets-controllers@13.0.0
-[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0
-[11.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@11.0.1...@metamask/assets-controllers@11.1.0
-[11.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
-[9.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@9.1.0...@metamask/assets-controllers@9.2.0
-[9.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@8.0.0...@metamask/assets-controllers@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@7.0.0...@metamask/assets-controllers@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@6.0.0...@metamask/assets-controllers@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@5.1.0...@metamask/assets-controllers@6.0.0
-[5.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@5.0.1...@metamask/assets-controllers@5.1.0
-[5.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@5.0.0...@metamask/assets-controllers@5.0.1
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@4.0.1...@metamask/assets-controllers@5.0.0
-[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@4.0.0...@metamask/assets-controllers@4.0.1
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
-[3.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/assets-controllers@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@51.0.0...HEAD
+[51.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@50.0.0...@metamask/assets-controllers@51.0.0
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@49.0.0...@metamask/assets-controllers@50.0.0
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@48.0.0...@metamask/assets-controllers@49.0.0
+[48.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@47.0.0...@metamask/assets-controllers@48.0.0
+[47.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.1...@metamask/assets-controllers@47.0.0
+[46.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@46.0.0...@metamask/assets-controllers@46.0.1
+[46.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.2...@metamask/assets-controllers@46.0.0
+[45.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.1...@metamask/assets-controllers@45.1.2
+[45.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.1.0...@metamask/assets-controllers@45.1.1
+[45.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@45.0.0...@metamask/assets-controllers@45.1.0
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.1.0...@metamask/assets-controllers@45.0.0
+[44.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.0.1...@metamask/assets-controllers@44.1.0
+[44.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.0.0...@metamask/assets-controllers@44.0.1
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.1...@metamask/assets-controllers@44.0.0
+[43.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.0...@metamask/assets-controllers@43.1.1
+[43.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.0.0...@metamask/assets-controllers@43.1.0
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@42.0.0...@metamask/assets-controllers@43.0.0
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@41.0.0...@metamask/assets-controllers@42.0.0
+[41.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@40.0.0...@metamask/assets-controllers@41.0.0
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@39.0.0...@metamask/assets-controllers@40.0.0
+[39.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.3.0...@metamask/assets-controllers@39.0.0
+[38.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.2.0...@metamask/assets-controllers@38.3.0
+[38.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.1.0...@metamask/assets-controllers@38.2.0
+[38.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.1...@metamask/assets-controllers@38.1.0
+[38.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.0...@metamask/assets-controllers@38.0.1
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...@metamask/assets-controllers@38.0.0
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@35.0.0...@metamask/assets-controllers@36.0.0
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@34.0.0...@metamask/assets-controllers@35.0.0
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@33.0.0...@metamask/assets-controllers@34.0.0
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@32.0.0...@metamask/assets-controllers@33.0.0
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@31.0.0...@metamask/assets-controllers@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@30.0.0...@metamask/assets-controllers@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@29.0.0...@metamask/assets-controllers@30.0.0
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@28.0.0...@metamask/assets-controllers@29.0.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.2.0...@metamask/assets-controllers@28.0.0
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.1.0...@metamask/assets-controllers@27.2.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.1...@metamask/assets-controllers@27.1.0
+[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.0...@metamask/assets-controllers@27.0.1
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@26.0.0...@metamask/assets-controllers@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@25.0.0...@metamask/assets-controllers@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@24.0.0...@metamask/assets-controllers@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.1.0...@metamask/assets-controllers@24.0.0
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@23.0.0...@metamask/assets-controllers@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@22.0.0...@metamask/assets-controllers@23.0.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@21.0.0...@metamask/assets-controllers@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@20.0.0...@metamask/assets-controllers@21.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@19.0.0...@metamask/assets-controllers@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@18.0.0...@metamask/assets-controllers@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@17.0.0...@metamask/assets-controllers@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@16.0.0...@metamask/assets-controllers@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@15.0.0...@metamask/assets-controllers@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@14.0.0...@metamask/assets-controllers@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@13.0.0...@metamask/assets-controllers@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@12.0.0...@metamask/assets-controllers@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.1.0...@metamask/assets-controllers@12.0.0
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.1...@metamask/assets-controllers@11.1.0
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@11.0.0...@metamask/assets-controllers@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@10.0.0...@metamask/assets-controllers@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.2.0...@metamask/assets-controllers@10.0.0
+[9.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.1.0...@metamask/assets-controllers@9.2.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@9.0.0...@metamask/assets-controllers@9.1.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@8.0.0...@metamask/assets-controllers@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@7.0.0...@metamask/assets-controllers@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@6.0.0...@metamask/assets-controllers@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.1.0...@metamask/assets-controllers@6.0.0
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.0.1...@metamask/assets-controllers@5.1.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@5.0.0...@metamask/assets-controllers@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@4.0.1...@metamask/assets-controllers@5.0.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@4.0.0...@metamask/assets-controllers@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.1...@metamask/assets-controllers@4.0.0
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@3.0.0...@metamask/assets-controllers@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@2.0.0...@metamask/assets-controllers@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.1...@metamask/assets-controllers@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@1.0.0...@metamask/assets-controllers@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/assets-controllers@1.0.0
