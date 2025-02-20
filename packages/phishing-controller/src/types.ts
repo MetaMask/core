@@ -76,9 +76,30 @@ export enum PhishingDetectorResultType {
  * PhishingDetectionScanResult represents the result of a phishing detection scan.
  */
 export type PhishingDetectionScanResult = {
+  /**
+   * The domain name that was scanned.
+   */
   domainName: string;
+  /**
+   * Indicates the warning level based on risk factors.
+   *
+   * - "NONE" means it is most likely safe.
+   * - "WARN" means there is some risk.
+   * - "BLOCK" means it is highly likely to be malicious.
+   */
   recommendedAction: RecommendedAction;
+  /**
+   * Is true if the domain is on our allowlist.
+   */
   verified: boolean;
+  /**
+   * An optional error message that exists if:
+   * - The link requested is not a valid web URL.
+   * - Failed to fetch the result from the phishing detector.
+   *
+   * Consumers can use the existence of this field to retry.
+   */
+  fetchError?: string;
 };
 
 /**
