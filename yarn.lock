@@ -2582,7 +2582,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^0.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2591,7 +2591,6 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/controller-utils": "npm:^11.5.0"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
-    "@metamask/json-rpc-engine": "npm:^10.0.3"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/polling-controller": "npm:^12.0.3"
@@ -2610,6 +2609,37 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/accounts-controller": ^24.0.0
+    "@metamask/network-controller": ^22.0.0
+    "@metamask/transaction-controller": ^46.0.0
+  languageName: unknown
+  linkType: soft
+
+"@metamask/bridge-status-controller@workspace:packages/bridge-status-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^24.0.0"
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/bridge-controller": "npm:^0.0.0"
+    "@metamask/controller-utils": "npm:^11.5.0"
+    "@metamask/network-controller": "npm:^22.2.1"
+    "@metamask/polling-controller": "npm:^12.0.3"
+    "@metamask/transaction-controller": "npm:^46.0.0"
+    "@metamask/utils": "npm:^11.2.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    jest-environment-jsdom: "npm:^27.5.1"
+    lodash: "npm:^4.17.21"
+    nock: "npm:^13.3.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/accounts-controller": ^24.0.0
+    "@metamask/bridge-controller": ^0.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/transaction-controller": ^46.0.0
   languageName: unknown
