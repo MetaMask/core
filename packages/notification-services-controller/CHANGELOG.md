@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: optimise push controller API calls ([#5358](https://github.com/MetaMask/core/pull/5358))
-- Release 303.0.0 ([#5357](https://github.com/MetaMask/core/pull/5357))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- fix: only allow hex addresses when creating notifications ([#5343](https://github.com/MetaMask/core/pull/5343))
-
 ## [0.21.0]
 
 ### Added

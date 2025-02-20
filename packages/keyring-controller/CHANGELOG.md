@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor(keyring-controller): ensure authorization contract address is provided ([#5353](https://github.com/MetaMask/core/pull/5353))
-
 ### Changed
 
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))

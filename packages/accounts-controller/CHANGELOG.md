@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 303.0.0 ([#5357](https://github.com/MetaMask/core/pull/5357))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
-
 ### Changed
 
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
