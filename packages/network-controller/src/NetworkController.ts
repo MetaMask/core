@@ -531,6 +531,15 @@ export type NetworkControllerOptions = {
   infuraProjectId: string;
   state?: Partial<NetworkState>;
   log?: Logger;
+  /**
+   * A function that can be used to make an HTTP request, compatible with the
+   * Fetch API.
+   */
+  fetch: typeof fetch;
+  /**
+   * A function that can be used to convert a binary string into base-64.
+   */
+  btoa: typeof btoa;
 };
 
 /**
@@ -909,6 +918,10 @@ export class NetworkController extends BaseController<
 
   #log: Logger | undefined;
 
+  readonly #fetch: typeof fetch;
+
+  readonly #btoa: typeof btoa;
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
@@ -919,6 +932,8 @@ export class NetworkController extends BaseController<
     state,
     infuraProjectId,
     log,
+    fetch: givenFetch,
+    btoa: givenBtoa,
   }: NetworkControllerOptions) {
     const initialState = { ...getDefaultNetworkControllerState(), ...state };
     validateNetworkControllerState(initialState);
@@ -948,6 +963,8 @@ export class NetworkController extends BaseController<
 
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
+    this.#fetch = givenFetch;
+    this.#btoa = givenBtoa;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -2425,20 +2442,28 @@ export class NetworkController extends BaseController<
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
           addedRpcEndpoint.networkClientId
         ] = createAutoManagedNetworkClient({
-          type: NetworkClientType.Infura,
-          chainId: networkFields.chainId,
-          network: addedRpcEndpoint.networkClientId,
-          infuraProjectId: this.#infuraProjectId,
-          ticker: networkFields.nativeCurrency,
+          networkClientConfiguration: {
+            type: NetworkClientType.Infura,
+            chainId: networkFields.chainId,
+            network: addedRpcEndpoint.networkClientId,
+            infuraProjectId: this.#infuraProjectId,
+            ticker: networkFields.nativeCurrency,
+          },
+          fetch: this.#fetch,
+          btoa: this.#btoa,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
           addedRpcEndpoint.networkClientId
         ] = createAutoManagedNetworkClient({
-          type: NetworkClientType.Custom,
-          chainId: networkFields.chainId,
-          rpcUrl: addedRpcEndpoint.url,
-          ticker: networkFields.nativeCurrency,
+          networkClientConfiguration: {
+            type: NetworkClientType.Custom,
+            chainId: networkFields.chainId,
+            rpcUrl: addedRpcEndpoint.url,
+            ticker: networkFields.nativeCurrency,
+          },
+          fetch: this.#fetch,
+          btoa: this.#btoa,
         });
       }
     }
@@ -2589,21 +2614,29 @@ export class NetworkController extends BaseController<
           return [
             rpcEndpoint.networkClientId,
             createAutoManagedNetworkClient({
-              type: NetworkClientType.Infura,
-              network: infuraNetworkName,
-              infuraProjectId: this.#infuraProjectId,
-              chainId: networkConfiguration.chainId,
-              ticker: networkConfiguration.nativeCurrency,
+              networkClientConfiguration: {
+                type: NetworkClientType.Infura,
+                network: infuraNetworkName,
+                infuraProjectId: this.#infuraProjectId,
+                chainId: networkConfiguration.chainId,
+                ticker: networkConfiguration.nativeCurrency,
+              },
+              fetch: this.#fetch,
+              btoa: this.#btoa,
             }),
           ] as const;
         }
         return [
           rpcEndpoint.networkClientId,
           createAutoManagedNetworkClient({
-            type: NetworkClientType.Custom,
-            chainId: networkConfiguration.chainId,
-            rpcUrl: rpcEndpoint.url,
-            ticker: networkConfiguration.nativeCurrency,
+            networkClientConfiguration: {
+              type: NetworkClientType.Custom,
+              chainId: networkConfiguration.chainId,
+              rpcUrl: rpcEndpoint.url,
+              ticker: networkConfiguration.nativeCurrency,
+            },
+            fetch: this.#fetch,
+            btoa: this.#btoa,
           }),
         ] as const;
       });

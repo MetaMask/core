@@ -15,7 +15,7 @@ import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerAddNewAccountAction,
+  type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -192,6 +192,9 @@ type ActionsObj = CreateActionsObj<
   | 'performGetStorage'
   | 'performGetStorageAllFeatureEntries'
   | 'performSetStorage'
+  | 'performBatchSetStorage'
+  | 'performDeleteStorage'
+  | 'performBatchDeleteStorage'
   | 'getStorageKey'
   | 'enableProfileSyncing'
   | 'disableProfileSyncing'
@@ -211,6 +214,12 @@ export type UserStorageControllerPerformGetStorageAllFeatureEntries =
   ActionsObj['performGetStorageAllFeatureEntries'];
 export type UserStorageControllerPerformSetStorage =
   ActionsObj['performSetStorage'];
+export type UserStorageControllerPerformBatchSetStorage =
+  ActionsObj['performBatchSetStorage'];
+export type UserStorageControllerPerformDeleteStorage =
+  ActionsObj['performDeleteStorage'];
+export type UserStorageControllerPerformBatchDeleteStorage =
+  ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
 export type UserStorageControllerEnableProfileSyncing =
   ActionsObj['enableProfileSyncing'];
@@ -235,7 +244,7 @@ export type AllowedActions =
   // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
-  | KeyringControllerAddNewAccountAction
+  | KeyringControllerWithKeyringAction
   // Network Syncing
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction
@@ -247,23 +256,11 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
-export type UserStorageControllerAccountSyncingInProgress = {
-  type: `${typeof controllerName}:accountSyncingInProgress`;
-  payload: [boolean];
-};
-export type UserStorageControllerAccountSyncingComplete = {
-  type: `${typeof controllerName}:accountSyncingComplete`;
-  payload: [boolean];
-};
-export type Events =
-  | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete;
+
+export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
   | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Account Syncing Events
@@ -422,6 +419,21 @@ export default class UserStorageController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'UserStorageController:performSetStorage',
       this.performSetStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performBatchSetStorage',
+      this.performBatchSetStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performDeleteStorage',
+      this.performDeleteStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performBatchDeleteStorage',
+      this.performBatchDeleteStorage.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(

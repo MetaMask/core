@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../network-controller" },
+    { "path": "../keyring-controller" }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

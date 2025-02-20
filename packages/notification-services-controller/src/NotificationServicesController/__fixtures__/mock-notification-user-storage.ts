@@ -88,5 +88,6 @@ export function createMockFullUserStorage(
   return initializeUserStorage(
     [{ address: props.address ?? MOCK_USER_STORAGE_ACCOUNT }],
     props.triggersEnabled ?? true,
+    false,
   );
 }
