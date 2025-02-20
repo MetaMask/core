@@ -9,38 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [51.0.0]
 
-### Uncategorized
+### Changed
 
-- Update Release 304.0.0
-- Initialize Release 304.0.0
-- chore: updates handleOnAccountTransactionsUpdated ([#5339](https://github.com/MetaMask/core/pull/5339))
-- fix: Persist user rejection optional data in rejected error ([#5355](https://github.com/MetaMask/core/pull/5355))
-- refactor(keyring-controller): ensure authorization contract address is provided ([#5353](https://github.com/MetaMask/core/pull/5353))
-- feat: optimise push controller API calls ([#5358](https://github.com/MetaMask/core/pull/5358))
-- ci: Add CODEOWNER constraints ([#5352](https://github.com/MetaMask/core/pull/5352))
-- Add top gainers losers to token discovery service ([#5309](https://github.com/MetaMask/core/pull/5309))
-- feat: use `KeyringController:withKeyring` for account syncing operations ([#5345](https://github.com/MetaMask/core/pull/5345))
-- Release 302.0.0 ([#5346](https://github.com/MetaMask/core/pull/5346))
-- chore: Add missing CODEOWNER package rules ([#5351](https://github.com/MetaMask/core/pull/5351))
-- chore: fix remote-feature-flag-controller CODEOWNERS ([#5350](https://github.com/MetaMask/core/pull/5350))
-- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
-- chore: fix selected-network-controller CODEOWNERS ([#5349](https://github.com/MetaMask/core/pull/5349))
-- feat: support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
-- fix: only allow hex addresses when creating notifications ([#5343](https://github.com/MetaMask/core/pull/5343))
-- Export generateDeterministicRandomNumber for use within mobile ([#5341](https://github.com/MetaMask/core/pull/5341))
-- Release/301.0.0 ([#5342](https://github.com/MetaMask/core/pull/5342))
-- Release/300.0.0 ([#5340](https://github.com/MetaMask/core/pull/5340))
-- feat: EarnController add resetCache arg to stakingApiService.getPooledStakes() ([#5334](https://github.com/MetaMask/core/pull/5334))
-- Discourage the use of barrel exports ([#5304](https://github.com/MetaMask/core/pull/5304))
-- chore: Add state change event to multichain network controller ([#5331](https://github.com/MetaMask/core/pull/5331))
-- Use Prettier 2 for Jest ([#5330](https://github.com/MetaMask/core/pull/5330))
-- feat: add `KeyringController:withKeyring` action ([#5332](https://github.com/MetaMask/core/pull/5332))
-- fix: process first call to update the rates controller then start polling ([#5364](https://github.com/MetaMask/core.git/pull/5364))
-- chore: bump `@metamask/keyring-{snap-client,internal-api}` versions ([#5356](https://github.com/MetaMask/core.git/pull/5356))
-- fix: rename MultichainAssetsRatesController ([#5354](https://github.com/MetaMask/core.git/pull/5354))
-- Release 303.0.0 ([#5357](https://github.com/MetaMask/core.git/pull/5357))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core.git/pull/5301))
-- Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core.git/pull/5290))
+- **BREAKING:** Rename `MultiChainAssetsRatesController` to `MultichainAssetsRatesController` ([#5354](https://github.com/MetaMask/core/pull/5354))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+### Fixed
+
+- Resolved an issue where rate polling would only begin after the default 3-minute interval by manually triggering a rate update upon initialization, ensuring an immediate refresh for a better user experience ([#5364](https://github.com/MetaMask/core/pull/5364))
 
 ## [50.0.0]
 
