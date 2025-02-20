@@ -102,7 +102,7 @@ const mockPooledStakes = {
   assets: '1000',
   exitRequests: [],
 };
-const mockVaultData = {
+const mockVaultMetadata = {
   apy: '5.5',
   capacity: '1000000',
   feePercent: 10,
@@ -185,7 +185,7 @@ describe('EarnController', () => {
       getPooledStakingEligibility: jest.fn().mockResolvedValue({
         eligible: true,
       }),
-      getVaultData: jest.fn().mockResolvedValue(mockVaultData),
+      getVaultData: jest.fn().mockResolvedValue(mockVaultMetadata),
     } as Partial<StakingApiService>;
 
     StakingApiServiceMock.mockImplementation(
@@ -204,7 +204,7 @@ describe('EarnController', () => {
         pooled_staking: {
           pooledStakes: mockPooledStakes,
           exchangeRate: '1.5',
-          vaultData: mockVaultData,
+          vaultMetadata: mockVaultMetadata,
           isEligible: true,
         },
         lastUpdated: 1234567890,
@@ -288,7 +288,7 @@ describe('EarnController', () => {
       expect(controller.state.pooled_staking).toStrictEqual({
         pooledStakes: mockPooledStakes,
         exchangeRate: '1.5',
-        vaultData: mockVaultData,
+        vaultMetadata: mockVaultMetadata,
         isEligible: true,
       });
       expect(controller.state.lastUpdated).toBeDefined();
@@ -347,7 +347,7 @@ describe('EarnController', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    // if no account is selected, it should not fetch stakes data but still updates vault data
+    // if no account is selected, it should not fetch stakes data but still update vault metadata
     it('does not fetch staking data if no account is selected', async () => {
       const { controller } = setupController({
         mockGetSelectedAccount: jest.fn(() => null),
@@ -359,8 +359,8 @@ describe('EarnController', () => {
       expect(controller.state.pooled_staking.pooledStakes).toStrictEqual(
         getDefaultEarnControllerState().pooled_staking.pooledStakes,
       );
-      expect(controller.state.pooled_staking.vaultData).toStrictEqual(
-        mockVaultData,
+      expect(controller.state.pooled_staking.vaultMetadata).toStrictEqual(
+        mockVaultMetadata,
       );
       expect(controller.state.pooled_staking.isEligible).toBe(false);
     });

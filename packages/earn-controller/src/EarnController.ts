@@ -29,7 +29,7 @@ export const controllerName = 'EarnController';
 export type PooledStakingState = {
   pooledStakes: PooledStake;
   exchangeRate: string;
-  vaultData: VaultData;
+  vaultMetadata: VaultData;
   isEligible: boolean;
 };
 
@@ -100,7 +100,7 @@ export function getDefaultEarnControllerState(): EarnControllerState {
         exitRequests: [],
       },
       exchangeRate: '1',
-      vaultData: {
+      vaultMetadata: {
         apy: '0',
         capacity: '0',
         feePercent: 0,
@@ -345,18 +345,18 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Refreshes vault data for the current chain.
-   * Updates the vault data in the controller state including APY, capacity,
+   * Refreshes vault metadata for the current chain.
+   * Updates the vault metadata in the controller state including APY, capacity,
    * fee percentage, total assets, and vault address.
    *
-   * @returns A promise that resolves when the vault data has been updated
+   * @returns A promise that resolves when the vault metadata has been updated
    */
-  async refreshVaultData(): Promise<void> {
+  async refreshVaultMetadata(): Promise<void> {
     const chainId = this.#getCurrentChainId();
-    const vaultData = await this.#stakingApiService.getVaultData(chainId);
+    const vaultMetadata = await this.#stakingApiService.getVaultData(chainId);
 
     this.update((state) => {
-      state.pooled_staking.vaultData = vaultData;
+      state.pooled_staking.vaultMetadata = vaultMetadata;
     });
   }
 
@@ -379,7 +379,7 @@ export class EarnController extends BaseController<
       this.refreshStakingEligibility().catch((error) => {
         errors.push(error);
       }),
-      this.refreshVaultData().catch((error) => {
+      this.refreshVaultMetadata().catch((error) => {
         errors.push(error);
       }),
     ]);
