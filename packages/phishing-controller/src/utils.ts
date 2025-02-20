@@ -294,6 +294,30 @@ export const getHostnameFromUrl = (url: string): string | null => {
 };
 
 /**
+ * getHostnameFromWebUrl returns the hostname from a web URL.
+ * It returns the hostname and a boolean indicating if the hostname is valid.
+ *
+ * @param url - The web URL to extract the hostname from.
+ * @returns A tuple containing the extracted hostname and a boolean indicating if the hostname is valid.
+ * @example
+ * getHostnameFromWebUrl('https://example.com') // Returns: ['example.com', true]
+ * getHostnameFromWebUrl('example.com') // Returns: ['', false]
+ * getHostnameFromWebUrl('https://') // Returns: ['', false]
+ * getHostnameFromWebUrl('') // Returns: ['', false]
+ */
+export const getHostnameFromWebUrl = (url: string): [string, boolean] => {
+  if (
+    !url.toLowerCase().startsWith('http://') &&
+    !url.toLowerCase().startsWith('https://')
+  ) {
+    return ['', false];
+  }
+
+  const hostname = getHostnameFromUrl(url);
+  return [hostname || '', Boolean(hostname)];
+};
+
+/**
  * Generates all possible parent domains up to a specified limit.
  *
  * @param sourceParts - The list of domain parts in normal order (e.g., ['evil', 'domain', 'co', 'uk']).

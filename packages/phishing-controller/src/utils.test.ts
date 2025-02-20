@@ -7,6 +7,7 @@ import {
   fetchTimeNow,
   generateParentDomains,
   getHostnameFromUrl,
+  getHostnameFromWebUrl,
   matchPartsAgainstList,
   processConfigs,
   // processConfigs,
@@ -612,6 +613,39 @@ describe('getHostnameFromURL', () => {
     const expectedHostname = 'www.example.com';
     expect(getHostnameFromUrl(url)).toBe(expectedHostname);
   });
+});
+
+describe('getHostnameFromWebUrl', () => {
+  // each testcase is [input, expectedHostname, expectedValid]
+  const testCases = [
+    ['https://www.example.com/path?query=string', 'www.example.com', true],
+    ['https://subdomain.example.com/path', 'subdomain.example.com', true],
+    ['invalid-url', '', false],
+    ['http://.', '', false],
+    ['http://..', '', false],
+    ['about:blank', '', false],
+    ['www.example.com', '', false],
+    ['', '', false],
+    ['http://localhost:3000', 'localhost', true],
+    ['http://192.168.1.1', '192.168.1.1', true],
+    ['ftp://example.com/resource', '', false],
+    ['www.example.com', '', false],
+    [
+      'https://www.example.com/path?query=string&another=param',
+      'www.example.com',
+      true,
+    ],
+    ['https://www.example.com/path#section', 'www.example.com', true],
+  ] as const;
+
+  it.each(testCases)(
+    'for URL %s should return [%s, %s]',
+    (input, expectedHostname, expectedValid) => {
+      const [hostname, isValid] = getHostnameFromWebUrl(input);
+      expect(hostname).toBe(expectedHostname);
+      expect(isValid).toBe(expectedValid);
+    },
+  );
 });
 
 /**
