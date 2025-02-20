@@ -23,6 +23,7 @@ import {
   type StakeSdkConfig,
   type VaultData,
   type VaultDailyApy,
+  type VaultApyAverages,
 } from '@metamask/stake-sdk';
 
 export const controllerName = 'EarnController';
@@ -32,6 +33,7 @@ export type PooledStakingState = {
   exchangeRate: string;
   vaultMetadata: VaultData;
   vaultDailyApys: VaultDailyApy[];
+  vaultApyAverages: VaultApyAverages;
   isEligible: boolean;
 };
 
@@ -87,6 +89,15 @@ const DEFAULT_STABLECOIN_VAULT: StablecoinVault = {
   liquidity: '0',
 };
 
+const DEFAULT_POOLED_STAKING_VAULT_APY_AVERAGES: VaultApyAverages = {
+  oneDay: '0',
+  oneWeek: '0',
+  oneMonth: '0',
+  threeMonths: '0',
+  sixMonths: '0',
+  oneYear: '0',
+};
+
 /**
  * Gets the default state for the EarnController.
  *
@@ -110,6 +121,7 @@ export function getDefaultEarnControllerState(): EarnControllerState {
         vaultAddress: '0x0000000000000000000000000000000000000000',
       },
       vaultDailyApys: [],
+      vaultApyAverages: DEFAULT_POOLED_STAKING_VAULT_APY_AVERAGES,
       isEligible: false,
     },
     stablecoin_lending: {
@@ -368,7 +380,7 @@ export class EarnController extends BaseController<
    * Updates the pooled staking vault daily apys controller state.
    *
    * @param days - The number of days to fetch pooled staking vault daily apys for (defaults to 30).
-   * @param order - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards).
+   * @param order - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards) (defaults to 'desc').
    * @returns A promise that resolves when the pooled staking vault daily apys have been updated.
    */
   async refreshPooledStakingVaultDailyApys(
@@ -384,6 +396,22 @@ export class EarnController extends BaseController<
 
     this.update((state) => {
       state.pooled_staking.vaultDailyApys = vaultDailyApys;
+    });
+  }
+
+  /**
+   * Refreshes pooled staking vault apy averages for the current chain.
+   * Updates the pooled staking vault apy averages controller state.
+   *
+   * @returns A promise that resolves when the pooled staking vault apy averages have been updated.
+   */
+  async refreshPooledStakingVaultApyAverages() {
+    const chainId = this.#getCurrentChainId();
+    const vaultApyAverages =
+      await this.#stakingApiService.getVaultApyAverages(chainId);
+
+    this.update((state) => {
+      state.pooled_staking.vaultApyAverages = vaultApyAverages;
     });
   }
 
@@ -410,6 +438,9 @@ export class EarnController extends BaseController<
         errors.push(error);
       }),
       this.refreshPooledStakingVaultDailyApys().catch((error) => {
+        errors.push(error);
+      }),
+      this.refreshPooledStakingVaultApyAverages().catch((error) => {
         errors.push(error);
       }),
     ]);

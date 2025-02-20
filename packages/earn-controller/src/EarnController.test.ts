@@ -27,6 +27,7 @@ jest.mock('@metamask/stake-sdk', () => ({
     getPooledStakingEligibility: jest.fn(),
     getVaultData: jest.fn(),
     getVaultDailyApys: jest.fn(),
+    getVaultApyAverages: jest.fn(),
   })),
 }));
 
@@ -178,6 +179,15 @@ const mockPooledStakingVaultDailyApys = [
   },
 ];
 
+const mockPooledStakingVaultApyAverages = {
+  oneDay: '3.047713358665092375',
+  oneWeek: '3.25756026351317301786',
+  oneMonth: '3.25616054301749304217',
+  threeMonths: '3.31863306662107446672',
+  sixMonths: '3.05557344496273894133',
+  oneYear: '0',
+};
+
 const setupController = ({
   options = {},
 
@@ -257,6 +267,9 @@ describe('EarnController', () => {
       getVaultDailyApys: jest
         .fn()
         .mockResolvedValue(mockPooledStakingVaultDailyApys),
+      getVaultApyAverages: jest
+        .fn()
+        .mockResolvedValue(mockPooledStakingVaultApyAverages),
     } as Partial<StakingApiService>;
 
     StakingApiServiceMock.mockImplementation(
@@ -278,6 +291,7 @@ describe('EarnController', () => {
           vaultMetadata: mockVaultMetadata,
           isEligible: true,
           vaultDailyApys: mockPooledStakingVaultDailyApys,
+          vaultApyAverages: mockPooledStakingVaultApyAverages,
         },
         lastUpdated: 1234567890,
       };
@@ -362,6 +376,7 @@ describe('EarnController', () => {
         exchangeRate: '1.5',
         vaultMetadata: mockVaultMetadata,
         vaultDailyApys: mockPooledStakingVaultDailyApys,
+        vaultApyAverages: mockPooledStakingVaultApyAverages,
         isEligible: true,
       });
       expect(controller.state.lastUpdated).toBeDefined();
@@ -420,13 +435,14 @@ describe('EarnController', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    // if no account is selected, it should not fetch stakes data but still update vault metadata
+    // if no account is selected, it should not fetch stakes data but still update vault metadata, vault daily apys and vault apy averages.
     it('does not fetch staking data if no account is selected', async () => {
       const { controller } = setupController({
         mockGetSelectedAccount: jest.fn(() => null),
       });
 
       expect(mockedStakingApiService.getPooledStakes).not.toHaveBeenCalled();
+
       await controller.refreshPooledStakingData();
 
       expect(controller.state.pooled_staking.pooledStakes).toStrictEqual(
@@ -434,6 +450,12 @@ describe('EarnController', () => {
       );
       expect(controller.state.pooled_staking.vaultMetadata).toStrictEqual(
         mockVaultMetadata,
+      );
+      expect(controller.state.pooled_staking.vaultDailyApys).toStrictEqual(
+        mockPooledStakingVaultDailyApys,
+      );
+      expect(controller.state.pooled_staking.vaultApyAverages).toStrictEqual(
+        mockPooledStakingVaultApyAverages,
       );
       expect(controller.state.pooled_staking.isEligible).toBe(false);
     });
