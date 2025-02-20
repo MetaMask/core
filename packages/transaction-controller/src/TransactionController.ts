@@ -2071,7 +2071,7 @@ export class TransactionController extends BaseController<
    * @param options.maxFeePerGas - The new max fee per gas value to be assigned
    * @param options.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
    * @param options.nonce - The new nonce value to be assigned
-   * @param options.type
+   * @param options.type - The tranasction type (hardfork) to be assigned
    */
   updateCustodialTransaction(
     transactionId: string,
