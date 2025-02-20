@@ -53,7 +53,7 @@
 /packages/build-utils                  @MetaMask/wallet-framework-engineers
 /packages/composable-controller        @MetaMask/wallet-framework-engineers
 /packages/controller-utils             @MetaMask/wallet-framework-engineers
-/packages/example-controllers          @MetaMask/wallet-framework-engineers
+/packages/sample-controllers          @MetaMask/wallet-framework-engineers
 /packages/polling-controller           @MetaMask/wallet-framework-engineers
 /packages/preferences-controller       @MetaMask/wallet-framework-engineers
 

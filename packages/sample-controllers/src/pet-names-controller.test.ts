@@ -1,12 +1,12 @@
 import { Messenger } from '@metamask/base-controller';
 
+import type { PetNamesControllerMessenger } from './pet-names-controller';
+import { PetNamesController } from './pet-names-controller';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
-} from '../../../packages/base-controller/tests/helpers';
-import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../../packages/controller-utils/src/util';
-import type { PetNamesControllerMessenger } from './pet-names-controller';
-import { PetNamesController } from './pet-names-controller';
+} from '../../base-controller/tests/helpers';
+import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('PetNamesController', () => {
   describe('constructor', () => {
