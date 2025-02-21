@@ -211,7 +211,9 @@ export function mockUserStorageMessenger(
         addAccounts: mockKeyringAddAccounts,
       } as unknown as EthKeyring<never>;
 
-      return operation(keyring);
+      const metadata = { id: 'mock-id', name: '' };
+
+      return operation({ keyring, metadata });
     }
 
     if (actionType === 'AccountsController:listAccounts') {

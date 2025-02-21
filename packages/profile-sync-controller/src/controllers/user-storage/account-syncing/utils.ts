@@ -63,7 +63,7 @@ export async function mapInternalAccountsListToPrimarySRPHdKeyringInternalAccoun
       type: KeyringTypes.hd,
       index: 0,
     },
-    async (keyring) => {
+    async ({ keyring }) => {
       return await keyring.getAccounts();
     },
   )) as string[];
@@ -96,7 +96,7 @@ export async function isInternalAccountFromPrimarySRPHdKeyring(
       type: KeyringTypes.hd,
       index: 0,
     },
-    async (keyring) => {
+    async ({ keyring }) => {
       return await keyring.getAccounts();
     },
   )) as string[];
