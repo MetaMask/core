@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.1]
+
 ### Changed
 
+- Bump `@metamask/keyring-controller"` from `^19.2.0` to `^19.2.1` ([#5373](https://github.com/MetaMask/core/pull/5373))
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
 
 ## [8.1.0]
@@ -500,7 +503,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.1...HEAD
+[8.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.0...@metamask/profile-sync-controller@8.1.1
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.0.0...@metamask/profile-sync-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.1...@metamask/profile-sync-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.0...@metamask/profile-sync-controller@7.0.1

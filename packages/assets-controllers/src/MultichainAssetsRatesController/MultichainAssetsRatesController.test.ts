@@ -240,6 +240,24 @@ describe('MultichainAssetsRatesController', () => {
     expect(snapHandler).not.toHaveBeenCalled();
   });
 
+  it('does not update conversion rates if the assets are empty', async () => {
+    const { controller, messenger } = setupController();
+
+    const snapSpy = jest.fn().mockResolvedValue({ conversionRates: {} });
+    messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
+
+    // Publish a selectedAccountChange event.
+    // @ts-expect-error-next-line
+    messenger.publish('MultichainAssetsController:stateChange', {
+      accountsAssets: {
+        account3: [],
+      },
+    });
+
+    expect(snapSpy).not.toHaveBeenCalled();
+    expect(controller.state.conversionRates).toStrictEqual({});
+  });
+
   it('resumes update tokens rates when the keyring is unlocked', async () => {
     const { controller, messenger } = setupController();
     messenger.publish('KeyringController:lock');
