@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain",
-  "version": "2.1.2",
+  "version": "2.2.1",
   "description": "Provides types, helpers, adapters, and wrappers for facilitating CAIP Multichain sessions",
   "keywords": [
     "MetaMask",
