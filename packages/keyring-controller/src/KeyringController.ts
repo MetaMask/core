@@ -826,19 +826,21 @@ export class KeyringController extends BaseController<
    * @param type - Keyring type name.
    * @param opts - Keyring options.
    * @throws If a builder for the given `type` does not exist.
-   * @returns Promise resolving to the added keyring.
+   * @returns Promise resolving to the new keyring metadata.
    */
   async addNewKeyring(
     type: KeyringTypes | string,
     opts?: unknown,
-  ): Promise<unknown> {
+  ): Promise<KeyringMetadata> {
     this.#assertIsUnlocked();
 
     if (type === KeyringTypes.qr) {
-      return this.getOrAddQRKeyring();
+      return this.#getKeyringMetadata(await this.getOrAddQRKeyring());
     }
 
-    return this.#persistOrRollback(async () => this.#newKeyring(type, opts));
+    return this.#getKeyringMetadata(
+      await this.#persistOrRollback(async () => this.#newKeyring(type, opts)),
+    );
   }
 
   /**
@@ -1507,7 +1509,13 @@ export class KeyringController extends BaseController<
     CallbackResult = void,
   >(
     selector: KeyringSelector,
-    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
     // eslint-disable-next-line @typescript-eslint/unified-signatures
     options:
       | { createIfMissing?: false }
@@ -1534,7 +1542,13 @@ export class KeyringController extends BaseController<
     CallbackResult = void,
   >(
     selector: KeyringSelector,
-    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
   ): Promise<CallbackResult>;
 
   async withKeyring<
@@ -1542,7 +1556,13 @@ export class KeyringController extends BaseController<
     CallbackResult = void,
   >(
     selector: KeyringSelector,
-    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SelectedKeyring;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
     options:
       | { createIfMissing?: false }
       | { createIfMissing: true; createWithData?: unknown } = {
@@ -1577,7 +1597,10 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.KeyringNotFound);
       }
 
-      const result = await operation(keyring);
+      const result = await operation({
+        keyring,
+        metadata: this.#getKeyringMetadata(keyring),
+      });
 
       if (Object.is(result, keyring)) {
         // Access to a keyring instance outside of controller safeguards
@@ -1939,6 +1962,22 @@ export class KeyringController extends BaseController<
     }
 
     return this.#getKeyringById(keyringId);
+  }
+
+  /**
+   * Get the metadata for the specified keyring.
+   *
+   * @param keyring - The keyring instance to get the metadata for.
+   * @returns The keyring metadata.
+   */
+  #getKeyringMetadata(keyring: unknown): KeyringMetadata {
+    const index = this.#keyrings.findIndex(
+      (keyringCandidate) => keyringCandidate === keyring,
+    );
+    if (index === -1) {
+      throw new Error(KeyringControllerError.KeyringNotFound);
+    }
+    return this.#keyringsMetadata[index];
   }
 
   /**

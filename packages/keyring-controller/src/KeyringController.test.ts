@@ -336,9 +336,12 @@ describe('KeyringController', () => {
             ],
           },
           async ({ controller }) => {
-            const mockKeyring = (await controller.addNewKeyring(
+            await controller.addNewKeyring(MockShallowGetAccountsKeyring.type);
+            // TODO: This is a temporary workaround while `addNewAccountForKeyring` is not
+            // removed.
+            const mockKeyring = controller.getKeyringsByType(
               MockShallowGetAccountsKeyring.type,
-            )) as Keyring<Json>;
+            )[0] as EthKeyring<Json>;
 
             const addedAccountAddress =
               await controller.addNewAccountForKeyring(mockKeyring);
@@ -491,7 +494,7 @@ describe('KeyringController', () => {
               const encryptSpy = jest.spyOn(encryptor, 'encrypt');
               const serializedKeyring = await controller.withKeyring(
                 { type: 'HD Key Tree' },
-                async (keyring) => keyring.serialize(),
+                async ({ keyring }) => keyring.serialize(),
               );
               const currentSeedWord =
                 await controller.exportSeedPhrase(password);
@@ -541,16 +544,17 @@ describe('KeyringController', () => {
 
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            withController({ cacheEncryptionKey }, async ({ controller }) => {
-              await controller.createNewVaultAndRestore(
-                password,
-                uint8ArraySeed,
-              );
-              expect(controller.state.encryptionKey).toBeDefined();
-              expect(controller.state.encryptionSalt).toBeDefined();
-            });
+            await withController(
+              { cacheEncryptionKey },
+              async ({ controller }) => {
+                await controller.createNewVaultAndRestore(
+                  password,
+                  uint8ArraySeed,
+                );
+                expect(controller.state.encryptionKey).toBeDefined();
+                expect(controller.state.encryptionSalt).toBeDefined();
+              },
+            );
           });
       }),
     );
@@ -623,11 +627,7 @@ describe('KeyringController', () => {
           });
 
           it('should throw error if the first account is not found on the keyring', async () => {
-            jest
-              .spyOn(HDKeyring.prototype, 'getAccounts')
-              // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
-              // @ts-expect-error keyring types are mismatched
-              .mockResolvedValue([]);
+            jest.spyOn(HDKeyring.prototype, 'getAccounts').mockReturnValue([]);
             await withController(
               { cacheEncryptionKey, skipVaultCreation: true },
               async ({ controller }) => {
@@ -2179,9 +2179,9 @@ describe('KeyringController', () => {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
           async ({ controller }) => {
-            const mockKeyring = (await controller.addNewKeyring(
+            const { id } = await controller.addNewKeyring(
               MockErc4337Keyring.type,
-            )) as EthKeyring<Json>;
+            );
             const baseUserOp = {
               callData: '0x7064',
               initCode: '0x22ff',
@@ -2202,24 +2202,25 @@ describe('KeyringController', () => {
                 data: '0x7064',
               },
             ];
+            await controller.withKeyring({ id }, async ({ keyring }) => {
+              jest
+                .spyOn(keyring, 'prepareUserOperation')
+                .mockResolvedValueOnce(baseUserOp);
 
-            jest
-              .spyOn(mockKeyring, 'prepareUserOperation')
-              .mockResolvedValueOnce(baseUserOp);
+              const result = await controller.prepareUserOperation(
+                address,
+                baseTxs,
+                executionContext,
+              );
 
-            const result = await controller.prepareUserOperation(
-              address,
-              baseTxs,
-              executionContext,
-            );
-
-            expect(result).toStrictEqual(baseUserOp);
-            expect(mockKeyring.prepareUserOperation).toHaveBeenCalledTimes(1);
-            expect(mockKeyring.prepareUserOperation).toHaveBeenCalledWith(
-              address,
-              baseTxs,
-              executionContext,
-            );
+              expect(result).toStrictEqual(baseUserOp);
+              expect(keyring.prepareUserOperation).toHaveBeenCalledTimes(1);
+              expect(keyring.prepareUserOperation).toHaveBeenCalledWith(
+                address,
+                baseTxs,
+                executionContext,
+              );
+            });
           },
         );
       });
@@ -2272,9 +2273,9 @@ describe('KeyringController', () => {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
           async ({ controller }) => {
-            const mockKeyring = (await controller.addNewKeyring(
+            const { id } = await controller.addNewKeyring(
               MockErc4337Keyring.type,
-            )) as EthKeyring<Json>;
+            );
             const userOp = {
               sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
               nonce: '0x1',
@@ -2291,23 +2292,25 @@ describe('KeyringController', () => {
             const patch = {
               paymasterAndData: '0x1234',
             };
-            jest
-              .spyOn(mockKeyring, 'patchUserOperation')
-              .mockResolvedValueOnce(patch);
+            await controller.withKeyring({ id }, async ({ keyring }) => {
+              jest
+                .spyOn(keyring, 'patchUserOperation')
+                .mockResolvedValueOnce(patch);
 
-            const result = await controller.patchUserOperation(
-              address,
-              userOp,
-              executionContext,
-            );
+              const result = await controller.patchUserOperation(
+                address,
+                userOp,
+                executionContext,
+              );
 
-            expect(result).toStrictEqual(patch);
-            expect(mockKeyring.patchUserOperation).toHaveBeenCalledTimes(1);
-            expect(mockKeyring.patchUserOperation).toHaveBeenCalledWith(
-              address,
-              userOp,
-              executionContext,
-            );
+              expect(result).toStrictEqual(patch);
+              expect(keyring.patchUserOperation).toHaveBeenCalledTimes(1);
+              expect(keyring.patchUserOperation).toHaveBeenCalledWith(
+                address,
+                userOp,
+                executionContext,
+              );
+            });
           },
         );
       });
@@ -2384,9 +2387,9 @@ describe('KeyringController', () => {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockErc4337Keyring)] },
           async ({ controller }) => {
-            const mockKeyring = (await controller.addNewKeyring(
+            const { id } = await controller.addNewKeyring(
               MockErc4337Keyring.type,
-            )) as EthKeyring<Json>;
+            );
             const userOp = {
               sender: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4',
               nonce: '0x1',
@@ -2401,23 +2404,25 @@ describe('KeyringController', () => {
               signature: '0x',
             };
             const signature = '0x1234';
-            jest
-              .spyOn(mockKeyring, 'signUserOperation')
-              .mockResolvedValueOnce(signature);
+            await controller.withKeyring({ id }, async ({ keyring }) => {
+              jest
+                .spyOn(keyring, 'signUserOperation')
+                .mockResolvedValueOnce(signature);
 
-            const result = await controller.signUserOperation(
-              address,
-              userOp,
-              executionContext,
-            );
+              const result = await controller.signUserOperation(
+                address,
+                userOp,
+                executionContext,
+              );
 
-            expect(result).toStrictEqual(signature);
-            expect(mockKeyring.signUserOperation).toHaveBeenCalledTimes(1);
-            expect(mockKeyring.signUserOperation).toHaveBeenCalledWith(
-              address,
-              userOp,
-              executionContext,
-            );
+              expect(result).toStrictEqual(signature);
+              expect(keyring.signUserOperation).toHaveBeenCalledTimes(1);
+              expect(keyring.signUserOperation).toHaveBeenCalledWith(
+                address,
+                userOp,
+                executionContext,
+              );
+            });
           },
         );
       });
@@ -2874,7 +2879,7 @@ describe('KeyringController', () => {
     it('should rollback if an error is thrown', async () => {
       await withController(async ({ controller, initialState }) => {
         const selector = { type: KeyringTypes.hd };
-        const fn = async (keyring: EthKeyring<Json>) => {
+        const fn = async ({ keyring }: { keyring: EthKeyring<Json> }) => {
           await keyring.addAccounts(1);
           throw new Error('Oops');
         };
@@ -2882,6 +2887,7 @@ describe('KeyringController', () => {
         await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
           'Oops',
         );
+
         expect(controller.state.keyrings[0].accounts).toHaveLength(1);
         expect(await controller.getAccounts()).toStrictEqual(
           initialState.keyrings[0].accounts,
@@ -2895,10 +2901,11 @@ describe('KeyringController', () => {
           const fn = jest.fn();
           const selector = { type: KeyringTypes.hd };
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const metadata = controller.state.keyringsMetadata[0];
 
           await controller.withKeyring(selector, fn);
 
-          expect(fn).toHaveBeenCalledWith(keyring);
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
         });
       });
 
@@ -2916,7 +2923,7 @@ describe('KeyringController', () => {
           await expect(
             controller.withKeyring(
               { type: KeyringTypes.hd },
-              async (keyring) => {
+              async ({ keyring }) => {
                 return keyring;
               },
             ),
@@ -2964,10 +2971,11 @@ describe('KeyringController', () => {
             address: initialState.keyrings[0].accounts[0] as Hex,
           };
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+          const metadata = controller.state.keyringsMetadata[0];
 
           await controller.withKeyring(selector, fn);
 
-          expect(fn).toHaveBeenCalledWith(keyring);
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
         });
       });
 
@@ -3009,10 +3017,11 @@ describe('KeyringController', () => {
           const fn = jest.fn();
           const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
           const selector = { id: initialState.keyringsMetadata[0].id };
+          const metadata = controller.state.keyringsMetadata[0];
 
           await controller.withKeyring(selector, fn);
 
-          expect(fn).toHaveBeenCalledWith(keyring);
+          expect(fn).toHaveBeenCalledWith({ keyring, metadata });
         });
       });
 
@@ -3030,8 +3039,8 @@ describe('KeyringController', () => {
           const selector = { id: initialState.keyringsMetadata[0].id };
 
           await expect(
-            controller.withKeyring(selector, async (selectedKeyring) => {
-              return selectedKeyring;
+            controller.withKeyring(selector, async ({ keyring }) => {
+              return keyring;
             }),
           ).rejects.toThrow(KeyringControllerError.UnsafeDirectKeyringAccess);
         });
@@ -3760,15 +3769,21 @@ describe('KeyringController', () => {
             'KeyringController:qrKeyringStateChange',
             listener,
           );
-          const qrKeyring = (await signProcessKeyringController.addNewKeyring(
+          const { id } = await signProcessKeyringController.addNewKeyring(
             KeyringTypes.qr,
-          )) as QRKeyring;
+          );
 
-          qrKeyring.getMemStore().updateState({
-            sync: {
-              reading: true,
+          await signProcessKeyringController.withKeyring(
+            { id },
+            // @ts-expect-error QRKeyring is not yet compatible with Keyring type.
+            async ({ keyring }: { keyring: QRKeyring }) => {
+              keyring.getMemStore().updateState({
+                sync: {
+                  reading: true,
+                },
+              });
             },
-          });
+          );
 
           expect(listener).toHaveBeenCalledTimes(1);
         });
@@ -4126,7 +4141,7 @@ describe('KeyringController', () => {
             const actionReturnValue = await messenger.call(
               'KeyringController:withKeyring',
               { type: MockKeyring.type },
-              async (keyring) => {
+              async ({ keyring }) => {
                 expect(keyring.type).toBe(MockKeyring.type);
                 return keyring.type;
               },
