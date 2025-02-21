@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.2]
 
-### Added
-
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-
 ### Changed
 
-- fix: make sure wallet scope does not insert accounts ([#5374](https://github.com/MetaMask/core/pull/5374))
-- fix: invalid type import path in `@metamask/multichain` ([#5313](https://github.com/MetaMask/core/pull/5313))
+- Bump @metamask/utils from ^11.1.0 to ^11.2.0 ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+### Fixed
+
+- Fixes scope creation to not insert accounts into `wallet` scope ([#5374](https://github.com/MetaMask/core/pull/5374))
+- Fixes invalid type import path in `@metamask/multichain` ([#5313](https://github.com/MetaMask/core/pull/5313))
 
 ## [2.1.1]
 
