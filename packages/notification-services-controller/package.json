@@ -67,6 +67,16 @@
         "default": "./dist/NotificationServicesPushController/index.cjs"
       }
     },
+    "./push-services/web": {
+      "import": {
+        "types": "./dist/NotificationServicesPushController/web/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/web/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/web/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/web/index.cjs"
+      }
+    },
     "./push-services/mocks": {
       "import": {
         "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.mts",
@@ -112,8 +122,8 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.2.0",
-    "@metamask/profile-sync-controller": "^8.1.0",
+    "@metamask/keyring-controller": "^19.2.1",
+    "@metamask/profile-sync-controller": "^8.1.1",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "contentful": "^10.15.0",

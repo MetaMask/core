@@ -1,4 +1,7 @@
-import { processNotification } from './process-notifications';
+import {
+  processNotification,
+  safeProcessNotification,
+} from './process-notifications';
 import { createMockFeatureAnnouncementRaw } from '../__fixtures__/mock-feature-announcements';
 import { createMockNotificationEthSent } from '../__fixtures__/mock-raw-notifications';
 import { createMockSnapNotification } from '../__fixtures__/mock-snap-notification';
@@ -32,5 +35,22 @@ describe('process-notifications - processNotification()', () => {
     expect(() => processNotification(rawNotification)).toThrow(
       expect.any(Error),
     );
+  });
+});
+
+describe('process-notifications - safeProcessNotification()', () => {
+  // More thorough tests are found in the specific process
+  it('maps On Chain Notification to shared Notification Type', () => {
+    const result = safeProcessNotification(createMockNotificationEthSent());
+    expect(result).toBeDefined();
+  });
+
+  it('returns undefined for a notification unable to process', () => {
+    const rawNotification = createMockNotificationEthSent();
+
+    // Testing Mock with invalid notification type
+    rawNotification.type = 'FAKE_NOTIFICATION_TYPE' as TRIGGER_TYPES.ETH_SENT;
+    const result = safeProcessNotification(rawNotification);
+    expect(result).toBeUndefined();
   });
 });
