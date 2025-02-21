@@ -17,13 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: updated `NotificationServicesPushController` constructor config to require a push interface ([#5120](https://github.com/MetaMask/core/pull/5120))
 - Optimized API calls for creating push notification links ([#5358](https://github.com/MetaMask/core/pull/5358))
 - Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- **BREAKING**: updated `NotificationServicesPushController` constructor config to provide an push interface ([#5120](https://github.com/MetaMask/core/pull/5120))
 
 ### Fixed
 
-- fix: only allow hex addresses when creating notifications ([#5343](https://github.com/MetaMask/core/pull/5343))
+- only allow hex addresses when creating notifications ([#5343](https://github.com/MetaMask/core/pull/5343))
 
 ## [0.21.0]
 
@@ -66,7 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency `firebase` from `^10.11.0` to `^11.2.0` ([#5196](https://github.com/MetaMask/core/pull/5196))
+- Bump `firebase` from `^10.11.0` to `^11.2.0` ([#5196](https://github.com/MetaMask/core/pull/5196))
 
 ## [0.16.0]
 
