@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-controller"` from `^19.2.0` to `^19.2.1` ([#5373](https://github.com/MetaMask/core/pull/5373))
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
 
 ## [8.1.0]
