@@ -442,13 +442,6 @@ describe('NftController', () => {
     });
   });
 
-  it('should set api key', async () => {
-    const { nftController } = setupController();
-
-    nftController.setApiKey('testkey');
-    expect(nftController.openSeaApiKey).toBe('testkey');
-  });
-
   describe('watchNft', function () {
     const ERC721_NFT = {
       address: ERC721_NFT_ADDRESS,
