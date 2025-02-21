@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core/pull/5290))
+
 ## [22.0.3]
 
 ### Changed
