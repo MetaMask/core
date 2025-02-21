@@ -9,7 +9,7 @@ import {
   mockBatchDeleteTriggers,
   mockListNotifications,
   mockMarkNotificationsAsRead,
-} from '../mocks/mockServices';
+} from '../__fixtures__/mockServices';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import * as Utils from '../utils/utils';

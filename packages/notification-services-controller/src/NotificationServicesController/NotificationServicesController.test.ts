@@ -20,15 +20,15 @@ import {
   createMockUserStorageWithTriggers,
 } from './mocks/mock-notification-user-storage';
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
-import { ADDRESS_1, ADDRESS_2 } from './mocks/mockAddresses';
+import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
 import {
   mockFetchFeatureAnnouncementNotifications,
   mockBatchCreateTriggers,
   mockBatchDeleteTriggers,
   mockListNotifications,
   mockMarkNotificationsAsRead,
-} from './mocks/mockServices';
-import { waitFor } from './mocks/test-utils';
+} from './__fixtures__/mockServices';
+import { waitFor } from './__fixtures__/test-utils';
 import { TRIGGER_TYPES } from './constants';
 import NotificationServicesController, {
   defaultState,
