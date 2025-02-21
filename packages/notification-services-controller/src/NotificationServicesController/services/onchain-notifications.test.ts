@@ -3,13 +3,13 @@ import {
   MOCK_USER_STORAGE_ACCOUNT,
   MOCK_USER_STORAGE_CHAIN,
   createMockUserStorageWithTriggers,
-} from '../__fixtures__/mock-notification-user-storage';
+} from '../mocks/mock-notification-user-storage';
 import {
   mockBatchCreateTriggers,
   mockBatchDeleteTriggers,
   mockListNotifications,
   mockMarkNotificationsAsRead,
-} from '../__fixtures__/mockServices';
+} from '../mocks/mockServices';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import * as Utils from '../utils/utils';

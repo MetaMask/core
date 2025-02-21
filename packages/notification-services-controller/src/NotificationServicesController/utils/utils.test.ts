@@ -4,8 +4,8 @@ import {
   MOCK_USER_STORAGE_CHAIN,
   createMockFullUserStorage,
   createMockUserStorageWithTriggers,
-} from '../__fixtures__/mock-notification-user-storage';
-import { ADDRESS_1 } from '../__fixtures__/mockAddresses';
+} from '../mocks/mock-notification-user-storage';
+import { ADDRESS_1 } from '../mocks/mockAddresses';
 import { USER_STORAGE_VERSION_KEY } from '../constants/constants';
 import {
   NOTIFICATION_CHAINS,

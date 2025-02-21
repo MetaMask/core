@@ -2,8 +2,8 @@ import {
   getFeatureAnnouncementNotifications,
   getFeatureAnnouncementUrl,
 } from './feature-announcements';
-import { createMockFeatureAnnouncementAPIResult } from '../__fixtures__/mock-feature-announcements';
-import { mockFetchFeatureAnnouncementNotifications } from '../__fixtures__/mockServices';
+import { createMockFeatureAnnouncementAPIResult } from '../mocks/mock-feature-announcements';
+import { mockFetchFeatureAnnouncementNotifications } from '../mocks/mockServices';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 
 // Mocked type for testing, allows overwriting TS to test erroneous values

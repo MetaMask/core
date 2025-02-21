@@ -1,5 +1,5 @@
 import { processSnapNotification } from './process-snap-notifications';
-import { createMockSnapNotification } from '../__fixtures__';
+import { createMockSnapNotification } from '../mocks';
 import { TRIGGER_TYPES } from '../constants';
 
 describe('process-snap-notifications - processSnapNotification()', () => {

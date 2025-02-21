@@ -9,26 +9,26 @@ import type { UserStorageController } from '@metamask/profile-sync-controller';
 import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import { createMockSnapNotification } from './__fixtures__';
+import { createMockSnapNotification } from './mocks';
 import {
   createMockFeatureAnnouncementAPIResult,
   createMockFeatureAnnouncementRaw,
-} from './__fixtures__/mock-feature-announcements';
+} from './mocks/mock-feature-announcements';
 import {
   MOCK_USER_STORAGE_ACCOUNT,
   createMockFullUserStorage,
   createMockUserStorageWithTriggers,
-} from './__fixtures__/mock-notification-user-storage';
-import { createMockNotificationEthSent } from './__fixtures__/mock-raw-notifications';
-import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
+} from './mocks/mock-notification-user-storage';
+import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
+import { ADDRESS_1, ADDRESS_2 } from './mocks/mockAddresses';
 import {
   mockFetchFeatureAnnouncementNotifications,
   mockBatchCreateTriggers,
   mockBatchDeleteTriggers,
   mockListNotifications,
   mockMarkNotificationsAsRead,
-} from './__fixtures__/mockServices';
-import { waitFor } from './__fixtures__/test-utils';
+} from './mocks/mockServices';
+import { waitFor } from './mocks/test-utils';
 import { TRIGGER_TYPES } from './constants';
 import NotificationServicesController, {
   defaultState,

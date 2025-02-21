@@ -6,7 +6,7 @@ import {
   updateLinksAPI,
   updateTriggerPushNotifications,
 } from './services';
-import { mockEndpointUpdatePushNotificationLinks } from '../__fixtures__/mockServices';
+import { mockEndpointUpdatePushNotificationLinks } from '../mocks/mockServices';
 import type { PushNotificationEnv } from '../types/firebase';
 
 // Testing util to clean up verbose logs when testing errors

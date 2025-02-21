@@ -2,7 +2,7 @@ import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
 } from './process-feature-announcement';
-import { createMockFeatureAnnouncementRaw } from '../__fixtures__/mock-feature-announcements';
+import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 
 describe('process-feature-announcement - isFeatureAnnouncementRead()', () => {

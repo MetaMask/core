@@ -49,12 +49,12 @@
     },
     "./notification-services/mocks": {
       "import": {
-        "types": "./dist/NotificationServicesController/__fixtures__/index.d.mts",
-        "default": "./dist/NotificationServicesController/__fixtures__/index.mjs"
+        "types": "./dist/NotificationServicesController/mocks/index.d.mts",
+        "default": "./dist/NotificationServicesController/mocks/index.mjs"
       },
       "require": {
-        "types": "./dist/NotificationServicesController/__fixtures__/index.d.cts",
-        "default": "./dist/NotificationServicesController/__fixtures__/index.cjs"
+        "types": "./dist/NotificationServicesController/mocks/index.d.cts",
+        "default": "./dist/NotificationServicesController/mocks/index.cjs"
       }
     },
     "./push-services": {
@@ -79,12 +79,12 @@
     },
     "./push-services/mocks": {
       "import": {
-        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.mts",
-        "default": "./dist/NotificationServicesPushController/__fixtures__/index.mjs"
+        "types": "./dist/NotificationServicesPushController/mocks/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/mocks/index.mjs"
       },
       "require": {
-        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.cts",
-        "default": "./dist/NotificationServicesPushController/__fixtures__/index.cjs"
+        "types": "./dist/NotificationServicesPushController/mocks/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/mocks/index.cjs"
       }
     },
     "./package.json": "./package.json"
