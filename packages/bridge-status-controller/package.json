@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/bridge-controller",
+  "name": "@metamask/bridge-status-controller",
   "version": "1.0.0",
-  "description": "Manages bridge-related quote fetching functionality for MetaMask",
+  "description": "Manages bridge-related status fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/bridge-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/bridge-status-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,8 +37,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/bridge-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-status-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/bridge-status-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -48,16 +48,14 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
+    "@metamask/bridge-controller": "^1.0.0",
     "@metamask/controller-utils": "^11.5.0",
-    "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/polling-controller": "^12.0.3",
-    "@metamask/utils": "^11.2.0",
-    "ethers": "^6.12.0"
+    "@metamask/utils": "^11.2.0"
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^24.0.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/network-controller": "^22.2.1",
     "@metamask/transaction-controller": "^46.0.0",
     "@types/jest": "^27.4.1",
@@ -73,6 +71,7 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^24.0.0",
+    "@metamask/bridge-controller": "^1.0.0",
     "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^46.0.0"
   },
