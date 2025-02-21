@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.1.1]
 
-### Uncategorized
-
-- chore: bump `@metamask/keyring-{snap-client,internal-api}` versions ([#5356](https://github.com/MetaMask/core/pull/5356))
-
 ### Changed
 
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
