@@ -990,6 +990,7 @@ export class TransactionController extends BaseController<
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
+      getInternalAccounts: this.#getInternalAccounts.bind(this),
       messenger: this.messagingSystem,
       request,
     });
@@ -3805,12 +3806,12 @@ export class TransactionController extends BaseController<
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
 
-  #getInternalAccounts(): string[] {
+  #getInternalAccounts(): Hex[] {
     const state = this.messagingSystem.call('AccountsController:getState');
 
     return Object.values(state.internalAccounts?.accounts ?? {})
       .filter((account) => account.type === 'eip155:eoa')
-      .map((account) => account.address);
+      .map((account) => account.address as Hex);
   }
 
   #updateSubmitHistory(transactionMeta: TransactionMeta, hash: string): void {
