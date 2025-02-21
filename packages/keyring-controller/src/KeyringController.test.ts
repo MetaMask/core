@@ -437,6 +437,16 @@ describe('KeyringController', () => {
           expect(controller.state.keyrings).toHaveLength(2);
         });
       });
+
+      it('should return a readonly object as metadata', async () => {
+        await withController(async ({ controller }) => {
+          const newMetadata = await controller.addNewKeyring(KeyringTypes.hd);
+
+          expect(() => {
+            newMetadata.name = 'new name';
+          }).toThrow(/Cannot assign to read only property 'name'/u);
+        });
+      });
     });
 
     describe('when there is no builder for the given type', () => {
