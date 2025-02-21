@@ -153,14 +153,14 @@ export default class AppMetadataController extends BaseController<
   /**
    * Updates the currentAppVersion in state, and sets the previousAppVersion to the old currentAppVersion.
    *
-   * @param maybeNewAppVersion
+   * @param newAppVersion
    */
-  #maybeUpdateAppVersion(maybeNewAppVersion: string): void {
+  #maybeUpdateAppVersion(newAppVersion: string): void {
     const oldCurrentAppVersion = this.state.currentAppVersion;
 
-    if (maybeNewAppVersion !== oldCurrentAppVersion) {
+    if (newAppVersion !== oldCurrentAppVersion) {
       this.update((state) => {
-        state.currentAppVersion = maybeNewAppVersion;
+        state.currentAppVersion = newAppVersion;
         state.previousAppVersion = oldCurrentAppVersion;
       });
     }
@@ -169,15 +169,15 @@ export default class AppMetadataController extends BaseController<
   /**
    * Updates the migrationVersion in state.
    *
-   * @param maybeNewMigrationVersion
+   * @param newMigrationVersion
    */
-  #maybeUpdateMigrationVersion(maybeNewMigrationVersion: number): void {
+  #maybeUpdateMigrationVersion(newMigrationVersion: number): void {
     const oldCurrentMigrationVersion = this.state.currentMigrationVersion;
 
-    if (maybeNewMigrationVersion !== oldCurrentMigrationVersion) {
+    if (newMigrationVersion !== oldCurrentMigrationVersion) {
       this.update((state) => {
         state.previousMigrationVersion = oldCurrentMigrationVersion;
-        state.currentMigrationVersion = maybeNewMigrationVersion;
+        state.currentMigrationVersion = newMigrationVersion;
       });
     }
   }
