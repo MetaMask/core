@@ -583,6 +583,13 @@ export default class NotificationServicesController extends BaseController<
     }
   }
 
+  async #enableAuth() {
+    const isSignedIn = this.#auth.isSignedIn();
+    if (!isSignedIn) {
+      await this.#auth.signIn();
+    }
+  }
+
   async #getValidStorageKeyAndBearerToken() {
     this.#assertAuthEnabled();
 
@@ -714,7 +721,7 @@ export default class NotificationServicesController extends BaseController<
    * Public method to expose enabling push notifications
    */
   public async enablePushNotifications() {
-    this.#assertAuthEnabled();
+    await this.#enableAuth();
     const storage = await this.#getUserStorage();
     if (!storage) {
       throw new Error('Unable to get triggers');
@@ -859,12 +866,7 @@ export default class NotificationServicesController extends BaseController<
   public async enableMetamaskNotifications() {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
-
-      const isSignedIn = this.#auth.isSignedIn();
-      if (!isSignedIn) {
-        await this.#auth.signIn();
-      }
-
+      await this.#enableAuth();
       await this.createOnChainTriggers();
     } catch (e) {
       log.error('Unable to enable notifications', e);
