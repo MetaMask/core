@@ -288,6 +288,10 @@ export class MultichainAssetsRatesController extends StaticIntervalPollingContro
       for (const account of accounts) {
         const assets = this.#getAssetsForAccount(account.id);
 
+        if (assets?.length === 0) {
+          continue;
+        }
+
         // Build the conversions array
         const conversions = this.#buildConversions(assets);
 

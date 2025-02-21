@@ -41,6 +41,18 @@ describe('metamask-notifications/utils - initializeUserStorage()', () => {
     );
     assertEmptyStorage(userStorageTest2);
   });
+
+  it('cleans User Storage if there are erroneous accounts', () => {
+    const mockAddress = ADDRESS_1;
+    const badAddress = '0xtb1qkw6c6f9lql679spp8qjfg3u6qrcdp5a6wqe35y';
+    const userStorage = Utils.initializeUserStorage(
+      [{ address: mockAddress }, { address: badAddress }],
+      true,
+    );
+
+    expect(userStorage[mockAddress.toLowerCase()]).toBeDefined();
+    expect(userStorage[badAddress.toLowerCase()]).toBeUndefined(); // Removed bad address
+  });
 });
 
 describe('metamask-notifications/utils - traverseUserStorageTriggers()', () => {
