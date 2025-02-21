@@ -6,9 +6,11 @@ import type {
   PermissionValidatorConstraint,
   PermissionConstraint,
   EndowmentCaveatSpecificationConstraint,
+  PermissionFactory,
 } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
+  constructPermission,
   PermissionType,
 } from '@metamask/permission-controller';
 import type { CaipAccountId, Json } from '@metamask/utils';
@@ -158,6 +160,7 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
   targetName: typeof Caip25EndowmentPermissionName;
   endowmentGetter: (_options?: EndowmentGetterParams) => null;
   validator: PermissionValidatorConstraint;
+  factory: PermissionFactory<PermissionConstraint, Record<string, unknown>>
   allowedCaveats: Readonly<NonEmptyArray<string>> | null;
 }>;
 
@@ -186,6 +189,11 @@ const specificationBuilder: PermissionSpecificationBuilder<
           `${Caip25EndowmentPermissionName} error: Invalid caveats. There must be a single caveat of type "${Caip25CaveatType}".`,
         );
       }
+    },
+    factory: (permissionOptions, _requestData) => {
+      return constructPermission({
+        ...permissionOptions,
+      });
     },
   };
 };
