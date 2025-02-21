@@ -554,7 +554,6 @@
     "promise/always-return": 2
   },
   "packages/transaction-controller/src/TransactionController.ts": {
-    "jsdoc/check-tag-names": 35,
     "jsdoc/require-returns": 5
   },
   "packages/transaction-controller/src/api/accounts-api.test.ts": {
@@ -631,7 +630,7 @@
     "jsdoc/tag-lines": 3
   },
   "packages/transaction-controller/src/helpers/PendingTransactionTracker.ts": {
-    "@typescript-eslint/prefer-readonly": 12
+    "@typescript-eslint/prefer-readonly": 11
   },
   "packages/transaction-controller/src/helpers/TransactionPoller.test.ts": {
     "import-x/order": 1,
