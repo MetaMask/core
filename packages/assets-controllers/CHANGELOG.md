@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: not call the snap to get rates if assets are empty ([#5370](https://github.com/MetaMask/core/pull/5370))
-
 ## [51.0.1]
 
 ### Changed

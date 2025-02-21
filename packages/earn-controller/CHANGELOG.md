@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0]
+
 ### Uncategorized
 
 - feat: STAKE-942: add pooled staking vault daily apys and vault apy averages to earn controller ([#5368](https://github.com/MetaMask/core/pull/5368))
@@ -43,7 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.4.0...@metamask/earn-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.3.0...@metamask/earn-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.2.1...@metamask/earn-controller@0.3.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.2.0...@metamask/earn-controller@0.2.1
