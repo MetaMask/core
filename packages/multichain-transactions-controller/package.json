@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-transactions-controller",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "This package is responsible for getting transactions from our Bitcoin and Solana snaps",
   "keywords": [
     "MetaMask",
@@ -61,9 +61,9 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^24.0.0",
+    "@metamask/accounts-controller": "^24.0.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.2.0",
+    "@metamask/keyring-controller": "^19.2.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-network-controller",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Multichain network controller",
   "keywords": [
     "MetaMask",
@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.2.0",
+    "@metamask/keyring-controller": "^19.2.1",
     "@metamask/network-controller": "^22.2.1",
     "@types/jest": "^27.4.1",
     "@types/uuid": "^8.3.0",
