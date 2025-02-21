@@ -714,6 +714,7 @@ export default class NotificationServicesController extends BaseController<
    * Public method to expose enabling push notifications
    */
   public async enablePushNotifications() {
+    this.#assertAuthEnabled();
     const storage = await this.#getUserStorage();
     if (!storage) {
       throw new Error('Unable to get triggers');
