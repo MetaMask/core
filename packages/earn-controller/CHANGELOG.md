@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: STAKE-942: add pooled staking vault daily apys and vault apy averages to earn controller ([#5368](https://github.com/MetaMask/core/pull/5368))
+- Release 306.0.0 ([#5373](https://github.com/MetaMask/core/pull/5373))
+
 ## [0.4.0]
 
 ### Added
