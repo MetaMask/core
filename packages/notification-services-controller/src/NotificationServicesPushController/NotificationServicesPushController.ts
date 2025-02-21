@@ -22,6 +22,7 @@ const controllerName = 'NotificationServicesPushController';
 export type NotificationServicesPushControllerState = {
   isPushEnabled: boolean;
   fcmToken: string;
+  isUpdatingFCMToken: boolean;
 };
 
 export type NotificationServicesPushControllerGetStateAction =
@@ -92,6 +93,7 @@ export type NotificationServicesPushControllerMessenger = RestrictedMessenger<
 export const defaultState: NotificationServicesPushControllerState = {
   isPushEnabled: true,
   fcmToken: '',
+  isUpdatingFCMToken: false,
 };
 const metadata: StateMetadata<NotificationServicesPushControllerState> = {
   isPushEnabled: {
@@ -100,6 +102,10 @@ const metadata: StateMetadata<NotificationServicesPushControllerState> = {
   },
   fcmToken: {
     persist: true,
+    anonymous: true,
+  },
+  isUpdatingFCMToken: {
+    persist: false,
     anonymous: true,
   },
 };
@@ -182,6 +188,7 @@ export default class NotificationServicesPushController extends BaseController<
     this.#config = config;
 
     this.#registerMessageHandlers();
+    this.#clearLoadingStates();
   }
 
   #registerMessageHandlers(): void {
@@ -203,6 +210,12 @@ export default class NotificationServicesPushController extends BaseController<
     );
   }
 
+  #clearLoadingStates(): void {
+    this.update((state) => {
+      state.isUpdatingFCMToken = false;
+    });
+  }
+
   async #getAndAssertBearerToken() {
     const bearerToken = await this.messagingSystem.call(
       'AuthenticationController:getBearerToken',
@@ -222,6 +235,7 @@ export default class NotificationServicesPushController extends BaseController<
       this.update((state) => {
         state.isPushEnabled = true;
         state.fcmToken = command.fcmToken;
+        state.isUpdatingFCMToken = false;
       });
     }
 
@@ -229,6 +243,7 @@ export default class NotificationServicesPushController extends BaseController<
       this.update((state) => {
         state.isPushEnabled = false;
         state.fcmToken = '';
+        state.isUpdatingFCMToken = false;
       });
     }
 
@@ -236,6 +251,7 @@ export default class NotificationServicesPushController extends BaseController<
       this.update((state) => {
         state.isPushEnabled = true;
         state.fcmToken = command.fcmToken;
+        state.isUpdatingFCMToken = false;
       });
     }
   }
@@ -275,6 +291,10 @@ export default class NotificationServicesPushController extends BaseController<
       return;
     }
 
+    this.update((state) => {
+      state.isUpdatingFCMToken = true;
+    });
+
     // Handle creating new reg token (if available)
     try {
       const bearerToken = await this.#getAndAssertBearerToken().catch(
@@ -301,7 +321,15 @@ export default class NotificationServicesPushController extends BaseController<
     }
 
     // New token created, (re)subscribe to push notifications
-    await this.subscribeToPushNotifications();
+    try {
+      await this.subscribeToPushNotifications();
+    } catch {
+      // Do nothing we are silently failing
+    }
+
+    this.update((state) => {
+      state.isUpdatingFCMToken = false;
+    });
   }
 
   /**
@@ -312,6 +340,10 @@ export default class NotificationServicesPushController extends BaseController<
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
+
+    this.update((state) => {
+      state.isUpdatingFCMToken = true;
+    });
 
     try {
       // Send a request to the server to unregister the token/device
@@ -326,6 +358,10 @@ export default class NotificationServicesPushController extends BaseController<
       }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      this.update((state) => {
+        state.isUpdatingFCMToken = false;
+      });
     }
 
     // Unsubscribe from push notifications
@@ -347,9 +383,12 @@ export default class NotificationServicesPushController extends BaseController<
       return;
     }
 
-    const bearerToken = await this.#getAndAssertBearerToken();
+    this.update((state) => {
+      state.isUpdatingFCMToken = true;
+    });
 
     try {
+      const bearerToken = await this.#getAndAssertBearerToken();
       const { fcmToken } = await updateTriggerPushNotifications({
         bearerToken,
         triggers: UUIDs,
@@ -369,6 +408,10 @@ export default class NotificationServicesPushController extends BaseController<
       }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
+    } finally {
+      this.update((state) => {
+        state.isUpdatingFCMToken = false;
+      });
     }
   }
 }

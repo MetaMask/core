@@ -142,8 +142,7 @@ type UpdateTriggerPushNotificationsParams = {
 export async function updateTriggerPushNotifications(
   params: UpdateTriggerPushNotificationsParams,
 ): Promise<{
-  isTriggersLinkedToPushNotifications: boolean;
-  fcmToken?: string | null;
+  fcmToken: string;
 }> {
   const {
     bearerToken,
@@ -160,14 +159,14 @@ export async function updateTriggerPushNotifications(
     throw new Error('Failed to create a new registration token');
   }
 
-  const isTriggersLinkedToPushNotifications = await updateLinksAPI(
-    bearerToken,
-    triggers,
-    [{ token: newRegToken, platform }],
-  );
+  const linksNotUpdated = await updateLinksAPI(bearerToken, triggers, [
+    { token: newRegToken, platform },
+  ]);
+  if (!linksNotUpdated) {
+    throw new Error('Failed to create links to new reg token');
+  }
 
   return {
-    isTriggersLinkedToPushNotifications,
     fcmToken: newRegToken,
   };
 }

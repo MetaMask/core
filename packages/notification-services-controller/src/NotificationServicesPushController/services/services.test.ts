@@ -170,13 +170,19 @@ describe('NotificationServicesPushController Services', () => {
       expect(apis.mockPut.isDone()).toBe(true);
 
       expect(result.fcmToken).toBeDefined();
-      expect(result.isTriggersLinkedToPushNotifications).toBe(true);
     });
 
     it('should throw error if fails to create reg token', async () => {
       const { params } = arrangeMocks();
       params.createRegToken.mockResolvedValue(null);
 
+      await expect(
+        async () => await updateTriggerPushNotifications(params),
+      ).rejects.toThrow(expect.any(Error));
+    });
+
+    it('should throw error if fails to update links', async () => {
+      const { params } = arrangeMocks({ mockPut: { status: 500 } });
       await expect(
         async () => await updateTriggerPushNotifications(params),
       ).rejects.toThrow(expect.any(Error));
