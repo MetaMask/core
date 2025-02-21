@@ -25,7 +25,7 @@ import {
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 
-import { RpcService } from './rpc-service/rpc-service';
+import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -66,18 +66,21 @@ export function createNetworkClient({
   fetch: typeof fetch;
   btoa: typeof btoa;
 }): NetworkClient {
-  const rpcService =
+  const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
-      ? new RpcService({
-          fetch: givenFetch,
-          btoa: givenBtoa,
-          endpointUrl: `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`,
-        })
-      : new RpcService({
-          fetch: givenFetch,
-          btoa: givenBtoa,
-          endpointUrl: configuration.rpcUrl,
-        });
+      ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
+      : configuration.rpcUrl;
+  const failoverEndpointUrls =
+    configuration.type === NetworkClientType.Infura
+      ? configuration.failoverEndpointUrls
+      : [];
+  const rpcService = new RpcServiceChain({
+    fetch: givenFetch,
+    btoa: givenBtoa,
+    serviceConfigurations: [primaryEndpointUrl, ...failoverEndpointUrls].map(
+      (endpointUrl) => ({ endpointUrl }),
+    ),
+  });
 
   const rpcApiMiddleware =
     configuration.type === NetworkClientType.Infura

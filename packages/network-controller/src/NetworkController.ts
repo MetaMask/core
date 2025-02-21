@@ -96,6 +96,10 @@ export enum RpcEndpointType {
  */
 export type InfuraRpcEndpoint = {
   /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: string[];
+  /**
    * The optional user-facing nickname of the endpoint.
    */
   name?: string;
@@ -569,6 +573,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
+          failoverUrls: [],
           networkClientId: infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,
@@ -1239,9 +1244,8 @@ export class NetworkController extends BaseController<
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
-        networkClientId,
-      );
+      updatedIsEIP1559Compatible =
+        await this.#determineEIP1559Compatibility(networkClientId);
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
       debugLog('NetworkController: lookupNetworkByClientId: ', error);
@@ -2446,6 +2450,7 @@ export class NetworkController extends BaseController<
             type: NetworkClientType.Infura,
             chainId: networkFields.chainId,
             network: addedRpcEndpoint.networkClientId,
+            failoverEndpointUrls: addedRpcEndpoint.failoverUrls,
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
@@ -2617,6 +2622,7 @@ export class NetworkController extends BaseController<
               networkClientConfiguration: {
                 type: NetworkClientType.Infura,
                 network: infuraNetworkName,
+                failoverEndpointUrls: rpcEndpoint.failoverUrls,
                 infuraProjectId: this.#infuraProjectId,
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,

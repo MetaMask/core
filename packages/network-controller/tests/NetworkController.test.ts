@@ -387,6 +387,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "mainnet",
                     "type": "infura",
                     "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
@@ -401,6 +402,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "GoerliETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "goerli",
                     "type": "infura",
                     "url": "https://goerli.infura.io/v3/{infuraProjectId}",
@@ -415,6 +417,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "SepoliaETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "sepolia",
                     "type": "infura",
                     "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
@@ -429,6 +432,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-goerli",
                     "type": "infura",
                     "url": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
@@ -443,6 +447,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-sepolia",
                     "type": "infura",
                     "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
@@ -457,6 +462,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-mainnet",
                     "type": "infura",
                     "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
@@ -486,6 +492,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'GoerliETH',
                 rpcEndpoints: [
                   {
+                    failoverUrls: [],
                     name: 'Goerli',
                     networkClientId: InfuraNetworkType.goerli,
                     type: RpcEndpointType.Infura,
@@ -517,6 +524,7 @@ describe('NetworkController', () => {
                   "nativeCurrency": "GoerliETH",
                   "rpcEndpoints": Array [
                     Object {
+                      "failoverUrls": Array [],
                       "name": "Goerli",
                       "networkClientId": "goerli",
                       "type": "infura",
@@ -586,8 +594,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                 },
               },
               infuraProjectId,
@@ -609,6 +625,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -787,8 +804,16 @@ describe('NetworkController', () => {
                       }),
                     ],
                   }),
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                 },
               },
               infuraProjectId,
@@ -835,6 +860,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -879,6 +905,13 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
@@ -925,6 +958,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -1031,6 +1065,7 @@ describe('NetworkController', () => {
 
               expect(networkClient.configuration).toStrictEqual({
                 chainId: ChainId[InfuraNetworkType.mainnet],
+                failoverEndpointUrls: [],
                 infuraProjectId,
                 network: InfuraNetworkType.mainnet,
                 ticker: NetworksTicker[InfuraNetworkType.mainnet],
@@ -1146,6 +1181,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   chainId: '0x5',
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: 'GoerliETH',
@@ -1158,6 +1194,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xe704',
                   ticker: 'LineaETH',
@@ -1170,6 +1207,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xe708',
                   ticker: 'ETH',
@@ -1182,6 +1220,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xe705',
                   ticker: 'LineaETH',
@@ -1194,6 +1233,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0x1',
                   ticker: 'ETH',
@@ -1206,6 +1246,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverEndpointUrls: [],
                   infuraProjectId,
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
@@ -1329,8 +1370,16 @@ describe('NetworkController', () => {
                 state: {
                   selectedNetworkClientId: infuraNetworkType,
                   networkConfigurationsByChainId: {
-                    [infuraChainId]:
-                      buildInfuraNetworkConfiguration(infuraNetworkType),
+                    [infuraChainId]: buildInfuraNetworkConfiguration(
+                      infuraNetworkType,
+                      {
+                        rpcEndpoints: [
+                          buildInfuraRpcEndpoint(infuraNetworkType, {
+                            failoverUrls: ['https://some.failover.endpoint'],
+                          }),
+                        ],
+                      },
+                    ),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
                       nativeCurrency: 'TEST',
@@ -1386,6 +1435,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1429,8 +1479,16 @@ describe('NetworkController', () => {
                 state: {
                   selectedNetworkClientId: infuraNetworkType,
                   networkConfigurationsByChainId: {
-                    [infuraChainId]:
-                      buildInfuraNetworkConfiguration(infuraNetworkType),
+                    [infuraChainId]: buildInfuraNetworkConfiguration(
+                      infuraNetworkType,
+                      {
+                        rpcEndpoints: [
+                          buildInfuraRpcEndpoint(infuraNetworkType, {
+                            failoverUrls: ['https://some.failover.endpoint'],
+                          }),
+                        ],
+                      },
+                    ),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
                       nativeCurrency: 'TEST',
@@ -1492,6 +1550,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1536,8 +1595,16 @@ describe('NetworkController', () => {
                 state: {
                   selectedNetworkClientId: infuraNetworkType,
                   networkConfigurationsByChainId: {
-                    [infuraChainId]:
-                      buildInfuraNetworkConfiguration(infuraNetworkType),
+                    [infuraChainId]: buildInfuraNetworkConfiguration(
+                      infuraNetworkType,
+                      {
+                        rpcEndpoints: [
+                          buildInfuraRpcEndpoint(infuraNetworkType, {
+                            failoverUrls: ['https://some.failover.endpoint'],
+                          }),
+                        ],
+                      },
+                    ),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
                       nativeCurrency: 'TEST',
@@ -1593,6 +1660,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1678,6 +1746,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
+                      failoverEndpointUrls: [],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1730,6 +1799,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: ChainId[infuraNetworkType],
+                      failoverEndpointUrls: [],
                       infuraProjectId,
                       network: infuraNetworkType,
                       ticker: NetworksTicker[infuraNetworkType],
@@ -1782,6 +1852,13 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   [ChainId.goerli]: buildInfuraNetworkConfiguration(
                     InfuraNetworkType.goerli,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -1849,6 +1926,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: ChainId[InfuraNetworkType.goerli],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: InfuraNetworkType.goerli,
                     ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -1883,6 +1961,13 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   [ChainId.goerli]: buildInfuraNetworkConfiguration(
                     InfuraNetworkType.goerli,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -1956,6 +2041,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: ChainId[InfuraNetworkType.goerli],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: InfuraNetworkType.goerli,
                     ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -1995,6 +2081,13 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   [ChainId.goerli]: buildInfuraNetworkConfiguration(
                     InfuraNetworkType.goerli,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
@@ -2062,6 +2155,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: ChainId[InfuraNetworkType.goerli],
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: InfuraNetworkType.goerli,
                     ticker: NetworksTicker[InfuraNetworkType.goerli],
@@ -3661,8 +3755,12 @@ describe('NetworkController', () => {
               infuraProjectId,
             },
             ({ controller }) => {
-              const defaultRpcEndpoint =
-                buildInfuraRpcEndpoint(infuraNetworkType);
+              const defaultRpcEndpoint = buildInfuraRpcEndpoint(
+                infuraNetworkType,
+                {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                },
+              );
 
               controller.addNetwork({
                 blockExplorerUrls: [],
@@ -3691,6 +3789,7 @@ describe('NetworkController', () => {
                 {
                   networkClientConfiguration: {
                     infuraProjectId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     chainId: infuraChainId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -3733,6 +3832,7 @@ describe('NetworkController', () => {
               ).toMatchObject({
                 [infuraNetworkType]: {
                   chainId: infuraChainId,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   network: infuraNetworkType,
                   type: NetworkClientType.Infura,
                 },
@@ -3788,6 +3888,7 @@ describe('NetworkController', () => {
                     url: 'https://test.endpoint/2',
                   },
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3818,6 +3919,7 @@ describe('NetworkController', () => {
                     url: 'https://test.endpoint/2',
                   },
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3866,6 +3968,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3885,6 +3988,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3927,6 +4031,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3946,6 +4051,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -5056,6 +5162,7 @@ describe('NetworkController', () => {
                 ).toHaveBeenNthCalledWith(3, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: [],
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -5072,6 +5179,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   [infuraNetworkType]: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: [],
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -5126,8 +5234,12 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                const infuraRpcEndpoint =
-                  buildInfuraRpcEndpoint(infuraNetworkType);
+                const infuraRpcEndpoint = buildInfuraRpcEndpoint(
+                  infuraNetworkType,
+                  {
+                    failoverUrls: ['https://some.failover.endpoint'],
+                  },
+                );
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -5146,6 +5258,7 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
                     {
+                      failoverUrls: ['https://some.failover.endpoint'],
                       networkClientId: infuraNetworkType,
                       type: RpcEndpointType.Infura,
                       // This is a string.
@@ -5191,8 +5304,12 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                const infuraRpcEndpoint =
-                  buildInfuraRpcEndpoint(infuraNetworkType);
+                const infuraRpcEndpoint = buildInfuraRpcEndpoint(
+                  infuraNetworkType,
+                  {
+                    failoverUrls: ['https://some.failover.endpoint'],
+                  },
+                );
 
                 const updatedNetworkConfiguration =
                   await controller.updateNetwork(infuraChainId, {
@@ -5208,6 +5325,7 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
                     {
+                      failoverUrls: ['https://some.failover.endpoint'],
                       networkClientId: infuraNetworkType,
                       type: RpcEndpointType.Infura,
                       // This is a string.
@@ -5233,7 +5351,11 @@ describe('NetworkController', () => {
             );
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                rpcEndpoints: [buildInfuraRpcEndpoint(infuraNetworkType)],
+                rpcEndpoints: [
+                  buildInfuraRpcEndpoint(infuraNetworkType, {
+                    failoverUrls: ['https://some.failover.endpoint'],
+                  }),
+                ],
               });
 
             await withController(
@@ -5310,6 +5432,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   [infuraNetworkType]: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -10459,6 +10582,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
+                      failoverEndpointUrls: [],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -10522,7 +10646,9 @@ describe('NetworkController', () => {
 
             const [defaultRpcEndpoint, customRpcEndpoint1, customRpcEndpoint2] =
               [
-                buildInfuraRpcEndpoint(infuraNetworkType),
+                buildInfuraRpcEndpoint(infuraNetworkType, {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                }),
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
@@ -10566,6 +10692,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -10628,7 +10755,9 @@ describe('NetworkController', () => {
 
             const [defaultRpcEndpoint, customRpcEndpoint1, customRpcEndpoint2] =
               [
-                buildInfuraRpcEndpoint(infuraNetworkType),
+                buildInfuraRpcEndpoint(infuraNetworkType, {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                }),
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
@@ -10673,6 +10802,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -10745,7 +10875,9 @@ describe('NetworkController', () => {
 
             const [defaultRpcEndpoint, customRpcEndpoint1, customRpcEndpoint2] =
               [
-                buildInfuraRpcEndpoint(infuraNetworkType),
+                buildInfuraRpcEndpoint(infuraNetworkType, {
+                  failoverUrls: ['https://some.failover.endpoint'],
+                }),
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
@@ -10789,6 +10921,7 @@ describe('NetworkController', () => {
                   .calledWith({
                     configuration: {
                       chainId: anotherInfuraChainId,
+                      failoverEndpointUrls: ['https://some.failover.endpoint'],
                       infuraProjectId: 'some-infura-project-id',
                       network: anotherInfuraNetworkType,
                       ticker: anotherInfuraNativeTokenName,
@@ -12484,8 +12617,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12521,6 +12662,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12552,8 +12694,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12599,6 +12749,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12645,8 +12796,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12694,6 +12853,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12727,8 +12887,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12764,6 +12932,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12796,8 +12965,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12843,6 +13020,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12880,8 +13058,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -12934,6 +13120,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -12970,8 +13157,16 @@ describe('NetworkController', () => {
               state: {
                 selectedNetworkClientId: infuraNetworkType,
                 networkConfigurationsByChainId: {
-                  [infuraChainId]:
-                    buildInfuraNetworkConfiguration(infuraNetworkType),
+                  [infuraChainId]: buildInfuraNetworkConfiguration(
+                    infuraNetworkType,
+                    {
+                      rpcEndpoints: [
+                        buildInfuraRpcEndpoint(infuraNetworkType, {
+                          failoverUrls: ['https://some.failover.endpoint'],
+                        }),
+                      ],
+                    },
+                  ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
                     nativeCurrency: 'TEST',
@@ -13028,6 +13223,7 @@ describe('NetworkController', () => {
                 .calledWith({
                   configuration: {
                     chainId: infuraChainId,
+                    failoverEndpointUrls: ['https://some.failover.endpoint'],
                     infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -13171,6 +13367,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13186,6 +13389,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13239,6 +13443,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13264,6 +13475,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13338,6 +13550,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13365,6 +13584,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13421,6 +13641,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13436,6 +13663,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13491,6 +13719,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13506,6 +13741,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13561,6 +13797,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13593,6 +13836,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -13647,6 +13891,13 @@ describe('NetworkController', () => {
                 }),
                 [ChainId.goerli]: buildInfuraNetworkConfiguration(
                   InfuraNetworkType.goerli,
+                  {
+                    rpcEndpoints: [
+                      buildInfuraRpcEndpoint(InfuraNetworkType.goerli, {
+                        failoverUrls: ['https://some.failover.endpoint'],
+                      }),
+                    ],
+                  },
                 ),
               },
             },
@@ -13683,6 +13934,7 @@ describe('NetworkController', () => {
               .calledWith({
                 configuration: {
                   chainId: ChainId.goerli,
+                  failoverEndpointUrls: ['https://some.failover.endpoint'],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: NetworksTicker.goerli,
@@ -14112,6 +14364,7 @@ function refreshNetworkTests({
             if (isInfuraNetworkType(selectedNetworkClientId)) {
               initializationNetworkClientConfiguration = {
                 chainId: ChainId[selectedNetworkClientId],
+                failoverEndpointUrls: [],
                 infuraProjectId: 'infura-project-id',
                 network: selectedNetworkClientId,
                 ticker: NetworksTicker[selectedNetworkClientId],

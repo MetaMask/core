@@ -757,6 +757,7 @@ describe('AssetsContractController with NetworkClientId', () => {
         ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
+        failoverEndpointUrls: [],
         infuraProjectId: networkClientConfiguration.infuraProjectId,
       },
       mocks: [
