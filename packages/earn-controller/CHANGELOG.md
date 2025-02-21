@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0]
 
-### Uncategorized
+### Added
 
-- feat: STAKE-942: add pooled staking vault daily apys and vault apy averages to earn controller ([#5368](https://github.com/MetaMask/core/pull/5368))
-- Release 306.0.0 ([#5373](https://github.com/MetaMask/core/pull/5373))
+- Add pooled staking vault daily apys and vault apy averages to earn controller ([#5368](https://github.com/MetaMask/core/pull/5368))
+- Bump `@metamask/accounts-controller` peer dependency from `^24.0.0` to `^24.0.1` ([#5373](https://github.com/MetaMask/core/pull/5373))
 
 ## [0.4.0]
 
