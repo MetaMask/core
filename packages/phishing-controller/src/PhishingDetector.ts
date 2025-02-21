@@ -8,13 +8,20 @@ import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
   domainToParts,
+  fetchWithTimeout,
   generateParentDomains,
   getDefaultPhishingDetectorConfig,
   getHostnameFromUrl,
   matchPartsAgainstList,
+  normalizeDomain,
   processConfigs,
   sha256Hash,
 } from './utils';
+
+export const DAPP_SCAN_API_BASE_URL =
+  'https://dapp-scanning.api.cx.metamask.io';
+export const DAPP_SCAN_ENDPOINT = '/scan';
+export const DAPP_SCAN_REQUEST_TIMEOUT = 5000; // 5 seconds in milliseconds
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
@@ -53,6 +60,26 @@ export type PhishingDetectorConfiguration = {
   c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
+};
+
+export type DappScanResponse = {
+  domainName: string;
+  recommendedAction: RecommendedAction;
+  riskFactors: {
+    type: string;
+    severity: string;
+    message: string;
+  }[];
+  verified: boolean;
+  status: string;
+};
+
+export type RecommendedAction = 'NONE' | 'WARN' | 'BLOCK';
+
+export const RecommendedAction = {
+  None: 'NONE' as RecommendedAction,
+  Warn: 'WARN' as RecommendedAction,
+  Block: 'BLOCK' as RecommendedAction,
 };
 
 export class PhishingDetector {
@@ -154,29 +181,18 @@ export class PhishingDetector {
       };
     }
 
-    const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
+    const fqdn = normalizeDomain(domain);
+    const sourceParts = domainToParts(fqdn);
 
-    const source = domainToParts(fqdn);
-
-    for (const { allowlist, name, version } of this.#configs) {
-      // if source matches allowlist hostname (or subdomain thereof), PASS
-      const allowlistMatch = matchPartsAgainstList(source, allowlist);
-      if (allowlistMatch) {
-        const match = domainPartsToDomain(allowlistMatch);
-        return {
-          match,
-          name,
-          result: false,
-          type: PhishingDetectorResultType.Allowlist,
-          version: version === undefined ? version : String(version),
-        };
-      }
+    const allowlistResult = this.#checkAllowlist(sourceParts);
+    if (allowlistResult) {
+      return allowlistResult;
     }
 
     for (const { blocklist, fuzzylist, name, tolerance, version } of this
       .#configs) {
       // if source matches blocklist hostname (or subdomain thereof), FAIL
-      const blocklistMatch = matchPartsAgainstList(source, blocklist);
+      const blocklistMatch = matchPartsAgainstList(sourceParts, blocklist);
       if (blocklistMatch) {
         const match = domainPartsToDomain(blocklistMatch);
         return {
@@ -190,7 +206,7 @@ export class PhishingDetector {
 
       if (tolerance > 0) {
         // check if near-match of whitelist domain, FAIL
-        let fuzzyForm = domainPartsToFuzzyForm(source);
+        let fuzzyForm = domainPartsToFuzzyForm(sourceParts);
         // strip www
         fuzzyForm = fuzzyForm.replace(/^www\./u, '');
         // check against fuzzylist
@@ -233,22 +249,12 @@ export class PhishingDetector {
       };
     }
 
-    const fqdn = hostname.endsWith('.') ? hostname.slice(0, -1) : hostname;
+    const fqdn = normalizeDomain(hostname);
     const sourceParts = domainToParts(fqdn);
 
-    for (const { allowlist, name, version } of this.#configs) {
-      // if source matches allowlist hostname (or subdomain thereof), PASS
-      const allowlistMatch = matchPartsAgainstList(sourceParts, allowlist);
-      if (allowlistMatch) {
-        const match = domainPartsToDomain(allowlistMatch);
-        return {
-          match,
-          name,
-          result: false,
-          type: PhishingDetectorResultType.Allowlist,
-          version: version === undefined ? version : String(version),
-        };
-      }
+    const allowlistResult = this.#checkAllowlist(sourceParts);
+    if (allowlistResult) {
+      return allowlistResult;
     }
 
     const hostnameHash = sha256Hash(hostname.toLowerCase());
@@ -285,6 +291,94 @@ export class PhishingDetector {
       result: false,
       type: PhishingDetectorResultType.C2DomainBlocklist,
     };
+  }
+
+  /**
+   * Scans a domain to determine if it is malicious
+   *
+   * @param punycodeOrigin - The punycode-encoded domain to scan.
+   * @returns A PhishingDetectorResult indicating if the domain is safe or malicious.
+   */
+  async scanDomain(punycodeOrigin: string): Promise<PhishingDetectorResult> {
+    const fqdn = normalizeDomain(punycodeOrigin);
+
+    const sourceParts = domainToParts(fqdn);
+    const allowlistResult = this.#checkAllowlist(sourceParts);
+    if (allowlistResult) {
+      return allowlistResult;
+    }
+
+    const data = await this.#fetchDappScanResult(fqdn);
+
+    if (data && data.recommendedAction === RecommendedAction.Block) {
+      return {
+        result: true,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+        name: 'DappScan',
+        version: '1',
+        match: fqdn,
+      };
+    }
+
+    // Otherwise, return a safe result
+    return {
+      result: false,
+      type: PhishingDetectorResultType.RealTimeDappScan,
+    };
+  }
+
+  /**
+   * Fetches the dApp scan result data from the dapp scanning API.
+   *
+   * @param fqdn - The fully qualified domain name to scan.
+   * @returns The data from the dApp scan API or null if the request fails.
+   */
+  async #fetchDappScanResult(fqdn: string): Promise<DappScanResponse | null> {
+    const apiUrl = `${DAPP_SCAN_API_BASE_URL}${DAPP_SCAN_ENDPOINT}?url=${fqdn}`;
+
+    try {
+      const response = await fetchWithTimeout(
+        apiUrl,
+        DAPP_SCAN_REQUEST_TIMEOUT,
+      );
+
+      if (!response.ok) {
+        console.error(
+          `dApp Scan API error: ${response.status} ${response.statusText}`,
+        );
+        return null;
+      }
+
+      const data: DappScanResponse = await response.json();
+      return data;
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      console.error(`dApp Scan fetch error: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Checks if the domain is in the allowlist.
+   *
+   * @param sourceParts - The parts of the domain.
+   * @returns A PhishingDetectorResult if matched; otherwise, undefined.
+   */
+  #checkAllowlist(sourceParts: string[]): PhishingDetectorResult | undefined {
+    for (const { allowlist, name, version } of this.#configs) {
+      const allowlistMatch = matchPartsAgainstList(sourceParts, allowlist);
+      if (allowlistMatch) {
+        const match = domainPartsToDomain(allowlistMatch);
+        return {
+          match,
+          name,
+          result: false,
+          type: PhishingDetectorResultType.Allowlist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
+    return undefined;
   }
 }
 
