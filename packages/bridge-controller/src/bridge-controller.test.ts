@@ -83,6 +83,29 @@ describe('BridgeController', function () {
             },
           },
         },
+        'mobile-config': {
+          refreshRate: 3,
+          maxRefreshCount: 3,
+          support: true,
+          chains: {
+            '10': {
+              isActiveSrc: true,
+              isActiveDest: false,
+            },
+            '534352': {
+              isActiveSrc: true,
+              isActiveDest: false,
+            },
+            '137': {
+              isActiveSrc: false,
+              isActiveDest: true,
+            },
+            '42161': {
+              isActiveSrc: false,
+              isActiveDest: true,
+            },
+          },
+        },
         'approval-gas-multiplier': {
           '137': 1.1,
           '42161': 1.2,
@@ -127,18 +150,21 @@ describe('BridgeController', function () {
   });
 
   it('setBridgeFeatureFlags should fetch and set the bridge feature flags', async function () {
-    const expectedFeatureFlagsResponse = {
-      extensionConfig: {
-        maxRefreshCount: 3,
-        refreshRate: 3,
-        support: true,
-        chains: {
-          [CHAIN_IDS.OPTIMISM]: { isActiveSrc: true, isActiveDest: false },
-          [CHAIN_IDS.SCROLL]: { isActiveSrc: true, isActiveDest: false },
-          [CHAIN_IDS.POLYGON]: { isActiveSrc: false, isActiveDest: true },
-          [CHAIN_IDS.ARBITRUM]: { isActiveSrc: false, isActiveDest: true },
-        },
+    const commonConfig = {
+      maxRefreshCount: 3,
+      refreshRate: 3,
+      support: true,
+      chains: {
+        [CHAIN_IDS.OPTIMISM]: { isActiveSrc: true, isActiveDest: false },
+        [CHAIN_IDS.SCROLL]: { isActiveSrc: true, isActiveDest: false },
+        [CHAIN_IDS.POLYGON]: { isActiveSrc: false, isActiveDest: true },
+        [CHAIN_IDS.ARBITRUM]: { isActiveSrc: false, isActiveDest: true },
       },
+    };
+
+    const expectedFeatureFlagsResponse = {
+      extensionConfig: commonConfig,
+      mobileConfig: commonConfig,
     };
     expect(bridgeController.state).toStrictEqual(EMPTY_INIT_STATE);
 
