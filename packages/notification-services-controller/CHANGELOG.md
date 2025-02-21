@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - added new public methods `enablePushNotifications` and `disablePushNotification` on `NotificationServicesController` ([#5120](https://github.com/MetaMask/core/pull/5120))
 - added `isPushEnabled` and `isUpdatingFCMToken` to `NotificationServicesPushController` state ([#5120](https://github.com/MetaMask/core/pull/5120))
+- added `/push-services/web` subpath export to make it easier to import web helpers ([#5120](https://github.com/MetaMask/core/pull/5120))
 
 ### Changed
 
