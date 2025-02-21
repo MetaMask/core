@@ -26,6 +26,7 @@ import type {
 } from '@metamask/utils';
 import {
   add0x,
+  assert,
   assertIsStrictHexString,
   bytesToHex,
   hasProperty,
@@ -1974,9 +1975,7 @@ export class KeyringController extends BaseController<
     const index = this.#keyrings.findIndex(
       (keyringCandidate) => keyringCandidate === keyring,
     );
-    if (index === -1) {
-      throw new Error(KeyringControllerError.KeyringNotFound);
-    }
+    assert(index !== -1, KeyringControllerError.KeyringNotFound);
     return this.#keyringsMetadata[index];
   }
 
