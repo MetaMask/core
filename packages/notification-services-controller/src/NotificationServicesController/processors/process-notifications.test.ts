@@ -2,10 +2,10 @@ import {
   processNotification,
   safeProcessNotification,
 } from './process-notifications';
+import type { TRIGGER_TYPES } from '../constants/notification-schema';
 import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
 import { createMockNotificationEthSent } from '../mocks/mock-raw-notifications';
 import { createMockSnapNotification } from '../mocks/mock-snap-notification';
-import type { TRIGGER_TYPES } from '../constants/notification-schema';
 
 describe('process-notifications - processNotification()', () => {
   // More thorough tests are found in the specific process
