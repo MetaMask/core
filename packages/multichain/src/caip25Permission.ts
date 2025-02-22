@@ -73,6 +73,46 @@ type Caip25EndowmentCaveatSpecificationBuilderOptions = {
 };
 
 /**
+ * Calculates the difference between two provided CAIP-25 permission caveat values, but only considering a single scope property at a time.
+ *
+ * @param originalValue - The existing CAIP-25 permission caveat value.
+ * @param mergedValue - The result from merging existing and incoming CAIP-25 permission caveat values.
+ * @param scopeToDiff - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
+ * @returns The difference between original and merged CAIP-25 permission caveat values.
+ */
+export function diffScopesForCaip25CaveatValue(
+  originalValue: Caip25CaveatValue,
+  mergedValue: Caip25CaveatValue,
+  scopeToDiff: 'optionalScopes' | 'requiredScopes',
+): Caip25CaveatValue {
+  const diff = cloneDeep(originalValue);
+
+  for (const [scopeString, mergedScopeObject] of Object.entries(
+    mergedValue[scopeToDiff],
+  )) {
+    const internalScopeString = scopeString as InternalScopeString;
+    const originalScopeObject = diff[scopeToDiff][internalScopeString];
+
+    if (originalScopeObject) {
+      const newAccounts = mergedScopeObject.accounts.filter(
+        (account) => !originalScopeObject?.accounts.includes(account),
+      );
+      if (newAccounts.length > 0) {
+        diff[scopeToDiff][internalScopeString] = {
+          accounts: newAccounts,
+        };
+        continue;
+      }
+      delete diff[scopeToDiff][internalScopeString];
+    } else {
+      diff[scopeToDiff][internalScopeString] = mergedScopeObject;
+    }
+  }
+
+  return diff;
+}
+
+/**
  * Helper that returns a `authorizedScopes` CAIP-25 caveat specification
  * that can be passed into the PermissionController constructor.
  *
@@ -383,50 +423,4 @@ function removeScope(
   return {
     operation: CaveatMutatorOperation.RevokePermission,
   };
-}
-
-/**
- * Returns the differential between two provided CAIP-25 permission caveat value scopes.
- *
- * @param originalValue - The existing CAIP-25 permission caveat value.
- * @param mergedValue - The result from merging existing and incoming CAIP-25 permission caveat values.
- * @param scopeToDiff - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
- * @returns The differential between original and merged CAIP-25 permission caveat values.
- */
-function diffScopesForCaip25CaveatValue(
-  originalValue: Caip25CaveatValue,
-  mergedValue: Caip25CaveatValue,
-  scopeToDiff: keyof Pick<
-    Caip25CaveatValue,
-    'optionalScopes' | 'requiredScopes'
-  >,
-): Caip25CaveatValue {
-  const diff = cloneDeep(originalValue);
-
-  for (const [scopeString, mergedScopeObject] of Object.entries(
-    mergedValue[scopeToDiff],
-  )) {
-    const internalScopeString = scopeString as InternalScopeString;
-    const originalScopeObject = diff[scopeToDiff][internalScopeString];
-
-    if (originalScopeObject) {
-      const newAccounts = mergedScopeObject.accounts.filter(
-        (account) =>
-          !diff[scopeToDiff][
-            scopeString as InternalScopeString
-          ]?.accounts.includes(account),
-      );
-      if (newAccounts.length > 0) {
-        diff[scopeToDiff][internalScopeString] = {
-          accounts: newAccounts,
-        };
-        continue;
-      }
-      delete diff[scopeToDiff][internalScopeString];
-    } else {
-      diff[scopeToDiff][internalScopeString] = mergedScopeObject;
-    }
-  }
-
-  return diff;
 }

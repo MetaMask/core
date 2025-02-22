@@ -11,6 +11,7 @@ import {
   Caip25CaveatMutators,
   createCaip25Caveat,
   caip25CaveatBuilder,
+  diffScopesForCaip25CaveatValue,
 } from './caip25Permission';
 import * as ScopeSupported from './scope/supported';
 
@@ -700,224 +701,8 @@ describe('caip25CaveatBuilder', () => {
   });
 
   describe('permission merger', () => {
-    describe('optionalScopes', () => {
-      it.each<{
-        description: string;
-        rightValue: Caip25CaveatValue;
-        expectedMergedValue: Caip25CaveatValue;
-        expectedDiff: Caip25CaveatValue;
-      }>([
-        {
-          description:
-            'incremental request existing scope with a new account - should return merged scope with existing chain and both accounts',
-          rightValue: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xbeef'],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xbeef'],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
-        },
-        {
-          description:
-            'incremental request a whole new scope without accounts - should return merged scope with previously existing chain and accounts, plus new requested chain with no accounts',
-          rightValue: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: [],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead'] },
-              'eip155:10': {
-                accounts: [],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: [],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
-        },
-        {
-          description:
-            'incremental request a whole new scope with accounts - should return merged scope with previously existing chain and accounts, plus new requested chain with new account',
-          rightValue: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef'],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead'] },
-              'eip155:10': { accounts: ['eip155:10:0xbeef'] },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef'],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
-        },
-        {
-          description:
-            'incremental request an existing scope with new accounts, and whole new scope with accounts - should return merged scope with previously existing chain and accounts, plus new requested chain with new accounts',
-          rightValue: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
-              },
-              'eip155:10': {
-                accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
-              'eip155:10': {
-                accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xbeef'],
-              },
-              'eip155:10': {
-                accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
-        },
-        {
-          description:
-            'incremental request an existing scope with new accounts, and 2 whole new scope with accounts - should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts',
-          rightValue: {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'],
-              },
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
-              },
-              'eip155:426161': {
-                accounts: [
-                  'eip155:426161:0xdead',
-                  'eip155:426161:0xbeef',
-                  'eip155:426161:0xbadd',
-                ],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedMergedValue: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
-              },
-              'eip155:426161': {
-                accounts: [
-                  'eip155:426161:0xdead',
-                  'eip155:426161:0xbeef',
-                  'eip155:426161:0xbadd',
-                ],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          },
-          expectedDiff: {
-            optionalScopes: {
-              'eip155:1': { accounts: ['eip155:1:0xbadd'] },
-              'eip155:10': {
-                accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
-              },
-              'eip155:426161': {
-                accounts: [
-                  'eip155:426161:0xdead',
-                  'eip155:426161:0xbeef',
-                  'eip155:426161:0xbadd',
-                ],
-              },
-            },
-            isMultichainOrigin: false,
-            requiredScopes: {},
-          },
-        },
-      ])(
-        '$description',
-        async ({ rightValue, expectedMergedValue, expectedDiff }) => {
-          const initLeftValue: Caip25CaveatValue = {
-            optionalScopes: {
-              'eip155:1': {
-                accounts: ['eip155:1:0xdead'],
-              },
-            },
-            requiredScopes: {},
-            isMultichainOrigin: false,
-          };
-
-          const [newValue, diff] = merger(initLeftValue, rightValue);
-
-          expect(newValue).toStrictEqual(
-            expect.objectContaining(expectedMergedValue),
-          );
-          expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
-        },
-      );
-    });
-
-    describe('requiredScopes', () => {
-      it('incremental request an existing scope with new accounts, and 2 whole new scope with accounts - should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts', () => {
+    describe('incremental request an existing scope (requiredScopes), and 2 whole new scopes (optionalScopes) with accounts', () => {
+      it('should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts', () => {
         const initLeftValue: Caip25CaveatValue = {
           requiredScopes: {
             'eip155:1': {
@@ -929,7 +714,8 @@ describe('caip25CaveatBuilder', () => {
         };
 
         const rightValue: Caip25CaveatValue = {
-          requiredScopes: {
+          requiredScopes: {},
+          optionalScopes: {
             'eip155:1': {
               accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'],
             },
@@ -944,12 +730,14 @@ describe('caip25CaveatBuilder', () => {
               ],
             },
           },
-          optionalScopes: {},
           isMultichainOrigin: false,
         };
 
         const expectedMergedValue: Caip25CaveatValue = {
           requiredScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead'] },
+          },
+          optionalScopes: {
             'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
             'eip155:10': {
               accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
@@ -962,12 +750,12 @@ describe('caip25CaveatBuilder', () => {
               ],
             },
           },
-          optionalScopes: {},
           isMultichainOrigin: false,
         };
         const expectedDiff: Caip25CaveatValue = {
-          requiredScopes: {
-            'eip155:1': { accounts: ['eip155:1:0xbadd'] },
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
             'eip155:10': {
               accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
             },
@@ -979,7 +767,6 @@ describe('caip25CaveatBuilder', () => {
               ],
             },
           },
-          optionalScopes: {},
           isMultichainOrigin: false,
         };
         const [newValue, diff] = merger(initLeftValue, rightValue);
@@ -989,6 +776,182 @@ describe('caip25CaveatBuilder', () => {
         );
         expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
       });
+    });
+  });
+});
+
+describe('diffScopesForCaip25CaveatValue', () => {
+  describe('incremental request existing scope with a new account', () => {
+    it('should return scope with existing chain and new requested account', () => {
+      const leftValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const rightValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        rightValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+    });
+  });
+
+  describe('incremental request a whole new scope without accounts', () => {
+    it('should return scope with new requested chain and no accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const rightValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        rightValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+    });
+  });
+
+  describe('incremental request a whole new scope with accounts', () => {
+    it('should return scope with new requested chain and new account', () => {
+      const leftValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const rightValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        rightValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+    });
+  });
+
+  describe('incremental request an existing scope with new accounts, and whole new scope with accounts', () => {
+    it('should return scope with previously existing chain and accounts, plus new requested chain with new accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const rightValue: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        requiredScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        requiredScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        rightValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
     });
   });
 });

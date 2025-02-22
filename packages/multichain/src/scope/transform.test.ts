@@ -258,73 +258,129 @@ describe('Scope Transform', () => {
   });
 
   describe('mergeInternalScopes', () => {
-    it.each<{
-      description: string;
-      rightValue: InternalScopesObject;
-      expectedMergedValue: InternalScopesObject;
-    }>([
-      {
-        description:
-          'incremental request existing scope with a new account - should return merged scope with existing chain and both accounts',
-        rightValue: {
+    describe('incremental request existing scope with a new account', () => {
+      it('should return merged scope with existing chain and both accounts', () => {
+        const leftValue: InternalScopesObject = {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        };
+
+        const rightValue: InternalScopesObject = {
           'eip155:1': {
             accounts: ['eip155:1:0xbeef'],
           },
-        },
-        expectedMergedValue: {
+        };
+
+        const expectedMergedValue: InternalScopesObject = {
           'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
-        },
-      },
-      {
-        description:
-          'incremental request a whole new scope without accounts - should return merged scope with previously existing chain and accounts, plus new requested chain with no accounts',
-        rightValue: {
+        };
+
+        const mergedValue = mergeInternalScopes(leftValue, rightValue);
+
+        expect(mergedValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
+      });
+    });
+
+    describe('incremental request a whole new scope without accounts', () => {
+      it('should return merged scope with previously existing chain and accounts, plus new requested chain with no accounts', () => {
+        const leftValue: InternalScopesObject = {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        };
+
+        const rightValue: InternalScopesObject = {
           'eip155:10': {
             accounts: [],
           },
-        },
-        expectedMergedValue: {
+        };
+
+        const expectedMergedValue: InternalScopesObject = {
           'eip155:1': { accounts: ['eip155:1:0xdead'] },
           'eip155:10': {
             accounts: [],
           },
-        },
-      },
-      {
-        description:
-          'incremental request a whole new scope with accounts - should return merged scope with previously existing chain and accounts, plus new requested chain with new account',
-        rightValue: {
+        };
+
+        const mergedValue = mergeInternalScopes(leftValue, rightValue);
+
+        expect(mergedValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
+      });
+    });
+
+    describe('incremental request a whole new scope with accounts', () => {
+      it('should return merged scope with previously existing chain and accounts, plus new requested chain with new account', () => {
+        const leftValue: InternalScopesObject = {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        };
+
+        const rightValue: InternalScopesObject = {
           'eip155:10': {
             accounts: ['eip155:10:0xbeef'],
           },
-        },
-        expectedMergedValue: {
+        };
+
+        const expectedMergedValue: InternalScopesObject = {
           'eip155:1': { accounts: ['eip155:1:0xdead'] },
           'eip155:10': { accounts: ['eip155:10:0xbeef'] },
-        },
-      },
-      {
-        description:
-          'incremental request an existing scope with new accounts, and whole new scope with accounts - should return merged scope with previously existing chain and accounts, plus new requested chain with new accounts',
-        rightValue: {
+        };
+
+        const mergedValue = mergeInternalScopes(leftValue, rightValue);
+
+        expect(mergedValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
+      });
+    });
+
+    describe('incremental request an existing scope with new accounts, and whole new scope with accounts', () => {
+      it('should return merged scope with previously existing chain and accounts, plus new requested chain with new accounts', () => {
+        const leftValue: InternalScopesObject = {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        };
+
+        const rightValue: InternalScopesObject = {
           'eip155:1': {
             accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
           },
           'eip155:10': {
             accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
           },
-        },
-        expectedMergedValue: {
+        };
+
+        const expectedMergedValue: InternalScopesObject = {
           'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'] },
           'eip155:10': {
             accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
           },
-        },
-      },
-      {
-        description:
-          'incremental request an existing scope with new accounts, and 2 whole new scope with accounts - should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts',
-        rightValue: {
+        };
+
+        const mergedValue = mergeInternalScopes(leftValue, rightValue);
+
+        expect(mergedValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
+      });
+    });
+
+    describe('incremental request an existing scope with new accounts, and 2 whole new scope with accounts', () => {
+      it('should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts', () => {
+        const leftValue: InternalScopesObject = {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        };
+
+        const rightValue: InternalScopesObject = {
           'eip155:1': {
             accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'],
           },
@@ -338,8 +394,9 @@ describe('Scope Transform', () => {
               'eip155:426161:0xbadd',
             ],
           },
-        },
-        expectedMergedValue: {
+        };
+
+        const expectedMergedValue: InternalScopesObject = {
           'eip155:1': { accounts: ['eip155:1:0xdead', 'eip155:1:0xbadd'] },
           'eip155:10': {
             accounts: ['eip155:10:0xbeef', 'eip155:10:0xbadd'],
@@ -351,19 +408,14 @@ describe('Scope Transform', () => {
               'eip155:426161:0xbadd',
             ],
           },
-        },
-      },
-    ])('$description', async ({ rightValue, expectedMergedValue }) => {
-      const initLeftValue: InternalScopesObject = {
-        'eip155:1': {
-          accounts: ['eip155:1:0xdead'],
-        },
-      };
-      const mergedValue = mergeInternalScopes(initLeftValue, rightValue);
+        };
 
-      expect(mergedValue).toStrictEqual(
-        expect.objectContaining(expectedMergedValue),
-      );
+        const mergedValue = mergeInternalScopes(leftValue, rightValue);
+
+        expect(mergedValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
+      });
     });
   });
 
