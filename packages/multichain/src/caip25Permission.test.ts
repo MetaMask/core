@@ -793,10 +793,10 @@ describe('diffScopesForCaip25CaveatValue', () => {
         isMultichainOrigin: false,
       };
 
-      const rightValue: Caip25CaveatValue = {
+      const mergedValue: Caip25CaveatValue = {
         optionalScopes: {
           'eip155:1': {
-            accounts: ['eip155:1:0xbeef'],
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
           },
         },
         requiredScopes: {},
@@ -815,7 +815,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
 
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
-        rightValue,
+        mergedValue,
         'optionalScopes',
       );
 
@@ -835,8 +835,11 @@ describe('diffScopesForCaip25CaveatValue', () => {
         isMultichainOrigin: false,
       };
 
-      const rightValue: Caip25CaveatValue = {
+      const mergedValue: Caip25CaveatValue = {
         optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
           'eip155:10': {
             accounts: [],
           },
@@ -857,7 +860,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
 
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
-        rightValue,
+        mergedValue,
         'optionalScopes',
       );
 
@@ -877,8 +880,11 @@ describe('diffScopesForCaip25CaveatValue', () => {
         isMultichainOrigin: false,
       };
 
-      const rightValue: Caip25CaveatValue = {
+      const mergedValue: Caip25CaveatValue = {
         optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
           'eip155:10': {
             accounts: ['eip155:10:0xbeef'],
           },
@@ -899,7 +905,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
 
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
-        rightValue,
+        mergedValue,
         'optionalScopes',
       );
 
@@ -910,16 +916,16 @@ describe('diffScopesForCaip25CaveatValue', () => {
   describe('incremental request an existing scope with new accounts, and whole new scope with accounts', () => {
     it('should return scope with previously existing chain and accounts, plus new requested chain with new accounts', () => {
       const leftValue: Caip25CaveatValue = {
-        requiredScopes: {
+        optionalScopes: {
           'eip155:1': {
             accounts: ['eip155:1:0xdead'],
           },
         },
-        optionalScopes: {},
+        requiredScopes: {},
         isMultichainOrigin: false,
       };
 
-      const rightValue: Caip25CaveatValue = {
+      const mergedValue: Caip25CaveatValue = {
         optionalScopes: {
           'eip155:1': {
             accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
@@ -947,7 +953,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
 
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
-        rightValue,
+        mergedValue,
         'optionalScopes',
       );
 
