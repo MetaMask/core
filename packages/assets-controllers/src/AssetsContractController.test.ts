@@ -91,6 +91,8 @@ async function setupAssetContractControllers({
       allowedActions: [],
       allowedEvents: [],
     }),
+    fetch,
+    btoa,
   });
   if (useNetworkControllerProvider) {
     await networkController.initializeProvider();

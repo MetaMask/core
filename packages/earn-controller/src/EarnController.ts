@@ -11,10 +11,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
-import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import {
   StakeSdk,
@@ -22,6 +22,8 @@ import {
   type PooledStake,
   type StakeSdkConfig,
   type VaultData,
+  type VaultDailyApy,
+  type VaultApyAverages,
 } from '@metamask/stake-sdk';
 
 export const controllerName = 'EarnController';
@@ -29,7 +31,9 @@ export const controllerName = 'EarnController';
 export type PooledStakingState = {
   pooledStakes: PooledStake;
   exchangeRate: string;
-  vaultData: VaultData;
+  vaultMetadata: VaultData;
+  vaultDailyApys: VaultDailyApy[];
+  vaultApyAverages: VaultApyAverages;
   isEligible: boolean;
 };
 
@@ -85,6 +89,15 @@ const DEFAULT_STABLECOIN_VAULT: StablecoinVault = {
   liquidity: '0',
 };
 
+const DEFAULT_POOLED_STAKING_VAULT_APY_AVERAGES: VaultApyAverages = {
+  oneDay: '0',
+  oneWeek: '0',
+  oneMonth: '0',
+  threeMonths: '0',
+  sixMonths: '0',
+  oneYear: '0',
+};
+
 /**
  * Gets the default state for the EarnController.
  *
@@ -100,13 +113,15 @@ export function getDefaultEarnControllerState(): EarnControllerState {
         exitRequests: [],
       },
       exchangeRate: '1',
-      vaultData: {
+      vaultMetadata: {
         apy: '0',
         capacity: '0',
         feePercent: 0,
         totalAssets: '0',
         vaultAddress: '0x0000000000000000000000000000000000000000',
       },
+      vaultDailyApys: [],
+      vaultApyAverages: DEFAULT_POOLED_STAKING_VAULT_APY_AVERAGES,
       isEligible: false,
     },
     stablecoin_lending: {
@@ -220,7 +235,10 @@ export class EarnController extends BaseController<
           this.#selectedNetworkClientId
         ) {
           this.#initializeSDK(networkControllerState.selectedNetworkClientId);
-          this.refreshPooledStakingData().catch(console.error);
+          this.refreshPooledStakingVaultMetadata().catch(console.error);
+          this.refreshPooledStakingVaultDailyApys().catch(console.error);
+          this.refreshPooledStakingVaultApyAverages().catch(console.error);
+          this.refreshPooledStakes().catch(console.error);
         }
         this.#selectedNetworkClientId =
           networkControllerState.selectedNetworkClientId;
@@ -231,7 +249,8 @@ export class EarnController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       () => {
-        this.refreshPooledStakingData().catch(console.error);
+        this.refreshStakingEligibility().catch(console.error);
+        this.refreshPooledStakes().catch(console.error);
       },
     );
   }
@@ -298,9 +317,10 @@ export class EarnController extends BaseController<
    * Fetches updated stake information including lifetime rewards, assets, and exit requests
    * from the staking API service and updates the state.
    *
+   * @param resetCache - Control whether the BE cache should be invalidated.
    * @returns A promise that resolves when the stakes data has been updated
    */
-  async refreshPooledStakes(): Promise<void> {
+  async refreshPooledStakes(resetCache = false): Promise<void> {
     const currentAccount = this.#getCurrentAccount();
     if (!currentAccount?.address) {
       return;
@@ -312,6 +332,7 @@ export class EarnController extends BaseController<
       await this.#stakingApiService.getPooledStakes(
         [currentAccount.address],
         chainId,
+        resetCache,
       );
 
     this.update((state) => {
@@ -343,18 +364,58 @@ export class EarnController extends BaseController<
   }
 
   /**
-   * Refreshes vault data for the current chain.
-   * Updates the vault data in the controller state including APY, capacity,
+   * Refreshes pooled staking vault metadata for the current chain.
+   * Updates the vault metadata in the controller state including APY, capacity,
    * fee percentage, total assets, and vault address.
    *
-   * @returns A promise that resolves when the vault data has been updated
+   * @returns A promise that resolves when the vault metadata has been updated
    */
-  async refreshVaultData(): Promise<void> {
+  async refreshPooledStakingVaultMetadata(): Promise<void> {
     const chainId = this.#getCurrentChainId();
-    const vaultData = await this.#stakingApiService.getVaultData(chainId);
+    const vaultMetadata = await this.#stakingApiService.getVaultData(chainId);
 
     this.update((state) => {
-      state.pooled_staking.vaultData = vaultData;
+      state.pooled_staking.vaultMetadata = vaultMetadata;
+    });
+  }
+
+  /**
+   * Refreshes pooled staking vault daily apys for the current chain.
+   * Updates the pooled staking vault daily apys controller state.
+   *
+   * @param days - The number of days to fetch pooled staking vault daily apys for (defaults to 30).
+   * @param order - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards) (defaults to 'desc').
+   * @returns A promise that resolves when the pooled staking vault daily apys have been updated.
+   */
+  async refreshPooledStakingVaultDailyApys(
+    days = 30,
+    order: 'asc' | 'desc' = 'desc',
+  ): Promise<void> {
+    const chainId = this.#getCurrentChainId();
+    const vaultDailyApys = await this.#stakingApiService.getVaultDailyApys(
+      chainId,
+      days,
+      order,
+    );
+
+    this.update((state) => {
+      state.pooled_staking.vaultDailyApys = vaultDailyApys;
+    });
+  }
+
+  /**
+   * Refreshes pooled staking vault apy averages for the current chain.
+   * Updates the pooled staking vault apy averages controller state.
+   *
+   * @returns A promise that resolves when the pooled staking vault apy averages have been updated.
+   */
+  async refreshPooledStakingVaultApyAverages() {
+    const chainId = this.#getCurrentChainId();
+    const vaultApyAverages =
+      await this.#stakingApiService.getVaultApyAverages(chainId);
+
+    this.update((state) => {
+      state.pooled_staking.vaultApyAverages = vaultApyAverages;
     });
   }
 
@@ -363,20 +424,27 @@ export class EarnController extends BaseController<
    * This method allows partial success, meaning some data may update while other requests fail.
    * All errors are collected and thrown as a single error message.
    *
+   * @param resetCache - Control whether the BE cache should be invalidated.
    * @returns A promise that resolves when all possible data has been updated
    * @throws {Error} If any of the refresh operations fail, with concatenated error messages
    */
-  async refreshPooledStakingData(): Promise<void> {
+  async refreshPooledStakingData(resetCache = false): Promise<void> {
     const errors: Error[] = [];
 
     await Promise.all([
-      this.refreshPooledStakes().catch((error) => {
+      this.refreshPooledStakes(resetCache).catch((error) => {
         errors.push(error);
       }),
       this.refreshStakingEligibility().catch((error) => {
         errors.push(error);
       }),
-      this.refreshVaultData().catch((error) => {
+      this.refreshPooledStakingVaultMetadata().catch((error) => {
+        errors.push(error);
+      }),
+      this.refreshPooledStakingVaultDailyApys().catch((error) => {
+        errors.push(error);
+      }),
+      this.refreshPooledStakingVaultApyAverages().catch((error) => {
         errors.push(error);
       }),
     ]);

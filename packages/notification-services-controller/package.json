@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.20.1",
+  "version": "1.0.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -67,6 +67,16 @@
         "default": "./dist/NotificationServicesPushController/index.cjs"
       }
     },
+    "./push-services/web": {
+      "import": {
+        "types": "./dist/NotificationServicesPushController/web/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/web/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/web/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/web/index.cjs"
+      }
+    },
     "./push-services/mocks": {
       "import": {
         "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.mts",
@@ -102,7 +112,7 @@
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^8.0.0",
     "@metamask/controller-utils": "^11.5.0",
-    "@metamask/utils": "^11.1.0",
+    "@metamask/utils": "^11.2.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
     "loglevel": "^1.8.1",
@@ -112,8 +122,8 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.0.7",
-    "@metamask/profile-sync-controller": "^7.0.1",
+    "@metamask/keyring-controller": "^19.2.1",
+    "@metamask/profile-sync-controller": "^8.1.1",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "contentful": "^10.15.0",
@@ -128,7 +138,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^19.0.0",
-    "@metamask/profile-sync-controller": "^7.0.0"
+    "@metamask/profile-sync-controller": "^8.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
