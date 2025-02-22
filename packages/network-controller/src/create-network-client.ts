@@ -70,16 +70,16 @@ export function createNetworkClient({
     configuration.type === NetworkClientType.Infura
       ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
       : configuration.rpcUrl;
-  const failoverEndpointUrls =
-    configuration.type === NetworkClientType.Infura
-      ? configuration.failoverEndpointUrls
-      : [];
+  const availableEndpointUrls = [
+    primaryEndpointUrl,
+    ...configuration.failoverRpcUrls,
+  ];
   const rpcService = new RpcServiceChain({
     fetch: givenFetch,
     btoa: givenBtoa,
-    serviceConfigurations: [primaryEndpointUrl, ...failoverEndpointUrls].map(
-      (endpointUrl) => ({ endpointUrl }),
-    ),
+    serviceConfigurations: availableEndpointUrls.map((endpointUrl) => ({
+      endpointUrl,
+    })),
   });
 
   const rpcApiMiddleware =

@@ -309,64 +309,62 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         });
       });
 
-      if (providerType === NetworkClientType.Infura) {
-        it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = { method };
+      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+        await withMockedCommunications(
+          { providerType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: 'https://failover.endpoint',
+              },
+              async (failoverComms) => {
+                const request = { method };
 
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block tracker
-                  // first. Note that to test that failovers work, all we
-                  // have to do is make this request fail.
-                  primaryComms.mockRpcCall({
-                    request: {
-                      method: 'eth_blockNumber',
-                      params: [],
-                    },
-                    response: {
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  failoverComms.mockNextBlockTrackerRequest();
-                  failoverComms.mockRpcCall({
-                    request,
-                    response: {
-                      result: 'ok',
-                    },
-                  });
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block tracker
+                // first. Note that to test that failovers work, all we
+                // have to do is make this request fail.
+                primaryComms.mockRpcCall({
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
+                  response: {
+                    httpStatus,
+                  },
+                  times: 15,
+                });
+                failoverComms.mockNextBlockTrackerRequest();
+                failoverComms.mockRpcCall({
+                  request,
+                  response: {
+                    result: 'ok',
+                  },
+                });
 
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      infuraFailoverEndpointUrls: ['https://failover.endpoint'],
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      // The block tracker will keep trying to poll until the
-                      // eth_blockNumber request works, so we only have to make
-                      // the request once.
-                      return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      );
-                    },
-                  );
+                const result = await withNetworkClient(
+                  {
+                    providerType,
+                    failoverRpcUrls: ['https://failover.endpoint'],
+                  },
+                  async ({ makeRpcCall, clock }) => {
+                    // The block tracker will keep trying to poll until the
+                    // eth_blockNumber request works, so we only have to make
+                    // the request once.
+                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                      makeRpcCall(request),
+                      clock,
+                    );
+                  },
+                );
 
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
-        });
-      }
+                expect(result).toBe('ok');
+              },
+            );
+          },
+        );
+      });
     },
   );
 
@@ -396,64 +394,59 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       });
     });
 
-    if (providerType === NetworkClientType.Infura) {
-      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+    it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+      await withMockedCommunications({ providerType }, async (primaryComms) => {
         await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
+          {
+            providerType: 'custom',
+            customRpcUrl: 'https://failover.endpoint',
+          },
+          async (failoverComms) => {
+            const request = { method };
+
+            // The first time a block-cacheable request is made, the
+            // latest block number is retrieved through the block tracker
+            // first. Note that to test that failovers work, all we
+            // have to do is make this request fail.
+            primaryComms.mockRpcCall({
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
               },
-              async (failoverComms) => {
-                const request = { method };
+              response: {
+                httpStatus: 420,
+              },
+              times: 15,
+            });
+            failoverComms.mockNextBlockTrackerRequest();
+            failoverComms.mockRpcCall({
+              request,
+              response: {
+                result: 'ok',
+              },
+            });
 
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block tracker
-                // first. Note that to test that failovers work, all we
-                // have to do is make this request fail.
-                primaryComms.mockRpcCall({
-                  request: {
-                    method: 'eth_blockNumber',
-                    params: [],
-                  },
-                  response: {
-                    httpStatus: 420,
-                  },
-                  times: 15,
-                });
-                failoverComms.mockNextBlockTrackerRequest();
-                failoverComms.mockRpcCall({
-                  request,
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    infuraFailoverEndpointUrls: ['https://failover.endpoint'],
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    // The block tracker will keep trying to poll until the
-                    // eth_blockNumber request works, so we only have to make
-                    // the request once.
-                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                      makeRpcCall(request),
-                      clock,
-                    );
-                  },
+            const result = await withNetworkClient(
+              {
+                providerType,
+                failoverRpcUrls: ['https://failover.endpoint'],
+              },
+              async ({ makeRpcCall, clock }) => {
+                // The block tracker will keep trying to poll until the
+                // eth_blockNumber request works, so we only have to make
+                // the request once.
+                return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                  makeRpcCall(request),
+                  clock,
                 );
-
-                expect(result).toBe('ok');
               },
             );
+
+            expect(result).toBe('ok');
           },
         );
       });
-    }
+    });
   });
 
   describe.each([503, 504])(
@@ -528,65 +521,63 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         });
       });
 
-      if (providerType === NetworkClientType.Infura) {
-        it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = { method };
+      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+        await withMockedCommunications(
+          { providerType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: 'https://failover.endpoint',
+              },
+              async (failoverComms) => {
+                const request = { method };
 
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block tracker
-                  // first. Note that to test that failovers work, all we
-                  // have to do is make this request fail.
-                  primaryComms.mockRpcCall({
-                    request: {
-                      method: 'eth_blockNumber',
-                      params: [],
-                    },
-                    response: {
-                      error: 'Some error',
-                      httpStatus,
-                    },
-                    times: 15,
-                  });
-                  failoverComms.mockNextBlockTrackerRequest();
-                  failoverComms.mockRpcCall({
-                    request,
-                    response: {
-                      result: 'ok',
-                    },
-                  });
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block tracker
+                // first. Note that to test that failovers work, all we
+                // have to do is make this request fail.
+                primaryComms.mockRpcCall({
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
+                  response: {
+                    error: 'Some error',
+                    httpStatus,
+                  },
+                  times: 15,
+                });
+                failoverComms.mockNextBlockTrackerRequest();
+                failoverComms.mockRpcCall({
+                  request,
+                  response: {
+                    result: 'ok',
+                  },
+                });
 
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      infuraFailoverEndpointUrls: ['https://failover.endpoint'],
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      // The block tracker will keep trying to poll until the
-                      // eth_blockNumber request works, so we only have to make
-                      // the request once.
-                      return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      );
-                    },
-                  );
+                const result = await withNetworkClient(
+                  {
+                    providerType,
+                    failoverRpcUrls: ['https://failover.endpoint'],
+                  },
+                  async ({ makeRpcCall, clock }) => {
+                    // The block tracker will keep trying to poll until the
+                    // eth_blockNumber request works, so we only have to make
+                    // the request once.
+                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                      makeRpcCall(request),
+                      clock,
+                    );
+                  },
+                );
 
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
-        });
-      }
+                expect(result).toBe('ok');
+              },
+            );
+          },
+        );
+      });
     },
   );
 
@@ -665,66 +656,64 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         });
       });
 
-      if (providerType === NetworkClientType.Infura) {
-        it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
-          await withMockedCommunications(
-            { providerType },
-            async (primaryComms) => {
-              await withMockedCommunications(
-                {
-                  providerType: 'custom',
-                  customRpcUrl: 'https://failover.endpoint',
-                },
-                async (failoverComms) => {
-                  const request = { method };
-                  const error = new Error(errorCode);
-                  // @ts-expect-error `code` does not exist on the Error type, but is
-                  // still used by Node.
-                  error.code = errorCode;
+      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+        await withMockedCommunications(
+          { providerType },
+          async (primaryComms) => {
+            await withMockedCommunications(
+              {
+                providerType: 'custom',
+                customRpcUrl: 'https://failover.endpoint',
+              },
+              async (failoverComms) => {
+                const request = { method };
+                const error = new Error(errorCode);
+                // @ts-expect-error `code` does not exist on the Error type, but is
+                // still used by Node.
+                error.code = errorCode;
 
-                  // The first time a block-cacheable request is made, the
-                  // latest block number is retrieved through the block tracker
-                  // first. Note that to test that failovers work, all we
-                  // have to do is make this request fail.
-                  primaryComms.mockRpcCall({
-                    request: {
-                      method: 'eth_blockNumber',
-                      params: [],
-                    },
-                    error,
-                    times: 15,
-                  });
-                  failoverComms.mockNextBlockTrackerRequest();
-                  failoverComms.mockRpcCall({
-                    request,
-                    response: {
-                      result: 'ok',
-                    },
-                  });
+                // The first time a block-cacheable request is made, the
+                // latest block number is retrieved through the block tracker
+                // first. Note that to test that failovers work, all we
+                // have to do is make this request fail.
+                primaryComms.mockRpcCall({
+                  request: {
+                    method: 'eth_blockNumber',
+                    params: [],
+                  },
+                  error,
+                  times: 15,
+                });
+                failoverComms.mockNextBlockTrackerRequest();
+                failoverComms.mockRpcCall({
+                  request,
+                  response: {
+                    result: 'ok',
+                  },
+                });
 
-                  const result = await withNetworkClient(
-                    {
-                      providerType,
-                      infuraFailoverEndpointUrls: ['https://failover.endpoint'],
-                    },
-                    async ({ makeRpcCall, clock }) => {
-                      // The block tracker will keep trying to poll until the
-                      // eth_blockNumber request works, so we only have to make
-                      // the request once.
-                      return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                        makeRpcCall(request),
-                        clock,
-                      );
-                    },
-                  );
+                const result = await withNetworkClient(
+                  {
+                    providerType,
+                    failoverRpcUrls: ['https://failover.endpoint'],
+                  },
+                  async ({ makeRpcCall, clock }) => {
+                    // The block tracker will keep trying to poll until the
+                    // eth_blockNumber request works, so we only have to make
+                    // the request once.
+                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                      makeRpcCall(request),
+                      clock,
+                    );
+                  },
+                );
 
-                  expect(result).toBe('ok');
-                },
-              );
-            },
-          );
-        });
-      }
+                expect(result).toBe('ok');
+              },
+            );
+          },
+        );
+      });
     },
   );
 
@@ -797,64 +786,59 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       });
     });
 
-    if (providerType === NetworkClientType.Infura) {
-      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+    it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+      await withMockedCommunications({ providerType }, async (primaryComms) => {
         await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
+          {
+            providerType: 'custom',
+            customRpcUrl: 'https://failover.endpoint',
+          },
+          async (failoverComms) => {
+            const request = { method };
+
+            // The first time a block-cacheable request is made, the
+            // latest block number is retrieved through the block tracker
+            // first. Note that to test that failovers work, all we
+            // have to do is make this request fail.
+            primaryComms.mockRpcCall({
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
               },
-              async (failoverComms) => {
-                const request = { method };
+              response: {
+                body: 'invalid JSON',
+              },
+              times: 15,
+            });
+            failoverComms.mockNextBlockTrackerRequest();
+            failoverComms.mockRpcCall({
+              request,
+              response: {
+                result: 'ok',
+              },
+            });
 
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block tracker
-                // first. Note that to test that failovers work, all we
-                // have to do is make this request fail.
-                primaryComms.mockRpcCall({
-                  request: {
-                    method: 'eth_blockNumber',
-                    params: [],
-                  },
-                  response: {
-                    body: 'invalid JSON',
-                  },
-                  times: 15,
-                });
-                failoverComms.mockNextBlockTrackerRequest();
-                failoverComms.mockRpcCall({
-                  request,
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    infuraFailoverEndpointUrls: ['https://failover.endpoint'],
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    // The block tracker will keep trying to poll until the
-                    // eth_blockNumber request works, so we only have to make
-                    // the request once.
-                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                      makeRpcCall(request),
-                      clock,
-                    );
-                  },
+            const result = await withNetworkClient(
+              {
+                providerType,
+                failoverRpcUrls: ['https://failover.endpoint'],
+              },
+              async ({ makeRpcCall, clock }) => {
+                // The block tracker will keep trying to poll until the
+                // eth_blockNumber request works, so we only have to make
+                // the request once.
+                return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                  makeRpcCall(request),
+                  clock,
                 );
-
-                expect(result).toBe('ok');
               },
             );
+
+            expect(result).toBe('ok');
           },
         );
       });
-    }
+    });
   });
 
   describe('if making the request throws a connection error', () => {
@@ -924,62 +908,57 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       });
     });
 
-    if (providerType === NetworkClientType.Infura) {
-      it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+    it('fails over to the provided alternate RPC endpoint after 15 unsuccessful attempts', async () => {
+      await withMockedCommunications({ providerType }, async (primaryComms) => {
         await withMockedCommunications(
-          { providerType },
-          async (primaryComms) => {
-            await withMockedCommunications(
-              {
-                providerType: 'custom',
-                customRpcUrl: 'https://failover.endpoint',
+          {
+            providerType: 'custom',
+            customRpcUrl: 'https://failover.endpoint',
+          },
+          async (failoverComms) => {
+            const request = { method };
+            const error = new TypeError('Failed to fetch');
+
+            // The first time a block-cacheable request is made, the
+            // latest block number is retrieved through the block tracker
+            // first. Note that to test that failovers work, all we
+            // have to do is make this request fail.
+            primaryComms.mockRpcCall({
+              request: {
+                method: 'eth_blockNumber',
+                params: [],
               },
-              async (failoverComms) => {
-                const request = { method };
-                const error = new TypeError('Failed to fetch');
+              error,
+              times: 15,
+            });
+            failoverComms.mockNextBlockTrackerRequest();
+            failoverComms.mockRpcCall({
+              request,
+              response: {
+                result: 'ok',
+              },
+            });
 
-                // The first time a block-cacheable request is made, the
-                // latest block number is retrieved through the block tracker
-                // first. Note that to test that failovers work, all we
-                // have to do is make this request fail.
-                primaryComms.mockRpcCall({
-                  request: {
-                    method: 'eth_blockNumber',
-                    params: [],
-                  },
-                  error,
-                  times: 15,
-                });
-                failoverComms.mockNextBlockTrackerRequest();
-                failoverComms.mockRpcCall({
-                  request,
-                  response: {
-                    result: 'ok',
-                  },
-                });
-
-                const result = await withNetworkClient(
-                  {
-                    providerType,
-                    infuraFailoverEndpointUrls: ['https://failover.endpoint'],
-                  },
-                  async ({ makeRpcCall, clock }) => {
-                    // The block tracker will keep trying to poll until the
-                    // eth_blockNumber request works, so we only have to make
-                    // the request once.
-                    return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
-                      makeRpcCall(request),
-                      clock,
-                    );
-                  },
+            const result = await withNetworkClient(
+              {
+                providerType,
+                failoverRpcUrls: ['https://failover.endpoint'],
+              },
+              async ({ makeRpcCall, clock }) => {
+                // The block tracker will keep trying to poll until the
+                // eth_blockNumber request works, so we only have to make
+                // the request once.
+                return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
+                  makeRpcCall(request),
+                  clock,
                 );
-
-                expect(result).toBe('ok');
               },
             );
+
+            expect(result).toBe('ok');
           },
         );
       });
-    }
+    });
   });
 }

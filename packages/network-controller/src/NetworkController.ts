@@ -128,6 +128,10 @@ export type InfuraRpcEndpoint = {
  */
 export type CustomRpcEndpoint = {
   /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: string[];
+  /**
    * The optional user-facing nickname of the endpoint.
    */
   name?: string;
@@ -2450,7 +2454,7 @@ export class NetworkController extends BaseController<
             type: NetworkClientType.Infura,
             chainId: networkFields.chainId,
             network: addedRpcEndpoint.networkClientId,
-            failoverEndpointUrls: addedRpcEndpoint.failoverUrls,
+            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
@@ -2464,6 +2468,7 @@ export class NetworkController extends BaseController<
           networkClientConfiguration: {
             type: NetworkClientType.Custom,
             chainId: networkFields.chainId,
+            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
             rpcUrl: addedRpcEndpoint.url,
             ticker: networkFields.nativeCurrency,
           },
@@ -2622,7 +2627,7 @@ export class NetworkController extends BaseController<
               networkClientConfiguration: {
                 type: NetworkClientType.Infura,
                 network: infuraNetworkName,
-                failoverEndpointUrls: rpcEndpoint.failoverUrls,
+                failoverRpcUrls: rpcEndpoint.failoverUrls,
                 infuraProjectId: this.#infuraProjectId,
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,
@@ -2638,6 +2643,7 @@ export class NetworkController extends BaseController<
             networkClientConfiguration: {
               type: NetworkClientType.Custom,
               chainId: networkConfiguration.chainId,
+              failoverRpcUrls: rpcEndpoint.failoverUrls,
               rpcUrl: rpcEndpoint.url,
               ticker: networkConfiguration.nativeCurrency,
             },

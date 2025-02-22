@@ -22,6 +22,7 @@ export enum NetworkClientType {
  */
 type CommonNetworkClientConfiguration = {
   chainId: Hex;
+  failoverRpcUrls: string[];
   ticker: string;
 };
 
@@ -43,7 +44,6 @@ export type InfuraNetworkClientConfiguration =
   CommonNetworkClientConfiguration & {
     network: InfuraNetworkType;
     infuraProjectId: string;
-    failoverEndpointUrls: string[];
     type: NetworkClientType.Infura;
   };
 

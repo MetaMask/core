@@ -150,7 +150,7 @@ export function buildInfuraNetworkClientConfiguration(
   return {
     type: NetworkClientType.Infura,
     network,
-    failoverEndpointUrls: [],
+    failoverRpcUrls: [],
     infuraProjectId: 'test-infura-project-id',
     chainId: ChainId[network],
     ticker: NetworksTicker[network],
@@ -173,6 +173,7 @@ export function buildCustomNetworkClientConfiguration(
   return Object.assign(
     {
       chainId: toHex(1337),
+      failoverRpcUrls: [],
       rpcUrl: 'https://example.test',
       ticker: 'TEST',
     },
@@ -344,6 +345,7 @@ export function buildCustomRpcEndpoint(
 ): CustomRpcEndpoint {
   return buildTestObject(
     {
+      failoverUrls: () => [],
       networkClientId: () => uuidV4(),
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
@@ -405,6 +407,7 @@ export function buildAddNetworkCustomRpcEndpointFields(
 ): AddNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
+      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },
@@ -425,6 +428,7 @@ export function buildUpdateNetworkCustomRpcEndpointFields(
 ): UpdateNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
+      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },

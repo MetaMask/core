@@ -16,6 +16,7 @@ describe('createAutoManagedNetworkClient', () => {
   ] = [
     {
       type: NetworkClientType.Custom,
+      failoverRpcUrls: [],
       rpcUrl: 'https://test.chain',
       chainId: '0x1337',
       ticker: 'ETH',
@@ -26,7 +27,7 @@ describe('createAutoManagedNetworkClient', () => {
       chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
       infuraProjectId: 'some-infura-project-id',
       ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
-      failoverEndpointUrls: [],
+      failoverRpcUrls: [],
     },
   ];
   for (const networkClientConfiguration of networkClientConfigurations) {
