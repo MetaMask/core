@@ -106,7 +106,10 @@ import {
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import type { KeyringControllerSignAuthorization } from './utils/eip7702';
-import { signAuthorizationList } from './utils/eip7702';
+import {
+  generateEIP7702BatchTransaction,
+  signAuthorizationList,
+} from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
@@ -2342,6 +2345,60 @@ export class TransactionController extends BaseController<
     this.signAbortCallbacks.delete(transactionId);
   }
 
+  /**
+   * Update the transaction data of a single nested transaction within an atomic batch transaction.
+   *
+   * @param options - The options bag.
+   * @param options.transactionId - ID of the atomic batch transaction.
+   * @param options.transactionIndex - Index of the nested transaction within the atomic batch transaction.
+   * @param options.transactionData - New data to set for the nested transaction.
+   * @returns The updated data for the atomic batch transaction.
+   */
+  updateAtomicBatchData({
+    transactionId,
+    transactionIndex,
+    transactionData,
+  }: {
+    transactionId: string;
+    transactionIndex: number;
+    transactionData: Hex;
+  }) {
+    log('Updating atomic batch data', {
+      transactionId,
+      transactionIndex,
+      transactionData,
+    });
+
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateAtomicBatchData - Atomic batch data updated',
+      },
+      (transactionMeta) => {
+        const { nestedTransactions, txParams } = transactionMeta;
+        const from = txParams.from as Hex;
+        const nestedTransaction = nestedTransactions?.[transactionIndex];
+
+        if (!nestedTransaction) {
+          throw new Error(
+            `Nested transaction not found with index - ${transactionIndex}`,
+          );
+        }
+
+        nestedTransaction.data = transactionData;
+
+        const batchTransaction = generateEIP7702BatchTransaction(
+          from,
+          nestedTransactions,
+        );
+
+        transactionMeta.txParams.data = batchTransaction.data;
+      },
+    );
+
+    return updatedTransactionMeta.txParams.data as Hex;
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -3558,6 +3615,12 @@ export class TransactionController extends BaseController<
       const index = state.transactions.findIndex(
         ({ id }) => id === transactionId,
       );
+
+      if (index === -1) {
+        throw new Error(
+          `Cannot update transaction as ID not found - ${transactionId}`,
+        );
+      }
 
       let transactionMeta = state.transactions[index];
 
