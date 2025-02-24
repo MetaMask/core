@@ -11,13 +11,10 @@ import {
   mockEndpointDeleteUserStorage,
   mockEndpointBatchDeleteUserStorage,
 } from './__fixtures__/mockServices';
-import {
-  MOCK_STORAGE_DATA,
-  MOCK_STORAGE_KEY,
-} from './__fixtures__/mockStorage';
 import { waitFor } from './__fixtures__/test-utils';
 import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__fixtures__/test-utils';
 import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
+import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
 import type { UserStorageBaseOptions } from './services';
 import UserStorageController, { defaultState } from './UserStorageController';

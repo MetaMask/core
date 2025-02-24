@@ -1,6 +1,6 @@
 import nock from 'nock';
 
-import { getMockUpdatePushNotificationLinksResponse } from './mockResponse';
+import { getMockUpdatePushNotificationLinksResponse } from '../mocks/mockResponse';
 
 type MockReply = {
   status: nock.StatusCode;
