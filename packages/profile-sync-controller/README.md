@@ -18,7 +18,7 @@ You can import the controllers via the main npm path.
 import { ... } from '@metamask/profile-sync-controller'
 ```
 
-This package also uses subpath exports, which help minimize the amount of code you with to import. It also helps keep specific modules isolated, and can be used to import specific code (e.g. mocks). You can see all the exports in the [`package.json`](./package.json), but here are a few.
+This package also uses subpath exports, which help minimize the amount of code you wish to import. It also helps keep specific modules isolated, and can be used to import specific code (e.g. mocks). You can see all the exports in the [`package.json`](./package.json), but here are a few.
 
 Importing specific controllers/modules:
 
