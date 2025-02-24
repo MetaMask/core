@@ -97,6 +97,7 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   BatchTransactionParams,
+  PublishHook,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -1021,6 +1022,7 @@ export class TransactionController extends BaseController<
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
+   * @param options.publishHook - Custom logic to publish the transaction.
    * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param options.securityAlertResponse - Response from security validator.
    * @param options.sendFlowHistory - The sendFlowHistory entries to add.
@@ -1041,6 +1043,7 @@ export class TransactionController extends BaseController<
       nestedTransactions?: BatchTransactionParams[];
       networkClientId: NetworkClientId;
       origin?: string;
+      publishHook?: PublishHook;
       requireApproval?: boolean | undefined;
       securityAlertResponse?: SecurityAlertResponse;
       sendFlowHistory?: SendFlowHistoryEntry[];
@@ -1061,6 +1064,7 @@ export class TransactionController extends BaseController<
       nestedTransactions,
       networkClientId,
       origin,
+      publishHook,
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
@@ -1207,9 +1211,10 @@ export class TransactionController extends BaseController<
 
     return {
       result: this.processApproval(addedTransactionMeta, {
-        isExisting: Boolean(existingTransactionMeta),
-        requireApproval,
         actionId,
+        isExisting: Boolean(existingTransactionMeta),
+        publishHook,
+        requireApproval,
         traceContext,
       }),
       transactionMeta: addedTransactionMeta,
@@ -2429,16 +2434,18 @@ export class TransactionController extends BaseController<
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
+      actionId,
       isExisting = false,
+      publishHook,
       requireApproval,
       shouldShowRequest = true,
-      actionId,
       traceContext,
     }: {
+      actionId?: string;
       isExisting?: boolean;
+      publishHook?: PublishHook;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
-      actionId?: string;
       traceContext?: TraceContext;
     },
   ): Promise<string> {
@@ -2491,6 +2498,7 @@ export class TransactionController extends BaseController<
           const approvalResult = await this.approveTransaction(
             transactionId,
             traceContext,
+            publishHook,
           );
           if (
             approvalResult === ApprovalState.SkippedViaBeforePublishHook &&
@@ -2561,10 +2569,13 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to approve.
    * @param traceContext - The parent context for any new traces.
+   * @param publishHookOverride - Custom logic to publish the transaction.
+   * @returns The approval state of the transaction.
    */
   private async approveTransaction(
     transactionId: string,
     traceContext?: unknown,
+    publishHookOverride?: PublishHook,
   ) {
     const cleanupTasks = new Array<() => void>();
     cleanupTasks.push(await this.mutex.acquire());
@@ -2666,7 +2677,9 @@ export class TransactionController extends BaseController<
       await this.#trace(
         { name: 'Publish', parentContext: traceContext },
         async () => {
-          ({ transactionHash: hash } = await this.publish(
+          const publishHook = publishHookOverride ?? this.publish;
+
+          ({ transactionHash: hash } = await publishHook(
             transactionMeta,
             rawTx,
           ));

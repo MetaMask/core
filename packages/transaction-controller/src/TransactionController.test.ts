@@ -5084,6 +5084,42 @@ describe('TransactionController', () => {
         expect.any(String),
       );
     });
+
+    it('supports publish hook override per call', async () => {
+      const publishHookController = jest.fn();
+
+      const publishHookCall = jest.fn().mockResolvedValueOnce({
+        transactionHash: TRANSACTION_HASH_MOCK,
+      });
+
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            publish: publishHookController,
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      jest.spyOn(mockEthQuery, 'sendRawTransaction');
+
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        publishHook: publishHookCall,
+      });
+
+      await result;
+
+      expect(controller.state.transactions[0].hash).toBe(TRANSACTION_HASH_MOCK);
+
+      expect(publishHookCall).toHaveBeenCalledTimes(1);
+      expect(publishHookController).not.toHaveBeenCalled();
+      expect(mockEthQuery.sendRawTransaction).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateSecurityAlertResponse', () => {
