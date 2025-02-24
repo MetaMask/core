@@ -129,7 +129,7 @@ function buildInfuraNetworkClientConfiguration(
     type: NetworkClientType.Infura,
     network,
     chainId: BUILT_IN_NETWORKS[network].chainId,
-    failoverEndpointUrls: [],
+    failoverRpcUrls: [],
     infuraProjectId,
     ticker: BUILT_IN_NETWORKS[network].ticker,
   };
