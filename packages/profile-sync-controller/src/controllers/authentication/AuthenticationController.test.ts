@@ -1,21 +1,18 @@
 import { Messenger } from '@metamask/base-controller';
 
 import {
-  MOCK_ACCESS_TOKEN,
-  MOCK_LOGIN_RESPONSE,
-} from './__fixtures__/mockResponses';
-import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
 } from './__fixtures__/mockServices';
+import AuthenticationController from './AuthenticationController';
 import type {
   Actions,
   AllowedActions,
   AllowedEvents,
   AuthenticationControllerState,
 } from './AuthenticationController';
-import AuthenticationController from './AuthenticationController';
+import { MOCK_ACCESS_TOKEN, MOCK_LOGIN_RESPONSE } from './mocks/mockResponses';
 
 const mockSignedInState = (): AuthenticationControllerState => ({
   isSignedIn: true,
