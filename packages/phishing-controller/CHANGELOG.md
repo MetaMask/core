@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed an edge case in `PhishingController` where empty phishing lists could trigger API requests with invalid `-Infinity` timestamps ([#5385](https://github.com/MetaMask/core/pull/5385))
+
 ## [12.3.2]
 
 ### Changed
