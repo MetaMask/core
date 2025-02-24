@@ -18,16 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use exponential backoff / jitter when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
   - As requests are retried, the delay between retries will increase exponentially (using random variance to prevent bursts)
 - Add support for automatic failover when Infura is down ([#5630](https://github.com/MetaMask/core/pull/5630))
-  - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverEndpointUrls`.
+  - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverUrls`.
   - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
 
 ### Changed
 
 - **BREAKING:** `NetworkController` constructor now takes two required options, `fetch` and `btoa` ([#5290](https://github.com/MetaMask/core/pull/5290))
   - These are passed along to functions that create the JSON-RPC middleware.
-- **BREAKING:** Add required property `failoverEndpointUrls` to `InfuraRpcEndpoint` ([#5630](https://github.com/MetaMask/core/pull/5630))
-  - Migrating existing state to set `failoverEndpointUrls` for each Infura RPC endpoint is recommended.
-- **BREAKING:** Add required property `failoverEndpointUrls` to `InfuraNetworkClientConfiguration` ([#5630](https://github.com/MetaMask/core/pull/5630))
+- **BREAKING:** Add required property `failoverUrls` to `RpcEndpoint` ([#5630](https://github.com/MetaMask/core/pull/5630))
+- **BREAKING:** Add required property `failoverRpcUrls` to `NetworkClientConfiguration` ([#5630](https://github.com/MetaMask/core/pull/5630))
 - Synchronize retry logic and error handling behavior between Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
   - A request to a custom endpoint that returns a 418 response will no longer return a JSON-RPC response with the error "Request is being rate limited"
   - A request to a custom endpoint that returns a 429 response now returns a JSON-RPC response with the error "Request is being rate limited"

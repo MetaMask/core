@@ -4,7 +4,6 @@ import {
   withMockedCommunications,
   withNetworkClient,
 } from './helpers';
-import { NetworkClientType } from '../../src';
 
 type TestsForRpcMethodAssumingNoBlockParamOptions = {
   providerType: ProviderType;

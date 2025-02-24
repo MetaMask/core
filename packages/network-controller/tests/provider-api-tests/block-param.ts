@@ -6,7 +6,6 @@ import {
   withMockedCommunications,
   withNetworkClient,
 } from './helpers';
-import { NetworkClientType } from '../../src';
 
 type TestsForRpcMethodSupportingBlockParam = {
   providerType: ProviderType;
