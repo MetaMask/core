@@ -131,16 +131,15 @@ linkStyle default opacity:0.5
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
   bridge_controller --> polling_controller;
-  bridge_controller --> json_rpc_engine;
-  bridge_controller --> transaction_controller;
   bridge_controller --> accounts_controller;
   bridge_controller --> eth_json_rpc_provider;
   bridge_controller --> network_controller;
+  bridge_controller --> transaction_controller;
   bridge_status_controller --> base_controller;
+  bridge_status_controller --> bridge_controller;
   bridge_status_controller --> controller_utils;
   bridge_status_controller --> polling_controller;
   bridge_status_controller --> accounts_controller;
-  bridge_status_controller --> bridge_controller;
   bridge_status_controller --> network_controller;
   bridge_status_controller --> transaction_controller;
   composable_controller --> base_controller;
@@ -210,6 +209,8 @@ linkStyle default opacity:0.5
   rate_limit_controller --> base_controller;
   remote_feature_flag_controller --> base_controller;
   remote_feature_flag_controller --> controller_utils;
+  sample_controllers --> base_controller;
+  sample_controllers --> controller_utils;
   selected_network_controller --> base_controller;
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
