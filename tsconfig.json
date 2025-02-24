@@ -13,6 +13,8 @@
     { "path": "./packages/approval-controller" },
     { "path": "./packages/assets-controllers" },
     { "path": "./packages/base-controller" },
+    { "path": "./packages/bridge-controller" },
+    { "path": "./packages/bridge-status-controller" },
     { "path": "./packages/build-utils" },
     { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },

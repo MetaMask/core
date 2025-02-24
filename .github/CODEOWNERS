@@ -39,6 +39,7 @@
 
 ## Swaps-Bridge Team
 /packages/bridge-controller                @MetaMask/swaps-engineers
+/packages/bridge-status-controller        @MetaMask/swaps-engineers
 
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
@@ -124,3 +125,5 @@
 /packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
 /packages/remote-feature-flag-controller/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
 /packages/remote-feature-flag-controller/CHANGELOG.md @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
+/packages/bridge-status-controller/package.json         @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
+/packages/bridge-status-controller/CHANGELOG.md         @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers

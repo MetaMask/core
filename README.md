@@ -27,6 +27,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
+- [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
@@ -76,6 +77,7 @@ linkStyle default opacity:0.5
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
   bridge_controller(["@metamask/bridge-controller"]);
+  bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
   composable_controller(["@metamask/composable-controller"]);
   controller_utils(["@metamask/controller-utils"]);
@@ -129,11 +131,18 @@ linkStyle default opacity:0.5
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
   bridge_controller --> polling_controller;
+  bridge_controller --> json_rpc_engine;
+  bridge_controller --> transaction_controller;
   bridge_controller --> accounts_controller;
   bridge_controller --> eth_json_rpc_provider;
-  bridge_controller --> json_rpc_engine;
   bridge_controller --> network_controller;
-  bridge_controller --> transaction_controller;
+  bridge_status_controller --> base_controller;
+  bridge_status_controller --> controller_utils;
+  bridge_status_controller --> polling_controller;
+  bridge_status_controller --> accounts_controller;
+  bridge_status_controller --> bridge_controller;
+  bridge_status_controller --> network_controller;
+  bridge_status_controller --> transaction_controller;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
   earn_controller --> base_controller;

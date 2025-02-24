@@ -1,0 +1,85 @@
+{
+  "name": "@metamask/bridge-status-controller",
+  "version": "1.0.0",
+  "description": "Manages bridge-related status fetching functionality for MetaMask",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/bridge-status-controller#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/bridge-status-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/bridge-status-controller",
+    "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^8.0.0",
+    "@metamask/bridge-controller": "^1.0.0",
+    "@metamask/controller-utils": "^11.5.0",
+    "@metamask/polling-controller": "^12.0.3",
+    "@metamask/utils": "^11.2.0"
+  },
+  "devDependencies": {
+    "@metamask/accounts-controller": "^24.0.1",
+    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/network-controller": "^22.2.1",
+    "@metamask/transaction-controller": "^46.0.0",
+    "@types/jest": "^27.4.1",
+    "deepmerge": "^4.2.2",
+    "jest": "^27.5.1",
+    "jest-environment-jsdom": "^27.5.1",
+    "lodash": "^4.17.21",
+    "nock": "^13.3.1",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~5.2.2"
+  },
+  "peerDependencies": {
+    "@metamask/accounts-controller": "^24.0.0",
+    "@metamask/bridge-controller": "^1.0.0",
+    "@metamask/network-controller": "^22.0.0",
+    "@metamask/transaction-controller": "^46.0.0"
+  },
+  "engines": {
+    "node": "^18.18 || >=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
+}

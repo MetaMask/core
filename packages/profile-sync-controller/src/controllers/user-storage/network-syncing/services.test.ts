@@ -7,14 +7,14 @@ import {
 import type { RemoteNetworkConfiguration } from './types';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import {
-  MOCK_STORAGE_KEY,
-  createMockAllFeatureEntriesResponse,
-} from '../__fixtures__';
-import {
   mockEndpointBatchUpsertUserStorage,
   mockEndpointGetUserStorageAllFeatureEntries,
   mockEndpointUpsertUserStorage,
 } from '../__fixtures__/mockServices';
+import {
+  MOCK_STORAGE_KEY,
+  createMockAllFeatureEntriesResponse,
+} from '../mocks';
 import type { UserStorageBaseOptions } from '../services';
 
 const storageOpts: UserStorageBaseOptions = {
