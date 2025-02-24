@@ -1,13 +1,9 @@
 import {
-  MOCK_ACCESS_TOKEN,
-  MOCK_JWT,
-  MOCK_NONCE,
-} from './__fixtures__/mockResponses';
-import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
 } from './__fixtures__/mockServices';
+import { MOCK_ACCESS_TOKEN, MOCK_JWT, MOCK_NONCE } from './mocks/mockResponses';
 import {
   createLoginRawMessage,
   getAccessToken,
