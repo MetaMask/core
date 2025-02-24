@@ -1337,6 +1337,7 @@ describe('NftDetectionController', () => {
       configuration: {
         chainId: ChainId.mainnet,
         rpcUrl: 'https://test.network',
+        failoverRpcUrls: [],
         ticker: 'TEST',
         type: NetworkClientType.Custom,
       },
