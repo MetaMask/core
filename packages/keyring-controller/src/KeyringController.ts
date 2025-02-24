@@ -1217,9 +1217,15 @@ export class KeyringController extends BaseController<
       | Hex
       | undefined;
 
+    if (contractAddress === undefined) {
+      throw new Error(
+        KeyringControllerError.MissingEip7702AuthorizationContractAddress,
+      );
+    }
+
     return await keyring.signEip7702Authorization(from, [
       chainId,
-      contractAddress as Hex,
+      contractAddress,
       nonce,
     ]);
   }
