@@ -1454,3 +1454,25 @@ export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
   batchId: string;
 };
+
+/**
+ * Data returned from custom logic to publish a transaction.
+ */
+export type PublishHookResult = {
+  /**
+   * The hash of the transaction on the network.
+   */
+  transactionHash?: string;
+};
+
+/**
+ * Custom logic to publish a transaction.
+ *
+ * @param transactionMeta - The metadata of the transaction to publish.
+ * @param signedTx - The signed transaction data to publish.
+ * @returns The result of the publish operation.
+ */
+export type PublishHook = (
+  transactionMeta: TransactionMeta,
+  signedTx: string,
+) => Promise<PublishHookResult>;
