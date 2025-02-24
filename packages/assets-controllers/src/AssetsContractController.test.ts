@@ -73,7 +73,7 @@ async function setupAssetContractControllers({
   const networkClientConfiguration: InfuraNetworkClientConfiguration = {
     type: NetworkClientType.Infura,
     network: NetworkType.mainnet,
-    failoverEndpointUrls: [],
+    failoverRpcUrls: [],
     infuraProjectId,
     chainId: BUILT_IN_NETWORKS.mainnet.chainId,
     ticker: BUILT_IN_NETWORKS.mainnet.ticker,
@@ -1093,7 +1093,7 @@ describe('AssetsContractController', () => {
         ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
-        failoverEndpointUrls: [],
+        failoverRpcUrls: [],
         infuraProjectId: networkClientConfiguration.infuraProjectId,
       },
       mocks: [
