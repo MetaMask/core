@@ -6,6 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.3.0]
+### Added
+- Support EIP-5792 ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/359))
+  - Add support for RPC methods:
+    - `wallet_sendCalls`
+    - `wallet_getCallsStatus`
+    - `wallet_getCapabilities`
+  - Add optional hooks to `WalletMiddlewareOptions`:
+    - `getCapabilities`
+    - `getTransactionReceiptsByBatchId`
+    - `processSendCalls`
+  - Add types:
+    - `GetCallsStatusParams`
+    - `GetCallsStatusReceipt`
+    - `GetCallsStatusResult`
+    - `GetCapabilitiesHook`
+    - `GetCapabilitiesParams`
+    - `GetCapabilitiesResult`
+    - `GetTransactionReceiptsByBatchIdHook`
+    - `ProcessSendCallsHook`
+    - `SendCalls`
+    - `SendCallsParams`
+
 ## [15.2.0]
 ### Added
 - Add a way to pass an RPC service to `createFetchMiddleware` ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/357))
@@ -259,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.3.0...HEAD
+[15.3.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.2.0...v15.3.0
 [15.2.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.2...v15.2.0
 [15.1.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.1...v15.1.2
 [15.1.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.0...v15.1.1
