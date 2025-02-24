@@ -37,6 +37,7 @@ function getRestrictedMessenger() {
 
 /**
  * Contruct a Phishing Controller with the given options if any.
+ *
  * @param options - The Phishing Controller options.
  * @returns The contstructed Phishing Controller.
  */

@@ -454,8 +454,7 @@
   },
   "packages/phishing-controller/src/PhishingController.test.ts": {
     "import-x/namespace": 36,
-    "import-x/no-named-as-default-member": 1,
-    "jsdoc/tag-lines": 1
+    "import-x/no-named-as-default-member": 1
   },
   "packages/phishing-controller/src/PhishingController.ts": {
     "jsdoc/check-tag-names": 42,
