@@ -67,23 +67,22 @@ const getNormalizedScopesObject = (
       let methods: string[] = [];
       let notifications: string[] = [];
 
-      if (namespace === KnownCaipNamespace.Wallet) {
-        if (!reference) {
-          methods = KnownWalletRpcMethods;
-        } else if (reference === KnownCaipNamespace.Eip155) {
+      if (
+        scopeString === KnownCaipNamespace.Wallet ||
+        namespace === KnownCaipNamespace.Wallet
+      ) {
+        if (reference === KnownCaipNamespace.Eip155) {
           methods = KnownWalletNamespaceRpcMethods[reference];
+        } else if (isCaipChainId(scopeString)) {
+          methods = getNonEvmSupportedMethods(scopeString);
         } else {
-          methods = isCaipChainId(scopeString)
-            ? getNonEvmSupportedMethods(scopeString)
-            : [];
+          methods = KnownWalletRpcMethods;
         }
       } else if (namespace === KnownCaipNamespace.Eip155) {
         methods = KnownRpcMethods[namespace];
         notifications = KnownNotifications[namespace];
       } else {
-        methods = isCaipChainId(scopeString)
-          ? getNonEvmSupportedMethods(scopeString)
-          : [];
+        methods = getNonEvmSupportedMethods(scopeString);
         notifications = [];
       }
 
