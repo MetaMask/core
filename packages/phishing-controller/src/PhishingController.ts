@@ -643,16 +643,17 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
-    if (this.state.phishingLists.length === 0) {
-      return;
-    }
-
-    const lastDiffTimestamp = Math.max(
-      ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
-    );
     let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
     try {
+      if (this.state.phishingLists.length === 0) {
+        return;
+      }
+
+      const lastDiffTimestamp = Math.max(
+        ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
+      );
+
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
         `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
       );

@@ -36,10 +36,10 @@ function getRestrictedMessenger() {
 }
 
 /**
- * Contruct a Phishing Controller with the given options if any.
+ * Construct a Phishing Controller with the given options if any.
  *
  * @param options - The Phishing Controller options.
- * @returns The contstructed Phishing Controller.
+ * @returns The constructed Phishing Controller.
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
@@ -181,6 +181,20 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController({
       hotlistRefreshInterval: 10,
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            lastUpdated: 1,
+            name: ListNames.MetaMask,
+            version: 0,
+          },
+        ],
+      },
     });
     clock.tick(1000 * 10);
     const pendingUpdate = controller.updateHotlist();
@@ -492,6 +506,20 @@ describe('PhishingController', () => {
       const clock = sinon.useFakeTimers();
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 0,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+              version: 0,
+            },
+          ],
+        },
       });
       clock.tick(1000 * 10);
       const pendingUpdate = controller.updateHotlist();
