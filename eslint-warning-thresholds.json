@@ -504,10 +504,6 @@
     "jsdoc/check-tag-names": 2,
     "prettier/prettier": 1
   },
-  "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.test.ts": {
-    "jest/no-conditional-in-test": 1,
-    "prettier/prettier": 2
-  },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
     "jsdoc/tag-lines": 2
   },
