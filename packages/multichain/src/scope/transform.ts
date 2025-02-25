@@ -5,7 +5,6 @@ import type {
   ExternalScopeObject,
   ExternalScopesObject,
   InternalScopesObject,
-  InternalScopeString,
   NormalizedScopeObject,
   NormalizedScopesObject,
 } from './types';

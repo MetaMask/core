@@ -27,7 +27,6 @@ import { isSupportedScopeString } from './scope/supported';
 import { mergeInternalScopes } from './scope/transform';
 import {
   parseScopeString,
-  type InternalScopeString,
   type ExternalScopeString,
   type InternalScopeObject,
   type InternalScopesObject,
