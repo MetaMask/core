@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: rename notification exported `__fixtures__` folder to `mocks` ([#5379](https://github.com/MetaMask/core/pull/5379))
+
 ## [1.0.0]
 
 ### Added
