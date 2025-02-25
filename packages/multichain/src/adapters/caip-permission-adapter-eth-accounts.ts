@@ -93,11 +93,7 @@ const setEthAccountsForScopesObject = (
     }
 
     let caipAccounts: CaipAccountId[] = [];
-    if (isWalletNamespace) {
-      caipAccounts = accounts.map<CaipAccountId>(
-        (account) => `${KnownWalletScopeString.Eip155}:${account}`,
-      );
-    } else if (namespace && reference) {
+    if (namespace && reference) {
       caipAccounts = accounts.map<CaipAccountId>(
         (account) => `${namespace}:${reference}:${account}`,
       );

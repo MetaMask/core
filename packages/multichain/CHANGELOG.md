@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0]
+
+### Changed
+
+- Bump @metamask/utils from ^11.1.0 to ^11.2.0 ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+### Fixed
+
+- Fixes scope creation to not insert accounts into `wallet` scope ([#5374](https://github.com/MetaMask/core/pull/5374))
+- Fixes invalid type import path in `@metamask/multichain` ([#5313](https://github.com/MetaMask/core/pull/5313))
+
 ## [2.1.1]
 
 ### Changed
@@ -74,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.2.0...HEAD
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.1...@metamask/multichain@2.2.0
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.0...@metamask/multichain@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.0.0...@metamask/multichain@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.2...@metamask/multichain@2.0.0

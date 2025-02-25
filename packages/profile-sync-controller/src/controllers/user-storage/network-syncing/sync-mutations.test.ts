@@ -8,11 +8,11 @@ import {
   updateNetwork,
 } from './sync-mutations';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
-import { MOCK_STORAGE_KEY } from '../__fixtures__';
 import {
   mockEndpointBatchUpsertUserStorage,
   mockEndpointUpsertUserStorage,
 } from '../__fixtures__/mockServices';
+import { MOCK_STORAGE_KEY } from '../mocks';
 import type { UserStorageBaseOptions } from '../services';
 
 const storageOpts: UserStorageBaseOptions = {
