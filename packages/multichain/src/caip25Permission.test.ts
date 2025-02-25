@@ -996,7 +996,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
         mergedValue,
-        'optionalScopes',
+        'requiredScopes',
       );
 
       expect(diff).toStrictEqual(expectedDiff);
@@ -1041,7 +1041,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
         mergedValue,
-        'optionalScopes',
+        'requiredScopes',
       );
 
       expect(diff).toStrictEqual(expectedDiff);
@@ -1086,7 +1086,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
         mergedValue,
-        'optionalScopes',
+        'requiredScopes',
       );
 
       expect(diff).toStrictEqual(expectedDiff);
@@ -1134,7 +1134,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
       const diff = diffScopesForCaip25CaveatValue(
         leftValue,
         mergedValue,
-        'optionalScopes',
+        'requiredScopes',
       );
 
       expect(diff).toStrictEqual(expectedDiff);
