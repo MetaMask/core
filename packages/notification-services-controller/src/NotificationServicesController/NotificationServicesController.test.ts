@@ -9,39 +9,35 @@ import type { UserStorageController } from '@metamask/profile-sync-controller';
 import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import { createMockSnapNotification } from './__fixtures__';
-import {
-  createMockFeatureAnnouncementAPIResult,
-  createMockFeatureAnnouncementRaw,
-} from './__fixtures__/mock-feature-announcements';
-import {
-  MOCK_USER_STORAGE_ACCOUNT,
-  createMockFullUserStorage,
-  createMockUserStorageWithTriggers,
-} from './__fixtures__/mock-notification-user-storage';
-import { createMockNotificationEthSent } from './__fixtures__/mock-raw-notifications';
 import { ADDRESS_1, ADDRESS_2 } from './__fixtures__/mockAddresses';
 import {
-  mockFetchFeatureAnnouncementNotifications,
   mockBatchCreateTriggers,
   mockBatchDeleteTriggers,
+  mockFetchFeatureAnnouncementNotifications,
   mockListNotifications,
   mockMarkNotificationsAsRead,
 } from './__fixtures__/mockServices';
 import { waitFor } from './__fixtures__/test-utils';
 import { TRIGGER_TYPES } from './constants';
+import { createMockSnapNotification } from './mocks';
+import {
+  createMockFeatureAnnouncementAPIResult,
+  createMockFeatureAnnouncementRaw,
+} from './mocks/mock-feature-announcements';
+import {
+  MOCK_USER_STORAGE_ACCOUNT,
+  createMockFullUserStorage,
+  createMockUserStorageWithTriggers,
+} from './mocks/mock-notification-user-storage';
+import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
 import NotificationServicesController, {
   defaultState,
 } from './NotificationServicesController';
 import type {
   AllowedActions,
   AllowedEvents,
-  NotificationServicesPushControllerEnablePushNotifications,
-  NotificationServicesPushControllerDisablePushNotifications,
-  NotificationServicesPushControllerUpdateTriggerPushNotifications,
   NotificationServicesControllerMessenger,
   NotificationServicesControllerState,
-  NotificationServicesPushControllerSubscribeToNotifications,
 } from './NotificationServicesController';
 import { processFeatureAnnouncement } from './processors';
 import { processNotification } from './processors/process-notifications';
@@ -50,6 +46,12 @@ import * as OnChainNotifications from './services/onchain-notifications';
 import type { INotification } from './types';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
+import type {
+  NotificationServicesPushControllerDisablePushNotificationsAction,
+  NotificationServicesPushControllerEnablePushNotificationsAction,
+  NotificationServicesPushControllerSubscribeToNotificationsAction,
+  NotificationServicesPushControllerUpdateTriggerPushNotificationsAction,
+} from '../NotificationServicesPushController';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -206,7 +208,7 @@ describe('metamask-notifications - constructor()', () => {
     return mocks;
   };
 
-  it('initializes push notifications', async () => {
+  it('initialises push notifications', async () => {
     const { mockEnablePushNotifications } =
       arrangeActInitialisePushNotifications();
 
@@ -471,7 +473,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
     const {
       messenger,
       nockMockDeleteTriggersAPI,
-      mockDisablePushNotifications,
+      mockUpdateTriggerPushNotifications,
     } = arrangeMocks();
     const controller = new NotificationServicesController({
       messenger,
@@ -482,7 +484,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
     ]);
     expect(Utils.traverseUserStorageTriggers(result)).toHaveLength(0);
     expect(nockMockDeleteTriggersAPI.isDone()).toBe(true);
-    expect(mockDisablePushNotifications).toHaveBeenCalled();
+    expect(mockUpdateTriggerPushNotifications).toHaveBeenCalled();
   });
 
   it('does nothing if account does not exist in storage', async () => {
@@ -1017,6 +1019,7 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     // Act - final state
     expect(controller.state.isUpdatingMetamaskNotifications).toBe(false);
     expect(controller.state.isNotificationServicesEnabled).toBe(false);
+    expect(controller.state.isFeatureAnnouncementsEnabled).toBe(false);
     expect(controller.state.metamaskNotificationsList).toStrictEqual([
       createMockSnapNotification(),
     ]);
@@ -1065,6 +1068,73 @@ describe('metamask-notifications - updateMetamaskNotificationsList', () => {
   });
 });
 
+describe('metamask-notifications - enablePushNotifications', () => {
+  const arrangeMocks = () => {
+    const messengerMocks = mockNotificationMessenger();
+    return messengerMocks;
+  };
+
+  it('calls push controller and enables notifications for accounts that have subscribed to notifications', async () => {
+    const { messenger, mockPerformGetStorage, mockEnablePushNotifications } =
+      arrangeMocks();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { isNotificationServicesEnabled: true },
+    });
+
+    // Act
+    await controller.enablePushNotifications();
+
+    // Assert
+    expect(mockPerformGetStorage).toHaveBeenCalled();
+    expect(mockEnablePushNotifications).toHaveBeenCalled();
+  });
+
+  it('throws error if fails to get notification triggers', async () => {
+    const { messenger, mockPerformGetStorage, mockEnablePushNotifications } =
+      arrangeMocks();
+
+    // Mock no storage
+    mockPerformGetStorage.mockResolvedValue(null);
+
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { isNotificationServicesEnabled: true },
+    });
+
+    // Act
+    await expect(() => controller.enablePushNotifications()).rejects.toThrow(
+      expect.any(Error),
+    );
+
+    expect(mockEnablePushNotifications).not.toHaveBeenCalled();
+  });
+});
+
+describe('metamask-notifications - disablePushNotifications', () => {
+  const arrangeMocks = () => {
+    const messengerMocks = mockNotificationMessenger();
+    return messengerMocks;
+  };
+
+  it('calls push controller and enables notifications for accounts that have subscribed to notifications', async () => {
+    const { messenger, mockDisablePushNotifications } = arrangeMocks();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { isNotificationServicesEnabled: true },
+    });
+
+    // Act
+    await controller.disablePushNotifications();
+
+    // Assert
+    expect(mockDisablePushNotifications).toHaveBeenCalled();
+  });
+});
+
 // Type-Computation - we are extracting args and parameters from a generic type utility
 // Thus this `AnyFunc` can be used to help constrain the generic parameters correctly
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1101,6 +1171,7 @@ function mockNotificationMessenger() {
       'KeyringController:lock',
       'KeyringController:unlock',
       'NotificationServicesPushController:onNewNotifications',
+      'NotificationServicesPushController:stateChange',
     ],
   });
 
@@ -1123,16 +1194,16 @@ function mockNotificationMessenger() {
     );
 
   const mockDisablePushNotifications =
-    typedMockAction<NotificationServicesPushControllerDisablePushNotifications>();
+    typedMockAction<NotificationServicesPushControllerDisablePushNotificationsAction>();
 
   const mockEnablePushNotifications =
-    typedMockAction<NotificationServicesPushControllerEnablePushNotifications>();
+    typedMockAction<NotificationServicesPushControllerEnablePushNotificationsAction>();
 
   const mockUpdateTriggerPushNotifications =
-    typedMockAction<NotificationServicesPushControllerUpdateTriggerPushNotifications>();
+    typedMockAction<NotificationServicesPushControllerUpdateTriggerPushNotificationsAction>();
 
   const mockSubscribeToPushNotifications =
-    typedMockAction<NotificationServicesPushControllerSubscribeToNotifications>();
+    typedMockAction<NotificationServicesPushControllerSubscribeToNotificationsAction>();
 
   const mockGetStorageKey =
     typedMockAction<UserStorageController.UserStorageControllerGetStorageKey>().mockResolvedValue(
@@ -1184,7 +1255,7 @@ function mockNotificationMessenger() {
       actionType ===
       'NotificationServicesPushController:disablePushNotifications'
     ) {
-      return mockDisablePushNotifications(params[0]);
+      return mockDisablePushNotifications();
     }
 
     if (

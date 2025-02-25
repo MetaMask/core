@@ -1,11 +1,9 @@
 import * as endpoints from './endpoints';
-import type { CreateRegToken, DeleteRegToken } from './push';
-import {
-  listenToPushNotificationsClicked,
-  listenToPushNotificationsReceived,
-} from './push/push-web';
-import type { Types } from '../../NotificationServicesController';
 import type { PushNotificationEnv } from '../types';
+import type {
+  CreateRegToken,
+  DeleteRegToken,
+} from '../types/push-service-interface';
 
 export type RegToken = {
   token: string;
@@ -17,7 +15,6 @@ export type RegToken = {
  */
 export type LinksResult = {
   trigger_ids: string[];
-
   registration_tokens: RegToken[];
 };
 
@@ -62,7 +59,6 @@ type ActivatePushNotificationsParams = {
   env: PushNotificationEnv;
   createRegToken: CreateRegToken;
   platform: 'extension' | 'mobile' | 'portfolio';
-  fcmToken?: string;
 };
 
 /**
@@ -74,10 +70,9 @@ type ActivatePushNotificationsParams = {
 export async function activatePushNotifications(
   params: ActivatePushNotificationsParams,
 ): Promise<string | null> {
-  const { bearerToken, triggers, env, createRegToken, platform, fcmToken } =
-    params;
+  const { bearerToken, triggers, env, createRegToken, platform } = params;
 
-  const regToken = fcmToken ?? (await createRegToken(env).catch(() => null));
+  const regToken = await createRegToken(env).catch(() => null);
   if (!regToken) {
     return null;
   }
@@ -147,8 +142,7 @@ type UpdateTriggerPushNotificationsParams = {
 export async function updateTriggerPushNotifications(
   params: UpdateTriggerPushNotificationsParams,
 ): Promise<{
-  isTriggersLinkedToPushNotifications: boolean;
-  fcmToken?: string | null;
+  fcmToken: string;
 }> {
   const {
     bearerToken,
@@ -165,56 +159,14 @@ export async function updateTriggerPushNotifications(
     throw new Error('Failed to create a new registration token');
   }
 
-  const isTriggersLinkedToPushNotifications = await updateLinksAPI(
-    bearerToken,
-    triggers,
-    [{ token: newRegToken, platform }],
-  );
+  const linksNotUpdated = await updateLinksAPI(bearerToken, triggers, [
+    { token: newRegToken, platform },
+  ]);
+  if (!linksNotUpdated) {
+    throw new Error('Failed to create links to new reg token');
+  }
 
   return {
-    isTriggersLinkedToPushNotifications,
     fcmToken: newRegToken,
   };
-}
-
-type ListenToPushNotificationsParams = {
-  env: PushNotificationEnv;
-  listenToPushReceived: (
-    notification: Types.INotification,
-  ) => void | Promise<void>;
-  listenToPushClicked: (
-    event: NotificationEvent,
-    notification?: Types.INotification,
-  ) => void;
-};
-
-/**
- * Listens to push notifications and invokes the provided callback function with the received notification data.
- *
- * @param params - listen params
- * @returns A promise that resolves to an unsubscribe function to stop listening to push notifications.
- */
-export async function listenToPushNotifications(
-  params: ListenToPushNotificationsParams,
-): Promise<() => void> {
-  const { env, listenToPushReceived, listenToPushClicked } = params;
-
-  /*
-  Push notifications require 2 listeners that need tracking (when creating and for tearing down):
-  1. handling receiving a push notification (and the content we want to display)
-  2. handling when a user clicks on a push notification
-  */
-  const unsubscribePushNotifications = await listenToPushNotificationsReceived(
-    env,
-    listenToPushReceived,
-  );
-  const unsubscribeNotificationClicks =
-    listenToPushNotificationsClicked(listenToPushClicked);
-
-  const unsubscribe = () => {
-    unsubscribePushNotifications?.();
-    unsubscribeNotificationClicks();
-  };
-
-  return unsubscribe;
 }

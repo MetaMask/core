@@ -91,6 +91,7 @@ export type ScopedProperties = Record<CaipChainId, Record<string, Json>> & {
 
 /**
  * Parses a scope string into a namespace and reference.
+ *
  * @param scopeString - The scope string to parse.
  * @returns An object containing the namespace and reference.
  */

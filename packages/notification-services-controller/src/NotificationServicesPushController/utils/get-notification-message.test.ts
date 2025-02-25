@@ -17,7 +17,7 @@ import {
   createMockNotificationMetaMaskSwapsCompleted,
   createMockNotificationRocketPoolStakeCompleted,
   createMockNotificationRocketPoolUnStakeCompleted,
-} from '../../NotificationServicesController/__fixtures__';
+} from '../../NotificationServicesController/mocks';
 
 const mockTranslations: TranslationKeys = {
   pushPlatformNotificationsFundsSentTitle: () => 'Funds sent',

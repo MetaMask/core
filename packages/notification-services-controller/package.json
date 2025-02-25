@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.21.0",
+  "version": "1.0.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -49,12 +49,12 @@
     },
     "./notification-services/mocks": {
       "import": {
-        "types": "./dist/NotificationServicesController/__fixtures__/index.d.mts",
-        "default": "./dist/NotificationServicesController/__fixtures__/index.mjs"
+        "types": "./dist/NotificationServicesController/mocks/index.d.mts",
+        "default": "./dist/NotificationServicesController/mocks/index.mjs"
       },
       "require": {
-        "types": "./dist/NotificationServicesController/__fixtures__/index.d.cts",
-        "default": "./dist/NotificationServicesController/__fixtures__/index.cjs"
+        "types": "./dist/NotificationServicesController/mocks/index.d.cts",
+        "default": "./dist/NotificationServicesController/mocks/index.cjs"
       }
     },
     "./push-services": {
@@ -67,14 +67,24 @@
         "default": "./dist/NotificationServicesPushController/index.cjs"
       }
     },
-    "./push-services/mocks": {
+    "./push-services/web": {
       "import": {
-        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.mts",
-        "default": "./dist/NotificationServicesPushController/__fixtures__/index.mjs"
+        "types": "./dist/NotificationServicesPushController/web/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/web/index.mjs"
       },
       "require": {
-        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.cts",
-        "default": "./dist/NotificationServicesPushController/__fixtures__/index.cjs"
+        "types": "./dist/NotificationServicesPushController/web/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/web/index.cjs"
+      }
+    },
+    "./push-services/mocks": {
+      "import": {
+        "types": "./dist/NotificationServicesPushController/mocks/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/mocks/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/mocks/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/mocks/index.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -112,8 +122,8 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.2.0",
-    "@metamask/profile-sync-controller": "^8.1.0",
+    "@metamask/keyring-controller": "^19.2.1",
+    "@metamask/profile-sync-controller": "^8.1.1",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "contentful": "^10.15.0",
