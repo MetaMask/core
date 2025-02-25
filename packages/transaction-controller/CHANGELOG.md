@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Add methods:
+    - `addTransactionBatch`
+    - `isAtomicBatchSupported`
+  - Add `batch` to `TransactionType`.
+  - Add `nestedTransactions` to `TransactionMeta`.
+  - Add new types:
+    - `BatchTransactionParams`
+    - `TransactionBatchSingleRequest`
+    - `TransactionBatchRequest`
+    - `TransactionBatchResult`
+  - Add dependency on `@metamask/remote-feature-flag-controller:^1.4.0`.
+
+### Changed
+
+- **BREAKING:** Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Require `AccountsController:getState` action permission in messenger.
+  - Require `RemoteFeatureFlagController:getState` action permission in messenger.
+
+## [46.0.0]
+
+### Added
+
+- Adds ability of re-simulating transaction depending on the `isActive` property on `transactionMeta` ([#5189](https://github.com/MetaMask/core/pull/5189))
+  - `isActive` property is expected to set by client.
+  - Re-simulation of transactions will occur every 3 seconds if `isActive` is `true`.
+- Adds `setTransactionActive` function to update the `isActive` property on `transactionMeta`. ([#5189](https://github.com/MetaMask/core/pull/5189))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.0.0` to `^24.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
+
 ## [45.1.0]
 
 ### Added
@@ -1277,7 +1311,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@46.0.0...HEAD
+[46.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.1.0...@metamask/transaction-controller@46.0.0
 [45.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.0.0...@metamask/transaction-controller@45.1.0
 [45.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.1.0...@metamask/transaction-controller@45.0.0
 [44.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...@metamask/transaction-controller@44.1.0

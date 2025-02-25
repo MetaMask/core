@@ -26,6 +26,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/approval-controller`](packages/approval-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
+- [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/build-utils`](packages/build-utils)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/controller-utils`](packages/controller-utils)
@@ -39,6 +40,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/multichain`](packages/multichain)
+- [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
@@ -85,6 +87,7 @@ linkStyle default opacity:0.5
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   multichain(["@metamask/multichain"]);
+  multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
@@ -105,6 +108,7 @@ linkStyle default opacity:0.5
   user_operation_controller(["@metamask/user-operation-controller"]);
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
+  accounts_controller --> network_controller;
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
@@ -116,10 +120,15 @@ linkStyle default opacity:0.5
   assets_controllers --> approval_controller;
   assets_controllers --> keyring_controller;
   assets_controllers --> network_controller;
+  assets_controllers --> permission_controller;
   assets_controllers --> preferences_controller;
   base_controller --> json_rpc_engine;
   composable_controller --> base_controller;
   composable_controller --> json_rpc_engine;
+  earn_controller --> base_controller;
+  earn_controller --> controller_utils;
+  earn_controller --> accounts_controller;
+  earn_controller --> network_controller;
   ens_controller --> base_controller;
   ens_controller --> controller_utils;
   ens_controller --> network_controller;
@@ -136,8 +145,15 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   multichain --> controller_utils;
+  multichain --> json_rpc_engine;
   multichain --> network_controller;
   multichain --> permission_controller;
+  multichain_network_controller --> base_controller;
+  multichain_network_controller --> keyring_controller;
+  multichain_transactions_controller --> base_controller;
+  multichain_transactions_controller --> polling_controller;
+  multichain_transactions_controller --> accounts_controller;
+  multichain_transactions_controller --> keyring_controller;
   name_controller --> base_controller;
   name_controller --> controller_utils;
   network_controller --> base_controller;
@@ -184,6 +200,7 @@ linkStyle default opacity:0.5
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> network_controller;
+  token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
   transaction_controller --> accounts_controller;

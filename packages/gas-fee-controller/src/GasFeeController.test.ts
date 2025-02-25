@@ -80,6 +80,8 @@ const setupNetworkController = async ({
     messenger: restrictedMessenger,
     state,
     infuraProjectId: '123',
+    fetch,
+    btoa,
   });
 
   if (initializeProvider) {

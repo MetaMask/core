@@ -10,8 +10,10 @@ import type { AbstractTokenSearchApiService } from './token-search-api-service/a
 import type {
   TokenSearchParams,
   TokenSearchResponseItem,
-  TokenTrendingResponseItem,
+  MoralisTokenResponseItem,
   TrendingTokensParams,
+  TopGainersParams,
+  TopLosersParams,
 } from './types';
 
 // === GENERAL ===
@@ -154,7 +156,19 @@ export class TokenSearchDiscoveryController extends BaseController<
 
   async getTrendingTokens(
     params: TrendingTokensParams,
-  ): Promise<TokenTrendingResponseItem[]> {
+  ): Promise<MoralisTokenResponseItem[]> {
     return this.#tokenDiscoveryService.getTrendingTokensByChains(params);
+  }
+
+  async getTopGainers(
+    params: TopGainersParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenDiscoveryService.getTopGainersByChains(params);
+  }
+
+  async getTopLosers(
+    params: TopLosersParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenDiscoveryService.getTopLosersByChains(params);
   }
 }
