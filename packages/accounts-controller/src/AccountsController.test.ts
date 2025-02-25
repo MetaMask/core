@@ -2438,17 +2438,76 @@ describe('AccountsController', () => {
   });
 
   describe('listMultichainAccounts', () => {
-    const mockNonEvmAccount = createMockInternalAccount({
-      id: 'mock-id-non-evm',
-      address: 'mock-non-evm-address',
+    const mockErc4337MainnetAccount = createMockInternalAccount({
+      id: 'mock-erc4337-mainnet-id',
+      address: 'mock-erc4337-mainnet-address',
+      type: EthAccountType.Erc4337,
+      scopes: [EthScope.Mainnet],
+    });
+    const mockErc4337TestnetAccount = createMockInternalAccount({
+      id: 'mock-erc4337-testnet-id',
+      address: 'mock-erc4337-testnet-address',
+      type: EthAccountType.Erc4337,
+      scopes: [EthScope.Testnet],
+    });
+    const mockBtcMainnetAccount = createMockInternalAccount({
+      id: 'mock-btc-mainnet-id',
+      address: 'mock-btc-mainnet-address',
       type: BtcAccountType.P2wpkh,
       keyringType: KeyringTypes.snap,
+      scopes: [BtcScope.Mainnet],
+    });
+    const mockBtcMainnetAccount2 = createMockInternalAccount({
+      id: 'mock-btc-mainnet-id2',
+      address: 'mock-btc-mainnet-address2',
+      type: BtcAccountType.P2wpkh,
+      keyringType: KeyringTypes.snap,
+      scopes: [BtcScope.Mainnet],
+    });
+    const mockBtcTestnetAccount = createMockInternalAccount({
+      id: 'mock-btc-testnet-id',
+      address: 'mock-btc-testnet-address',
+      type: BtcAccountType.P2wpkh,
+      keyringType: KeyringTypes.snap,
+      scopes: [BtcScope.Testnet],
     });
 
     it.each([
-      [undefined, [mockAccount, mockAccount2, mockNonEvmAccount]],
-      ['eip155:1', [mockAccount, mockAccount2]],
-      ['bip122:000000000019d6689c085ae165831e93', [mockNonEvmAccount]],
+      [
+        undefined,
+        [
+          mockAccount,
+          mockAccount2,
+          mockErc4337MainnetAccount,
+          mockErc4337TestnetAccount,
+          mockBtcMainnetAccount,
+          mockBtcMainnetAccount2,
+          mockBtcTestnetAccount,
+        ],
+      ],
+      // EVM EOA matches: eip155:*
+      [
+        EthScope.Eoa,
+        [
+          mockAccount,
+          mockAccount2,
+          mockErc4337MainnetAccount,
+          mockErc4337TestnetAccount,
+        ],
+      ],
+      // EVM mainnet matches: eip155:0 (EOA) + eip155:1
+      [
+        EthScope.Mainnet,
+        [mockAccount, mockAccount2, mockErc4337MainnetAccount],
+      ],
+      // EVM testnet matches: eip155:0 (EOA) + eip155:11155111
+      [
+        EthScope.Testnet,
+        [mockAccount, mockAccount2, mockErc4337TestnetAccount],
+      ],
+      // Non-EVM: (there's no special case like eip155:0 for EOA in this case)
+      [BtcScope.Mainnet, [mockBtcMainnetAccount, mockBtcMainnetAccount2]],
+      [BtcScope.Testnet, [mockBtcTestnetAccount]],
     ])(`%s should return %s`, (chainId, expected) => {
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -2456,7 +2515,11 @@ describe('AccountsController', () => {
             accounts: {
               [mockAccount.id]: mockAccount,
               [mockAccount2.id]: mockAccount2,
-              [mockNonEvmAccount.id]: mockNonEvmAccount,
+              [mockErc4337MainnetAccount.id]: mockErc4337MainnetAccount,
+              [mockErc4337TestnetAccount.id]: mockErc4337TestnetAccount,
+              [mockBtcMainnetAccount.id]: mockBtcMainnetAccount,
+              [mockBtcMainnetAccount2.id]: mockBtcMainnetAccount2,
+              [mockBtcTestnetAccount.id]: mockBtcTestnetAccount,
             },
             selectedAccount: mockAccount.id,
           },

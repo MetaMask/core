@@ -6,7 +6,7 @@ import {
   EthScope,
   BtcScope,
 } from '@metamask/keyring-api';
-import type { KeyringAccountType } from '@metamask/keyring-api';
+import type { CaipChainId, KeyringAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 } from 'uuid';
@@ -33,6 +33,8 @@ export const createMockInternalAccount = ({
   name = 'Account 1',
   keyringType = KeyringTypes.hd,
   snap,
+  methods,
+  scopes,
   importTime = Date.now(),
   lastSelected = Date.now(),
 }: {
@@ -41,6 +43,8 @@ export const createMockInternalAccount = ({
   type?: KeyringAccountType;
   name?: string;
   keyringType?: KeyringTypes;
+  scopes?: CaipChainId[];
+  methods?: (EthMethod | BtcMethod)[];
   snap?: {
     id: string;
     enabled: boolean;
@@ -49,7 +53,7 @@ export const createMockInternalAccount = ({
   importTime?: number;
   lastSelected?: number;
 } = {}): InternalAccount => {
-  const getInternalAccountInfo = () => {
+  const getInternalAccountDefaults = () => {
     switch (type) {
       case `${EthAccountType.Eoa}`:
         return {
@@ -71,14 +75,14 @@ export const createMockInternalAccount = ({
     }
   };
 
-  const { methods, scopes } = getInternalAccountInfo();
+  const defaults = getInternalAccountDefaults();
 
   return {
     id,
     address,
     options: {},
-    methods,
-    scopes,
+    methods: methods ?? defaults.methods,
+    scopes: scopes ?? defaults.scopes,
     type,
     metadata: {
       name,
