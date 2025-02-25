@@ -2351,6 +2351,7 @@ __metadata:
     "@metamask/keyring-api": "npm:^17.2.0"
     "@metamask/keyring-controller": "npm:^19.2.1"
     "@metamask/keyring-internal-api": "npm:^4.0.3"
+    "@metamask/keyring-utils": "npm:^2.3.1"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/providers": "npm:^18.1.1"
     "@metamask/snaps-controllers": "npm:^9.19.0"
@@ -3427,6 +3428,18 @@ __metadata:
     "@metamask/utils": "npm:^11.1.0"
     bitcoin-address-validation: "npm:^2.2.3"
   checksum: 10/208881b054f3e346563d07e9f172515b0f5fb014d9ef718111915fdb69494052bdbe729fa56a983019fc3ca78cc24f9f286783720453c4cb31a9b1f7e96ea1b5
+  languageName: node
+  linkType: hard
+
+"@metamask/keyring-utils@npm:^2.3.1":
+  version: 2.3.1
+  resolution: "@metamask/keyring-utils@npm:2.3.1"
+  dependencies:
+    "@ethereumjs/tx": "npm:^4.2.0"
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^11.1.0"
+    bitcoin-address-validation: "npm:^2.2.3"
+  checksum: 10/4a11b780621d82ab2d3fe39fbaed0ea87c01139c925c4c26cb25e2361bd855eae1c7c8cf01a84d2030de3bbef65590caecfe538f37490f75cad8a0a65b318c95
   languageName: node
   linkType: hard
 
