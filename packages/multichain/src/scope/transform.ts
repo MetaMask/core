@@ -152,7 +152,7 @@ export const mergeInternalScopes = (
   const resultScope = cloneDeep(scopeA);
 
   Object.entries(scopeB).forEach(([scopeString, rightScopeObject]) => {
-    const internalScopeString = scopeString as InternalScopeString;
+    const internalScopeString = scopeString as keyof typeof scopeB;
     const leftRequiredScopeObject = resultScope[internalScopeString];
     if (!leftRequiredScopeObject) {
       resultScope[internalScopeString] = rightScopeObject;

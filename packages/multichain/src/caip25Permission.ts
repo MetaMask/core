@@ -87,10 +87,11 @@ export function diffScopesForCaip25CaveatValue(
 ): Caip25CaveatValue {
   const diff = cloneDeep(originalValue);
 
+  const mergedScopeToDiff = mergedValue[scopeToDiff];
   for (const [scopeString, mergedScopeObject] of Object.entries(
-    mergedValue[scopeToDiff],
+    mergedScopeToDiff,
   )) {
-    const internalScopeString = scopeString as InternalScopeString;
+    const internalScopeString = scopeString as keyof typeof mergedScopeToDiff;
     const originalScopeObject = diff[scopeToDiff][internalScopeString];
 
     if (originalScopeObject) {
