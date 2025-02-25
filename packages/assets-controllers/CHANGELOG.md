@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [51.0.2]
+
 ### Uncategorized
 
 - fix: not call the snap to get rates if assets are empty ([#5370](https://github.com/MetaMask/core.git/pull/5370))
@@ -1426,7 +1428,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@51.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@51.0.2...HEAD
+[51.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@51.0.1...@metamask/assets-controllers@51.0.2
 [51.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@51.0.0...@metamask/assets-controllers@51.0.1
 [51.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@50.0.0...@metamask/assets-controllers@51.0.0
 [50.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/assets-controllers@49.0.0...@metamask/assets-controllers@50.0.0
