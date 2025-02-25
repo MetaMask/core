@@ -445,7 +445,6 @@
     "import-x/order": 1
   },
   "packages/phishing-controller/src/PhishingController.test.ts": {
-    "import-x/namespace": 36,
     "import-x/no-named-as-default-member": 1,
     "jsdoc/tag-lines": 1
   },
@@ -466,7 +465,7 @@
   },
   "packages/phishing-controller/src/utils.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1,
-    "@typescript-eslint/no-unused-vars": 2
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/polling-controller/src/AbstractPollingController.ts": {
     "@typescript-eslint/prefer-readonly": 1
