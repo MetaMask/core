@@ -105,33 +105,46 @@ describe('user-segmentation-utils', () => {
     });
 
     describe('Distribution validation', () => {
-      it('produces uniform distribution across 1000 samples', () => {
+      it('produces roughly uniform distribution', () => {
         const samples = 1000;
-        const buckets = 10;
-        const tolerance = 0.3;
-        const distribution = new Array(buckets).fill(0);
+        const ranges = Array.from({ length: 10 }, (_, index) => ({
+          min: index * 0.1,
+          max: (index + 1) * 0.1,
+        }));
+        const distribution = new Array(ranges.length).fill(0);
+        let minValue = 1;
+        let maxValue = 0;
 
-        // Generate samples using valid UUIDs
+        // Generate samples
         Array.from({ length: samples }).forEach(() => {
           const uuid = uuidV4();
           const value = generateDeterministicRandomNumber(uuid);
-          const bucketIndex = Math.floor(value * buckets);
-          // Handle edge case where value === 1
-          distribution[
-            bucketIndex === buckets ? buckets - 1 : bucketIndex
-          ] += 1;
+
+          // Track min/max values while generating samples
+          minValue = Math.min(minValue, value);
+          maxValue = Math.max(maxValue, value);
+
+          // Track distribution
+          const distributionIndex = Math.floor(value * 10);
+          // Use array bounds instead of conditional
+          distribution[Math.min(distributionIndex, 9)] += 1;
         });
+
+        // Each range should have roughly 10% of the values and 30% deviation
+        const expectedPerRange = samples / ranges.length;
+        const allowedDeviation = expectedPerRange * 0.3;
 
         // Check distribution
-        const expectedPerBucket = samples / buckets;
-        const allowedDeviation = expectedPerBucket * tolerance;
-
         distribution.forEach((count) => {
-          const minExpected = Math.floor(expectedPerBucket - allowedDeviation);
-          const maxExpected = Math.ceil(expectedPerBucket + allowedDeviation);
-          expect(count).toBeGreaterThanOrEqual(minExpected);
-          expect(count).toBeLessThanOrEqual(maxExpected);
+          const min = Math.floor(expectedPerRange - allowedDeviation);
+          const max = Math.ceil(expectedPerRange + allowedDeviation);
+          expect(count).toBeGreaterThanOrEqual(min);
+          expect(count).toBeLessThanOrEqual(max);
         });
+
+        // Check range coverage
+        expect(minValue).toBeLessThan(0.1);
+        expect(maxValue).toBeGreaterThan(0.9);
       });
     });
 
