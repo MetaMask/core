@@ -5,7 +5,9 @@ import {
   type CaipChainId,
   KnownCaipNamespace,
   toCaipChainId,
+  parseCaipChainId,
   hexToNumber,
+  add0x,
 } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
@@ -52,6 +54,23 @@ export function checkIfSupportedCaipChainId(
  */
 export const toEvmCaipChainId = (chainId: Hex): CaipChainId =>
   toCaipChainId(KnownCaipNamespace.Eip155, hexToNumber(chainId).toString());
+
+/**
+ * Convert an eip155 CAIP chain ID to a hex chain ID.
+ *
+ * @param id - The CAIP chain ID to convert.
+ * @returns The hex chain ID.
+ */
+export function convertCaipToHexChainId(id: CaipChainId): Hex {
+  const { namespace, reference } = parseCaipChainId(id);
+  if (namespace === KnownCaipNamespace.Eip155) {
+    return add0x(parseInt(reference, 10).toString(16));
+  }
+
+  throw new Error(
+    `Unsupported CAIP chain ID namespace: ${namespace}. Only eip155 is supported.`,
+  );
+}
 
 /**
  * Updates a network configuration to the format used by the MultichainNetworkController.
