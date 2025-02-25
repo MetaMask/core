@@ -235,6 +235,15 @@ describe('Scope Support', () => {
       ).toBe(false);
     });
 
+    it('returns false for non-evm namespace without a reference', () => {
+      expect(
+        isSupportedScopeString('nonevm', {
+          isEvmChainIdSupported,
+          isNonEvmScopeSupported,
+        }),
+      ).toBe(false);
+    });
+
     it('calls isNonEvmScopeSupported for non-evm namespace', () => {
       isSupportedScopeString('nonevm:someref', {
         isEvmChainIdSupported,

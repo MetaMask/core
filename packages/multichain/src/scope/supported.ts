@@ -39,12 +39,13 @@ export const isSupportedScopeString = (
 
   switch (namespace) {
     case KnownCaipNamespace.Wallet:
-      if (!reference || reference === KnownCaipNamespace.Eip155) {
-        return true;
+      if (
+        isCaipChainId(scopeString) &&
+        reference !== KnownCaipNamespace.Eip155
+      ) {
+        return isNonEvmScopeSupported(scopeString);
       }
-      return isCaipChainId(scopeString)
-        ? isNonEvmScopeSupported(scopeString)
-        : false;
+      return true;
     case KnownCaipNamespace.Eip155:
       return (
         !reference ||
