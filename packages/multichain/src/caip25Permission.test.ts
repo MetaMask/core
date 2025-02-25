@@ -781,7 +781,7 @@ describe('caip25CaveatBuilder', () => {
 });
 
 describe('diffScopesForCaip25CaveatValue', () => {
-  describe('incremental request existing scope with a new account', () => {
+  describe('incremental request existing optional scope with a new account', () => {
     it('should return scope with existing chain and new requested account', () => {
       const leftValue: Caip25CaveatValue = {
         optionalScopes: {
@@ -819,11 +819,11 @@ describe('diffScopesForCaip25CaveatValue', () => {
         'optionalScopes',
       );
 
-      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+      expect(diff).toStrictEqual(expectedDiff);
     });
   });
 
-  describe('incremental request a whole new scope without accounts', () => {
+  describe('incremental request a whole new optional scope without accounts', () => {
     it('should return scope with new requested chain and no accounts', () => {
       const leftValue: Caip25CaveatValue = {
         optionalScopes: {
@@ -864,11 +864,11 @@ describe('diffScopesForCaip25CaveatValue', () => {
         'optionalScopes',
       );
 
-      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+      expect(diff).toStrictEqual(expectedDiff);
     });
   });
 
-  describe('incremental request a whole new scope with accounts', () => {
+  describe('incremental request a whole new optional scope with accounts', () => {
     it('should return scope with new requested chain and new account', () => {
       const leftValue: Caip25CaveatValue = {
         optionalScopes: {
@@ -909,11 +909,11 @@ describe('diffScopesForCaip25CaveatValue', () => {
         'optionalScopes',
       );
 
-      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+      expect(diff).toStrictEqual(expectedDiff);
     });
   });
 
-  describe('incremental request an existing scope with new accounts, and whole new scope with accounts', () => {
+  describe('incremental request an existing optional scope with new accounts, and whole new optional scope with accounts', () => {
     it('should return scope with previously existing chain and accounts, plus new requested chain with new accounts', () => {
       const leftValue: Caip25CaveatValue = {
         optionalScopes: {
@@ -957,7 +957,187 @@ describe('diffScopesForCaip25CaveatValue', () => {
         'optionalScopes',
       );
 
-      expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request existing required scope with a new account', () => {
+    it('should return scope with existing chain and new requested account', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request a whole new required scope without accounts', () => {
+    it('should return scope with new requested chain and no accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:10': {
+            accounts: [],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request a whole new required scope with accounts', () => {
+    it('should return scope with new requested chain and new account', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:10': {
+            accounts: ['eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+
+  describe('incremental request an existing required scope with new accounts, and whole new required scope with accounts', () => {
+    it('should return scope with previously existing chain and accounts, plus new requested chain with new accounts', () => {
+      const leftValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdead', 'eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        optionalScopes: {},
+        isMultichainOrigin: false,
+      };
+
+      const expectedDiff: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdead', 'eip155:10:0xbeef'],
+          },
+        },
+        isMultichainOrigin: false,
+        optionalScopes: {},
+      };
+
+      const diff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      expect(diff).toStrictEqual(expectedDiff);
     });
   });
 });

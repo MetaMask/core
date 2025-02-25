@@ -278,9 +278,7 @@ describe('Scope Transform', () => {
 
         const mergedValue = mergeInternalScopes(leftValue, rightValue);
 
-        expect(mergedValue).toStrictEqual(
-          expect.objectContaining(expectedMergedValue),
-        );
+        expect(mergedValue).toStrictEqual(expectedMergedValue);
       });
     });
 
@@ -307,9 +305,7 @@ describe('Scope Transform', () => {
 
         const mergedValue = mergeInternalScopes(leftValue, rightValue);
 
-        expect(mergedValue).toStrictEqual(
-          expect.objectContaining(expectedMergedValue),
-        );
+        expect(mergedValue).toStrictEqual(expectedMergedValue);
       });
     });
 
@@ -334,9 +330,7 @@ describe('Scope Transform', () => {
 
         const mergedValue = mergeInternalScopes(leftValue, rightValue);
 
-        expect(mergedValue).toStrictEqual(
-          expect.objectContaining(expectedMergedValue),
-        );
+        expect(mergedValue).toStrictEqual(expectedMergedValue);
       });
     });
 
@@ -366,9 +360,7 @@ describe('Scope Transform', () => {
 
         const mergedValue = mergeInternalScopes(leftValue, rightValue);
 
-        expect(mergedValue).toStrictEqual(
-          expect.objectContaining(expectedMergedValue),
-        );
+        expect(mergedValue).toStrictEqual(expectedMergedValue);
       });
     });
 
@@ -412,9 +404,7 @@ describe('Scope Transform', () => {
 
         const mergedValue = mergeInternalScopes(leftValue, rightValue);
 
-        expect(mergedValue).toStrictEqual(
-          expect.objectContaining(expectedMergedValue),
-        );
+        expect(mergedValue).toStrictEqual(expectedMergedValue);
       });
     });
   });
