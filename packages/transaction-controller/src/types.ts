@@ -1422,6 +1422,21 @@ export type BatchTransactionParams = {
  * Specification for a single transaction within a batch request.
  */
 export type TransactionBatchSingleRequest = {
+  /** Data if the transaction already exists. */
+  existingTransaction?: {
+    /** ID of the existing transaction. */
+    id: string;
+
+    /** Optional callback to be invoked once the transaction is published. */
+    onPublish?: (request: {
+      /** Hash of the transaction on the network. */
+      transactionHash?: string;
+    }) => void;
+
+    /** Signed transaction data. */
+    signedTransaction: Hex;
+  };
+
   /** Parameters of the single transaction. */
   params: BatchTransactionParams;
 };
@@ -1445,6 +1460,12 @@ export type TransactionBatchRequest = {
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
+
+  /**
+   * Whether to use the publish batch hook to submit the batch.
+   * Defaults to false.
+   */
+  useHook?: boolean;
 };
 
 /**
@@ -1476,3 +1497,43 @@ export type PublishHook = (
   transactionMeta: TransactionMeta,
   signedTx: string,
 ) => Promise<PublishHookResult>;
+
+/** Single transaction in a publish batch hook request. */
+export type PublishBatchHookTransaction = {
+  /** ID of the transaction. */
+  id?: string;
+
+  /** Parameters of the nested transaction. */
+  params: BatchTransactionParams;
+
+  /** Signed transaction data to publish. */
+  signedTx: Hex;
+};
+
+/**
+ * Data required to call a publish batch hook.
+ */
+export type PublisBatchHookRequest = {
+  /** Address of the account to submit the transaction batch. */
+  from: Hex;
+
+  /** ID of the network client associated with the transaction batch. */
+  networkClientId: string;
+
+  /** Nested transactions to be submitted as part of the batch. */
+  transactions: PublishBatchHookTransaction[];
+};
+
+/** Result of calling a publish batch hook. */
+export type PublishBatchHookResult =
+  | {
+      /** Hashes of the transaction on the network. */
+      transactionHash: Hex;
+    }[]
+  | undefined;
+
+/** Custom logic to publish a transaction batch. */
+export type PublishBatchHook = (
+  /** Data required to call the hook. */
+  request: PublisBatchHookRequest,
+) => Promise<PublishBatchHookResult>;

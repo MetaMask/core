@@ -555,7 +555,7 @@
   },
   "packages/transaction-controller/src/TransactionController.ts": {
     "jsdoc/check-tag-names": 35,
-    "jsdoc/require-returns": 5
+    "jsdoc/require-returns": 4
   },
   "packages/transaction-controller/src/api/accounts-api.test.ts": {
     "import-x/order": 1,

@@ -11,7 +11,7 @@ export type CollectPublishHookResult = {
 };
 
 /**
- * A publish hook that collects signed transactions and resolves when a specific number is reached.
+ * Custom publish logic that collects multiple signed transactions until a specific number is reached.
  * Used by batch transactions to publish multiple transactions at once.
  */
 export class CollectPublishHook {
@@ -49,8 +49,8 @@ export class CollectPublishHook {
    *
    * @param transactionHashes - The transaction hashes to pass to the original publish promises.
    */
-  finish(transactionHashes: Hex[]) {
-    log('Finishing', { transactionHashes });
+  success(transactionHashes: Hex[]) {
+    log('Success', { transactionHashes });
 
     if (transactionHashes.length !== this.#transactionCount) {
       throw new Error('Transaction hash count mismatch');
@@ -61,6 +61,14 @@ export class CollectPublishHook {
       const transactionHash = transactionHashes[i];
 
       publishPromise.resolve({ transactionHash });
+    }
+  }
+
+  error(error: unknown) {
+    log('Error', { error });
+
+    for (const publishPromise of this.#publishPromises) {
+      publishPromise.reject(error);
     }
   }
 

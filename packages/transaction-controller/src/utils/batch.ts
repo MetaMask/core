@@ -12,8 +12,20 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
-import type { TransactionController, TransactionControllerMessenger } from '..';
+import type {
+  BatchTransactionParams,
+  TransactionController,
+  TransactionControllerMessenger,
+  TransactionMeta,
+} from '..';
+import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { projectLogger } from '../logger';
+import type {
+  PublishBatchHook,
+  PublishBatchHookTransaction,
+  PublishHook,
+  TransactionBatchSingleRequest,
+} from '../types';
 import {
   TransactionEnvelopeType,
   type TransactionBatchRequest,
@@ -26,7 +38,9 @@ type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
+  getTransaction: (id: string) => TransactionMeta;
   messenger: TransactionControllerMessenger;
+  publishBatchHook?: PublishBatchHook;
   request: TransactionBatchRequest;
 };
 
@@ -54,9 +68,14 @@ export async function addTransactionBatch(
     request: userRequest,
   } = request;
 
-  const { from, networkClientId, requireApproval, transactions } = userRequest;
+  const { from, networkClientId, requireApproval, transactions, useHook } =
+    userRequest;
 
   log('Adding', userRequest);
+
+  if (useHook) {
+    return await addTransactionBatchWithHook(request);
+  }
 
   const chainId = getChainId(networkClientId);
   const ethQuery = request.getEthQuery(networkClientId);
@@ -154,4 +173,164 @@ export async function isAtomicBatchSupported(
   log('Atomic batch supported chains', chainIds);
 
   return chainIds;
+}
+
+/**
+ * Process a batch transaction using a publish batch hook.
+ *
+ * @param request - The request object including the user request and necessary callbacks.
+ * @returns The batch result object including the batch ID.
+ */
+async function addTransactionBatchWithHook(
+  request: AddTransactionBatchRequest,
+): Promise<TransactionBatchResult> {
+  const { publishBatchHook, request: userRequest } = request;
+
+  const {
+    from,
+    networkClientId,
+    transactions: nestedTransactions,
+  } = userRequest;
+
+  log('Adding batch transaction with hook', userRequest);
+
+  if (!publishBatchHook) {
+    log('No publish batch hook provided');
+    throw new Error('No publish batch hook provided');
+  }
+
+  const transactionCount = nestedTransactions.length;
+  const collectHook = new CollectPublishHook(transactionCount);
+  const publishHook = collectHook.getHook();
+  const hookTransactions: Omit<PublishBatchHookTransaction, 'signedTx'>[] = [];
+
+  try {
+    for (const nestedTransaction of nestedTransactions) {
+      const hookTransaction = await processTransactionWithHook(
+        nestedTransaction,
+        publishHook,
+        request,
+      );
+
+      hookTransactions.push(hookTransaction);
+    }
+
+    const { signedTransactions } = await collectHook.ready();
+
+    const transactions = hookTransactions.map((transaction, index) => ({
+      ...transaction,
+      signedTx: signedTransactions[index],
+    }));
+
+    log('Calling publish batch hook', { from, networkClientId, transactions });
+
+    const result = await publishBatchHook({
+      from,
+      networkClientId,
+      transactions,
+    });
+
+    log('Publish batch hook result', result);
+
+    if (!result) {
+      throw new Error('Publish batch hook did not return a result');
+    }
+
+    const transactionHashes = result.map(
+      ({ transactionHash }) => transactionHash,
+    );
+
+    collectHook.success(transactionHashes);
+
+    log('Completed batch transaction with hook', transactionHashes);
+
+    return {
+      batchId: transactions[0].id as string,
+    };
+  } catch (error) {
+    log('Publish batch hook failed', error);
+
+    collectHook.error(error);
+
+    throw error;
+  }
+}
+
+/**
+ * Process a single transaction with a publish batch hook.
+ *
+ * @param nestedTransaction - The nested transaction request.
+ * @param publishHook - The publish hook to use for each transaction.
+ * @param request - The request object including the user request and necessary callbacks.
+ * @returns The single transaction request to be processed by the publish batch hook.
+ */
+async function processTransactionWithHook(
+  nestedTransaction: TransactionBatchSingleRequest,
+  publishHook: PublishHook,
+  request: AddTransactionBatchRequest,
+) {
+  const { existingTransaction, params } = nestedTransaction;
+  const { addTransaction, getTransaction, request: userRequest } = request;
+  const { from, networkClientId } = userRequest;
+
+  if (existingTransaction) {
+    const { id, onPublish, signedTransaction } = existingTransaction;
+    const transactionMeta = getTransaction(id);
+
+    const data = params.data as Hex | undefined;
+    const to = params.to as Hex | undefined;
+    const value = params.value as Hex | undefined;
+
+    const existingParams: BatchTransactionParams = {
+      data,
+      to,
+      value,
+    };
+
+    publishHook(transactionMeta, signedTransaction)
+      .then(onPublish)
+      .catch(() => {
+        // Intentionally empty
+      });
+
+    log('Processed existing transaction with hook', {
+      id,
+      params: existingParams,
+    });
+
+    return {
+      id,
+      params: existingParams,
+    };
+  }
+
+  const { transactionMeta } = await addTransaction(
+    {
+      ...params,
+      from,
+    },
+    {
+      networkClientId,
+      publishHook,
+      requireApproval: false,
+    },
+  );
+
+  const { id, txParams } = transactionMeta;
+  const data = txParams.data as Hex | undefined;
+  const to = txParams.to as Hex | undefined;
+  const value = txParams.value as Hex | undefined;
+
+  const newParams: BatchTransactionParams = {
+    data,
+    to,
+    value,
+  };
+
+  log('Processed new transaction with hook', { id, params: newParams });
+
+  return {
+    id,
+    params: newParams,
+  };
 }

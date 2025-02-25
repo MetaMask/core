@@ -991,6 +991,8 @@ export class TransactionController extends BaseController<
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
+      getTransaction: (transactionId) =>
+        this.getTransactionOrThrow(transactionId),
       messenger: this.messagingSystem,
       request,
     });

@@ -15,6 +15,8 @@ import {
   type TransactionControllerMessenger,
   type TransactionMeta,
 } from '..';
+import { flushPromises } from '../../../../tests/helpers';
+import type { PublishBatchHook } from '../types';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
@@ -32,9 +34,22 @@ const MESSENGER_MOCK = {} as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const BATCH_ID_MOCK = 'testBatchId';
 const GET_ETH_QUERY_MOCK = jest.fn();
+const TRANSACTION_ID_MOCK = 'testTransactionId';
+const TRANSACTION_ID_2_MOCK = 'testTransactionId2';
+const TRANSACTION_HASH_MOCK = '0x123';
+const TRANSACTION_HASH_2_MOCK = '0x456';
+const TRANSACTION_SIGNATURE_MOCK = '0xabc';
+const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
+const ERROR_MESSAGE_MOCK = 'Test error';
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_MOCK,
+  txParams: {
+    from: FROM_MOCK,
+    to: TO_MOCK,
+    data: DATA_MOCK,
+    value: VALUE_MOCK,
+  },
 } as TransactionMeta;
 
 describe('Batch Utils', () => {
@@ -73,6 +88,7 @@ describe('Batch Utils', () => {
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
+        getTransaction: jest.fn(),
         messenger: MESSENGER_MOCK,
         request: {
           from: FROM_MOCK,
@@ -98,158 +114,601 @@ describe('Batch Utils', () => {
       };
     });
 
-    it('adds generated EIP-7702 transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+    describe('with EIP-7702', () => {
+      it('adds generated EIP-7702 transaction', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
 
-      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        delegationAddress: undefined,
-        isSupported: true,
-      });
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: true,
+        });
 
-      addTransactionMock.mockResolvedValueOnce({
-        transactionMeta: TRANSACTION_META_MOCK,
-        result: Promise.resolve(''),
-      });
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
 
-      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
-        to: TO_MOCK,
-        data: DATA_MOCK,
-        value: VALUE_MOCK,
-      });
-
-      await addTransactionBatch(request);
-
-      expect(addTransactionMock).toHaveBeenCalledTimes(1);
-      expect(addTransactionMock).toHaveBeenCalledWith(
-        {
-          from: FROM_MOCK,
+        generateEIP7702BatchTransactionMock.mockReturnValueOnce({
           to: TO_MOCK,
           data: DATA_MOCK,
           value: VALUE_MOCK,
-        },
-        expect.objectContaining({
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          requireApproval: true,
-        }),
-      );
-    });
+        });
 
-    it('uses type 4 transaction if not upgraded', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        await addTransactionBatch(request);
 
-      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        delegationAddress: undefined,
-        isSupported: false,
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          {
+            from: FROM_MOCK,
+            to: TO_MOCK,
+            data: DATA_MOCK,
+            value: VALUE_MOCK,
+          },
+          expect.objectContaining({
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            requireApproval: true,
+          }),
+        );
       });
 
-      addTransactionMock.mockResolvedValueOnce({
-        transactionMeta: TRANSACTION_META_MOCK,
-        result: Promise.resolve(''),
-      });
+      it('uses type 4 transaction if not upgraded', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
 
-      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
-        to: TO_MOCK,
-        data: DATA_MOCK,
-        value: VALUE_MOCK,
-      });
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: false,
+        });
 
-      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
-        CONTRACT_ADDRESS_MOCK,
-      );
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
 
-      await addTransactionBatch(request);
-
-      expect(addTransactionMock).toHaveBeenCalledTimes(1);
-      expect(addTransactionMock).toHaveBeenCalledWith(
-        {
-          from: FROM_MOCK,
+        generateEIP7702BatchTransactionMock.mockReturnValueOnce({
           to: TO_MOCK,
           data: DATA_MOCK,
           value: VALUE_MOCK,
-          type: TransactionEnvelopeType.setCode,
-          authorizationList: [{ address: CONTRACT_ADDRESS_MOCK }],
-        },
-        expect.objectContaining({
-          networkClientId: NETWORK_CLIENT_ID_MOCK,
-          requireApproval: true,
-        }),
-      );
+        });
+
+        getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(
+          CONTRACT_ADDRESS_MOCK,
+        );
+
+        await addTransactionBatch(request);
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          {
+            from: FROM_MOCK,
+            to: TO_MOCK,
+            data: DATA_MOCK,
+            value: VALUE_MOCK,
+            type: TransactionEnvelopeType.setCode,
+            authorizationList: [{ address: CONTRACT_ADDRESS_MOCK }],
+          },
+          expect.objectContaining({
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            requireApproval: true,
+          }),
+        );
+      });
+
+      it('passes nested transactions to add transaction', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: true,
+        });
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+          to: TO_MOCK,
+          data: DATA_MOCK,
+          value: VALUE_MOCK,
+        });
+
+        await addTransactionBatch(request);
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          expect.any(Object),
+          expect.objectContaining({
+            nestedTransactions: [
+              {
+                to: TO_MOCK,
+                data: DATA_MOCK,
+                value: VALUE_MOCK,
+              },
+              {
+                to: TO_MOCK,
+                data: DATA_MOCK,
+                value: VALUE_MOCK,
+              },
+            ],
+          }),
+        );
+      });
+
+      it('throws if chain not supported', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
+
+        await expect(addTransactionBatch(request)).rejects.toThrow(
+          rpcErrors.internal('Chain does not support EIP-7702'),
+        );
+      });
+
+      it('throws if account upgraded to unsupported contract', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: CONTRACT_ADDRESS_MOCK,
+          isSupported: false,
+        });
+
+        await expect(addTransactionBatch(request)).rejects.toThrow(
+          rpcErrors.internal('Account upgraded to unsupported contract'),
+        );
+      });
+
+      it('throws if account not upgraded and no upgrade address', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: false,
+        });
+
+        getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
+
+        await expect(addTransactionBatch(request)).rejects.toThrow(
+          rpcErrors.internal('Upgrade contract address not found'),
+        );
+      });
     });
 
-    it('passes nested transactions to add transaction', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+    describe('with publish batch hook', () => {
+      it('adds each nested transaction', async () => {
+        const publishBatchHook = jest.fn();
 
-      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        delegationAddress: undefined,
-        isSupported: true,
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: { ...request.request, useHook: true },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(2);
+        expect(addTransactionMock).toHaveBeenCalledWith(
+          {
+            data: DATA_MOCK,
+            from: FROM_MOCK,
+            to: TO_MOCK,
+            value: VALUE_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+            publishHook: expect.any(Function),
+            requireApproval: false,
+          },
+        );
       });
 
-      addTransactionMock.mockResolvedValueOnce({
-        transactionMeta: TRANSACTION_META_MOCK,
-        result: Promise.resolve(''),
-      });
+      it('calls publish batch hook', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
 
-      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
-        to: TO_MOCK,
-        data: DATA_MOCK,
-        value: VALUE_MOCK,
-      });
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
 
-      await addTransactionBatch(request);
+        publishBatchHook.mockResolvedValue([
+          {
+            transactionHash: TRANSACTION_HASH_MOCK,
+          },
+          {
+            transactionHash: TRANSACTION_HASH_2_MOCK,
+          },
+        ]);
 
-      expect(addTransactionMock).toHaveBeenCalledTimes(1);
-      expect(addTransactionMock).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.objectContaining({
-          nestedTransactions: [
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: { ...request.request, useHook: true },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(publishBatchHook).toHaveBeenCalledTimes(1);
+        expect(publishBatchHook).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          transactions: [
             {
-              to: TO_MOCK,
-              data: DATA_MOCK,
-              value: VALUE_MOCK,
+              id: TRANSACTION_ID_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_MOCK,
             },
             {
-              to: TO_MOCK,
-              data: DATA_MOCK,
-              value: VALUE_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_2_MOCK,
             },
           ],
-        }),
-      );
-    });
-
-    it('throws if chain not supported', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
-
-      await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Chain does not support EIP-7702'),
-      );
-    });
-
-    it('throws if account upgraded to unsupported contract', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
-      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        delegationAddress: CONTRACT_ADDRESS_MOCK,
-        isSupported: false,
+        });
       });
 
-      await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Account upgraded to unsupported contract'),
-      );
-    });
+      it('resolves individual publish hooks with transaction hashes from publish batch hook', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
 
-    it('throws if account not upgraded and no upgrade address', async () => {
-      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
 
-      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        delegationAddress: undefined,
-        isSupported: false,
+        publishBatchHook.mockResolvedValue([
+          {
+            transactionHash: TRANSACTION_HASH_MOCK,
+          },
+          {
+            transactionHash: TRANSACTION_HASH_2_MOCK,
+          },
+        ]);
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: { ...request.request, useHook: true },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        const publishHookPromise1 = publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        const publishHookPromise2 = publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(await publishHookPromise1).toStrictEqual({
+          transactionHash: TRANSACTION_HASH_MOCK,
+        });
+
+        expect(await publishHookPromise2).toStrictEqual({
+          transactionHash: TRANSACTION_HASH_2_MOCK,
+        });
       });
 
-      getEIP7702UpgradeContractAddressMock.mockReturnValueOnce(undefined);
+      it('handles existing transactions', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const onPublish = jest.fn();
 
-      await expect(addTransactionBatch(request)).rejects.toThrow(
-        rpcErrors.internal('Upgrade contract address not found'),
-      );
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+
+        publishBatchHook.mockResolvedValue([
+          {
+            transactionHash: TRANSACTION_HASH_MOCK,
+          },
+          {
+            transactionHash: TRANSACTION_HASH_2_MOCK,
+          },
+        ]);
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            transactions: [
+              {
+                ...request.request.transactions[0],
+                existingTransaction: {
+                  id: TRANSACTION_ID_2_MOCK,
+                  onPublish,
+                  signedTransaction: TRANSACTION_SIGNATURE_2_MOCK,
+                },
+              },
+              request.request.transactions[1],
+            ],
+            useHook: true,
+          },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(addTransactionMock).toHaveBeenCalledTimes(1);
+
+        expect(publishBatchHook).toHaveBeenCalledTimes(1);
+        expect(publishBatchHook).toHaveBeenCalledWith({
+          from: FROM_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          transactions: [
+            {
+              id: TRANSACTION_ID_2_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_2_MOCK,
+            },
+            {
+              id: TRANSACTION_ID_MOCK,
+              params: { data: DATA_MOCK, to: TO_MOCK, value: VALUE_MOCK },
+              signedTx: TRANSACTION_SIGNATURE_MOCK,
+            },
+          ],
+        });
+
+        expect(onPublish).toHaveBeenCalledTimes(1);
+        expect(onPublish).toHaveBeenCalledWith({
+          transactionHash: TRANSACTION_HASH_MOCK,
+        });
+      });
+
+      it('throws if publish batch hook does not return result', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+
+        publishBatchHook.mockResolvedValue(undefined);
+
+        const resultPromise = addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: { ...request.request, useHook: true },
+        });
+
+        resultPromise.catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        ).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        await expect(resultPromise).rejects.toThrow(
+          'Publish batch hook did not return a result',
+        );
+      });
+
+      it('throws if no publish batch hook', async () => {
+        await expect(
+          addTransactionBatch({
+            ...request,
+            request: { ...request.request, useHook: true },
+          }),
+        ).rejects.toThrow(rpcErrors.internal('No publish batch hook provided'));
+      });
+
+      it('rejects individual publish hooks if batch hook throws', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_2_MOCK,
+            },
+            result: Promise.resolve(''),
+          });
+
+        publishBatchHook.mockImplementationOnce(() => {
+          throw new Error(ERROR_MESSAGE_MOCK);
+        });
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: { ...request.request, useHook: true },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        const publishHookPromise1 = publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        );
+
+        publishHookPromise1?.catch(() => {
+          // Intentionally empty
+        });
+
+        const publishHookPromise2 = publishHooks[1]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_2_MOCK,
+        );
+
+        publishHookPromise2?.catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        await expect(publishHookPromise1).rejects.toThrow(ERROR_MESSAGE_MOCK);
+        await expect(publishHookPromise2).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      });
+
+      it('rejects individual publish hooks if add transaction throws', async () => {
+        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+        addTransactionMock
+          .mockResolvedValueOnce({
+            transactionMeta: {
+              ...TRANSACTION_META_MOCK,
+              id: TRANSACTION_ID_MOCK,
+            },
+            result: Promise.resolve(''),
+          })
+          .mockImplementationOnce(() => {
+            throw new Error(ERROR_MESSAGE_MOCK);
+          });
+
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: { ...request.request, useHook: true },
+        }).catch(() => {
+          // Intentionally empty
+        });
+
+        const publishHooks = addTransactionMock.mock.calls.map(
+          ([, options]) => options.publishHook,
+        );
+
+        const publishHookPromise1 = publishHooks[0]?.(
+          TRANSACTION_META_MOCK,
+          TRANSACTION_SIGNATURE_MOCK,
+        );
+
+        publishHookPromise1?.catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        await expect(publishHookPromise1).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      });
     });
   });
 

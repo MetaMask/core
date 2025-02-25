@@ -1,0 +1,88 @@
+import { createDeferredPromise, type Hex } from '@metamask/utils';
+
+import type { TransactionController } from '..';
+import type {
+  BatchTransactionParams,
+  PublishHook,
+  PublishHookResult,
+  TransactionBatchSingleRequest,
+  TransactionMeta,
+} from '../types';
+
+/**
+ * Custom publish logic that also publishes additional transactions in an batch.
+ * Requires the batch to be successful to resolve.
+ */
+export class ExtraTransactionsPublishHook {
+  readonly #addTransactionBatch: TransactionController['addTransactionBatch'];
+
+  readonly #transactions: BatchTransactionParams[];
+
+  constructor({
+    addTransactionBatch,
+    transactions,
+  }: {
+    addTransactionBatch: TransactionController['addTransactionBatch'];
+    transactions: BatchTransactionParams[];
+  }) {
+    this.#addTransactionBatch = addTransactionBatch;
+    this.#transactions = transactions;
+  }
+
+  /**
+   * @returns The publish hook function.
+   */
+  getHook(): PublishHook {
+    return this.#hook.bind(this);
+  }
+
+  async #hook(
+    transactionMeta: TransactionMeta,
+    signedTx: string,
+  ): Promise<PublishHookResult> {
+    const { id, networkClientId, txParams } = transactionMeta;
+    const from = txParams.from as Hex;
+    const to = txParams.to as Hex | undefined;
+    const data = txParams.data as Hex | undefined;
+    const value = txParams.value as Hex | undefined;
+    const signedTransaction = signedTx as Hex;
+    const resultPromise = createDeferredPromise<PublishHookResult>();
+
+    const onPublish = ({ transactionHash }: { transactionHash?: string }) => {
+      resultPromise.resolve({ transactionHash });
+    };
+
+    const firstParams: BatchTransactionParams = {
+      data,
+      to,
+      value,
+    };
+
+    const firstTransaction: TransactionBatchSingleRequest = {
+      existingTransaction: {
+        id,
+        onPublish,
+        signedTransaction,
+      },
+      params: firstParams,
+    };
+
+    const extraTransactions: TransactionBatchSingleRequest[] =
+      this.#transactions.map((transaction) => ({
+        params: transaction,
+      }));
+
+    const transactions: TransactionBatchSingleRequest[] = [
+      firstTransaction,
+      ...extraTransactions,
+    ];
+
+    await this.#addTransactionBatch({
+      from,
+      networkClientId,
+      transactions,
+    });
+
+    return resultPromise.promise;
+  }
+}
