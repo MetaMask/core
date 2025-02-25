@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test(accounts-controller): remove duplicated test mock function ([#5387](https://github.com/MetaMask/core/pull/5387))
-
 ## [24.0.1]
 
 ### Changed
