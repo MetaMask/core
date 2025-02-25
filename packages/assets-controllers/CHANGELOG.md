@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [51.0.2]
 
-### Uncategorized
+### Fixed
 
 - Fix: Do not invoke the snap for rate retrieval when the assets are empty. ([#5370](https://github.com/MetaMask/core.git/pull/5370))
 
