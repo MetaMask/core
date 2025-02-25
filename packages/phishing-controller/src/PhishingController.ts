@@ -593,7 +593,7 @@ export class PhishingController extends BaseController<
       };
     }
 
-    const response = await safelyExecuteWithTimeout(
+    const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
           `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(hostname)}`,
@@ -617,21 +617,24 @@ export class PhishingController extends BaseController<
     );
 
     // Need to do it this way because safelyExecuteWithTimeout returns undefined for both timeouts and errors.
-    if (!response) {
+    if (!apiResponse) {
       return {
         domainName: '',
         recommendedAction: RecommendedAction.None,
         fetchError: 'timeout of 8000ms exceeded',
       };
-    } else if ('error' in response) {
+    } else if ('error' in apiResponse) {
       return {
         domainName: '',
         recommendedAction: RecommendedAction.None,
-        fetchError: response.error,
+        fetchError: apiResponse.error,
       };
     }
 
-    return response;
+    return {
+      domainName: hostname,
+      recommendedAction: apiResponse.recommendedAction,
+    } as PhishingDetectionScanResult;
   };
 
   /**
