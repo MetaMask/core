@@ -9,15 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
+### Added
 
-- feat: create merger and factory for the Caip25Permission ([#5283](https://github.com/MetaMask/core/pull/5283))
+- **BREAKING** Renamed `mergeScopes` to `mergeNormalizedScopes` ([#5283](https://github.com/MetaMask/core/pull/5283))
+- Added merger to CaveatSpecification returned by `caip25CaveatBuilder()` ([#5283](https://github.com/MetaMask/core/pull/5283))
+- Added `mergeInternalScopes` which merges two `InternalScopesObject`s ([#5283](https://github.com/MetaMask/core/pull/5283))
 
 ## [2.2.0]
 
 ### Changed
 
-- Bump @metamask/utils from ^11.1.0 to ^11.2.0 ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Bump `@metamask/utils` from ^11.1.0 to ^11.2.0 ([#5301](https://github.com/MetaMask/core/pull/5301))
 
 ### Fixed
 
@@ -38,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add key Multichain API methods ([#4813](https://github.com/MetaMask/core/pull/4813))
   - Adds `getInternalScopesObject` and `getSessionScopes` helpers for transforming between `NormalizedScopesObject` and `InternalScopesObject`.
   - Adds handlers for `wallet_getSession`, `wallet_invokeMethod`, and `wallet_revokeSession` methods.
-  - Adds `multichainMethodCallValidatorMiddleware` for validating Multichain API method params as defined in @metamask/api-specs.
+  - Adds `multichainMethodCallValidatorMiddleware` for validating Multichain API method params as defined in `@metamask/api-specs`.
   - Adds `MultichainMiddlewareManager` to multiplex a request to other middleware based on requested scope.
   - Adds `MultichainSubscriptionManager` to handle concurrent subscriptions across multiple scopes.
   - Adds `bucketScopes` which groups the scopes in a `NormalizedScopesObject` based on if the scopes are already supported, could be supported, or are not supportable.
