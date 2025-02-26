@@ -546,7 +546,7 @@ describe('KeyringController', () => {
                   '',
                 ),
               ).rejects.toThrow(
-                'Eth-Hd-Keyring: Deserialize method cannot be called with an opts value for numberOfAccounts and no menmonic',
+                'Eth-Hd-Keyring: Deserialize method cannot be called with an opts value for numberOfAccounts and no mnemonic',
               );
             },
           );
