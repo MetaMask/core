@@ -6,7 +6,8 @@
     "rootDir": "./src"
   },
   "references": [
-    { "path": "../../packages/base-controller/tsconfig.build.json" }
+    { "path": "../../packages/base-controller/tsconfig.build.json" },
+    { "path": "../../packages/network-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }
