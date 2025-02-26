@@ -1670,7 +1670,7 @@ describe('NameController', () => {
         });
       });
 
-      it('stores emtpy array if result error while getting proposed name using provider', async () => {
+      it('stores empty array if result error while getting proposed name using provider', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
         const error = new Error('TestError');
