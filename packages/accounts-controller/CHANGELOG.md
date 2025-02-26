@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use `account.scopes` in `listMultichainAccounts` ([#5357](https://github.com/MetaMask/core/pull/5357))
+  - The previous logic was fragile and was relying on the account's type mainly.
+
 ## [24.0.1]
 
 ### Changed
