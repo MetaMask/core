@@ -35,6 +35,7 @@ import type {
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -539,15 +540,7 @@ export type NetworkControllerOptions = {
   infuraProjectId: string;
   state?: Partial<NetworkState>;
   log?: Logger;
-  /**
-   * A function that can be used to make an HTTP request, compatible with the
-   * Fetch API.
-   */
-  fetch: typeof fetch;
-  /**
-   * A function that can be used to convert a binary string into base-64.
-   */
-  btoa: typeof btoa;
+  rpcServiceOptions: Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
 };
 
 /**
@@ -927,9 +920,10 @@ export class NetworkController extends BaseController<
 
   #log: Logger | undefined;
 
-  readonly #fetch: typeof fetch;
-
-  readonly #btoa: typeof btoa;
+  readonly #rpcServiceOptions: Omit<
+    RpcServiceOptions,
+    'failoverService' | 'endpointUrl'
+  >;
 
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
@@ -941,8 +935,7 @@ export class NetworkController extends BaseController<
     state,
     infuraProjectId,
     log,
-    fetch: givenFetch,
-    btoa: givenBtoa,
+    rpcServiceOptions,
   }: NetworkControllerOptions) {
     const initialState = { ...getDefaultNetworkControllerState(), ...state };
     validateNetworkControllerState(initialState);
@@ -972,8 +965,7 @@ export class NetworkController extends BaseController<
 
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
-    this.#fetch = givenFetch;
-    this.#btoa = givenBtoa;
+    this.#rpcServiceOptions = rpcServiceOptions;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -2458,8 +2450,7 @@ export class NetworkController extends BaseController<
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
-          fetch: this.#fetch,
-          btoa: this.#btoa,
+          rpcServiceOptions: this.#rpcServiceOptions,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2472,8 +2463,7 @@ export class NetworkController extends BaseController<
             rpcUrl: addedRpcEndpoint.url,
             ticker: networkFields.nativeCurrency,
           },
-          fetch: this.#fetch,
-          btoa: this.#btoa,
+          rpcServiceOptions: this.#rpcServiceOptions,
         });
       }
     }
@@ -2632,8 +2622,7 @@ export class NetworkController extends BaseController<
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,
               },
-              fetch: this.#fetch,
-              btoa: this.#btoa,
+              rpcServiceOptions: this.#rpcServiceOptions,
             }),
           ] as const;
         }
@@ -2647,8 +2636,7 @@ export class NetworkController extends BaseController<
               rpcUrl: rpcEndpoint.url,
               ticker: networkConfiguration.nativeCurrency,
             },
-            fetch: this.#fetch,
-            btoa: this.#btoa,
+            rpcServiceOptions: this.#rpcServiceOptions,
           }),
         ] as const;
       });

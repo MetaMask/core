@@ -32,6 +32,7 @@ import type {
   Provider,
 } from './types';
 import { NetworkClientType } from './types';
+import { RpcServiceOptions } from './rpc-service/rpc-service';
 
 const SECOND = 1000;
 
@@ -51,20 +52,17 @@ export type NetworkClient = {
  *
  * @param args - The arguments.
  * @param args.configuration - The network configuration.
- * @param args.fetch - A function that can be used to make an HTTP request,
- * compatible with the Fetch API.
- * @param args.btoa - A function that can be used to convert a binary string
- * into base-64.
+ * @param args.rpcServiceOptions - Options for creating RPC services. This is
+ * everything that the `RpcService` constructor takes except for
+ * `failoverService` and `endpointUrl` (since they will be filled in).
  * @returns The network client.
  */
 export function createNetworkClient({
   configuration,
-  fetch: givenFetch,
-  btoa: givenBtoa,
+  rpcServiceOptions,
 }: {
   configuration: NetworkClientConfiguration;
-  fetch: typeof fetch;
-  btoa: typeof btoa;
+  rpcServiceOptions: Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
 }): NetworkClient {
   const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
@@ -74,12 +72,44 @@ export function createNetworkClient({
     primaryEndpointUrl,
     ...configuration.failoverRpcUrls,
   ];
+  const {
+    fetch: givenFetch,
+    btoa: givenBtoa,
+    ...otherRpcServiceOptions
+  } = rpcServiceOptions;
   const rpcService = new RpcServiceChain({
     fetch: givenFetch,
     btoa: givenBtoa,
     serviceConfigurations: availableEndpointUrls.map((endpointUrl) => ({
+      ...otherRpcServiceOptions,
       endpointUrl,
     })),
+  });
+  rpcService.onBreak(({ endpointUrl, failoverEndpointUrl }) => {
+    if (failoverEndpointUrl) {
+      messenger.publish('NetworkController:rpcEndpointFailoverInitiated', {
+        endpointUrl,
+        failoverEndpointUrl,
+      });
+    }
+  });
+  rpcService.onSuccess(({ endpointUrl, failoverEndpointUrl }) => {
+    if (attempt > 0 && failoverEndpointUrl) {
+      messenger.publish('NetworkController:rpcEndpointRecovered', {
+        endpointUrl,
+      });
+    }
+    messenger.publish('NetworkController:rpcEndpointRequestSucceeded', {
+      endpointUrl,
+    });
+  });
+  rpcService.onError(({ endpointUrl }) => {
+    messenger.publish('NetworkController:rpcEndpointRequestFailed', {
+      endpointUrl,
+    });
+  });
+  rpcService.onDegraded(({ endpointUrl }) => {
+    messenger.publish('NetworkController:rpcEndpointDegraded', { endpointUrl });
   });
 
   const rpcApiMiddleware =

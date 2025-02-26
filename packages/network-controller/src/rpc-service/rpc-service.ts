@@ -1,4 +1,7 @@
-import type { ServicePolicy } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from '@metamask/controller-utils';
 import {
   CircuitState,
   createServicePolicy,
@@ -16,6 +19,55 @@ import deepmerge from 'deepmerge';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
 import type { AddToCockatielEventData, FetchOptions } from './shared';
+
+/**
+ * Options for the RpcService constructor.
+ *
+ * @property circuitBreakDuration - The length of time (in milliseconds)
+ * to pause retries of the request after the number of failures reaches
+ * `maxConsecutiveFailures`.
+ * @property degradedThreshold - The length of time (in milliseconds) that
+ * governs when the RPC endpoint is regarded as degraded (affecting when
+ * `onDegraded` is called).
+ * @property btoa - A function that can be used to convert a binary string
+ * into a base64-encoded ASCII string. Used to encode authorization credentials.
+ * @property endpointUrl - The URL of the RPC endpoint to hit.
+ * @property failoverService - An RPC service that represents a failover
+ * endpoint which will be invoked while the circuit for _this_ service is
+ * open.
+ * @property fetch - A function that can be used to make an HTTP request.
+ * If your JavaScript environment supports `fetch` natively, you'll probably
+ * want to pass that; otherwise you can pass an equivalent (such as `fetch`
+ * via `node-fetch`).
+ * @property fetchOptions - A common set of options that will be used to
+ * make every request. Can be overridden on the request level (e.g. to add
+ * headers).
+ * @property maxConsecutiveFailures - The maximum number of times that the
+ * request is allowed to fail before pausing further retries. Defaults to 15.
+ * @property maxRetries - The maximum number of times that a failing request
+ * should be automatically retried before giving up. Defaults to 4.
+ */
+export type RpcServiceOptions = CreateServicePolicyOptions & {
+  fetch: typeof fetch;
+  btoa: typeof btoa;
+  endpointUrl: URL | string;
+  fetchOptions?: FetchOptions;
+  failoverService?: AbstractRpcService;
+};
+
+/**
+ * The maximum number of times that a failing request should be retried before
+ * giving up.
+ */
+export const DEFAULT_MAX_RETRIES = 3;
+
+/**
+ * The maximum number of times that the request is allowed to fail before
+ * pausing further retries. This is set to a value such that if given a service
+ * that continually fails, the policy needs to be executed 3 times before
+ * further retries are paused.
+ */
+export const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_MAX_RETRIES) * 3;
 
 /**
  * The list of error messages that represent a failure to connect to the network.
@@ -166,33 +218,42 @@ export class RpcService implements AbstractRpcService {
    * Constructs a new RpcService object.
    *
    * @param args - The arguments.
+   * @param args.circuitBreakDuration - The length of time (in milliseconds)
+   * to pause retries of the request after the number of failures reaches
+   * `maxConsecutiveFailures`.
+   * @param args.degradedThreshold - The length of time (in milliseconds) that
+   * governs when the RPC endpoint is regarded as degraded (affecting when
+   * `onDegraded` is called).
+   * @param args.btoa - A function that can be used to convert a binary string
+   * into a base64-encoded ASCII string. Used to encode authorization
+   * credentials.
+   * @param args.endpointUrl - The URL of the RPC endpoint to hit.
+   * @param args.failoverService - An RPC service that represents a failover
+   * endpoint which will be invoked while the circuit for _this_ service is
+   * open.
    * @param args.fetch - A function that can be used to make an HTTP request.
    * If your JavaScript environment supports `fetch` natively, you'll probably
    * want to pass that; otherwise you can pass an equivalent (such as `fetch`
    * via `node-fetch`).
-   * @param args.btoa - A function that can be used to convert a binary string
-   * into base-64. Used to encode authorization credentials.
-   * @param args.endpointUrl - The URL of the RPC endpoint.
    * @param args.fetchOptions - A common set of options that will be used to
    * make every request. Can be overridden on the request level (e.g. to add
    * headers).
-   * @param args.failoverService - An RPC service that represents a failover
-   * endpoint which will be invoked while the circuit for _this_ service is
-   * open.
+   * @param args.maxConsecutiveFailures - The maximum number of times that the
+   * request is allowed to fail before pausing further retries. Defaults to 15.
+   * @param args.maxRetries - The maximum number of times that a failing request
+   * should be automatically retried before giving up. Defaults to 4.
    */
   constructor({
-    fetch: givenFetch,
     btoa: givenBtoa,
+    circuitBreakDuration,
+    degradedThreshold,
     endpointUrl,
-    fetchOptions = {},
     failoverService,
-  }: {
-    fetch: typeof fetch;
-    btoa: typeof btoa;
-    endpointUrl: URL | string;
-    fetchOptions?: FetchOptions;
-    failoverService?: AbstractRpcService;
-  }) {
+    fetch: givenFetch,
+    fetchOptions = {},
+    maxConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
+    maxRetries = DEFAULT_MAX_RETRIES,
+  }: RpcServiceOptions) {
     this.#fetch = givenFetch;
     this.#endpointUrl = getNormalizedEndpointUrl(endpointUrl);
     this.#fetchOptions = this.#getDefaultFetchOptions(
@@ -203,8 +264,10 @@ export class RpcService implements AbstractRpcService {
     this.#failoverService = failoverService;
 
     const policy = createServicePolicy({
-      maxRetries: 4,
-      maxConsecutiveFailures: 15,
+      circuitBreakDuration,
+      degradedThreshold,
+      maxRetries,
+      maxConsecutiveFailures,
       retryFilterPolicy: handleWhen((error) => {
         return (
           // Ignore errors where the request failed to establish
