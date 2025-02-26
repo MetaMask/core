@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- Use `account.scopes` in `listMultichainAccounts` ([#5357](https://github.com/MetaMask/core/pull/5357))
+  - The previous logic was fragile and was relying on the account's type mainly.
+
+## [24.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller"` from `^19.1.0` to `^19.2.0` ([#5357](https://github.com/MetaMask/core/pull/5357))
+- Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3` ([#5356](https://github.com/MetaMask/core/pull/5356)), ([#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/eth-snap-keyring` from `^10.0.0` to `^11.1.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
 
 ## [24.0.0]
 
@@ -459,7 +471,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.0.1...HEAD
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.0.0...@metamask/accounts-controller@24.0.1
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.1.0...@metamask/accounts-controller@24.0.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.1...@metamask/accounts-controller@23.1.0
 [23.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@23.0.0...@metamask/accounts-controller@23.0.1

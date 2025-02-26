@@ -1,20 +1,21 @@
 import * as Utils from './utils';
-import {
-  MOCK_USER_STORAGE_ACCOUNT,
-  MOCK_USER_STORAGE_CHAIN,
-  createMockFullUserStorage,
-  createMockUserStorageWithTriggers,
-} from '../__fixtures__/mock-notification-user-storage';
+import { ADDRESS_1 } from '../__fixtures__/mockAddresses';
 import { USER_STORAGE_VERSION_KEY } from '../constants/constants';
 import {
   NOTIFICATION_CHAINS,
   TRIGGER_TYPES,
 } from '../constants/notification-schema';
+import {
+  MOCK_USER_STORAGE_ACCOUNT,
+  MOCK_USER_STORAGE_CHAIN,
+  createMockFullUserStorage,
+  createMockUserStorageWithTriggers,
+} from '../mocks/mock-notification-user-storage';
 import type { UserStorage } from '../types/user-storage/user-storage';
 
 describe('metamask-notifications/utils - initializeUserStorage()', () => {
   it('creates a new user storage object based on the accounts provided', () => {
-    const mockAddress = 'MOCK_ADDRESS';
+    const mockAddress = ADDRESS_1;
     const userStorage = Utils.initializeUserStorage(
       [{ address: mockAddress }],
       true,
@@ -39,6 +40,18 @@ describe('metamask-notifications/utils - initializeUserStorage()', () => {
       true,
     );
     assertEmptyStorage(userStorageTest2);
+  });
+
+  it('cleans User Storage if there are erroneous accounts', () => {
+    const mockAddress = ADDRESS_1;
+    const badAddress = '0xtb1qkw6c6f9lql679spp8qjfg3u6qrcdp5a6wqe35y';
+    const userStorage = Utils.initializeUserStorage(
+      [{ address: mockAddress }, { address: badAddress }],
+      true,
+    );
+
+    expect(userStorage[mockAddress.toLowerCase()]).toBeDefined();
+    expect(userStorage[badAddress.toLowerCase()]).toBeUndefined(); // Removed bad address
   });
 });
 
@@ -292,5 +305,15 @@ describe('metamask-notifications/utils - toggleUserStorageTriggerStatus()', () =
     expect(
       partialStorage[MOCK_USER_STORAGE_ACCOUNT][MOCK_USER_STORAGE_CHAIN].t1.e,
     ).toBe(true);
+  });
+});
+
+describe('metamask-notifications/utils - cleanUserStorage()', () => {
+  it('removes non hex addresses from the notification user storage entry', () => {
+    const badAddress = '0xtb1qkw6c6f9lql679spp8qjfg3u6qrcdp5a6wqe35y';
+    const storage = createMockFullUserStorage({ address: badAddress });
+    expect(storage[badAddress]).toBeDefined();
+    Utils.cleanUserStorage(storage);
+    expect(storage[badAddress]).toBeUndefined();
   });
 });

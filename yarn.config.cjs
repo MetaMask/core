@@ -244,6 +244,8 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         // All non-root packages must have a valid README.md file.
         await expectReadme(workspace, workspaceBasename);
+
+        await expectCodeowner(workspace, workspaceBasename);
       }
     }
 
@@ -830,5 +832,64 @@ async function expectReadme(workspace, workspaceBasename) {
     workspace.error(
       `The README.md does not contain an example of how to install the package using npm (\`npm install @metamask/${workspaceBasename}\`). Please add an example.`,
     );
+  }
+}
+
+// A promise resolving to the codeowners file contents
+let cachedCodeownersFile;
+
+/**
+ * Expect that the workspace has a codeowner set, and that the CHANGELOG.md and
+ * package.json files are co-owned with the wallet framework team.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ * @param {string} workspaceBasename - The name of the workspace.
+ * @returns {Promise<void>}
+ */
+async function expectCodeowner(workspace, workspaceBasename) {
+  if (!cachedCodeownersFile) {
+    cachedCodeownersFile = readFile(
+      resolve(__dirname, '.github', 'CODEOWNERS'),
+      'utf8',
+    );
+  }
+  const codeownersFile = await cachedCodeownersFile;
+  const codeownerRules = codeownersFile.split('\n');
+
+  const packageCodeownerRule = codeownerRules.find((rule) =>
+    // Matcher includes intentional trailing space to ensure there is a package-wide rule, not
+    // just a rule for specific files/directories in the package.
+    rule.startsWith(`/packages/${workspaceBasename} `),
+  );
+
+  if (!packageCodeownerRule) {
+    workspace.error('Missing CODEOWNER rule for package');
+    return;
+  }
+
+  if (!packageCodeownerRule.includes('@MetaMask/wallet-framework-engineers')) {
+    if (
+      !codeownerRules.some(
+        (rule) =>
+          rule.startsWith(`/packages/${workspaceBasename}/CHANGELOG.md`) &&
+          rule.includes('@MetaMask/wallet-framework-engineers'),
+      )
+    ) {
+      workspace.error(
+        'Missing CODEOWNER rule for CHANGELOG.md co-ownership with wallet framework team',
+      );
+    }
+
+    if (
+      !codeownerRules.some(
+        (rule) =>
+          rule.startsWith(`/packages/${workspaceBasename}/package.json`) &&
+          rule.includes('@MetaMask/wallet-framework-engineers'),
+      )
+    ) {
+      workspace.error(
+        'Missing CODEOWNER rule for package.json co-ownership with wallet framework team',
+      );
+    }
   }
 }

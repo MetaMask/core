@@ -7,9 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Add methods:
+    - `addTransactionBatch`
+    - `isAtomicBatchSupported`
+  - Add `batch` to `TransactionType`.
+  - Add `nestedTransactions` to `TransactionMeta`.
+  - Add new types:
+    - `BatchTransactionParams`
+    - `TransactionBatchSingleRequest`
+    - `TransactionBatchRequest`
+    - `TransactionBatchResult`
+  - Add dependency on `@metamask/remote-feature-flag-controller:^1.4.0`.
+
 ### Changed
 
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- **BREAKING:** Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Require `AccountsController:getState` action permission in messenger.
+  - Require `RemoteFeatureFlagController:getState` action permission in messenger.
 
 ## [46.0.0]
 

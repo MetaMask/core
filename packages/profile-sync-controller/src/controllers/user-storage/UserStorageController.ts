@@ -15,7 +15,7 @@ import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerAddNewAccountAction,
+  type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -244,7 +244,7 @@ export type AllowedActions =
   // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
-  | KeyringControllerAddNewAccountAction
+  | KeyringControllerWithKeyringAction
   // Network Syncing
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction

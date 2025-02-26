@@ -1,5 +1,9 @@
 import { Messenger } from '@metamask/base-controller';
-import type { CaipAssetType, Transaction } from '@metamask/keyring-api';
+import type {
+  AccountTransactionsUpdatedEventPayload,
+  CaipAssetType,
+  TransactionsPage,
+} from '@metamask/keyring-api';
 import {
   BtcAccountType,
   BtcMethod,
@@ -130,7 +134,7 @@ const setupController = ({
   state?: MultichainTransactionsControllerState;
   mocks?: {
     listMultichainAccounts?: InternalAccount[];
-    handleRequestReturnValue?: Record<CaipAssetType, Transaction>;
+    handleRequestReturnValue?: TransactionsPage;
   };
 } = {}) => {
   const messenger = new Messenger<AllowedActions, AllowedEvents>();
@@ -191,6 +195,9 @@ async function waitForAllPromises(): Promise<void> {
   // synchronous calls.
   await new Promise(process.nextTick);
 }
+
+const NEW_ACCOUNT_ID = 'new-account-id';
+const TEST_ACCOUNT_ID = 'test-account-id';
 
 describe('MultichainTransactionsController', () => {
   it('initialize with default state', () => {
@@ -433,10 +440,62 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('updates transactions when receiving "AccountsController:accountTransactionsUpdated" event', async () => {
+    const mockSolAccountWithId = {
+      ...mockSolAccount,
+      id: TEST_ACCOUNT_ID,
+    };
+
+    const existingTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'confirmed' as const,
+    };
+
+    const newTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '456',
+      status: 'submitted' as const,
+    };
+
+    const updatedExistingTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'failed' as const,
+    };
+
     const { controller, messenger } = setupController({
       state: {
         nonEvmTransactions: {
-          [mockBtcAccount.id]: {
+          [mockSolAccountWithId.id]: {
+            transactions: [existingTransaction],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockSolAccountWithId.id]: [updatedExistingTransaction, newTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    const finalTransactions =
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
+    expect(finalTransactions).toStrictEqual([
+      updatedExistingTransaction,
+      newTransaction,
+    ]);
+  });
+
+  it('handles empty transaction updates gracefully', async () => {
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
             transactions: [],
             next: null,
             lastUpdated: Date.now(),
@@ -444,25 +503,162 @@ describe('MultichainTransactionsController', () => {
         },
       },
     });
-    const transactionUpdate = {
-      transactions: {
-        [mockBtcAccount.id]: mockTransactionResult.data,
-      },
-    };
 
-    messenger.publish(
-      'AccountsController:accountTransactionsUpdated',
-      transactionUpdate,
-    );
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {},
+    });
 
     await waitForAllPromises();
 
-    expect(
-      controller.state.nonEvmTransactions[mockBtcAccount.id],
-    ).toStrictEqual({
-      transactions: mockTransactionResult.data,
+    expect(controller.state.nonEvmTransactions[TEST_ACCOUNT_ID]).toStrictEqual({
+      transactions: [],
       next: null,
       lastUpdated: expect.any(Number),
     });
+  });
+
+  it('initializes new accounts with empty transactions array when receiving updates', async () => {
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {},
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [NEW_ACCOUNT_ID]: mockTransactionResult.data,
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(controller.state.nonEvmTransactions[NEW_ACCOUNT_ID]).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      lastUpdated: expect.any(Number),
+    });
+  });
+
+  it('handles undefined transactions in update payload', async () => {
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
+            transactions: [],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+      mocks: {
+        listMultichainAccounts: [],
+        handleRequestReturnValue: {
+          data: [],
+          next: null,
+        },
+      },
+    });
+
+    const initialStateSnapshot = {
+      [TEST_ACCOUNT_ID]: {
+        ...controller.state.nonEvmTransactions[TEST_ACCOUNT_ID],
+        lastUpdated: expect.any(Number),
+      },
+    };
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: undefined,
+    } as unknown as AccountTransactionsUpdatedEventPayload);
+
+    await waitForAllPromises();
+
+    expect(controller.state.nonEvmTransactions).toStrictEqual(
+      initialStateSnapshot,
+    );
+  });
+
+  it('sorts transactions by timestamp (newest first)', async () => {
+    const olderTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      timestamp: 1000,
+    };
+    const newerTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '456',
+      timestamp: 2000,
+    };
+
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
+            transactions: [olderTransaction],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [TEST_ACCOUNT_ID]: [newerTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    const finalTransactions =
+      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
+    expect(finalTransactions).toStrictEqual([
+      newerTransaction,
+      olderTransaction,
+    ]);
+  });
+
+  it('sorts transactions by timestamp and handles null timestamps', async () => {
+    const nullTimestampTx1 = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      timestamp: null,
+    };
+    const nullTimestampTx2 = {
+      ...mockTransactionResult.data[0],
+      id: '456',
+      timestamp: null,
+    };
+    const withTimestampTx = {
+      ...mockTransactionResult.data[0],
+      id: '789',
+      timestamp: 1000,
+    };
+
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [TEST_ACCOUNT_ID]: {
+            transactions: [nullTimestampTx1],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [TEST_ACCOUNT_ID]: [withTimestampTx, nullTimestampTx2],
+      },
+    });
+
+    await waitForAllPromises();
+
+    const finalTransactions =
+      controller.state.nonEvmTransactions[TEST_ACCOUNT_ID].transactions;
+    expect(finalTransactions).toStrictEqual([
+      withTimestampTx,
+      nullTimestampTx1,
+      nullTimestampTx2,
+    ]);
   });
 });

@@ -19,7 +19,6 @@ export type {
   Quote,
   QuoteResponse,
   ChainId,
-  FeeType,
   FeeData,
   TxData,
   BridgeFeatureFlagsKey,
@@ -33,6 +32,8 @@ export type {
   BridgeControllerEvents,
   BridgeControllerMessenger,
 } from './types';
+
+export { FeeType } from './types';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,

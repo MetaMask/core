@@ -1,4 +1,5 @@
 import { isEvmAccountType } from '@metamask/keyring-api';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import {
@@ -8,7 +9,7 @@ import {
 } from './sync-utils';
 import type { AccountSyncingConfig, AccountSyncingOptions } from './types';
 import {
-  doesInternalAccountHaveCorrectKeyringType,
+  isInternalAccountFromPrimarySRPHdKeyring,
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './utils';
@@ -33,7 +34,7 @@ export async function saveInternalAccountToUserStorage(
     !isAccountSyncingEnabled ||
     !canPerformAccountSyncing(config, options) ||
     !isEvmAccountType(internalAccount.type) ||
-    !doesInternalAccountHaveCorrectKeyringType(internalAccount)
+    !(await isInternalAccountFromPrimarySRPHdKeyring(internalAccount, options))
   ) {
     return;
   }
@@ -173,8 +174,21 @@ export async function syncInternalAccountsWithUserStorage(
         internalAccountsList.length;
 
       // Create new accounts to match the user storage accounts list
+      // NOTE: we only support the primary SRP HD keyring for now
+      // This is why we are hardcoding the index to 0
+      await getMessenger().call(
+        'KeyringController:withKeyring',
+        {
+          type: KeyringTypes.hd,
+          index: 0,
+        },
+        async ({ keyring }) => {
+          keyring.addAccounts(numberOfAccountsToAdd);
+        },
+      );
+
+      // TODO: below code is kept for analytics but should probably be re-thought
       for (let i = 0; i < numberOfAccountsToAdd; i++) {
-        await getMessenger().call('KeyringController:addNewAccount');
         onAccountAdded?.();
       }
     }
