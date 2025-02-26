@@ -9,9 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.4.0]
 
-### Uncategorized
+### Added
 
-- feat: add dapp scanning functionality ([#5319](https://github.com/MetaMask/core.git/pull/5319))
+- Add `scanURL` to `PhishingController` ([#5319](https://github.com/MetaMask/core.git/pull/5319))
+- Add `PhishingDetectionScanResult` ([#5319](https://github.com/MetaMask/core.git/pull/5319))
+- Add `RecommendedAction` to `PhishingDetectionScanResult` ([#5319](https://github.com/MetaMask/core.git/pull/5319))
+- Add `getHostnameFromWebUrl` to only get hostnames on web URLs. ([#5319](https://github.com/MetaMask/core.git/pull/5319))
+
+### Fixed
+
+- Fixed `getHostnameFromUrl` to return null when the URL's hostname only contains '.'
 
 ## [12.3.2]
 
