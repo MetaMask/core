@@ -431,6 +431,7 @@ describe('SelectedNetworkController', () => {
           goerliNetwork.rpcEndpoints.push({
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
+            failoverUrls: [],
             networkClientId: 'new-default-network-client-id',
           }) - 1;
 
@@ -474,6 +475,7 @@ describe('SelectedNetworkController', () => {
           {
             type: RpcEndpointType.Custom,
             url: 'https://new-default.com',
+            failoverUrls: [],
             networkClientId: 'new-default-network-client-id',
           },
         ];

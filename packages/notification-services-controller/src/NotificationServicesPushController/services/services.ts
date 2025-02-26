@@ -8,6 +8,7 @@ import type {
 export type RegToken = {
   token: string;
   platform: 'extension' | 'mobile' | 'portfolio';
+  locale: string;
 };
 
 /**
@@ -59,6 +60,7 @@ type ActivatePushNotificationsParams = {
   env: PushNotificationEnv;
   createRegToken: CreateRegToken;
   platform: 'extension' | 'mobile' | 'portfolio';
+  locale: string;
 };
 
 /**
@@ -70,14 +72,17 @@ type ActivatePushNotificationsParams = {
 export async function activatePushNotifications(
   params: ActivatePushNotificationsParams,
 ): Promise<string | null> {
-  const { bearerToken, triggers, env, createRegToken, platform } = params;
+  const { bearerToken, triggers, env, createRegToken, platform, locale } =
+    params;
 
   const regToken = await createRegToken(env).catch(() => null);
   if (!regToken) {
     return null;
   }
 
-  await updateLinksAPI(bearerToken, triggers, [{ token: regToken, platform }]);
+  await updateLinksAPI(bearerToken, triggers, [
+    { token: regToken, platform, locale },
+  ]);
   return regToken;
 }
 
@@ -124,6 +129,7 @@ type UpdateTriggerPushNotificationsParams = {
   env: PushNotificationEnv;
   createRegToken: CreateRegToken;
   platform: 'extension' | 'mobile' | 'portfolio';
+  locale: string;
 
   // Push Un-registration
   deleteRegToken: DeleteRegToken;
@@ -149,6 +155,7 @@ export async function updateTriggerPushNotifications(
     triggers,
     createRegToken,
     platform,
+    locale,
     deleteRegToken,
     env,
   } = params;
@@ -160,7 +167,7 @@ export async function updateTriggerPushNotifications(
   }
 
   const linksNotUpdated = await updateLinksAPI(bearerToken, triggers, [
-    { token: newRegToken, platform },
+    { token: newRegToken, platform, locale },
   ]);
   if (!linksNotUpdated) {
     throw new Error('Failed to create links to new reg token');
