@@ -15,15 +15,15 @@ import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
+  GasPriceGasFeeEstimates,
+  FeeMarketGasFeeEstimates,
   Layer1GasFeeFlow,
+  LegacyGasFeeEstimates,
   TransactionMeta,
 } from '../types';
 import {
-  FeeMarketGasFeeEstimates,
   GasFeeEstimateLevel,
   GasFeeEstimateType,
-  GasPriceGasFeeEstimates,
-  LegacyGasFeeEstimates,
   TransactionStatus,
 } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
@@ -304,10 +304,11 @@ export class GasFeePoller {
 
 /**
  * Update the gas fees for a transaction.
- * @param txMeta - The transaction meta.
- * @param gasFeeEstimates - The gas fee estimates.
- * @param gasFeeEstimatesLoaded - Whether the gas fee estimates are loaded.
- * @param layer1GasFee - The layer 1 gas fee.
+ * @param args - Argument bag.
+ * @param args.txMeta - The transaction meta.
+ * @param args.gasFeeEstimates - The gas fee estimates.
+ * @param args.gasFeeEstimatesLoaded - Whether the gas fee estimates are loaded.
+ * @param args.layer1GasFee - The layer 1 gas fee.
  */
 export function updateTransactionGasFees({
   txMeta,
