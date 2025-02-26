@@ -13,6 +13,7 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { validateBatchRequest } from './validation';
 import type {
   BatchTransactionParams,
   TransactionController,
@@ -39,6 +40,7 @@ type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
   getChainId: (networkClientId: string) => Hex;
   getEthQuery: (networkClientId: string) => EthQuery;
+  getInternalAccounts: () => Hex[];
   getTransaction: (id: string) => TransactionMeta;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
@@ -69,9 +71,15 @@ export async function addTransactionBatch(
   const {
     addTransaction,
     getChainId,
+    getInternalAccounts,
     messenger,
     request: userRequest,
   } = request;
+
+  validateBatchRequest({
+    internalAccounts: getInternalAccounts(),
+    request: userRequest,
+  });
 
   const { from, networkClientId, requireApproval, transactions, useHook } =
     userRequest;

@@ -123,6 +123,11 @@ const defaultPushEnv: PushNotificationEnv = {
 
 export type ControllerConfig = {
   /**
+   * User locale for server push notifications
+   */
+  getLocale?: () => string;
+
+  /**
    * Global switch to determine to use push notifications
    * Allows us to control Builds on extension (MV2 vs MV3)
    */
@@ -310,6 +315,7 @@ export default class NotificationServicesPushController extends BaseController<
           env: this.#env,
           createRegToken: this.#config.pushService.createRegToken,
           platform: this.#config.platform,
+          locale: this.#config.getLocale?.() ?? 'en',
         }).catch(() => null);
 
         if (fcmToken) {
@@ -396,6 +402,7 @@ export default class NotificationServicesPushController extends BaseController<
         createRegToken: this.#config.pushService.createRegToken,
         deleteRegToken: this.#config.pushService.deleteRegToken,
         platform: this.#config.platform,
+        locale: this.#config.getLocale?.() ?? 'en',
       });
 
       // update the state with the new FCM token

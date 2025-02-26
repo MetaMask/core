@@ -71,3 +71,47 @@ export enum PhishingDetectorResultType {
    */
   C2DomainBlocklist = 'c2DomainBlocklist',
 }
+
+/**
+ * PhishingDetectionScanResult represents the result of a phishing detection scan.
+ */
+export type PhishingDetectionScanResult = {
+  /**
+   * The domain name that was scanned.
+   */
+  domainName: string;
+  /**
+   * Indicates the warning level based on risk factors.
+   *
+   * - "NONE" means it is most likely safe.
+   * - "WARN" means there is some risk.
+   * - "BLOCK" means it is highly likely to be malicious.
+   */
+  recommendedAction: RecommendedAction;
+  /**
+   * An optional error message that exists if:
+   * - The link requested is not a valid web URL.
+   * - Failed to fetch the result from the phishing detector.
+   *
+   * Consumers can use the existence of this field to retry.
+   */
+  fetchError?: string;
+};
+
+/**
+ * Indicates the warning level based on risk factors
+ */
+export enum RecommendedAction {
+  /**
+   * None means it is most likely safe
+   */
+  None = 'NONE',
+  /**
+   * Warn means there is some risk
+   */
+  Warn = 'WARN',
+  /**
+   * Block means it is highly likely to be malicious
+   */
+  Block = 'BLOCK',
+}

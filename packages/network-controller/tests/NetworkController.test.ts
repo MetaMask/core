@@ -3,7 +3,6 @@
 
 import { Messenger } from '@metamask/base-controller';
 import {
-  BUILT_IN_NETWORKS,
   ChainId,
   InfuraNetworkType,
   isInfuraNetworkType,
@@ -21,6 +20,18 @@ import { when, resetAllWhenMocks } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
+import {
+  buildAddNetworkCustomRpcEndpointFields,
+  buildAddNetworkFields,
+  buildCustomNetworkClientConfiguration,
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkClientConfiguration,
+  buildInfuraNetworkConfiguration,
+  buildInfuraRpcEndpoint,
+  buildNetworkConfiguration,
+  buildUpdateNetworkCustomRpcEndpointFields,
+} from './helpers';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -31,6 +42,7 @@ import { createNetworkClient } from '../src/create-network-client';
 import type {
   AutoManagedBuiltInNetworkClientRegistry,
   AutoManagedCustomNetworkClientRegistry,
+  InfuraRpcEndpoint,
   NetworkClientId,
   NetworkConfiguration,
   NetworkControllerActions,
@@ -50,18 +62,6 @@ import {
 } from '../src/NetworkController';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
-import {
-  buildAddNetworkCustomRpcEndpointFields,
-  buildAddNetworkFields,
-  buildCustomNetworkClientConfiguration,
-  buildCustomNetworkConfiguration,
-  buildCustomRpcEndpoint,
-  buildInfuraNetworkClientConfiguration,
-  buildInfuraNetworkConfiguration,
-  buildInfuraRpcEndpoint,
-  buildNetworkConfiguration,
-  buildUpdateNetworkCustomRpcEndpointFields,
-} from './helpers';
 
 jest.mock('../src/create-network-client');
 
@@ -387,6 +387,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "mainnet",
                     "type": "infura",
                     "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
@@ -401,6 +402,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "GoerliETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "goerli",
                     "type": "infura",
                     "url": "https://goerli.infura.io/v3/{infuraProjectId}",
@@ -415,6 +417,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "SepoliaETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "sepolia",
                     "type": "infura",
                     "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
@@ -429,6 +432,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-goerli",
                     "type": "infura",
                     "url": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
@@ -443,6 +447,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-sepolia",
                     "type": "infura",
                     "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
@@ -457,6 +462,7 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
+                    "failoverUrls": Array [],
                     "networkClientId": "linea-mainnet",
                     "type": "infura",
                     "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
@@ -486,6 +492,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'GoerliETH',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://failover.endpoint'],
                     name: 'Goerli',
                     networkClientId: InfuraNetworkType.goerli,
                     type: RpcEndpointType.Infura,
@@ -517,6 +524,9 @@ describe('NetworkController', () => {
                   "nativeCurrency": "GoerliETH",
                   "rpcEndpoints": Array [
                     Object {
+                      "failoverUrls": Array [
+                        "https://failover.endpoint",
+                      ],
                       "name": "Goerli",
                       "networkClientId": "goerli",
                       "type": "infura",
@@ -572,8 +582,6 @@ describe('NetworkController', () => {
   describe('initializeProvider', () => {
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
       const infuraChainId = ChainId[infuraNetworkType];
-      // TODO: Update these names
-      const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
       // False negative - this is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -605,20 +613,7 @@ describe('NetworkController', () => {
                 },
               ]);
               const fakeNetworkClient = buildFakeClient(fakeProvider);
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClient);
-
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
               await controller.initializeProvider();
 
               const networkClient = controller.getSelectedNetworkClient();
@@ -655,11 +650,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -679,19 +672,7 @@ describe('NetworkController', () => {
               },
             ]);
             const fakeNetworkClient = buildFakeClient(fakeProvider);
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClient);
-
+            createNetworkClientMock.mockReturnValue(fakeNetworkClient);
             await controller.initializeProvider();
 
             const networkClient = controller.getSelectedNetworkClient();
@@ -762,7 +743,6 @@ describe('NetworkController', () => {
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
-      const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
       // False negative - this is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -778,12 +758,10 @@ describe('NetworkController', () => {
                 selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
                   '0x1337': buildCustomNetworkConfiguration({
-                    chainId: '0x1337',
                     nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -820,30 +798,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.initializeProvider();
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider not set');
@@ -882,11 +848,9 @@ describe('NetworkController', () => {
                 ),
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -921,30 +885,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker[InfuraNetworkType.goerli],
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.initializeProvider();
             const { provider } = controller.getProviderAndBlockTracker();
             assert(provider, 'Provider not set');
@@ -1031,6 +981,7 @@ describe('NetworkController', () => {
 
               expect(networkClient.configuration).toStrictEqual({
                 chainId: ChainId[InfuraNetworkType.mainnet],
+                failoverRpcUrls: [],
                 infuraProjectId,
                 network: InfuraNetworkType.mainnet,
                 ticker: NetworksTicker[InfuraNetworkType.mainnet],
@@ -1080,6 +1031,7 @@ describe('NetworkController', () => {
                       nativeCurrency: 'TEST',
                       rpcEndpoints: [
                         buildCustomRpcEndpoint({
+                          failoverUrls: ['https://failover.endpoint'],
                           networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                           url: 'https://test.network',
                         }),
@@ -1096,6 +1048,7 @@ describe('NetworkController', () => {
 
               expect(networkClient.configuration).toStrictEqual({
                 chainId: '0x1337',
+                failoverRpcUrls: ['https://failover.endpoint'],
                 rpcUrl: 'https://test.network',
                 ticker: 'TEST',
                 type: NetworkClientType.Custom,
@@ -1146,6 +1099,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   chainId: '0x5',
+                  failoverRpcUrls: [],
                   infuraProjectId,
                   network: InfuraNetworkType.goerli,
                   ticker: 'GoerliETH',
@@ -1158,6 +1112,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
                   infuraProjectId,
                   chainId: '0xe704',
                   ticker: 'LineaETH',
@@ -1170,6 +1125,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
                   infuraProjectId,
                   chainId: '0xe708',
                   ticker: 'ETH',
@@ -1182,6 +1138,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
                   infuraProjectId,
                   chainId: '0xe705',
                   ticker: 'LineaETH',
@@ -1194,6 +1151,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
                   infuraProjectId,
                   chainId: '0x1',
                   ticker: 'ETH',
@@ -1206,6 +1164,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   type: NetworkClientType.Infura,
+                  failoverRpcUrls: [],
                   infuraProjectId,
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
@@ -1232,6 +1191,7 @@ describe('NetworkController', () => {
                     nativeCurrency: 'TOKEN1',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
+                        failoverUrls: ['https://first.failover.endpoint'],
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                         url: 'https://test.network/1',
                       }),
@@ -1242,6 +1202,7 @@ describe('NetworkController', () => {
                     nativeCurrency: 'TOKEN2',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
+                        failoverUrls: ['https://second.failover.endpoint'],
                         networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                         url: 'https://test.network/2',
                       }),
@@ -1258,6 +1219,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   chainId: '0x1337',
+                  failoverRpcUrls: ['https://first.failover.endpoint'],
                   rpcUrl: 'https://test.network/1',
                   ticker: 'TOKEN1',
                   type: NetworkClientType.Custom,
@@ -1269,6 +1231,7 @@ describe('NetworkController', () => {
                 blockTracker: expect.anything(),
                 configuration: {
                   chainId: '0x2448',
+                  failoverRpcUrls: ['https://second.failover.endpoint'],
                   rpcUrl: 'https://test.network/2',
                   ticker: 'TOKEN2',
                   type: NetworkClientType.Custom,
@@ -1333,11 +1296,9 @@ describe('NetworkController', () => {
                       buildInfuraNetworkConfiguration(infuraNetworkType),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
-                      nativeCurrency: 'TEST',
                       rpcEndpoints: [
                         buildCustomRpcEndpoint({
                           networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                          url: 'https://test.network',
                         }),
                       ],
                     }),
@@ -1382,30 +1343,18 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[0]),
                   buildFakeClient(fakeProviders[1]),
                 ];
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: ChainId[infuraNetworkType],
-                      infuraProjectId,
-                      network: infuraNetworkType,
-                      ticker: NetworksTicker[infuraNetworkType],
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://test.network',
-                      ticker: 'TEST',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[1]);
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (configuration.chainId === infuraChainId) {
+                      return fakeNetworkClients[0];
+                    } else if (configuration.chainId === '0x1337') {
+                      return fakeNetworkClients[1];
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 await controller.initializeProvider();
                 expect(
                   controller.state.networksMetadata[infuraNetworkType].status,
@@ -1433,11 +1382,9 @@ describe('NetworkController', () => {
                       buildInfuraNetworkConfiguration(infuraNetworkType),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
-                      nativeCurrency: 'TEST',
                       rpcEndpoints: [
                         buildCustomRpcEndpoint({
                           networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                          url: 'https://test.network',
                         }),
                       ],
                     }),
@@ -1488,30 +1435,18 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[0]),
                   buildFakeClient(fakeProviders[1]),
                 ];
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: ChainId[infuraNetworkType],
-                      infuraProjectId,
-                      network: infuraNetworkType,
-                      ticker: NetworksTicker[infuraNetworkType],
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://test.network',
-                      ticker: 'TEST',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[1]);
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (configuration.chainId === infuraChainId) {
+                      return fakeNetworkClients[0];
+                    } else if (configuration.chainId === '0x1337') {
+                      return fakeNetworkClients[1];
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 await controller.initializeProvider();
                 expect(
                   controller.state.networksMetadata[infuraNetworkType]
@@ -1589,30 +1524,18 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[0]),
                   buildFakeClient(fakeProviders[1]),
                 ];
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: ChainId[infuraNetworkType],
-                      infuraProjectId,
-                      network: infuraNetworkType,
-                      ticker: NetworksTicker[infuraNetworkType],
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://test.network',
-                      ticker: 'TEST',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[1]);
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (configuration.chainId === infuraChainId) {
+                      return fakeNetworkClients[0];
+                    } else if (configuration.chainId === '0x1337') {
+                      return fakeNetworkClients[1];
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 await controller.initializeProvider();
                 const promiseForInfuraIsUnblockedEvents =
                   waitForPublishedEvents({
@@ -1674,19 +1597,7 @@ describe('NetworkController', () => {
                   },
                 ]);
                 const fakeNetworkClient = buildFakeClient(fakeProvider);
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: ChainId[infuraNetworkType],
-                      infuraProjectId,
-                      network: infuraNetworkType,
-                      ticker: NetworksTicker[infuraNetworkType],
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClient);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
                 await controller.initializeProvider();
 
                 const lookupNetworkPromise = controller.lookupNetwork();
@@ -1726,19 +1637,7 @@ describe('NetworkController', () => {
                   },
                 ]);
                 const fakeNetworkClient = buildFakeClient(fakeProvider);
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: ChainId[infuraNetworkType],
-                      infuraProjectId,
-                      network: infuraNetworkType,
-                      ticker: NetworksTicker[infuraNetworkType],
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClient);
+                createNetworkClientMock.mockReturnValue(fakeNetworkClient);
                 await controller.initializeProvider();
 
                 const lookupNetworkPromise = controller.lookupNetwork();
@@ -1785,11 +1684,9 @@ describe('NetworkController', () => {
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -1834,30 +1731,20 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: ChainId[InfuraNetworkType.goerli],
-                    infuraProjectId,
-                    network: InfuraNetworkType.goerli,
-                    ticker: NetworksTicker[InfuraNetworkType.goerli],
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (
+                    configuration.chainId === ChainId[InfuraNetworkType.goerli]
+                  ) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.initializeProvider();
               expect(
                 controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA'].status,
@@ -1886,11 +1773,9 @@ describe('NetworkController', () => {
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -1941,30 +1826,20 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: ChainId[InfuraNetworkType.goerli],
-                    infuraProjectId,
-                    network: InfuraNetworkType.goerli,
-                    ticker: NetworksTicker[InfuraNetworkType.goerli],
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (
+                    configuration.chainId === ChainId[InfuraNetworkType.goerli]
+                  ) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.initializeProvider();
               expect(
                 controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA']
@@ -1998,11 +1873,9 @@ describe('NetworkController', () => {
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -2047,30 +1920,20 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: ChainId[InfuraNetworkType.goerli],
-                    infuraProjectId,
-                    network: InfuraNetworkType.goerli,
-                    ticker: NetworksTicker[InfuraNetworkType.goerli],
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (
+                    configuration.chainId === ChainId[InfuraNetworkType.goerli]
+                  ) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.initializeProvider();
               const promiseForNoInfuraIsUnblockedEvents =
                 waitForPublishedEvents({
@@ -2103,11 +1966,9 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -2133,18 +1994,7 @@ describe('NetworkController', () => {
                 },
               ]);
               const fakeNetworkClient = buildFakeClient(fakeProvider);
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClient);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
               await controller.initializeProvider();
 
               const lookupNetworkPromise = controller.lookupNetwork();
@@ -2166,11 +2016,9 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -2196,18 +2044,7 @@ describe('NetworkController', () => {
                 },
               ]);
               const fakeNetworkClient = buildFakeClient(fakeProvider);
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClient);
+              createNetworkClientMock.mockReturnValue(fakeNetworkClient);
               await controller.initializeProvider();
 
               const lookupNetworkPromise = controller.lookupNetwork();
@@ -3661,8 +3498,15 @@ describe('NetworkController', () => {
               infuraProjectId,
             },
             ({ controller }) => {
-              const defaultRpcEndpoint =
-                buildInfuraRpcEndpoint(infuraNetworkType);
+              const defaultRpcEndpoint: InfuraRpcEndpoint = {
+                failoverUrls: ['https://first.failover.endpoint'],
+                name: infuraNetworkNickname,
+                networkClientId: infuraNetworkType,
+                type: RpcEndpointType.Infura as const,
+                // ESLint is mistaken here.
+                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
+              };
 
               controller.addNetwork({
                 blockExplorerUrls: [],
@@ -3673,11 +3517,13 @@ describe('NetworkController', () => {
                 rpcEndpoints: [
                   defaultRpcEndpoint,
                   {
+                    failoverUrls: ['https://second.failover.endpoint'],
                     name: 'Test Network 1',
                     type: RpcEndpointType.Custom,
                     url: 'https://test.endpoint/2',
                   },
                   {
+                    failoverUrls: ['https://third.failover.endpoint'],
                     name: 'Test Network 2',
                     type: RpcEndpointType.Custom,
                     url: 'https://test.endpoint/3',
@@ -3691,6 +3537,7 @@ describe('NetworkController', () => {
                 {
                   networkClientConfiguration: {
                     infuraProjectId,
+                    failoverRpcUrls: ['https://first.failover.endpoint'],
                     chainId: infuraChainId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -3705,6 +3552,7 @@ describe('NetworkController', () => {
                 {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://second.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/2',
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
@@ -3718,6 +3566,7 @@ describe('NetworkController', () => {
                 {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://third.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/3',
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
@@ -3726,28 +3575,37 @@ describe('NetworkController', () => {
                   btoa,
                 },
               );
-              expect(
+              const networkConfigurationsByNetworkClientId =
                 getNetworkConfigurationsByNetworkClientId(
                   controller.getNetworkClientRegistry(),
-                ),
-              ).toMatchObject({
-                [infuraNetworkType]: {
-                  chainId: infuraChainId,
-                  network: infuraNetworkType,
-                  type: NetworkClientType.Infura,
-                },
-                'BBBB-BBBB-BBBB-BBBB': {
-                  chainId: infuraChainId,
-                  rpcUrl: 'https://test.endpoint/2',
-                  ticker: infuraNativeTokenName,
-                  type: NetworkClientType.Custom,
-                },
-                'CCCC-CCCC-CCCC-CCCC': {
-                  chainId: infuraChainId,
-                  rpcUrl: 'https://test.endpoint/3',
-                  ticker: infuraNativeTokenName,
-                  type: NetworkClientType.Custom,
-                },
+                );
+              expect(
+                networkConfigurationsByNetworkClientId[infuraNetworkType],
+              ).toStrictEqual({
+                chainId: infuraChainId,
+                infuraProjectId,
+                failoverRpcUrls: ['https://first.failover.endpoint'],
+                network: infuraNetworkType,
+                ticker: infuraNativeTokenName,
+                type: NetworkClientType.Infura,
+              });
+              expect(
+                networkConfigurationsByNetworkClientId['BBBB-BBBB-BBBB-BBBB'],
+              ).toStrictEqual({
+                chainId: infuraChainId,
+                failoverRpcUrls: ['https://second.failover.endpoint'],
+                rpcUrl: 'https://test.endpoint/2',
+                ticker: infuraNativeTokenName,
+                type: NetworkClientType.Custom,
+              });
+              expect(
+                networkConfigurationsByNetworkClientId['CCCC-CCCC-CCCC-CCCC'],
+              ).toStrictEqual({
+                chainId: infuraChainId,
+                failoverRpcUrls: ['https://third.failover.endpoint'],
+                rpcUrl: 'https://test.endpoint/3',
+                ticker: infuraNativeTokenName,
+                type: NetworkClientType.Custom,
               });
             },
           );
@@ -3783,17 +3641,19 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
-                    name: 'Test Network',
-                    type: RpcEndpointType.Custom,
-                    url: 'https://test.endpoint/2',
-                  },
-                  {
+                    failoverUrls: ['https://first.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
                     // False negative - this is a string.
                     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const,
+                  },
+                  {
+                    failoverUrls: ['https://second.failover.endpoint'],
+                    name: 'Test Network',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://test.endpoint/2',
                   },
                 ],
               });
@@ -3812,18 +3672,20 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
-                    name: 'Test Network',
-                    networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                    type: RpcEndpointType.Custom,
-                    url: 'https://test.endpoint/2',
-                  },
-                  {
+                    failoverUrls: ['https://first.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
                     // False negative - this is a string.
                     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                  },
+                  {
+                    failoverUrls: ['https://second.failover.endpoint'],
+                    name: 'Test Network',
+                    networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://test.endpoint/2',
                   },
                 ],
                 lastUpdatedAt: FAKE_DATE_NOW_MS,
@@ -3866,6 +3728,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3885,6 +3748,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3927,6 +3791,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3946,6 +3811,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
+                    failoverUrls: ['https://some.failover.endpoint'],
                     name: infuraNetworkNickname,
                     networkClientId: infuraNetworkType,
                     type: RpcEndpointType.Infura as const,
@@ -3993,6 +3859,7 @@ describe('NetworkController', () => {
                 rpcEndpoints: [
                   defaultRpcEndpoint,
                   {
+                    failoverUrls: [],
                     name: 'Test Network 2',
                     type: RpcEndpointType.Custom,
                     url: 'https://test.endpoint/2',
@@ -4022,11 +3889,13 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://first.failover.endpoint'],
                 name: 'Test Network 1',
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint/1',
               },
               {
+                failoverUrls: ['https://second.failover.endpoint'],
                 name: 'Test Network 2',
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint/2',
@@ -4039,6 +3908,7 @@ describe('NetworkController', () => {
           );
           expect(networkClient1.configuration).toStrictEqual({
             chainId: '0x1337',
+            failoverRpcUrls: ['https://first.failover.endpoint'],
             rpcUrl: 'https://test.endpoint/1',
             ticker: 'TOKEN',
             type: NetworkClientType.Custom,
@@ -4048,6 +3918,7 @@ describe('NetworkController', () => {
           );
           expect(networkClient2.configuration).toStrictEqual({
             chainId: '0x1337',
+            failoverRpcUrls: ['https://second.failover.endpoint'],
             rpcUrl: 'https://test.endpoint/2',
             ticker: 'TOKEN',
             type: NetworkClientType.Custom,
@@ -4070,11 +3941,13 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://first.failover.endpoint'],
                 name: 'Test Network 1',
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint/1',
               },
               {
+                failoverUrls: ['https://second.failover.endpoint'],
                 name: 'Test Network 2',
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint/2',
@@ -4093,12 +3966,14 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://first.failover.endpoint'],
                 name: 'Test Network 1',
                 networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint/1',
               },
               {
+                failoverUrls: ['https://second.failover.endpoint'],
                 name: 'Test Network 2',
                 networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                 type: RpcEndpointType.Custom,
@@ -4129,6 +4004,7 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://failover.endpoint'],
                 name: 'Test Network',
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint',
@@ -4145,6 +4021,7 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://failover.endpoint'],
                 name: 'Test Network',
                 networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 type: RpcEndpointType.Custom,
@@ -4175,6 +4052,7 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://failover.endpoint'],
                 name: 'Test Network',
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint',
@@ -4191,6 +4069,7 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://failover.endpoint'],
                 name: 'Test Network',
                 networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 type: RpcEndpointType.Custom,
@@ -4223,6 +4102,7 @@ describe('NetworkController', () => {
               nativeCurrency: 'TOKEN',
               rpcEndpoints: [
                 {
+                  failoverUrls: ['https://failover.endpoint'],
                   name: 'Test Network',
                   type: RpcEndpointType.Custom,
                   url: 'https://test.endpoint',
@@ -4241,6 +4121,7 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
+                failoverUrls: ['https://failover.endpoint'],
                 name: 'Test Network',
                 networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 type: RpcEndpointType.Custom,
@@ -5039,8 +4920,14 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                const infuraRpcEndpoint =
-                  buildInfuraRpcEndpoint(infuraNetworkType);
+                const infuraRpcEndpoint: InfuraRpcEndpoint = {
+                  failoverUrls: ['https://failover.endpoint'],
+                  networkClientId: infuraNetworkType,
+                  // ESLint is mistaken here.
+                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                  url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                  type: RpcEndpointType.Infura,
+                };
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -5056,6 +4943,7 @@ describe('NetworkController', () => {
                 ).toHaveBeenNthCalledWith(3, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://failover.endpoint'],
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
@@ -5065,30 +4953,19 @@ describe('NetworkController', () => {
                   btoa,
                 });
 
-                expect(
+                const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
                     controller.getNetworkClientRegistry(),
-                  ),
+                  );
+                expect(
+                  networkConfigurationsByNetworkClientId[infuraNetworkType],
                 ).toStrictEqual({
-                  [infuraNetworkType]: {
-                    chainId: infuraChainId,
-                    infuraProjectId: 'some-infura-project-id',
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  'AAAA-AAAA-AAAA-AAAA': {
-                    chainId: infuraChainId,
-                    rpcUrl: 'https://rpc.network',
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Custom,
-                  },
-                  'ZZZZ-ZZZZ-ZZZZ-ZZZZ': {
-                    chainId: '0x9999',
-                    rpcUrl: 'https://selected.endpoint',
-                    ticker: 'TEST-9999',
-                    type: NetworkClientType.Custom,
-                  },
+                  chainId: infuraChainId,
+                  failoverRpcUrls: ['https://failover.endpoint'],
+                  infuraProjectId: 'some-infura-project-id',
+                  network: infuraNetworkType,
+                  ticker: infuraNativeTokenName,
+                  type: NetworkClientType.Infura,
                 });
               },
             );
@@ -5126,8 +5003,14 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                const infuraRpcEndpoint =
-                  buildInfuraRpcEndpoint(infuraNetworkType);
+                const infuraRpcEndpoint: InfuraRpcEndpoint = {
+                  failoverUrls: ['https://failover.endpoint'],
+                  networkClientId: infuraNetworkType,
+                  // ESLint is mistaken here.
+                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                  url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                  type: RpcEndpointType.Infura,
+                };
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -5145,13 +5028,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
-                    {
-                      networkClientId: infuraNetworkType,
-                      type: RpcEndpointType.Infura,
-                      // This is a string.
-                      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                      url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
-                    },
+                    infuraRpcEndpoint,
                   ],
                   lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
@@ -5191,8 +5068,14 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                const infuraRpcEndpoint =
-                  buildInfuraRpcEndpoint(infuraNetworkType);
+                const infuraRpcEndpoint: InfuraRpcEndpoint = {
+                  failoverUrls: ['https://failover.endpoint'],
+                  networkClientId: infuraNetworkType,
+                  // ESLint is mistaken here.
+                  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                  url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                  type: RpcEndpointType.Infura,
+                };
 
                 const updatedNetworkConfiguration =
                   await controller.updateNetwork(infuraChainId, {
@@ -5207,13 +5090,7 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
-                    {
-                      networkClientId: infuraNetworkType,
-                      type: RpcEndpointType.Infura,
-                      // This is a string.
-                      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                      url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
-                    },
+                    infuraRpcEndpoint,
                   ],
                   lastUpdatedAt: FAKE_DATE_NOW_MS,
                 });
@@ -5231,10 +5108,9 @@ describe('NetworkController', () => {
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
+            const infuraRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
             const networkConfigurationToUpdate =
-              buildInfuraNetworkConfiguration(infuraNetworkType, {
-                rpcEndpoints: [buildInfuraRpcEndpoint(infuraNetworkType)],
-              });
+              buildInfuraNetworkConfiguration(infuraNetworkType);
 
             await withController(
               {
@@ -5259,10 +5135,12 @@ describe('NetworkController', () => {
               async ({ controller }) => {
                 const [rpcEndpoint1, rpcEndpoint2] = [
                   buildUpdateNetworkCustomRpcEndpointFields({
+                    failoverUrls: ['https://first.failover.endpoint'],
                     name: 'Endpoint 1',
                     url: 'https://rpc.endpoint/1',
                   }),
                   buildUpdateNetworkCustomRpcEndpointFields({
+                    failoverUrls: ['https://second.failover.endpoint'],
                     name: 'Endpoint 2',
                     url: 'https://rpc.endpoint/2',
                   }),
@@ -5270,11 +5148,7 @@ describe('NetworkController', () => {
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
-                  rpcEndpoints: [
-                    ...networkConfigurationToUpdate.rpcEndpoints,
-                    rpcEndpoint1,
-                    rpcEndpoint2,
-                  ],
+                  rpcEndpoints: [infuraRpcEndpoint, rpcEndpoint1, rpcEndpoint2],
                 });
 
                 // Skipping network client creation for existing RPC endpoints
@@ -5283,6 +5157,7 @@ describe('NetworkController', () => {
                 ).toHaveBeenNthCalledWith(3, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://first.failover.endpoint'],
                     rpcUrl: 'https://rpc.endpoint/1',
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
@@ -5295,6 +5170,7 @@ describe('NetworkController', () => {
                 ).toHaveBeenNthCalledWith(4, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://second.failover.endpoint'],
                     rpcUrl: 'https://rpc.endpoint/2',
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
@@ -5303,36 +5179,27 @@ describe('NetworkController', () => {
                   btoa,
                 });
 
-                expect(
+                const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
                     controller.getNetworkClientRegistry(),
-                  ),
+                  );
+                expect(
+                  networkConfigurationsByNetworkClientId['AAAA-AAAA-AAAA-AAAA'],
                 ).toStrictEqual({
-                  [infuraNetworkType]: {
-                    chainId: infuraChainId,
-                    infuraProjectId: 'some-infura-project-id',
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  'AAAA-AAAA-AAAA-AAAA': {
-                    chainId: infuraChainId,
-                    rpcUrl: 'https://rpc.endpoint/1',
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Custom,
-                  },
-                  'BBBB-BBBB-BBBB-BBBB': {
-                    chainId: infuraChainId,
-                    rpcUrl: 'https://rpc.endpoint/2',
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Custom,
-                  },
-                  'ZZZZ-ZZZZ-ZZZZ-ZZZZ': {
-                    chainId: '0x9999',
-                    rpcUrl: 'https://selected.endpoint',
-                    ticker: 'TEST-9999',
-                    type: NetworkClientType.Custom,
-                  },
+                  chainId: infuraChainId,
+                  failoverRpcUrls: ['https://first.failover.endpoint'],
+                  rpcUrl: 'https://rpc.endpoint/1',
+                  ticker: infuraNativeTokenName,
+                  type: NetworkClientType.Custom,
+                });
+                expect(
+                  networkConfigurationsByNetworkClientId['BBBB-BBBB-BBBB-BBBB'],
+                ).toStrictEqual({
+                  chainId: infuraChainId,
+                  failoverRpcUrls: ['https://second.failover.endpoint'],
+                  rpcUrl: 'https://rpc.endpoint/2',
+                  ticker: infuraNativeTokenName,
+                  type: NetworkClientType.Custom,
                 });
               },
             );
@@ -5374,10 +5241,12 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
                     buildUpdateNetworkCustomRpcEndpointFields({
+                      failoverUrls: ['https://first.failover.endpoint'],
                       name: 'Endpoint 2',
                       url: 'https://rpc.endpoint/2',
                     }),
                     buildUpdateNetworkCustomRpcEndpointFields({
+                      failoverUrls: ['https://second.failover.endpoint'],
                       name: 'Endpoint 3',
                       url: 'https://rpc.endpoint/3',
                     }),
@@ -5393,12 +5262,14 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
                     {
+                      failoverUrls: ['https://first.failover.endpoint'],
                       name: 'Endpoint 2',
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       type: RpcEndpointType.Custom,
                       url: 'https://rpc.endpoint/2',
                     },
                     {
+                      failoverUrls: ['https://second.failover.endpoint'],
                       name: 'Endpoint 3',
                       networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                       type: RpcEndpointType.Custom,
@@ -5448,10 +5319,12 @@ describe('NetworkController', () => {
                     rpcEndpoints: [
                       ...networkConfigurationToUpdate.rpcEndpoints,
                       buildUpdateNetworkCustomRpcEndpointFields({
+                        failoverUrls: ['https://first.failover.endpoint'],
                         name: 'Endpoint 2',
                         url: 'https://rpc.endpoint/2',
                       }),
                       buildUpdateNetworkCustomRpcEndpointFields({
+                        failoverUrls: ['https://second.failover.endpoint'],
                         name: 'Endpoint 3',
                         url: 'https://rpc.endpoint/3',
                       }),
@@ -5463,12 +5336,14 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     ...networkConfigurationToUpdate.rpcEndpoints,
                     {
+                      failoverUrls: ['https://first.failover.endpoint'],
                       name: 'Endpoint 2',
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       type: RpcEndpointType.Custom,
                       url: 'https://rpc.endpoint/2',
                     },
                     {
+                      failoverUrls: ['https://second.failover.endpoint'],
                       name: 'Endpoint 3',
                       networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                       type: RpcEndpointType.Custom,
@@ -5678,29 +5553,24 @@ describe('NetworkController', () => {
                       buildFakeClient(fakeProviders[0]),
                       buildFakeClient(fakeProviders[1]),
                     ];
-                    mockCreateNetworkClient()
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/1',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[0])
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/2',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[1]);
+                    createNetworkClientMock.mockImplementation(
+                      ({ configuration }) => {
+                        if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/1'
+                        ) {
+                          return fakeNetworkClients[0];
+                        } else if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/2'
+                        ) {
+                          return fakeNetworkClients[1];
+                        }
+                        throw new Error(
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        );
+                      },
+                    );
                     await controller.initializeProvider();
                     expect(controller.state.selectedNetworkClientId).toBe(
                       'AAAA-AAAA-AAAA-AAAA',
@@ -5790,29 +5660,24 @@ describe('NetworkController', () => {
                       buildFakeClient(fakeProviders[0]),
                       buildFakeClient(fakeProviders[1]),
                     ];
-                    mockCreateNetworkClient()
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/1',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[0])
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/2',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[1]);
+                    createNetworkClientMock.mockImplementation(
+                      ({ configuration }) => {
+                        if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/1'
+                        ) {
+                          return fakeNetworkClients[0];
+                        } else if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/2'
+                        ) {
+                          return fakeNetworkClients[1];
+                        }
+                        throw new Error(
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        );
+                      },
+                    );
                     await controller.initializeProvider();
 
                     const promiseForStateChanges = waitForStateChanges({
@@ -5921,40 +5786,29 @@ describe('NetworkController', () => {
                       buildFakeClient(fakeProviders[1]),
                       buildFakeClient(fakeProviders[2]),
                     ];
-                    mockCreateNetworkClient()
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/1',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[0])
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/2',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[1])
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/3',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[2]);
+                    createNetworkClientMock.mockImplementation(
+                      ({ configuration }) => {
+                        if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/1'
+                        ) {
+                          return fakeNetworkClients[0];
+                        } else if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/2'
+                        ) {
+                          return fakeNetworkClients[1];
+                        } else if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/3'
+                        ) {
+                          return fakeNetworkClients[2];
+                        }
+                        throw new Error(
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        );
+                      },
+                    );
                     await controller.initializeProvider();
                     expect(controller.state.selectedNetworkClientId).toBe(
                       'AAAA-AAAA-AAAA-AAAA',
@@ -6059,40 +5913,29 @@ describe('NetworkController', () => {
                       buildFakeClient(fakeProviders[1]),
                       buildFakeClient(fakeProviders[2]),
                     ];
-                    mockCreateNetworkClient()
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/1',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[0])
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/2',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[1])
-                      .calledWith({
-                        configuration: {
-                          chainId: infuraChainId,
-                          rpcUrl: 'https://test.network/3',
-                          ticker: infuraNativeTokenName,
-                          type: NetworkClientType.Custom,
-                        },
-                        fetch,
-                        btoa,
-                      })
-                      .mockReturnValue(fakeNetworkClients[2]);
+                    createNetworkClientMock.mockImplementation(
+                      ({ configuration }) => {
+                        if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/1'
+                        ) {
+                          return fakeNetworkClients[0];
+                        } else if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/2'
+                        ) {
+                          return fakeNetworkClients[1];
+                        } else if (
+                          configuration.type === NetworkClientType.Custom &&
+                          configuration.rpcUrl === 'https://test.network/3'
+                        ) {
+                          return fakeNetworkClients[2];
+                        }
+                        throw new Error(
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        );
+                      },
+                    );
                     await controller.initializeProvider();
 
                     const promiseForStateChanges = waitForStateChanges({
@@ -6145,15 +5988,14 @@ describe('NetworkController', () => {
         describe('when the URL of an RPC endpoint is changed (using networkClientId as identification)', () => {
           it('destroys and unregisters the network client for the previous version of the RPC endpoint', async () => {
             uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
+            const customRpcEndpoint = buildCustomRpcEndpoint({
+              name: 'Endpoint 1',
+              networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              url: 'https://rpc.endpoint',
+            });
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    name: 'Endpoint 1',
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    url: 'https://rpc.endpoint',
-                  }),
-                ],
+                rpcEndpoints: [customRpcEndpoint],
               });
 
             await withController(
@@ -6176,18 +6018,20 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://some.other.url',
-                      ticker: infuraNativeTokenName,
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.chainId === infuraChainId &&
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://some.other.url'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 const existingNetworkClient = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
@@ -6196,11 +6040,10 @@ describe('NetworkController', () => {
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      name: 'Endpoint 1',
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    {
+                      ...customRpcEndpoint,
                       url: 'https://some.other.url',
-                    }),
+                    },
                   ],
                 });
 
@@ -6220,15 +6063,14 @@ describe('NetworkController', () => {
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
+            const customRpcEndpoint = buildCustomRpcEndpoint({
+              name: 'Endpoint 1',
+              networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              url: 'https://rpc.endpoint',
+            });
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    name: 'Endpoint 1',
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    url: 'https://rpc.endpoint',
-                  }),
-                ],
+                rpcEndpoints: [customRpcEndpoint],
               });
 
             await withController(
@@ -6251,33 +6093,25 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://some.other.url',
-                      ticker: infuraNativeTokenName,
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockReturnValue(buildFakeClient());
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      name: 'Endpoint 1',
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    {
+                      ...customRpcEndpoint,
                       url: 'https://some.other.url',
-                    }),
+                      failoverUrls: ['https://failover.endpoint'],
+                    },
                   ],
                 });
 
-                expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                expect(
+                  createAutoManagedNetworkClientSpy,
+                ).toHaveBeenNthCalledWith(3, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://failover.endpoint'],
                     rpcUrl: 'https://some.other.url',
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
@@ -6285,17 +6119,18 @@ describe('NetworkController', () => {
                   fetch,
                   btoa,
                 });
-                expect(
+                const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
                     controller.getNetworkClientRegistry(),
-                  ),
-                ).toMatchObject({
-                  'BBBB-BBBB-BBBB-BBBB': {
-                    chainId: infuraChainId,
-                    rpcUrl: 'https://some.other.url',
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Custom,
-                  },
+                  );
+                expect(
+                  networkConfigurationsByNetworkClientId['BBBB-BBBB-BBBB-BBBB'],
+                ).toStrictEqual({
+                  chainId: infuraChainId,
+                  failoverRpcUrls: ['https://failover.endpoint'],
+                  rpcUrl: 'https://some.other.url',
+                  ticker: infuraNativeTokenName,
+                  type: NetworkClientType.Custom,
                 });
               },
             );
@@ -6303,15 +6138,14 @@ describe('NetworkController', () => {
 
           it('updates the network configuration in state with a new network client ID for the RPC endpoint', async () => {
             uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
+            const customRpcEndpoint = buildCustomRpcEndpoint({
+              name: 'Endpoint 1',
+              networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              url: 'https://rpc.endpoint',
+            });
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    name: 'Endpoint 1',
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    url: 'https://rpc.endpoint',
-                  }),
-                ],
+                rpcEndpoints: [customRpcEndpoint],
               });
 
             await withController(
@@ -6334,27 +6168,15 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://some.other.url',
-                      ticker: infuraNativeTokenName,
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockReturnValue(buildFakeClient());
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      name: 'Endpoint 1',
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    {
+                      ...customRpcEndpoint,
                       url: 'https://some.other.url',
-                    }),
+                    },
                   ],
                 });
 
@@ -6366,9 +6188,8 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
                     {
-                      name: 'Endpoint 1',
+                      ...customRpcEndpoint,
                       networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                      type: 'custom',
                       url: 'https://some.other.url',
                     },
                   ],
@@ -6380,15 +6201,14 @@ describe('NetworkController', () => {
 
           it('returns the updated network configuration', async () => {
             uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
+            const customRpcEndpoint = buildCustomRpcEndpoint({
+              name: 'Endpoint 1',
+              networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+              url: 'https://rpc.endpoint',
+            });
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    name: 'Endpoint 1',
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    url: 'https://rpc.endpoint',
-                  }),
-                ],
+                rpcEndpoints: [customRpcEndpoint],
               });
 
             await withController(
@@ -6411,28 +6231,16 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://some.other.url',
-                      ticker: infuraNativeTokenName,
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockReturnValue(buildFakeClient());
 
                 const updatedNetworkConfiguration =
                   await controller.updateNetwork(infuraChainId, {
                     ...networkConfigurationToUpdate,
                     rpcEndpoints: [
-                      buildCustomRpcEndpoint({
-                        name: 'Endpoint 1',
-                        networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                      {
+                        ...customRpcEndpoint,
                         url: 'https://some.other.url',
-                      }),
+                      },
                     ],
                   });
 
@@ -6440,9 +6248,8 @@ describe('NetworkController', () => {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
                     {
-                      name: 'Endpoint 1',
+                      ...customRpcEndpoint,
                       networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                      type: 'custom',
                       url: 'https://some.other.url',
                     },
                   ],
@@ -6502,29 +6309,24 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: infuraNativeTokenName,
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://some.other.url',
-                        ticker: infuraNativeTokenName,
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://rpc.endpoint'
+                      ) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://some.other.url'
+                      ) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
@@ -6608,29 +6410,24 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: infuraNativeTokenName,
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://some.other.url',
-                        ticker: infuraNativeTokenName,
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://rpc.endpoint'
+                      ) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://some.other.url'
+                      ) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
 
                   const promiseForStateChanges = waitForStateChanges({
@@ -7105,6 +6902,7 @@ describe('NetworkController', () => {
             'createAutoManagedNetworkClient',
           );
           const rpcEndpoint1 = buildCustomRpcEndpoint({
+            failoverUrls: [],
             name: 'Endpoint 1',
             networkClientId: 'AAAA-AAAA-AAAA-AAAA',
             url: 'https://rpc.endpoint/1',
@@ -7141,60 +6939,77 @@ describe('NetworkController', () => {
                 rpcEndpoints: [
                   rpcEndpoint1,
                   buildUpdateNetworkCustomRpcEndpointFields({
+                    failoverUrls: ['https://first.failover.endpoint'],
                     name: 'Endpoint 2',
                     url: 'https://rpc.endpoint/2',
                   }),
                   buildUpdateNetworkCustomRpcEndpointFields({
+                    failoverUrls: ['https://second.failover.endpoint'],
                     name: 'Endpoint 3',
                     url: 'https://rpc.endpoint/3',
                   }),
                 ],
               });
 
-              expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
-                networkClientConfiguration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://rpc.endpoint/2',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
+              expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
+                3,
+                {
+                  networkClientConfiguration: {
+                    chainId: '0x1337',
+                    failoverRpcUrls: ['https://first.failover.endpoint'],
+                    rpcUrl: 'https://rpc.endpoint/2',
+                    ticker: 'TOKEN',
+                    type: NetworkClientType.Custom,
+                  },
+                  fetch,
+                  btoa,
                 },
-                fetch,
-                btoa,
-              });
-              expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
-                networkClientConfiguration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://rpc.endpoint/3',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
+              );
+              expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
+                4,
+                {
+                  networkClientConfiguration: {
+                    chainId: '0x1337',
+                    failoverRpcUrls: ['https://second.failover.endpoint'],
+                    rpcUrl: 'https://rpc.endpoint/3',
+                    ticker: 'TOKEN',
+                    type: NetworkClientType.Custom,
+                  },
+                  fetch,
+                  btoa,
                 },
-                fetch,
-                btoa,
-              });
+              );
 
-              expect(
+              const networkConfigurationsByNetworkClientId =
                 getNetworkConfigurationsByNetworkClientId(
                   controller.getNetworkClientRegistry(),
-                ),
-              ).toMatchObject({
-                'AAAA-AAAA-AAAA-AAAA': {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://rpc.endpoint/1',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
-                },
-                'BBBB-BBBB-BBBB-BBBB': {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://rpc.endpoint/2',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
-                },
-                'CCCC-CCCC-CCCC-CCCC': {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://rpc.endpoint/3',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
-                },
+                );
+              expect(
+                networkConfigurationsByNetworkClientId['AAAA-AAAA-AAAA-AAAA'],
+              ).toStrictEqual({
+                chainId: '0x1337',
+                failoverRpcUrls: [],
+                rpcUrl: 'https://rpc.endpoint/1',
+                ticker: 'TOKEN',
+                type: NetworkClientType.Custom,
+              });
+              expect(
+                networkConfigurationsByNetworkClientId['BBBB-BBBB-BBBB-BBBB'],
+              ).toStrictEqual({
+                chainId: '0x1337',
+                failoverRpcUrls: ['https://first.failover.endpoint'],
+                rpcUrl: 'https://rpc.endpoint/2',
+                ticker: 'TOKEN',
+                type: NetworkClientType.Custom,
+              });
+              expect(
+                networkConfigurationsByNetworkClientId['CCCC-CCCC-CCCC-CCCC'],
+              ).toStrictEqual({
+                chainId: '0x1337',
+                failoverRpcUrls: ['https://second.failover.endpoint'],
+                rpcUrl: 'https://rpc.endpoint/3',
+                ticker: 'TOKEN',
+                type: NetworkClientType.Custom,
               });
             },
           );
@@ -7240,10 +7055,12 @@ describe('NetworkController', () => {
                 rpcEndpoints: [
                   rpcEndpoint1,
                   buildUpdateNetworkCustomRpcEndpointFields({
+                    failoverUrls: ['https://first.failover.endpoint'],
                     name: 'Endpoint 2',
                     url: 'https://rpc.endpoint/2',
                   }),
                   buildUpdateNetworkCustomRpcEndpointFields({
+                    failoverUrls: ['https://second.failover.endpoint'],
                     name: 'Endpoint 3',
                     url: 'https://rpc.endpoint/3',
                   }),
@@ -7257,12 +7074,14 @@ describe('NetworkController', () => {
                 rpcEndpoints: [
                   rpcEndpoint1,
                   {
+                    failoverUrls: ['https://first.failover.endpoint'],
                     name: 'Endpoint 2',
                     networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                     type: RpcEndpointType.Custom,
                     url: 'https://rpc.endpoint/2',
                   },
                   {
+                    failoverUrls: ['https://second.failover.endpoint'],
                     name: 'Endpoint 3',
                     networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                     type: RpcEndpointType.Custom,
@@ -7316,10 +7135,12 @@ describe('NetworkController', () => {
                   rpcEndpoints: [
                     rpcEndpoint1,
                     buildUpdateNetworkCustomRpcEndpointFields({
+                      failoverUrls: ['https://first.failover.endpoint'],
                       name: 'Endpoint 2',
                       url: 'https://rpc.endpoint/2',
                     }),
                     buildUpdateNetworkCustomRpcEndpointFields({
+                      failoverUrls: ['https://second.failover.endpoint'],
                       name: 'Endpoint 3',
                       url: 'https://rpc.endpoint/3',
                     }),
@@ -7331,12 +7152,14 @@ describe('NetworkController', () => {
                 rpcEndpoints: [
                   rpcEndpoint1,
                   {
+                    failoverUrls: ['https://first.failover.endpoint'],
                     name: 'Endpoint 2',
                     networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                     type: RpcEndpointType.Custom,
                     url: 'https://rpc.endpoint/2',
                   },
                   {
+                    failoverUrls: ['https://second.failover.endpoint'],
                     name: 'Endpoint 3',
                     networkClientId: 'CCCC-CCCC-CCCC-CCCC',
                     type: RpcEndpointType.Custom,
@@ -7546,29 +7369,24 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/1',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/2',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/1'
+                      ) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/2'
+                      ) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
@@ -7658,29 +7476,24 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/1',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/2',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/1'
+                      ) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/2'
+                      ) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
 
                   const promiseForStateChanges = waitForStateChanges({
@@ -7788,40 +7601,29 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[1]),
                     buildFakeClient(fakeProviders[2]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/1',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/2',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/3',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[2]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/1'
+                      ) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/2'
+                      ) {
+                        return fakeNetworkClients[1];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/3'
+                      ) {
+                        return fakeNetworkClients[2];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
@@ -7926,40 +7728,29 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[1]),
                     buildFakeClient(fakeProviders[2]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/1',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/2',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://test.network/3',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[2]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/1'
+                      ) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/2'
+                      ) {
+                        return fakeNetworkClients[1];
+                      } else if (
+                        configuration.type === NetworkClientType.Custom &&
+                        configuration.rpcUrl === 'https://test.network/3'
+                      ) {
+                        return fakeNetworkClients[2];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
 
                   const promiseForStateChanges = waitForStateChanges({
@@ -8040,18 +7831,7 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://some.other.url',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(buildFakeClient());
+              createNetworkClientMock.mockReturnValue(buildFakeClient());
               const existingNetworkClient = controller.getNetworkClientById(
                 'AAAA-AAAA-AAAA-AAAA',
               );
@@ -8115,23 +7895,25 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://some.other.url',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(buildFakeClient());
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (
+                    configuration.type === NetworkClientType.Custom &&
+                    configuration.rpcUrl === 'https://some.other.url'
+                  ) {
+                    return buildFakeClient();
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
 
               await controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [
                   buildCustomRpcEndpoint({
+                    failoverUrls: ['https://failover.endpoint'],
                     name: 'Endpoint 1',
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     url: 'https://some.other.url',
@@ -8142,6 +7924,7 @@ describe('NetworkController', () => {
               expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
                 networkClientConfiguration: {
                   chainId: '0x1337',
+                  failoverRpcUrls: ['https://failover.endpoint'],
                   rpcUrl: 'https://some.other.url',
                   ticker: 'TOKEN',
                   type: NetworkClientType.Custom,
@@ -8156,6 +7939,7 @@ describe('NetworkController', () => {
               ).toMatchObject({
                 'BBBB-BBBB-BBBB-BBBB': {
                   chainId: '0x1337',
+                  failoverRpcUrls: ['https://failover.endpoint'],
                   rpcUrl: 'https://some.other.url',
                   ticker: 'TOKEN',
                   type: NetworkClientType.Custom,
@@ -8167,15 +7951,14 @@ describe('NetworkController', () => {
 
         it('updates the network configuration in state with a new network client ID for the RPC endpoint', async () => {
           uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
+          const customRpcEndpoint = buildCustomRpcEndpoint({
+            name: 'Endpoint 1',
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.endpoint',
+          });
           const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
             nativeCurrency: 'TOKEN',
-            rpcEndpoints: [
-              buildCustomRpcEndpoint({
-                name: 'Endpoint 1',
-                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                url: 'https://rpc.endpoint',
-              }),
-            ],
+            rpcEndpoints: [customRpcEndpoint],
           });
 
           await withController(
@@ -8198,27 +7981,27 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://some.other.url',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(buildFakeClient());
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (
+                    configuration.type === NetworkClientType.Custom &&
+                    configuration.rpcUrl === 'https://some.other.url'
+                  ) {
+                    return buildFakeClient();
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
 
               await controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [
-                  buildCustomRpcEndpoint({
-                    name: 'Endpoint 1',
-                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                  {
+                    ...customRpcEndpoint,
                     url: 'https://some.other.url',
-                  }),
+                  },
                 ],
               });
 
@@ -8228,9 +8011,8 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [
                   {
-                    name: 'Endpoint 1',
+                    ...customRpcEndpoint,
                     networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                    type: 'custom',
                     url: 'https://some.other.url',
                   },
                 ],
@@ -8242,15 +8024,14 @@ describe('NetworkController', () => {
 
         it('returns the updated network configuration', async () => {
           uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
+          const customRpcEndpoint = buildCustomRpcEndpoint({
+            name: 'Endpoint 1',
+            networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            url: 'https://rpc.endpoint',
+          });
           const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
             nativeCurrency: 'TOKEN',
-            rpcEndpoints: [
-              buildCustomRpcEndpoint({
-                name: 'Endpoint 1',
-                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                url: 'https://rpc.endpoint',
-              }),
-            ],
+            rpcEndpoints: [customRpcEndpoint],
           });
 
           await withController(
@@ -8273,28 +8054,28 @@ describe('NetworkController', () => {
               },
             },
             async ({ controller }) => {
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://some.other.url',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(buildFakeClient());
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (
+                    configuration.type === NetworkClientType.Custom &&
+                    configuration.rpcUrl === 'https://some.other.url'
+                  ) {
+                    return buildFakeClient();
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
 
               const updatedNetworkConfiguration =
                 await controller.updateNetwork('0x1337', {
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      name: 'Endpoint 1',
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    {
+                      ...customRpcEndpoint,
                       url: 'https://some.other.url',
-                    }),
+                    },
                   ],
                 });
 
@@ -8302,9 +8083,8 @@ describe('NetworkController', () => {
                 ...networkConfigurationToUpdate,
                 rpcEndpoints: [
                   {
-                    name: 'Endpoint 1',
+                    ...customRpcEndpoint,
                     networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                    type: 'custom',
                     url: 'https://some.other.url',
                   },
                 ],
@@ -8365,29 +8145,24 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[0]),
                   buildFakeClient(fakeProviders[1]),
                 ];
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://rpc.endpoint',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://some.other.url',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[1]);
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://rpc.endpoint'
+                    ) {
+                      return fakeNetworkClients[0];
+                    } else if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://some.other.url'
+                    ) {
+                      return fakeNetworkClients[1];
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 await controller.initializeProvider();
                 expect(controller.state.selectedNetworkClientId).toBe(
                   'AAAA-AAAA-AAAA-AAAA',
@@ -8473,29 +8248,24 @@ describe('NetworkController', () => {
                   buildFakeClient(fakeProviders[0]),
                   buildFakeClient(fakeProviders[1]),
                 ];
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://rpc.endpoint',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[0])
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://some.other.url',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(fakeNetworkClients[1]);
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://rpc.endpoint'
+                    ) {
+                      return fakeNetworkClients[0];
+                    } else if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://some.other.url'
+                    ) {
+                      return fakeNetworkClients[1];
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 await controller.initializeProvider();
 
                 const promiseForStateChanges = waitForStateChanges({
@@ -9060,7 +8830,6 @@ describe('NetworkController', () => {
               rpcEndpoints: [rpcEndpoint1, rpcEndpoint2],
             });
 
-            // TODO: This is where we stopped
             await withController(
               {
                 state: {
@@ -9081,18 +8850,19 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 await controller.updateNetwork('0x1337', {
                   ...networkConfigurationToUpdate,
@@ -9165,18 +8935,19 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 const existingNetworkClient1 = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
@@ -9224,11 +8995,13 @@ describe('NetworkController', () => {
               nativeCurrency: 'TOKEN',
               rpcEndpoints: [
                 buildCustomRpcEndpoint({
+                  failoverUrls: ['https://first.failover.endpoint'],
                   name: 'Test Network 1',
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
                 }),
                 buildCustomRpcEndpoint({
+                  failoverUrls: ['https://second.failover.endpoint'],
                   name: 'Test Network 2',
                   networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   url: 'https://test.endpoint/2',
@@ -9256,27 +9029,31 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 await controller.updateNetwork('0x1337', {
                   ...networkConfigurationToUpdate,
                   chainId: infuraChainId,
                 });
 
-                expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                expect(
+                  createAutoManagedNetworkClientSpy,
+                ).toHaveBeenNthCalledWith(4, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://first.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/1',
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
@@ -9284,9 +9061,12 @@ describe('NetworkController', () => {
                   fetch,
                   btoa,
                 });
-                expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                expect(
+                  createAutoManagedNetworkClientSpy,
+                ).toHaveBeenNthCalledWith(5, {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
+                    failoverRpcUrls: ['https://second.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/2',
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
@@ -9295,23 +9075,27 @@ describe('NetworkController', () => {
                   btoa,
                 });
 
-                expect(
+                const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
                     controller.getNetworkClientRegistry(),
-                  ),
-                ).toMatchObject({
-                  'CCCC-CCCC-CCCC-CCCC': {
-                    chainId: infuraChainId,
-                    rpcUrl: 'https://test.endpoint/1',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  'DDDD-DDDD-DDDD-DDDD': {
-                    chainId: infuraChainId,
-                    rpcUrl: 'https://test.endpoint/2',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
+                  );
+                expect(
+                  networkConfigurationsByNetworkClientId['CCCC-CCCC-CCCC-CCCC'],
+                ).toStrictEqual({
+                  chainId: infuraChainId,
+                  failoverRpcUrls: ['https://first.failover.endpoint'],
+                  rpcUrl: 'https://test.endpoint/1',
+                  ticker: 'TOKEN',
+                  type: NetworkClientType.Custom,
+                });
+                expect(
+                  networkConfigurationsByNetworkClientId['DDDD-DDDD-DDDD-DDDD'],
+                ).toStrictEqual({
+                  chainId: infuraChainId,
+                  failoverRpcUrls: ['https://second.failover.endpoint'],
+                  rpcUrl: 'https://test.endpoint/2',
+                  ticker: 'TOKEN',
+                  type: NetworkClientType.Custom,
                 });
               },
             );
@@ -9357,18 +9141,19 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: infuraChainId,
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 const updatedNetworkConfiguration =
                   await controller.updateNetwork('0x1337', {
@@ -9446,29 +9231,18 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (configuration.chainId === '0x1337') {
+                        return fakeNetworkClients[0];
+                      } else if (configuration.chainId === infuraChainId) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
@@ -9548,29 +9322,18 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (configuration.chainId === '0x1337') {
+                        return fakeNetworkClients[0];
+                      } else if (configuration.chainId === infuraChainId) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
 
                   const promiseForStateChanges = waitForStateChanges({
@@ -9743,18 +9506,19 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 await controller.updateNetwork(
                   infuraChainId,
@@ -9839,18 +9603,19 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 const existingNetworkClient1 = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
@@ -9906,10 +9671,12 @@ describe('NetworkController', () => {
               [
                 buildInfuraRpcEndpoint(infuraNetworkType),
                 buildCustomRpcEndpoint({
+                  failoverUrls: ['https://first.failover.endpoint'],
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
                 }),
                 buildCustomRpcEndpoint({
+                  failoverUrls: ['https://second.failover.endpoint'],
                   networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   url: 'https://test.endpoint/2',
                 }),
@@ -9944,18 +9711,19 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 await controller.updateNetwork(
                   infuraChainId,
@@ -9972,6 +9740,7 @@ describe('NetworkController', () => {
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
                   networkClientConfiguration: {
                     chainId: '0x1337',
+                    failoverRpcUrls: ['https://first.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/1',
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
@@ -9982,6 +9751,7 @@ describe('NetworkController', () => {
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
                   networkClientConfiguration: {
                     chainId: '0x1337',
+                    failoverRpcUrls: ['https://second.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/2',
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
@@ -9997,12 +9767,14 @@ describe('NetworkController', () => {
                 ).toMatchObject({
                   'CCCC-CCCC-CCCC-CCCC': {
                     chainId: '0x1337',
+                    failoverRpcUrls: ['https://first.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/1',
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
                   },
                   'DDDD-DDDD-DDDD-DDDD': {
                     chainId: '0x1337',
+                    failoverRpcUrls: ['https://second.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/2',
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
@@ -10058,18 +9830,19 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: '0x1337',
-                      rpcUrl: 'https://test.endpoint/1',
-                      ticker: 'TOKEN',
-                      type: NetworkClientType.Custom,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (
+                      configuration.type === NetworkClientType.Custom &&
+                      configuration.rpcUrl === 'https://test.endpoint/1'
+                    ) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 const updatedNetworkConfiguration =
                   await controller.updateNetwork(
@@ -10156,29 +9929,18 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (configuration.chainId === infuraChainId) {
+                        return fakeNetworkClients[0];
+                      } else if (configuration.chainId === '0x1337') {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
@@ -10258,29 +10020,18 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: '0x1337',
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (configuration.chainId === infuraChainId) {
+                        return fakeNetworkClients[0];
+                      } else if (configuration.chainId === '0x1337') {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
 
                   const promiseForStateChanges = waitForStateChanges({
@@ -10455,19 +10206,16 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: anotherInfuraChainId,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: anotherInfuraNetworkType,
-                      ticker: anotherInfuraNativeTokenName,
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (configuration.chainId === anotherInfuraChainId) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 const anotherInfuraRpcEndpoint = buildInfuraRpcEndpoint(
                   anotherInfuraNetworkType,
@@ -10562,19 +10310,16 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: anotherInfuraChainId,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: anotherInfuraNetworkType,
-                      ticker: anotherInfuraNativeTokenName,
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (configuration.chainId === anotherInfuraChainId) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
                 const existingNetworkClient1 = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
@@ -10630,10 +10375,12 @@ describe('NetworkController', () => {
               [
                 buildInfuraRpcEndpoint(infuraNetworkType),
                 buildCustomRpcEndpoint({
+                  failoverUrls: ['https://first.failover.endpoint'],
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   url: 'https://test.endpoint/1',
                 }),
                 buildCustomRpcEndpoint({
+                  failoverUrls: ['https://second.failover.endpoint'],
                   networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                   url: 'https://test.endpoint/2',
                 }),
@@ -10669,19 +10416,16 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: anotherInfuraChainId,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: anotherInfuraNetworkType,
-                      ticker: anotherInfuraNativeTokenName,
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (configuration.chainId === anotherInfuraChainId) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -10695,9 +10439,12 @@ describe('NetworkController', () => {
                   ],
                 });
 
-                expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                expect(
+                  createAutoManagedNetworkClientSpy,
+                ).toHaveBeenNthCalledWith(6, {
                   networkClientConfiguration: {
                     chainId: anotherInfuraChainId,
+                    failoverRpcUrls: ['https://first.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/1',
                     ticker: anotherInfuraNativeTokenName,
                     type: NetworkClientType.Custom,
@@ -10705,9 +10452,12 @@ describe('NetworkController', () => {
                   fetch,
                   btoa,
                 });
-                expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
+                expect(
+                  createAutoManagedNetworkClientSpy,
+                ).toHaveBeenNthCalledWith(7, {
                   networkClientConfiguration: {
                     chainId: anotherInfuraChainId,
+                    failoverRpcUrls: ['https://second.failover.endpoint'],
                     rpcUrl: 'https://test.endpoint/2',
                     ticker: anotherInfuraNativeTokenName,
                     type: NetworkClientType.Custom,
@@ -10716,23 +10466,27 @@ describe('NetworkController', () => {
                   btoa,
                 });
 
-                expect(
+                const networkConfigurationsByChainId =
                   getNetworkConfigurationsByNetworkClientId(
                     controller.getNetworkClientRegistry(),
-                  ),
-                ).toMatchObject({
-                  'CCCC-CCCC-CCCC-CCCC': {
-                    chainId: anotherInfuraChainId,
-                    rpcUrl: 'https://test.endpoint/1',
-                    ticker: anotherInfuraNativeTokenName,
-                    type: NetworkClientType.Custom,
-                  },
-                  'DDDD-DDDD-DDDD-DDDD': {
-                    chainId: anotherInfuraChainId,
-                    rpcUrl: 'https://test.endpoint/2',
-                    ticker: anotherInfuraNativeTokenName,
-                    type: NetworkClientType.Custom,
-                  },
+                  );
+                expect(
+                  networkConfigurationsByChainId['CCCC-CCCC-CCCC-CCCC'],
+                ).toStrictEqual({
+                  chainId: anotherInfuraChainId,
+                  failoverRpcUrls: ['https://first.failover.endpoint'],
+                  rpcUrl: 'https://test.endpoint/1',
+                  ticker: anotherInfuraNativeTokenName,
+                  type: NetworkClientType.Custom,
+                });
+                expect(
+                  networkConfigurationsByChainId['DDDD-DDDD-DDDD-DDDD'],
+                ).toStrictEqual({
+                  chainId: anotherInfuraChainId,
+                  failoverRpcUrls: ['https://second.failover.endpoint'],
+                  rpcUrl: 'https://test.endpoint/2',
+                  ticker: anotherInfuraNativeTokenName,
+                  type: NetworkClientType.Custom,
                 });
               },
             );
@@ -10785,19 +10539,16 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                mockCreateNetworkClient()
-                  .calledWith({
-                    configuration: {
-                      chainId: anotherInfuraChainId,
-                      infuraProjectId: 'some-infura-project-id',
-                      network: anotherInfuraNetworkType,
-                      ticker: anotherInfuraNativeTokenName,
-                      type: NetworkClientType.Infura,
-                    },
-                    fetch,
-                    btoa,
-                  })
-                  .mockReturnValue(buildFakeClient());
+                createNetworkClientMock.mockImplementation(
+                  ({ configuration }) => {
+                    if (configuration.chainId === anotherInfuraChainId) {
+                      return buildFakeClient();
+                    }
+                    throw new Error(
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    );
+                  },
+                );
 
                 const anotherInfuraRpcEndpoint = buildInfuraRpcEndpoint(
                   anotherInfuraNetworkType,
@@ -10888,29 +10639,20 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: anotherInfuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (configuration.chainId === infuraChainId) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.chainId === anotherInfuraChainId
+                      ) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
                   expect(controller.state.selectedNetworkClientId).toBe(
                     'AAAA-AAAA-AAAA-AAAA',
@@ -10990,29 +10732,20 @@ describe('NetworkController', () => {
                     buildFakeClient(fakeProviders[0]),
                     buildFakeClient(fakeProviders[1]),
                   ];
-                  mockCreateNetworkClient()
-                    .calledWith({
-                      configuration: {
-                        chainId: infuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[0])
-                    .calledWith({
-                      configuration: {
-                        chainId: anotherInfuraChainId,
-                        rpcUrl: 'https://rpc.endpoint',
-                        ticker: 'TOKEN',
-                        type: NetworkClientType.Custom,
-                      },
-                      fetch,
-                      btoa,
-                    })
-                    .mockReturnValue(fakeNetworkClients[1]);
+                  createNetworkClientMock.mockImplementation(
+                    ({ configuration }) => {
+                      if (configuration.chainId === infuraChainId) {
+                        return fakeNetworkClients[0];
+                      } else if (
+                        configuration.chainId === anotherInfuraChainId
+                      ) {
+                        return fakeNetworkClients[1];
+                      }
+                      throw new Error(
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      );
+                    },
+                  );
                   await controller.initializeProvider();
 
                   const promiseForStateChanges = waitForStateChanges({
@@ -11187,31 +10920,17 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeProviders = [
-              buildFakeProvider([
-                {
-                  request: {
-                    method: 'test',
-                  },
-                  response: {
-                    result: 'test response from 1',
-                  },
-                },
-              ]),
-            ];
-            const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: '0x2448',
-                  rpcUrl: 'https://test.endpoint/1',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (
+                configuration.type === NetworkClientType.Custom &&
+                configuration.rpcUrl === 'https://test.endpoint/1'
+              ) {
+                return buildFakeClient();
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
 
             await controller.updateNetwork('0x1337', {
               ...networkConfigurationToUpdate,
@@ -11282,31 +11001,17 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeProviders = [
-              buildFakeProvider([
-                {
-                  request: {
-                    method: 'test',
-                  },
-                  response: {
-                    result: 'test response from 1',
-                  },
-                },
-              ]),
-            ];
-            const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: '0x2448',
-                  rpcUrl: 'https://test.endpoint/1',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (
+                configuration.type === NetworkClientType.Custom &&
+                configuration.rpcUrl === 'https://test.endpoint/1'
+              ) {
+                return buildFakeClient();
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             const existingNetworkClient1 = controller.getNetworkClientById(
               'AAAA-AAAA-AAAA-AAAA',
             );
@@ -11349,11 +11054,13 @@ describe('NetworkController', () => {
           nativeCurrency: 'TOKEN',
           rpcEndpoints: [
             buildCustomRpcEndpoint({
+              failoverUrls: ['https://first.failover.endpoint'],
               name: 'Test Network 1',
               networkClientId: 'AAAA-AAAA-AAAA-AAAA',
               url: 'https://test.endpoint/1',
             }),
             buildCustomRpcEndpoint({
+              failoverUrls: ['https://second.failover.endpoint'],
               name: 'Test Network 2',
               networkClientId: 'BBBB-BBBB-BBBB-BBBB',
               url: 'https://test.endpoint/2',
@@ -11381,75 +11088,73 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeProviders = [
-              buildFakeProvider([
-                {
-                  request: {
-                    method: 'test',
-                  },
-                  response: {
-                    result: 'test response from 1',
-                  },
-                },
-              ]),
-            ];
-            const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: '0x2448',
-                  rpcUrl: 'https://test.endpoint/1',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (
+                configuration.type === NetworkClientType.Custom &&
+                configuration.rpcUrl === 'https://test.endpoint/1'
+              ) {
+                return buildFakeClient();
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
 
             await controller.updateNetwork('0x1337', {
               ...networkConfigurationToUpdate,
               chainId: '0x2448',
             });
 
-            expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
-              networkClientConfiguration: {
-                chainId: '0x2448',
-                rpcUrl: 'https://test.endpoint/1',
-                ticker: 'TOKEN',
-                type: NetworkClientType.Custom,
+            expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
+              4,
+              {
+                networkClientConfiguration: {
+                  chainId: '0x2448',
+                  failoverRpcUrls: ['https://first.failover.endpoint'],
+                  rpcUrl: 'https://test.endpoint/1',
+                  ticker: 'TOKEN',
+                  type: NetworkClientType.Custom,
+                },
+                fetch,
+                btoa,
               },
-              fetch,
-              btoa,
-            });
-            expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
-              networkClientConfiguration: {
-                chainId: '0x2448',
-                rpcUrl: 'https://test.endpoint/2',
-                ticker: 'TOKEN',
-                type: NetworkClientType.Custom,
+            );
+            expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
+              5,
+              {
+                networkClientConfiguration: {
+                  chainId: '0x2448',
+                  failoverRpcUrls: ['https://second.failover.endpoint'],
+                  rpcUrl: 'https://test.endpoint/2',
+                  ticker: 'TOKEN',
+                  type: NetworkClientType.Custom,
+                },
+                fetch,
+                btoa,
               },
-              fetch,
-              btoa,
-            });
+            );
 
-            expect(
+            const networkConfigurationsByChainId =
               getNetworkConfigurationsByNetworkClientId(
                 controller.getNetworkClientRegistry(),
-              ),
-            ).toMatchObject({
-              'CCCC-CCCC-CCCC-CCCC': {
-                chainId: '0x2448',
-                rpcUrl: 'https://test.endpoint/1',
-                ticker: 'TOKEN',
-                type: NetworkClientType.Custom,
-              },
-              'DDDD-DDDD-DDDD-DDDD': {
-                chainId: '0x2448',
-                rpcUrl: 'https://test.endpoint/2',
-                ticker: 'TOKEN',
-                type: NetworkClientType.Custom,
-              },
+              );
+            expect(
+              networkConfigurationsByChainId['CCCC-CCCC-CCCC-CCCC'],
+            ).toStrictEqual({
+              chainId: '0x2448',
+              failoverRpcUrls: ['https://first.failover.endpoint'],
+              rpcUrl: 'https://test.endpoint/1',
+              ticker: 'TOKEN',
+              type: NetworkClientType.Custom,
+            });
+            expect(
+              networkConfigurationsByChainId['DDDD-DDDD-DDDD-DDDD'],
+            ).toStrictEqual({
+              chainId: '0x2448',
+              failoverRpcUrls: ['https://second.failover.endpoint'],
+              rpcUrl: 'https://test.endpoint/2',
+              ticker: 'TOKEN',
+              type: NetworkClientType.Custom,
             });
           },
         );
@@ -11495,31 +11200,17 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const fakeProviders = [
-              buildFakeProvider([
-                {
-                  request: {
-                    method: 'test',
-                  },
-                  response: {
-                    result: 'test response from 1',
-                  },
-                },
-              ]),
-            ];
-            const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: '0x2448',
-                  rpcUrl: 'https://test.endpoint/1',
-                  ticker: 'TOKEN',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (
+                configuration.type === NetworkClientType.Custom &&
+                configuration.rpcUrl === 'https://test.endpoint/1'
+              ) {
+                return buildFakeClient();
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
 
             const updatedNetworkConfiguration = await controller.updateNetwork(
               '0x1337',
@@ -11598,29 +11289,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://rpc.endpoint',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: '0x2448',
-                    rpcUrl: 'https://rpc.endpoint',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === '0x2448') {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.initializeProvider();
               expect(controller.state.selectedNetworkClientId).toBe(
                 'AAAA-AAAA-AAAA-AAAA',
@@ -11699,29 +11379,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://rpc.endpoint',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: '0x2448',
-                    rpcUrl: 'https://rpc.endpoint',
-                    ticker: 'TOKEN',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === '0x2448') {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.initializeProvider();
 
               const promiseForStateChanges = waitForStateChanges({
@@ -12024,6 +11693,7 @@ describe('NetworkController', () => {
         defaultRpcEndpointIndex: 0,
         rpcEndpoints: [
           {
+            failoverUrls: [],
             type: RpcEndpointType.Custom,
             url: 'https://test.endpoint/1',
             networkClientId: 'client1',
@@ -12060,6 +11730,7 @@ describe('NetworkController', () => {
             rpcEndpoints: [
               ...network.rpcEndpoints,
               {
+                failoverUrls: [],
                 type: RpcEndpointType.Custom,
                 url: 'https://test.endpoint/2',
               },
@@ -12386,7 +12057,6 @@ describe('NetworkController', () => {
 
     for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
       const infuraChainId = ChainId[infuraNetworkType];
-      const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
       // False negative - this is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -12488,11 +12158,9 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -12506,30 +12174,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
               expect(controller.state.selectedNetworkClientId).toBe(
                 'AAAA-AAAA-AAAA-AAAA',
@@ -12556,11 +12212,9 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -12584,30 +12238,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
               expect(
                 controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA'].status,
@@ -12649,11 +12291,9 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -12679,30 +12319,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
 
               await controller.rollbackToPreviousProvider();
@@ -12731,11 +12359,9 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -12749,30 +12375,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
               const networkClientBefore = controller.getSelectedNetworkClient();
               assert(networkClientBefore, 'Network client is somehow unset');
@@ -12800,11 +12414,9 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -12828,30 +12440,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
               const promiseForNoInfuraIsUnblockedEvents =
                 waitForPublishedEvents({
@@ -12884,11 +12484,9 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -12919,30 +12517,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
               expect(
                 controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA'].status,
@@ -12974,11 +12560,9 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                        url: 'https://test.network',
                       }),
                     ],
                   }),
@@ -13013,30 +12597,18 @@ describe('NetworkController', () => {
                 buildFakeClient(fakeProviders[0]),
                 buildFakeClient(fakeProviders[1]),
               ];
-              mockCreateNetworkClient()
-                .calledWith({
-                  configuration: {
-                    chainId: '0x1337',
-                    rpcUrl: 'https://test.network',
-                    ticker: 'TEST',
-                    type: NetworkClientType.Custom,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[0])
-                .calledWith({
-                  configuration: {
-                    chainId: infuraChainId,
-                    infuraProjectId,
-                    network: infuraNetworkType,
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
-                  fetch,
-                  btoa,
-                })
-                .mockReturnValue(fakeNetworkClients[1]);
+              createNetworkClientMock.mockImplementation(
+                ({ configuration }) => {
+                  if (configuration.chainId === '0x1337') {
+                    return fakeNetworkClients[0];
+                  } else if (configuration.chainId === infuraChainId) {
+                    return fakeNetworkClients[1];
+                  }
+                  throw new Error(
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                  );
+                },
+              );
               await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
               expect(
                 controller.state.networksMetadata['AAAA-AAAA-AAAA-AAAA']
@@ -13161,11 +12733,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -13182,30 +12752,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: ChainId.goerli,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker.goerli,
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
             expect(controller.state.selectedNetworkClientId).toBe(
               InfuraNetworkType.goerli,
@@ -13229,11 +12785,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -13260,30 +12814,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: ChainId.goerli,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker.goerli,
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
             expect(
               controller.state.networksMetadata[
@@ -13328,11 +12868,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -13361,30 +12899,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: ChainId.goerli,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker.goerli,
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
 
             await controller.rollbackToPreviousProvider();
@@ -13411,11 +12935,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -13432,30 +12954,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: ChainId.goerli,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker.goerli,
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
             const networkClientBefore = controller.getSelectedNetworkClient();
             assert(networkClientBefore, 'Network client is somehow unset');
@@ -13481,11 +12989,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -13502,30 +13008,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: ChainId.goerli,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker.goerli,
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
 
             const promiseForInfuraIsUnblocked = waitForPublishedEvents({
@@ -13551,11 +13043,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -13589,30 +13079,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: ChainId.goerli,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker.goerli,
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
             expect(
               controller.state.networksMetadata[InfuraNetworkType.goerli]
@@ -13637,11 +13113,9 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network',
                     }),
                   ],
                 }),
@@ -13679,30 +13153,16 @@ describe('NetworkController', () => {
               buildFakeClient(fakeProviders[0]),
               buildFakeClient(fakeProviders[1]),
             ];
-            mockCreateNetworkClient()
-              .calledWith({
-                configuration: {
-                  chainId: ChainId.goerli,
-                  infuraProjectId,
-                  network: InfuraNetworkType.goerli,
-                  ticker: NetworksTicker.goerli,
-                  type: NetworkClientType.Infura,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[0])
-              .calledWith({
-                configuration: {
-                  chainId: '0x1337',
-                  rpcUrl: 'https://test.network',
-                  ticker: 'TEST',
-                  type: NetworkClientType.Custom,
-                },
-                fetch,
-                btoa,
-              })
-              .mockReturnValue(fakeNetworkClients[1]);
+            createNetworkClientMock.mockImplementation(({ configuration }) => {
+              if (configuration.chainId === ChainId.goerli) {
+                return fakeNetworkClients[0];
+              } else if (configuration.chainId === '0x1337') {
+                return fakeNetworkClients[1];
+              }
+              throw new Error(
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+              );
+            });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
             expect(
               controller.state.networksMetadata[InfuraNetworkType.goerli]
@@ -13734,6 +13194,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN1',
                 rpcEndpoints: [
                   {
+                    failoverUrls: [],
                     name: 'Test Endpoint',
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     url: 'https://test.network/1',
@@ -13755,6 +13216,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN2',
                 rpcEndpoints: [
                   {
+                    failoverUrls: [],
                     name: 'Test Endpoint',
                     networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                     url: 'https://test.network/2',
@@ -13775,6 +13237,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN1',
                 rpcEndpoints: [
                   {
+                    failoverUrls: [],
                     name: 'Test Endpoint',
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                     url: 'https://test.network/1',
@@ -13790,6 +13253,7 @@ describe('NetworkController', () => {
                 nativeCurrency: 'TOKEN2',
                 rpcEndpoints: [
                   {
+                    failoverUrls: [],
                     name: 'Test Endpoint',
                     networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                     url: 'https://test.network/2',
@@ -13995,7 +13459,6 @@ function refreshNetworkTests({
     it('sets the provider to a custom RPC provider initialized with the RPC target and chain ID', async () => {
       await withController(
         {
-          infuraProjectId: 'infura-project-id',
           state: initialState,
         },
         async ({ controller }) => {
@@ -14015,12 +13478,7 @@ function refreshNetworkTests({
           await operation(controller);
 
           expect(createNetworkClientMock).toHaveBeenCalledWith({
-            configuration: {
-              chainId: expectedNetworkClientConfiguration.chainId,
-              rpcUrl: expectedNetworkClientConfiguration.rpcUrl,
-              type: NetworkClientType.Custom,
-              ticker: expectedNetworkClientConfiguration.ticker,
-            },
+            configuration: expectedNetworkClientConfiguration,
             fetch,
             btoa,
           });
@@ -14112,6 +13570,7 @@ function refreshNetworkTests({
             if (isInfuraNetworkType(selectedNetworkClientId)) {
               initializationNetworkClientConfiguration = {
                 chainId: ChainId[selectedNetworkClientId],
+                failoverRpcUrls: [],
                 infuraProjectId: 'infura-project-id',
                 network: selectedNetworkClientId,
                 ticker: NetworksTicker[selectedNetworkClientId],
@@ -14120,6 +13579,7 @@ function refreshNetworkTests({
             } else {
               initializationNetworkClientConfiguration = {
                 chainId: matchingNetworkConfiguration.chainId,
+                failoverRpcUrls: [],
                 rpcUrl: matchingRpcEndpoint.url,
                 ticker: matchingNetworkConfiguration.nativeCurrency,
                 type: NetworkClientType.Custom,
@@ -14143,19 +13603,26 @@ function refreshNetworkTests({
                 ...expectedNetworkClientConfiguration,
                 infuraProjectId: 'infura-project-id',
               };
-        mockCreateNetworkClient()
-          .calledWith({
-            configuration: initializationNetworkClientConfiguration,
-            fetch,
-            btoa,
-          })
-          .mockReturnValue(fakeNetworkClients[0])
-          .calledWith({
-            configuration: operationNetworkClientConfiguration,
-            fetch,
-            btoa,
-          })
-          .mockReturnValue(fakeNetworkClients[1]);
+        createNetworkClientMock.mockImplementation(({ configuration }) => {
+          if (
+            isDeepStrictEqual(
+              configuration,
+              initializationNetworkClientConfiguration,
+            )
+          ) {
+            return fakeNetworkClients[0];
+          } else if (
+            isDeepStrictEqual(
+              configuration,
+              operationNetworkClientConfiguration,
+            )
+          ) {
+            return fakeNetworkClients[1];
+          }
+          throw new Error(
+            `Unknown network client configuration ${JSON.stringify(configuration)}`,
+          );
+        });
         await controller.initializeProvider();
         const { provider: providerBefore } =
           controller.getProviderAndBlockTracker();
@@ -15035,6 +14502,7 @@ function buildFakeClient(
 ): NetworkClient {
   return {
     configuration: {
+      failoverRpcUrls: [],
       type: NetworkClientType.Custom,
       ticker: 'TEST',
       chainId: '0x1',

@@ -15,7 +15,7 @@ import {
   QUOTE_RESPONSE_VALIDATORS,
   FEE_DATA_VALIDATORS,
 } from './validators';
-import { REFRESH_INTERVAL_MS } from '../constants/bridge';
+import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
 import type { SwapsTokenObject } from '../constants/tokens';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
@@ -27,6 +27,7 @@ import type {
   TxData,
   BridgeFeatureFlags,
   FetchFunction,
+  ChainConfiguration,
 } from '../types';
 import { BridgeFlag, FeeType, BridgeFeatureFlagsKey } from '../types';
 
@@ -60,29 +61,32 @@ export async function fetchBridgeFeatureFlags(
       url,
     )
   ) {
+    const getChainsObj = (chains: Record<number, ChainConfiguration>) =>
+      Object.entries(chains).reduce(
+        (acc, [chainId, value]) => ({
+          ...acc,
+          [numberToHex(Number(chainId))]: value,
+        }),
+        {},
+      );
+
     return {
       [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
         ...rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG],
-        chains: Object.entries(
+        chains: getChainsObj(
           rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG].chains,
-        ).reduce(
-          (acc, [chainId, value]) => ({
-            ...acc,
-            [numberToHex(Number(chainId))]: value,
-          }),
-          {},
         ),
+      },
+      [BridgeFeatureFlagsKey.MOBILE_CONFIG]: {
+        ...rawFeatureFlags[BridgeFlag.MOBILE_CONFIG],
+        chains: getChainsObj(rawFeatureFlags[BridgeFlag.MOBILE_CONFIG].chains),
       },
     };
   }
 
   return {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-      refreshRate: REFRESH_INTERVAL_MS,
-      maxRefreshCount: 5,
-      support: false,
-      chains: {},
-    },
+    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
+    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
   };
 }
 

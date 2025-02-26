@@ -1,7 +1,7 @@
 import { Messenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
 import nock from 'nock';
-import * as sinon from 'sinon';
+import sinon from 'sinon';
 
 import {
   ListNames,
@@ -13,9 +13,12 @@ import {
   type PhishingControllerOptions,
   CLIENT_SIDE_DETECION_BASE_URL,
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
+  PHISHING_DETECTION_BASE_URL,
+  PHISHING_DETECTION_SCAN_ENDPOINT,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
-import { PhishingDetectorResultType } from './types';
+import type { PhishingDetectionScanResult } from './types';
+import { PhishingDetectorResultType, RecommendedAction } from './types';
 import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
@@ -2363,6 +2366,170 @@ describe('PhishingController', () => {
       // Verify that the whitelist now includes the punycode origin
       expect(controller.state.whitelist).toContain(punycodeOrigin);
       expect(controller.state.whitelist).toHaveLength(1);
+    });
+  });
+
+  describe('scanUrl', () => {
+    let controller: PhishingController;
+    let clock: sinon.SinonFakeTimers;
+    const testUrl: string = 'https://example.com';
+    const mockResponse: PhishingDetectionScanResult = {
+      domainName: 'example.com',
+      recommendedAction: RecommendedAction.None,
+    };
+
+    beforeEach(() => {
+      controller = getPhishingController();
+      clock = sinon.useFakeTimers();
+    });
+
+    it('should return the scan result', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanUrl(testUrl);
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'should return a PhishingDetectionScanResult with a fetchError on %i status code',
+      async (statusCode, statusText) => {
+        const scope = nock(PHISHING_DETECTION_BASE_URL)
+          .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+          .query({ url: 'example.com' })
+          .reply(statusCode);
+
+        const response = await controller.scanUrl(testUrl);
+        expect(response).toMatchObject({
+          domainName: '',
+          recommendedAction: RecommendedAction.None,
+          fetchError: `${statusCode} ${statusText}`,
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('should return a PhishingDetectionScanResult with a fetchError on timeout', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: testUrl })
+        .delayConnection(10000)
+        .reply(200, {});
+
+      const promise = controller.scanUrl(testUrl);
+      clock.tick(8000);
+      const response = await promise;
+      expect(response).toMatchObject({
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'timeout of 8000ms exceeded',
+      });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('should only send hostname when URL contains query parameters', async () => {
+      const urlWithQuery =
+        'https://example.com/path?param1=value1&param2=value2';
+      const expectedHostname = 'example.com';
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanUrl(urlWithQuery);
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should only send hostname when URL contains hash fragments', async () => {
+      const urlWithHash = 'https://example.com/page#section1';
+      const expectedHostname = 'example.com';
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanUrl(urlWithHash);
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should only send hostname for complex URLs with multiple parameters', async () => {
+      const complexUrl =
+        'https://sub.example.com:8080/path/to/page?q=search&utm_source=test#top';
+      const expectedHostname = 'sub.example.com';
+
+      const subdomainResponse = {
+        ...mockResponse,
+        domainName: 'sub.example.com',
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, subdomainResponse);
+
+      const response = await controller.scanUrl(complexUrl);
+      expect(response).toMatchObject(subdomainResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should return a PhishingDetectionScanResult with a fetchError on invalid URLs', async () => {
+      const invalidUrls = [
+        'not-a-url',
+        'http://',
+        'https://',
+        'example',
+        'http://.',
+        'http://..',
+        'http://../',
+        'http://?',
+        'http://??',
+        'http://??/',
+        'http://#',
+        'http://##',
+        'http://##/',
+        'chrome://extensions',
+        'file://some_file.pdf',
+        'about:blank',
+      ];
+
+      for (const invalidUrl of invalidUrls) {
+        const response = await controller.scanUrl(invalidUrl);
+        expect(response).toMatchObject({
+          domainName: '',
+          recommendedAction: RecommendedAction.None,
+          fetchError: 'url is not a valid web URL',
+        });
+      }
+    });
+
+    it('should handle URLs with authentication parameters correctly', async () => {
+      const urlWithAuth = 'https://user:pass@example.com/secure';
+      const expectedHostname = 'example.com';
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, mockResponse);
+
+      const response = await controller.scanUrl(urlWithAuth);
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
     });
   });
 });

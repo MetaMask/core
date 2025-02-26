@@ -11,8 +11,8 @@ export const MOCK_REG_TOKEN = 'REG_TOKEN';
 export const MOCK_LINKS_RESPONSE: LinksResult = {
   trigger_ids: ['1', '2', '3'],
   registration_tokens: [
-    { token: 'reg_token_1', platform: 'portfolio' },
-    { token: 'reg_token_2', platform: 'extension' },
+    { token: 'reg_token_1', platform: 'portfolio', locale: 'en' },
+    { token: 'reg_token_2', platform: 'extension', locale: 'en' },
   ],
 };
 

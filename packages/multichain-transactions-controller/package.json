@@ -61,7 +61,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^24.0.1",
+    "@metamask/accounts-controller": "^24.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^19.2.1",
     "@types/jest": "^27.4.1",

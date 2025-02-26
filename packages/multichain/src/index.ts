@@ -49,7 +49,8 @@ export { parseScopeString } from './scope/types';
 export {
   normalizeScope,
   mergeScopeObject,
-  mergeScopes,
+  mergeNormalizedScopes,
+  mergeInternalScopes,
   normalizeAndMergeScopes,
 } from './scope/transform';
 

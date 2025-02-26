@@ -31,12 +31,6 @@ const MOCK_RPC_URL = 'http://foo.com';
 const DEFAULT_LATEST_BLOCK_NUMBER = '0x42';
 
 /**
- * A reference to the original `setTimeout` function so that we can use it even
- * when using fake timers.
- */
-const originalSetTimeout = setTimeout;
-
-/**
  * If you're having trouble writing a test and you're wondering why the test
  * keeps failing, you can set `process.env.DEBUG_PROVIDER_TESTS` to `1`. This
  * will turn on some extra logging.
@@ -299,6 +293,7 @@ export type ProviderType = 'infura' | 'custom';
 
 export type MockOptions = {
   infuraNetwork?: InfuraNetworkType;
+  failoverRpcUrls?: string[];
   providerType: ProviderType;
   customRpcUrl?: string;
   customChainId?: Hex;
@@ -430,9 +425,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
 
   // `hasPromiseBeenFulfilled` is modified asynchronously.
   /* eslint-disable-next-line no-unmodified-loop-condition */
-  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 15) {
-    clock.runAll();
-    await new Promise((resolve) => originalSetTimeout(resolve, 10));
+  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 30) {
+    await clock.runAllAsync();
     numTimesClockHasBeenAdvanced += 1;
   }
 
@@ -446,6 +440,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
  *
  * @param options - An options bag.
  * @param options.providerType - The type of network client being tested.
+ * @param options.failoverRpcUrls - The list of failover endpoint
+ * URLs to use.
  * @param options.infuraNetwork - The name of the Infura network being tested,
  * assuming that `providerType` is "infura" (default: "mainnet").
  * @param options.customRpcUrl - The URL of the custom RPC endpoint, assuming
@@ -461,6 +457,7 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers(
 export async function withNetworkClient(
   {
     providerType,
+    failoverRpcUrls = [],
     infuraNetwork = 'mainnet',
     customRpcUrl = MOCK_RPC_URL,
     customChainId = '0x1',
@@ -490,6 +487,7 @@ export async function withNetworkClient(
       ? createNetworkClient({
           configuration: {
             network: infuraNetwork,
+            failoverRpcUrls,
             infuraProjectId: MOCK_INFURA_PROJECT_ID,
             type: NetworkClientType.Infura,
             chainId: BUILT_IN_NETWORKS[infuraNetwork].chainId,
@@ -501,6 +499,7 @@ export async function withNetworkClient(
       : createNetworkClient({
           configuration: {
             chainId: customChainId,
+            failoverRpcUrls,
             rpcUrl: customRpcUrl,
             type: NetworkClientType.Custom,
             ticker: customTicker,

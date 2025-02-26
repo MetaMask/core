@@ -10,6 +10,7 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { validateBatchRequest } from './validation';
 import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
@@ -20,6 +21,11 @@ import type { PublishBatchHook } from '../types';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
+
+jest.mock('./validation', () => ({
+  ...jest.requireActual('./validation'),
+  validateBatchRequest: jest.fn(),
+}));
 
 type AddBatchTransactionOptions = Parameters<typeof addTransactionBatch>[0];
 
@@ -34,6 +40,7 @@ const MESSENGER_MOCK = {} as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const BATCH_ID_MOCK = 'testBatchId';
 const GET_ETH_QUERY_MOCK = jest.fn();
+const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
 const TRANSACTION_ID_MOCK = 'testTransactionId';
 const TRANSACTION_ID_2_MOCK = 'testTransactionId2';
 const TRANSACTION_HASH_MOCK = '0x123';
@@ -55,6 +62,7 @@ const TRANSACTION_META_MOCK = {
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
+  const validateBatchRequestMock = jest.mocked(validateBatchRequest);
 
   const isAccountUpgradedToEIP7702Mock = jest.mocked(
     isAccountUpgradedToEIP7702,
@@ -93,6 +101,7 @@ describe('Batch Utils', () => {
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
+        getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getTransaction: jest.fn(),
         messenger: MESSENGER_MOCK,
         request: {
@@ -569,7 +578,7 @@ describe('Batch Utils', () => {
             result: Promise.resolve(''),
           });
 
-        updateTransactionMock.mockImplementation((id, update) => {
+        updateTransactionMock.mockImplementation((_id, update) => {
           update(existingTransactionMock as TransactionMeta);
         });
 
@@ -793,6 +802,16 @@ describe('Batch Utils', () => {
 
         await expect(publishHookPromise1).rejects.toThrow(ERROR_MESSAGE_MOCK);
       });
+    });
+
+    it('validates request', async () => {
+      validateBatchRequestMock.mockImplementationOnce(() => {
+        throw new Error('Validation Error');
+      });
+
+      await expect(addTransactionBatch(request)).rejects.toThrow(
+        'Validation Error',
+      );
     });
   });
 

@@ -4,19 +4,25 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { safelyExecute } from '@metamask/controller-utils';
+import {
+  safelyExecute,
+  safelyExecuteWithTimeout,
+} from '@metamask/controller-utils';
 import { toASCII } from 'punycode/punycode.js';
 
 import { PhishingDetector } from './PhishingDetector';
 import {
   PhishingDetectorResultType,
   type PhishingDetectorResult,
+  type PhishingDetectionScanResult,
+  RecommendedAction,
 } from './types';
 import {
   applyDiffs,
   fetchTimeNow,
   getHostnameFromUrl,
   roundToNearestMinute,
+  getHostnameFromWebUrl,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -27,6 +33,10 @@ export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
 export const CLIENT_SIDE_DETECION_BASE_URL =
   'https://client-side-detection.api.cx.metamask.io';
 export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
+
+export const PHISHING_DETECTION_BASE_URL =
+  'https://dapp-scanning.api.cx.metamask.io';
+export const PHISHING_DETECTION_SCAN_ENDPOINT = 'scan';
 
 export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
@@ -565,6 +575,67 @@ export class PhishingController extends BaseController<
       this.#inProgressStalelistUpdate = undefined;
     }
   }
+
+  /**
+   * Scan a URL for phishing. It will only scan the hostname of the URL. It also only supports
+   * web URLs.
+   *
+   * @param url - The URL to scan.
+   * @returns The phishing detection scan result.
+   */
+  scanUrl = async (url: string): Promise<PhishingDetectionScanResult> => {
+    const [hostname, ok] = getHostnameFromWebUrl(url);
+    if (!ok) {
+      return {
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'url is not a valid web URL',
+      };
+    }
+
+    const apiResponse = await safelyExecuteWithTimeout(
+      async () => {
+        const res = await fetch(
+          `${PHISHING_DETECTION_BASE_URL}/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(hostname)}`,
+          {
+            method: 'GET',
+            headers: {
+              Accept: 'application/json',
+            },
+          },
+        );
+        if (!res.ok) {
+          return {
+            error: `${res.status} ${res.statusText}`,
+          };
+        }
+        const data = await res.json();
+        return data;
+      },
+      true,
+      8000,
+    );
+
+    // Need to do it this way because safelyExecuteWithTimeout returns undefined for both timeouts and errors.
+    if (!apiResponse) {
+      return {
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'timeout of 8000ms exceeded',
+      };
+    } else if ('error' in apiResponse) {
+      return {
+        domainName: '',
+        recommendedAction: RecommendedAction.None,
+        fetchError: apiResponse.error,
+      };
+    }
+
+    return {
+      domainName: hostname,
+      recommendedAction: apiResponse.recommendedAction,
+    } as PhishingDetectionScanResult;
+  };
 
   /**
    * Update the stalelist configuration.
