@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for automatic failover when Infura is down ([#5630](https://github.com/MetaMask/core/pull/5630))
   - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverUrls`.
   - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
+- Add `NetworkControllerErrors` constant ([#5398](https://github.com/MetaMask/core/pull/5398))
 
 ### Changed
 

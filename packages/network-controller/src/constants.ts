@@ -26,3 +26,7 @@ export enum NetworkStatus {
 }
 
 export const INFURA_BLOCKED_KEY = 'countryBlocked';
+
+export const NetworkControllerError = {
+  ChainIdNotFound: "Couldn't find networkClientId for chainId",
+};

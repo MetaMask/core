@@ -28,7 +28,11 @@ import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
-import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import {
+  INFURA_BLOCKED_KEY,
+  NetworkStatus,
+  NetworkControllerError,
+} from './constants';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
@@ -2119,7 +2123,7 @@ export class NetworkController extends BaseController<
       ([_, networkClient]) => networkClient.configuration.chainId === chainId,
     );
     if (networkClientEntry === undefined) {
-      throw new Error("Couldn't find networkClientId for chainId");
+      throw new Error(NetworkControllerError.ChainIdNotFound);
     }
     return networkClientEntry[0];
   }
