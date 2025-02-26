@@ -304,6 +304,7 @@ export class GasFeePoller {
 
 /**
  * Update the gas fees for a transaction.
+ * 
  * @param args - Argument bag.
  * @param args.txMeta - The transaction meta.
  * @param args.gasFeeEstimates - The gas fee estimates.

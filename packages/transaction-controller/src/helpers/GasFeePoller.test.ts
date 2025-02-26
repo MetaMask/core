@@ -352,9 +352,6 @@ describe('updateTransactionGasFees', () => {
     type: GasFeeEstimateType.GasPrice,
     gasPrice: '0x12345',
   };
-  const GAS_FEE_POLLER_UPDATE_EVENT_PAYLOAD = {
-    transactionId: TRANSACTION_META_MOCK.id,
-  };
 
   it('updates gas fee estimates', async () => {
     const txMeta = {
