@@ -5,7 +5,7 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
 import { isEIP1559Transaction } from './utils';
-import type { Authorization } from '../types';
+import type { Authorization, TransactionBatchRequest } from '../types';
 import {
   TransactionEnvelopeType,
   TransactionType,
@@ -244,6 +244,43 @@ function validateParamFrom(from: string) {
 export function validateParamTo(to?: string) {
   if (!to || typeof to !== 'string') {
     throw rpcErrors.invalidParams(`Invalid "to" address`);
+  }
+}
+
+/**
+ * Validates a transaction batch request.
+ *
+ * @param options - Options bag.
+ * @param options.internalAccounts - The internal accounts added to the wallet.
+ * @param options.request - The batch request object.
+ */
+export function validateBatchRequest({
+  internalAccounts,
+  request,
+}: {
+  internalAccounts: string[];
+  request: TransactionBatchRequest;
+}) {
+  const { origin } = request;
+  const isExternal = origin && origin !== ORIGIN_METAMASK;
+
+  const transactionTargetsNormalized = request.transactions.map((tx) =>
+    tx.params.to?.toLowerCase(),
+  );
+
+  const internalAccountsNormalized = internalAccounts.map((account) =>
+    account.toLowerCase(),
+  );
+
+  if (
+    isExternal &&
+    transactionTargetsNormalized.some((target) =>
+      internalAccountsNormalized.includes(target as string),
+    )
+  ) {
+    throw rpcErrors.invalidParams(
+      'External transactions to internal accounts are not supported',
+    );
   }
 }
 
