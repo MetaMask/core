@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `TransactionBatchRequest`
     - `TransactionBatchResult`
   - Add dependency on `@metamask/remote-feature-flag-controller:^1.4.0`.
-  - The `GasFeePoller` now updates the `maxFeePerGas` and `maxPriorityFeePerGas` properties on the `txParams` of a transaction when the `gasFeeEstimates` property is updated.
+  - Automatically update gas fee properties in `txParams` when the `gasFeeEstimates` are updated via polling.
 
 ### Changed
 
