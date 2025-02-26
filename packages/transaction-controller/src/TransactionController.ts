@@ -15,10 +15,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
-  ApprovalType,
-  convertHexToDecimal,
-  ORIGIN_METAMASK,
   query,
+  ApprovalType,
+  ORIGIN_METAMASK,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
@@ -30,11 +30,11 @@ import type {
   BlockTracker,
   NetworkClientId,
   NetworkController,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import type {
@@ -43,7 +43,7 @@ import type {
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x, hexToNumber } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -71,42 +71,43 @@ import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type { ResimulateResponse } from './helpers/ResimulateHelper';
 import {
-  hasSimulationDataChanged,
   ResimulateHelper,
+  hasSimulationDataChanged,
   shouldResimulate,
 } from './helpers/ResimulateHelper';
 import { projectLogger as log } from './logger';
 import type {
-  BatchTransactionParams,
   DappSuggestedGasFees,
-  FeeMarketEIP1559Values,
-  FeeMarketGasFeeEstimates,
-  GasFeeEstimates,
-  GasFeeFlow,
-  GasFeeFlowResponse,
-  GasPriceGasFeeEstimates,
-  GasPriceValue,
   Layer1GasFeeFlow,
-  LegacyGasFeeEstimates,
   SavedGasFees,
-  SecurityAlertResponse,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
+  TransactionParams,
+  TransactionMeta,
+  TransactionReceipt,
+  WalletDevice,
+  SecurityAlertResponse,
+  GasFeeFlow,
   SimulationData,
+  GasFeeEstimates,
+  GasFeeFlowResponse,
+  GasPriceValue,
+  FeeMarketEIP1559Values,
   SubmitHistoryEntry,
   TransactionBatchRequest,
   TransactionBatchResult,
-  TransactionMeta,
-  TransactionParams,
-  TransactionReceipt,
-  WalletDevice,
+  BatchTransactionParams,
 } from './types';
 import {
+  FeeMarketGasFeeEstimates,
   GasFeeEstimateLevel,
-  SimulationErrorCode,
+  GasFeeEstimateType,
+  GasPriceGasFeeEstimates,
+  LegacyGasFeeEstimates,
   TransactionEnvelopeType,
-  TransactionStatus,
   TransactionType,
+  TransactionStatus,
+  SimulationErrorCode,
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import type { KeyringControllerSignAuthorization } from './utils/eip7702';
@@ -136,12 +137,12 @@ import {
 } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
-  isEIP1559Transaction,
-  normalizeGasFeeValues,
   normalizeTransactionParams,
-  normalizeTxError,
+  isEIP1559Transaction,
   validateGasValues,
   validateIfTransactionUnapproved,
+  normalizeTxError,
+  normalizeGasFeeValues,
 } from './utils/utils';
 import {
   validateParamTo,
@@ -178,8 +179,8 @@ const SUBMIT_HISTORY_LIMIT = 100;
  * Object with new transaction's meta and a promise resolving to the
  * transaction hash if successful.
  *
- * result - Promise resolving to a new transaction hash
- * transactionMeta - Meta information about this new transaction
+ * @property result - Promise resolving to a new transaction hash
+ * @property transactionMeta - Meta information about this new transaction
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -192,8 +193,8 @@ export interface Result {
 /**
  * Method data registry object
  *
- * registryMethod - Registry method raw string
- * parsedRegistryMethod - Registry method object, containing name and method arguments
+ * @property registryMethod - Registry method raw string
+ * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
 export type MethodData = {
   registryMethod: string;
@@ -217,9 +218,9 @@ export type MethodData = {
 /**
  * Transaction controller state
  *
- * transactions - A list of TransactionMeta objects
- * methodData - Object containing all known method data information
- * lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
+ * @property transactions - A list of TransactionMeta objects
+ * @property methodData - Object containing all known method data information
+ * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
   transactions: TransactionMeta[];
@@ -254,7 +255,7 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
 /**
  * Configuration options for the PendingTransactionTracker
  *
- * isResubmitEnabled - Whether transaction publishing is automatically retried.
+ * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
   isResubmitEnabled?: () => boolean;
@@ -263,32 +264,33 @@ export type PendingTransactionOptions = {
 /**
  * TransactionController constructor options.
  *
- * disableHistory - Whether to disable storing history in transaction metadata.
- * disableSendFlowHistory - Explicitly disable transaction metadata history.
- * disableSwaps - Whether to disable additional processing on swaps transactions.
- * getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
- * getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
- * getGasFeeEstimates - Callback to retrieve gas fee estimates.
- * getNetworkClientRegistry - Gets the network client registry.
- * getNetworkState - Gets the state of the network controller.
- * getPermittedAccounts - Get accounts that a given origin has permissions for.
- * getSavedGasFees - Gets the saved gas fee config.
- * getSelectedAddress - Gets the address of the currently selected account.
- * incomingTransactions - Configuration options for incoming transaction support.
- * isSimulationEnabled - Whether new transactions will be automatically simulated.
- * messenger - The controller messenger.
- * pendingTransactions - Configuration options for pending transaction support.
- * securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
- * sign - Function used to sign transactions.
- * state - Initial state to set on this controller.
- * transactionHistoryLimit - Transaction history limit.
- * hooks - The controller hooks.
- * hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
- * hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
- * hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
- * hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
- * hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
- * hooks.publish - Alternate logic to publish a transaction.
+ * @property disableHistory - Whether to disable storing history in transaction metadata.
+ * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
+ * @property disableSwaps - Whether to disable additional processing on swaps transactions.
+ * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+ * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+ * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
+ * @property getGasFeeEstimates - Callback to retrieve gas fee estimates.
+ * @property getNetworkClientRegistry - Gets the network client registry.
+ * @property getNetworkState - Gets the state of the network controller.
+ * @property getPermittedAccounts - Get accounts that a given origin has permissions for.
+ * @property getSavedGasFees - Gets the saved gas fee config.
+ * @property getSelectedAddress - Gets the address of the currently selected account.
+ * @property incomingTransactions - Configuration options for incoming transaction support.
+ * @property isSimulationEnabled - Whether new transactions will be automatically simulated.
+ * @property messenger - The controller messenger.
+ * @property pendingTransactions - Configuration options for pending transaction support.
+ * @property securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
+ * @property sign - Function used to sign transactions.
+ * @property state - Initial state to set on this controller.
+ * @property transactionHistoryLimit - Transaction history limit.
+ * @property hooks - The controller hooks.
+ * @property hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
+ * @property hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
+ * @property hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
+ * @property hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
+ * @property hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
+ * @property hooks.publish - Alternate logic to publish a transaction.
  */
 export type TransactionControllerOptions = {
   disableHistory: boolean;
@@ -1258,7 +1260,6 @@ export class TransactionController extends BaseController<
    * @param options - The options for the cancellation transaction.
    * @param options.actionId - Unique ID to prevent duplicate requests.
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
-   * @returns A retry transaction promise.
    */
   async stopTransaction(
     transactionId: string,
@@ -1303,7 +1304,6 @@ export class TransactionController extends BaseController<
    * @param options - The options for the speed up transaction.
    * @param options.actionId - Unique ID to prevent duplicate requests
    * @param options.estimatedBaseFee - The estimated base fee of the transaction.
-   * @returns A retry transaction promise.
    */
   async speedUpTransaction(
     transactionId: string,
@@ -1480,7 +1480,6 @@ export class TransactionController extends BaseController<
    * @param transaction - The transaction params to estimate gas for.
    * @param multiplier - The multiplier to use for the gas buffer.
    * @param networkClientId - The network client id to use for the estimate.
-   * @returns The gas and simulationFails.
    */
   async estimateGasBuffered(
     transaction: TransactionParams,
@@ -2252,7 +2251,6 @@ export class TransactionController extends BaseController<
    * @param request.transactionParams - The transaction parameters to estimate the layer 1 gas fee for.
    * @param request.chainId - The ID of the chain where the transaction will be executed.
    * @param request.networkClientId - The ID of a specific network client to process the transaction.
-   * @returns The layer 1 gas fee.
    */
   async getLayer1GasFee({
     transactionParams,
@@ -2568,7 +2566,6 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to approve.
    * @param traceContext - The parent context for any new traces.
-   * @returns The approval state.
    */
   private async approveTransaction(
     transactionId: string,
@@ -3795,17 +3792,32 @@ export class TransactionController extends BaseController<
       { transactionId, skipHistory: true },
       (txMeta) => {
         const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
+        const isUsingGasFeeEstimateLevel =
+          Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
+        const { type: gasEstimateType } = gasFeeEstimates ?? {};
 
-        if (Object.values(GasFeeEstimateLevel).includes(userFeeLevel)) {
-          txMeta.txParams.maxFeePerGas =
-            (gasFeeEstimates as FeeMarketGasFeeEstimates)?.[userFeeLevel]
-              ?.maxFeePerGas ||
-            (gasFeeEstimates as LegacyGasFeeEstimates)?.[userFeeLevel] ||
-            (gasFeeEstimates as GasPriceGasFeeEstimates)?.gasPrice;
+        if (isUsingGasFeeEstimateLevel) {
+          if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+            txMeta.txParams.maxFeePerGas = (
+              gasFeeEstimates as FeeMarketGasFeeEstimates
+            )?.[userFeeLevel]?.maxFeePerGas;
 
-          txMeta.txParams.maxPriorityFeePerGas = (
-            gasFeeEstimates as FeeMarketGasFeeEstimates
-          )?.[userFeeLevel]?.maxPriorityFeePerGas;
+            txMeta.txParams.maxPriorityFeePerGas = (
+              gasFeeEstimates as FeeMarketGasFeeEstimates
+            )?.[userFeeLevel]?.maxPriorityFeePerGas;
+          }
+
+          if (gasEstimateType === GasFeeEstimateType.Legacy) {
+            txMeta.txParams.gasPrice = (
+              gasFeeEstimates as LegacyGasFeeEstimates
+            )?.[userFeeLevel];
+          }
+
+          if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+            txMeta.txParams.maxFeePerGas = (
+              gasFeeEstimates as GasPriceGasFeeEstimates
+            )?.gasPrice;
+          }
         }
 
         if (gasFeeEstimates) {

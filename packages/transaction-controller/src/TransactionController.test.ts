@@ -6326,6 +6326,12 @@ describe('TransactionController', () => {
         expect(controller.state.transactions[0].txParams.maxFeePerGas).toBe(
           FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[userFeeLevel].maxFeePerGas,
         );
+
+        expect(
+          controller.state.transactions[0].txParams.maxPriorityFeePerGas,
+        ).toBe(
+          FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[userFeeLevel].maxPriorityFeePerGas,
+        );
       });
 
       it('with fee market gas fee estimates', () => {
@@ -6379,7 +6385,7 @@ describe('TransactionController', () => {
           gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK,
         });
 
-        expect(controller.state.transactions[0].txParams.maxFeePerGas).toBe(
+        expect(controller.state.transactions[0].txParams.gasPrice).toBe(
           LEGACY_GAS_FEE_ESTIMATES_MOCK[GasFeeEstimateLevel.Low],
         );
       });
