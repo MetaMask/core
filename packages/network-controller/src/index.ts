@@ -35,6 +35,9 @@ export type {
   NetworkControllerActions,
   NetworkControllerMessenger,
   NetworkControllerOptions,
+  NetworkControllerRpcEndpointUnavailableEvent,
+  NetworkControllerRpcEndpointDegradedEvent,
+  NetworkControllerRpcEndpointRequestRetriedEvent,
 } from './NetworkController';
 export {
   getDefaultNetworkControllerState,
@@ -53,3 +56,4 @@ export type {
 export { NetworkClientType } from './types';
 export type { NetworkClient } from './create-network-client';
 export type { AbstractRpcService } from './rpc-service/abstract-rpc-service';
+export type { RpcServiceRequestable } from './rpc-service/rpc-service-requestable';

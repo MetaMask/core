@@ -7,12 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Re-export `ConstantBackoff` and `ExponentialBackoff` from `cockatiel` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - These can be used to customize service policies
+- Add optional `backoff` option to `createServicePolicy` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - This is mainly useful in tests to force the backoff strategy to be constant rather than exponential
+
 ## [11.6.0]
 
 ### Changed
 
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
-- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))k
 
 ## [11.5.0]
 

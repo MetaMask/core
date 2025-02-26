@@ -164,8 +164,10 @@ const setupController = async (
       allowedEvents: [],
     }),
     infuraProjectId,
-    fetch,
-    btoa,
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
+    }),
   });
   await networkController.initializeProvider();
   const { provider, blockTracker } =
