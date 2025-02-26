@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.6.0]
+
 ### Uncategorized
 
 - feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core.git/pull/5301))
@@ -462,7 +464,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.6.0...HEAD
+[11.6.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.5.0...@metamask/controller-utils@11.6.0
 [11.5.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.4.5...@metamask/controller-utils@11.5.0
 [11.4.5]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.4.4...@metamask/controller-utils@11.4.5
 [11.4.4]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.4.3...@metamask/controller-utils@11.4.4

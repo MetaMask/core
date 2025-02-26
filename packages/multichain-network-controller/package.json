@@ -47,7 +47,7 @@
     "publish:preview": "yarn npm publish --tag preview"
   },
   "dependencies": {
-    "@metamask/base-controller": "^8.0.0",
+    "@metamask/base-controller": "^8.1.0",
     "@metamask/keyring-api": "^17.2.0",
     "@metamask/utils": "^11.2.0",
     "@solana/addresses": "^2.0.0"

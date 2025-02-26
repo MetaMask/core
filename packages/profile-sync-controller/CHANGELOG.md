@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Integrate RPC failover into NetworkController ([#5360](https://github.com/MetaMask/core.git/pull/5360))
-- refactor!: `addNewKeyring` returns metadata instead of keyring ([#5372](https://github.com/MetaMask/core.git/pull/5372))
-- refactor: rename profile-sync exported `__fixtures__` folder to `mocks` ([#5381](https://github.com/MetaMask/core.git/pull/5381))
-
 ## [8.1.1]
 
 ### Changed
@@ -509,47 +503,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@8.1.1...HEAD
-[8.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@8.1.0...@metamask/profile-sync-controller@8.1.1
-[8.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@8.0.0...@metamask/profile-sync-controller@8.1.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@7.0.1...@metamask/profile-sync-controller@8.0.0
-[7.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@7.0.0...@metamask/profile-sync-controller@7.0.1
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@6.0.0...@metamask/profile-sync-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@5.0.0...@metamask/profile-sync-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@4.1.1...@metamask/profile-sync-controller@5.0.0
-[4.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@4.1.0...@metamask/profile-sync-controller@4.1.1
-[4.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@4.0.1...@metamask/profile-sync-controller@4.1.0
-[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@4.0.0...@metamask/profile-sync-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@3.3.0...@metamask/profile-sync-controller@4.0.0
-[3.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@3.2.0...@metamask/profile-sync-controller@3.3.0
-[3.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@3.1.1...@metamask/profile-sync-controller@3.2.0
-[3.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@3.1.0...@metamask/profile-sync-controller@3.1.1
-[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@3.0.0...@metamask/profile-sync-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@2.0.0...@metamask/profile-sync-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@1.0.2...@metamask/profile-sync-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@1.0.1...@metamask/profile-sync-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@1.0.0...@metamask/profile-sync-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.8...@metamask/profile-sync-controller@1.0.0
-[0.9.8]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.7...@metamask/profile-sync-controller@0.9.8
-[0.9.7]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.6...@metamask/profile-sync-controller@0.9.7
-[0.9.6]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.5...@metamask/profile-sync-controller@0.9.6
-[0.9.5]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.4...@metamask/profile-sync-controller@0.9.5
-[0.9.4]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.3...@metamask/profile-sync-controller@0.9.4
-[0.9.3]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.2...@metamask/profile-sync-controller@0.9.3
-[0.9.2]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.1...@metamask/profile-sync-controller@0.9.2
-[0.9.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.9.0...@metamask/profile-sync-controller@0.9.1
-[0.9.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.8.1...@metamask/profile-sync-controller@0.9.0
-[0.8.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1
-[0.8.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.7.0...@metamask/profile-sync-controller@0.8.0
-[0.7.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.6.0...@metamask/profile-sync-controller@0.7.0
-[0.6.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.5.0...@metamask/profile-sync-controller@0.6.0
-[0.5.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.4.0...@metamask/profile-sync-controller@0.5.0
-[0.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.3.0...@metamask/profile-sync-controller@0.4.0
-[0.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.2.1...@metamask/profile-sync-controller@0.3.0
-[0.2.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.2.0...@metamask/profile-sync-controller@0.2.1
-[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.1.4...@metamask/profile-sync-controller@0.2.0
-[0.1.4]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.1.3...@metamask/profile-sync-controller@0.1.4
-[0.1.3]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.1.2...@metamask/profile-sync-controller@0.1.3
-[0.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.1.1...@metamask/profile-sync-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/profile-sync-controller@0.1.0...@metamask/profile-sync-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/profile-sync-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.1...HEAD
+[8.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.0...@metamask/profile-sync-controller@8.1.1
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.0.0...@metamask/profile-sync-controller@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.1...@metamask/profile-sync-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.0...@metamask/profile-sync-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@6.0.0...@metamask/profile-sync-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@5.0.0...@metamask/profile-sync-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.1.1...@metamask/profile-sync-controller@5.0.0
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.1.0...@metamask/profile-sync-controller@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.0.1...@metamask/profile-sync-controller@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@4.0.0...@metamask/profile-sync-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.3.0...@metamask/profile-sync-controller@4.0.0
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.2.0...@metamask/profile-sync-controller@3.3.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.1.1...@metamask/profile-sync-controller@3.2.0
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.1.0...@metamask/profile-sync-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@3.0.0...@metamask/profile-sync-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@2.0.0...@metamask/profile-sync-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.2...@metamask/profile-sync-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.1...@metamask/profile-sync-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.0...@metamask/profile-sync-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.8...@metamask/profile-sync-controller@1.0.0
+[0.9.8]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.7...@metamask/profile-sync-controller@0.9.8
+[0.9.7]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.6...@metamask/profile-sync-controller@0.9.7
+[0.9.6]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.5...@metamask/profile-sync-controller@0.9.6
+[0.9.5]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.4...@metamask/profile-sync-controller@0.9.5
+[0.9.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.3...@metamask/profile-sync-controller@0.9.4
+[0.9.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.2...@metamask/profile-sync-controller@0.9.3
+[0.9.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.1...@metamask/profile-sync-controller@0.9.2
+[0.9.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...@metamask/profile-sync-controller@0.9.1
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...@metamask/profile-sync-controller@0.9.0
+[0.8.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.7.0...@metamask/profile-sync-controller@0.8.0
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.6.0...@metamask/profile-sync-controller@0.7.0
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...@metamask/profile-sync-controller@0.6.0
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.4.0...@metamask/profile-sync-controller@0.5.0
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.3.0...@metamask/profile-sync-controller@0.4.0
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...@metamask/profile-sync-controller@0.3.0
+[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...@metamask/profile-sync-controller@0.2.1
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.4...@metamask/profile-sync-controller@0.2.0
+[0.1.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.3...@metamask/profile-sync-controller@0.1.4
+[0.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.2...@metamask/profile-sync-controller@0.1.3
+[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.1...@metamask/profile-sync-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.0...@metamask/profile-sync-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/profile-sync-controller@0.1.0

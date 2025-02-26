@@ -48,8 +48,8 @@
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^8.0.0",
-    "@metamask/controller-utils": "^11.5.0",
+    "@metamask/base-controller": "^8.1.0",
+    "@metamask/controller-utils": "^11.6.0",
     "@metamask/stake-sdk": "^1.0.0"
   },
   "devDependencies": {
