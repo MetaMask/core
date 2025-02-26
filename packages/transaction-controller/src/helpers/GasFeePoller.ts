@@ -302,6 +302,13 @@ export class GasFeePoller {
   }
 }
 
+/**
+ * Update the gas fees for a transaction.
+ * @param txMeta - The transaction meta.
+ * @param gasFeeEstimates - The gas fee estimates.
+ * @param gasFeeEstimatesLoaded - Whether the gas fee estimates are loaded.
+ * @param layer1GasFee - The layer 1 gas fee.
+ */
 export function updateTransactionGasFees({
   txMeta,
   gasFeeEstimates,
