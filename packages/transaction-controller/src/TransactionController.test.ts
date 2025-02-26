@@ -32,7 +32,6 @@ import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
 import { EventEmitter } from 'events';
-/* eslint-disable import-x/namespace */
 import * as uuidModule from 'uuid';
 
 import { getAccountAddressRelationship } from './api/accounts-api';
