@@ -2,6 +2,7 @@ import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { v4 as uuid } from 'uuid';
 
 import {
   doesChainSupportEIP7702,
@@ -42,6 +43,10 @@ type AddTransactionBatchRequest = {
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
   request: TransactionBatchRequest;
+  updateTransaction: (
+    options: { transactionId: string },
+    callback: (transactionMeta: TransactionMeta) => void,
+  ) => void;
 };
 
 type IsAtomicBatchSupportedRequest = {
@@ -192,13 +197,14 @@ async function addTransactionBatchWithHook(
     transactions: nestedTransactions,
   } = userRequest;
 
-  log('Adding batch transaction with hook', userRequest);
+  log('Adding transaction batch using hook', userRequest);
 
   if (!publishBatchHook) {
     log('No publish batch hook provided');
     throw new Error('No publish batch hook provided');
   }
 
+  const batchId = uuid();
   const transactionCount = nestedTransactions.length;
   const collectHook = new CollectPublishHook(transactionCount);
   const publishHook = collectHook.getHook();
@@ -207,6 +213,7 @@ async function addTransactionBatchWithHook(
   try {
     for (const nestedTransaction of nestedTransactions) {
       const hookTransaction = await processTransactionWithHook(
+        batchId,
         nestedTransaction,
         publishHook,
         request,
@@ -245,7 +252,7 @@ async function addTransactionBatchWithHook(
     log('Completed batch transaction with hook', transactionHashes);
 
     return {
-      batchId: transactions[0].id as string,
+      batchId,
     };
   } catch (error) {
     log('Publish batch hook failed', error);
@@ -259,18 +266,27 @@ async function addTransactionBatchWithHook(
 /**
  * Process a single transaction with a publish batch hook.
  *
+ * @param batchId - ID of the transaction batch.
  * @param nestedTransaction - The nested transaction request.
  * @param publishHook - The publish hook to use for each transaction.
  * @param request - The request object including the user request and necessary callbacks.
  * @returns The single transaction request to be processed by the publish batch hook.
  */
 async function processTransactionWithHook(
+  batchId: string,
   nestedTransaction: TransactionBatchSingleRequest,
   publishHook: PublishHook,
   request: AddTransactionBatchRequest,
 ) {
   const { existingTransaction, params } = nestedTransaction;
-  const { addTransaction, getTransaction, request: userRequest } = request;
+
+  const {
+    addTransaction,
+    getTransaction,
+    request: userRequest,
+    updateTransaction,
+  } = request;
+
   const { from, networkClientId } = userRequest;
 
   if (existingTransaction) {
@@ -286,6 +302,10 @@ async function processTransactionWithHook(
       to,
       value,
     };
+
+    updateTransaction({ transactionId: id }, (_transactionMeta) => {
+      _transactionMeta.batchId = batchId;
+    });
 
     publishHook(transactionMeta, signedTransaction)
       .then(onPublish)
@@ -310,6 +330,7 @@ async function processTransactionWithHook(
       from,
     },
     {
+      batchId,
       networkClientId,
       publishHook,
       requireApproval: false,

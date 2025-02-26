@@ -57,6 +57,16 @@ type TransactionMetaBase = {
   baseFeePerGas?: Hex;
 
   /**
+   * ID of the batch this transaction belongs to.
+   */
+  batchId?: string;
+
+  /**
+   * Additional transactions that must also be submitted in a batch.
+   */
+  batchTransactions?: BatchTransactionParams[];
+
+  /**
    * Number of the block where the transaction has been included.
    */
   blockNumber?: string;
@@ -1513,7 +1523,7 @@ export type PublishBatchHookTransaction = {
 /**
  * Data required to call a publish batch hook.
  */
-export type PublisBatchHookRequest = {
+export type PublishBatchHookRequest = {
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
@@ -1535,5 +1545,5 @@ export type PublishBatchHookResult =
 /** Custom logic to publish a transaction batch. */
 export type PublishBatchHook = (
   /** Data required to call the hook. */
-  request: PublisBatchHookRequest,
+  request: PublishBatchHookRequest,
 ) => Promise<PublishBatchHookResult>;
