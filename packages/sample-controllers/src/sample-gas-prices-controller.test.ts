@@ -1,18 +1,18 @@
 import { Messenger } from '@metamask/base-controller';
-import { GasPricesController } from '@metamask/sample-controllers';
-import type { GasPricesControllerMessenger } from '@metamask/sample-controllers';
+import { SampleGasPricesController } from '@metamask/sample-controllers';
+import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
-import type { AbstractGasPricesService } from './gas-prices-service/abstract-gas-prices-service';
 import {
   getDefaultNetworkControllerState,
   type NetworkControllerGetStateAction,
 } from './network-controller-types';
+import type { AbstractGasPricesService } from './sample-gas-prices-service';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../base-controller/tests/helpers';
 
-describe('GasPricesController', () => {
+describe('SampleGasPricesController', () => {
   describe('constructor', () => {
     it('uses all of the given state properties to initialize state', () => {
       const gasPricesService = buildGasPricesService();
@@ -26,7 +26,7 @@ describe('GasPricesController', () => {
           },
         },
       };
-      const controller = new GasPricesController({
+      const controller = new SampleGasPricesController({
         messenger: getMessenger(),
         state: givenState,
         gasPricesService,
@@ -37,7 +37,7 @@ describe('GasPricesController', () => {
 
     it('fills in missing state properties with default values', () => {
       const gasPricesService = buildGasPricesService();
-      const controller = new GasPricesController({
+      const controller = new SampleGasPricesController({
         messenger: getMessenger(),
         gasPricesService,
       });
@@ -72,7 +72,7 @@ describe('GasPricesController', () => {
           chainId: '0x42',
         }),
       });
-      const controller = new GasPricesController({
+      const controller = new SampleGasPricesController({
         messenger: getMessenger(rootMessenger),
         gasPricesService,
       });
@@ -96,12 +96,12 @@ describe('GasPricesController', () => {
 /**
  * The union of actions that the root messenger allows.
  */
-type RootAction = ExtractAvailableAction<GasPricesControllerMessenger>;
+type RootAction = ExtractAvailableAction<SampleGasPricesControllerMessenger>;
 
 /**
  * The union of events that the root messenger allows.
  */
-type RootEvent = ExtractAvailableEvent<GasPricesControllerMessenger>;
+type RootEvent = ExtractAvailableEvent<SampleGasPricesControllerMessenger>;
 
 /**
  * Constructs the unrestricted messenger. This can be used to call actions and
@@ -110,7 +110,7 @@ type RootEvent = ExtractAvailableEvent<GasPricesControllerMessenger>;
  * @param args - The arguments to this function.
  * @param args.networkControllerGetStateActionHandler - Used to mock the
  * `NetworkController:getState` action on the messenger.
- * @returns The unrestricted messenger suited for GasPricesController.
+ * @returns The unrestricted messenger suited for SampleGasPricesController.
  */
 function getRootMessenger({
   networkControllerGetStateActionHandler = jest
@@ -131,7 +131,7 @@ function getRootMessenger({
 }
 
 /**
- * Constructs the messenger which is restricted to relevant GasPricesController
+ * Constructs the messenger which is restricted to relevant SampleGasPricesController
  * actions and events.
  *
  * @param rootMessenger - The root messenger to restrict.
@@ -139,18 +139,18 @@ function getRootMessenger({
  */
 function getMessenger(
   rootMessenger = getRootMessenger(),
-): GasPricesControllerMessenger {
+): SampleGasPricesControllerMessenger {
   return rootMessenger.getRestricted({
-    name: 'GasPricesController',
+    name: 'SampleGasPricesController',
     allowedActions: ['NetworkController:getState'],
     allowedEvents: [],
   });
 }
 
 /**
- * Constructs a mock GasPricesService object for use in testing.
+ * Constructs a mock SampleGasPricesService object for use in testing.
  *
- * @returns The mock GasPricesService object.
+ * @returns The mock SampleGasPricesService object.
  */
 function buildGasPricesService(): AbstractGasPricesService {
   return {
