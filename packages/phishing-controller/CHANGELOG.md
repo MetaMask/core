@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add dapp scanning functionality ([#5319](https://github.com/MetaMask/core/pull/5319))
+
 ## [12.3.2]
 
 ### Changed

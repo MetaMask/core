@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor(accounts-controller): use `account.scopes` in `listMultichainAccounts` ([#5388](https://github.com/MetaMask/core/pull/5388))
+- test(accounts-controller): remove duplicated test mock function ([#5387](https://github.com/MetaMask/core/pull/5387))
+
 ### Changed
 
 - Use `account.scopes` in `listMultichainAccounts` ([#5357](https://github.com/MetaMask/core/pull/5357))
