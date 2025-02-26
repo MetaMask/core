@@ -1233,7 +1233,6 @@ describe('TransactionController', () => {
       );
 
       firstResult
-        // eslint-disable-next-line promise/always-return
         .then(() => {
           firstTransactionCompleted = true;
         })
@@ -1251,7 +1250,6 @@ describe('TransactionController', () => {
         },
       );
       secondResult
-        // eslint-disable-next-line promise/always-return
         .then(() => {
           secondTransactionCompleted = true;
         })
