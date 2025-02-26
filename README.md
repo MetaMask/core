@@ -211,6 +211,7 @@ linkStyle default opacity:0.5
   remote_feature_flag_controller --> controller_utils;
   sample_controllers --> base_controller;
   sample_controllers --> controller_utils;
+  sample_controllers --> network_controller;
   selected_network_controller --> base_controller;
   selected_network_controller --> json_rpc_engine;
   selected_network_controller --> network_controller;
