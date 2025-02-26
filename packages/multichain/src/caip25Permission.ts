@@ -162,8 +162,7 @@ export const caip25CaveatBuilder = ({
           return true;
         } catch (error) {
           if (
-            isObject(error) &&
-            hasProperty(error, 'message') &&
+            error instanceof Error &&
             error.message === NetworkControllerError.ChainIdNotFound
           ) {
             return false;
