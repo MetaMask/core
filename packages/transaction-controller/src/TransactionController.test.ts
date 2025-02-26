@@ -32,6 +32,7 @@ import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
 import { EventEmitter } from 'events';
+/* eslint-disable import-x/namespace */
 import * as uuidModule from 'uuid';
 
 import { getAccountAddressRelationship } from './api/accounts-api';
@@ -1232,6 +1233,7 @@ describe('TransactionController', () => {
       );
 
       firstResult
+        // eslint-disable-next-line promise/always-return
         .then(() => {
           firstTransactionCompleted = true;
         })
@@ -1249,6 +1251,7 @@ describe('TransactionController', () => {
         },
       );
       secondResult
+        // eslint-disable-next-line promise/always-return
         .then(() => {
           secondTransactionCompleted = true;
         })
