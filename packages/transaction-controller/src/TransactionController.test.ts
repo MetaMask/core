@@ -6206,7 +6206,7 @@ describe('TransactionController', () => {
       },
       {
         userFeeLevel: undefined,
-      }
+      },
     ])(
       'does not update txParams gas values if userFeeLevel is $userFeeLevel',
       ({ userFeeLevel }) => {

@@ -178,8 +178,8 @@ const SUBMIT_HISTORY_LIMIT = 100;
  * Object with new transaction's meta and a promise resolving to the
  * transaction hash if successful.
  *
- * @property result - Promise resolving to a new transaction hash
- * @property transactionMeta - Meta information about this new transaction
+ * result - Promise resolving to a new transaction hash
+ * transactionMeta - Meta information about this new transaction
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -192,8 +192,8 @@ export interface Result {
 /**
  * Method data registry object
  *
- * @property registryMethod - Registry method raw string
- * @property parsedRegistryMethod - Registry method object, containing name and method arguments
+ * registryMethod - Registry method raw string
+ * parsedRegistryMethod - Registry method object, containing name and method arguments
  */
 export type MethodData = {
   registryMethod: string;
@@ -217,9 +217,9 @@ export type MethodData = {
 /**
  * Transaction controller state
  *
- * @property transactions - A list of TransactionMeta objects
- * @property methodData - Object containing all known method data information
- * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
+ * transactions - A list of TransactionMeta objects
+ * methodData - Object containing all known method data information
+ * lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
   transactions: TransactionMeta[];
@@ -254,7 +254,7 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
 /**
  * Configuration options for the PendingTransactionTracker
  *
- * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
+ * isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
   isResubmitEnabled?: () => boolean;
@@ -263,11 +263,11 @@ export type PendingTransactionOptions = {
 /**
  * TransactionController constructor options.
  *
- * @property disableHistory - Whether to disable storing history in transaction metadata.
- * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
- * @property disableSwaps - Whether to disable additional processing on swaps transactions.
- * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
- * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+ * disableHistory - Whether to disable storing history in transaction metadata.
+ * disableSendFlowHistory - Explicitly disable transaction metadata history.
+ * disableSwaps - Whether to disable additional processing on swaps transactions.
+ * getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+ * getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
  * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
  * @property getGasFeeEstimates - Callback to retrieve gas fee estimates.
  * @property getNetworkClientRegistry - Gets the network client registry.
