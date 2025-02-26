@@ -15,10 +15,10 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
-  query,
   ApprovalType,
-  ORIGIN_METAMASK,
   convertHexToDecimal,
+  ORIGIN_METAMASK,
+  query,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
@@ -30,11 +30,11 @@ import type {
   BlockTracker,
   NetworkClientId,
   NetworkController,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
-  NetworkControllerFindNetworkClientIdByChainIdAction,
-  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
 import type {
@@ -43,7 +43,7 @@ import type {
 } from '@metamask/nonce-tracker';
 import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
-import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
+import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x, hexToNumber } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -71,38 +71,42 @@ import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type { ResimulateResponse } from './helpers/ResimulateHelper';
 import {
-  ResimulateHelper,
   hasSimulationDataChanged,
+  ResimulateHelper,
   shouldResimulate,
 } from './helpers/ResimulateHelper';
 import { projectLogger as log } from './logger';
 import type {
+  BatchTransactionParams,
   DappSuggestedGasFees,
+  FeeMarketEIP1559Values,
+  FeeMarketGasFeeEstimates,
+  GasFeeEstimates,
+  GasFeeFlow,
+  GasFeeFlowResponse,
+  GasPriceGasFeeEstimates,
+  GasPriceValue,
   Layer1GasFeeFlow,
+  LegacyGasFeeEstimates,
   SavedGasFees,
+  SecurityAlertResponse,
   SecurityProviderRequest,
   SendFlowHistoryEntry,
-  TransactionParams,
-  TransactionMeta,
-  TransactionReceipt,
-  WalletDevice,
-  SecurityAlertResponse,
-  GasFeeFlow,
   SimulationData,
-  GasFeeEstimates,
-  GasFeeFlowResponse,
-  GasPriceValue,
-  FeeMarketEIP1559Values,
   SubmitHistoryEntry,
   TransactionBatchRequest,
   TransactionBatchResult,
-  BatchTransactionParams,
+  TransactionMeta,
+  TransactionParams,
+  TransactionReceipt,
+  WalletDevice,
 } from './types';
 import {
-  TransactionEnvelopeType,
-  TransactionType,
-  TransactionStatus,
+  GasFeeEstimateLevel,
   SimulationErrorCode,
+  TransactionEnvelopeType,
+  TransactionStatus,
+  TransactionType,
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import type { KeyringControllerSignAuthorization } from './utils/eip7702';
@@ -132,12 +136,12 @@ import {
 } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
-  normalizeTransactionParams,
   isEIP1559Transaction,
+  normalizeGasFeeValues,
+  normalizeTransactionParams,
+  normalizeTxError,
   validateGasValues,
   validateIfTransactionUnapproved,
-  normalizeTxError,
-  normalizeGasFeeValues,
 } from './utils/utils';
 import {
   validateParamTo,
@@ -174,8 +178,9 @@ const SUBMIT_HISTORY_LIMIT = 100;
  * Object with new transaction's meta and a promise resolving to the
  * transaction hash if successful.
  *
- * @property result - Promise resolving to a new transaction hash
- * @property transactionMeta - Meta information about this new transaction
+ * result - Promise resolving to a new transaction hash
+ *
+ * transactionMeta - Meta information about this new transaction
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -188,8 +193,9 @@ export interface Result {
 /**
  * Method data registry object
  *
- * @property registryMethod - Registry method raw string
- * @property parsedRegistryMethod - Registry method object, containing name and method arguments
+ * registryMethod - Registry method raw string
+ *
+ * parsedRegistryMethod - Registry method object, containing name and method arguments
  */
 export type MethodData = {
   registryMethod: string;
@@ -213,9 +219,11 @@ export type MethodData = {
 /**
  * Transaction controller state
  *
- * @property transactions - A list of TransactionMeta objects
- * @property methodData - Object containing all known method data information
- * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
+ * transactions - A list of TransactionMeta objects
+ *
+ * methodData - Object containing all known method data information
+ *
+ * lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
   transactions: TransactionMeta[];
@@ -250,7 +258,7 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
 /**
  * Configuration options for the PendingTransactionTracker
  *
- * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
+ * isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
   isResubmitEnabled?: () => boolean;
@@ -259,11 +267,16 @@ export type PendingTransactionOptions = {
 /**
  * TransactionController constructor options.
  *
- * @property disableHistory - Whether to disable storing history in transaction metadata.
- * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
- * @property disableSwaps - Whether to disable additional processing on swaps transactions.
- * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
- * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+ * disableHistory - Whether to disable storing history in transaction metadata.
+ *
+ * disableSendFlowHistory - Explicitly disable transaction metadata history.
+ *
+ * disableSwaps - Whether to disable additional processing on swaps transactions.
+ *
+ * getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+ *
+ * getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+ *
  * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
  * @property getGasFeeEstimates - Callback to retrieve gas fee estimates.
  * @property getNetworkClientRegistry - Gets the network client registry.
@@ -3786,6 +3799,20 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
+        const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
+
+        if (Object.values(GasFeeEstimateLevel).includes(userFeeLevel)) {
+          txMeta.txParams.maxFeePerGas =
+            (gasFeeEstimates as FeeMarketGasFeeEstimates)?.[userFeeLevel]
+              ?.maxFeePerGas ||
+            (gasFeeEstimates as LegacyGasFeeEstimates)?.[userFeeLevel] ||
+            (gasFeeEstimates as GasPriceGasFeeEstimates)?.gasPrice;
+
+          txMeta.txParams.maxPriorityFeePerGas = (
+            gasFeeEstimates as FeeMarketGasFeeEstimates
+          )?.[userFeeLevel]?.maxPriorityFeePerGas;
+        }
+
         if (gasFeeEstimates) {
           txMeta.gasFeeEstimates = gasFeeEstimates;
         }
