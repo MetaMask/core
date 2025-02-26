@@ -31,7 +31,6 @@ import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
-import { EventEmitter } from 'events';
 import * as uuidModule from 'uuid';
 
 import { getAccountAddressRelationship } from './api/accounts-api';
@@ -67,13 +66,11 @@ import type {
   InternalAccount,
 } from './types';
 import {
-  GasFeeEstimateLevel,
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
   TransactionStatus,
   TransactionType,
-  UserFeeLevel,
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';

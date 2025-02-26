@@ -99,11 +99,6 @@ import type {
   BatchTransactionParams,
 } from './types';
 import {
-  FeeMarketGasFeeEstimates,
-  GasFeeEstimateLevel,
-  GasFeeEstimateType,
-  GasPriceGasFeeEstimates,
-  LegacyGasFeeEstimates,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
