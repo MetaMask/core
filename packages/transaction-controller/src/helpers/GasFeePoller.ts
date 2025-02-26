@@ -16,8 +16,16 @@ import type {
   GasFeeFlow,
   GasFeeFlowRequest,
   Layer1GasFeeFlow,
+  TransactionMeta,
 } from '../types';
-import { TransactionStatus, type TransactionMeta } from '../types';
+import {
+  FeeMarketGasFeeEstimates,
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  GasPriceGasFeeEstimates,
+  LegacyGasFeeEstimates,
+  TransactionStatus,
+} from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
@@ -291,5 +299,58 @@ export class GasFeePoller {
     );
 
     return new Map(await Promise.all(entryPromises));
+  }
+}
+
+export function updateTransactionGasFees({
+  txMeta,
+  gasFeeEstimates,
+  gasFeeEstimatesLoaded,
+  layer1GasFee,
+}: {
+  txMeta: TransactionMeta;
+  gasFeeEstimates?: GasFeeEstimates;
+  gasFeeEstimatesLoaded?: boolean;
+  layer1GasFee?: Hex;
+}) {
+  const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
+  const isUsingGasFeeEstimateLevel =
+    Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
+  const { type: gasEstimateType } = gasFeeEstimates ?? {};
+
+  if (isUsingGasFeeEstimateLevel) {
+    if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+      txMeta.txParams.maxFeePerGas = (
+        gasFeeEstimates as FeeMarketGasFeeEstimates
+      )?.[userFeeLevel]?.maxFeePerGas;
+
+      txMeta.txParams.maxPriorityFeePerGas = (
+        gasFeeEstimates as FeeMarketGasFeeEstimates
+      )?.[userFeeLevel]?.maxPriorityFeePerGas;
+    }
+
+    if (gasEstimateType === GasFeeEstimateType.Legacy) {
+      txMeta.txParams.gasPrice = (gasFeeEstimates as LegacyGasFeeEstimates)?.[
+        userFeeLevel
+      ];
+    }
+
+    if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+      txMeta.txParams.maxFeePerGas = (
+        gasFeeEstimates as GasPriceGasFeeEstimates
+      )?.gasPrice;
+    }
+  }
+
+  if (gasFeeEstimates) {
+    txMeta.gasFeeEstimates = gasFeeEstimates;
+  }
+
+  if (gasFeeEstimatesLoaded !== undefined) {
+    txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+  }
+
+  if (layer1GasFee) {
+    txMeta.layer1GasFee = layer1GasFee;
   }
 }

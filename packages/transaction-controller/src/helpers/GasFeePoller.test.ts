@@ -4,13 +4,16 @@ import type { Hex } from '@metamask/utils';
 import { flushPromises } from '../../../../tests/helpers';
 import type { GasFeeFlowResponse, Layer1GasFeeFlow } from '../types';
 import {
+  GasFeeEstimateLevel,
   GasFeeEstimateType,
   TransactionStatus,
+  UserFeeLevel,
   type GasFeeFlow,
+  type GasFeeEstimates,
   type TransactionMeta,
 } from '../types';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
-import { GasFeePoller } from './GasFeePoller';
+import { GasFeePoller, updateTransactionGasFees } from './GasFeePoller';
 
 jest.mock('../utils/layer1-gas-fee-flow', () => ({
   getTransactionLayer1GasFee: jest.fn(),
@@ -93,7 +96,7 @@ describe('GasFeePoller', () => {
       onStateChange: (listener: () => void) => {
         triggerOnStateChange = listener;
       },
-      getProvider: () => ({} as Provider),
+      getProvider: () => ({}) as Provider,
     };
   });
 
@@ -319,6 +322,208 @@ describe('GasFeePoller', () => {
       await flushPromises();
 
       expect(jest.getTimerCount()).toBe(0);
+    });
+  });
+});
+
+describe('updateTransactionGasFees', () => {
+  const FEE_MARKET_GAS_FEE_ESTIMATES_MOCK = {
+    type: GasFeeEstimateType.FeeMarket,
+    [GasFeeEstimateLevel.Low]: {
+      maxFeePerGas: '0x123',
+      maxPriorityFeePerGas: '0x123',
+    },
+    [GasFeeEstimateLevel.Medium]: {
+      maxFeePerGas: '0x1234',
+      maxPriorityFeePerGas: '0x1234',
+    },
+    [GasFeeEstimateLevel.High]: {
+      maxFeePerGas: '0x12345',
+      maxPriorityFeePerGas: '0x12345',
+    },
+  };
+  const LEGACY_GAS_FEE_ESTIMATES_MOCK = {
+    type: GasFeeEstimateType.Legacy,
+    [GasFeeEstimateLevel.Low]: '0x123',
+    [GasFeeEstimateLevel.Medium]: '0x1234',
+    [GasFeeEstimateLevel.High]: '0x12345',
+  };
+  const GAS_PRICE_GAS_FEE_ESTIMATES_MOCK = {
+    type: GasFeeEstimateType.GasPrice,
+    gasPrice: '0x12345',
+  };
+  const GAS_FEE_POLLER_UPDATE_EVENT_PAYLOAD = {
+    transactionId: TRANSACTION_META_MOCK.id,
+  };
+
+  it('updates gas fee estimates', async () => {
+    const txMeta = {
+      ...TRANSACTION_META_MOCK,
+    };
+
+    updateTransactionGasFees({
+      txMeta,
+      gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
+    });
+
+    expect(txMeta.gasFeeEstimates).toBe(FEE_MARKET_GAS_FEE_ESTIMATES_MOCK);
+  });
+
+  it.each([
+    {
+      userFeeLevel: UserFeeLevel.CUSTOM,
+    },
+    {
+      userFeeLevel: UserFeeLevel.DAPP_SUGGESTED,
+    },
+    {
+      userFeeLevel: undefined,
+    },
+  ])(
+    'does not update txParams gas values if userFeeLevel is $userFeeLevel',
+    ({ userFeeLevel }) => {
+      const dappSuggestedOrCustomMaxFeePerGas = '0x12345678';
+      const dappSuggestedOrCustomMaxPriorityFeePerGas = '0x123456789';
+      const txMeta = {
+        ...TRANSACTION_META_MOCK,
+        userFeeLevel,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          maxFeePerGas: dappSuggestedOrCustomMaxFeePerGas,
+          maxPriorityFeePerGas: dappSuggestedOrCustomMaxPriorityFeePerGas,
+        },
+      };
+
+      updateTransactionGasFees({
+        txMeta,
+        gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
+      });
+
+      expect(txMeta.txParams.maxFeePerGas).toBe(
+        dappSuggestedOrCustomMaxFeePerGas,
+      );
+      expect(txMeta.txParams.maxPriorityFeePerGas).toBe(
+        dappSuggestedOrCustomMaxPriorityFeePerGas,
+      );
+    },
+  );
+
+  it('updates gasFeeEstimatesLoaded', async () => {
+    const txMeta = {
+      ...TRANSACTION_META_MOCK,
+    };
+
+    updateTransactionGasFees({
+      txMeta,
+      gasFeeEstimatesLoaded: true,
+    });
+
+    expect(txMeta.gasFeeEstimatesLoaded).toBe(true);
+
+    updateTransactionGasFees({
+      txMeta,
+      gasFeeEstimatesLoaded: false,
+    });
+
+    expect(txMeta.gasFeeEstimatesLoaded).toBe(false);
+  });
+
+  it('updates layer1GasFee', async () => {
+    const layer1GasFeeMock = '0x123456';
+    const txMeta = {
+      ...TRANSACTION_META_MOCK,
+    };
+
+    updateTransactionGasFees({
+      txMeta,
+      layer1GasFee: layer1GasFeeMock,
+    });
+
+    expect(txMeta.layer1GasFee).toBe(layer1GasFeeMock);
+  });
+
+  describe('updates txParam gas values', () => {
+    it.each([
+      {
+        userFeeLevel: GasFeeEstimateLevel.Low,
+      },
+      {
+        userFeeLevel: GasFeeEstimateLevel.Medium,
+      },
+      {
+        userFeeLevel: GasFeeEstimateLevel.High,
+      },
+    ])('only if userFeeLevel is $userFeeLevel', ({ userFeeLevel }) => {
+      const txMeta = {
+        ...TRANSACTION_META_MOCK,
+        userFeeLevel,
+      };
+
+      updateTransactionGasFees({
+        txMeta,
+        gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
+      });
+
+      expect(txMeta.txParams.maxFeePerGas).toBe(
+        FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[userFeeLevel].maxFeePerGas,
+      );
+
+      expect(txMeta.txParams.maxPriorityFeePerGas).toBe(
+        FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[userFeeLevel].maxPriorityFeePerGas,
+      );
+    });
+
+    it('with fee market gas fee estimates', () => {
+      const txMeta = {
+        ...TRANSACTION_META_MOCK,
+        userFeeLevel: GasFeeEstimateLevel.Low,
+      };
+
+      updateTransactionGasFees({
+        txMeta,
+        gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
+      });
+
+      expect(txMeta.txParams.maxFeePerGas).toBe(
+        FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[GasFeeEstimateLevel.Low].maxFeePerGas,
+      );
+
+      expect(txMeta.txParams.maxPriorityFeePerGas).toBe(
+        FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[GasFeeEstimateLevel.Low]
+          .maxPriorityFeePerGas,
+      );
+    });
+
+    it('with legacy gas fee estimates', () => {
+      const txMeta = {
+        ...TRANSACTION_META_MOCK,
+        userFeeLevel: GasFeeEstimateLevel.Low,
+      };
+
+      updateTransactionGasFees({
+        txMeta,
+        gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
+      });
+
+      expect(txMeta.txParams.gasPrice).toBe(
+        LEGACY_GAS_FEE_ESTIMATES_MOCK[GasFeeEstimateLevel.Low],
+      );
+    });
+
+    it('with gas price gas fee estimates', () => {
+      const txMeta = {
+        ...TRANSACTION_META_MOCK,
+        userFeeLevel: GasFeeEstimateLevel.Low,
+      };
+
+      updateTransactionGasFees({
+        txMeta,
+        gasFeeEstimates: GAS_PRICE_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
+      });
+
+      expect(txMeta.txParams.maxFeePerGas).toBe(
+        GAS_PRICE_GAS_FEE_ESTIMATES_MOCK.gasPrice,
+      );
     });
   });
 });

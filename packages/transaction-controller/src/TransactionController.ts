@@ -63,7 +63,7 @@ import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
-import { GasFeePoller } from './helpers/GasFeePoller';
+import { GasFeePoller, updateTransactionGasFees } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
@@ -3791,46 +3791,12 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
-        const isUsingGasFeeEstimateLevel =
-          Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
-        const { type: gasEstimateType } = gasFeeEstimates ?? {};
-
-        if (isUsingGasFeeEstimateLevel) {
-          if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
-            txMeta.txParams.maxFeePerGas = (
-              gasFeeEstimates as FeeMarketGasFeeEstimates
-            )?.[userFeeLevel]?.maxFeePerGas;
-
-            txMeta.txParams.maxPriorityFeePerGas = (
-              gasFeeEstimates as FeeMarketGasFeeEstimates
-            )?.[userFeeLevel]?.maxPriorityFeePerGas;
-          }
-
-          if (gasEstimateType === GasFeeEstimateType.Legacy) {
-            txMeta.txParams.gasPrice = (
-              gasFeeEstimates as LegacyGasFeeEstimates
-            )?.[userFeeLevel];
-          }
-
-          if (gasEstimateType === GasFeeEstimateType.GasPrice) {
-            txMeta.txParams.maxFeePerGas = (
-              gasFeeEstimates as GasPriceGasFeeEstimates
-            )?.gasPrice;
-          }
-        }
-
-        if (gasFeeEstimates) {
-          txMeta.gasFeeEstimates = gasFeeEstimates;
-        }
-
-        if (gasFeeEstimatesLoaded !== undefined) {
-          txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
-        }
-
-        if (layer1GasFee) {
-          txMeta.layer1GasFee = layer1GasFee;
-        }
+        updateTransactionGasFees({
+          txMeta,
+          gasFeeEstimates,
+          gasFeeEstimatesLoaded,
+          layer1GasFee,
+        });
       },
     );
   }
