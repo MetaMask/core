@@ -541,7 +541,7 @@
     "promise/always-return": 2
   },
   "packages/transaction-controller/src/TransactionController.ts": {
-    "jsdoc/check-tag-names": 35,
+    "jsdoc/check-tag-names": 22,
     "jsdoc/require-returns": 5
   },
   "packages/transaction-controller/src/api/accounts-api.test.ts": {

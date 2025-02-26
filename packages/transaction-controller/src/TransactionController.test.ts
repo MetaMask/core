@@ -73,6 +73,7 @@ import {
   SimulationTokenStandard,
   TransactionStatus,
   TransactionType,
+  UserFeeLevel,
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
@@ -6195,6 +6196,52 @@ describe('TransactionController', () => {
         FEE_MARKET_GAS_FEE_ESTIMATES_MOCK,
       );
     });
+
+    it.each([
+      {
+        userFeeLevel: UserFeeLevel.CUSTOM,
+      },
+      {
+        userFeeLevel: UserFeeLevel.DAPP_SUGGESTED,
+      },
+    ])(
+      'does not update txParams gas values if userFeeLevel is $userFeeLevel',
+      ({ userFeeLevel }) => {
+        const dappSuggestedOrCustomMaxFeePerGas = '0x12345678';
+        const dappSuggestedOrCustomMaxPriorityFeePerGas = '0x123456789';
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...TRANSACTION_META_MOCK,
+                  userFeeLevel,
+                  txParams: {
+                    ...TRANSACTION_META_MOCK.txParams,
+                    maxFeePerGas: dappSuggestedOrCustomMaxFeePerGas,
+                    maxPriorityFeePerGas:
+                      dappSuggestedOrCustomMaxPriorityFeePerGas,
+                  },
+                },
+              ] as TransactionMeta[],
+            },
+          },
+        });
+
+        gasFeePollerHub.emit(GAS_FEE_POLLER_UPDATE_EVENT, {
+          ...GAS_FEE_POLLER_UPDATE_EVENT_PAYLOAD,
+          gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK,
+        });
+
+        expect(controller.state.transactions[0].txParams.maxFeePerGas).toBe(
+          dappSuggestedOrCustomMaxFeePerGas,
+        );
+        expect(
+          controller.state.transactions[0].txParams.maxPriorityFeePerGas,
+        ).toBe(dappSuggestedOrCustomMaxPriorityFeePerGas);
+      },
+    );
 
     it('updates gasFeeEstimatesLoaded', async () => {
       const { controller } = setupController({
