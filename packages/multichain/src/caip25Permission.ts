@@ -1,4 +1,7 @@
-import type { NetworkClientId } from '@metamask/network-controller';
+import {
+  NetworkControllerError,
+  type NetworkClientId,
+} from '@metamask/network-controller';
 import type {
   PermissionSpecificationBuilder,
   EndowmentGetterParams,
@@ -18,6 +21,7 @@ import {
   parseCaipAccountId,
   type Hex,
   type NonEmptyArray,
+  isObject,
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
@@ -156,8 +160,15 @@ export const caip25CaveatBuilder = ({
         try {
           findNetworkClientIdByChainId(chainId);
           return true;
-        } catch (err) {
-          return false;
+        } catch (error) {
+          if (
+            isObject(error) &&
+            hasProperty(error, 'message') &&
+            error.message === NetworkControllerError.ChainIdNotFound
+          ) {
+            return false;
+          }
+          throw error;
         }
       };
 
