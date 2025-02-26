@@ -6204,6 +6204,9 @@ describe('TransactionController', () => {
       {
         userFeeLevel: UserFeeLevel.DAPP_SUGGESTED,
       },
+      {
+        userFeeLevel: undefined,
+      }
     ])(
       'does not update txParams gas values if userFeeLevel is $userFeeLevel',
       ({ userFeeLevel }) => {
