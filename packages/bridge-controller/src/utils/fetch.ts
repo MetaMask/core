@@ -15,16 +15,13 @@ import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
 import type { SwapsTokenObject } from '../constants/tokens';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
-  FeeData,
-  Quote,
   QuoteRequest,
   QuoteResponse,
-  TxData,
   BridgeFeatureFlags,
   FetchFunction,
   ChainConfiguration,
 } from '../types';
-import { BridgeFlag, FeeType, BridgeFeatureFlagsKey } from '../types';
+import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
 // TODO put this back in once we have a fetchWithCache equivalent
 // const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;

@@ -13,7 +13,6 @@ import {
   define,
   intersection,
   size,
-  assert,
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
