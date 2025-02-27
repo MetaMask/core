@@ -55,15 +55,14 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
     [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
   },
   quoteRequest: {
-    walletAddress: undefined,
     srcTokenAddress: ZeroAddress,
     slippage: BRIDGE_DEFAULT_SLIPPAGE,
   },
-  quotesInitialLoadTime: undefined,
+  quotesInitialLoadTime: null,
   quotes: [],
-  quotesLastFetched: undefined,
-  quotesLoadingStatus: undefined,
-  quoteFetchError: undefined,
+  quotesLastFetched: null,
+  quotesLoadingStatus: null,
+  quoteFetchError: null,
   quotesRefreshCount: 0,
 };
 
