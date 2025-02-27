@@ -196,7 +196,6 @@ describe('BridgeController', function () {
       srcChainId: 1,
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({ destChainId: 10 });
@@ -204,7 +203,6 @@ describe('BridgeController', function () {
       destChainId: 10,
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
@@ -214,7 +212,6 @@ describe('BridgeController', function () {
       destChainId: undefined,
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
@@ -223,7 +220,6 @@ describe('BridgeController', function () {
     expect(bridgeController.state.quoteRequest).toStrictEqual({
       slippage: 0.5,
       srcTokenAddress: undefined,
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
@@ -231,14 +227,12 @@ describe('BridgeController', function () {
       destTokenAddress: '0x123',
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
     expect(bridgeController.state.quoteRequest).toStrictEqual({
       srcTokenAmount: '100000',
       destTokenAddress: '0x123',
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
@@ -247,14 +241,12 @@ describe('BridgeController', function () {
     expect(bridgeController.state.quoteRequest).toStrictEqual({
       slippage: 0.5,
       srcTokenAddress: '0x2ABC',
-      walletAddress: undefined,
     });
 
     bridgeController.resetState();
     expect(bridgeController.state.quoteRequest).toStrictEqual({
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
   });
 
@@ -724,7 +716,7 @@ describe('BridgeController', function () {
         BridgeClientId.EXTENSION,
         mockFetchFn,
       );
-      expect(bridgeController.state.quotesLastFetched).toBeUndefined();
+      expect(bridgeController.state.quotesLastFetched).toBeNull();
 
       expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
@@ -825,7 +817,7 @@ describe('BridgeController', function () {
     await flushPromises();
 
     // Verify state wasn't updated due to abort
-    expect(bridgeController.state.quoteFetchError).toBeUndefined();
+    expect(bridgeController.state.quoteFetchError).toBeNull();
     expect(bridgeController.state.quotesLoadingStatus).toBe(0);
     expect(bridgeController.state.quotes).toStrictEqual([]);
 
@@ -838,7 +830,7 @@ describe('BridgeController', function () {
     await flushPromises();
 
     // Verify state wasn't updated due to reset
-    expect(bridgeController.state.quoteFetchError).toBeUndefined();
+    expect(bridgeController.state.quoteFetchError).toBeNull();
     expect(bridgeController.state.quotesLoadingStatus).toBe(0);
     expect(bridgeController.state.quotes).toStrictEqual([]);
   });

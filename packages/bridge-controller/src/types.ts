@@ -243,10 +243,10 @@ export type BridgeControllerState = {
   bridgeFeatureFlags: BridgeFeatureFlags;
   quoteRequest: Partial<QuoteRequest>;
   quotes: (QuoteResponse & L1GasFees)[];
-  quotesInitialLoadTime?: number;
-  quotesLastFetched?: number;
-  quotesLoadingStatus?: RequestStatus;
-  quoteFetchError?: string;
+  quotesInitialLoadTime: number | null;
+  quotesLastFetched: number | null;
+  quotesLoadingStatus: RequestStatus | null;
+  quoteFetchError: string | null;
   quotesRefreshCount: number;
 };
 

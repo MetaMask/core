@@ -9,11 +9,11 @@ import type { Hex } from '@metamask/utils';
 import { BrowserProvider, Contract } from 'ethers';
 
 import type { BridgeClientId } from './constants/bridge';
-import { REFRESH_INTERVAL_MS } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
+  REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import {
@@ -22,10 +22,11 @@ import {
   type QuoteResponse,
   type TxData,
   type BridgeControllerState,
+  type BridgeControllerMessenger,
+  type FetchFunction,
   BridgeFeatureFlagsKey,
   RequestStatus,
 } from './types';
-import type { BridgeControllerMessenger, FetchFunction } from './types';
 import { hasSufficientBalance } from './utils/balance';
 import { getDefaultBridgeControllerState, sumHexes } from './utils/bridge';
 import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
