@@ -252,10 +252,9 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
 
 /**
  * Configuration options for the PendingTransactionTracker
- *
- * isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
+  /** Whether transaction publishing is automatically retried. */
   isResubmitEnabled?: () => boolean;
 };
 
@@ -773,55 +772,34 @@ export class TransactionController extends BaseController<
    * Constructs a TransactionController.
    *
    * @param options - The controller options.
-   * @param options.disableHistory - Whether to disable storing history in transaction metadata.
-   * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
-   * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
-   * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
-   * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
-   * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
-   * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
-   * @param options.getNetworkClientRegistry - Gets the network client registry.
-   * @param options.getNetworkState - Gets the state of the network controller.
-   * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
-   * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.incomingTransactions - Configuration options for incoming transaction support.
-   * @param options.isFirstTimeInteractionEnabled - Whether first time interaction checks are enabled.
-   * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
-   * @param options.messenger - The controller messenger.
-   * @param options.pendingTransactions - Configuration options for pending transaction support.
-   * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
-   * @param options.sign - Function used to sign transactions.
-   * @param options.state - Initial state to set on this controller.
-   * @param options.testGasFeeFlows - Whether to use the test gas fee flow.
-   * @param options.trace - Callback to generate trace information.
-   * @param options.transactionHistoryLimit - Transaction history limit.
-   * @param options.hooks - The controller hooks.
    */
-  constructor({
-    disableHistory,
-    disableSendFlowHistory,
-    disableSwaps,
-    getCurrentAccountEIP1559Compatibility,
-    getCurrentNetworkEIP1559Compatibility,
-    getExternalPendingTransactions,
-    getGasFeeEstimates,
-    getNetworkClientRegistry,
-    getNetworkState,
-    getPermittedAccounts,
-    getSavedGasFees,
-    incomingTransactions = {},
-    isFirstTimeInteractionEnabled,
-    isSimulationEnabled,
-    messenger,
-    pendingTransactions = {},
-    securityProviderRequest,
-    sign,
-    state,
-    testGasFeeFlows,
-    trace,
-    transactionHistoryLimit = 40,
-    hooks,
-  }: TransactionControllerOptions) {
+  constructor(options: TransactionControllerOptions) {
+    const {
+      disableHistory,
+      disableSendFlowHistory,
+      disableSwaps,
+      getCurrentAccountEIP1559Compatibility,
+      getCurrentNetworkEIP1559Compatibility,
+      getExternalPendingTransactions,
+      getGasFeeEstimates,
+      getNetworkClientRegistry,
+      getNetworkState,
+      getPermittedAccounts,
+      getSavedGasFees,
+      incomingTransactions = {},
+      isFirstTimeInteractionEnabled,
+      isSimulationEnabled,
+      messenger,
+      pendingTransactions = {},
+      securityProviderRequest,
+      sign,
+      state,
+      testGasFeeFlows,
+      trace,
+      transactionHistoryLimit = 40,
+      hooks,
+    } = options;
+
     super({
       name: controllerName,
       metadata,
