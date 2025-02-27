@@ -173,26 +173,26 @@ const SUBMIT_HISTORY_LIMIT = 100;
 /**
  * Object with new transaction's meta and a promise resolving to the
  * transaction hash if successful.
- *
- * @property result - Promise resolving to a new transaction hash
- * @property transactionMeta - Meta information about this new transaction
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Result {
+  /** Promise resolving to a new transaction hash. */
   result: Promise<string>;
+
+  /** Meta information about this new transaction. */
   transactionMeta: TransactionMeta;
 }
 
 /**
  * Method data registry object
- *
- * @property registryMethod - Registry method raw string
- * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
 export type MethodData = {
+  /** Registry method raw string. */
   registryMethod: string;
+
+  /** Registry method object, containing name and method arguments. */
   parsedRegistryMethod:
     | {
         name: string;
@@ -212,15 +212,18 @@ export type MethodData = {
 
 /**
  * Transaction controller state
- *
- * @property transactions - A list of TransactionMeta objects
- * @property methodData - Object containing all known method data information
- * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
+  /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
+
+  /** Object containing all known method data information. */
   methodData: Record<string, MethodData>;
+
+  /** Cache to optimise incoming transaction queries. */
   lastFetchedBlockNumbers: { [key: string]: number | string };
+
+  /** History of all tranasactions submitted from the wallet. */
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -250,90 +253,115 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
 /**
  * Configuration options for the PendingTransactionTracker
  *
- * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
+ * isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
   isResubmitEnabled?: () => boolean;
 };
 
-/**
- * TransactionController constructor options.
- *
- * @property disableHistory - Whether to disable storing history in transaction metadata.
- * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
- * @property disableSwaps - Whether to disable additional processing on swaps transactions.
- * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
- * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
- * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
- * @property getGasFeeEstimates - Callback to retrieve gas fee estimates.
- * @property getNetworkClientRegistry - Gets the network client registry.
- * @property getNetworkState - Gets the state of the network controller.
- * @property getPermittedAccounts - Get accounts that a given origin has permissions for.
- * @property getSavedGasFees - Gets the saved gas fee config.
- * @property getSelectedAddress - Gets the address of the currently selected account.
- * @property incomingTransactions - Configuration options for incoming transaction support.
- * @property isSimulationEnabled - Whether new transactions will be automatically simulated.
- * @property messenger - The controller messenger.
- * @property pendingTransactions - Configuration options for pending transaction support.
- * @property securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
- * @property sign - Function used to sign transactions.
- * @property state - Initial state to set on this controller.
- * @property transactionHistoryLimit - Transaction history limit.
- * @property hooks - The controller hooks.
- * @property hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
- * @property hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
- * @property hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
- * @property hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
- * @property hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
- * @property hooks.publish - Alternate logic to publish a transaction.
- */
+/** TransactionController constructor options. */
 export type TransactionControllerOptions = {
+  /** Whether to disable storing history in transaction metadata. */
   disableHistory: boolean;
+
+  /** Explicitly disable transaction metadata history. */
   disableSendFlowHistory: boolean;
+
+  /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
+
+  /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
+
+  /** Whether or not the network supports EIP-1559. */
   getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+
+  /** Callback to retrieve pending transactions from external sources. */
   getExternalPendingTransactions?: (
     address: string,
     chainId?: string,
   ) => NonceTrackerTransaction[];
+
+  /** Callback to retrieve gas fee estimates. */
   getGasFeeEstimates?: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
+
+  /** Gets the network client registry. */
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
+
+  /** Gets the state of the network controller. */
   getNetworkState: () => NetworkState;
+
+  /** Get accounts that a given origin has permissions for. */
   getPermittedAccounts?: (origin?: string) => Promise<string[]>;
+
+  /** Gets the saved gas fee config. */
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+
+  /** Configuration options for incoming transaction support. */
   incomingTransactions?: IncomingTransactionOptions & {
     /** API keys to be used for Etherscan requests to prevent rate limiting. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
   isFirstTimeInteractionEnabled?: () => boolean;
+
+  /** Whether new transactions will be automatically simulated. */
   isSimulationEnabled?: () => boolean;
+
+  /** The controller messenger. */
   messenger: TransactionControllerMessenger;
+
+  /** Configuration options for pending transaction support. */
   pendingTransactions?: PendingTransactionOptions;
+
+  /** A function for verifying a transaction, whether it is malicious or not. */
   securityProviderRequest?: SecurityProviderRequest;
+
+  /** Function used to sign transactions. */
   sign?: (
     transaction: TypedTransaction,
     from: string,
     transactionMeta?: TransactionMeta,
   ) => Promise<TypedTransaction>;
+
+  /** Initial state to set on this controller. */
   state?: Partial<TransactionControllerState>;
+
   testGasFeeFlows?: boolean;
   trace?: TraceCallback;
+
+  /** Transaction history limit. */
   transactionHistoryLimit: number;
+
+  /** The controller hooks. */
   hooks: {
+    /** Additional logic to execute after signing a transaction. Return false to not change the status to signed. */
     afterSign?: (
       transactionMeta: TransactionMeta,
       signedTx: TypedTransaction,
     ) => boolean;
+
+    /**
+     * Additional logic to execute before checking pending transactions.
+     * Return false to prevent the broadcast of the transaction.
+     */
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => boolean;
+
+    /**
+     * Additional logic to execute before publishing a transaction.
+     * Return false to prevent the broadcast of the transaction.
+     */
     beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+
+    /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
+
+    /** Alternate logic to publish a transaction. */
     publish?: (
       transactionMeta: TransactionMeta,
     ) => Promise<{ transactionHash: string }>;
@@ -1265,7 +1293,7 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
-    return await this.#retryTransaction({
+    await this.#retryTransaction({
       actionId,
       estimatedBaseFee,
       gasValues,
@@ -1309,7 +1337,7 @@ export class TransactionController extends BaseController<
       estimatedBaseFee,
     }: { actionId?: string; estimatedBaseFee?: string } = {},
   ) {
-    return await this.#retryTransaction({
+    await this.#retryTransaction({
       actionId,
       estimatedBaseFee,
       gasValues,
@@ -1476,6 +1504,7 @@ export class TransactionController extends BaseController<
    * @param transaction - The transaction params to estimate gas for.
    * @param multiplier - The multiplier to use for the gas buffer.
    * @param networkClientId - The network client id to use for the estimate.
+   * @returns The buffered estimated gas and whether the estimation failed.
    */
   async estimateGasBuffered(
     transaction: TransactionParams,
@@ -2247,6 +2276,7 @@ export class TransactionController extends BaseController<
    * @param request.transactionParams - The transaction parameters to estimate the layer 1 gas fee for.
    * @param request.chainId - The ID of the chain where the transaction will be executed.
    * @param request.networkClientId - The ID of a specific network client to process the transaction.
+   * @returns The layer 1 gas fee.
    */
   async getLayer1GasFee({
     transactionParams,
@@ -2562,6 +2592,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to approve.
    * @param traceContext - The parent context for any new traces.
+   * @returns The state of the approval.
    */
   private async approveTransaction(
     transactionId: string,
