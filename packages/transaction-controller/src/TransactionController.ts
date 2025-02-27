@@ -3367,14 +3367,14 @@ export class TransactionController extends BaseController<
   }
 
   private getNonceTrackerTransactions(
-    status: TransactionStatus,
+    statuses: TransactionStatus[],
     address: string,
     chainId: string,
   ) {
     return getAndFormatTransactionsForNonceTracker(
       chainId,
       address,
-      status,
+      statuses,
       this.state.transactions,
     );
   }
@@ -3449,7 +3449,7 @@ export class TransactionController extends BaseController<
       ),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
-        TransactionStatus.confirmed,
+        [TransactionStatus.confirmed],
         chainId,
       ),
     });
@@ -3547,7 +3547,11 @@ export class TransactionController extends BaseController<
 
   #getNonceTrackerPendingTransactions(chainId: string, address: string) {
     const standardPendingTransactions = this.getNonceTrackerTransactions(
-      TransactionStatus.submitted,
+      [
+        TransactionStatus.approved,
+        TransactionStatus.signed,
+        TransactionStatus.submitted,
+      ],
       address,
       chainId,
     );
