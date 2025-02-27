@@ -366,7 +366,7 @@
     "jsdoc/tag-lines": 3
   },
   "packages/multichain/src/scope/supported.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4,
+    "@typescript-eslint/no-unsafe-enum-comparison": 1,
     "jsdoc/tag-lines": 4
   },
   "packages/multichain/src/scope/validation.ts": {
