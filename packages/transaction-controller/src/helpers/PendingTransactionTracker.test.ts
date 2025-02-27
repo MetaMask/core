@@ -51,6 +51,7 @@ jest.mock('@metamask/controller-utils', () => ({
 
 /**
  * Creates a mock block tracker instance.
+ *
  * @returns The mock block tracker instance.
  */
 function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
@@ -62,6 +63,7 @@ function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
 
 /**
  * Creates a mock transaction poller instance.
+ *
  * @returns The mock transaction poller instance.
  */
 function createTransactionPollerMock(): jest.Mocked<TransactionPoller> {
@@ -84,6 +86,7 @@ describe('PendingTransactionTracker', () => {
 
   /**
    * Simulates a poll event.
+   *
    * @param latestBlockNumber - The latest block number.
    * @param transactionsOnCheck - The current transactions during the check.
    */

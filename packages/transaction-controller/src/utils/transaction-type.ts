@@ -139,7 +139,9 @@ async function readAddressAsContract(
   let contractCode;
   try {
     contractCode = await query(ethQuery, 'getCode', [address]);
-  } catch (e) {
+    // Not used
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
     contractCode = null;
   }
 

@@ -3,6 +3,7 @@ import type EthQuery from '@metamask/eth-query';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
 import type {
   GasFeeEstimates,
@@ -12,7 +13,6 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 type LineaEstimateGasResponse = {
   baseFeePerGas: Hex;

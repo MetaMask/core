@@ -19,33 +19,35 @@ const INTERVAL = 1000 * 30; // 30 Seconds
 export class IncomingTransactionHelper {
   hub: EventEmitter;
 
-  #getCache: () => Record<string, unknown>;
+  readonly #getCache: () => Record<string, unknown>;
 
-  #getCurrentAccount: () => ReturnType<
+  readonly #getCurrentAccount: () => ReturnType<
     AccountsController['getSelectedAccount']
   >;
 
-  #getChainIds: () => Hex[];
+  readonly #getChainIds: () => Hex[];
 
-  #getLocalTransactions: () => TransactionMeta[];
+  readonly #getLocalTransactions: () => TransactionMeta[];
 
-  #includeTokenTransfers?: boolean;
+  readonly #includeTokenTransfers?: boolean;
 
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   #isRunning: boolean;
 
-  #queryEntireHistory?: boolean;
+  readonly #queryEntireHistory?: boolean;
 
-  #remoteTransactionSource: RemoteTransactionSource;
+  readonly #remoteTransactionSource: RemoteTransactionSource;
 
   #timeoutId?: unknown;
 
-  #trimTransactions: (transactions: TransactionMeta[]) => TransactionMeta[];
+  readonly #trimTransactions: (
+    transactions: TransactionMeta[],
+  ) => TransactionMeta[];
 
-  #updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
+  readonly #updateCache: (fn: (cache: Record<string, unknown>) => void) => void;
 
-  #updateTransactions?: boolean;
+  readonly #updateTransactions?: boolean;
 
   constructor({
     getCache,

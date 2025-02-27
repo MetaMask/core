@@ -1,5 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
+import { AccountsApiRemoteTransactionSource } from './AccountsApiRemoteTransactionSource';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
@@ -7,7 +8,6 @@ import type {
 import { getAccountTransactions } from '../api/accounts-api';
 import { CHAIN_IDS } from '../constants';
 import type { RemoteTransactionSourceRequest } from '../types';
-import { AccountsApiRemoteTransactionSource } from './AccountsApiRemoteTransactionSource';
 
 jest.mock('../api/accounts-api');
 

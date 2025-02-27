@@ -31,19 +31,21 @@ const INTERVAL_MILLISECONDS = 10000;
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
 
-  #findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
+  readonly #findNetworkClientIdByChainId: (
+    chainId: Hex,
+  ) => NetworkClientId | undefined;
 
-  #gasFeeFlows: GasFeeFlow[];
+  readonly #gasFeeFlows: GasFeeFlow[];
 
-  #getGasFeeControllerEstimates: (
+  readonly #getGasFeeControllerEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  #getProvider: (networkClientId: NetworkClientId) => Provider;
+  readonly #getProvider: (networkClientId: NetworkClientId) => Provider;
 
-  #getTransactions: () => TransactionMeta[];
+  readonly #getTransactions: () => TransactionMeta[];
 
-  #layer1GasFeeFlows: Layer1GasFeeFlow[];
+  readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
   #timeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -51,6 +53,7 @@ export class GasFeePoller {
 
   /**
    * Constructs a new instance of the GasFeePoller.
+   *
    * @param options - The options for this instance.
    * @param options.findNetworkClientIdByChainId - Callback to find the network client ID by chain ID.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.

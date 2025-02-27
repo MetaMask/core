@@ -1,10 +1,9 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 
-import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
-import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
 import type { UpdateGasFeesRequest } from './gas-fees';
 import { updateGasFees } from './gas-fees';
+import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
+import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -53,12 +52,19 @@ const FLOW_RESPONSE_GAS_PRICE_MOCK = {
   },
 } as GasFeeFlowResponse;
 
+/**
+ * Converts a number to a hex string.
+ *
+ * @param value - The number to convert.
+ * @returns The hex string.
+ */
 function toHex(value: number) {
   return `0x${value.toString(16)}`;
 }
 
 /**
  * Creates a mock GasFeeFlow.
+ *
  * @returns The mock GasFeeFlow.
  */
 function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
@@ -73,6 +79,11 @@ describe('gas-fees', () => {
   const queryMock = jest.mocked(query);
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
 
+  /**
+   * Mock the response of the gas fee flow.
+   *
+   * @param response - The response to return.
+   */
   function mockGasFeeFlowMockResponse(response: GasFeeFlowResponse) {
     gasFeeFlowMock.getGasFees.mockResolvedValue(response);
   }

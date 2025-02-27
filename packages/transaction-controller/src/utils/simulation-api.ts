@@ -156,8 +156,10 @@ let requestIdCounter = 0;
 
 /**
  * Simulate transactions using the transaction simulation API.
+ *
  * @param chainId - The chain ID to simulate transactions on.
  * @param request - The request to simulate transactions.
+ * @returns The response from the simulation API.
  */
 export async function simulateTransactions(
   chainId: Hex,
@@ -194,6 +196,7 @@ export async function simulateTransactions(
 
 /**
  * Get the URL for the transaction simulation API.
+ *
  * @param chainId - The chain ID to get the URL for.
  * @returns The URL for the transaction simulation API.
  */
@@ -212,6 +215,8 @@ async function getSimulationUrl(chainId: Hex): Promise<string> {
 
 /**
  * Retrieve the supported network data from the simulation API.
+ *
+ * @returns The network data response from the simulation API.
  */
 async function getNetworkData(): Promise<SimulationNetworkResponse> {
   const url = `${getUrl('ethereum-mainnet')}${ENDPOINT_NETWORKS}`;
@@ -221,6 +226,7 @@ async function getNetworkData(): Promise<SimulationNetworkResponse> {
 
 /**
  * Generate the URL for the specified subdomain in the simulation API.
+ *
  * @param subdomain - The subdomain to generate the URL for.
  * @returns The URL for the transaction simulation API.
  */

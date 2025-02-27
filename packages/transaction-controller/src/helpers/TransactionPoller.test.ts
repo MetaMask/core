@@ -1,8 +1,8 @@
 import type { BlockTracker } from '@metamask/network-controller';
 
+import { ACCELERATED_COUNT_MAX, TransactionPoller } from './TransactionPoller';
 import { flushPromises } from '../../../../tests/helpers';
 import type { TransactionMeta } from '../types';
-import { ACCELERATED_COUNT_MAX, TransactionPoller } from './TransactionPoller';
 
 jest.useFakeTimers();
 
@@ -16,6 +16,7 @@ const BLOCK_TRACKER_MOCK = {
 
 /**
  * Creates a mock transaction metadata object.
+ *
  * @param id - The transaction ID.
  * @returns The mock transaction metadata object.
  */

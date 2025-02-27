@@ -257,7 +257,7 @@ export class MultichainTrackingHelper {
     };
   }
 
-  #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
+  readonly #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
     const networkClientIds = Object.keys(networkClients);
     const existingNetworkClientIds = Array.from(this.#trackingMap.keys());
 
@@ -328,33 +328,5 @@ export class MultichainTrackingHelper {
       nonceTracker,
       pendingTransactionTracker,
     });
-  }
-
-  #getNetworkClient({
-    networkClientId,
-    chainId,
-  }: {
-    networkClientId?: NetworkClientId;
-    chainId?: Hex;
-  } = {}): NetworkClient | undefined {
-    let networkClient: NetworkClient | undefined;
-
-    if (networkClientId) {
-      try {
-        networkClient = this.#getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by networkClientId');
-      }
-    }
-    if (!networkClient && chainId) {
-      try {
-        const networkClientIdForChainId =
-          this.#findNetworkClientIdByChainId(chainId);
-        networkClient = this.#getNetworkClientById(networkClientIdForChainId);
-      } catch (err) {
-        log('failed to get network client by chainId');
-      }
-    }
-    return networkClient;
   }
 }

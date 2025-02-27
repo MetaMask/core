@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.4.0]
+
+### Added
+
+- Add `scanURL` to `PhishingController` ([#5319](https://github.com/MetaMask/core/pull/5319))
+- Add `PhishingDetectionScanResult` ([#5319](https://github.com/MetaMask/core/pull/5319))
+- Add `RecommendedAction` to `PhishingDetectionScanResult` ([#5319](https://github.com/MetaMask/core/pull/5319))
+- Add `getHostnameFromWebUrl` to only get hostnames on web URLs. ([#5319](https://github.com/MetaMask/core/pull/5319))
+
+### Fixed
+
+- Fixed `getHostnameFromUrl` to return null when the URL's hostname only contains '.' ([#5319](https://github.com/MetaMask/core/pull/5319))
+
 ## [12.3.2]
 
 ### Changed
@@ -324,7 +337,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.0...HEAD
+[12.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.2...@metamask/phishing-controller@12.4.0
 [12.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.1...@metamask/phishing-controller@12.3.2
 [12.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.0...@metamask/phishing-controller@12.3.1
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.2.0...@metamask/phishing-controller@12.3.0

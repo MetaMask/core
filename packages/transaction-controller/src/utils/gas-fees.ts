@@ -1,5 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 import {
   ORIGIN_METAMASK,
   gweiDecToWEIBN,
@@ -14,6 +12,8 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
+import { getGasFeeFlow } from './gas-flow';
+import { SWAP_TRANSACTION_TYPES } from './swaps';
 import { projectLogger } from '../logger';
 import type {
   SavedGasFees,
@@ -23,8 +23,6 @@ import type {
   GasFeeFlow,
 } from '../types';
 import { GasFeeEstimateType, UserFeeLevel } from '../types';
-import { getGasFeeFlow } from './gas-flow';
-import { SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
@@ -51,6 +49,11 @@ type SuggestedGasFees = {
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
 
+/**
+ * Update the gas fee properties of the provided transaction meta.
+ *
+ * @param request - The request object.
+ */
 export async function updateGasFees(request: UpdateGasFeesRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
@@ -99,10 +102,22 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   updateDefaultGasEstimates(txMeta);
 }
 
+/**
+ * Convert GWEI from decimal string to WEI as hex string.
+ *
+ * @param value - The GWEI value as a decimal string.
+ * @returns The WEI value in hex.
+ */
 export function gweiDecimalToWeiHex(value: string) {
   return toHex(gweiDecToWEIBN(value));
 }
 
+/**
+ * Determine the maxFeePerGas value for the transaction.
+ *
+ * @param request - The request object.
+ * @returns The maxFeePerGas value.
+ */
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   const { savedGasFees, eip1559, initialParams, suggestedGasFees } = request;
 
@@ -146,6 +161,12 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   return undefined;
 }
 
+/**
+ * Determine the maxPriorityFeePerGas value for the transaction.
+ *
+ * @param request - The request object.
+ * @returns The maxPriorityFeePerGas value.
+ */
 function getMaxPriorityFeePerGas(
   request: GetGasFeeRequest,
 ): string | undefined {
@@ -201,6 +222,12 @@ function getMaxPriorityFeePerGas(
   return undefined;
 }
 
+/**
+ * Determine the gasPrice value for the transaction.
+ *
+ * @param request - The request object.
+ * @returns The gasPrice value.
+ */
 function getGasPrice(request: GetGasFeeRequest): string | undefined {
   const { eip1559, initialParams, suggestedGasFees } = request;
 
@@ -227,6 +254,12 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
   return undefined;
 }
 
+/**
+ * Determine the user fee level.
+ *
+ * @param request - The request object.
+ * @returns The user fee level.
+ */
 function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
   const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
     request;
@@ -265,6 +298,11 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
   return UserFeeLevel.DAPP_SUGGESTED;
 }
 
+/**
+ * Update the default gas estimates for the provided transaction.
+ *
+ * @param txMeta - The transaction metadata.
+ */
 function updateDefaultGasEstimates(txMeta: TransactionMeta) {
   if (!txMeta.defaultGasEstimates) {
     txMeta.defaultGasEstimates = {};
@@ -279,6 +317,12 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
   txMeta.defaultGasEstimates.estimateType = txMeta.userFeeLevel;
 }
 
+/**
+ * Retrieve the suggested gas fees using the gas fee flows.
+ *
+ * @param request - The request object.
+ * @returns The suggested gas fees.
+ */
 async function getSuggestedGasFees(
   request: UpdateGasFeesRequest,
 ): Promise<SuggestedGasFees> {

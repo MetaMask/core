@@ -112,6 +112,7 @@ const log = createModuleLogger(projectLogger, 'accounts-api');
 
 /**
  * Fetch account address relationship from the accounts API.
+ *
  * @param request - The request object.
  * @returns The raw response object from the API.
  */
@@ -155,6 +156,7 @@ export async function getAccountAddressRelationship(
 
 /**
  * Fetch account transactions from the accounts API.
+ *
  * @param request - The request object.
  * @returns The response object.
  */

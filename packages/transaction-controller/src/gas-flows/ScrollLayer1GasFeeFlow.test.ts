@@ -1,7 +1,7 @@
+import { ScrollLayer1GasFeeFlow } from './ScrollLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
-import { ScrollLayer1GasFeeFlow } from './ScrollLayer1GasFeeFlow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',

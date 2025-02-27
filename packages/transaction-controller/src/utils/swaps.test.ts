@@ -1,6 +1,13 @@
 import { Messenger } from '@metamask/base-controller';
 import { query } from '@metamask/controller-utils';
 
+import {
+  updateSwapsTransaction,
+  updatePostTransactionBalance,
+  UPDATE_POST_TX_BALANCE_ATTEMPTS,
+  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+} from './swaps';
+import { flushPromises } from '../../../../tests/helpers';
 import { CHAIN_IDS } from '../constants';
 import type {
   AllowedActions,
@@ -11,14 +18,9 @@ import type {
 } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType, TransactionStatus } from '../types';
-import {
-  updateSwapsTransaction,
-  updatePostTransactionBalance,
-  UPDATE_POST_TX_BALANCE_ATTEMPTS,
-  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
-} from './swaps';
 
 jest.mock('@metamask/controller-utils');
+jest.useFakeTimers();
 
 describe('updateSwapsTransaction', () => {
   let transactionMeta: TransactionMeta;
@@ -484,15 +486,16 @@ describe('updatePostTransactionBalance', () => {
       .spyOn(request, 'getTransaction')
       .mockImplementation(() => transactionMeta);
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line jest/valid-expect-in-promise, @typescript-eslint/no-floating-promises
-    updatePostTransactionBalance(transactionMeta, request).then(
-      ({ updatedTransactionMeta }) => {
-        expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);
-        expect(queryMock).toHaveBeenCalledTimes(
-          UPDATE_POST_TX_BALANCE_ATTEMPTS,
-        );
-      },
-    );
+    const promise = updatePostTransactionBalance(transactionMeta, request);
+
+    for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
+      await flushPromises();
+      jest.runAllTimers();
+    }
+
+    const { updatedTransactionMeta } = await promise;
+
+    expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);
+    expect(queryMock).toHaveBeenCalledTimes(UPDATE_POST_TX_BALANCE_ATTEMPTS);
   });
 });

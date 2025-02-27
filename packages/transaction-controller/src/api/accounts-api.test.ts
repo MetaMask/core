@@ -1,7 +1,6 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import { FirstTimeInteractionError } from '../errors';
 import type {
   GetAccountAddressRelationshipRequest,
   GetAccountTransactionsResponse,
@@ -10,6 +9,7 @@ import {
   getAccountAddressRelationship,
   getAccountTransactions,
 } from './accounts-api';
+import { FirstTimeInteractionError } from '../errors';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -41,6 +41,7 @@ describe('Accounts API', () => {
 
   /**
    * Mock the fetch function to return the given response JSON.
+   *
    * @param responseJson - The response JSON.
    * @param status - The status code.
    * @returns The fetch mock.

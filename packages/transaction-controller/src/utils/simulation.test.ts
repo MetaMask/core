@@ -3,11 +3,6 @@ import { Interface } from '@ethersproject/abi';
 import { type Hex } from '@metamask/utils';
 
 import {
-  SimulationInvalidResponseError,
-  SimulationRevertedError,
-} from '../errors';
-import { SimulationErrorCode, SimulationTokenStandard } from '../types';
-import {
   getSimulationData,
   SupportedToken,
   type GetSimulationDataRequest,
@@ -20,6 +15,11 @@ import {
   simulateTransactions,
   type SimulationResponse,
 } from './simulation-api';
+import {
+  SimulationInvalidResponseError,
+  SimulationRevertedError,
+} from '../errors';
+import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
 jest.mock('./simulation-api');
 
@@ -139,6 +139,7 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
 
 /**
  * Create a mock of a raw log emitted by a simulated transaction.
+ *
  * @param contractAddress - The contract address.
  * @returns The raw log mock.
  */
@@ -150,6 +151,7 @@ function createLogMock(contractAddress: string) {
 
 /**
  * Create a mock simulation API response to include event logs.
+ *
  * @param logs - The logs.
  * @returns Mock API response.
  */
@@ -163,6 +165,7 @@ function createEventResponseMock(
 
 /**
  * Create a mock API response for a native balance change.
+ *
  * @param previousBalance - The previous balance.
  * @param newBalance - The new balance.
  * @returns Mock API response.
@@ -191,6 +194,7 @@ function createNativeBalanceResponse(
 
 /**
  * Create a mock API response for a token balance balanceOf request.
+ *
  * @param previousBalances - The previous balance.
  * @param newBalances - The new balance.
  * @returns Mock API response.
@@ -216,6 +220,7 @@ function createBalanceOfResponse(
 
 /**
  * Mock the parsing of raw logs by the token ABIs.
+ *
  * @param options - The options to mock the parsing of logs.
  * @param options.erc20 - The parsed event with the ERC-20 ABI.
  * @param options.erc721 - The parsed event with the ERC-721 ABI.
