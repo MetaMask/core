@@ -9,11 +9,7 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import {
-  isCaipChainId,
-  KnownCaipNamespace,
-  numberToHex,
-} from '@metamask/utils';
+import { KnownCaipNamespace, numberToHex } from '@metamask/utils';
 
 import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -135,14 +131,12 @@ async function walletInvokeMethodHandler(
     return next();
   }
 
-  if (!isCaipChainId(scope)) {
-    return end(rpcErrors.internal());
-  }
-
   try {
     response.result = await hooks.handleNonEvmRequestForOrigin({
       connectedAddresses: scopeObject.accounts,
-      scope,
+      // Type assertion: We know that scope is not "wallet" by now because it
+      // is already being handled above.
+      scope: scope as CaipChainId,
       request: unwrappedRequest,
     });
   } catch (err) {
