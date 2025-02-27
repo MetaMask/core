@@ -10,11 +10,11 @@ import type {
 } from './types';
 import { fetchTokenMetadata, TOKEN_METADATA_NO_SUPPORT_ERROR } from '../token-service';
 import { Hex } from '@metamask/utils';
-import { TokenListToken } from '../TokenListController';
-import { formatIconUrlWithProxy } from '../assetsUtil';
-import { AbstractTokenPricesService } from '../token-prices-service';
+import type { TokenListToken } from '../TokenListController';
+import type { formatIconUrlWithProxy } from '../assetsUtil';
+import type { AbstractTokenPricesService } from '../token-prices-service';
 import type {GetCurrencyRateState} from '../CurrencyRateController';
-import { TokenPrice } from '../token-prices-service/abstract-token-prices-service';
+import type { TokenPrice } from '../token-prices-service/abstract-token-prices-service';
 
 // === GENERAL ===
 
