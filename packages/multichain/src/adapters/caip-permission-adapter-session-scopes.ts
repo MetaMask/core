@@ -11,7 +11,7 @@ import {
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from '../scope/constants';
-import { mergeScopes } from '../scope/transform';
+import { mergeNormalizedScopes } from '../scope/transform';
 import type {
   InternalScopesObject,
   NormalizedScopesObject,
@@ -117,7 +117,7 @@ export const getSessionScopes = (
     getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
   },
 ) => {
-  return mergeScopes(
+  return mergeNormalizedScopes(
     getNormalizedScopesObject(caip25CaveatValue.requiredScopes, {
       getNonEvmSupportedMethods,
     }),

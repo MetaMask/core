@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.0.3` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
 ## [21.0.0]
 
 ### Added
@@ -337,7 +345,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@21.0.1...HEAD
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@21.0.0...@metamask/selected-network-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.2...@metamask/selected-network-controller@21.0.0
 [20.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.1...@metamask/selected-network-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@20.0.0...@metamask/selected-network-controller@20.0.1

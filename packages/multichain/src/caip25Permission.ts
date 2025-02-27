@@ -21,10 +21,9 @@ import {
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
-import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
 import { isSupportedAccount, isSupportedScopeString } from './scope/supported';
-import { mergeScopes } from './scope/transform';
+import { mergeInternalScopes } from './scope/transform';
 import {
   parseScopeString,
   type ExternalScopeString,
@@ -75,6 +74,47 @@ type Caip25EndowmentCaveatSpecificationBuilderOptions = {
 };
 
 /**
+ * Calculates the difference between two provided CAIP-25 permission caveat values, but only considering a single scope property at a time.
+ *
+ * @param originalValue - The existing CAIP-25 permission caveat value.
+ * @param mergedValue - The result from merging existing and incoming CAIP-25 permission caveat values.
+ * @param scopeToDiff - The required or optional scopes from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request.
+ * @returns The difference between original and merged CAIP-25 permission caveat values.
+ */
+export function diffScopesForCaip25CaveatValue(
+  originalValue: Caip25CaveatValue,
+  mergedValue: Caip25CaveatValue,
+  scopeToDiff: 'optionalScopes' | 'requiredScopes',
+): Caip25CaveatValue {
+  const diff = cloneDeep(originalValue);
+
+  const mergedScopeToDiff = mergedValue[scopeToDiff];
+  for (const [scopeString, mergedScopeObject] of Object.entries(
+    mergedScopeToDiff,
+  )) {
+    const internalScopeString = scopeString as keyof typeof mergedScopeToDiff;
+    const originalScopeObject = diff[scopeToDiff][internalScopeString];
+
+    if (originalScopeObject) {
+      const newAccounts = mergedScopeObject.accounts.filter(
+        (account) => !originalScopeObject?.accounts.includes(account),
+      );
+      if (newAccounts.length > 0) {
+        diff[scopeToDiff][internalScopeString] = {
+          accounts: newAccounts,
+        };
+        continue;
+      }
+      delete diff[scopeToDiff][internalScopeString];
+    } else {
+      diff[scopeToDiff][internalScopeString] = mergedScopeObject;
+    }
+  }
+
+  return diff;
+}
+
+/**
  * Helper that returns a `authorizedScopes` CAIP-25 caveat specification
  * that can be passed into the PermissionController constructor.
  *
@@ -91,7 +131,9 @@ export const caip25CaveatBuilder = ({
   isNonEvmScopeSupported,
   getNonEvmAccountAddresses,
 }: Caip25EndowmentCaveatSpecificationBuilderOptions): EndowmentCaveatSpecificationConstraint &
-  Required<Pick<EndowmentCaveatSpecificationConstraint, 'validator'>> => {
+  Required<
+    Pick<EndowmentCaveatSpecificationConstraint, 'validator' | 'merger'>
+  > => {
   return {
     type: Caip25CaveatType,
     validator: (
@@ -168,6 +210,39 @@ export const caip25CaveatBuilder = ({
           `${Caip25EndowmentPermissionName} error: Received account value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
         );
       }
+    },
+    merger: (
+      leftValue: Caip25CaveatValue,
+      rightValue: Caip25CaveatValue,
+    ): [Caip25CaveatValue, Caip25CaveatValue] => {
+      const mergedRequiredScopes = mergeInternalScopes(
+        leftValue.requiredScopes,
+        rightValue.requiredScopes,
+      );
+      const mergedOptionalScopes = mergeInternalScopes(
+        leftValue.optionalScopes,
+        rightValue.optionalScopes,
+      );
+
+      const mergedValue: Caip25CaveatValue = {
+        requiredScopes: mergedRequiredScopes,
+        optionalScopes: mergedOptionalScopes,
+        isMultichainOrigin: leftValue.isMultichainOrigin,
+      };
+
+      const partialDiff = diffScopesForCaip25CaveatValue(
+        leftValue,
+        mergedValue,
+        'requiredScopes',
+      );
+
+      const diff = diffScopesForCaip25CaveatValue(
+        partialDiff,
+        mergedValue,
+        'optionalScopes',
+      );
+
+      return [mergedValue, diff];
     },
   };
 };

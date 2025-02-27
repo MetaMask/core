@@ -7,9 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.2.1]
+
+### Changed
+
+- **BREAKING:** `addNewKeyring` method now returns `Promise<KeyringMetadata>` instead of `Promise<unknown>` ([#5372](https://github.com/MetaMask/core/pull/5372))
+  - Consumers can use the returned `KeyringMetadata.id` to access the created keyring instance via `withKeyring`.
+- **BREAKING:** `withKeyring` method now requires a callback argument of type `({ keyring: SelectedKeyring; metadata: KeyringMetadata }) => Promise<CallbackResult>` ([#5372](https://github.com/MetaMask/core/pull/5372))
+- Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3` ([#5356](https://github.com/MetaMask/core/pull/5356)), ([#5366](https://github.com/MetaMask/core/pull/5366))
+
+### Fixed
+
+- Ensure authorization contract address is provided ([#5353](https://github.com/MetaMask/core/pull/5353))
+
+## [19.2.0]
+
+### Added
+
+- Add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Add `KeyringController:withKeyring` action ([#5332](https://github.com/MetaMask/core/pull/5332))
+  - The action can be used to consume the `withKeyring` method of the `KeyringController` class
+- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
+
+## [19.1.0]
+
+### Added
+
+- Add new keyring type for OneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
+
+### Changed
+
+- A specific error message is thrown when any operation is attempted while the controller is locked ([#5172](https://github.com/MetaMask/core/pull/5172))
+
+## [19.0.7]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/message-manager` from `^12.0.0` to `^12.0.1` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+## [19.0.6]
+
 ### Changed
 
 - Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [19.0.5]
 
@@ -650,7 +693,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.1...HEAD
+[19.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.0...@metamask/keyring-controller@19.2.1
+[19.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.1.0...@metamask/keyring-controller@19.2.0
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.7...@metamask/keyring-controller@19.1.0
+[19.0.7]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.6...@metamask/keyring-controller@19.0.7
+[19.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.5...@metamask/keyring-controller@19.0.6
 [19.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.4...@metamask/keyring-controller@19.0.5
 [19.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.3...@metamask/keyring-controller@19.0.4
 [19.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.2...@metamask/keyring-controller@19.0.3

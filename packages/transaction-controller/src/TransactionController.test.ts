@@ -31,15 +31,10 @@ import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
+// Necessary for mocking
+// eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
-import { FakeProvider } from '../../../tests/fake-provider';
-import { flushPromises } from '../../../tests/helpers';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
 import { getAccountAddressRelationship } from './api/accounts-api';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -50,6 +45,7 @@ import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
+import { shouldResimulate } from './helpers/ResimulateHelper';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -79,6 +75,7 @@ import {
   TransactionType,
   WalletDevice,
 } from './types';
+import { addTransactionBatch } from './utils/batch';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -86,12 +83,18 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
-import { shouldResimulate } from './utils/resimulate';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import { flushPromises } from '../../../tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 
 type UnrestrictedMessenger = Messenger<
   TransactionControllerActions | AllowedActions,
@@ -111,11 +114,15 @@ jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MethodDataHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
+jest.mock('./utils/batch');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
 jest.mock('./utils/layer1-gas-fee-flow');
-jest.mock('./utils/resimulate');
+jest.mock('./helpers/ResimulateHelper', () => ({
+  ...jest.requireActual('./helpers/ResimulateHelper'),
+  shouldResimulate: jest.fn(),
+}));
 jest.mock('./utils/simulation');
 jest.mock('./utils/swaps');
 jest.mock('uuid');
@@ -273,6 +280,7 @@ function buildMockBlockTracker(
 
 /**
  * Builds a mock gas fee flow.
+ *
  * @returns The mocked gas fee flow.
  */
 function buildMockGasFeeFlow(): jest.Mocked<GasFeeFlow> {
@@ -485,6 +493,7 @@ describe('TransactionController', () => {
   const getAccountAddressRelationshipMock = jest.mocked(
     getAccountAddressRelationship,
   );
+  const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
 
   let mockEthQuery: EthQuery;
@@ -635,6 +644,7 @@ describe('TransactionController', () => {
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
           'AccountsController:getSelectedAccount',
+          'AccountsController:getState',
         ],
         allowedEvents: [],
       });
@@ -643,6 +653,11 @@ describe('TransactionController', () => {
     unrestrictedMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
       mockGetSelectedAccount,
+    );
+
+    unrestrictedMessenger.registerActionHandler(
+      'AccountsController:getState',
+      () => ({}) as never,
     );
 
     const controller = new TransactionController({
@@ -1218,6 +1233,7 @@ describe('TransactionController', () => {
       firstResult
         .then(() => {
           firstTransactionCompleted = true;
+          return undefined;
         })
         .catch(() => undefined);
 
@@ -1235,6 +1251,7 @@ describe('TransactionController', () => {
       secondResult
         .then(() => {
           secondTransactionCompleted = true;
+          return undefined;
         })
         .catch(() => undefined);
 
@@ -1368,8 +1385,6 @@ describe('TransactionController', () => {
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         result_type: 'Malicious',
         reason: 'blur_farming',
         description:
@@ -1568,6 +1583,7 @@ describe('TransactionController', () => {
         deviceConfirmedOn: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
+        nestedTransactions: undefined,
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         origin: undefined,
         securityAlertResponse: undefined,
@@ -2354,7 +2370,7 @@ describe('TransactionController', () => {
 
         try {
           await result;
-        } catch (error) {
+        } catch {
           // Ignore user rejected error as it is expected
         }
         await finishedPromise;
@@ -4163,8 +4179,6 @@ describe('TransactionController', () => {
       const key = 'testKey';
       const value = 123;
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       incomingTransactionHelperClassMock.mock.calls[0][0].updateCache(
         (cache) => {
           cache[key] = value;
@@ -4464,24 +4478,18 @@ describe('TransactionController', () => {
           txParams: { ...TRANSACTION_META_MOCK.txParams, nonce: '0x1' },
         };
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_1 = {
           ...confirmed,
           id: 'testId2',
           status: TransactionStatus.submitted,
         };
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_2 = {
           ...duplicate_1,
           id: 'testId3',
           status: TransactionStatus.approved,
         };
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_3 = {
           ...duplicate_1,
           id: 'testId4',
@@ -5103,8 +5111,6 @@ describe('TransactionController', () => {
 
       controller.updateSecurityAlertResponse(transactionMeta.id, {
         reason: 'NA',
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         result_type: 'Benign',
       });
 
@@ -5126,8 +5132,6 @@ describe('TransactionController', () => {
         // @ts-expect-error Intentionally passing invalid input
         controller.updateSecurityAlertResponse(undefined, {
           reason: 'NA',
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           result_type: 'Benign',
         }),
       ).toThrow(
@@ -5194,8 +5198,6 @@ describe('TransactionController', () => {
       expect(() =>
         controller.updateSecurityAlertResponse('456', {
           reason: 'NA',
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           result_type: 'Benign',
         }),
       ).toThrow(
@@ -6073,6 +6075,65 @@ describe('TransactionController', () => {
           blockTime: 123,
         },
       );
+    });
+  });
+
+  describe('setTransactionActive', () => {
+    it('throws if transaction does not exist', async () => {
+      const { controller } = setupController();
+      expect(() => controller.setTransactionActive('123', true)).toThrow(
+        'Transaction with id 123 not found',
+      );
+    });
+
+    it('updates the isActive state of a transaction', async () => {
+      const transactionId = '123';
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: transactionId,
+                status: TransactionStatus.unapproved,
+                history: [{}],
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_2_MOCK,
+                },
+              } as unknown as TransactionMeta,
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.setTransactionActive(transactionId, true);
+
+      const transaction = controller.state.transactions[0];
+
+      expect(transaction?.isActive).toBe(true);
+    });
+  });
+
+  describe('addTransactionBatch', () => {
+    it('invokes util', async () => {
+      const { controller } = setupController();
+
+      await controller.addTransactionBatch({
+        from: ACCOUNT_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        transactions: [
+          {
+            params: {
+              to: ACCOUNT_2_MOCK,
+              data: '0x123456',
+              value: '0x123',
+            },
+          },
+        ],
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledTimes(1);
     });
   });
 });

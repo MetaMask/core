@@ -101,13 +101,14 @@ export async function deleteRegToken(
 
     await deleteToken(messaging);
     return true;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
 
 /**
  * Service Worker Listener for when push notifications are received.
+ *
  * @param env - push notification environment
  * @param handler - handler to actually showing notification, MUST BE PROVEDED
  * @returns unsubscribe handler

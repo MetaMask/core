@@ -13,6 +13,7 @@ import type {
   NetworkClientId,
   NetworkControllerActions,
   NetworkControllerEvents,
+  InfuraNetworkClientConfiguration,
 } from '@metamask/network-controller';
 import {
   NetworkController,
@@ -69,13 +70,14 @@ async function setupAssetContractControllers({
   useNetworkControllerProvider?: boolean;
   infuraProjectId?: string;
 } = {}) {
-  const networkClientConfiguration = {
+  const networkClientConfiguration: InfuraNetworkClientConfiguration = {
     type: NetworkClientType.Infura,
     network: NetworkType.mainnet,
+    failoverRpcUrls: [],
     infuraProjectId,
     chainId: BUILT_IN_NETWORKS.mainnet.chainId,
     ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-  } as const;
+  };
   let provider: Provider;
 
   const messenger = new Messenger<
@@ -91,6 +93,8 @@ async function setupAssetContractControllers({
       allowedActions: [],
       allowedEvents: [],
     }),
+    fetch,
+    btoa,
   });
   if (useNetworkControllerProvider) {
     await networkController.initializeProvider();
@@ -1089,6 +1093,7 @@ describe('AssetsContractController', () => {
         ticker: BUILT_IN_NETWORKS.sepolia.ticker,
         type: NetworkClientType.Infura,
         network: 'sepolia',
+        failoverRpcUrls: [],
         infuraProjectId: networkClientConfiguration.infuraProjectId,
       },
       mocks: [

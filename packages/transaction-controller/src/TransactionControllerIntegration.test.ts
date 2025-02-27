@@ -1,5 +1,5 @@
 import type { TypedTransaction } from '@ethereumjs/tx';
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerActions } from '@metamask/accounts-controller';
 import type {
   ApprovalControllerActions,
   ApprovalControllerEvents,
@@ -28,6 +28,14 @@ import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
 import { v4 as uuidV4 } from 'uuid';
 
+import type {
+  TransactionControllerActions,
+  TransactionControllerEvents,
+  TransactionControllerOptions,
+} from './TransactionController';
+import { TransactionController } from './TransactionController';
+import type { InternalAccount } from './types';
+import { TransactionStatus, TransactionType } from './types';
 import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
@@ -46,14 +54,6 @@ import {
   buildEthSendRawTransactionRequestMock,
   buildEthGetTransactionReceiptRequestMock,
 } from '../tests/JsonRpcRequestMocks';
-import type {
-  TransactionControllerActions,
-  TransactionControllerEvents,
-  TransactionControllerOptions,
-} from './TransactionController';
-import { TransactionController } from './TransactionController';
-import type { InternalAccount } from './types';
-import { TransactionStatus, TransactionType } from './types';
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');
@@ -68,7 +68,7 @@ type UnrestrictedMessenger = Messenger<
   | NetworkControllerActions
   | ApprovalControllerActions
   | TransactionControllerActions
-  | AccountsControllerGetSelectedAccountAction,
+  | AccountsControllerActions,
   | NetworkControllerEvents
   | ApprovalControllerEvents
   | TransactionControllerEvents
@@ -118,6 +118,7 @@ const BLOCK_TRACKER_POLLING_INTERVAL = 30000;
 
 /**
  * Builds the Infura network client configuration.
+ *
  * @param network - The Infura network type.
  * @returns The network client configuration.
  */
@@ -128,6 +129,7 @@ function buildInfuraNetworkClientConfiguration(
     type: NetworkClientType.Infura,
     network,
     chainId: BUILT_IN_NETWORKS[network].chainId,
+    failoverRpcUrls: [],
     infuraProjectId,
     ticker: BUILT_IN_NETWORKS[network].ticker,
   };
@@ -162,6 +164,8 @@ const setupController = async (
       allowedEvents: [],
     }),
     infuraProjectId,
+    fetch,
+    btoa,
   });
   await networkController.initializeProvider();
   const { provider, blockTracker } =
@@ -186,6 +190,7 @@ const setupController = async (
       'NetworkController:getNetworkClientById',
       'NetworkController:findNetworkClientIdByChainId',
       'AccountsController:getSelectedAccount',
+      'AccountsController:getState',
     ],
     allowedEvents: ['NetworkController:stateChange'],
   });
@@ -197,6 +202,11 @@ const setupController = async (
   unrestrictedMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
+  );
+
+  unrestrictedMessenger.registerActionHandler(
+    'AccountsController:getState',
+    () => ({}) as never,
   );
 
   const options: TransactionControllerOptions = {
@@ -261,7 +271,6 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    // eslint-disable-next-line jest/no-disabled-tests
     it('should fail all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -799,7 +808,6 @@ describe('TransactionController Integration', () => {
     });
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
-      // eslint-disable-next-line jest/no-disabled-tests
       it('should add each transaction with consecutive nonces', async () => {
         const goerliNetworkClientConfiguration =
           buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli);
@@ -922,7 +930,6 @@ describe('TransactionController Integration', () => {
     });
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
-      // eslint-disable-next-line jest/no-disabled-tests
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(

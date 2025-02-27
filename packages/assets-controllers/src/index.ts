@@ -148,13 +148,7 @@ export type {
   RatesControllerPollingStartedEvent,
   RatesControllerPollingStoppedEvent,
 } from './RatesController';
-export {
-  MultichainBalancesController,
-  // constants
-  NETWORK_ASSETS_MAP,
-  MultichainNetworks,
-  MultichainNativeAssets,
-} from './MultichainBalancesController';
+export { MultichainBalancesController } from './MultichainBalancesController';
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
@@ -177,3 +171,17 @@ export type {
   MultichainAssetsControllerEvents,
   MultichainAssetsControllerMessenger,
 } from './MultichainAssetsController';
+
+export {
+  MultichainAssetsRatesController,
+  getDefaultMultichainAssetsRatesControllerState,
+} from './MultichainAssetsRatesController';
+
+export type {
+  MultichainAssetsRatesControllerState,
+  MultichainAssetsRatesControllerActions,
+  MultichainAssetsRatesControllerEvents,
+  MultichainAssetsRatesControllerGetStateAction,
+  MultichainAssetsRatesControllerStateChange,
+  MultichainAssetsRatesControllerMessenger,
+} from './MultichainAssetsRatesController';

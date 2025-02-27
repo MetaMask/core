@@ -25,12 +25,14 @@ export type {
   TransactionControllerOptions,
 } from './TransactionController';
 export {
-  HARDFORK,
   CANCEL_RATE,
   SPEED_UP_RATE,
   TransactionController,
 } from './TransactionController';
 export type {
+  Authorization,
+  AuthorizationList,
+  BatchTransactionParams,
   DappSuggestedGasFees,
   DefaultGasEstimates,
   FeeMarketEIP1559Values,
@@ -51,6 +53,8 @@ export type {
   SimulationError,
   SimulationToken,
   SimulationTokenBalanceChange,
+  TransactionBatchRequest,
+  TransactionBatchResult,
   TransactionError,
   TransactionHistory,
   TransactionHistoryEntry,
@@ -81,3 +85,4 @@ export {
 } from './utils/utils';
 export { CHAIN_IDS } from './constants';
 export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
+export { HARDFORK } from './utils/prepare';
