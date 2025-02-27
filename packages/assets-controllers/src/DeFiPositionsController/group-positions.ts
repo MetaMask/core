@@ -37,7 +37,7 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
       continue;
     }
 
-    const { protocolData, positionTypeData } = getProtocolData(
+    const { chainData, protocolData, positionTypeData } = getProtocolData(
       groupedPositions,
       position,
     );
@@ -54,6 +54,7 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
 
       positionTypeData.aggregatedMarketValue += marketValue;
       protocolData.aggregatedMarketValue += marketValue;
+      chainData.aggregatedMarketValue += marketValue;
     }
   }
 
@@ -100,8 +101,9 @@ function getProtocolData(
   }
 
   return {
+    chainData,
     protocolData,
-    positionTypeData: protocolData.positionTypes[positionType],
+    positionTypeData: protocolData.positionTypes[positionType]!,
   };
 }
 

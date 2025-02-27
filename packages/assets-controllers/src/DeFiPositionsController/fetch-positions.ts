@@ -37,6 +37,7 @@ export type ProtocolToken = Balance & {
 
 export type Underlying = Balance & {
   type: 'underlying' | 'underlying-claimable';
+  iconUrl: string;
 };
 
 type Balance = {
@@ -47,7 +48,6 @@ type Balance = {
   balanceRaw: string;
   balance: number;
   price?: number; // TODO: Confirm this is the case
-  iconUrl: string;
   tokens?: Underlying[];
 };
 
