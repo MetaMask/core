@@ -12,12 +12,8 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
-import {
-  GroupedPositionsResponse,
-  DefiPositionResponse,
-  Underlying,
-} from './types';
-import { toHex } from '@metamask/controller-utils';
+import { fetchPositions } from './fetch-positions';
+import { groupPositions, type GroupedPositions } from './group-positions';
 
 const controllerName = 'DeFiPositionsController';
 
@@ -26,16 +22,8 @@ export type DeFiPositionsControllerState = {
    * Object containing DeFi positions per account and network
    */
   allDeFiPositions: {
-    [key: string]: { [key: Hex]: GroupedPositionsResponse[] } | null;
+    [accountAddress: string]: { [chain: Hex]: GroupedPositions } | null;
   };
-  // /**
-  //  * Object containing DeFi positions that already exist as tokens per account and network
-  //  */
-  // duplicateDeFiPositions: {
-  //   [key: string]: {
-  //     [key: Hex]: { address: string; tokenId?: string }[];
-  //   };
-  // };
 };
 
 const controllerMetadata: StateMetadata<DeFiPositionsControllerState> = {
@@ -43,17 +31,12 @@ const controllerMetadata: StateMetadata<DeFiPositionsControllerState> = {
     persist: true,
     anonymous: false,
   },
-  // duplicateDeFiPositions: {
-  //   persist: true,
-  //   anonymous: false,
-  // },
 };
 
 export const getDefaultDefiPositionsControllerState =
   (): DeFiPositionsControllerState => {
     return {
       allDeFiPositions: {},
-      // duplicateDeFiPositions: {},
     };
   };
 
@@ -178,12 +161,9 @@ export class DeFiPositionsController extends BaseController<
       state.allDeFiPositions[accountAddress] = null;
     });
 
-    const defiPositionsResponse =
-      await this.#fetchPositionsFromApi(accountAddress);
+    const defiPositionsResponse = await fetchPositions(accountAddress);
 
-    const accountPositionsPerChain = await this.#getGroupedPositions(
-      defiPositionsResponse,
-    );
+    const accountPositionsPerChain = groupPositions(defiPositionsResponse);
 
     console.log('DEFI POSITIONS UPDATE FETCHED', {
       accountAddress,
@@ -193,96 +173,6 @@ export class DeFiPositionsController extends BaseController<
     this.update((state) => {
       state.allDeFiPositions[accountAddress] = accountPositionsPerChain;
     });
-  }
-
-  // TODO: This is on its own method in case we want to add caching logic
-  async #fetchPositionsFromApi(
-    accountAddress: string,
-  ): Promise<DefiPositionResponse[]> {
-    const defiPositionsResponse = await fetch(
-      `https://defi-services.metamask-institutional.io/defi-data/positions/${accountAddress}`,
-    );
-
-    if (defiPositionsResponse.status !== 200) {
-      throw new Error(
-        `Unable to fetch defi positions - HTTP ${defiPositionsResponse.status}`,
-      );
-    }
-
-    return (await defiPositionsResponse.json()).data;
-  }
-
-  async #getGroupedPositions(
-    defiPositionsResponse: DefiPositionResponse[],
-  ): Promise<{ [key: Hex]: GroupedPositionsResponse[] }> {
-    const groupedPositions: { [key: Hex]: GroupedPositionsResponse[] } = {};
-
-    for (const position of defiPositionsResponse) {
-      if (!position.success) {
-        continue;
-      }
-
-      const chainId = toHex(position.chainId);
-      if (!groupedPositions[chainId]) {
-        groupedPositions[chainId] = [];
-      }
-
-      const chainPositions = groupedPositions[chainId];
-
-      let chainProtocolPositions = chainPositions.find(
-        (group) => group.protocolId === position.protocolId,
-      );
-
-      if (!chainProtocolPositions) {
-        chainProtocolPositions = {
-          protocolId: position.protocolId,
-          positions: [],
-          aggregatedValues: {},
-        };
-
-        chainPositions.push(chainProtocolPositions);
-      }
-
-      for (const token of position.tokens) {
-        const marketValue = this.#extractTokenMarketValue(token);
-
-        chainProtocolPositions.positions.push({
-          protocolDetails: {
-            chainId: position.chainId,
-            protocolId: position.protocolId,
-            productId: position.productId,
-            name: position.name,
-            description: position.description,
-            iconUrl: position.iconUrl,
-            siteUrl: position.siteUrl,
-            positionType: position.positionType,
-          },
-          protocolPosition: token,
-          marketValue,
-        });
-
-        chainProtocolPositions.aggregatedValues[position.positionType] =
-          (chainProtocolPositions.aggregatedValues[position.positionType] ||
-            0) + marketValue;
-      }
-    }
-
-    return groupedPositions;
-  }
-
-  #extractTokenMarketValue(token: {
-    balance: number;
-    price?: number;
-    tokens?: Underlying[];
-  }): number {
-    if (!token.tokens) {
-      return token.balance * (token.price || 0);
-    }
-
-    return token.tokens.reduce(
-      (acc, token) => acc + this.#extractTokenMarketValue(token),
-      0,
-    );
   }
 }
 
