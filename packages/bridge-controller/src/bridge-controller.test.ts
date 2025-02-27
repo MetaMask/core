@@ -339,7 +339,7 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
     );
-    expect(bridgeController.state.quotesLastFetched).toBeUndefined();
+    expect(bridgeController.state.quotesLastFetched).toBeNull();
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -373,7 +373,7 @@ describe('BridgeController', function () {
           ...mockBridgeQuotesNativeErc20Eth,
         ],
         quotesLoadingStatus: 1,
-        quoteFetchError: undefined,
+        quoteFetchError: null,
         quotesRefreshCount: 2,
       }),
     );
@@ -470,7 +470,7 @@ describe('BridgeController', function () {
         quoteRequest: { ...quoteRequest, walletAddress: undefined },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesInitialLoadTime: undefined,
+        quotesInitialLoadTime: null,
         quotesLoadingStatus:
           DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
       }),
@@ -489,7 +489,7 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
     );
-    expect(bridgeController.state.quotesLastFetched).toBeUndefined();
+    expect(bridgeController.state.quotesLastFetched).toBeNull();
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
