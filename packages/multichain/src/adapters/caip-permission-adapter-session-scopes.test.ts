@@ -133,7 +133,7 @@ describe('CAIP-25 session scopes adapters', () => {
       });
     });
 
-    it('gets methods from getNonEvmSupportedMethods for scope non-evm namespace', () => {
+    it('gets methods from getNonEvmSupportedMethods for non-evm (not `eip155`, `wallet` or `wallet:eip155`) scopes', () => {
       getNonEvmSupportedMethods.mockReturnValue(['nonEvmMethod']);
 
       const result = getSessionScopes(
