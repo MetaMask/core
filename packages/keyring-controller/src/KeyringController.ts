@@ -7,7 +7,7 @@ import type {
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
-import HDKeyring from '@metamask/eth-hd-keyring';
+import { HdKeyring } from '@metamask/eth-hd-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type {
@@ -18,12 +18,8 @@ import type {
   EthUserOperationPatch,
 } from '@metamask/keyring-api';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
-import type {
-  Eip1024EncryptedData,
-  Hex,
-  Json,
-  KeyringClass,
-} from '@metamask/utils';
+import type { KeyringClass } from '@metamask/keyring-utils';
+import type { Eip1024EncryptedData, Hex, Json } from '@metamask/utils';
 import {
   add0x,
   assert,
@@ -255,7 +251,7 @@ export type KeyringControllerMessenger = RestrictedMessenger<
 >;
 
 export type KeyringControllerOptions = {
-  keyringBuilders?: { (): EthKeyring<Json>; type: string }[];
+  keyringBuilders?: { (): EthKeyring; type: string }[];
   messenger: KeyringControllerMessenger;
   state?: { vault?: string; keyringsMetadata?: KeyringMetadata[] };
 } & (
@@ -452,7 +448,7 @@ type MutuallyExclusiveCallback<Result> = ({
  * @param KeyringConstructor - The Keyring class for the builder.
  * @returns A builder function for the given Keyring.
  */
-export function keyringBuilderFactory(KeyringConstructor: KeyringClass<Json>) {
+export function keyringBuilderFactory(KeyringConstructor: KeyringClass) {
   const builder = () => new KeyringConstructor();
 
   builder.type = KeyringConstructor.type;
@@ -465,7 +461,7 @@ const defaultKeyringBuilders = [
   // @ts-expect-error keyring types are mismatched
   keyringBuilderFactory(SimpleKeyring),
   // @ts-expect-error keyring types are mismatched
-  keyringBuilderFactory(HDKeyring),
+  keyringBuilderFactory(HdKeyring),
 ];
 
 export const getDefaultKeyringState = (): KeyringControllerState => {
@@ -484,8 +480,8 @@ export const getDefaultKeyringState = (): KeyringControllerState => {
  * @throws When the keyring does not have a mnemonic
  */
 function assertHasUint8ArrayMnemonic(
-  keyring: EthKeyring<Json>,
-): asserts keyring is EthKeyring<Json> & { mnemonic: Uint8Array } {
+  keyring: EthKeyring,
+): asserts keyring is EthKeyring & { mnemonic: Uint8Array } {
   if (
     !(
       hasProperty(keyring, 'mnemonic') && keyring.mnemonic instanceof Uint8Array
@@ -560,7 +556,7 @@ function isSerializedKeyringsArray(
  * @returns A keyring display object, with type and accounts properties.
  */
 async function displayForKeyring(
-  keyring: EthKeyring<Json>,
+  keyring: EthKeyring,
 ): Promise<{ type: string; accounts: string[] }> {
   const accounts = await keyring.getAccounts();
 
@@ -622,7 +618,7 @@ export class KeyringController extends BaseController<
 
   readonly #vaultOperationMutex = new Mutex();
 
-  readonly #keyringBuilders: { (): EthKeyring<Json>; type: string }[];
+  readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
   readonly #unsupportedKeyrings: SerializedKeyring[];
 
@@ -630,7 +626,7 @@ export class KeyringController extends BaseController<
 
   readonly #cacheEncryptionKey: boolean;
 
-  #keyrings: EthKeyring<Json>[];
+  #keyrings: EthKeyring[];
 
   #keyringsMetadata: KeyringMetadata[];
 
@@ -706,7 +702,7 @@ export class KeyringController extends BaseController<
 
     return this.#persistOrRollback(async () => {
       const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-        | EthKeyring<Json>
+        | EthKeyring
         | undefined;
       if (!primaryKeyring) {
         throw new Error('No HD keyring found');
@@ -742,7 +738,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to the added account address
    */
   async addNewAccountForKeyring(
-    keyring: EthKeyring<Json>,
+    keyring: EthKeyring,
     accountCount?: number,
   ): Promise<Hex> {
     // READ THIS CAREFULLY:
@@ -899,9 +895,7 @@ export class KeyringController extends BaseController<
   async exportAccount(password: string, address: string): Promise<string> {
     await this.verifyPassword(password);
 
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.exportAccount) {
       throw new Error(KeyringControllerError.UnsupportedExportAccount);
     }
@@ -936,9 +930,7 @@ export class KeyringController extends BaseController<
   ): Promise<string> {
     this.#assertIsUnlocked();
     const address = ethNormalize(account) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      account,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(account)) as EthKeyring;
     if (!keyring.getEncryptionPublicKey) {
       throw new Error(KeyringControllerError.UnsupportedGetEncryptionPublicKey);
     }
@@ -960,9 +952,7 @@ export class KeyringController extends BaseController<
   }): Promise<string> {
     this.#assertIsUnlocked();
     const address = ethNormalize(messageParams.from) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.decryptMessage) {
       throw new Error(KeyringControllerError.UnsupportedDecryptMessage);
     }
@@ -1094,7 +1084,7 @@ export class KeyringController extends BaseController<
       }
       const newKeyring = (await this.#newKeyring(KeyringTypes.simple, [
         privateKey,
-      ])) as EthKeyring<Json>;
+      ])) as EthKeyring;
       const accounts = await newKeyring.getAccounts();
       return accounts[0];
     });
@@ -1111,9 +1101,7 @@ export class KeyringController extends BaseController<
     this.#assertIsUnlocked();
 
     await this.#persistOrRollback(async () => {
-      const keyring = (await this.getKeyringForAccount(
-        address,
-      )) as EthKeyring<Json>;
+      const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
       const keyringIndex = this.state.keyrings.findIndex((kr) =>
         kr.accounts.includes(address),
@@ -1186,9 +1174,7 @@ export class KeyringController extends BaseController<
     }
 
     const address = ethNormalize(messageParams.from) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.signMessage) {
       throw new Error(KeyringControllerError.UnsupportedSignMessage);
     }
@@ -1208,7 +1194,7 @@ export class KeyringController extends BaseController<
   ): Promise<string> {
     const from = ethNormalize(params.from) as Hex;
 
-    const keyring = (await this.getKeyringForAccount(from)) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(from)) as EthKeyring;
 
     if (!keyring.signEip7702Authorization) {
       throw new Error(
@@ -1243,9 +1229,7 @@ export class KeyringController extends BaseController<
   async signPersonalMessage(messageParams: PersonalMessageParams) {
     this.#assertIsUnlocked();
     const address = ethNormalize(messageParams.from) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.signPersonalMessage) {
       throw new Error(KeyringControllerError.UnsupportedSignPersonalMessage);
     }
@@ -1283,9 +1267,7 @@ export class KeyringController extends BaseController<
       // Cast to `Hex` here is safe here because `messageParams.from` is not nullish.
       // `normalize` returns `Hex` unless given a nullish value.
       const address = ethNormalize(messageParams.from) as Hex;
-      const keyring = (await this.getKeyringForAccount(
-        address,
-      )) as EthKeyring<Json>;
+      const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
       if (!keyring.signTypedData) {
         throw new Error(KeyringControllerError.UnsupportedSignTypedMessage);
       }
@@ -1320,14 +1302,11 @@ export class KeyringController extends BaseController<
   ): Promise<TypedTxData> {
     this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.signTransaction) {
       throw new Error(KeyringControllerError.UnsupportedSignTransaction);
     }
 
-    // @ts-expect-error Upgrade keyring package
     return await keyring.signTransaction(address, transaction, opts);
   }
 
@@ -1346,9 +1325,7 @@ export class KeyringController extends BaseController<
   ): Promise<EthBaseUserOperation> {
     this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
     if (!keyring.prepareUserOperation) {
       throw new Error(KeyringControllerError.UnsupportedPrepareUserOperation);
@@ -1377,9 +1354,7 @@ export class KeyringController extends BaseController<
   ): Promise<EthUserOperationPatch> {
     this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
     if (!keyring.patchUserOperation) {
       throw new Error(KeyringControllerError.UnsupportedPatchUserOperation);
@@ -1403,9 +1378,7 @@ export class KeyringController extends BaseController<
   ): Promise<string> {
     this.#assertIsUnlocked();
     const address = ethNormalize(from) as Hex;
-    const keyring = (await this.getKeyringForAccount(
-      address,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
 
     if (!keyring.signUserOperation) {
       throw new Error(KeyringControllerError.UnsupportedSignUserOperation);
@@ -1508,7 +1481,7 @@ export class KeyringController extends BaseController<
    * @deprecated This method overload is deprecated. Use `withKeyring` without options instead.
    */
   async withKeyring<
-    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    SelectedKeyring extends EthKeyring = EthKeyring,
     CallbackResult = void,
   >(
     selector: KeyringSelector,
@@ -1541,7 +1514,7 @@ export class KeyringController extends BaseController<
    * @template CallbackResult - The type of the value resolved by the callback function.
    */
   async withKeyring<
-    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    SelectedKeyring extends EthKeyring = EthKeyring,
     CallbackResult = void,
   >(
     selector: KeyringSelector,
@@ -1555,7 +1528,7 @@ export class KeyringController extends BaseController<
   ): Promise<CallbackResult>;
 
   async withKeyring<
-    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    SelectedKeyring extends EthKeyring = EthKeyring,
     CallbackResult = void,
   >(
     selector: KeyringSelector,
@@ -1823,9 +1796,7 @@ export class KeyringController extends BaseController<
   async getAccountKeyringType(account: string): Promise<string> {
     this.#assertIsUnlocked();
 
-    const keyring = (await this.getKeyringForAccount(
-      account,
-    )) as EthKeyring<Json>;
+    const keyring = (await this.getKeyringForAccount(account)) as EthKeyring;
     return keyring.type;
   }
 
@@ -1946,7 +1917,7 @@ export class KeyringController extends BaseController<
    * @param keyringId - The id of the keyring.
    * @returns The keyring.
    */
-  #getKeyringById(keyringId: string): EthKeyring<Json> | undefined {
+  #getKeyringById(keyringId: string): EthKeyring | undefined {
     const index = this.state.keyringsMetadata.findIndex(
       (metadata) => metadata.id === keyringId,
     );
@@ -1959,9 +1930,9 @@ export class KeyringController extends BaseController<
    * @param keyringId - The id of the keyring.
    * @returns The keyring.
    */
-  #getKeyringByIdOrDefault(keyringId?: string): EthKeyring<Json> | undefined {
+  #getKeyringByIdOrDefault(keyringId?: string): EthKeyring | undefined {
     if (!keyringId) {
-      return this.#keyrings[0] as EthKeyring<Json>;
+      return this.#keyrings[0] as EthKeyring;
     }
 
     return this.#getKeyringById(keyringId);
@@ -1989,7 +1960,7 @@ export class KeyringController extends BaseController<
    */
   #getKeyringBuilderForType(
     type: string,
-  ): { (): EthKeyring<Json>; type: string } | undefined {
+  ): { (): EthKeyring; type: string } | undefined {
     return this.#keyringBuilders.find(
       (keyringBuilder) => keyringBuilder.type === type,
     );
@@ -2199,7 +2170,7 @@ export class KeyringController extends BaseController<
     password: string | undefined,
     encryptionKey?: string,
     encryptionSalt?: string,
-  ): Promise<EthKeyring<Json>[]> {
+  ): Promise<EthKeyring[]> {
     return this.#withVaultLock(async ({ releaseLock }) => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
@@ -2395,7 +2366,7 @@ export class KeyringController extends BaseController<
   async #createKeyringWithFirstAccount(type: string, opts?: unknown) {
     this.#assertControllerMutexIsLocked();
 
-    const keyring = (await this.#newKeyring(type, opts)) as EthKeyring<Json>;
+    const keyring = (await this.#newKeyring(type, opts)) as EthKeyring;
 
     const [firstAccount] = await keyring.getAccounts();
     if (!firstAccount) {
@@ -2417,7 +2388,7 @@ export class KeyringController extends BaseController<
    * @returns The new keyring.
    * @throws If the keyring includes duplicated accounts.
    */
-  async #newKeyring(type: string, data?: unknown): Promise<EthKeyring<Json>> {
+  async #newKeyring(type: string, data?: unknown): Promise<EthKeyring> {
     const keyring = await this.#createKeyring(type, data);
 
     if (this.#keyrings.length !== this.#keyringsMetadata.length) {
@@ -2446,10 +2417,7 @@ export class KeyringController extends BaseController<
    * @returns The new keyring.
    * @throws If the keyring includes duplicated accounts.
    */
-  async #createKeyring(
-    type: string,
-    data?: unknown,
-  ): Promise<EthKeyring<Json>> {
+  async #createKeyring(type: string, data?: unknown): Promise<EthKeyring> {
     this.#assertControllerMutexIsLocked();
 
     const keyringBuilder = this.#getKeyringBuilderForType(type);
@@ -2461,8 +2429,10 @@ export class KeyringController extends BaseController<
     }
 
     const keyring = keyringBuilder();
-    // @ts-expect-error Enforce data type after updating clients
-    await keyring.deserialize(data);
+    if (data) {
+      // @ts-expect-error Enforce data type after updating clients
+      await keyring.deserialize(data);
+    }
 
     if (keyring.init) {
       await keyring.init();
@@ -2514,7 +2484,7 @@ export class KeyringController extends BaseController<
    */
   async #restoreKeyring(
     serialized: SerializedKeyring,
-  ): Promise<EthKeyring<Json> | undefined> {
+  ): Promise<EthKeyring | undefined> {
     this.#assertControllerMutexIsLocked();
 
     try {
@@ -2543,7 +2513,7 @@ export class KeyringController extends BaseController<
    *
    * @param keyring - The keyring to destroy.
    */
-  async #destroyKeyring(keyring: EthKeyring<Json>) {
+  async #destroyKeyring(keyring: EthKeyring) {
     await keyring.destroy?.();
   }
 
@@ -2555,7 +2525,7 @@ export class KeyringController extends BaseController<
    */
   async #removeEmptyKeyrings(): Promise<void> {
     this.#assertControllerMutexIsLocked();
-    const validKeyrings: EthKeyring<Json>[] = [];
+    const validKeyrings: EthKeyring[] = [];
     const validKeyringMetadata: KeyringMetadata[] = [];
 
     // Since getAccounts returns a Promise
@@ -2563,7 +2533,7 @@ export class KeyringController extends BaseController<
     // in order to decide which ones are now valid (accounts.length > 0)
 
     await Promise.all(
-      this.#keyrings.map(async (keyring: EthKeyring<Json>, index: number) => {
+      this.#keyrings.map(async (keyring: EthKeyring, index: number) => {
         const accounts = await keyring.getAccounts();
         if (accounts.length > 0) {
           validKeyrings.push(keyring);

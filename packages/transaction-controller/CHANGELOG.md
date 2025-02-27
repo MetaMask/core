@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account ([#5369](https://github.com/MetaMask/core/pull/5369))
 - **BREAKING:** Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
   - Require `AccountsController:getState` action permission in messenger.
   - Require `RemoteFeatureFlagController:getState` action permission in messenger.
