@@ -114,7 +114,7 @@ type RootEvent = ExtractAvailableEvent<MultichainBalancesControllerMessenger>;
  * Constructs the unrestricted messenger. This can be used to call actions and
  * publish events within the tests for this controller.
  *
- * @returns The unrestricted messenger suited for PetNamesController.
+ * @returns The unrestricted messenger suited for MultichainBalancesController.
  */
 function getRootMessenger(): Messenger<RootAction, RootEvent> {
   return new Messenger<RootAction, RootEvent>();
