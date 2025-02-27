@@ -307,9 +307,6 @@
   "packages/multichain/src/adapters/caip-permission-adapter-session-scopes.test.ts": {
     "@typescript-eslint/no-unused-vars": 2
   },
-  "packages/multichain/src/adapters/caip-permission-adapter-session-scopes.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1
-  },
   "packages/multichain/src/caip25Permission.test.ts": {
     "@typescript-eslint/no-unused-vars": 5
   },
@@ -319,9 +316,6 @@
   "packages/multichain/src/handlers/wallet-getSession.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "jsdoc/require-returns": 1
-  },
-  "packages/multichain/src/handlers/wallet-invokeMethod.test.ts": {
-    "no-empty-function": 1
   },
   "packages/multichain/src/handlers/wallet-invokeMethod.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1,
@@ -366,7 +360,7 @@
     "jsdoc/require-returns": 1
   },
   "packages/multichain/src/scope/supported.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 7
+    "@typescript-eslint/no-unsafe-enum-comparison": 6
   },
   "packages/multichain/src/scope/transform.ts": {
     "jsdoc/tag-lines": 3
