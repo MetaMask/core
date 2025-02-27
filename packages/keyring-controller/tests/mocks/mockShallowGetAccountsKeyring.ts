@@ -1,4 +1,5 @@
-import type { Keyring, Json, Hex } from '@metamask/utils';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
+import type { Json, Hex } from '@metamask/utils';
 
 /**
  * A test keyring that returns a shallow copy of the accounts array
@@ -9,7 +10,7 @@ import type { Keyring, Json, Hex } from '@metamask/utils';
  * accounts array is not not used to determinate the added account after
  * an operation.
  */
-export default class MockShallowGetAccountsKeyring implements Keyring<Json> {
+export default class MockShallowGetAccountsKeyring implements EthKeyring {
   static type = 'Mock Shallow getAccounts Keyring';
 
   public type = MockShallowGetAccountsKeyring.type;
