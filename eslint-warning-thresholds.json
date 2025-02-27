@@ -584,8 +584,7 @@
   },
   "packages/transaction-controller/src/helpers/GasFeePoller.test.ts": {
     "import-x/order": 1,
-    "jsdoc/tag-lines": 1,
-    "prettier/prettier": 1
+    "jsdoc/tag-lines": 1
   },
   "packages/transaction-controller/src/helpers/GasFeePoller.ts": {
     "@typescript-eslint/prefer-readonly": 6,
