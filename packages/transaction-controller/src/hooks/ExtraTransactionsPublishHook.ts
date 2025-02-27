@@ -1,6 +1,11 @@
-import { createDeferredPromise, type Hex } from '@metamask/utils';
+import {
+  createDeferredPromise,
+  createModuleLogger,
+  type Hex,
+} from '@metamask/utils';
 
 import type { TransactionController } from '..';
+import { projectLogger } from '../logger';
 import type {
   BatchTransactionParams,
   PublishHook,
@@ -8,6 +13,11 @@ import type {
   TransactionBatchSingleRequest,
   TransactionMeta,
 } from '../types';
+
+const log = createModuleLogger(
+  projectLogger,
+  'extra-transactions-publish-hook',
+);
 
 /**
  * Custom publish logic that also publishes additional transactions in an batch.
@@ -40,6 +50,8 @@ export class ExtraTransactionsPublishHook {
     transactionMeta: TransactionMeta,
     signedTx: string,
   ): Promise<PublishHookResult> {
+    log('Publishing transaction as batch', { transactionMeta, signedTx });
+
     const { id, networkClientId, txParams } = transactionMeta;
     const from = txParams.from as Hex;
     const to = txParams.to as Hex | undefined;
@@ -76,6 +88,12 @@ export class ExtraTransactionsPublishHook {
       firstTransaction,
       ...extraTransactions,
     ];
+
+    log('Adding transaction batch', {
+      from,
+      networkClientId,
+      transactions,
+    });
 
     await this.#addTransactionBatch({
       from,

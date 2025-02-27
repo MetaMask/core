@@ -2725,6 +2725,8 @@ export class TransactionController extends BaseController<
       clearNonceLock = undefined;
 
       if (transactionMeta.batchTransactions?.length) {
+        log('Found batch transactions', transactionMeta.batchTransactions);
+
         const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
           addTransactionBatch: this.addTransactionBatch.bind(this),
           transactions: transactionMeta.batchTransactions,
