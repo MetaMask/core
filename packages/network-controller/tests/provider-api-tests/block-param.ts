@@ -1540,7 +1540,7 @@ export function testsForRpcMethodSupportingBlockParam(
 
       for (const [nestedDesc, currentBlockNumber] of [
         ['less than the current block number', '0x200'],
-        ['equal to the curent block number', '0x100'],
+        ['equal to the current block number', '0x100'],
       ]) {
         describe(`${nestedDesc}`, () => {
           it('makes an additional request to the RPC endpoint', async () => {
