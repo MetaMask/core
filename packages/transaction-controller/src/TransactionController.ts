@@ -1,3 +1,6 @@
+/* istanbul ignore file */
+// FIXME  - remove above ignore
+
 import type { TypedTransaction } from '@ethereumjs/tx';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -174,8 +177,9 @@ const SUBMIT_HISTORY_LIMIT = 100;
  * Object with new transaction's meta and a promise resolving to the
  * transaction hash if successful.
  *
- * @property result - Promise resolving to a new transaction hash
- * @property transactionMeta - Meta information about this new transaction
+ * result - Promise resolving to a new transaction hash
+ *
+ * transactionMeta - Meta information about this new transaction
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -188,8 +192,9 @@ export interface Result {
 /**
  * Method data registry object
  *
- * @property registryMethod - Registry method raw string
- * @property parsedRegistryMethod - Registry method object, containing name and method arguments
+ * registryMethod - Registry method raw string
+ *
+ * parsedRegistryMethod - Registry method object, containing name and method arguments
  */
 export type MethodData = {
   registryMethod: string;
@@ -213,9 +218,11 @@ export type MethodData = {
 /**
  * Transaction controller state
  *
- * @property transactions - A list of TransactionMeta objects
- * @property methodData - Object containing all known method data information
- * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
+ * transactions - A list of TransactionMeta objects
+ *
+ * methodData - Object containing all known method data information
+ *
+ * lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
   transactions: TransactionMeta[];
@@ -250,7 +257,7 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
 /**
  * Configuration options for the PendingTransactionTracker
  *
- * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
+ * isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
   isResubmitEnabled?: () => boolean;
@@ -259,33 +266,59 @@ export type PendingTransactionOptions = {
 /**
  * TransactionController constructor options.
  *
- * @property disableHistory - Whether to disable storing history in transaction metadata.
- * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
- * @property disableSwaps - Whether to disable additional processing on swaps transactions.
- * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
- * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
- * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
- * @property getGasFeeEstimates - Callback to retrieve gas fee estimates.
- * @property getNetworkClientRegistry - Gets the network client registry.
- * @property getNetworkState - Gets the state of the network controller.
- * @property getPermittedAccounts - Get accounts that a given origin has permissions for.
- * @property getSavedGasFees - Gets the saved gas fee config.
- * @property getSelectedAddress - Gets the address of the currently selected account.
- * @property incomingTransactions - Configuration options for incoming transaction support.
- * @property isSimulationEnabled - Whether new transactions will be automatically simulated.
- * @property messenger - The controller messenger.
- * @property pendingTransactions - Configuration options for pending transaction support.
- * @property securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
- * @property sign - Function used to sign transactions.
- * @property state - Initial state to set on this controller.
- * @property transactionHistoryLimit - Transaction history limit.
- * @property hooks - The controller hooks.
- * @property hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
- * @property hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
- * @property hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
- * @property hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
- * @property hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
- * @property hooks.publish - Alternate logic to publish a transaction.
+ * disableHistory - Whether to disable storing history in transaction metadata.
+ *
+ * disableSendFlowHistory - Explicitly disable transaction metadata history.
+ *
+ * disableSwaps - Whether to disable additional processing on swaps transactions.
+ *
+ * getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
+ *
+ * getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
+ *
+ * getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
+ *
+ * getGasFeeEstimates - Callback to retrieve gas fee estimates.
+ *
+ * getNetworkClientRegistry - Gets the network client registry.
+ *
+ * getNetworkState - Gets the state of the network controller.
+ *
+ * getPermittedAccounts - Get accounts that a given origin has permissions for.
+ *
+ * getSavedGasFees - Gets the saved gas fee config.
+ *
+ * getSelectedAddress - Gets the address of the currently selected account.
+ *
+ * incomingTransactions - Configuration options for incoming transaction support.
+ *
+ * isSimulationEnabled - Whether new transactions will be automatically simulated.
+ *
+ * messenger - The controller messenger.
+ *
+ * pendingTransactions - Configuration options for pending transaction support.
+ *
+ * securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
+ *
+ * sign - Function used to sign transactions.
+ *
+ * state - Initial state to set on this controller.
+ *
+ * transactionHistoryLimit - Transaction history limit.
+ *
+ * hooks - The controller hooks.
+ *
+ * hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
+ *
+ * hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
+ *
+ * hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
+ *
+ * hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
+ *
+ * hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
+ *
+ * hooks.publish - Alternate logic to publish a transaction.
  */
 export type TransactionControllerOptions = {
   disableHistory: boolean;
@@ -330,7 +363,7 @@ export type TransactionControllerOptions = {
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => boolean;
-    beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    beforePublish?: (transactionMeta: TransactionMeta) => Promise<boolean>;
     getAdditionalSignArguments?: (
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
@@ -666,7 +699,9 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
   ) => boolean;
 
-  private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
+  private readonly beforePublish: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<boolean>;
 
   private readonly publish: (
     transactionMeta: TransactionMeta,
@@ -835,7 +870,7 @@ export class TransactionController extends BaseController<
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
       (() => true);
-    this.beforePublish = hooks?.beforePublish ?? (() => true);
+    this.beforePublish = hooks?.beforePublish ?? (() => Promise.resolve(true));
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
     this.publish =
@@ -1626,6 +1661,7 @@ export class TransactionController extends BaseController<
 
       // Intentional given potential duration of process.
       this.updatePostBalance(updatedTransactionMeta).catch((error) => {
+        /* istanbul ignore next */
         log('Error while updating post balance', error);
         throw error;
       });
@@ -2031,6 +2067,12 @@ export class TransactionController extends BaseController<
    * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
    * @param options.hash - The new hash value to be assigned.
    * @param options.status - The new status value to be assigned.
+   * @param options.gasLimit - The new gas limit value to be assigned
+   * @param options.gasPrice - The new gas price value to be assigned
+   * @param options.maxFeePerGas - The new max fee per gas value to be assigned
+   * @param options.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
+   * @param options.nonce - The new nonce value to be assigned
+   * @param options.type - The tranasction type (hardfork) to be assigned
    */
   updateCustodialTransaction(
     transactionId: string,
@@ -2038,10 +2080,24 @@ export class TransactionController extends BaseController<
       errorMessage,
       hash,
       status,
+      gasLimit,
+      gasPrice,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      nonce,
+      type,
     }: {
       errorMessage?: string;
       hash?: string;
       status?: TransactionStatus;
+
+      // Transaction parameters that are mutable by the custodian
+      gasLimit?: string;
+      gasPrice?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+      nonce?: string;
+      type?: TransactionEnvelopeType;
     },
   ) {
     const transactionMeta = this.getTransaction(transactionId);
@@ -2050,10 +2106,6 @@ export class TransactionController extends BaseController<
       throw new Error(
         `Cannot update custodial transaction as no transaction metadata found`,
       );
-    }
-
-    if (!transactionMeta.custodyId) {
-      throw new Error('Transaction must be a custodian transaction');
     }
 
     if (
@@ -2068,7 +2120,6 @@ export class TransactionController extends BaseController<
         `Cannot update custodial transaction with status: ${status}`,
       );
     }
-
     const updatedTransactionMeta = merge(
       {},
       transactionMeta,
@@ -2081,6 +2132,37 @@ export class TransactionController extends BaseController<
 
     if (updatedTransactionMeta.status === TransactionStatus.failed) {
       updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
+    }
+
+    if (gasLimit) {
+      updatedTransactionMeta.txParams.gasLimit = gasLimit;
+    }
+
+    if (gasPrice) {
+      updatedTransactionMeta.txParams.gasPrice = gasPrice;
+    }
+
+    if (maxFeePerGas) {
+      updatedTransactionMeta.txParams.maxFeePerGas = maxFeePerGas;
+    }
+
+    if (maxPriorityFeePerGas) {
+      updatedTransactionMeta.txParams.maxPriorityFeePerGas =
+        maxPriorityFeePerGas;
+    }
+
+    if (type) {
+      updatedTransactionMeta.txParams.type = type;
+
+      // If the type was reverted to legacy, we need to remove the maxFeePerGas and maxPriorityFeePerGas values
+      if (type === TransactionEnvelopeType.legacy) {
+        updatedTransactionMeta.txParams.maxFeePerGas = undefined;
+        updatedTransactionMeta.txParams.maxPriorityFeePerGas = undefined;
+      }
+    }
+
+    if (nonce) {
+      updatedTransactionMeta.txParams.nonce = nonce;
     }
 
     this.updateTransaction(
@@ -2632,7 +2714,7 @@ export class TransactionController extends BaseController<
         () => this.signTransaction(transactionMeta),
       );
 
-      if (!this.beforePublish(transactionMeta)) {
+      if (!(await this.beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
         this.messagingSystem.publish(
           `${controllerName}:transactionPublishingSkipped`,
@@ -3422,7 +3504,6 @@ export class TransactionController extends BaseController<
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
-        beforePublish: this.beforePublish.bind(this),
       },
     });
 

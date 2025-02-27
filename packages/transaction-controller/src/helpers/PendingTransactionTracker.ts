@@ -97,8 +97,6 @@ export class PendingTransactionTracker {
 
   #beforeCheckPendingTransaction: (transactionMeta: TransactionMeta) => boolean;
 
-  #beforePublish: (transactionMeta: TransactionMeta) => boolean;
-
   constructor({
     blockTracker,
     getChainId,
@@ -125,7 +123,6 @@ export class PendingTransactionTracker {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
       ) => boolean;
-      beforePublish?: (transactionMeta: TransactionMeta) => boolean;
     };
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
@@ -141,7 +138,6 @@ export class PendingTransactionTracker {
     this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#transactionPoller = new TransactionPoller(blockTracker);
-    this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
 
@@ -302,7 +298,7 @@ export class PendingTransactionTracker {
       return;
     }
 
-    if (!this.#beforePublish(txMeta)) {
+    if (!this.#beforeCheckPendingTransaction(txMeta)) {
       return;
     }
 
