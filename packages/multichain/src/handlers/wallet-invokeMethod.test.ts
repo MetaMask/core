@@ -102,6 +102,11 @@ describe('wallet_invokeMethod', () => {
         notifications: [],
         accounts: [],
       },
+      'wallet:eip155': {
+        methods: ['wallet_watchAsset'],
+        notifications: [],
+        accounts: [],
+      },
       'nonevm:scope': {
         methods: ['foobar'],
         notifications: [],
@@ -314,7 +319,75 @@ describe('wallet_invokeMethod', () => {
     });
   });
 
-  describe("'wallet:eip155' scope", () => {});
+  describe("'wallet:eip155' scope", () => {
+    it('gets the networkClientId for the globally selected network', async () => {
+      const request = createMockedRequest();
+      const { handler, getSelectedNetworkClientId } = createMockedHandler();
+
+      await handler({
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'wallet:eip155',
+          request: {
+            ...request.params.request,
+            method: 'wallet_watchAsset',
+          },
+        },
+      });
+      expect(getSelectedNetworkClientId).toHaveBeenCalled();
+    });
+
+    it('throws an internal error if a networkClientId cannot be retrieved for the globally selected network', async () => {
+      const request = createMockedRequest();
+      const { handler, getSelectedNetworkClientId, end } =
+        createMockedHandler();
+      getSelectedNetworkClientId.mockReturnValue(undefined);
+
+      await handler({
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'wallet:eip155',
+          request: {
+            ...request.params.request,
+            method: 'wallet_watchAsset',
+          },
+        },
+      });
+      expect(end).toHaveBeenCalledWith(rpcErrors.internal());
+    });
+
+    it('sets the networkClientId and unwraps the CAIP-27 request', async () => {
+      const request = createMockedRequest();
+      const { handler, next } = createMockedHandler();
+
+      const walletRequest = {
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'wallet:eip155',
+          request: {
+            ...request.params.request,
+            method: 'wallet_watchAsset',
+          },
+        },
+      };
+      await handler(walletRequest);
+      expect(walletRequest).toStrictEqual({
+        jsonrpc: '2.0' as const,
+        id: 0,
+        scope: 'wallet:eip155',
+        origin: 'http://test.com',
+        networkClientId: 'selectedNetworkClientId',
+        method: 'wallet_watchAsset',
+        params: {
+          foo: 'bar',
+        },
+      });
+      expect(next).toHaveBeenCalled();
+    });
+  });
 
   describe('non-evm scope', () => {
     it('forwards the unwrapped CAIP-27 request for authorized non-evm scopes to handleNonEvmRequestForOrigin', async () => {
