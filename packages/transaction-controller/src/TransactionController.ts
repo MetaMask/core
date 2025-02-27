@@ -2382,6 +2382,8 @@ export class TransactionController extends BaseController<
     transactionId: string;
     batchTransactions: BatchTransactionParams[];
   }) {
+    log('Updating batch transactions', { transactionId, batchTransactions });
+
     this.#updateTransactionInternal(
       {
         transactionId,
@@ -2628,6 +2630,8 @@ export class TransactionController extends BaseController<
     let clearNonceLock: (() => void) | undefined;
 
     let transactionMeta = this.getTransactionOrThrow(transactionId);
+
+    log('Approving transaction', transactionMeta);
 
     try {
       if (!this.sign) {
