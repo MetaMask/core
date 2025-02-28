@@ -313,25 +313,27 @@ export class GasFeePoller {
  * @param args.txMeta - The transaction meta.
  * @param args.gasFeeEstimates - The gas fee estimates.
  * @param args.gasFeeEstimatesLoaded - Whether the gas fee estimates are loaded.
+ * @param args.getEIP1559Compatibility - A function for verifying a network is EIP-1559 compatible.
+ * @param args.isTxParamsGasFeeUpdatesEnabled - Whether to update the gas fee properties in `txParams`.
  * @param args.layer1GasFee - The layer 1 gas fee.
  */
 export async function updateTransactionGasFees({
   txMeta,
+  getEIP1559Compatibility,
   gasFeeEstimates,
   gasFeeEstimatesLoaded,
-  getEIP1559Compatibility,
   isTxParamsGasFeeUpdatesEnabled,
   layer1GasFee,
 }: {
   txMeta: TransactionMeta;
-  gasFeeEstimates?: GasFeeEstimates;
-  gasFeeEstimatesLoaded?: boolean;
   getEIP1559Compatibility: (
     networkClientId: NetworkClientId,
   ) => Promise<boolean>;
+  gasFeeEstimates?: GasFeeEstimates;
+  gasFeeEstimatesLoaded?: boolean;
   isTxParamsGasFeeUpdatesEnabled: boolean;
   layer1GasFee?: Hex;
-}) {
+}): Promise<void> {
   const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
   const isUsingGasFeeEstimateLevel =
     Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
