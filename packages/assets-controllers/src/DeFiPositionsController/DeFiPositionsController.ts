@@ -1,7 +1,7 @@
 import type {
   AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedEvmAccountChangeEvent,
+  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -69,7 +69,7 @@ export type AllowedActions =
  */
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent;
 
 /**
  * The messenger of the {@link DeFiPositionsController}.
@@ -122,13 +122,8 @@ export class DeFiPositionsController extends BaseController<
     ).id;
 
     this.messagingSystem.subscribe(
-      'AccountsController:selectedEvmAccountChange',
+      'AccountsController:selectedAccountChange',
       async (selectedAccount) => {
-        console.log(
-          'EVENT AccountsController:selectedEvmAccountChange',
-          selectedAccount,
-        );
-
         this.#selectedAccountId = selectedAccount.id;
 
         await this.#updateAccountPositions(selectedAccount.address);
@@ -138,8 +133,6 @@ export class DeFiPositionsController extends BaseController<
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       async () => {
-        console.log('EVENT NetworkController:stateChange');
-
         const selectedAddress = this.messagingSystem.call(
           'AccountsController:getAccount',
           this.#selectedAccountId,
@@ -154,8 +147,6 @@ export class DeFiPositionsController extends BaseController<
 
   // TODO: If this becomes an action, accountAddress needs to be inferred from the id
   async #updateAccountPositions(accountAddress: string) {
-    console.log('DEFI POSITIONS UPDATE TRIGGERED', { accountAddress });
-
     // TODO: This is done to give the UI a loading effect. Probably not the best way to do this
     this.update((state) => {
       state.allDeFiPositions[accountAddress] = null;
@@ -164,11 +155,6 @@ export class DeFiPositionsController extends BaseController<
     const defiPositionsResponse = await fetchPositions(accountAddress);
 
     const accountPositionsPerChain = groupPositions(defiPositionsResponse);
-
-    console.log('DEFI POSITIONS UPDATE FETCHED', {
-      accountAddress,
-      accountPositionsPerChain,
-    });
 
     this.update((state) => {
       state.allDeFiPositions[accountAddress] = accountPositionsPerChain;

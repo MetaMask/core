@@ -1,8 +1,13 @@
 import { Hex } from '@metamask/utils';
-import { GroupedPositions, groupPositions } from './group-positions';
+import {
+  GroupedPositions,
+  groupPositions,
+  UnderlyingWithMarketValue,
+} from './group-positions';
 import {
   MOCK_DEFI_RESPONSE_BORROW,
   MOCK_DEFI_RESPONSE_COMPLEX,
+  MOCK_DEFI_RESPONSE_DEEP_UNDERLYING,
   MOCK_DEFI_RESPONSE_FAILED_ENTRY,
   MOCK_DEFI_RESPONSE_MULTI_CHAIN,
   MOCK_DEFI_RESPONSE_NO_PRICES,
@@ -42,7 +47,7 @@ describe('groupPositions', () => {
       1540,
     );
     expect(protocolResults.positionTypes.borrow!.aggregatedMarketValue).toEqual(
-      -1000,
+      1000,
     );
     expect(protocolResults.aggregatedMarketValue).toEqual(540);
   });
@@ -50,11 +55,9 @@ describe('groupPositions', () => {
   it('verifies that the resulting object is valid', () => {
     const result = groupPositions(MOCK_DEFI_RESPONSE_COMPLEX);
 
-    const expectedResult: {
-      [key: Hex]: GroupedPositions;
-    } = {
+    const expectedResult: { [key: Hex]: GroupedPositions } = {
       '0x1': {
-        aggregatedMarketValue: 540,
+        aggregatedMarketValue: 20540,
         protocols: {
           'aave-v3': {
             protocolDetails: {
@@ -85,6 +88,7 @@ describe('groupPositions', () => {
                         balanceRaw: '40000000000000000',
                         balance: 0.04,
                         price: 1000,
+                        marketValue: 40,
                         iconUrl:
                           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
                       },
@@ -109,6 +113,7 @@ describe('groupPositions', () => {
                         balanceRaw: '300000000',
                         balance: 3,
                         price: 500,
+                        marketValue: 1500,
                         iconUrl:
                           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599/logo.png',
                       },
@@ -117,7 +122,7 @@ describe('groupPositions', () => {
                 ],
               },
               borrow: {
-                aggregatedMarketValue: -1000,
+                aggregatedMarketValue: 1000,
                 positions: [
                   {
                     address: '0x6df1C1E379bC5a00a7b4C6e67A203333772f45A8',
@@ -125,7 +130,7 @@ describe('groupPositions', () => {
                     symbol: 'variableDebtEthUSDT',
                     decimals: 6,
                     balanceRaw: '1000000000',
-                    marketValue: -1000,
+                    marketValue: 1000,
                     type: 'protocol',
                     tokens: [
                       {
@@ -137,11 +142,52 @@ describe('groupPositions', () => {
                         balanceRaw: '1000000000',
                         balance: 1000,
                         price: 1,
+                        marketValue: 1000,
                         iconUrl:
                           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
                       },
                     ],
                     balance: 1000,
+                  },
+                ],
+              },
+            },
+          },
+          lido: {
+            protocolDetails: {
+              name: 'Lido',
+              iconUrl:
+                'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png',
+            },
+            aggregatedMarketValue: 20000,
+            positionTypes: {
+              stake: {
+                aggregatedMarketValue: 20000,
+                positions: [
+                  {
+                    address: '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0',
+                    name: 'Wrapped liquid staked Ether 2.0',
+                    symbol: 'wstETH',
+                    decimals: 18,
+                    balanceRaw: '800000000000000000000',
+                    balance: 800,
+                    marketValue: 20000,
+                    type: 'protocol',
+                    tokens: [
+                      {
+                        address: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
+                        name: 'Liquid staked Ether 2.0',
+                        symbol: 'stETH',
+                        decimals: 18,
+                        type: 'underlying',
+                        balanceRaw: '1000000000000000000',
+                        balance: 10,
+                        price: 2000,
+                        marketValue: 20000,
+                        iconUrl:
+                          'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png',
+                      },
+                    ],
                   },
                 ],
               },
@@ -183,6 +229,7 @@ describe('groupPositions', () => {
                         type: 'underlying',
                         balance: 300,
                         price: 1,
+                        marketValue: 300,
                         iconUrl:
                           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png',
                       },
@@ -195,6 +242,7 @@ describe('groupPositions', () => {
                         type: 'underlying-claimable',
                         balance: 20,
                         price: 1,
+                        marketValue: 20,
                         iconUrl:
                           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png',
                       },
@@ -207,6 +255,7 @@ describe('groupPositions', () => {
                         type: 'underlying',
                         balance: 2000,
                         price: 0.5,
+                        marketValue: 1000,
                         iconUrl:
                           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x940181a94A35A4569E4529A3CDfB74e38FD98631/logo.png',
                       },
@@ -219,6 +268,7 @@ describe('groupPositions', () => {
                         type: 'underlying-claimable',
                         balance: 50,
                         price: 0.5,
+                        marketValue: 25,
                         iconUrl:
                           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x940181a94A35A4569E4529A3CDfB74e38FD98631/logo.png',
                       },
