@@ -125,9 +125,11 @@ function processToken<T extends Balance>(
     };
   }
 
-  const processedTokens = tokenBalance.tokens.map((t) => ({
-    ...processToken(t),
-  }));
+  const processedTokens = tokenBalance.tokens.map((t) => {
+    const { tokens, ...tokenWithoutUnderlyings } = processToken(t);
+
+    return tokenWithoutUnderlyings;
+  });
 
   const marketValue = processedTokens.reduce(
     (acc, t) =>
