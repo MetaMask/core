@@ -1,4 +1,5 @@
 import { arrangeAuthAPIs } from './__fixtures__/auth';
+import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import {
   handleMockUserStorageGet,
   handleMockUserStoragePut,
@@ -6,8 +7,7 @@ import {
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
-} from './__fixtures__/mock-userstorage';
-import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
+} from './__fixtures__/userstorage';
 import { type IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import {
