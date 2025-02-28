@@ -6,21 +6,18 @@ import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
 import { createUpdateNetworkProps } from './update-network-utils';
-import type { UserStorageBaseOptions } from '../types';
 import type UserStorageController from '../UserStorageController';
 import type { UserStorageControllerMessenger } from '../UserStorageController';
 
 type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
   getUserStorageControllerInstance: () => UserStorageController;
-  getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
   isMutationSyncBlocked: () => boolean;
 };
 
 type PerformMainNetworkSyncProps = {
   messenger: UserStorageControllerMessenger;
   getUserStorageControllerInstance: () => UserStorageController;
-  getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
   maxNetworksToAdd?: number;
   onNetworkAdded?: (chainId: string) => void;
   onNetworkUpdated?: (chainId: string) => void;
@@ -46,12 +43,8 @@ export let isMainNetworkSyncInProgress = false;
  * @param props - parameters used for initializing and enabling network syncing
  */
 export function startNetworkSyncing(props: StartNetworkSyncingProps) {
-  const {
-    messenger,
-    getStorageConfig,
-    isMutationSyncBlocked,
-    getUserStorageControllerInstance,
-  } = props;
+  const { messenger, isMutationSyncBlocked, getUserStorageControllerInstance } =
+    props;
   try {
     messenger.subscribe(
       'NetworkController:networkRemoved',
@@ -70,10 +63,6 @@ export function startNetworkSyncing(props: StartNetworkSyncingProps) {
             return;
           }
 
-          const opts = await getStorageConfig();
-          if (!opts) {
-            return;
-          }
           await deleteNetwork(networkConfiguration, {
             getUserStorageControllerInstance,
           });
@@ -136,7 +125,6 @@ export async function performMainNetworkSync(
 ) {
   const {
     messenger,
-    getStorageConfig,
     maxNetworksToAdd,
     onNetworkAdded,
     onNetworkRemoved,
@@ -152,11 +140,6 @@ export async function performMainNetworkSync(
 
   isMainNetworkSyncInProgress = true;
   try {
-    const opts = await getStorageConfig();
-    if (!opts) {
-      return;
-    }
-
     const networkControllerState = messenger.call('NetworkController:getState');
     const localNetworks = Object.values(
       networkControllerState.networkConfigurationsByChainId ?? {},

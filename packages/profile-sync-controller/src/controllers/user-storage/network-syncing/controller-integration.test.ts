@@ -17,8 +17,6 @@ import {
   mockUserStorageMessenger,
 } from '../__fixtures__/mockMessenger';
 import { waitFor } from '../__fixtures__/test-utils';
-import { MOCK_STORAGE_KEY } from '../mocks';
-import type { UserStorageBaseOptions } from '../types';
 import UserStorageController from '../UserStorageController';
 
 jest.mock('loglevel', () => {
@@ -36,11 +34,6 @@ jest.mock('loglevel', () => {
 });
 const warnMock = jest.mocked(log.warn);
 
-const storageOpts: UserStorageBaseOptions = {
-  bearerToken: 'MOCK_TOKEN',
-  storageKey: MOCK_STORAGE_KEY,
-};
-
 describe('network-syncing/controller-integration - startNetworkSyncing()', () => {
   it(`should successfully sync when NetworkController:networkRemoved is emitted`, async () => {
     const { baseMessenger, props, deleteNetworkMock } = arrangeMocks();
@@ -51,38 +44,7 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
     );
 
     await waitFor(() => {
-      expect(props.getStorageConfig).toHaveBeenCalled();
       expect(deleteNetworkMock).toHaveBeenCalled();
-    });
-  });
-
-  it('should silently fail is unable to authenticate or get storage key', async () => {
-    const { baseMessenger, props, deleteNetworkMock } = arrangeMocks();
-    props.getStorageConfig.mockRejectedValue(new Error('Mock Error'));
-    startNetworkSyncing(props);
-    baseMessenger.publish(
-      'NetworkController:networkRemoved',
-      createMockNetworkConfiguration(),
-    );
-
-    await waitFor(() => {
-      expect(props.getStorageConfig).toHaveBeenCalled();
-      expect(deleteNetworkMock).not.toHaveBeenCalled();
-    });
-  });
-
-  it('should silently fail if unable to get storage config', async () => {
-    const { baseMessenger, props, deleteNetworkMock } = arrangeMocks();
-    props.getStorageConfig.mockResolvedValue(null);
-    startNetworkSyncing(props);
-    baseMessenger.publish(
-      'NetworkController:networkRemoved',
-      createMockNetworkConfiguration(),
-    );
-
-    await waitFor(() => {
-      expect(props.getStorageConfig).toHaveBeenCalled();
-      expect(deleteNetworkMock).not.toHaveBeenCalled();
     });
   });
 
@@ -116,7 +78,6 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
       createMockNetworkConfiguration(),
     );
 
-    expect(props.getStorageConfig).not.toHaveBeenCalled();
     expect(deleteNetworkMock).not.toHaveBeenCalled();
 
     // Reset this property
@@ -138,7 +99,6 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
     );
 
     expect(mockIsBlocked).toHaveBeenCalled();
-    expect(props.getStorageConfig).not.toHaveBeenCalled();
     expect(deleteNetworkMock).not.toHaveBeenCalled();
   });
 
@@ -149,7 +109,6 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
    */
   function arrangeMocks() {
     const messengerMocks = mockUserStorageMessenger();
-    const getStorageConfigMock = jest.fn().mockResolvedValue(storageOpts);
     const deleteNetworkMock = jest
       .spyOn(SyncMutationsModule, 'deleteNetwork')
       .mockResolvedValue();
@@ -161,7 +120,6 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
 
     return {
       props: {
-        getStorageConfig: getStorageConfigMock,
         messenger: messengerMocks.messenger,
         isMutationSyncBlocked: () => false,
         getUserStorageControllerInstance: () => controller,
@@ -173,34 +131,13 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
 });
 
 describe('network-syncing/controller-integration - performMainSync()', () => {
-  it('should do nothing if unable to get storage config', async () => {
-    const { getStorageConfig, messenger, mockCalls, controller } =
-      arrangeMocks();
-    getStorageConfig.mockResolvedValue(null);
-
-    await performMainNetworkSync({
-      messenger,
-      getStorageConfig,
-      getUserStorageControllerInstance: () => controller,
-    });
-    expect(getStorageConfig).toHaveBeenCalled();
-    expect(mockCalls.mockNetworkControllerGetState).not.toHaveBeenCalled();
-  });
-
   it('should do nothing if unable to calculate networks to update', async () => {
-    const {
-      messenger,
-      getStorageConfig,
-      mockSync,
-      mockServices,
-      mockCalls,
-      controller,
-    } = arrangeMocks();
+    const { messenger, mockSync, mockServices, mockCalls, controller } =
+      arrangeMocks();
     mockSync.findNetworksToUpdate.mockReturnValue(undefined);
 
     await performMainNetworkSync({
       messenger,
-      getStorageConfig,
       getUserStorageControllerInstance: () => controller,
     });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
@@ -210,14 +147,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   });
 
   it('should update remote networks if there are local networks to add', async () => {
-    const {
-      messenger,
-      getStorageConfig,
-      mockSync,
-      mockServices,
-      mockCalls,
-      controller,
-    } = arrangeMocks();
+    const { messenger, mockSync, mockServices, mockCalls, controller } =
+      arrangeMocks();
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [createMockRemoteNetworkConfiguration()],
       missingLocalNetworks: [],
@@ -227,7 +158,6 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
 
     await performMainNetworkSync({
       messenger,
-      getStorageConfig,
       getUserStorageControllerInstance: () => controller,
     });
 
@@ -238,14 +168,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   });
 
   it('should add missing local networks', async () => {
-    const {
-      messenger,
-      getStorageConfig,
-      mockSync,
-      mockServices,
-      mockCalls,
-      controller,
-    } = arrangeMocks();
+    const { messenger, mockSync, mockServices, mockCalls, controller } =
+      arrangeMocks();
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [],
       missingLocalNetworks: [createMockNetworkConfiguration()],
@@ -256,7 +180,6 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     const mockAddCallback = jest.fn();
     await performMainNetworkSync({
       messenger,
-      getStorageConfig,
       onNetworkAdded: mockAddCallback,
       getUserStorageControllerInstance: () => controller,
     });
@@ -269,14 +192,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   });
 
   it('should not add missing local networks if there is no available space', async () => {
-    const {
-      messenger,
-      getStorageConfig,
-      mockSync,
-      mockServices,
-      mockCalls,
-      controller,
-    } = arrangeMocks();
+    const { messenger, mockSync, mockServices, mockCalls, controller } =
+      arrangeMocks();
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [],
       missingLocalNetworks: [createMockNetworkConfiguration()],
@@ -287,7 +204,6 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     const mockAddCallback = jest.fn();
     await performMainNetworkSync({
       messenger,
-      getStorageConfig,
       onNetworkAdded: mockAddCallback,
       maxNetworksToAdd: 0, // mocking that there is no available space
       getUserStorageControllerInstance: () => controller,
@@ -301,14 +217,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   });
 
   it('should update local networks', async () => {
-    const {
-      messenger,
-      getStorageConfig,
-      mockSync,
-      mockServices,
-      mockCalls,
-      controller,
-    } = arrangeMocks();
+    const { messenger, mockSync, mockServices, mockCalls, controller } =
+      arrangeMocks();
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [],
       missingLocalNetworks: [],
@@ -319,7 +229,6 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     const mockUpdateCallback = jest.fn();
     await performMainNetworkSync({
       messenger,
-      getStorageConfig,
       onNetworkUpdated: mockUpdateCallback,
       getUserStorageControllerInstance: () => controller,
     });
@@ -332,14 +241,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   });
 
   it('should remove local networks', async () => {
-    const {
-      messenger,
-      getStorageConfig,
-      mockSync,
-      mockServices,
-      mockCalls,
-      controller,
-    } = arrangeMocks();
+    const { messenger, mockSync, mockServices, mockCalls, controller } =
+      arrangeMocks();
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [],
       missingLocalNetworks: [],
@@ -350,7 +253,6 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     const mockRemoveCallback = jest.fn();
     await performMainNetworkSync({
       messenger,
-      getStorageConfig,
       onNetworkRemoved: mockRemoveCallback,
       getUserStorageControllerInstance: () => controller,
     });
@@ -362,14 +264,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
   });
 
   it('should handle multiple networks to update', async () => {
-    const {
-      messenger,
-      getStorageConfig,
-      mockSync,
-      mockServices,
-      mockCalls,
-      controller,
-    } = arrangeMocks();
+    const { messenger, mockSync, mockServices, mockCalls, controller } =
+      arrangeMocks();
     mockSync.findNetworksToUpdate.mockReturnValue({
       remoteNetworksToUpdate: [
         createMockRemoteNetworkConfiguration(),
@@ -391,7 +287,6 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
 
     await performMainNetworkSync({
       messenger,
-      getStorageConfig,
       getUserStorageControllerInstance: () => controller,
     });
     expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalledTimes(1);
@@ -415,15 +310,10 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
       messenger: messengerMocks.messenger,
     });
 
-    const getStorageConfigMock = jest
-      .fn<Promise<UserStorageBaseOptions | null>, []>()
-      .mockResolvedValue(storageOpts);
-
     return {
       baseMessenger: messengerMocks.baseMessenger,
       messenger: messengerMocks.messenger,
       controller,
-      getStorageConfig: getStorageConfigMock,
       mockCalls: {
         mockNetworkControllerGetState:
           messengerMocks.mockNetworkControllerGetState.mockReturnValue({

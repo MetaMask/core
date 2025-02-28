@@ -49,7 +49,7 @@ type ErrorMessage = {
 export class UserStorage {
   protected config: UserStorageConfig;
 
-  protected options: UserStorageOptions;
+  public options: UserStorageOptions;
 
   protected env: Env;
 
@@ -232,10 +232,6 @@ export class UserStorage {
     encryptedData: [string, string][],
   ): Promise<void> {
     try {
-      if (!encryptedData.length) {
-        return;
-      }
-
       const headers = await this.#getAuthorizationHeader();
 
       const url = new URL(STORAGE_URL(this.env, path));
@@ -249,6 +245,7 @@ export class UserStorage {
         body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
       });
 
+      // istanbul ignore next
       if (!response.ok) {
         const responseBody: ErrorMessage = await response.json().catch(() => ({
           message: 'unknown',
@@ -262,6 +259,7 @@ export class UserStorage {
       /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      // istanbul ignore next
       throw new UserStorageError(
         `failed to batch upsert user storage for path '${path}'. ${errorMessage}`,
       );
@@ -314,10 +312,6 @@ export class UserStorage {
 
       return decryptedData;
     } catch (e) {
-      if (e instanceof NotFoundError) {
-        throw e;
-      }
-
       /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
@@ -406,10 +400,6 @@ export class UserStorage {
 
       return decryptedData;
     } catch (e) {
-      if (e instanceof NotFoundError) {
-        throw e;
-      }
-
       /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');

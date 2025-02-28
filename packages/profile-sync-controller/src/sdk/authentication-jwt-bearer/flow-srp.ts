@@ -15,6 +15,7 @@ import { ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
   MESSAGE_SIGNING_SNAP,
+  assertMessageStartsWithMetamask,
   connectSnap,
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
@@ -44,11 +45,8 @@ const getDefaultEIP6963SigningOptions = (
   },
   signMessage: async (message: string): Promise<string> => {
     const provider = customProvider ?? (await getDefaultEIP6963Provider());
-    if (!message.startsWith('metamask:')) {
-      throw new ValidationError('message must start with "metamask:"');
-    }
-    const formattedMessage = message as `metamask:${string}`;
-    return await MESSAGE_SIGNING_SNAP.signMessage(provider, formattedMessage);
+    assertMessageStartsWithMetamask(message);
+    return await MESSAGE_SIGNING_SNAP.signMessage(provider, message);
   },
 });
 

@@ -1,3 +1,5 @@
+import type { Eip1193Provider } from 'ethers';
+
 import {
   MOCK_ACCESS_JWT,
   MOCK_SRP_LOGIN_RESPONSE,
@@ -576,13 +578,14 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
 
     // Sign Message
     await expect(auth.signMessage('not formatted message')).rejects.toThrow(
-      ValidationError,
+      'Message must start with "metamask:"',
     );
   });
 
   it('successfully uses default SRP flow', async () => {
     arrangeAuthAPIs();
     const { auth } = arrangeAuth('SRP', MOCK_SRP, { signing: undefined });
+
     arrangeProvider();
 
     const accessToken = await auth.getAccessToken();
@@ -593,6 +596,29 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
 
     const message = await auth.signMessage('metamask:test message');
     expect(message).toBeDefined();
+  });
+});
+
+describe('Authentication - rejects when calling unrelated methods', () => {
+  it('rejects when calling SRP methods in SiWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    expect(() => auth.setCustomProvider({} as Eip1193Provider)).toThrow(
+      UnsupportedAuthTypeError,
+    );
+  });
+
+  it('rejects when calling SiWE methods in SRP flow', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+
+    expect(() =>
+      auth.prepare({
+        address: MOCK_ADDRESS,
+        chainId: 1,
+        domain: 'https://metamask.io',
+        signMessage: async () => 'MOCK_SIWE_SIGNATURE',
+      }),
+    ).toThrow(UnsupportedAuthTypeError);
   });
 });
 

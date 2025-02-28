@@ -49,7 +49,6 @@ import type {
   AuthenticationControllerGetSessionProfile,
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
-  AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
 
 const controllerName = 'UserStorageController';
@@ -231,7 +230,6 @@ export type AllowedActions =
   | AuthenticationControllerGetSessionProfile
   | AuthenticationControllerPerformSignIn
   | AuthenticationControllerIsSignedIn
-  | AuthenticationControllerPerformSignOut
   // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
@@ -292,11 +290,6 @@ export default class UserStorageController extends BaseController<
   readonly #userStorage: UserStorage;
 
   readonly #auth = {
-    getBearerToken: async () => {
-      return await this.messagingSystem.call(
-        'AuthenticationController:getBearerToken',
-      );
-    },
     getProfileId: async () => {
       const sessionProfile = await this.messagingSystem.call(
         'AuthenticationController:getSessionProfile',
@@ -309,11 +302,6 @@ export default class UserStorageController extends BaseController<
     signIn: async () => {
       return await this.messagingSystem.call(
         'AuthenticationController:performSignIn',
-      );
-    },
-    signOut: async () => {
-      return this.messagingSystem.call(
-        'AuthenticationController:performSignOut',
       );
     },
   };
@@ -417,7 +405,6 @@ export default class UserStorageController extends BaseController<
       startNetworkSyncing({
         messenger,
         getUserStorageControllerInstance: () => this,
-        getStorageConfig: () => this.#getStorageOptions(),
         isMutationSyncBlocked: () =>
           !this.state.hasNetworkSyncingSyncedAtLeastOnce,
       });
@@ -483,20 +470,6 @@ export default class UserStorageController extends BaseController<
       'UserStorageController:saveInternalAccountToUserStorage',
       this.saveInternalAccountToUserStorage.bind(this),
     );
-  }
-
-  async #getStorageOptions() {
-    if (!this.state.isProfileSyncingEnabled) {
-      return null;
-    }
-
-    const { storageKey, bearerToken } =
-      await this.#getStorageKeyAndBearerToken();
-    return {
-      storageKey,
-      bearerToken,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    };
   }
 
   /**
@@ -623,22 +596,8 @@ export default class UserStorageController extends BaseController<
     return await this.#userStorage.getStorageKey();
   }
 
-  /**
-   * Utility to get the bearer token and storage key
-   *
-   * @returns the bearer token and storage key
-   */
-  async #getStorageKeyAndBearerToken(): Promise<{
-    bearerToken: string;
-    storageKey: string;
-  }> {
-    const bearerToken = await this.#auth.getBearerToken();
-    if (!bearerToken) {
-      throw new Error('UserStorageController - unable to get bearer token');
-    }
-    const storageKey = await this.getStorageKey();
-
-    return { bearerToken, storageKey };
+  public flushStorageKeyCache(): void {
+    this.#storageKeyCache = null;
   }
 
   #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
@@ -686,6 +645,7 @@ export default class UserStorageController extends BaseController<
       this.#setIsProfileSyncingUpdateLoading(false);
     } catch (e) {
       this.#setIsProfileSyncingUpdateLoading(false);
+      // istanbul ignore next
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
         `${controllerName} - failed to enable profile syncing - ${errorMessage}`,
@@ -699,21 +659,13 @@ export default class UserStorageController extends BaseController<
       return;
     }
 
-    try {
-      this.#setIsProfileSyncingUpdateLoading(true);
+    this.#setIsProfileSyncingUpdateLoading(true);
 
-      this.#setIsProfileSyncingUpdateLoading(false);
+    this.update((state) => {
+      state.isProfileSyncingEnabled = false;
+    });
 
-      this.update((state) => {
-        state.isProfileSyncingEnabled = false;
-      });
-    } catch (e) {
-      this.#setIsProfileSyncingUpdateLoading(false);
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(
-        `${controllerName} - failed to disable profile syncing - ${errorMessage}`,
-      );
-    }
+    this.#setIsProfileSyncingUpdateLoading(false);
   }
 
   #setIsProfileSyncingUpdateLoading(
@@ -809,7 +761,6 @@ export default class UserStorageController extends BaseController<
     await performMainNetworkSync({
       messenger: this.messagingSystem,
       getUserStorageControllerInstance: () => this,
-      getStorageConfig: () => this.#getStorageOptions(),
       maxNetworksToAdd: this.#config?.networkSyncing?.maxNumberOfNetworksToAdd,
       onNetworkAdded: (cId) =>
         this.#config?.networkSyncing?.onNetworkAdded?.(profileId, cId),

@@ -12,7 +12,7 @@ import {
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import { type IBaseAuth } from './authentication-jwt-bearer/types';
-import { UserStorageError } from './errors';
+import { NotFoundError, UserStorageError } from './errors';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';
@@ -131,7 +131,15 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries();
+    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries({
+      status: 200,
+      body: [
+        await MOCK_STORAGE_RESPONSE(),
+        {
+          HashedKey: 'entry2',
+        },
+      ],
+    });
 
     const data = MOCK_NOTIFICATIONS_DATA;
     const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
@@ -249,6 +257,15 @@ describe('User Storage', () => {
     expect(mockPut.isDone()).toBe(true);
   });
 
+  it('returns void when trying to batch set items with invalid data', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    expect(
+      await userStorage.batchSetItems(USER_STORAGE_FEATURE_NAMES.accounts, []),
+    ).toBeUndefined();
+  });
+
   it('user storage: delete one feature entry', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
@@ -273,11 +290,27 @@ describe('User Storage', () => {
       },
     });
 
-    await expect(
+    await expect(() =>
       userStorage.deleteItem(
         `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       ),
     ).rejects.toThrow(UserStorageError);
+  });
+
+  it('user storage: feature entry to delete not found', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    await handleMockUserStorageDelete({
+      status: 404,
+      body: {},
+    });
+
+    await expect(
+      userStorage.deleteItem(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      ),
+    ).rejects.toThrow(NotFoundError);
   });
 
   it('user storage: delete all feature entries', async () => {
@@ -311,6 +344,25 @@ describe('User Storage', () => {
     ).rejects.toThrow(UserStorageError);
   });
 
+  it('user storage: failed to find feature to delete when deleting all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    await handleMockUserStorageDeleteAllFeatureEntries({
+      status: 404,
+      body: {
+        message: 'failed to delete all feature entries',
+        error: 'generic-error',
+      },
+    });
+
+    await expect(
+      userStorage.deleteAllFeatureItems(
+        USER_STORAGE_FEATURE_NAMES.notifications,
+      ),
+    ).rejects.toThrow(NotFoundError);
+  });
+
   it('user storage: batch delete items', async () => {
     const keysToDelete: UserStorageFeatureKeys<
       typeof USER_STORAGE_FEATURE_NAMES.accounts
@@ -336,6 +388,17 @@ describe('User Storage', () => {
 
     await userStorage.batchDeleteItems('accounts_v2', keysToDelete);
     expect(mockPut.isDone()).toBe(true);
+  });
+
+  it('returns void when trying to batch delete items with invalid data', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+    expect(
+      await userStorage.batchDeleteItems(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+        [],
+      ),
+    ).toBeUndefined();
   });
 
   it('user storage: failed to set key', async () => {

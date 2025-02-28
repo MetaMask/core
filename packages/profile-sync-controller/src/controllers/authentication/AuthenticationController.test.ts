@@ -2,7 +2,6 @@ import { Messenger } from '@metamask/base-controller';
 
 import AuthenticationController from './AuthenticationController';
 import type {
-  Actions,
   AllowedActions,
   AllowedEvents,
   AuthenticationControllerState,
@@ -53,6 +52,15 @@ describe('authentication/authentication-controller - constructor() tests', () =>
     expect(controller.state.isSignedIn).toBe(true);
     expect(controller.state.sessionData).toBeDefined();
   });
+
+  it('should throw an error if metametrics is not provided', () => {
+    expect(() => {
+      // @ts-expect-error - testing invalid params
+      new AuthenticationController({
+        messenger: createMockAuthenticationMessenger().messenger,
+      });
+    }).toThrow('`metametrics` field is required');
+  });
 });
 
 describe('authentication/authentication-controller - performSignIn() tests', () => {
@@ -77,6 +85,26 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     expect(controller.state.sessionData).toBeDefined();
   });
 
+  it('leverages the _snapSignMessageCache', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const mockEndpoints = arrangeAuthAPIs();
+    const { messenger, mockSnapGetPublicKey, mockSnapSignMessage } =
+      createMockAuthenticationMessenger();
+
+    const controller = new AuthenticationController({ messenger, metametrics });
+
+    await controller.performSignIn();
+    controller.performSignOut();
+    await controller.performSignIn();
+    expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(1);
+    expect(mockSnapSignMessage).toHaveBeenCalledTimes(1);
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+    expect(controller.state.isSignedIn).toBe(true);
+    expect(controller.state.sessionData).toBeDefined();
+  });
+
   it('should error when nonce endpoint fails', async () => {
     expect(true).toBe(true);
     await testAndAssertFailingEndpoints('nonce');
@@ -94,16 +122,22 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
 
   // When the wallet is locked, we are unable to call the snap
   it('should error when wallet is locked', async () => {
-    const { messenger, mockKeyringControllerGetState } =
+    const { messenger, baseMessenger, mockKeyringControllerGetState } =
       createMockAuthenticationMessenger();
+    arrangeAuthAPIs();
     const metametrics = createMockAuthMetaMetrics();
 
-    // Mock wallet is locked
-    mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+    mockKeyringControllerGetState.mockReturnValue({ isUnlocked: true });
 
     const controller = new AuthenticationController({ messenger, metametrics });
 
+    baseMessenger.publish('KeyringController:lock');
     await expect(controller.performSignIn()).rejects.toThrow(expect.any(Error));
+
+    baseMessenger.publish('KeyringController:unlock');
+    expect(await controller.performSignIn()).toBe(
+      MOCK_OATH_TOKEN_RESPONSE.access_token,
+    );
   });
 
   /**
@@ -341,14 +375,40 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
   });
 });
 
+describe('authentication/authentication-controller - isSignedIn() tests', () => {
+  it('should return false if not logged in', () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const { messenger } = createMockAuthenticationMessenger();
+    const controller = new AuthenticationController({
+      messenger,
+      state: { isSignedIn: false },
+      metametrics,
+    });
+
+    expect(controller.isSignedIn()).toBe(false);
+  });
+
+  it('should return true if logged in', () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const { messenger } = createMockAuthenticationMessenger();
+    const controller = new AuthenticationController({
+      messenger,
+      state: mockSignedInState(),
+      metametrics,
+    });
+
+    expect(controller.isSignedIn()).toBe(true);
+  });
+});
+
 /**
  * Jest Test Utility - create Auth Messenger
  *
  * @returns Auth Messenger
  */
 function createAuthenticationMessenger() {
-  const messenger = new Messenger<Actions | AllowedActions, AllowedEvents>();
-  return messenger.getRestricted({
+  const baseMessenger = new Messenger<AllowedActions, AllowedEvents>();
+  const messenger = baseMessenger.getRestricted({
     name: 'AuthenticationController',
     allowedActions: [
       'KeyringController:getState',
@@ -356,6 +416,8 @@ function createAuthenticationMessenger() {
     ],
     allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
   });
+
+  return { messenger, baseMessenger };
 }
 
 /**
@@ -364,7 +426,7 @@ function createAuthenticationMessenger() {
  * @returns Mock Auth Messenger
  */
 function createMockAuthenticationMessenger() {
-  const messenger = createAuthenticationMessenger();
+  const { baseMessenger, messenger } = createAuthenticationMessenger();
   const mockCall = jest.spyOn(messenger, 'call');
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
   const mockSnapSignMessage = jest
@@ -404,6 +466,7 @@ function createMockAuthenticationMessenger() {
 
   return {
     messenger,
+    baseMessenger,
     mockSnapGetPublicKey,
     mockSnapSignMessage,
     mockKeyringControllerGetState,
