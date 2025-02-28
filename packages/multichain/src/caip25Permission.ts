@@ -115,6 +115,30 @@ export function diffScopesForCaip25CaveatValue(
 }
 
 /**
+ * Checks if every account in the given scopes object is supported.
+ *
+ * @param scopesObject - The scopes object to iterate over.
+ * @param listAccounts - The hook for getting internalAccount objects for all evm accounts.
+ * @param getNonEvmAccountAddresses - The hook that returns the supported CAIP-10 account addresses for a non EVM scope.
+ * addresses.
+ * @returns True if every account in the scopes object is supported, false otherwise.
+ */
+function isEveryAccountInScopesObjectSupported(
+  scopesObject: InternalScopesObject,
+  listAccounts: () => { type: string; address: Hex }[],
+  getNonEvmAccountAddresses: (scope: CaipChainId) => string[],
+) {
+  return Object.values(scopesObject).every((scopeObject) =>
+    scopeObject.accounts.every((account) =>
+      isSupportedAccount(account, {
+        getEvmInternalAccounts: listAccounts,
+        getNonEvmAccountAddresses,
+      }),
+    ),
+  );
+}
+
+/**
  * Helper that returns a `authorizedScopes` CAIP-25 caveat specification
  * that can be passed into the PermissionController constructor.
  *
@@ -187,24 +211,18 @@ export const caip25CaveatBuilder = ({
         );
       }
 
-      const allRequiredAccountsSupported = Object.values(requiredScopes).every(
-        (scopeObject) =>
-          scopeObject.accounts.every((account) =>
-            isSupportedAccount(account, {
-              getEvmInternalAccounts: listAccounts,
-              getNonEvmAccountAddresses,
-            }),
-          ),
-      );
-      const allOptionalAccountsSupported = Object.values(optionalScopes).every(
-        (scopeObject) =>
-          scopeObject.accounts.every((account) =>
-            isSupportedAccount(account, {
-              getEvmInternalAccounts: listAccounts,
-              getNonEvmAccountAddresses,
-            }),
-          ),
-      );
+      const allRequiredAccountsSupported =
+        isEveryAccountInScopesObjectSupported(
+          requiredScopes,
+          listAccounts,
+          getNonEvmAccountAddresses,
+        );
+      const allOptionalAccountsSupported =
+        isEveryAccountInScopesObjectSupported(
+          optionalScopes,
+          listAccounts,
+          getNonEvmAccountAddresses,
+        );
       if (!allRequiredAccountsSupported || !allOptionalAccountsSupported) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received account value(s) for caveat of type "${Caip25CaveatType}" that are not supported by the wallet.`,
