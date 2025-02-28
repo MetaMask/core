@@ -59,6 +59,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/network-controller": "^22.2.1",
+    "@metamask/superstruct": "^3.1.0",
     "@metamask/transaction-controller": "^46.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
