@@ -1,16 +1,16 @@
 import * as Utils from './utils';
-import {
-  MOCK_USER_STORAGE_ACCOUNT,
-  MOCK_USER_STORAGE_CHAIN,
-  createMockFullUserStorage,
-  createMockUserStorageWithTriggers,
-} from '../__fixtures__/mock-notification-user-storage';
 import { ADDRESS_1 } from '../__fixtures__/mockAddresses';
 import { USER_STORAGE_VERSION_KEY } from '../constants/constants';
 import {
   NOTIFICATION_CHAINS,
   TRIGGER_TYPES,
 } from '../constants/notification-schema';
+import {
+  MOCK_USER_STORAGE_ACCOUNT,
+  MOCK_USER_STORAGE_CHAIN,
+  createMockFullUserStorage,
+  createMockUserStorageWithTriggers,
+} from '../mocks/mock-notification-user-storage';
 import type { UserStorage } from '../types/user-storage/user-storage';
 
 describe('metamask-notifications/utils - initializeUserStorage()', () => {

@@ -49,12 +49,12 @@
     },
     "./auth/mocks": {
       "import": {
-        "types": "./dist/controllers/authentication/__fixtures__/index.d.mts",
-        "default": "./dist/controllers/authentication/__fixtures__/index.mjs"
+        "types": "./dist/controllers/authentication/mocks/index.d.mts",
+        "default": "./dist/controllers/authentication/mocks/index.mjs"
       },
       "require": {
-        "types": "./dist/controllers/authentication/__fixtures__/index.d.cts",
-        "default": "./dist/controllers/authentication/__fixtures__/index.cjs"
+        "types": "./dist/controllers/authentication/mocks/index.d.cts",
+        "default": "./dist/controllers/authentication/mocks/index.cjs"
       }
     },
     "./user-storage": {
@@ -69,12 +69,12 @@
     },
     "./user-storage/mocks": {
       "import": {
-        "types": "./dist/controllers/user-storage/__fixtures__/index.d.mts",
-        "default": "./dist/controllers/user-storage/__fixtures__/index.mjs"
+        "types": "./dist/controllers/user-storage/mocks/index.d.mts",
+        "default": "./dist/controllers/user-storage/mocks/index.mjs"
       },
       "require": {
-        "types": "./dist/controllers/user-storage/__fixtures__/index.d.cts",
-        "default": "./dist/controllers/user-storage/__fixtures__/index.cjs"
+        "types": "./dist/controllers/user-storage/mocks/index.d.cts",
+        "default": "./dist/controllers/user-storage/mocks/index.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -115,7 +115,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/accounts-controller": "^24.0.1",
+    "@metamask/accounts-controller": "^24.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-internal-api": "^4.0.3",
     "@metamask/providers": "^18.1.1",

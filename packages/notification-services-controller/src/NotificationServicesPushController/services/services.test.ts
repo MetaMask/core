@@ -22,7 +22,7 @@ describe('NotificationServicesPushController Services', () => {
   describe('updateLinksAPI', () => {
     const act = async () =>
       await updateLinksAPI(MOCK_JWT, MOCK_TRIGGERS, [
-        { token: MOCK_NEW_REG_TOKEN, platform: 'extension' },
+        { token: MOCK_NEW_REG_TOKEN, platform: 'extension', locale: 'en' },
       ]);
 
     it('should return true if links are successfully updated', async () => {
@@ -55,6 +55,7 @@ describe('NotificationServicesPushController Services', () => {
         triggers: MOCK_TRIGGERS,
         createRegToken: jest.fn().mockResolvedValue(MOCK_NEW_REG_TOKEN),
         platform: 'extension' as const,
+        locale: 'en',
         env: {} as PushNotificationEnv,
       };
 
@@ -149,6 +150,7 @@ describe('NotificationServicesPushController Services', () => {
         deleteRegToken: jest.fn().mockResolvedValue(true),
         createRegToken: jest.fn().mockResolvedValue(MOCK_NEW_REG_TOKEN),
         platform: 'extension' as const,
+        locale: 'en',
         env: {} as PushNotificationEnv,
       };
 

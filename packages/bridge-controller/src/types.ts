@@ -81,12 +81,19 @@ export type BridgeToken = {
 
 export enum BridgeFlag {
   EXTENSION_CONFIG = 'extension-config',
+  MOBILE_CONFIG = 'mobile-config',
 }
 type DecimalChainId = string;
 export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
 export type FeatureFlagResponse = {
   [BridgeFlag.EXTENSION_CONFIG]: {
+    refreshRate: number;
+    maxRefreshCount: number;
+    support: boolean;
+    chains: Record<number, ChainConfiguration>;
+  };
+  [BridgeFlag.MOBILE_CONFIG]: {
     refreshRate: number;
     maxRefreshCount: number;
     support: boolean;
@@ -201,10 +208,17 @@ export type TxData = {
 };
 export enum BridgeFeatureFlagsKey {
   EXTENSION_CONFIG = 'extensionConfig',
+  MOBILE_CONFIG = 'mobileConfig',
 }
 
 export type BridgeFeatureFlags = {
   [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
+    refreshRate: number;
+    maxRefreshCount: number;
+    support: boolean;
+    chains: Record<Hex, ChainConfiguration>;
+  };
+  [BridgeFeatureFlagsKey.MOBILE_CONFIG]: {
     refreshRate: number;
     maxRefreshCount: number;
     support: boolean;
@@ -229,10 +243,10 @@ export type BridgeControllerState = {
   bridgeFeatureFlags: BridgeFeatureFlags;
   quoteRequest: Partial<QuoteRequest>;
   quotes: (QuoteResponse & L1GasFees)[];
-  quotesInitialLoadTime?: number;
-  quotesLastFetched?: number;
-  quotesLoadingStatus?: RequestStatus;
-  quoteFetchError?: string;
+  quotesInitialLoadTime: number | null;
+  quotesLastFetched: number | null;
+  quotesLoadingStatus: RequestStatus | null;
+  quoteFetchError: string | null;
   quotesRefreshCount: number;
 };
 

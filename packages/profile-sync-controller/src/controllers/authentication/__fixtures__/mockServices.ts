@@ -4,7 +4,7 @@ import {
   getMockAuthAccessTokenResponse,
   getMockAuthLoginResponse,
   getMockAuthNonceResponse,
-} from './mockResponses';
+} from '../mocks/mockResponses';
 
 type MockReply = {
   status: nock.StatusCode;

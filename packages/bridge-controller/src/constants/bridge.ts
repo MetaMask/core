@@ -41,25 +41,28 @@ export const REFRESH_INTERVAL_MS = 30 * 1000;
 export const DEFAULT_MAX_REFRESH_COUNT = 5;
 
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
+
+export const DEFAULT_FEATURE_FLAG_CONFIG = {
+  refreshRate: REFRESH_INTERVAL_MS,
+  maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
+  support: false,
+  chains: {},
+};
+
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   bridgeFeatureFlags: {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-      refreshRate: REFRESH_INTERVAL_MS,
-      maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
-      support: false,
-      chains: {},
-    },
+    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
+    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
   },
   quoteRequest: {
-    walletAddress: undefined,
     srcTokenAddress: ZeroAddress,
     slippage: BRIDGE_DEFAULT_SLIPPAGE,
   },
-  quotesInitialLoadTime: undefined,
+  quotesInitialLoadTime: null,
   quotes: [],
-  quotesLastFetched: undefined,
-  quotesLoadingStatus: undefined,
-  quoteFetchError: undefined,
+  quotesLastFetched: null,
+  quotesLoadingStatus: null,
+  quoteFetchError: null,
   quotesRefreshCount: 0,
 };
 

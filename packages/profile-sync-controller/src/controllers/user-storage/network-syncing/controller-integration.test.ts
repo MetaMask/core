@@ -12,12 +12,12 @@ import * as ControllerIntegrationModule from './controller-integration';
 import * as ServicesModule from './services';
 import * as SyncAllModule from './sync-all';
 import * as SyncMutationsModule from './sync-mutations';
-import { MOCK_STORAGE_KEY } from '../__fixtures__';
 import {
   createCustomUserStorageMessenger,
   mockUserStorageMessenger,
 } from '../__fixtures__/mockMessenger';
 import { waitFor } from '../__fixtures__/test-utils';
+import { MOCK_STORAGE_KEY } from '../mocks';
 import type { UserStorageBaseOptions } from '../services';
 
 jest.mock('loglevel', () => {

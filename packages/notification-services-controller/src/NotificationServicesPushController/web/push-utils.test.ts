@@ -10,7 +10,7 @@ import {
 } from './push-utils';
 import * as PushWebModule from './push-utils';
 import { processNotification } from '../../NotificationServicesController';
-import { createMockNotificationEthSent } from '../../NotificationServicesController/__fixtures__/mock-raw-notifications';
+import { createMockNotificationEthSent } from '../../NotificationServicesController/mocks/mock-raw-notifications';
 import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger';
 
 jest.mock('firebase/app');

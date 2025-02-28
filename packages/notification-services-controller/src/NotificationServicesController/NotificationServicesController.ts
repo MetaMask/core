@@ -830,9 +830,12 @@ export default class NotificationServicesController extends BaseController<
         triggers,
       );
 
-      // Create push notifications triggers
+      // Create push notifications triggers in background
       const allUUIDS = Utils.getAllUUIDs(userStorage);
-      await this.#pushNotifications.enablePushNotifications(allUUIDS);
+      // We do not want to wait for this request as it may take a while (e.g. for Firebase to setup)
+      this.#pushNotifications.enablePushNotifications(allUUIDS).catch(() => {
+        // Do Nothing
+      });
 
       // Write the new userStorage (triggers are now "enabled")
       await this.#storage.setNotificationStorage(JSON.stringify(userStorage));

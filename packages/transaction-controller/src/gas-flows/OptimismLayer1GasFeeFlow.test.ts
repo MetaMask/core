@@ -1,7 +1,7 @@
+import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
-import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',

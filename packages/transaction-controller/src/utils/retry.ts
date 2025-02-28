@@ -7,6 +7,7 @@ import { type TransactionParams } from '../types';
 
 /**
  * Returns new transaction parameters with increased gas fees.
+ *
  * @param originalTransactionParams - The original transaction parameters.
  * @param rate - The rate by which to increase the existing gas fee properties.
  * @param newGasValues - Optional new gas values to use instead of increased the existing values.
@@ -59,6 +60,7 @@ export function getTransactionParamsWithIncreasedGasFee(
 
 /**
  * Generate the increased EIP-1559 gas properties.
+ *
  * @param originalTransactionParams - The original transaction parameters.
  * @param rate - The rate by which to increase the existing gas fee properties.
  * @param newGasValues - Optional new gas values to use instead of increased the existing values.
@@ -101,6 +103,7 @@ function getIncreased1559Values(
 
 /**
  * Generate the increased gas price.
+ *
  * @param originalTransactionParams - The original transaction parameters.
  * @param rate - The rate by which to increase the existing gas fee properties.
  * @param newGasValues - Optional new gas values to use instead of increased the existing values.
@@ -126,6 +129,7 @@ function getIncreasedGasPrice(
 
 /**
  * Multiply a hex value by a multiplier.
+ *
  * @param value - The hex value to multiply.
  * @param multiplier - The multiplier.
  * @returns The multiplied hex value.
