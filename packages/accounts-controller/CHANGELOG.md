@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+
 ## [24.1.0]
 
 ### Changed
 
-- Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 - Use `account.scopes` in `listMultichainAccounts` ([#5388](https://github.com/MetaMask/core/pull/5388))
   - The previous logic was fragile and was relying on the account's type mainly.
 
