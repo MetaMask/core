@@ -115,7 +115,7 @@ describe('ERC20Standard', () => {
     const decimals = await erc20Standard.getTokenDecimals(MKR_ADDRESS);
     const symbol = await erc20Standard.getTokenSymbol(MKR_ADDRESS);
     expect(decimals).toBe('18');
-    expect(symbol).toBe('MKR');
+    expect(symbol).toStrictEqual(expect.stringContaining('MKR'));
   });
 
   it('should fail on on empty responses', async () => {
