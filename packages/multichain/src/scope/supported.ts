@@ -136,17 +136,21 @@ export const isSupportedMethod = (
     getNonEvmSupportedMethods(scopeString).includes(method);
 
   if (namespace === KnownCaipNamespace.Wallet) {
-    if (reference) {
-      if (reference === KnownCaipNamespace.Eip155) {
-        return KnownWalletNamespaceRpcMethods[reference].includes(method);
-      }
-      return isSupportedNonEvmMethod();
+    if (!reference) {
+      return KnownWalletRpcMethods.includes(method);
     }
 
-    return KnownWalletRpcMethods.includes(method);
-  } else if (namespace === KnownCaipNamespace.Eip155) {
+    if (reference === KnownCaipNamespace.Eip155) {
+      return KnownWalletNamespaceRpcMethods[reference].includes(method);
+    }
+
+    return isSupportedNonEvmMethod();
+  }
+
+  if (namespace === KnownCaipNamespace.Eip155) {
     return KnownRpcMethods[namespace].includes(method);
   }
+
   return isSupportedNonEvmMethod();
 };
 
