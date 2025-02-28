@@ -39,6 +39,7 @@ import {
   type Json,
   type CaipChainId,
   isCaipChainId,
+  parseCaipChainId,
 } from '@metamask/utils';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
@@ -904,33 +905,6 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the list of accounts for a given keyring type.
-   *
-   * @param keyringType - The type of keyring.
-   * @param accounts - Accounts to filter by keyring type.
-   * @returns The list of accounts associcated with this keyring type.
-   */
-  #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
-    return (accounts ?? this.listMultichainAccounts()).filter(
-      (internalAccount) => {
-        // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
-        // to group those accounts together!
-        if (
-          keyringType === KeyringTypes.hd ||
-          keyringType === KeyringTypes.simple
-        ) {
-          return (
-            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-            internalAccount.metadata.keyring.type === KeyringTypes.simple
-          );
-        }
-
-        return internalAccount.metadata.keyring.type === keyringType;
-      },
-    );
-  }
-
-  /**
    * Returns the last selected account from the given array of accounts.
    *
    * @param accounts - An array of InternalAccount objects.
@@ -951,49 +925,109 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the next account number for a given keyring type.
+   * Returns the next available account name for a given keyring type.
    *
-   * @param keyringType - The type of keyring.
-   * @param accounts - Existing accounts to check for the next available account number.
-   * @returns An object containing the account prefix and index to use.
+   * @param params - The parameters for getting the next available account name.
+   * @param params.keyringType - The type of keyring. Defaults to KeyringTypes.hd.
+   * @param params.accounts - The list of accounts to consider.
+   * @param params.entropySource - The entropy source for snap accounts.
+   * @param params.chainId - The chain ID for non-ETH accounts.
+   * @returns The next available account name.
    */
-  getNextAvailableAccountName(
-    keyringType: string = KeyringTypes.hd,
-    accounts?: InternalAccount[],
-  ): string {
-    const keyringName = keyringTypeToName(keyringType);
-    const keyringAccounts = this.#getAccountsByKeyringType(
-      keyringType,
-      accounts,
-    );
-    const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
-      (maxInternalAccountIndex, internalAccount) => {
-        // We **DO NOT USE** `\d+` here to only consider valid "human"
-        // number (rounded decimal number)
-        const match = new RegExp(`${keyringName} ([0-9]+)$`, 'u').exec(
-          internalAccount.metadata.name,
+  getNextAvailableAccountName({
+    keyringType = KeyringTypes.hd,
+    accounts,
+    entropySource,
+    chainId,
+  }: {
+    keyringType?: string;
+    accounts?: InternalAccount[];
+    entropySource?: string;
+    chainId?: CaipChainId;
+  } = {}): string {
+    const allAccounts =
+      accounts ?? Object.values(this.state.internalAccounts.accounts);
+
+    // Get network name for the account
+    let prefix = '';
+    if (
+      keyringType === KeyringTypes.snap.toString() &&
+      entropySource &&
+      chainId
+    ) {
+      const { namespace } = parseCaipChainId(chainId);
+      switch (namespace) {
+        case 'solana':
+          prefix = 'Solana ';
+          break;
+        case 'bip122':
+          prefix = 'Bitcoin ';
+          break;
+        default:
+          throw new Error(`Unsupported chain namespace: ${namespace}`);
+      }
+    } else if (
+      keyringType !== KeyringTypes.hd.toString() &&
+      keyringType !== KeyringTypes.simple.toString()
+    ) {
+      // For non-snap accounts (e.g. Hardware wallets), add type prefix
+      prefix = `${keyringTypeToName(keyringType.toString())} `;
+    }
+
+    // Calculate total number of related accounts
+    const totalRelatedAccounts = allAccounts.filter((account) => {
+      // Count HD and Simple keyring accounts
+      if (
+        account.metadata.keyring.type === KeyringTypes.hd.toString() ||
+        account.metadata.keyring.type === KeyringTypes.simple.toString()
+      ) {
+        return true;
+      }
+      // Count snap accounts with matching entropy source
+      if (
+        account.metadata.keyring.type === KeyringTypes.snap.toString() &&
+        account.options.entropySource === entropySource
+      ) {
+        return true;
+      }
+      return false;
+    }).length;
+
+    // Find the highest account number in existing account names
+    const highestNumber = allAccounts
+      .map((account) => {
+        const solanaMatch = account.metadata.name.match(
+          /Solana Account (\d+)$/u,
         );
-
-        if (match) {
-          // Quoting `RegExp.exec` documentation:
-          // > The returned array has the matched text as the first item, and then one item for
-          // > each capturing group of the matched text.
-          // So use `match[1]` to get the captured value
-          const internalAccountIndex = parseInt(match[1], 10);
-          return Math.max(maxInternalAccountIndex, internalAccountIndex);
+        if (solanaMatch) {
+          return parseInt(solanaMatch[1], 10);
         }
+        const bitcoinMatch = account.metadata.name.match(
+          /Bitcoin Account (\d+)$/u,
+        );
+        if (bitcoinMatch) {
+          return parseInt(bitcoinMatch[1], 10);
+        }
+        const match = account.metadata.name.match(/Account (\d+)$/u);
+        if (match) {
+          return parseInt(match[1], 10);
+        }
+        return 0;
+      })
+      .filter((num) => !isNaN(num));
 
-        return maxInternalAccountIndex;
-      },
-      0,
+    const maxExistingNumber =
+      highestNumber.length > 0 ? Math.max(...highestNumber) : 0;
+
+    // Next number should be the higher of:
+    // 1. Total related accounts + 1
+    // 2. Highest existing number + 1
+    const nextNumber = Math.max(
+      totalRelatedAccounts + 1,
+      maxExistingNumber + 1,
     );
 
-    const index = Math.max(
-      keyringAccounts.length + 1,
-      lastDefaultIndexUsedForKeyringType + 1,
-    );
-
-    return `${keyringName} ${index}`;
+    return `${prefix}Account ${nextNumber}`;
   }
 
   /**
@@ -1045,10 +1079,15 @@ export class AccountsController extends BaseController<
     const isFirstAccount = Object.keys(accountsState).length === 0;
 
     // Get next account name available for this given keyring
-    const accountName = this.getNextAvailableAccountName(
-      newAccount.metadata.keyring.type,
-      Object.values(accountsState),
-    );
+    const accountName = this.getNextAvailableAccountName({
+      keyringType: newAccount.metadata.keyring.type,
+      accounts: Object.values(accountsState),
+      entropySource:
+        typeof newAccount.options.entropySource === 'string'
+          ? newAccount.options.entropySource
+          : undefined,
+      chainId: newAccount.type,
+    });
 
     const newAccountWithUpdatedMetadata = {
       ...newAccount,

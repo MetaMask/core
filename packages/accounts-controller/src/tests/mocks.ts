@@ -5,10 +5,14 @@ import {
   EthMethod,
   EthScope,
   BtcScope,
+  SolMethod,
+  SolAccountType,
+  SolScope,
 } from '@metamask/keyring-api';
 import type { CaipChainId, KeyringAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Json } from '@metamask/utils';
 import { v4 } from 'uuid';
 
 export const ETH_EOA_METHODS = [
@@ -37,6 +41,7 @@ export const createMockInternalAccount = ({
   scopes,
   importTime = Date.now(),
   lastSelected = Date.now(),
+  options = {},
 }: {
   id?: string;
   address?: string;
@@ -52,6 +57,7 @@ export const createMockInternalAccount = ({
   };
   importTime?: number;
   lastSelected?: number;
+  options?: Record<string, Json>;
 } = {}): InternalAccount => {
   const getInternalAccountDefaults = () => {
     switch (type) {
@@ -70,6 +76,11 @@ export const createMockInternalAccount = ({
           methods: [...Object.values(BtcMethod)],
           scopes: [BtcScope.Mainnet],
         };
+      case `${SolAccountType.DataAccount}`:
+        return {
+          methods: [...Object.values(SolMethod)],
+          scopes: [SolScope.Mainnet],
+        };
       default:
         throw new Error(`Unknown account type: ${type as string}`);
     }
@@ -80,7 +91,7 @@ export const createMockInternalAccount = ({
   return {
     id,
     address,
-    options: {},
+    options,
     methods: methods ?? defaults.methods,
     scopes: scopes ?? defaults.scopes,
     type,
