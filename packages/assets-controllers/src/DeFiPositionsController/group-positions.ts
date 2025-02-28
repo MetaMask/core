@@ -122,13 +122,11 @@ function processToken<T extends Balance>(
       marketValue: tokenBalance.price
         ? tokenBalance.balance * tokenBalance.price
         : undefined,
-      tokens: undefined,
     };
   }
 
   const processedTokens = tokenBalance.tokens.map((t) => ({
     ...processToken(t),
-    tokens: undefined,
   }));
 
   const marketValue = processedTokens.reduce(
