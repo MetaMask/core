@@ -78,14 +78,14 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
 
     const protocolData = chainData.protocols[protocolId];
 
-    if (!protocolData.positionTypes[positionType]) {
-      protocolData.positionTypes[positionType] = {
+    let positionTypeData = protocolData.positionTypes[positionType];
+    if (!positionTypeData) {
+      positionTypeData = {
         aggregatedMarketValue: 0,
         positions: [],
       };
+      protocolData.positionTypes[positionType] = positionTypeData;
     }
-
-    const positionTypeData = protocolData.positionTypes[positionType];
 
     for (const protocolToken of position.tokens) {
       const token = processToken(protocolToken) as ProtocolTokenWithMarketValue;
