@@ -47,7 +47,6 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x, hexToNumber } from '@metamask/utils';
-import { Mutex } from 'async-mutex';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
@@ -76,6 +75,7 @@ import {
   hasSimulationDataChanged,
   shouldResimulate,
 } from './helpers/ResimulateHelper';
+import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import { projectLogger as log } from './logger';
 import type {
   DappSuggestedGasFees,
@@ -98,6 +98,8 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   BatchTransactionParams,
+  PublishHook,
+  PublishBatchHook,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -364,6 +366,7 @@ export type TransactionControllerOptions = {
     publish?: (
       transactionMeta: TransactionMeta,
     ) => Promise<{ transactionHash: string }>;
+    publishBatch?: PublishBatchHook;
   };
 };
 
@@ -631,8 +634,6 @@ export class TransactionController extends BaseController<
 
   readonly #methodDataHelper: MethodDataHelper;
 
-  private readonly mutex = new Mutex();
-
   private readonly gasFeeFlows: GasFeeFlow[];
 
   private readonly getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
@@ -671,6 +672,8 @@ export class TransactionController extends BaseController<
   private readonly securityProviderRequest?: SecurityProviderRequest;
 
   readonly #pendingTransactionOptions: PendingTransactionOptions;
+
+  readonly #publishBatchHook?: PublishBatchHook;
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
@@ -831,6 +834,7 @@ export class TransactionController extends BaseController<
     this.securityProviderRequest = securityProviderRequest;
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
+    this.#publishBatchHook = hooks?.publishBatch;
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
@@ -997,8 +1001,12 @@ export class TransactionController extends BaseController<
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getInternalAccounts: this.#getInternalAccounts.bind(this),
+      getTransaction: (transactionId) =>
+        this.getTransactionOrThrow(transactionId),
       messenger: this.messagingSystem,
+      publishBatchHook: this.#publishBatchHook,
       request,
+      updateTransaction: this.#updateTransactionInternal.bind(this),
     });
   }
 
@@ -1024,10 +1032,12 @@ export class TransactionController extends BaseController<
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
    * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.batchId - ID of the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
+   * @param options.publishHook - Custom logic to publish the transaction.
    * @param options.requireApproval - Whether the transaction requires approval by the user, defaults to true unless explicitly disabled.
    * @param options.securityAlertResponse - Response from security validator.
    * @param options.sendFlowHistory - The sendFlowHistory entries to add.
@@ -1043,11 +1053,13 @@ export class TransactionController extends BaseController<
     txParams: TransactionParams,
     options: {
       actionId?: string;
+      batchId?: string;
       deviceConfirmedOn?: WalletDevice;
       method?: string;
       nestedTransactions?: BatchTransactionParams[];
       networkClientId: NetworkClientId;
       origin?: string;
+      publishHook?: PublishHook;
       requireApproval?: boolean | undefined;
       securityAlertResponse?: SecurityAlertResponse;
       sendFlowHistory?: SendFlowHistoryEntry[];
@@ -1063,11 +1075,13 @@ export class TransactionController extends BaseController<
 
     const {
       actionId,
+      batchId,
       deviceConfirmedOn,
       method,
       nestedTransactions,
       networkClientId,
       origin,
+      publishHook,
       requireApproval,
       securityAlertResponse,
       sendFlowHistory,
@@ -1129,6 +1143,7 @@ export class TransactionController extends BaseController<
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
+          batchId,
           chainId,
           dappSuggestedGasFees,
           deviceConfirmedOn,
@@ -1214,9 +1229,10 @@ export class TransactionController extends BaseController<
 
     return {
       result: this.processApproval(addedTransactionMeta, {
-        isExisting: Boolean(existingTransactionMeta),
-        requireApproval,
         actionId,
+        isExisting: Boolean(existingTransactionMeta),
+        publishHook,
+        requireApproval,
         traceContext,
       }),
       transactionMeta: addedTransactionMeta,
@@ -2351,6 +2367,34 @@ export class TransactionController extends BaseController<
     this.signAbortCallbacks.delete(transactionId);
   }
 
+  /**
+   * Update the batch transactions associated with a transaction.
+   * These transactions will be submitted with the main transaction as a batch.
+   *
+   * @param request - The request object.
+   * @param request.transactionId - The ID of the transaction to update.
+   * @param request.batchTransactions - The new batch transactions.
+   */
+  updateBatchTransactions({
+    transactionId,
+    batchTransactions,
+  }: {
+    transactionId: string;
+    batchTransactions: BatchTransactionParams[];
+  }) {
+    log('Updating batch transactions', { transactionId, batchTransactions });
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateBatchTransactions - Batch transactions updated',
+      },
+      (transactionMeta) => {
+        transactionMeta.batchTransactions = batchTransactions;
+      },
+    );
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -2438,22 +2482,25 @@ export class TransactionController extends BaseController<
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
+      actionId,
       isExisting = false,
+      publishHook,
       requireApproval,
       shouldShowRequest = true,
-      actionId,
       traceContext,
     }: {
+      actionId?: string;
       isExisting?: boolean;
+      publishHook?: PublishHook;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
-      actionId?: string;
       traceContext?: TraceContext;
     },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
     let resultCallbacks: AcceptResultCallbacks | undefined;
     const { meta, isCompleted } = this.isTransactionCompleted(transactionId);
+
     const finishedPromise = isCompleted
       ? Promise.resolve(meta)
       : this.waitForTransactionFinished(transactionId);
@@ -2500,6 +2547,7 @@ export class TransactionController extends BaseController<
           const approvalResult = await this.approveTransaction(
             transactionId,
             traceContext,
+            publishHook,
           );
           if (
             approvalResult === ApprovalState.SkippedViaBeforePublishHook &&
@@ -2544,7 +2592,7 @@ export class TransactionController extends BaseController<
     switch (finalMeta?.status) {
       case TransactionStatus.failed:
         resultCallbacks?.error(finalMeta.error);
-        throw rpcErrors.internal(finalMeta.error.message);
+        throw rpcErrors.internal(finalMeta.error.stack);
 
       case TransactionStatus.submitted:
         resultCallbacks?.success();
@@ -2570,16 +2618,20 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to approve.
    * @param traceContext - The parent context for any new traces.
+   * @param publishHookOverride - Custom logic to publish the transaction.
    * @returns The state of the approval.
    */
   private async approveTransaction(
     transactionId: string,
     traceContext?: unknown,
+    publishHookOverride?: PublishHook,
   ) {
-    const cleanupTasks = new Array<() => void>();
-    cleanupTasks.push(await this.mutex.acquire());
+    let clearApprovingTransactionId: (() => void) | undefined;
+    let clearNonceLock: (() => void) | undefined;
 
     let transactionMeta = this.getTransactionOrThrow(transactionId);
+
+    log('Approving transaction', transactionMeta);
 
     try {
       if (!this.sign) {
@@ -2597,10 +2649,11 @@ export class TransactionController extends BaseController<
         log('Skipping approval as signing in progress', transactionId);
         return ApprovalState.NotApproved;
       }
+
       this.approvingTransactionIds.add(transactionId);
-      cleanupTasks.push(() =>
-        this.approvingTransactionIds.delete(transactionId),
-      );
+
+      clearApprovingTransactionId = () =>
+        this.approvingTransactionIds.delete(transactionId);
 
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
@@ -2611,8 +2664,7 @@ export class TransactionController extends BaseController<
           ),
       );
 
-      // must set transaction to submitted/failed before releasing lock
-      releaseNonce && cleanupTasks.push(releaseNonce);
+      clearNonceLock = releaseNonce;
 
       transactionMeta = this.#updateTransactionInternal(
         {
@@ -2673,10 +2725,26 @@ export class TransactionController extends BaseController<
 
       let hash: string | undefined;
 
+      clearNonceLock?.();
+      clearNonceLock = undefined;
+
+      if (transactionMeta.batchTransactions?.length) {
+        log('Found batch transactions', transactionMeta.batchTransactions);
+
+        const extraTransactionsPublishHook = new ExtraTransactionsPublishHook({
+          addTransactionBatch: this.addTransactionBatch.bind(this),
+          transactions: transactionMeta.batchTransactions,
+        });
+
+        publishHookOverride = extraTransactionsPublishHook.getHook();
+      }
+
       await this.#trace(
         { name: 'Publish', parentContext: traceContext },
         async () => {
-          ({ transactionHash: hash } = await this.publish(
+          const publishHook = publishHookOverride ?? this.publish;
+
+          ({ transactionHash: hash } = await publishHook(
             transactionMeta,
             rawTx,
           ));
@@ -2726,7 +2794,8 @@ export class TransactionController extends BaseController<
       this.failTransaction(transactionMeta, error);
       return ApprovalState.NotApproved;
     } finally {
-      cleanupTasks.forEach((task) => task());
+      clearApprovingTransactionId?.();
+      clearNonceLock?.();
     }
   }
 
@@ -3312,14 +3381,14 @@ export class TransactionController extends BaseController<
   }
 
   private getNonceTrackerTransactions(
-    status: TransactionStatus,
+    statuses: TransactionStatus[],
     address: string,
     chainId: string,
   ) {
     return getAndFormatTransactionsForNonceTracker(
       chainId,
       address,
-      status,
+      statuses,
       this.state.transactions,
     );
   }
@@ -3394,7 +3463,7 @@ export class TransactionController extends BaseController<
       ),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
-        TransactionStatus.confirmed,
+        [TransactionStatus.confirmed],
         chainId,
       ),
     });
@@ -3492,7 +3561,11 @@ export class TransactionController extends BaseController<
 
   #getNonceTrackerPendingTransactions(chainId: string, address: string) {
     const standardPendingTransactions = this.getNonceTrackerTransactions(
-      TransactionStatus.submitted,
+      [
+        TransactionStatus.approved,
+        TransactionStatus.signed,
+        TransactionStatus.submitted,
+      ],
       address,
       chainId,
     );
