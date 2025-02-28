@@ -1,20 +1,22 @@
-import { InternalAccount } from '@metamask/keyring-internal-api';
-import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
-import { Messenger } from '../../../base-controller/src/Messenger';
-import {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../../base-controller/tests/helpers';
-import DeFiPositionsController, {
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Hex } from '@metamask/utils';
+
+import type {
   DeFiPositionsControllerMessenger,
   DeFiPositionsControllerState,
 } from './DeFiPositionsController';
-import { NetworkState } from '../../../network-controller/src/NetworkController';
+import { DeFiPositionsController } from './DeFiPositionsController';
 import * as fetchPositions from './fetch-positions';
+import type { DefiPositionResponse } from './fetch-positions';
 import * as groupPositions from './group-positions';
-import { DefiPositionResponse } from './fetch-positions';
-import { Hex } from '@metamask/utils';
-import { GroupedPositions } from './group-positions';
+import type { GroupedPositions } from './group-positions';
+import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
+import { Messenger } from '../../../base-controller/src/Messenger';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../../base-controller/tests/helpers';
+import type { NetworkState } from '../../../network-controller/src/NetworkController';
 
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
 const OWNER_ID = '54d1e7bc-1dce-4220-a15f-2f454bae7869';
@@ -28,6 +30,11 @@ type MainMessenger = Messenger<
   ExtractAvailableEvent<DeFiPositionsControllerMessenger>
 >;
 
+/**
+ *
+ * @param state - Partial state to initialize the controller with
+ * @returns The controller instance and the trigger functions
+ */
 function setupController(state?: Partial<DeFiPositionsControllerState>) {
   const messenger: MainMessenger = new Messenger();
 
@@ -93,7 +100,7 @@ describe('DeFiPositionsController', () => {
     const initialState = {
       allDeFiPositions: {
         [OWNER_ADDRESS]: {
-          ['0x1']: {
+          '0x1': {
             aggregatedMarketValue: 0,
             protocols: {},
           },

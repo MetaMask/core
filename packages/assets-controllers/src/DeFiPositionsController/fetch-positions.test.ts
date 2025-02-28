@@ -5,11 +5,16 @@ describe('fetchPositions', () => {
   const mockApiUrl =
     'https://defi-services.metamask-institutional.io/defi-data/positions';
 
+  /**
+   *
+   * @param status - The status code to return
+   * @param jsonResponse - The JSON response to return
+   */
   function mockNextFetchResponse(status: number, jsonResponse?: unknown) {
     const mockFetch = jest.spyOn(global, 'fetch');
     mockFetch.mockResolvedValueOnce({
       status,
-      ...(!!jsonResponse && {
+      ...(Boolean(jsonResponse) && {
         json: () => Promise.resolve(jsonResponse),
       }),
     } as unknown as Response);
@@ -53,7 +58,7 @@ describe('fetchPositions', () => {
     expect(global.fetch).toHaveBeenCalledWith(
       `${mockApiUrl}/${mockAccountAddress}`,
     );
-    expect(result).toEqual(mockResponse.data);
+    expect(result).toStrictEqual(mockResponse.data);
   });
 
   it('handles non-200 responses', async () => {
