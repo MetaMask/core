@@ -1,4 +1,4 @@
-import { DefiPositionResponse } from '../fetch-positions';
+import type { DefiPositionResponse } from '../fetch-positions';
 
 /**
  * Entries are from different chains
@@ -302,99 +302,6 @@ export const MOCK_DEFI_RESPONSE_BORROW: DefiPositionResponse[] = [
           },
         ],
         balance: 1000,
-      },
-    ],
-  },
-];
-
-export const MOCK_DEFI_RESPONSE_DEEP_UNDERLYING: DefiPositionResponse[] = [
-  {
-    protocolId: 'lido',
-    name: 'Lido stEth',
-    description: 'Lido defi adapter for stEth',
-    siteUrl: 'https://stake.lido.fi/',
-    iconUrl:
-      'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png',
-    positionType: 'stake',
-    chainId: 1,
-    productId: 'st-eth',
-    chainName: 'ethereum',
-    success: true,
-    tokens: [
-      {
-        address: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
-        name: 'Liquid staked Ether 2.0',
-        symbol: 'stETH',
-        decimals: 18,
-        balanceRaw: '200000000000000000000',
-        balance: 200,
-        type: 'protocol',
-        tokens: [
-          {
-            address: '0x0000000000000000000000000000000000000000',
-            name: 'Ethereum',
-            symbol: 'ETH',
-            decimals: 18,
-            type: 'underlying',
-            balanceRaw: '200000000000000000000',
-            balance: 200,
-            price: 2000,
-            iconUrl:
-              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
-          },
-        ],
-      },
-    ],
-  },
-  {
-    protocolId: 'lido',
-    name: 'Lido wstEth',
-    description: 'Lido defi adapter for wstEth',
-    siteUrl: 'https://stake.lido.fi/wrap',
-    iconUrl:
-      'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png',
-    positionType: 'stake',
-    chainId: 1,
-    productId: 'wst-eth',
-    chainName: 'ethereum',
-    success: true,
-    tokens: [
-      {
-        address: '0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0',
-        name: 'Wrapped liquid staked Ether 2.0',
-        symbol: 'wstETH',
-        decimals: 18,
-        balanceRaw: '800000000000000000000',
-        balance: 800,
-        type: 'protocol',
-        tokens: [
-          {
-            address: '0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84',
-            name: 'Liquid staked Ether 2.0',
-            symbol: 'stETH',
-            decimals: 18,
-            type: 'underlying',
-            balanceRaw: '100000000000000000000',
-            balance: 1000,
-            price: 2000,
-            iconUrl:
-              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84/logo.png',
-            tokens: [
-              {
-                address: '0x0000000000000000000000000000000000000000',
-                name: 'Ethereum',
-                symbol: 'ETH',
-                decimals: 18,
-                type: 'underlying',
-                balanceRaw: '100000000000000000000',
-                balance: 1000,
-                price: 2000,
-                iconUrl:
-                  'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/info/logo.png',
-              },
-            ],
-          },
-        ],
       },
     ],
   },

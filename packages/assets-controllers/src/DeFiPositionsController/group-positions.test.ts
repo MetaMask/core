@@ -1,13 +1,11 @@
-import { Hex } from '@metamask/utils';
-import {
-  GroupedPositions,
-  groupPositions,
-  UnderlyingWithMarketValue,
-} from './group-positions';
+import type { Hex } from '@metamask/utils';
+import assert from 'assert';
+
+import type { GroupedPositions } from './group-positions';
+import { groupPositions } from './group-positions';
 import {
   MOCK_DEFI_RESPONSE_BORROW,
   MOCK_DEFI_RESPONSE_COMPLEX,
-  MOCK_DEFI_RESPONSE_DEEP_UNDERLYING,
   MOCK_DEFI_RESPONSE_FAILED_ENTRY,
   MOCK_DEFI_RESPONSE_MULTI_CHAIN,
   MOCK_DEFI_RESPONSE_NO_PRICES,
@@ -17,9 +15,9 @@ describe('groupPositions', () => {
   it('groups multiple chains', () => {
     const result = groupPositions(MOCK_DEFI_RESPONSE_MULTI_CHAIN);
 
-    expect(Object.keys(result).length).toEqual(2);
-    expect(Object.keys(result)[0]).toEqual('0x1');
-    expect(Object.keys(result)[1]).toEqual('0xe708');
+    expect(Object.keys(result)).toHaveLength(2);
+    expect(Object.keys(result)[0]).toBe('0x1');
+    expect(Object.keys(result)[1]).toBe('0xe708');
   });
 
   it('does not display failed entries', () => {
@@ -34,22 +32,26 @@ describe('groupPositions', () => {
     const result = groupPositions(MOCK_DEFI_RESPONSE_NO_PRICES);
 
     const supplyResults =
-      result['0x1'].protocols['aave-v3'].positionTypes.supply!;
-    expect(Object.values(supplyResults.positions).length).toEqual(2);
-    expect(supplyResults.aggregatedMarketValue).toEqual(40);
+      result['0x1'].protocols['aave-v3'].positionTypes.supply;
+    expect(supplyResults).toBeDefined();
+    assert(supplyResults);
+    expect(Object.values(supplyResults.positions)).toHaveLength(2);
+    expect(supplyResults.aggregatedMarketValue).toBe(40);
   });
 
   it('substracts borrow positions from total market value', () => {
     const result = groupPositions(MOCK_DEFI_RESPONSE_BORROW);
 
     const protocolResults = result['0x1'].protocols['aave-v3'];
-    expect(protocolResults.positionTypes.supply!.aggregatedMarketValue).toEqual(
+    assert(protocolResults.positionTypes.supply);
+    assert(protocolResults.positionTypes.borrow);
+    expect(protocolResults.positionTypes.supply.aggregatedMarketValue).toBe(
       1540,
     );
-    expect(protocolResults.positionTypes.borrow!.aggregatedMarketValue).toEqual(
+    expect(protocolResults.positionTypes.borrow.aggregatedMarketValue).toBe(
       1000,
     );
-    expect(protocolResults.aggregatedMarketValue).toEqual(540);
+    expect(protocolResults.aggregatedMarketValue).toBe(540);
   });
 
   it('verifies that the resulting object is valid', () => {
@@ -282,6 +284,6 @@ describe('groupPositions', () => {
       },
     };
 
-    expect(result).toEqual(expectedResult);
+    expect(result).toStrictEqual(expectedResult);
   });
 });

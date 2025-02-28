@@ -1,13 +1,14 @@
 import { toHex } from '@metamask/controller-utils';
-import { Hex } from '@metamask/utils';
-import {
+import type { Hex } from '@metamask/utils';
+import { upperFirst, camelCase } from 'lodash';
+
+import type {
   DefiPositionResponse,
   PositionType,
   ProtocolToken,
   Underlying,
   Balance,
 } from './fetch-positions';
-import { upperFirst, camelCase } from 'lodash';
 
 export type GroupedPositions = {
   aggregatedMarketValue: number;
@@ -34,6 +35,11 @@ export type UnderlyingWithMarketValue = Omit<Underlying, 'tokens'> & {
   marketValue?: number;
 };
 
+/**
+ *
+ * @param defiPositionsResponse - The response from the defi positions API
+ * @returns The grouped positions that get assigned to the state
+ */
 export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
   [key: Hex]: GroupedPositions;
 } {
@@ -44,10 +50,42 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
       continue;
     }
 
-    const { chainData, protocolData, positionTypeData } = getProtocolData(
-      groupedPositions,
-      position,
-    );
+    const { chainId, protocolId, iconUrl, positionType } = position;
+
+    const chain = toHex(chainId);
+
+    if (!groupedPositions[chain]) {
+      groupedPositions[chain] = {
+        aggregatedMarketValue: 0,
+        protocols: {},
+      };
+    }
+
+    const chainData = groupedPositions[chain];
+
+    if (!chainData.protocols[protocolId]) {
+      chainData.protocols[protocolId] = {
+        protocolDetails: {
+          // TODO: Prepare better source for protocol name
+          name: upperFirst(camelCase(protocolId)),
+          // TODO: Picking icon url from the first product position might not be consistent
+          iconUrl,
+        },
+        aggregatedMarketValue: 0,
+        positionTypes: {},
+      };
+    }
+
+    const protocolData = chainData.protocols[protocolId];
+
+    if (!protocolData.positionTypes[positionType]) {
+      protocolData.positionTypes[positionType] = {
+        aggregatedMarketValue: 0,
+        positions: [],
+      };
+    }
+
+    const positionTypeData = protocolData.positionTypes[positionType];
 
     for (const protocolToken of position.tokens) {
       const token = processToken(protocolToken) as ProtocolTokenWithMarketValue;
@@ -67,67 +105,28 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
   return groupedPositions;
 }
 
-function getProtocolData(
-  data: { [key: Hex]: GroupedPositions },
-  position: DefiPositionResponse & { success: true },
-) {
-  const { chainId, protocolId, iconUrl, positionType } = position;
-
-  const chain = toHex(chainId);
-
-  if (!data[chain]) {
-    data[chain] = {
-      aggregatedMarketValue: 0,
-      protocols: {},
-    };
-  }
-
-  const chainData = data[chain];
-
-  if (!chainData.protocols[protocolId]) {
-    chainData.protocols[protocolId] = {
-      protocolDetails: {
-        // TODO: Prepare better source for protocol name
-        name: upperFirst(camelCase(protocolId)),
-        // TODO: Picking icon url from the first product position might not be consistent
-        iconUrl,
-      },
-      aggregatedMarketValue: 0,
-      positionTypes: {},
-    };
-  }
-
-  const protocolData = chainData.protocols[protocolId];
-
-  if (!protocolData.positionTypes[positionType]) {
-    protocolData.positionTypes[positionType] = {
-      aggregatedMarketValue: 0,
-      positions: [],
-    };
-  }
-
-  return {
-    chainData,
-    protocolData,
-    positionTypeData: protocolData.positionTypes[positionType]!,
-  };
-}
-
+/**
+ *
+ * @param tokenBalance - The token balance that is going to be processed
+ * @returns The processed token balance
+ */
 function processToken<T extends Balance>(
-  token: T,
+  tokenBalance: T,
 ): T & {
   marketValue?: number;
   tokens?: UnderlyingWithMarketValue[];
 } {
-  if (!token.tokens) {
+  if (!tokenBalance.tokens) {
     return {
-      ...token,
-      marketValue: token.price ? token.balance * token.price : undefined,
+      ...tokenBalance,
+      marketValue: tokenBalance.price
+        ? tokenBalance.balance * tokenBalance.price
+        : undefined,
       tokens: undefined,
     };
   }
 
-  const processedTokens = token.tokens.map((t) => ({
+  const processedTokens = tokenBalance.tokens.map((t) => ({
     ...processToken(t),
     tokens: undefined,
   }));
@@ -141,7 +140,7 @@ function processToken<T extends Balance>(
   );
 
   return {
-    ...token,
+    ...tokenBalance,
     marketValue,
     tokens: processedTokens,
   };

@@ -12,6 +12,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+
 import { fetchPositions } from './fetch-positions';
 import { groupPositions, type GroupedPositions } from './group-positions';
 
@@ -96,6 +97,7 @@ export class DeFiPositionsController extends BaseController<
 
   /**
    * Tokens controller options
+   *
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
    * @param options.state - Initial state to set on this controller.
@@ -161,5 +163,3 @@ export class DeFiPositionsController extends BaseController<
     });
   }
 }
-
-export default DeFiPositionsController;
