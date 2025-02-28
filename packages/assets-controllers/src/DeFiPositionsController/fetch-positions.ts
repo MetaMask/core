@@ -55,6 +55,11 @@ export type Balance = {
 const DEFI_POSITIONS_API_URL =
   'https://defi-services.metamask-institutional.io/defi-data/positions';
 
+/**
+ *
+ * @param accountAddress - The account address to fetch the DeFi positions for
+ * @returns The DeFi positions for the given account address
+ */
 export async function fetchPositions(
   accountAddress: string,
 ): Promise<DefiPositionResponse[]> {
