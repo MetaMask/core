@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Integrate RPC failover into NetworkController ([#5360](https://github.com/MetaMask/core/pull/5360))
+- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
 ## [21.0.1]
 
 ### Changed
