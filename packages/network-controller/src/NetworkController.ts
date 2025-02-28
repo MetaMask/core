@@ -2108,20 +2108,27 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Searches for a network configuration ID with the given ChainID and returns it.
+   * Searches for the default RPC endpoint configured for the given chain and
+   * returns its network client ID. This can then be passed to
+   * {@link getNetworkClientById} to retrieve the network client.
    *
-   * @param chainId - ChainId to search for
-   * @returns networkClientId of the network configuration with the given chainId
+   * @param chainId - Chain ID to search for.
+   * @returns The ID of the network client created for the chain's default RPC
+   * endpoint.
    */
   findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
-    const networkClients = this.getNetworkClientRegistry();
-    const networkClientEntry = Object.entries(networkClients).find(
-      ([_, networkClient]) => networkClient.configuration.chainId === chainId,
-    );
-    if (networkClientEntry === undefined) {
-      throw new Error("Couldn't find networkClientId for chainId");
+    const networkConfiguration =
+      this.state.networkConfigurationsByChainId[chainId];
+
+    if (!networkConfiguration) {
+      throw new Error(`Invalid chain ID "${chainId}"`);
     }
-    return networkClientEntry[0];
+
+    const { networkClientId } =
+      networkConfiguration.rpcEndpoints[
+        networkConfiguration.defaultRpcEndpointIndex
+      ];
+    return networkClientId;
   }
 
   /**
