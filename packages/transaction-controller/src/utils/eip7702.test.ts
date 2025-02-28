@@ -4,7 +4,6 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 
-import type { KeyringControllerSignAuthorization } from './eip7702';
 import {
   DELEGATION_PREFIX,
   doesChainSupportEIP7702,
@@ -17,6 +16,7 @@ import {
   getEIP7702SupportedChains,
 } from './feature-flags';
 import { Messenger } from '../../../base-controller/src';
+import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { AuthorizationList } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
@@ -72,7 +72,7 @@ const AUTHORIZATION_LIST_MOCK: AuthorizationList = [
 
 describe('EIP-7702 Utils', () => {
   let baseMessenger: Messenger<
-    | KeyringControllerSignAuthorization
+    | KeyringControllerSignEip7702AuthorizationAction
     | RemoteFeatureFlagControllerGetStateAction,
     never
   >;
@@ -87,7 +87,7 @@ describe('EIP-7702 Utils', () => {
   );
 
   let signAuthorizationMock: jest.MockedFn<
-    KeyringControllerSignAuthorization['handler']
+    KeyringControllerSignEip7702AuthorizationAction['handler']
   >;
 
   beforeEach(() => {
@@ -100,13 +100,13 @@ describe('EIP-7702 Utils', () => {
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 
     baseMessenger.registerActionHandler(
-      'KeyringController:signEip7702AuthorizationMessage',
+      'KeyringController:signEip7702Authorization',
       signAuthorizationMock,
     );
 
     controllerMessenger = baseMessenger.getRestricted({
       name: 'TransactionController',
-      allowedActions: ['KeyringController:signEip7702AuthorizationMessage'],
+      allowedActions: ['KeyringController:signEip7702Authorization'],
       allowedEvents: [],
     });
   });

@@ -10,6 +10,6 @@ export * as Processors from './processors';
 export * from './processors';
 export * as Constants from './constants';
 export * from './constants';
-export * as Mocks from './__fixtures__';
+export * as Mocks from './mocks';
 export * as UI from './ui';
 export * from '../shared';
