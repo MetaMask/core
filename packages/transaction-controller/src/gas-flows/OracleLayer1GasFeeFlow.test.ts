@@ -105,6 +105,7 @@ describe('OracleLayer1GasFeeFlow', () => {
       expect(transactionFactoryMock).toHaveBeenCalledWith(
         {
           from: TRANSACTION_PARAMS_MOCK.from,
+          gas: TRANSACTION_PARAMS_MOCK.gas,
           gasLimit: TRANSACTION_PARAMS_MOCK.gas,
         },
         expect.anything(),

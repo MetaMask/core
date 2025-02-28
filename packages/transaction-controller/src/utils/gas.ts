@@ -141,11 +141,6 @@ async function getGas(
     return [txMeta.txParams.gas, undefined, txMeta.txParams.gas];
   }
 
-  if (txMeta.txParams.gasLimit) {
-    log('Using value from request', txMeta.txParams.gasLimit);
-    return [txMeta.txParams.gasLimit, undefined, txMeta.txParams.gasLimit];
-  }
-
   if (await requiresFixedGas(request)) {
     log('Using fixed value', FIXED_GAS);
     return [FIXED_GAS, undefined, FIXED_GAS];
