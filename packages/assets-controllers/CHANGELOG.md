@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: Add MANTLE support for conversion rates ([#5402](https://github.com/MetaMask/core/pull/5402))
-- Release 312.0.0 ([#5399](https://github.com/MetaMask/core/pull/5399))
-
 ## [51.0.2]
 
 ### Fixed

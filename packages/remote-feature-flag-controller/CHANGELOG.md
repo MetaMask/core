@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add beta to remote feature flag distribution ([#5407](https://github.com/MetaMask/core/pull/5407))
-- fix(5383): flaky user-segmentation-utils distribution test fix ([#5384](https://github.com/MetaMask/core/pull/5384))
-
 ## [1.5.0]
 
 ### Added
