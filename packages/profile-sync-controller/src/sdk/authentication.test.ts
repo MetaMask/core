@@ -4,7 +4,7 @@ import {
   MOCK_ACCESS_JWT,
   MOCK_SRP_LOGIN_RESPONSE,
   arrangeAuthAPIs,
-} from './__fixtures__/mock-auth';
+} from './__fixtures__/auth';
 import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';

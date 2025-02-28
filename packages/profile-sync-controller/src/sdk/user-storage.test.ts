@@ -1,18 +1,20 @@
-import { arrangeAuthAPIs } from './__fixtures__/mock-auth';
+import { arrangeAuthAPIs } from './__fixtures__/auth';
 import {
-  MOCK_NOTIFICATIONS_DATA,
-  MOCK_STORAGE_KEY,
   handleMockUserStorageGet,
   handleMockUserStoragePut,
   handleMockUserStorageGetAllFeatureEntries,
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
-  MOCK_STORAGE_RESPONSE,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import { type IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
+import {
+  MOCK_NOTIFICATIONS_DATA,
+  MOCK_STORAGE_KEY,
+  MOCK_STORAGE_RESPONSE,
+} from './mocks/userstorage';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';

@@ -11,7 +11,7 @@ import {
   MOCK_OATH_TOKEN_RESPONSE,
 } from './mocks/mockResponses';
 import { Platform } from '../../sdk';
-import { arrangeAuthAPIs } from '../../sdk/__fixtures__/mock-auth';
+import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth';
 
 const mockSignedInState = (): AuthenticationControllerState => ({
   isSignedIn: true,

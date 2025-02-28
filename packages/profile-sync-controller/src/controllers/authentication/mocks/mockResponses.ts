@@ -6,7 +6,7 @@ import {
   MOCK_NONCE_URL,
   MOCK_SRP_LOGIN_URL,
   MOCK_OIDC_TOKEN_URL,
-} from '../../../sdk/__fixtures__/mock-auth';
+} from '../../../sdk/mocks/auth';
 
 type MockResponse = {
   url: string;
