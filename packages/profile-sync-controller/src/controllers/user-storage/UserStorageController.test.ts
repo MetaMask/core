@@ -16,7 +16,7 @@ import { mockUserStorageMessengerForAccountSyncing } from './account-syncing/__f
 import * as AccountSyncControllerIntegrationModule from './account-syncing/controller-integration';
 import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import * as NetworkSyncIntegrationModule from './network-syncing/controller-integration';
-import type { UserStorageBaseOptions } from './services';
+import type { UserStorageBaseOptions } from './types';
 import UserStorageController, { defaultState } from './UserStorageController';
 import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 

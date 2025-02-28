@@ -416,6 +416,7 @@ export default class UserStorageController extends BaseController<
     if (this.#env.isNetworkSyncingEnabled) {
       startNetworkSyncing({
         messenger,
+        getUserStorageControllerInstance: () => this,
         getStorageConfig: () => this.#getStorageOptions(),
         isMutationSyncBlocked: () =>
           !this.state.hasNetworkSyncingSyncedAtLeastOnce,
@@ -807,6 +808,7 @@ export default class UserStorageController extends BaseController<
 
     await performMainNetworkSync({
       messenger: this.messagingSystem,
+      getUserStorageControllerInstance: () => this,
       getStorageConfig: () => this.#getStorageOptions(),
       maxNetworksToAdd: this.#config?.networkSyncing?.maxNumberOfNetworksToAdd,
       onNetworkAdded: (cId) =>
