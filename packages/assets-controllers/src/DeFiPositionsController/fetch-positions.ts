@@ -52,7 +52,7 @@ export type Balance = {
 };
 
 // TODO: Update with new API URL
-const DEFI_POSITIONS_API_URL =
+export const DEFI_POSITIONS_API_URL =
   'https://defi-services.metamask-institutional.io/defi-data/positions';
 
 /**

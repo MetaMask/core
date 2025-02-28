@@ -1,24 +1,9 @@
-import { fetchPositions } from './fetch-positions';
+import nock from 'nock';
+
+import { DEFI_POSITIONS_API_URL, fetchPositions } from './fetch-positions';
 
 describe('fetchPositions', () => {
   const mockAccountAddress = '0x1234567890123456789012345678901234567890';
-  const mockApiUrl =
-    'https://defi-services.metamask-institutional.io/defi-data/positions';
-
-  /**
-   *
-   * @param status - The status code to return
-   * @param jsonResponse - The JSON response to return
-   */
-  function mockNextFetchResponse(status: number, jsonResponse?: unknown) {
-    const mockFetch = jest.spyOn(global, 'fetch');
-    mockFetch.mockResolvedValueOnce({
-      status,
-      ...(Boolean(jsonResponse) && {
-        json: () => Promise.resolve(jsonResponse),
-      }),
-    } as unknown as Response);
-  }
 
   it('handles successful responses', async () => {
     const mockResponse = {
@@ -51,25 +36,25 @@ describe('fetchPositions', () => {
       ],
     };
 
-    mockNextFetchResponse(200, mockResponse);
+    const scope = nock(DEFI_POSITIONS_API_URL)
+      .get(`/${mockAccountAddress}`)
+      .reply(200, mockResponse);
 
     const result = await fetchPositions(mockAccountAddress);
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      `${mockApiUrl}/${mockAccountAddress}`,
-    );
     expect(result).toStrictEqual(mockResponse.data);
+    expect(scope.isDone()).toBe(true);
   });
 
   it('handles non-200 responses', async () => {
-    mockNextFetchResponse(400);
+    const scope = nock(DEFI_POSITIONS_API_URL)
+      .get(`/${mockAccountAddress}`)
+      .reply(400);
 
     await expect(fetchPositions(mockAccountAddress)).rejects.toThrow(
       'Unable to fetch defi positions - HTTP 400',
     );
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      `${mockApiUrl}/${mockAccountAddress}`,
-    );
+    expect(scope.isDone()).toBe(true);
   });
 });
