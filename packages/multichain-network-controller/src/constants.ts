@@ -10,19 +10,24 @@ import type {
 } from './types';
 
 export const BTC_NATIVE_ASSET = `${BtcScope.Mainnet}/slip44:0`;
-export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
+export const BTC_TESTNET_NATIVE_ASSET = `${BtcScope.Testnet}/slip44:0`;
+export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/slip44:501`;
+export const SOL_TESTNET_NATIVE_ASSET = `${SolScope.Testnet}/slip44:501`;
+export const SOL_DEVNET_NATIVE_ASSET = `${SolScope.Devnet}/slip44:501`;
 
 export const MULTICHAIN_NETWORK_IDS: CaipChainId[] = [
   BtcScope.Mainnet,
+  BtcScope.Testnet,
   SolScope.Mainnet,
+  SolScope.Testnet,
+  SolScope.Devnet,
 ] as const;
 
 /**
  * Supported networks by the MultichainNetworkController
  */
-export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
-  SupportedCaipChainId,
-  MultichainNetworkConfiguration
+export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Partial<
+  Record<SupportedCaipChainId, MultichainNetworkConfiguration>
 > = {
   [BtcScope.Mainnet]: {
     chainId: BtcScope.Mainnet,
@@ -34,6 +39,32 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
     chainId: SolScope.Mainnet,
     name: 'Solana Mainnet',
     nativeCurrency: SOL_NATIVE_ASSET,
+    isEvm: false,
+  },
+};
+
+/**
+ * Supported networks by the MultichainNetworkController
+ */
+export const AVAILABLE_MULTICHAIN_TESTNET_NETWORK_CONFIGURATIONS: Partial<
+  Record<SupportedCaipChainId, MultichainNetworkConfiguration>
+> = {
+  [BtcScope.Testnet]: {
+    chainId: BtcScope.Testnet,
+    name: 'Bitcoin Testnet',
+    nativeCurrency: BTC_TESTNET_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [SolScope.Testnet]: {
+    chainId: SolScope.Testnet,
+    name: 'Solana Mainnet',
+    nativeCurrency: SOL_TESTNET_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [SolScope.Devnet]: {
+    chainId: SolScope.Devnet,
+    name: 'Solana Mainnet',
+    nativeCurrency: SOL_DEVNET_NATIVE_ASSET,
     isEvm: false,
   },
 };
@@ -55,15 +86,23 @@ export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
 /**
  * Default state of the {@link MultichainNetworkController}.
  *
+ * @param enableTestnets - Whether to enable testnets or not.
  * @returns The default state of the {@link MultichainNetworkController}.
  */
-export const getDefaultMultichainNetworkControllerState =
-  (): MultichainNetworkControllerState => ({
-    multichainNetworkConfigurationsByChainId:
-      AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+export const getDefaultMultichainNetworkControllerState = (
+  enableTestnets: boolean = false,
+): MultichainNetworkControllerState => {
+  return {
+    multichainNetworkConfigurationsByChainId: enableTestnets
+      ? {
+          ...AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+          ...AVAILABLE_MULTICHAIN_TESTNET_NETWORK_CONFIGURATIONS,
+        }
+      : AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
     selectedMultichainNetworkChainId: SolScope.Mainnet,
     isEvmSelected: true,
-  });
+  };
+};
 
 /**
  * {@link MultichainNetworkController}'s metadata.

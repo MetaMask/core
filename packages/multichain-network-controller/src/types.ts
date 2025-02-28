@@ -20,7 +20,12 @@ export type MultichainNetworkMetadata = {
   status: NetworkStatus;
 };
 
-export type SupportedCaipChainId = SolScope.Mainnet | BtcScope.Mainnet;
+export type SupportedCaipChainId =
+  | BtcScope.Mainnet
+  | BtcScope.Testnet
+  | SolScope.Mainnet
+  | SolScope.Testnet
+  | SolScope.Devnet;
 
 export type CommonNetworkConfiguration = {
   /**
