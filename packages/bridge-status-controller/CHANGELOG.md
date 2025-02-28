@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: change bridge state structure to have all fields at root of state ([#5406](https://github.com/MetaMask/core/pull/5406))
+- Release 312.0.0 ([#5399](https://github.com/MetaMask/core/pull/5399))
+- Release 306.0.0 ([#5373](https://github.com/MetaMask/core/pull/5373))
+
 ## [1.0.0]
 
 ### Added
