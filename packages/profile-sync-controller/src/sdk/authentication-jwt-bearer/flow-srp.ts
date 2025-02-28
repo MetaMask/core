@@ -10,10 +10,12 @@ import type {
   LoginResponse,
   UserProfile,
 } from './types';
+import type { MetaMetricsAuth } from '../../shared/types/services';
 import { ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import {
   MESSAGE_SIGNING_SNAP,
+  assertMessageStartsWithMetamask,
   connectSnap,
   isSnapConnected,
 } from '../utils/messaging-signing-snap-requests';
@@ -43,11 +45,8 @@ const getDefaultEIP6963SigningOptions = (
   },
   signMessage: async (message: string): Promise<string> => {
     const provider = customProvider ?? (await getDefaultEIP6963Provider());
-    if (!message.startsWith('metamask:')) {
-      throw new ValidationError('message must start with "metamask:"');
-    }
-    const formattedMessage = message as `metamask:${string}`;
-    return await MESSAGE_SIGNING_SNAP.signMessage(provider, formattedMessage);
+    assertMessageStartsWithMetamask(message);
+    return await MESSAGE_SIGNING_SNAP.signMessage(provider, message);
   },
 });
 
@@ -56,11 +55,16 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
   readonly #options: Required<JwtBearerAuth_SRP_Options>;
 
+  readonly #metametrics?: MetaMetricsAuth;
+
   #customProvider?: Eip1193Provider;
 
   constructor(
     config: AuthConfig & { type: AuthType.SRP },
-    options: JwtBearerAuth_SRP_Options & { customProvider?: Eip1193Provider },
+    options: JwtBearerAuth_SRP_Options & {
+      customProvider?: Eip1193Provider;
+      metametrics?: MetaMetricsAuth;
+    },
   ) {
     this.#config = config;
     this.#customProvider = options.customProvider;
@@ -70,6 +74,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
         options.signing ??
         getDefaultEIP6963SigningOptions(this.#customProvider),
     };
+    this.#metametrics = options.metametrics;
   }
 
   setCustomProvider(provider: Eip1193Provider) {
@@ -158,6 +163,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       signature,
       this.#config.type,
       this.#config.env,
+      this.#metametrics,
     );
 
     // Authorize

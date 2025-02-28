@@ -1180,7 +1180,7 @@ function mockNotificationMessenger() {
 
   const mockGetBearerToken =
     typedMockAction<AuthenticationController.AuthenticationControllerGetBearerToken>().mockResolvedValue(
-      AuthenticationController.Mocks.MOCK_ACCESS_TOKEN,
+      AuthenticationController.Mocks.MOCK_OATH_TOKEN_RESPONSE.access_token,
     );
 
   const mockIsSignedIn =

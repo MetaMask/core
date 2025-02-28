@@ -53,6 +53,7 @@ export async function getInternalAccountsList(
 ): Promise<InternalAccount[]> {
   const { getMessenger } = options;
 
+  // eslint-disable-next-line @typescript-eslint/await-thenable
   const internalAccountsList = await getMessenger().call(
     'AccountsController:listAccounts',
   );

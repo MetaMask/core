@@ -8,12 +8,14 @@ import {
   updateNetwork,
 } from './sync-mutations';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { mockUserStorageMessenger } from '../__fixtures__/mockMessenger';
 import {
   mockEndpointBatchUpsertUserStorage,
   mockEndpointUpsertUserStorage,
 } from '../__fixtures__/mockServices';
 import { MOCK_STORAGE_KEY } from '../mocks';
-import type { UserStorageBaseOptions } from '../services';
+import type { UserStorageBaseOptions } from '../types';
+import UserStorageController from '../UserStorageController';
 
 const storageOpts: UserStorageBaseOptions = {
   bearerToken: 'MOCK_TOKEN',
@@ -26,15 +28,30 @@ const arrangeMockNetwork = () =>
 const testMatrix = [
   {
     fnName: 'updateNetwork()',
-    act: (n: NetworkConfiguration) => updateNetwork(n, storageOpts),
+    act: (
+      n: NetworkConfiguration,
+      opts: {
+        getUserStorageControllerInstance: () => UserStorageController;
+      },
+    ) => updateNetwork(n, opts),
   },
   {
     fnName: 'addNetwork()',
-    act: (n: NetworkConfiguration) => addNetwork(n, storageOpts),
+    act: (
+      n: NetworkConfiguration,
+      opts: {
+        getUserStorageControllerInstance: () => UserStorageController;
+      },
+    ) => addNetwork(n, opts),
   },
   {
     fnName: 'deleteNetwork()',
-    act: (n: NetworkConfiguration) => deleteNetwork(n, storageOpts),
+    act: (
+      n: NetworkConfiguration,
+      opts: {
+        getUserStorageControllerInstance: () => UserStorageController;
+      },
+    ) => deleteNetwork(n, opts),
   },
 ];
 
@@ -44,7 +61,15 @@ describe('network-syncing/sync - updateNetwork() / addNetwork() / deleteNetwork(
     const mockUpsertAPI = mockEndpointUpsertUserStorage(
       `${USER_STORAGE_FEATURE_NAMES.networks}.0x1337`,
     );
-    await act(mockNetwork);
+
+    const { messenger } = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger,
+    });
+
+    await act(mockNetwork, {
+      getUserStorageControllerInstance: () => controller,
+    });
     expect(mockUpsertAPI.isDone()).toBe(true);
   });
 
@@ -58,9 +83,18 @@ describe('network-syncing/sync - updateNetwork() / addNetwork() / deleteNetwork(
           status: 500,
         },
       );
-      await expect(async () => await act(mockNetwork)).rejects.toThrow(
-        expect.any(Error),
-      );
+
+      const { messenger } = mockUserStorageMessenger();
+      const controller = new UserStorageController({
+        messenger,
+      });
+
+      await expect(
+        async () =>
+          await act(mockNetwork, {
+            getUserStorageControllerInstance: () => controller,
+          }),
+      ).rejects.toThrow(expect.any(Error));
       expect(mockUpsertAPI.isDone()).toBe(true);
     },
   );
@@ -82,10 +116,18 @@ describe('network-syncing/sync - batchUpdateNetworks()', () => {
 
   it('should call upsert storage API with mock network', async () => {
     const { mockNetworks, mockBatchUpsertAPI } = arrangeMocks();
+
+    const { messenger } = mockUserStorageMessenger();
+    const controller = new UserStorageController({
+      messenger,
+    });
+
     // Example where we can batch normal adds/updates with deletes
     await batchUpdateNetworks(
       [mockNetworks[0], { ...mockNetworks[1], deleted: true }],
-      storageOpts,
+      {
+        getUserStorageControllerInstance: () => controller,
+      },
     );
     expect(mockBatchUpsertAPI.isDone()).toBe(true);
   });

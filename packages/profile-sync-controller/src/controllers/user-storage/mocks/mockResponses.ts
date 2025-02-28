@@ -3,6 +3,7 @@ import {
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
 } from './mockStorage';
+import { Env, getEnvUrls } from '../../../sdk';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
@@ -14,8 +15,7 @@ import {
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
-} from '../services';
-import { USER_STORAGE_ENDPOINT } from '../services';
+} from '../types';
 
 type MockResponse = {
   url: string;
@@ -27,10 +27,10 @@ export const getMockUserStorageEndpoint = (
   path: UserStoragePathWithFeatureAndKey | UserStoragePathWithFeatureOnly,
 ) => {
   if (path.split('.').length === 1) {
-    return `${USER_STORAGE_ENDPOINT}/${path}`;
+    return `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage/${path}`;
   }
 
-  return `${USER_STORAGE_ENDPOINT}/${createEntryPath(
+  return `${getEnvUrls(Env.PRD).userStorageApiUrl}/api/v1/userstorage/${createEntryPath(
     path as UserStoragePathWithFeatureAndKey,
     MOCK_STORAGE_KEY,
   )}`;

@@ -5,7 +5,7 @@ import { MOCK_STORAGE_KEY } from '../mocks/mockStorage';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
-} from '../services';
+} from '../types';
 
 /**
  * Test Utility - creates a realistic mock user-storage entry
