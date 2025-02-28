@@ -1,8 +1,8 @@
 import nock from 'nock';
 
-import { GasPricesService } from './gas-prices-service';
+import { SampleGasPricesService } from './sample-gas-prices-service';
 
-describe('GasPricesService', () => {
+describe('SampleGasPricesService', () => {
   describe('fetchGasPrices', () => {
     it('returns a slightly cleaned up version of what the API returns', async () => {
       nock('https://example.com/gas-prices')
@@ -14,7 +14,7 @@ describe('GasPricesService', () => {
             high: 15,
           },
         });
-      const gasPricesService = new GasPricesService({ fetch });
+      const gasPricesService = new SampleGasPricesService({ fetch });
 
       const gasPricesResponse = await gasPricesService.fetchGasPrices('0x1');
 
