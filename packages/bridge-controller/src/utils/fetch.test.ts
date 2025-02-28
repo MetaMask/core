@@ -1,4 +1,4 @@
-import { ZeroAddress } from 'ethers';
+import { AddressZero } from '@ethersproject/constants';
 
 import {
   fetchBridgeFeatureFlags,
@@ -248,8 +248,8 @@ describe('fetch', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: ZeroAddress,
-          destTokenAddress: ZeroAddress,
+          srcTokenAddress: AddressZero,
+          destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },
@@ -282,8 +282,8 @@ describe('fetch', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: ZeroAddress,
-          destTokenAddress: ZeroAddress,
+          srcTokenAddress: AddressZero,
+          destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },
@@ -335,8 +335,8 @@ describe('fetch', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: ZeroAddress,
-          destTokenAddress: ZeroAddress,
+          srcTokenAddress: AddressZero,
+          destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },
