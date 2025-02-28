@@ -340,14 +340,16 @@ describe('Batch Utils', () => {
             result: Promise.resolve(''),
           });
 
-        publishBatchHook.mockResolvedValue([
-          {
-            transactionHash: TRANSACTION_HASH_MOCK,
-          },
-          {
-            transactionHash: TRANSACTION_HASH_2_MOCK,
-          },
-        ]);
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
 
         addTransactionBatch({
           ...request,
@@ -417,14 +419,16 @@ describe('Batch Utils', () => {
             result: Promise.resolve(''),
           });
 
-        publishBatchHook.mockResolvedValue([
-          {
-            transactionHash: TRANSACTION_HASH_MOCK,
-          },
-          {
-            transactionHash: TRANSACTION_HASH_2_MOCK,
-          },
-        ]);
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
 
         addTransactionBatch({
           ...request,
@@ -485,14 +489,16 @@ describe('Batch Utils', () => {
             result: Promise.resolve(''),
           });
 
-        publishBatchHook.mockResolvedValue([
-          {
-            transactionHash: TRANSACTION_HASH_MOCK,
-          },
-          {
-            transactionHash: TRANSACTION_HASH_2_MOCK,
-          },
-        ]);
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
 
         addTransactionBatch({
           ...request,
@@ -582,14 +588,16 @@ describe('Batch Utils', () => {
           update(existingTransactionMock as TransactionMeta);
         });
 
-        publishBatchHook.mockResolvedValue([
-          {
-            transactionHash: TRANSACTION_HASH_MOCK,
-          },
-          {
-            transactionHash: TRANSACTION_HASH_2_MOCK,
-          },
-        ]);
+        publishBatchHook.mockResolvedValue({
+          results: [
+            {
+              transactionHash: TRANSACTION_HASH_MOCK,
+            },
+            {
+              transactionHash: TRANSACTION_HASH_2_MOCK,
+            },
+          ],
+        });
 
         addTransactionBatch({
           ...request,

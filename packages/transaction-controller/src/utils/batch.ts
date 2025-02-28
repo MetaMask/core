@@ -251,7 +251,7 @@ async function addTransactionBatchWithHook(
       throw new Error('Publish batch hook did not return a result');
     }
 
-    const transactionHashes = result.map(
+    const transactionHashes = result.results.map(
       ({ transactionHash }) => transactionHash,
     );
 
