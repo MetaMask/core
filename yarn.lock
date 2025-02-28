@@ -2605,7 +2605,6 @@ __metadata:
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
-    ethers: "npm:^6.12.0"
     jest: "npm:^27.5.1"
     jest-environment-jsdom: "npm:^27.5.1"
     lodash: "npm:^4.17.21"
