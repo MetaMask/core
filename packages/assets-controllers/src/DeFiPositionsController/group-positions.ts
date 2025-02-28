@@ -5,10 +5,10 @@ import {
   PositionType,
   ProtocolToken,
   Underlying,
+  Balance,
 } from './fetch-positions';
 import { upperFirst, camelCase } from 'lodash';
 
-// TODO: We should make this type to benefit the UI the most
 export type GroupedPositions = {
   aggregatedMarketValue: number;
   protocols: {
@@ -18,13 +18,20 @@ export type GroupedPositions = {
       positionTypes: {
         [key in PositionType]?: {
           aggregatedMarketValue: number;
-          positions: (ProtocolToken & {
-            marketValue: number;
-          })[];
+          positions: ProtocolTokenWithMarketValue[];
         };
       };
     };
   };
+};
+
+export type ProtocolTokenWithMarketValue = Omit<ProtocolToken, 'tokens'> & {
+  marketValue?: number;
+  tokens: UnderlyingWithMarketValue[];
+};
+
+export type UnderlyingWithMarketValue = Omit<Underlying, 'tokens'> & {
+  marketValue?: number;
 };
 
 export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
@@ -42,19 +49,18 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
       position,
     );
 
-    for (const token of position.tokens) {
-      const marketValue =
-        extractTokenMarketValue(token) *
-        (position.positionType === 'borrow' ? -1 : 1);
+    for (const protocolToken of position.tokens) {
+      const token = processToken(protocolToken) as ProtocolTokenWithMarketValue;
 
-      positionTypeData.positions.push({
-        ...token,
-        marketValue,
-      });
+      positionTypeData.positions.push(token);
 
-      positionTypeData.aggregatedMarketValue += marketValue;
-      protocolData.aggregatedMarketValue += marketValue;
-      chainData.aggregatedMarketValue += marketValue;
+      if (token.marketValue) {
+        const multiplier = position.positionType === 'borrow' ? -1 : 1;
+
+        positionTypeData.aggregatedMarketValue += token.marketValue;
+        protocolData.aggregatedMarketValue += token.marketValue * multiplier;
+        chainData.aggregatedMarketValue += token.marketValue * multiplier;
+      }
     }
   }
 
@@ -107,17 +113,36 @@ function getProtocolData(
   };
 }
 
-function extractTokenMarketValue(token: {
-  balance: number;
-  price?: number;
-  tokens?: Underlying[];
-}): number {
+function processToken<T extends Balance>(
+  token: T,
+): T & {
+  marketValue?: number;
+  tokens?: UnderlyingWithMarketValue[];
+} {
   if (!token.tokens) {
-    return token.balance * (token.price || 0);
+    return {
+      ...token,
+      marketValue: token.price ? token.balance * token.price : undefined,
+      tokens: undefined,
+    };
   }
 
-  return token.tokens.reduce(
-    (acc, token) => acc + extractTokenMarketValue(token),
-    0,
+  const processedTokens = token.tokens.map((t) => ({
+    ...processToken(t),
+    tokens: undefined,
+  }));
+
+  const marketValue = processedTokens.reduce(
+    (acc, t) =>
+      acc === undefined || t.marketValue === undefined
+        ? undefined
+        : acc + t.marketValue,
+    0 as number | undefined,
   );
+
+  return {
+    ...token,
+    marketValue,
+    tokens: processedTokens,
+  };
 }

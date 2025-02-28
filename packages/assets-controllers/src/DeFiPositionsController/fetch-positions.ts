@@ -40,7 +40,7 @@ export type Underlying = Balance & {
   iconUrl: string;
 };
 
-type Balance = {
+export type Balance = {
   address: string;
   name: string;
   symbol: string;
