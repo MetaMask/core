@@ -26,6 +26,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignEip7702AuthorizationAction } from '@metamask/keyring-controller';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -105,7 +106,6 @@ import {
   SimulationErrorCode,
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
-import type { KeyringControllerSignAuthorization } from './utils/eip7702';
 import { signAuthorizationList } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
@@ -379,7 +379,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
   | AddApprovalRequest
-  | KeyringControllerSignAuthorization
+  | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction;
