@@ -1,5 +1,9 @@
 import type { Caveat } from '@metamask/permission-controller';
-import type { JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
+import type {
+  CaipChainId,
+  JsonRpcRequest,
+  JsonRpcSuccess,
+} from '@metamask/utils';
 
 import { getSessionScopes } from '../adapters/caip-permission-adapter-session-scopes';
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -15,15 +19,16 @@ import type { NormalizedScopesObject } from '../scope/types';
  * and that an empty object is returned for the `sessionScopes` result rather than throwing an error if there
  * is no active session for the origin.
  *
- * @param request - The request object.
+ * @param _request - The request object.
  * @param response - The response object.
  * @param _next - The next middleware function. Unused.
  * @param end - The end function.
  * @param hooks - The hooks object.
  * @param hooks.getCaveatForOrigin - Function to retrieve a caveat for the origin.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 async function walletGetSessionHandler(
-  request: JsonRpcRequest & { origin: string },
+  _request: JsonRpcRequest & { origin: string },
   response: JsonRpcSuccess<{ sessionScopes: NormalizedScopesObject }>,
   _next: () => void,
   end: () => void,
@@ -32,6 +37,7 @@ async function walletGetSessionHandler(
       endowmentPermissionName: string,
       caveatType: string,
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
   },
 ) {
   let caveat;
@@ -50,7 +56,9 @@ async function walletGetSessionHandler(
   }
 
   response.result = {
-    sessionScopes: getSessionScopes(caveat.value),
+    sessionScopes: getSessionScopes(caveat.value, {
+      getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
+    }),
   };
   return end();
 }
@@ -60,5 +68,6 @@ export const walletGetSession = {
   implementation: walletGetSessionHandler,
   hookNames: {
     getCaveatForOrigin: true,
+    getNonEvmSupportedMethods: true,
   },
 };

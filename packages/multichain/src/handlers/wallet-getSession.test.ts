@@ -1,11 +1,11 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 
+import { walletGetSession } from './wallet-getSession';
 import * as PermissionAdapterSessionScopes from '../adapters/caip-permission-adapter-session-scopes';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { walletGetSession } from './wallet-getSession';
 
 jest.mock('../adapters/caip-permission-adapter-session-scopes', () => ({
   getSessionScopes: jest.fn(),
@@ -25,6 +25,7 @@ const baseRequest: JsonRpcRequest & { origin: string } = {
 const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
+  const getNonEvmSupportedMethods = jest.fn();
   const getCaveatForOrigin = jest.fn().mockReturnValue({
     value: {
       requiredScopes: {
@@ -55,6 +56,7 @@ const createMockedHandler = () => {
   const handler = (request: JsonRpcRequest & { origin: string }) =>
     walletGetSession.implementation(request, response, next, end, {
       getCaveatForOrigin,
+      getNonEvmSupportedMethods,
     });
 
   return {
@@ -62,6 +64,7 @@ const createMockedHandler = () => {
     response,
     end,
     getCaveatForOrigin,
+    getNonEvmSupportedMethods,
     handler,
   };
 };
@@ -90,29 +93,34 @@ describe('wallet_getSession', () => {
   });
 
   it('gets the session scopes from the CAIP-25 caveat value', async () => {
-    const { handler } = createMockedHandler();
+    const { handler, getNonEvmSupportedMethods } = createMockedHandler();
 
     await handler(baseRequest);
     expect(
       MockPermissionAdapterSessionScopes.getSessionScopes,
-    ).toHaveBeenCalledWith({
-      requiredScopes: {
-        'eip155:1': {
-          accounts: [],
+    ).toHaveBeenCalledWith(
+      {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+          'eip155:5': {
+            accounts: [],
+          },
         },
-        'eip155:5': {
-          accounts: [],
+        optionalScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+          wallet: {
+            accounts: [],
+          },
         },
       },
-      optionalScopes: {
-        'eip155:1': {
-          accounts: [],
-        },
-        wallet: {
-          accounts: [],
-        },
+      {
+        getNonEvmSupportedMethods,
       },
-    });
+    );
   });
 
   it('returns the session scopes', async () => {

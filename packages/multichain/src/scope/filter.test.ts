@@ -1,8 +1,5 @@
 import * as Assert from './assert';
-import {
-  bucketScopesBySupport,
-  getSupportedScopeObjects,
-} from './filter';
+import { bucketScopesBySupport, getSupportedScopeObjects } from './filter';
 import * as Supported from './supported';
 
 jest.mock('./assert', () => ({
@@ -20,7 +17,9 @@ const MockSupported = jest.mocked(Supported);
 
 describe('filter', () => {
   describe('bucketScopesBySupport', () => {
-    const isChainIdSupported = jest.fn();
+    const isEvmChainIdSupported = jest.fn();
+    const isNonEvmScopeSupported = jest.fn();
+    const getNonEvmSupportedMethods = jest.fn();
 
     it('checks if each scope is supported', () => {
       bucketScopesBySupport(
@@ -36,7 +35,11 @@ describe('filter', () => {
             accounts: [],
           },
         },
-        { isChainIdSupported },
+        {
+          isEvmChainIdSupported,
+          isNonEvmScopeSupported,
+          getNonEvmSupportedMethods,
+        },
       );
 
       expect(MockAssert.assertScopeSupported).toHaveBeenCalledWith(
@@ -46,7 +49,11 @@ describe('filter', () => {
           notifications: [],
           accounts: [],
         },
-        { isChainIdSupported },
+        {
+          isEvmChainIdSupported,
+          isNonEvmScopeSupported,
+          getNonEvmSupportedMethods,
+        },
       );
       expect(MockAssert.assertScopeSupported).toHaveBeenCalledWith(
         'eip155:5',
@@ -55,7 +62,11 @@ describe('filter', () => {
           notifications: [],
           accounts: [],
         },
-        { isChainIdSupported },
+        {
+          isEvmChainIdSupported,
+          isNonEvmScopeSupported,
+          getNonEvmSupportedMethods,
+        },
       );
     });
 
@@ -80,7 +91,11 @@ describe('filter', () => {
               accounts: [],
             },
           },
-          { isChainIdSupported },
+          {
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+            getNonEvmSupportedMethods,
+          },
         ),
       ).toStrictEqual({
         supportedScopes: {
@@ -102,36 +117,55 @@ describe('filter', () => {
   });
 
   describe('getSupportedScopeObjects', () => {
+    const getNonEvmSupportedMethods = jest.fn();
+
     it('checks if each scopeObject method is supported', () => {
-      getSupportedScopeObjects({
-        'eip155:1': {
-          methods: ['method1', 'method2'],
-          notifications: [],
-          accounts: [],
+      getSupportedScopeObjects(
+        {
+          'eip155:1': {
+            methods: ['method1', 'method2'],
+            notifications: [],
+            accounts: [],
+          },
+          'eip155:5': {
+            methods: ['methodA', 'methodB'],
+            notifications: [],
+            accounts: [],
+          },
         },
-        'eip155:5': {
-          methods: ['methodA', 'methodB'],
-          notifications: [],
-          accounts: [],
+        {
+          getNonEvmSupportedMethods,
         },
-      });
+      );
 
       expect(MockSupported.isSupportedMethod).toHaveBeenCalledTimes(4);
       expect(MockSupported.isSupportedMethod).toHaveBeenCalledWith(
         'eip155:1',
         'method1',
+        {
+          getNonEvmSupportedMethods,
+        },
       );
       expect(MockSupported.isSupportedMethod).toHaveBeenCalledWith(
         'eip155:1',
         'method2',
+        {
+          getNonEvmSupportedMethods,
+        },
       );
       expect(MockSupported.isSupportedMethod).toHaveBeenCalledWith(
         'eip155:5',
         'methodA',
+        {
+          getNonEvmSupportedMethods,
+        },
       );
       expect(MockSupported.isSupportedMethod).toHaveBeenCalledWith(
         'eip155:5',
         'methodB',
+        {
+          getNonEvmSupportedMethods,
+        },
       );
     });
 
@@ -148,18 +182,23 @@ describe('filter', () => {
         },
       );
 
-      const result = getSupportedScopeObjects({
-        'eip155:1': {
-          methods: ['method1', 'method2'],
-          notifications: [],
-          accounts: [],
+      const result = getSupportedScopeObjects(
+        {
+          'eip155:1': {
+            methods: ['method1', 'method2'],
+            notifications: [],
+            accounts: [],
+          },
+          'eip155:5': {
+            methods: ['methodA', 'methodB'],
+            notifications: [],
+            accounts: [],
+          },
         },
-        'eip155:5': {
-          methods: ['methodA', 'methodB'],
-          notifications: [],
-          accounts: [],
+        {
+          getNonEvmSupportedMethods,
         },
-      });
+      );
 
       expect(result).toStrictEqual({
         'eip155:1': {
@@ -176,18 +215,23 @@ describe('filter', () => {
     });
 
     it('checks if each scopeObject notification is supported', () => {
-      getSupportedScopeObjects({
-        'eip155:1': {
-          methods: [],
-          notifications: ['notification1', 'notification2'],
-          accounts: [],
+      getSupportedScopeObjects(
+        {
+          'eip155:1': {
+            methods: [],
+            notifications: ['notification1', 'notification2'],
+            accounts: [],
+          },
+          'eip155:5': {
+            methods: [],
+            notifications: ['notificationA', 'notificationB'],
+            accounts: [],
+          },
         },
-        'eip155:5': {
-          methods: [],
-          notifications: ['notificationA', 'notificationB'],
-          accounts: [],
+        {
+          getNonEvmSupportedMethods,
         },
-      });
+      );
 
       expect(MockSupported.isSupportedNotification).toHaveBeenCalledTimes(4);
       expect(MockSupported.isSupportedNotification).toHaveBeenCalledWith(
@@ -221,18 +265,23 @@ describe('filter', () => {
         },
       );
 
-      const result = getSupportedScopeObjects({
-        'eip155:1': {
-          methods: [],
-          notifications: ['notification1', 'notification2'],
-          accounts: [],
+      const result = getSupportedScopeObjects(
+        {
+          'eip155:1': {
+            methods: [],
+            notifications: ['notification1', 'notification2'],
+            accounts: [],
+          },
+          'eip155:5': {
+            methods: [],
+            notifications: ['notificationA', 'notificationB'],
+            accounts: [],
+          },
         },
-        'eip155:5': {
-          methods: [],
-          notifications: ['notificationA', 'notificationB'],
-          accounts: [],
+        {
+          getNonEvmSupportedMethods,
         },
-      });
+      );
 
       expect(result).toStrictEqual({
         'eip155:1': {
@@ -249,18 +298,23 @@ describe('filter', () => {
     });
 
     it('does not modify accounts', () => {
-      const result = getSupportedScopeObjects({
-        'eip155:1': {
-          methods: [],
-          notifications: [],
-          accounts: ['eip155:1:0xdeadbeef'],
+      const result = getSupportedScopeObjects(
+        {
+          'eip155:1': {
+            methods: [],
+            notifications: [],
+            accounts: ['eip155:1:0xdeadbeef'],
+          },
+          'eip155:5': {
+            methods: [],
+            notifications: [],
+            accounts: ['eip155:5:0xdeadbeef'],
+          },
         },
-        'eip155:5': {
-          methods: [],
-          notifications: [],
-          accounts: ['eip155:5:0xdeadbeef'],
+        {
+          getNonEvmSupportedMethods,
         },
-      });
+      );
 
       expect(result).toStrictEqual({
         'eip155:1': {
