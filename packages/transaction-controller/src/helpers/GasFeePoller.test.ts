@@ -1,6 +1,7 @@
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
+import { GasFeePoller, updateTransactionGasFees } from './GasFeePoller';
 import { flushPromises } from '../../../../tests/helpers';
 import type { GasFeeFlowResponse, Layer1GasFeeFlow } from '../types';
 import {
@@ -14,7 +15,6 @@ import {
   type TransactionMeta,
 } from '../types';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
-import { GasFeePoller, updateTransactionGasFees } from './GasFeePoller';
 
 jest.mock('../utils/layer1-gas-fee-flow', () => ({
   getTransactionLayer1GasFee: jest.fn(),

@@ -3803,6 +3803,7 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates,
