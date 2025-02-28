@@ -320,6 +320,7 @@ export async function updateTransactionGasFees({
   gasFeeEstimates,
   gasFeeEstimatesLoaded,
   getEIP1559Compatibility,
+  isTxParamsGasFeeUpdatesEnabled,
   layer1GasFee,
 }: {
   txMeta: TransactionMeta;
@@ -328,6 +329,7 @@ export async function updateTransactionGasFees({
   getEIP1559Compatibility: (
     networkClientId: NetworkClientId,
   ) => Promise<boolean>;
+  isTxParamsGasFeeUpdatesEnabled: boolean;
   layer1GasFee?: Hex;
 }) {
   const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
@@ -335,11 +337,11 @@ export async function updateTransactionGasFees({
     Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
   const { type: gasEstimateType } = gasFeeEstimates ?? {};
 
-  if (isUsingGasFeeEstimateLevel) {
+  if (isTxParamsGasFeeUpdatesEnabled && isUsingGasFeeEstimateLevel) {
     const isEIP1559Compatible =
       txMeta.txParams.type !== TransactionEnvelopeType.legacy &&
       (await getEIP1559Compatibility(txMeta.networkClientId));
-      
+
     if (isEIP1559Compatible) {
       if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
         const feeMarketGasFeeEstimates =

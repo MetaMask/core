@@ -269,6 +269,9 @@ export type TransactionControllerOptions = {
   /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
 
+  /** Whether to enable gas fee updates. */
+  enableTxParamsGasFeeUpdates?: boolean;
+
   /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
 
@@ -627,6 +630,8 @@ export class TransactionController extends BaseController<
 
   private readonly isSendFlowHistoryDisabled: boolean;
 
+  private readonly isTxParamsGasFeeUpdatesEnabled: boolean;
+
   private readonly approvingTransactionIds: Set<string> = new Set();
 
   readonly #methodDataHelper: MethodDataHelper;
@@ -778,6 +783,7 @@ export class TransactionController extends BaseController<
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
+      enableTxParamsGasFeeUpdates,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getExternalPendingTransactions,
@@ -811,6 +817,7 @@ export class TransactionController extends BaseController<
     });
 
     this.messagingSystem = messenger;
+    this.isTxParamsGasFeeUpdatesEnabled = enableTxParamsGasFeeUpdates ?? false;
     this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -3801,6 +3808,7 @@ export class TransactionController extends BaseController<
           gasFeeEstimates,
           gasFeeEstimatesLoaded,
           getEIP1559Compatibility: this.getEIP1559Compatibility.bind(this),
+          isTxParamsGasFeeUpdatesEnabled: this.isTxParamsGasFeeUpdatesEnabled,
           layer1GasFee,
         });
       },
