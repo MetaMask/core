@@ -15,9 +15,18 @@ import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
+  GasPriceGasFeeEstimates,
+  FeeMarketGasFeeEstimates,
   Layer1GasFeeFlow,
+  LegacyGasFeeEstimates,
+  TransactionMeta,
 } from '../types';
-import { TransactionStatus, type TransactionMeta } from '../types';
+import {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  TransactionStatus,
+  TransactionEnvelopeType,
+} from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
@@ -294,5 +303,76 @@ export class GasFeePoller {
     );
 
     return new Map(await Promise.all(entryPromises));
+  }
+}
+
+/**
+ * Update the gas fees for a transaction.
+ *
+ * @param args - Argument bag.
+ * @param args.txMeta - The transaction meta.
+ * @param args.gasFeeEstimates - The gas fee estimates.
+ * @param args.gasFeeEstimatesLoaded - Whether the gas fee estimates are loaded.
+ * @param args.layer1GasFee - The layer 1 gas fee.
+ */
+export async function updateTransactionGasFees({
+  txMeta,
+  gasFeeEstimates,
+  gasFeeEstimatesLoaded,
+  getEIP1559Compatibility,
+  layer1GasFee,
+}: {
+  txMeta: TransactionMeta;
+  gasFeeEstimates?: GasFeeEstimates;
+  gasFeeEstimatesLoaded?: boolean;
+  getEIP1559Compatibility: (
+    networkClientId: NetworkClientId,
+  ) => Promise<boolean>;
+  layer1GasFee?: Hex;
+}) {
+  const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
+  const isUsingGasFeeEstimateLevel =
+    Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
+  const { type: gasEstimateType } = gasFeeEstimates ?? {};
+
+  if (isUsingGasFeeEstimateLevel) {
+    const isEIP1559Compatible =
+      txMeta.txParams.type !== TransactionEnvelopeType.legacy &&
+      (await getEIP1559Compatibility(txMeta.networkClientId));
+      
+    if (isEIP1559Compatible) {
+      if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+        const feeMarketGasFeeEstimates =
+          gasFeeEstimates as FeeMarketGasFeeEstimates;
+
+        txMeta.txParams.maxFeePerGas =
+          feeMarketGasFeeEstimates[userFeeLevel].maxFeePerGas;
+        txMeta.txParams.maxPriorityFeePerGas =
+          feeMarketGasFeeEstimates[userFeeLevel].maxPriorityFeePerGas;
+      }
+
+      if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+        const gasPriceGasFeeEstimates =
+          gasFeeEstimates as GasPriceGasFeeEstimates;
+
+        txMeta.txParams.maxFeePerGas = gasPriceGasFeeEstimates.gasPrice;
+        txMeta.txParams.maxPriorityFeePerGas = gasPriceGasFeeEstimates.gasPrice;
+      }
+    } else {
+      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      txMeta.txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
+    }
+  }
+
+  if (gasFeeEstimates) {
+    txMeta.gasFeeEstimates = gasFeeEstimates;
+  }
+
+  if (gasFeeEstimatesLoaded !== undefined) {
+    txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+  }
+
+  if (layer1GasFee) {
+    txMeta.layer1GasFee = layer1GasFee;
   }
 }

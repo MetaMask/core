@@ -63,7 +63,7 @@ import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
-import { GasFeePoller } from './helpers/GasFeePoller';
+import { GasFeePoller, updateTransactionGasFees } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
@@ -3796,17 +3796,13 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        if (gasFeeEstimates) {
-          txMeta.gasFeeEstimates = gasFeeEstimates;
-        }
-
-        if (gasFeeEstimatesLoaded !== undefined) {
-          txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
-        }
-
-        if (layer1GasFee) {
-          txMeta.layer1GasFee = layer1GasFee;
-        }
+        updateTransactionGasFees({
+          txMeta,
+          gasFeeEstimates,
+          gasFeeEstimatesLoaded,
+          getEIP1559Compatibility: this.getEIP1559Compatibility.bind(this),
+          layer1GasFee,
+        });
       },
     );
   }
