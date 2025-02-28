@@ -2,7 +2,6 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { omit } from 'lodash';
 
 import { projectLogger } from '../logger';
 import type {
@@ -103,7 +102,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     transactionMeta: TransactionMeta,
   ): TransactionMeta['txParams'] {
     return {
-      ...omit(transactionMeta.txParams, 'gas'),
+      ...transactionMeta.txParams,
       gasLimit: transactionMeta.txParams.gas,
     };
   }
