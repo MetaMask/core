@@ -542,7 +542,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
    * @param response - The response object.
    * @param middleware - The middleware function to execute.
    * @param returnHandlers - The return handlers array for the current request.
-   * @returns An array of any error encountered during middleware exection,
+   * @returns An array of any error encountered during middleware execution,
    * and a boolean indicating whether the request should end.
    */
   static async #runMiddleware(
