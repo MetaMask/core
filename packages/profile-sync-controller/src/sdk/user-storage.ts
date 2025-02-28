@@ -11,6 +11,7 @@ import type {
   UserStorageGenericPathWithFeatureOnly,
 } from '../shared/storage-schema';
 import { createEntryPath } from '../shared/storage-schema';
+import type { NativeScrypt } from '../shared/types/encryption';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
   `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;
@@ -35,6 +36,11 @@ export type GetUserStorageAllFeatureEntriesResponse = {
   Data: string;
 }[];
 
+export type UserStorageMethodOptions = {
+  validateAgainstSchema?: boolean;
+  nativeScryptCrypto?: NativeScrypt;
+};
+
 type ErrorMessage = {
   message: string;
   error: string;
@@ -56,33 +62,38 @@ export class UserStorage {
   async setItem(
     path: UserStorageGenericPathWithFeatureAndKey,
     value: string,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
-    await this.#upsertUserStorage(path, value);
+    await this.#upsertUserStorage(path, value, options);
   }
 
   async batchSetItems(
     path: UserStorageGenericFeatureName,
     values: [UserStorageGenericFeatureKey, string][],
+    options?: UserStorageMethodOptions,
   ) {
-    await this.#batchUpsertUserStorage(path, values);
+    await this.#batchUpsertUserStorage(path, values, options);
   }
 
   async getItem(
     path: UserStorageGenericPathWithFeatureAndKey,
-  ): Promise<string> {
-    return this.#getUserStorage(path);
+    options?: UserStorageMethodOptions,
+  ): Promise<string | null> {
+    return this.#getUserStorage(path, options);
   }
 
   async getAllFeatureItems(
     path: UserStorageGenericFeatureName,
+    options?: UserStorageMethodOptions,
   ): Promise<string[] | null> {
-    return this.#getUserStorageAllFeatureEntries(path);
+    return this.#getUserStorageAllFeatureEntries(path, options);
   }
 
   async deleteItem(
     path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
-    return this.#deleteUserStorage(path);
+    return this.#deleteUserStorage(path, options);
   }
 
   async deleteAllFeatureItems(
@@ -116,13 +127,18 @@ export class UserStorage {
   async #upsertUserStorage(
     path: UserStorageGenericPathWithFeatureAndKey,
     data: string,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
-      const encryptedData = await encryption.encryptString(data, storageKey);
+      const encryptedData = await encryption.encryptString(
+        data,
+        storageKey,
+        options?.nativeScryptCrypto,
+      );
       const encryptedPath = createEntryPath(path, storageKey, {
-        validateAgainstSchema: false,
+        validateAgainstSchema: Boolean(options?.validateAgainstSchema),
       });
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
@@ -158,6 +174,7 @@ export class UserStorage {
   async #batchUpsertUserStorage(
     path: UserStorageGenericPathWithFeatureOnly,
     data: [string, string][],
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
       if (!data.length) {
@@ -171,7 +188,11 @@ export class UserStorage {
         data.map(async (d) => {
           return [
             this.#createEntryKey(d[0], storageKey),
-            await encryption.encryptString(d[1], storageKey),
+            await encryption.encryptString(
+              d[1],
+              storageKey,
+              options?.nativeScryptCrypto,
+            ),
           ];
         }),
       );
@@ -249,12 +270,13 @@ export class UserStorage {
 
   async #getUserStorage(
     path: UserStorageGenericPathWithFeatureAndKey,
-  ): Promise<string> {
+    options?: UserStorageMethodOptions,
+  ): Promise<string | null> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
       const encryptedPath = createEntryPath(path, storageKey, {
-        validateAgainstSchema: false,
+        validateAgainstSchema: Boolean(options?.validateAgainstSchema),
       });
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
@@ -267,9 +289,7 @@ export class UserStorage {
       });
 
       if (response.status === 404) {
-        throw new NotFoundError(
-          `feature/key set not found for path '${path}'.`,
-        );
+        return null;
       }
 
       if (!response.ok) {
@@ -283,12 +303,13 @@ export class UserStorage {
       const decryptedData = await encryption.decryptString(
         encryptedData,
         storageKey,
+        options?.nativeScryptCrypto,
       );
 
       // Re-encrypt the entry if it was encrypted with a random salt
       const salt = encryption.getSalt(encryptedData);
       if (salt.toString() !== SHARED_SALT.toString()) {
-        await this.#upsertUserStorage(path, decryptedData);
+        await this.#upsertUserStorage(path, decryptedData, options);
       }
 
       return decryptedData;
@@ -309,6 +330,7 @@ export class UserStorage {
 
   async #getUserStorageAllFeatureEntries(
     path: UserStorageGenericPathWithFeatureOnly,
+    options?: UserStorageMethodOptions,
   ): Promise<string[] | null> {
     try {
       const headers = await this.#getAuthorizationHeader();
@@ -324,7 +346,7 @@ export class UserStorage {
       });
 
       if (response.status === 404) {
-        throw new NotFoundError(`feature not found for path '${path}'.`);
+        return null;
       }
 
       if (!response.ok) {
@@ -350,7 +372,11 @@ export class UserStorage {
         }
 
         try {
-          const data = await encryption.decryptString(entry.Data, storageKey);
+          const data = await encryption.decryptString(
+            entry.Data,
+            storageKey,
+            options?.nativeScryptCrypto,
+          );
           decryptedData.push(data);
 
           // Re-encrypt the entry was encrypted with a random salt
@@ -358,7 +384,11 @@ export class UserStorage {
           if (salt.toString() !== SHARED_SALT.toString()) {
             reEncryptedEntries.push([
               entry.HashedKey,
-              await encryption.encryptString(data, storageKey),
+              await encryption.encryptString(
+                data,
+                storageKey,
+                options?.nativeScryptCrypto,
+              ),
             ]);
           }
         } catch {
@@ -392,12 +422,13 @@ export class UserStorage {
 
   async #deleteUserStorage(
     path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
       const encryptedPath = createEntryPath(path, storageKey, {
-        validateAgainstSchema: false,
+        validateAgainstSchema: Boolean(options?.validateAgainstSchema),
       });
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
@@ -529,8 +560,6 @@ export class UserStorage {
     const hashedKey = createSHA256Hash(key + storageKey);
     return hashedKey;
   }
-
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.config.auth.getAccessToken();

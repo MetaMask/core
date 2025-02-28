@@ -36,16 +36,7 @@ import {
   performMainNetworkSync,
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
-import {
-  batchDeleteUserStorage,
-  batchUpsertUserStorage,
-  deleteUserStorage,
-  deleteUserStorageAllFeatureEntries,
-  getUserStorage,
-  getUserStorageAllFeatureEntries,
-  upsertUserStorage,
-} from './services';
-import { createSHA256Hash } from '../../shared/encryption';
+import { Env, UserStorage } from '../../sdk';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import {
   type UserStoragePathWithFeatureAndKey,
@@ -298,6 +289,8 @@ export default class UserStorageController extends BaseController<
     isNetworkSyncingEnabled: false,
   };
 
+  readonly #userStorage: UserStorage;
+
   readonly #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
@@ -328,6 +321,8 @@ export default class UserStorageController extends BaseController<
   readonly #config?: ControllerConfig;
 
   #isUnlocked = false;
+
+  #storageKeyCache: string | null = null;
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -374,6 +369,33 @@ export default class UserStorageController extends BaseController<
     this.#env.isAccountSyncingEnabled = Boolean(env?.isAccountSyncingEnabled);
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
+
+    this.#userStorage = new UserStorage(
+      {
+        env: Env.PRD,
+        auth: {
+          getAccessToken: () =>
+            this.messagingSystem.call(
+              'AuthenticationController:getBearerToken',
+            ),
+          getUserProfile: async () => {
+            return await this.messagingSystem.call(
+              'AuthenticationController:getSessionProfile',
+            );
+          },
+          signMessage: (message) =>
+            this.#snapSignMessage(message as `metamask:${string}`),
+        },
+      },
+      {
+        storage: {
+          getStorageKey: async () => this.#storageKeyCache,
+          setStorageKey: async (key) => {
+            this.#storageKeyCache = key;
+          },
+        },
+      },
+    );
 
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
@@ -476,6 +498,177 @@ export default class UserStorageController extends BaseController<
     };
   }
 
+  /**
+   * Allows retrieval of stored data. Data stored is string formatted.
+   * Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @returns the decrypted string contents found from user storage (or null if not found)
+   */
+  public async performGetStorage(
+    path: UserStoragePathWithFeatureAndKey,
+  ): Promise<string | null> {
+    return await this.#userStorage.getItem(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
+    });
+  }
+
+  /**
+   * Allows retrieval of all stored data for a specific feature. Data stored is formatted as an array of strings.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @returns the array of decrypted string contents found from user storage (or null if not found)
+   */
+  public async performGetStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<string[] | null> {
+    return await this.#userStorage.getAllFeatureItems(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
+    });
+  }
+
+  /**
+   * Allows storage of user data. Data stored must be string formatted.
+   * Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param value - The string data you want to store.
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performSetStorage(
+    path: UserStoragePathWithFeatureAndKey,
+    value: string,
+  ): Promise<void> {
+    return await this.#userStorage.setItem(path, value, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
+    });
+  }
+
+  /**
+   * Allows storage of multiple user data entries for one specific feature. Data stored must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchSetStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: [UserStorageFeatureKeys<FeatureName>, string][],
+  ): Promise<void> {
+    return await this.#userStorage.batchSetItems(path, values, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
+    });
+  }
+
+  /**
+   * Allows deletion of user data. Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorage(
+    path: UserStoragePathWithFeatureAndKey,
+  ): Promise<void> {
+    return await this.#userStorage.deleteItem(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
+    });
+  }
+
+  /**
+   * Allows deletion of all user data entries for a specific feature.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    return await this.#userStorage.deleteAllFeatureItems(path);
+  }
+
+  /**
+   * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of entryKey[]
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchDeleteStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: UserStorageFeatureKeys<FeatureName>[],
+  ): Promise<void> {
+    return await this.#userStorage.batchDeleteItems(path, values);
+  }
+
+  /**
+   * Retrieves the storage key, for internal use only!
+   *
+   * @returns the storage key
+   */
+  public async getStorageKey(): Promise<string> {
+    return await this.#userStorage.getStorageKey();
+  }
+
+  /**
+   * Utility to get the bearer token and storage key
+   *
+   * @returns the bearer token and storage key
+   */
+  async #getStorageKeyAndBearerToken(): Promise<{
+    bearerToken: string;
+    storageKey: string;
+  }> {
+    const bearerToken = await this.#auth.getBearerToken();
+    if (!bearerToken) {
+      throw new Error('UserStorageController - unable to get bearer token');
+    }
+    const storageKey = await this.getStorageKey();
+
+    return { bearerToken, storageKey };
+  }
+
+  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
+
+  /**
+   * Signs a specific message using an underlying auth snap.
+   *
+   * @param message - A specific tagged message to sign.
+   * @returns A Signature created by the snap.
+   */
+  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
+    if (this.#_snapSignMessageCache[message]) {
+      return this.#_snapSignMessageCache[message];
+    }
+
+    if (!this.#isUnlocked) {
+      throw new Error(
+        '#snapSignMessage - unable to call snap, wallet is locked',
+      );
+    }
+
+    const result = (await this.messagingSystem.call(
+      'SnapController:handleRequest',
+      createSnapSignMessageRequest(message),
+    )) as string;
+
+    this.#_snapSignMessageCache[message] = result;
+
+    return result;
+  }
+
   public async enableProfileSyncing(): Promise<void> {
     try {
       this.#setIsProfileSyncingUpdateLoading(true);
@@ -520,237 +713,6 @@ export default class UserStorageController extends BaseController<
         `${controllerName} - failed to disable profile syncing - ${errorMessage}`,
       );
     }
-  }
-
-  /**
-   * Allows retrieval of stored data. Data stored is string formatted.
-   * Developers can extend the entry path and entry name through the `schema.ts` file.
-   *
-   * @param path - string in the form of `${feature}.${key}` that matches schema
-   * @returns the decrypted string contents found from user storage (or null if not found)
-   */
-  public async performGetStorage(
-    path: UserStoragePathWithFeatureAndKey,
-  ): Promise<string | null> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    const result = await getUserStorage({
-      path,
-      bearerToken,
-      storageKey,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    });
-
-    return result;
-  }
-
-  /**
-   * Allows retrieval of all stored data for a specific feature. Data stored is formatted as an array of strings.
-   * Developers can extend the entry path through the `schema.ts` file.
-   *
-   * @param path - string in the form of `${feature}` that matches schema
-   * @returns the array of decrypted string contents found from user storage (or null if not found)
-   */
-  public async performGetStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
-  ): Promise<string[] | null> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    const result = await getUserStorageAllFeatureEntries({
-      path,
-      bearerToken,
-      storageKey,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    });
-
-    return result;
-  }
-
-  /**
-   * Allows storage of user data. Data stored must be string formatted.
-   * Developers can extend the entry path and entry name through the `schema.ts` file.
-   *
-   * @param path - string in the form of `${feature}.${key}` that matches schema
-   * @param value - The string data you want to store.
-   * @returns nothing. NOTE that an error is thrown if fails to store data.
-   */
-  public async performSetStorage(
-    path: UserStoragePathWithFeatureAndKey,
-    value: string,
-  ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await upsertUserStorage(value, {
-      path,
-      bearerToken,
-      storageKey,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    });
-  }
-
-  /**
-   * Allows storage of multiple user data entries for one specific feature. Data stored must be string formatted.
-   * Developers can extend the entry path through the `schema.ts` file.
-   *
-   * @param path - string in the form of `${feature}` that matches schema
-   * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
-   * @returns nothing. NOTE that an error is thrown if fails to store data.
-   */
-  public async performBatchSetStorage<
-    FeatureName extends UserStoragePathWithFeatureOnly,
-  >(
-    path: FeatureName,
-    values: [UserStorageFeatureKeys<FeatureName>, string][],
-  ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await batchUpsertUserStorage(values, {
-      path,
-      bearerToken,
-      storageKey,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    });
-  }
-
-  /**
-   * Allows deletion of user data. Developers can extend the entry path and entry name through the `schema.ts` file.
-   *
-   * @param path - string in the form of `${feature}.${key}` that matches schema
-   * @returns nothing. NOTE that an error is thrown if fails to delete data.
-   */
-  public async performDeleteStorage(
-    path: UserStoragePathWithFeatureAndKey,
-  ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await deleteUserStorage({
-      path,
-      bearerToken,
-      storageKey,
-    });
-  }
-
-  /**
-   * Allows deletion of all user data entries for a specific feature.
-   * Developers can extend the entry path through the `schema.ts` file.
-   *
-   * @param path - string in the form of `${feature}` that matches schema
-   * @returns nothing. NOTE that an error is thrown if fails to delete data.
-   */
-  public async performDeleteStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
-  ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await deleteUserStorageAllFeatureEntries({
-      path,
-      bearerToken,
-      storageKey,
-    });
-  }
-
-  /**
-   * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
-   * Developers can extend the entry path through the `schema.ts` file.
-   *
-   * @param path - string in the form of `${feature}` that matches schema
-   * @param values - data to store, in the form of an array of entryKey[]
-   * @returns nothing. NOTE that an error is thrown if fails to store data.
-   */
-  public async performBatchDeleteStorage<
-    FeatureName extends UserStoragePathWithFeatureOnly,
-  >(
-    path: FeatureName,
-    values: UserStorageFeatureKeys<FeatureName>[],
-  ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await batchDeleteUserStorage(values, {
-      path,
-      bearerToken,
-      storageKey,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    });
-  }
-
-  /**
-   * Retrieves the storage key, for internal use only!
-   *
-   * @returns the storage key
-   */
-  public async getStorageKey(): Promise<string> {
-    const storageKey = await this.#createStorageKey();
-    return storageKey;
-  }
-
-  /**
-   * Utility to get the bearer token and storage key
-   *
-   * @returns the bearer token and storage key
-   */
-  async #getStorageKeyAndBearerToken(): Promise<{
-    bearerToken: string;
-    storageKey: string;
-  }> {
-    const bearerToken = await this.#auth.getBearerToken();
-    if (!bearerToken) {
-      throw new Error('UserStorageController - unable to get bearer token');
-    }
-    const storageKey = await this.#createStorageKey();
-
-    return { bearerToken, storageKey };
-  }
-
-  /**
-   * Rather than storing the storage key, we can compute the storage key when needed.
-   *
-   * @returns the storage key
-   */
-  async #createStorageKey(): Promise<string> {
-    const id: string = await this.#auth.getProfileId();
-    if (!id) {
-      throw new Error('UserStorageController - unable to create storage key');
-    }
-
-    const storageKeySignature = await this.#snapSignMessage(`metamask:${id}`);
-    const storageKey = createSHA256Hash(storageKeySignature);
-    return storageKey;
-  }
-
-  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
-
-  /**
-   * Signs a specific message using an underlying auth snap.
-   *
-   * @param message - A specific tagged message to sign.
-   * @returns A Signature created by the snap.
-   */
-  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
-    if (this.#_snapSignMessageCache[message]) {
-      return this.#_snapSignMessageCache[message];
-    }
-
-    if (!this.#isUnlocked) {
-      throw new Error(
-        '#snapSignMessage - unable to call snap, wallet is locked',
-      );
-    }
-
-    const result = (await this.messagingSystem.call(
-      'SnapController:handleRequest',
-      createSnapSignMessageRequest(message),
-    )) as string;
-
-    this.#_snapSignMessageCache[message] = result;
-
-    return result;
   }
 
   #setIsProfileSyncingUpdateLoading(

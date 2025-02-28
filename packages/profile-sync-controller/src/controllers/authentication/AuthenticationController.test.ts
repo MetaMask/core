@@ -1,10 +1,5 @@
 import { Messenger } from '@metamask/base-controller';
 
-import {
-  mockEndpointAccessToken,
-  mockEndpointGetNonce,
-  mockEndpointLogin,
-} from './__fixtures__/mockServices';
 import AuthenticationController from './AuthenticationController';
 import type {
   Actions,
@@ -12,16 +7,25 @@ import type {
   AllowedEvents,
   AuthenticationControllerState,
 } from './AuthenticationController';
-import { MOCK_ACCESS_TOKEN, MOCK_LOGIN_RESPONSE } from './mocks/mockResponses';
+import {
+  MOCK_LOGIN_RESPONSE,
+  MOCK_OATH_TOKEN_RESPONSE,
+} from './mocks/mockResponses';
+import { Platform } from '../../sdk';
+import { arrangeAuthAPIs } from '../../sdk/__fixtures__/mock-auth';
 
 const mockSignedInState = (): AuthenticationControllerState => ({
   isSignedIn: true,
   sessionData: {
-    accessToken: 'MOCK_ACCESS_TOKEN',
-    expiresIn: new Date().toString(),
+    token: {
+      accessToken: MOCK_OATH_TOKEN_RESPONSE.access_token,
+      expiresIn: Date.now() + 3600,
+      obtainedAt: 0,
+    },
     profile: {
       identifierId: MOCK_LOGIN_RESPONSE.profile.identifier_id,
       profileId: MOCK_LOGIN_RESPONSE.profile.profile_id,
+      metaMetricsId: MOCK_LOGIN_RESPONSE.profile.metametrics_id,
     },
   },
 });
@@ -54,7 +58,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
 describe('authentication/authentication-controller - performSignIn() tests', () => {
   it('should create access token and update state', async () => {
     const metametrics = createMockAuthMetaMetrics();
-    const mockEndpoints = mockAuthenticationFlowEndpoints();
+    const mockEndpoints = arrangeAuthAPIs();
     const { messenger, mockSnapGetPublicKey, mockSnapSignMessage } =
       createMockAuthenticationMessenger();
 
@@ -63,10 +67,10 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     const result = await controller.performSignIn();
     expect(mockSnapGetPublicKey).toHaveBeenCalled();
     expect(mockSnapSignMessage).toHaveBeenCalled();
-    mockEndpoints.mockGetNonceEndpoint.done();
-    mockEndpoints.mockLoginEndpoint.done();
-    mockEndpoints.mockAccessTokenEndpoint.done();
-    expect(result).toBe(MOCK_ACCESS_TOKEN);
+    mockEndpoints.mockNonceUrl.done();
+    mockEndpoints.mockSrpLoginUrl.done();
+    mockEndpoints.mockOAuth2TokenUrl.done();
+    expect(result).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
 
     // Assert - state shows user is logged in
     expect(controller.state.isSignedIn).toBe(true);
@@ -121,9 +125,9 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     expect(controller.state.isSignedIn).toBe(false);
 
     const endpointsCalled = [
-      mockEndpoints.mockGetNonceEndpoint.isDone(),
-      mockEndpoints.mockLoginEndpoint.isDone(),
-      mockEndpoints.mockAccessTokenEndpoint.isDone(),
+      mockEndpoints.mockNonceUrl.isDone(),
+      mockEndpoints.mockSrpLoginUrl.isDone(),
+      mockEndpoints.mockOAuth2TokenUrl.isDone(),
     ];
     if (endpointFail === 'nonce') {
       expect(endpointsCalled).toStrictEqual([true, false, false]);
@@ -182,7 +186,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
 
     const result = await controller.getBearerToken();
     expect(result).toBeDefined();
-    expect(result).toBe(originalState.sessionData?.accessToken);
+    expect(result).toBe(originalState.sessionData?.token.accessToken);
   });
 
   it('should return new access token if state is invalid', async () => {
@@ -192,11 +196,12 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
-      originalState.sessionData.accessToken = 'ACCESS_TOKEN_1';
+      originalState.sessionData.token.accessToken =
+        MOCK_OATH_TOKEN_RESPONSE.access_token;
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.expiresIn = d.toString();
+      originalState.sessionData.token.expiresIn = d.getTime();
     }
 
     const controller = new AuthenticationController({
@@ -207,7 +212,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
 
     const result = await controller.getBearerToken();
     expect(result).toBeDefined();
-    expect(result).toBe(MOCK_ACCESS_TOKEN);
+    expect(result).toBe(MOCK_OATH_TOKEN_RESPONSE.access_token);
   });
 
   // If the state is invalid, we need to re-login.
@@ -222,11 +227,11 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
-      originalState.sessionData.accessToken = 'ACCESS_TOKEN_1';
+      originalState.sessionData.token.accessToken = 'ACCESS_TOKEN_1';
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.expiresIn = d.toString();
+      originalState.sessionData.token.expiresIn = d.getTime();
     }
 
     // Mock wallet is locked
@@ -281,11 +286,12 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
-      originalState.sessionData.profile.identifierId = 'ID_1';
+      originalState.sessionData.profile.identifierId =
+        MOCK_LOGIN_RESPONSE.profile.identifier_id;
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.expiresIn = d.toString();
+      originalState.sessionData.token.expiresIn = d.getTime();
     }
 
     const controller = new AuthenticationController({
@@ -312,11 +318,12 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     const originalState = mockSignedInState();
     // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
-      originalState.sessionData.profile.identifierId = 'ID_1';
+      originalState.sessionData.profile.identifierId =
+        MOCK_LOGIN_RESPONSE.profile.identifier_id;
 
       const d = new Date();
       d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
-      originalState.sessionData.expiresIn = d.toString();
+      originalState.sessionData.token.expiresIn = d.getTime();
     }
 
     // Mock wallet is locked
@@ -413,20 +420,21 @@ function createMockAuthenticationMessenger() {
 function mockAuthenticationFlowEndpoints(params?: {
   endpointFail: 'nonce' | 'login' | 'token';
 }) {
-  const mockGetNonceEndpoint = mockEndpointGetNonce(
-    params?.endpointFail === 'nonce' ? { status: 500 } : undefined,
-  );
-  const mockLoginEndpoint = mockEndpointLogin(
-    params?.endpointFail === 'login' ? { status: 500 } : undefined,
-  );
-  const mockAccessTokenEndpoint = mockEndpointAccessToken(
-    params?.endpointFail === 'token' ? { status: 500 } : undefined,
+  const { mockNonceUrl, mockOAuth2TokenUrl, mockSrpLoginUrl } = arrangeAuthAPIs(
+    {
+      mockNonceUrl:
+        params?.endpointFail === 'nonce' ? { status: 500 } : undefined,
+      mockSrpLoginUrl:
+        params?.endpointFail === 'login' ? { status: 500 } : undefined,
+      mockOAuth2TokenUrl:
+        params?.endpointFail === 'token' ? { status: 500 } : undefined,
+    },
   );
 
   return {
-    mockGetNonceEndpoint,
-    mockLoginEndpoint,
-    mockAccessTokenEndpoint,
+    mockNonceUrl,
+    mockOAuth2TokenUrl,
+    mockSrpLoginUrl,
   };
 }
 
@@ -436,7 +444,9 @@ function mockAuthenticationFlowEndpoints(params?: {
  * @returns mock metametrics method
  */
 function createMockAuthMetaMetrics() {
-  const getMetaMetricsId = jest.fn().mockReturnValue('MOCK_METAMETRICS_ID');
+  const getMetaMetricsId = jest
+    .fn()
+    .mockReturnValue(MOCK_LOGIN_RESPONSE.profile.metametrics_id);
 
-  return { getMetaMetricsId, agent: 'extension' as const };
+  return { getMetaMetricsId, agent: Platform.EXTENSION as const };
 }

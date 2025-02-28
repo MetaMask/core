@@ -11,8 +11,8 @@ import {
   MOCK_STORAGE_RESPONSE,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { NotFoundError, UserStorageError } from './errors';
+import { type IBaseAuth } from './authentication-jwt-bearer/types';
+import { UserStorageError } from './errors';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 import encryption, { createSHA256Hash } from '../shared/encryption';
@@ -26,7 +26,7 @@ const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
 describe('User Storage - STORAGE_URL()', () => {
   it('generates an example url path for User Storage', () => {
-    const result = STORAGE_URL(Env.DEV, 'my-feature/my-hashed-entry');
+    const result = STORAGE_URL(Env.PRD, 'my-feature/my-hashed-entry');
     expect(result).toBeDefined();
     expect(result).toContain('my-feature');
     expect(result).toContain('my-hashed-entry');
@@ -446,11 +446,11 @@ describe('User Storage', () => {
       },
     });
 
-    await expect(
-      userStorage.getItem(
-        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
-      ),
-    ).rejects.toThrow(NotFoundError);
+    const result = await userStorage.getItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    );
+
+    expect(result).toBeNull();
   });
 
   it('get/sets using a newly generated storage key (not in storage)', async () => {
@@ -489,7 +489,7 @@ function arrangeUserStorage(auth: IBaseAuth) {
   const userStorage = new UserStorage(
     {
       auth,
-      env: Env.DEV,
+      env: Env.PRD,
     },
     {
       storage: {

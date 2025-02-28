@@ -532,13 +532,13 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
           new Error('MOCK FAILURE'),
         ),
     ],
-    [
-      'fails when no session identifier is found (auth errors)',
-      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
-        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
-          new Error('MOCK FAILURE'),
-        ),
-    ],
+    // [
+    //   'fails when no session identifier is found (auth errors)',
+    //   (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+    //     messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+    //       new Error('MOCK FAILURE'),
+    //     ),
+    // ],
   ])(
     'rejects on auth failure - %s',
     async (

@@ -1,13 +1,12 @@
-import type {
-  LoginResponse,
-  NonceResponse,
-  OAuthTokenResponse,
-} from '../services';
 import {
-  AUTH_LOGIN_ENDPOINT,
-  AUTH_NONCE_ENDPOINT,
-  OIDC_TOKENS_ENDPOINT,
-} from '../services';
+  MOCK_NONCE_RESPONSE as SDK_MOCK_NONCE_RESPONSE,
+  MOCK_JWT as SDK_MOCK_JWT,
+  MOCK_SRP_LOGIN_RESPONSE as SDK_MOCK_SRP_LOGIN_RESPONSE,
+  MOCK_OIDC_TOKEN_RESPONSE as SDK_MOCK_OIDC_TOKEN_RESPONSE,
+  MOCK_NONCE_URL,
+  MOCK_SRP_LOGIN_URL,
+  MOCK_OIDC_TOKEN_URL,
+} from '../../../sdk/__fixtures__/mock-auth';
 
 type MockResponse = {
   url: string;
@@ -15,48 +14,33 @@ type MockResponse = {
   response: unknown;
 };
 
-export const MOCK_NONCE = '4cbfqzoQpcNxVImGv';
-export const MOCK_NONCE_RESPONSE: NonceResponse = {
-  nonce: MOCK_NONCE,
-};
+export const MOCK_NONCE_RESPONSE = SDK_MOCK_NONCE_RESPONSE;
+export const MOCK_NONCE = MOCK_NONCE_RESPONSE.nonce;
+export const MOCK_JWT = SDK_MOCK_JWT;
 
 export const getMockAuthNonceResponse = () => {
   return {
-    url: AUTH_NONCE_ENDPOINT,
+    url: MOCK_NONCE_URL,
     requestMethod: 'GET',
     response: MOCK_NONCE_RESPONSE,
   } satisfies MockResponse;
 };
 
-export const MOCK_JWT =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
-export const MOCK_LOGIN_RESPONSE: LoginResponse = {
-  token: MOCK_JWT,
-  expires_in: new Date().toString(),
-  profile: {
-    identifier_id: 'MOCK_IDENTIFIER',
-    profile_id: 'MOCK_PROFILE_ID',
-  },
-};
+export const MOCK_LOGIN_RESPONSE = SDK_MOCK_SRP_LOGIN_RESPONSE;
 
 export const getMockAuthLoginResponse = () => {
   return {
-    url: AUTH_LOGIN_ENDPOINT,
+    url: MOCK_SRP_LOGIN_URL,
     requestMethod: 'POST',
     response: MOCK_LOGIN_RESPONSE,
   } satisfies MockResponse;
 };
 
-export const MOCK_ACCESS_TOKEN = `MOCK_ACCESS_TOKEN-${MOCK_JWT}`;
-export const MOCK_OATH_TOKEN_RESPONSE: OAuthTokenResponse = {
-  access_token: MOCK_ACCESS_TOKEN,
-
-  expires_in: new Date().getTime(),
-};
+export const MOCK_OATH_TOKEN_RESPONSE = SDK_MOCK_OIDC_TOKEN_RESPONSE;
 
 export const getMockAuthAccessTokenResponse = () => {
   return {
-    url: OIDC_TOKENS_ENDPOINT,
+    url: MOCK_OIDC_TOKEN_URL,
     requestMethod: 'POST',
     response: MOCK_OATH_TOKEN_RESPONSE,
   } satisfies MockResponse;

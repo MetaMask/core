@@ -7,6 +7,7 @@ import type {
   AllowedEvents,
   UserStorageControllerMessenger,
 } from '..';
+import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
 import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
@@ -110,8 +111,9 @@ export function mockUserStorageMessenger(
   const mockAuthGetSessionProfile = typedMockFn(
     'AuthenticationController:getSessionProfile',
   ).mockResolvedValue({
-    identifierId: '',
-    profileId: 'MOCK_PROFILE_ID',
+    identifierId: MOCK_LOGIN_RESPONSE.profile.identifier_id,
+    profileId: MOCK_LOGIN_RESPONSE.profile.profile_id,
+    metaMetricsId: MOCK_LOGIN_RESPONSE.profile.metametrics_id,
   });
 
   const mockAuthPerformSignIn = typedMockFn(
