@@ -29,7 +29,7 @@ export type DeFiPositionsControllerState = {
 
 const controllerMetadata: StateMetadata<DeFiPositionsControllerState> = {
   allDeFiPositions: {
-    persist: true,
+    persist: false,
     anonymous: false,
   },
 };
