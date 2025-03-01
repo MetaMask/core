@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `updateAtomicBatchData` method ([#5380](https://github.com/MetaMask/core/pull/5380))
 - Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
   - Add methods:
     - `addTransactionBatch`
