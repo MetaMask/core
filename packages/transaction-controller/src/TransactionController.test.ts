@@ -6143,7 +6143,7 @@ describe('TransactionController', () => {
      *
      * @returns The controller instance and function result;
      */
-    function updateAtomicBatchDataTemplate() {
+    async function updateAtomicBatchDataTemplate() {
       const { controller } = setupController({
         options: {
           state: {
@@ -6166,7 +6166,7 @@ describe('TransactionController', () => {
         },
       });
 
-      const result = controller.updateAtomicBatchData({
+      const result = await controller.updateAtomicBatchData({
         transactionId: TRANSACTION_META_MOCK.id,
         transactionIndex: 1,
         transactionData: '0x89AB',
@@ -6176,7 +6176,7 @@ describe('TransactionController', () => {
     }
 
     it('updates transaction params', async () => {
-      const { controller } = updateAtomicBatchDataTemplate();
+      const { controller } = await updateAtomicBatchDataTemplate();
 
       expect(controller.state.transactions[0]?.txParams.data).toContain('89ab');
       expect(controller.state.transactions[0]?.txParams.data).not.toContain(
@@ -6185,7 +6185,7 @@ describe('TransactionController', () => {
     });
 
     it('updates nested transaction', async () => {
-      const { controller } = updateAtomicBatchDataTemplate();
+      const { controller } = await updateAtomicBatchDataTemplate();
 
       expect(
         controller.state.transactions[0]?.nestedTransactions?.[1]?.data,
@@ -6193,10 +6193,32 @@ describe('TransactionController', () => {
     });
 
     it('returns updated batch transaction data', async () => {
-      const { result } = updateAtomicBatchDataTemplate();
+      const { result } = await updateAtomicBatchDataTemplate();
 
       expect(result).toContain('89ab');
       expect(result).not.toContain('4567');
+    });
+
+    it('updates gas', async () => {
+      const gasMock = '0x1234';
+      const gasLimitNoBufferMock = '0x123';
+      const simulationFailsMock = { reason: 'testReason', debug: {} };
+
+      updateGasMock.mockImplementationOnce(async (request) => {
+        request.txMeta.txParams.gas = gasMock;
+        request.txMeta.simulationFails = simulationFailsMock;
+        request.txMeta.gasLimitNoBuffer = gasLimitNoBufferMock;
+      });
+
+      const { controller } = await updateAtomicBatchDataTemplate();
+
+      const stateTransaction = controller.state.transactions[0];
+
+      expect(stateTransaction.txParams.gas).toBe(gasMock);
+      expect(stateTransaction.simulationFails).toStrictEqual(
+        simulationFailsMock,
+      );
+      expect(stateTransaction.gasLimitNoBuffer).toBe(gasLimitNoBufferMock);
     });
 
     it('throws if nested transaction does not exist', async () => {
@@ -6208,13 +6230,13 @@ describe('TransactionController', () => {
         },
       });
 
-      expect(() =>
+      await expect(
         controller.updateAtomicBatchData({
           transactionId: TRANSACTION_META_MOCK.id,
           transactionIndex: 0,
           transactionData: '0x89AB',
         }),
-      ).toThrow('Nested transaction not found');
+      ).rejects.toThrow('Nested transaction not found');
     });
 
     it('throws if batch transaction does not exist', async () => {
@@ -6226,13 +6248,15 @@ describe('TransactionController', () => {
         },
       });
 
-      expect(() =>
+      await expect(
         controller.updateAtomicBatchData({
           transactionId: 'invalidId',
           transactionIndex: 0,
           transactionData: '0x89AB',
         }),
-      ).toThrow('Cannot update transaction as ID not found - invalidId');
+      ).rejects.toThrow(
+        'Cannot update transaction as ID not found - invalidId',
+      );
     });
   });
 });

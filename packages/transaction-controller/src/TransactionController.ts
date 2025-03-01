@@ -2363,7 +2363,7 @@ export class TransactionController extends BaseController<
    * @param options.transactionData - New data to set for the nested transaction.
    * @returns The updated data for the atomic batch transaction.
    */
-  updateAtomicBatchData({
+  async updateAtomicBatchData({
     transactionId,
     transactionIndex,
     transactionData,
@@ -2405,6 +2405,29 @@ export class TransactionController extends BaseController<
       },
     );
 
+    const draftTransaction = cloneDeep({
+      ...updatedTransactionMeta,
+      txParams: {
+        ...updatedTransactionMeta.txParams,
+        // Clear existing gas to force estimation
+        gas: undefined,
+      },
+    });
+
+    await this.#updateGasEstimate(draftTransaction);
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateAtomicBatchData - Gas estimate updated',
+      },
+      (transactionMeta) => {
+        transactionMeta.txParams.gas = draftTransaction.txParams.gas;
+        transactionMeta.simulationFails = draftTransaction.simulationFails;
+        transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+      },
+    );
+
     return updatedTransactionMeta.txParams.data as Hex;
   }
 
@@ -2426,24 +2449,14 @@ export class TransactionController extends BaseController<
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId));
 
-    const { networkClientId, chainId } = transactionMeta;
-
-    const isCustomNetwork =
-      this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
-        .configuration.type === NetworkClientType.Custom;
-
+    const { networkClientId } = transactionMeta;
     const ethQuery = this.#getEthQuery({ networkClientId });
     const provider = this.#getProvider({ networkClientId });
 
     await this.#trace(
       { name: 'Update Gas', parentContext: traceContext },
       async () => {
-        await updateGas({
-          ethQuery,
-          chainId,
-          isCustomNetwork,
-          txMeta: transactionMeta,
-        });
+        await this.#updateGasEstimate(transactionMeta);
       },
     );
 
@@ -3921,6 +3934,23 @@ export class TransactionController extends BaseController<
       }
 
       submitHistory.unshift(submitHistoryEntry);
+    });
+  }
+
+  async #updateGasEstimate(transactionMeta: TransactionMeta) {
+    const { chainId, networkClientId } = transactionMeta;
+
+    const isCustomNetwork =
+      this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
+        .configuration.type === NetworkClientType.Custom;
+
+    const ethQuery = this.#getEthQuery({ networkClientId });
+
+    await updateGas({
+      chainId,
+      ethQuery,
+      isCustomNetwork,
+      txMeta: transactionMeta,
     });
   }
 }
