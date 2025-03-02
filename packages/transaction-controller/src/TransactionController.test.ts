@@ -31,6 +31,8 @@ import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
+// Necessary for mocking
+// eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
 import { getAccountAddressRelationship } from './api/accounts-api';
@@ -1231,6 +1233,7 @@ describe('TransactionController', () => {
       firstResult
         .then(() => {
           firstTransactionCompleted = true;
+          return undefined;
         })
         .catch(() => undefined);
 
@@ -1248,6 +1251,7 @@ describe('TransactionController', () => {
       secondResult
         .then(() => {
           secondTransactionCompleted = true;
+          return undefined;
         })
         .catch(() => undefined);
 
