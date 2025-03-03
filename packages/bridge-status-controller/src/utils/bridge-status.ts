@@ -1,7 +1,7 @@
 import type { Quote } from '@metamask/bridge-controller';
 import { getBridgeApiBaseUrl } from '@metamask/bridge-controller';
 
-import { validateResponse, validators } from './validators';
+import { validateBridgeStatusResponse } from './validators';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
@@ -40,29 +40,22 @@ export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
   clientId: string,
   fetchFn: FetchFunction,
-) => {
+): Promise<StatusResponse> => {
   const statusRequestDto = getStatusRequestDto(statusRequest);
   const params = new URLSearchParams(statusRequestDto);
 
   // Fetch
   const url = `${BRIDGE_STATUS_BASE_URL}?${params.toString()}`;
 
-  const rawTxStatus = await fetchFn(url, {
+  const rawTxStatus: unknown = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
   });
 
   // Validate
-  const isValid = validateResponse<StatusResponse, unknown>(
-    validators,
-    rawTxStatus,
-    BRIDGE_STATUS_BASE_URL,
-  );
-  if (!isValid) {
-    throw new Error('Invalid response from bridge');
-  }
+  validateBridgeStatusResponse(rawTxStatus);
 
   // Return
-  return rawTxStatus;
+  return rawTxStatus as StatusResponse;
 };
 
 export const getStatusRequestWithSrcTxHash = (

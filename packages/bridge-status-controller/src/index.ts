@@ -1,7 +1,6 @@
 // Export constants
 export {
   REFRESH_INTERVAL_MS,
-  DEFAULT_BRIDGE_STATUS_STATE,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
 } from './constants';
 
@@ -17,7 +16,6 @@ export type {
   RefuelStatusResponse,
   RefuelData,
   BridgeHistoryItem,
-  BridgeStatusState,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerActions,

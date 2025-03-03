@@ -1,5 +1,4 @@
-import { validateResponse, validators } from './validators';
-import type { StatusResponse } from '../types';
+import { validateBridgeStatusResponse } from './validators';
 
 const BridgeTxStatusResponses = {
   STATUS_PENDING_VALID: {
@@ -221,73 +220,65 @@ describe('validators', () => {
     it.each([
       {
         input: BridgeTxStatusResponses.STATUS_PENDING_VALID,
-        expected: true,
         description: 'valid pending bridge status',
       },
       {
         input: BridgeTxStatusResponses.STATUS_PENDING_VALID_MISSING_FIELDS,
-        expected: true,
         description: 'valid pending bridge status missing fields',
       },
       {
         input: BridgeTxStatusResponses.STATUS_PENDING_VALID_MISSING_FIELDS_2,
-        expected: true,
         description: 'valid pending bridge status missing fields 2',
       },
       {
-        input: BridgeTxStatusResponses.STATUS_PENDING_INVALID_MISSING_FIELDS,
-        expected: false,
-        description: 'pending bridge status with missing fields',
-      },
-      {
         input: BridgeTxStatusResponses.STATUS_COMPLETE_VALID,
-        expected: true,
         description: 'valid complete bridge status',
       },
       {
-        input: BridgeTxStatusResponses.STATUS_COMPLETE_INVALID_MISSING_FIELDS,
-        expected: false,
-        description: 'complete bridge status with missing fields',
-      },
-      {
         input: BridgeTxStatusResponses.STATUS_COMPLETE_VALID_MISSING_FIELDS_2,
-        expected: true,
         description: 'complete bridge status with missing fields 2',
       },
       {
         input: BridgeTxStatusResponses.STATUS_COMPLETE_VALID_MISSING_FIELDS,
-        expected: true,
         description: 'complete bridge status with missing fields',
       },
       {
         input: BridgeTxStatusResponses.STATUS_FAILED_VALID,
-        expected: true,
         description: 'valid failed bridge status',
+      },
+    ])(
+      'should not throw for valid response for $description',
+      ({ input }: { input: unknown }) => {
+        expect(() => validateBridgeStatusResponse(input)).not.toThrow();
+      },
+    );
+
+    it.each([
+      {
+        input: BridgeTxStatusResponses.STATUS_PENDING_INVALID_MISSING_FIELDS,
+        description: 'pending bridge status with missing fields',
+      },
+      {
+        input: BridgeTxStatusResponses.STATUS_COMPLETE_INVALID_MISSING_FIELDS,
+        description: 'complete bridge status with missing fields',
       },
       {
         input: undefined,
-        expected: false,
         description: 'undefined',
       },
       {
         input: null,
-        expected: false,
         description: 'null',
       },
       {
         input: {},
-        expected: false,
         description: 'empty object',
       },
     ])(
-      'should return $expected for $description',
-      ({ input, expected }: { input: unknown; expected: boolean }) => {
-        const res = validateResponse<StatusResponse, unknown>(
-          validators,
-          input,
-          'dummyurl.com',
-        );
-        expect(res).toBe(expected);
+      'should throw for invalid response for $description',
+      ({ input }: { input: unknown }) => {
+        // eslint-disable-next-line jest/require-to-throw-message
+        expect(() => validateBridgeStatusResponse(input)).toThrow();
       },
     );
   });
