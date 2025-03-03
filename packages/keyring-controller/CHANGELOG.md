@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [19.2.1]
-
 ### Changed
 
 - **BREAKING:** `addNewKeyring` method now returns `Promise<KeyringMetadata>` instead of `Promise<unknown>` ([#5372](https://github.com/MetaMask/core/pull/5372))
   - Consumers can use the returned `KeyringMetadata.id` to access the created keyring instance via `withKeyring`.
 - **BREAKING:** `withKeyring` method now requires a callback argument of type `({ keyring: SelectedKeyring; metadata: KeyringMetadata }) => Promise<CallbackResult>` ([#5372](https://github.com/MetaMask/core/pull/5372))
+- Bump `@metamask/keyring-internal-api` from `^4.0.3` to `^5.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+- Bump `@metamask/eth-hd-keyring` from `^10.0.0` to `^11.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+- Bump `@metamask/eth-simple-keyring` from `^8.1.0` to `^9.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+
+## [19.2.1]
+
+### Changed
+
 - Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
 - Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3` ([#5356](https://github.com/MetaMask/core/pull/5356)), ([#5366](https://github.com/MetaMask/core/pull/5366))
 
