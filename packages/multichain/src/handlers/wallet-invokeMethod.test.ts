@@ -1,12 +1,12 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 
+import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
+import { walletInvokeMethod } from './wallet-invokeMethod';
 import * as PermissionAdapterSessionScopes from '../adapters/caip-permission-adapter-session-scopes';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import type { WalletInvokeMethodRequest } from './wallet-invokeMethod';
-import { walletInvokeMethod } from './wallet-invokeMethod';
 
 jest.mock('../adapters/caip-permission-adapter-session-scopes', () => ({
   getSessionScopes: jest.fn(),
@@ -59,25 +59,27 @@ const createMockedHandler = () => {
   const getSelectedNetworkClientId = jest
     .fn()
     .mockReturnValue('selectedNetworkClientId');
+  const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
+  const handleNonEvmRequestForOrigin = jest.fn().mockResolvedValue(null);
+  const response = { jsonrpc: '2.0' as const, id: 1 };
   const handler = (request: WalletInvokeMethodRequest) =>
-    walletInvokeMethod.implementation(
-      request,
-      { jsonrpc: '2.0', id: 1 },
-      next,
-      end,
-      {
-        getCaveatForOrigin,
-        findNetworkClientIdByChainId,
-        getSelectedNetworkClientId,
-      },
-    );
+    walletInvokeMethod.implementation(request, response, next, end, {
+      getCaveatForOrigin,
+      findNetworkClientIdByChainId,
+      getSelectedNetworkClientId,
+      getNonEvmSupportedMethods,
+      handleNonEvmRequestForOrigin,
+    });
 
   return {
+    response,
     next,
     end,
     getCaveatForOrigin,
     findNetworkClientIdByChainId,
     getSelectedNetworkClientId,
+    getNonEvmSupportedMethods,
+    handleNonEvmRequestForOrigin,
     handler,
   };
 };
@@ -100,10 +102,15 @@ describe('wallet_invokeMethod', () => {
         notifications: [],
         accounts: [],
       },
-      'unknown:scope': {
-        methods: ['foobar'],
+      'wallet:eip155': {
+        methods: ['wallet_watchAsset'],
         notifications: [],
         accounts: [],
+      },
+      'nonevm:scope': {
+        methods: ['foobar'],
+        notifications: [],
+        accounts: ['nonevm:scope:0x1'],
       },
     });
   });
@@ -120,29 +127,34 @@ describe('wallet_invokeMethod', () => {
 
   it('gets the session scopes from the CAIP-25 caveat value', async () => {
     const request = createMockedRequest();
-    const { handler } = createMockedHandler();
+    const { handler, getNonEvmSupportedMethods } = createMockedHandler();
     await handler(request);
     expect(
       MockPermissionAdapterSessionScopes.getSessionScopes,
-    ).toHaveBeenCalledWith({
-      requiredScopes: {
-        'eip155:1': {
-          accounts: [],
+    ).toHaveBeenCalledWith(
+      {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+          'eip155:5': {
+            accounts: [],
+          },
         },
-        'eip155:5': {
-          accounts: [],
+        optionalScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+          wallet: {
+            accounts: [],
+          },
         },
+        isMultichainOrigin: true,
       },
-      optionalScopes: {
-        'eip155:1': {
-          accounts: [],
-        },
-        wallet: {
-          accounts: [],
-        },
+      {
+        getNonEvmSupportedMethods,
       },
-      isMultichainOrigin: true,
-    });
+    );
   });
 
   it('throws an unauthorized error when there is no CAIP-25 endowment permission', async () => {
@@ -196,25 +208,6 @@ describe('wallet_invokeMethod', () => {
       },
     });
     expect(end).toHaveBeenCalledWith(providerErrors.unauthorized());
-  });
-
-  it('throws an internal error for authorized but unsupported scopes', async () => {
-    const request = createMockedRequest();
-    const { handler, end } = createMockedHandler();
-
-    await handler({
-      ...request,
-      params: {
-        ...request.params,
-        scope: 'unknown:scope',
-        request: {
-          ...request.params.request,
-          method: 'foobar',
-        },
-      },
-    });
-
-    expect(end).toHaveBeenCalledWith(rpcErrors.internal());
   });
 
   describe('ethereum scope', () => {
@@ -323,6 +316,159 @@ describe('wallet_invokeMethod', () => {
         },
       });
       expect(next).toHaveBeenCalled();
+    });
+  });
+
+  describe("'wallet:eip155' scope", () => {
+    it('gets the networkClientId for the globally selected network', async () => {
+      const request = createMockedRequest();
+      const { handler, getSelectedNetworkClientId } = createMockedHandler();
+
+      await handler({
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'wallet:eip155',
+          request: {
+            ...request.params.request,
+            method: 'wallet_watchAsset',
+          },
+        },
+      });
+      expect(getSelectedNetworkClientId).toHaveBeenCalled();
+    });
+
+    it('throws an internal error if a networkClientId cannot be retrieved for the globally selected network', async () => {
+      const request = createMockedRequest();
+      const { handler, getSelectedNetworkClientId, end } =
+        createMockedHandler();
+      getSelectedNetworkClientId.mockReturnValue(undefined);
+
+      await handler({
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'wallet:eip155',
+          request: {
+            ...request.params.request,
+            method: 'wallet_watchAsset',
+          },
+        },
+      });
+      expect(end).toHaveBeenCalledWith(rpcErrors.internal());
+    });
+
+    it('sets the networkClientId and unwraps the CAIP-27 request', async () => {
+      const request = createMockedRequest();
+      const { handler, next } = createMockedHandler();
+
+      const walletRequest = {
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'wallet:eip155',
+          request: {
+            ...request.params.request,
+            method: 'wallet_watchAsset',
+          },
+        },
+      };
+      await handler(walletRequest);
+      expect(walletRequest).toStrictEqual({
+        jsonrpc: '2.0' as const,
+        id: 0,
+        scope: 'wallet:eip155',
+        origin: 'http://test.com',
+        networkClientId: 'selectedNetworkClientId',
+        method: 'wallet_watchAsset',
+        params: {
+          foo: 'bar',
+        },
+      });
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
+  describe('non-evm scope', () => {
+    it('forwards the unwrapped CAIP-27 request for authorized non-evm scopes to handleNonEvmRequestForOrigin', async () => {
+      const request = createMockedRequest();
+      const { handler, handleNonEvmRequestForOrigin } = createMockedHandler();
+
+      await handler({
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'nonevm:scope',
+          request: {
+            ...request.params.request,
+            method: 'foobar',
+          },
+        },
+      });
+
+      expect(handleNonEvmRequestForOrigin).toHaveBeenCalledWith({
+        connectedAddresses: ['nonevm:scope:0x1'],
+        scope: 'nonevm:scope',
+        request: {
+          id: 0,
+          jsonrpc: '2.0',
+          method: 'foobar',
+          origin: 'http://test.com',
+          params: {
+            foo: 'bar',
+          },
+          scope: 'nonevm:scope',
+        },
+      });
+    });
+
+    it('sets response.result to the return value from handleNonEvmRequestForOrigin', async () => {
+      const request = createMockedRequest();
+      const { handler, handleNonEvmRequestForOrigin, end, response } =
+        createMockedHandler();
+      handleNonEvmRequestForOrigin.mockResolvedValue('nonEvmResult');
+      await handler({
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'nonevm:scope',
+          request: {
+            ...request.params.request,
+            method: 'foobar',
+          },
+        },
+      });
+
+      expect(response).toStrictEqual({
+        jsonrpc: '2.0',
+        id: 1,
+        result: 'nonEvmResult',
+      });
+      expect(end).toHaveBeenCalledWith();
+    });
+
+    it('returns an error if handleNonEvmRequestForOrigin throws', async () => {
+      const request = createMockedRequest();
+      const { handler, handleNonEvmRequestForOrigin, end } =
+        createMockedHandler();
+      handleNonEvmRequestForOrigin.mockRejectedValue(
+        new Error('handleNonEvemRequest failed'),
+      );
+      await handler({
+        ...request,
+        params: {
+          ...request.params,
+          scope: 'nonevm:scope',
+          request: {
+            ...request.params.request,
+            method: 'foobar',
+          },
+        },
+      });
+
+      expect(end).toHaveBeenCalledWith(
+        new Error('handleNonEvemRequest failed'),
+      );
     });
   });
 });
