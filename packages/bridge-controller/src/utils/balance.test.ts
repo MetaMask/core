@@ -36,7 +36,9 @@ describe('balance', () => {
 
   describe('calcLatestSrcBalance', () => {
     it('should return the ERC20 token balance', async () => {
-      const mockBalanceOf = jest.fn().mockResolvedValueOnce(BigInt(100));
+      const mockBalanceOf = jest
+        .fn()
+        .mockResolvedValueOnce(BigNumber.from(100));
       (Contract as unknown as jest.Mock).mockImplementation(() => ({
         balanceOf: mockBalanceOf,
       }));
@@ -48,14 +50,14 @@ describe('balance', () => {
           '0x456',
           '0x789',
         ),
-      ).toStrictEqual(BigInt(100));
+      ).toStrictEqual(BigNumber.from(100));
       expect(mockBalanceOf).toHaveBeenCalledTimes(1);
       expect(mockBalanceOf).toHaveBeenCalledWith('0x123');
     });
 
     it('should return the native asset balance', async () => {
       const mockGetBalance = jest.fn().mockImplementation(() => {
-        return BigInt(100);
+        return BigNumber.from(100);
       });
       (Web3Provider as unknown as jest.Mock).mockImplementation(() => {
         return {
@@ -70,7 +72,7 @@ describe('balance', () => {
           AddressZero,
           '0x789',
         ),
-      ).toStrictEqual(BigInt(100));
+      ).toStrictEqual(BigNumber.from(100));
       expect(mockGetBalance).toHaveBeenCalledTimes(1);
       expect(mockGetBalance).toHaveBeenCalledWith(
         '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
@@ -112,12 +114,12 @@ describe('balance', () => {
       });
 
       mockGetBalance.mockImplementation(() => {
-        return BigInt(10000000000000000000);
+        return BigNumber.from(10000000000000000000);
       });
 
       const mockBalanceOf = jest
         .fn()
-        .mockResolvedValueOnce(BigInt('10000000000000000001'));
+        .mockResolvedValueOnce(BigNumber.from('10000000000000000001'));
       (Contract as unknown as jest.Mock).mockImplementation(() => ({
         balanceOf: mockBalanceOf,
       }));
@@ -152,7 +154,7 @@ describe('balance', () => {
       });
 
       mockGetBalance.mockImplementation(() => {
-        return BigInt(10000000000000000000);
+        return BigNumber.from(10000000000000000000);
       });
       const mockFetchTokenBalance = jest.spyOn(
         balanceUtils,
@@ -198,10 +200,10 @@ describe('balance', () => {
 });
 
 describe('fetchTokenBalance', () => {
-  let mockProvider: SafeEventEmitterProvider;
+  let mockProvider: FakeProvider;
   const mockAddress = '0x1234567890123456789012345678901234567890';
   const mockUserAddress = '0x9876543210987654321098765432109876543210';
-  const mockBalance = BigInt(1000);
+  const mockBalance = BigNumber.from(1000);
 
   beforeEach(() => {
     jest.clearAllMocks();
