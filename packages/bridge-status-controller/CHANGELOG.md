@@ -14,10 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/bridge-controller` to v3.0.0
 - Improve `BridgeStatusController` API response validation readability by using `@metamask/superstruct` ([#5408](https://github.com/MetaMask/core/pull/5408))
 
-### Uncategorized
-
-- Chore/bridge bridge status superstruct ([#5408](https://github.com/MetaMask/core/pull/5408))
-
 ## [2.0.0]
 
 ### Changed
