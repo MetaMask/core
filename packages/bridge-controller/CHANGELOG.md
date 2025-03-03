@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: switch over to @ethersproject packages at 5.7.0 for mobile compat ([#5416](https://github.com/MetaMask/core/pull/5416))
+- Chore/bridge bridge status superstruct ([#5408](https://github.com/MetaMask/core/pull/5408))
+
 ## [2.0.0]
 
 ### Added
