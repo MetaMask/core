@@ -114,7 +114,7 @@ describe('balance', () => {
       });
 
       mockGetBalance.mockImplementation(() => {
-        return BigNumber.from(10000000000000000000);
+        return BigNumber.from('10000000000000000000');
       });
 
       const mockBalanceOf = jest
@@ -154,14 +154,14 @@ describe('balance', () => {
       });
 
       mockGetBalance.mockImplementation(() => {
-        return BigNumber.from(10000000000000000000);
+        return BigNumber.from('10000000000000000000');
       });
       const mockFetchTokenBalance = jest.spyOn(
         balanceUtils,
         'fetchTokenBalance',
       );
       mockFetchTokenBalance.mockResolvedValueOnce(
-        BigNumber.from(9000000000000000000),
+        BigNumber.from('9000000000000000000'),
       );
 
       expect(
