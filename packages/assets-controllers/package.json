@@ -82,7 +82,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-controller": "^19.2.1",
-    "@metamask/keyring-internal-api": "^5.0.0",
+    "@metamask/keyring-internal-api": "^6.0.0",
     "@metamask/keyring-snap-client": "^4.0.1",
     "@metamask/network-controller": "^22.2.1",
     "@metamask/permission-controller": "^11.0.6",
