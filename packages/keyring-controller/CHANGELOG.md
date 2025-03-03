@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- Bump `@metamask/eth-simple-keyring` from `^9.0.0` to `^10.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- Bump `@metamask/eth-hd-keyring` from `^11.0.0` to `^12.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 - Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 - **BREAKING:** `addNewKeyring` method now returns `Promise<KeyringMetadata>` instead of `Promise<unknown>` ([#5372](https://github.com/MetaMask/core/pull/5372))
   - Consumers can use the returned `KeyringMetadata.id` to access the created keyring instance via `withKeyring`.
