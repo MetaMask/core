@@ -250,9 +250,19 @@ export type TransactionControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Represents the `TransactionController:updateCustodialTransaction` action.
+ */
+export type TransactionControllerUpdateCustodialTransactionAction = {
+  type: `${typeof controllerName}:updateCustodialTransaction`;
+  handler: TransactionController['updateCustodialTransaction'];
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
-export type TransactionControllerActions = TransactionControllerGetStateAction;
+export type TransactionControllerActions =
+  | TransactionControllerGetStateAction
+  | TransactionControllerUpdateCustodialTransactionAction;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -989,6 +999,14 @@ export class TransactionController extends BaseController<
 
     this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
+    this.registerMessageHandlers();
+  }
+
+  private registerMessageHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateCustodialTransaction`,
+      this.updateCustodialTransaction.bind(this),
+    );
   }
 
   /**
