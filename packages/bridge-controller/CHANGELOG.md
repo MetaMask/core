@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0]
 
-### Uncategorized
+### Changed
 
-- chore: switch over to @ethersproject packages at 5.7.0 for mobile compat ([#5416](https://github.com/MetaMask/core/pull/5416))
-- Chore/bridge bridge status superstruct ([#5408](https://github.com/MetaMask/core/pull/5408))
+- **BREAKING:** Switch over from `ethers` at v6 to `@ethersproject` packages at v5.7.0 for mobile compatibility ([#5416](https://github.com/MetaMask/core/pull/5416))
+- Improve `BridgeController` API response validation readability by using `@metamask/superstruct` ([#5408](https://github.com/MetaMask/core/pull/5408))
 
 ## [2.0.0]
 
