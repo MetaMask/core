@@ -46,13 +46,7 @@
   "resolutions": {
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
-    "ws@7.4.6": "^7.5.10",
-    "@metamask/eth-hd-keyring": "npm:@metamask-previews/eth-hd-keyring@10.0.1-f2dd645",
-    "@metamask/eth-ledger-bridge-keyring": "npm:@metamask-previews/eth-ledger-bridge-keyring@8.0.5-f2dd645",
-    "@metamask/eth-simple-keyring": "npm:@metamask-previews/eth-simple-keyring@8.1.1-f2dd645",
-    "@metamask/eth-trezor-keyring": "npm:@metamask-previews/eth-trezor-keyring@6.1.1-f2dd645",
-    "@metamask/eth-snap-keyring": "npm:@metamask-previews/eth-snap-keyring@11.1.0-f2dd645",
-    "@metamask/keyring-utils": "npm:@metamask-previews/keyring-utils@2.3.1-f2dd645"
+    "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
