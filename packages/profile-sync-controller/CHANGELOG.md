@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 312.0.0 ([#5399](https://github.com/MetaMask/core/pull/5399))
-- Integrate RPC failover into NetworkController ([#5360](https://github.com/MetaMask/core/pull/5360))
-- refactor!: `addNewKeyring` returns metadata instead of keyring ([#5372](https://github.com/MetaMask/core/pull/5372))
-- refactor: rename profile-sync exported `__fixtures__` folder to `mocks` ([#5381](https://github.com/MetaMask/core/pull/5381))
-
 ### Changed
 
 - Bump `@metamask/keyring-internal-api` from `^4.0.3` to `^5.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))

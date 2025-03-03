@@ -2583,7 +2583,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^2.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^3.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2627,7 +2627,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^24.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/bridge-controller": "npm:^2.0.0"
+    "@metamask/bridge-controller": "npm:^3.0.0"
     "@metamask/controller-utils": "npm:^11.5.0"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/polling-controller": "npm:^12.0.3"
@@ -2646,7 +2646,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/accounts-controller": ^24.0.0
-    "@metamask/bridge-controller": ^2.0.0
+    "@metamask/bridge-controller": ^3.0.0
     "@metamask/network-controller": ^22.0.0
     "@metamask/transaction-controller": ^46.0.0
   languageName: unknown

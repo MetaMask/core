@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: Add MANTLE support for conversion rates ([#5402](https://github.com/MetaMask/core/pull/5402))
-- Release 312.0.0 ([#5399](https://github.com/MetaMask/core/pull/5399))
-
 ### Changed
 
 - Bump `@metamask/keyring-internal-api` from `^4.0.3` to `^5.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
