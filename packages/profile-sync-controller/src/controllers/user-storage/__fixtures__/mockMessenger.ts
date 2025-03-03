@@ -2,12 +2,12 @@ import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 
-import { MOCK_STORAGE_KEY_SIGNATURE } from '.';
 import type {
   AllowedActions,
   AllowedEvents,
   UserStorageControllerMessenger,
 } from '..';
+import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
   AllowedActions,
@@ -211,7 +211,9 @@ export function mockUserStorageMessenger(
         addAccounts: mockKeyringAddAccounts,
       } as unknown as EthKeyring<never>;
 
-      return operation(keyring);
+      const metadata = { id: 'mock-id', name: '' };
+
+      return operation({ keyring, metadata });
     }
 
     if (actionType === 'AccountsController:listAccounts') {

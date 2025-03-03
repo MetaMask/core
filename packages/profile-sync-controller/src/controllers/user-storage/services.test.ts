@@ -1,4 +1,3 @@
-import { createMockGetStorageResponse } from './__fixtures__';
 import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
@@ -8,10 +7,8 @@ import {
   mockEndpointDeleteUserStorageAllFeatureEntries,
   mockEndpointDeleteUserStorage,
 } from './__fixtures__/mockServices';
-import {
-  MOCK_STORAGE_DATA,
-  MOCK_STORAGE_KEY,
-} from './__fixtures__/mockStorage';
+import { createMockGetStorageResponse } from './mocks';
+import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import type { GetUserStorageResponse } from './services';
 import {
   batchUpsertUserStorage,

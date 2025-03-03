@@ -1,10 +1,8 @@
 import log from 'loglevel';
 
-import * as PushWebModule from './push/push-web';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
-  listenToPushNotifications,
   updateLinksAPI,
   updateTriggerPushNotifications,
 } from './services';
@@ -17,7 +15,6 @@ const mockErrorLog = () =>
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
 const MOCK_NEW_REG_TOKEN = 'NEW_REG_TOKEN';
-const MOCK_MOBILE_FCM_TOKEN = 'mockMobileFcmToken';
 const MOCK_TRIGGERS = ['1', '2', '3'];
 const MOCK_JWT = 'MOCK_JWT';
 
@@ -25,7 +22,7 @@ describe('NotificationServicesPushController Services', () => {
   describe('updateLinksAPI', () => {
     const act = async () =>
       await updateLinksAPI(MOCK_JWT, MOCK_TRIGGERS, [
-        { token: MOCK_NEW_REG_TOKEN, platform: 'extension' },
+        { token: MOCK_NEW_REG_TOKEN, platform: 'extension', locale: 'en' },
       ]);
 
     it('should return true if links are successfully updated', async () => {
@@ -58,12 +55,12 @@ describe('NotificationServicesPushController Services', () => {
         triggers: MOCK_TRIGGERS,
         createRegToken: jest.fn().mockResolvedValue(MOCK_NEW_REG_TOKEN),
         platform: 'extension' as const,
+        locale: 'en',
         env: {} as PushNotificationEnv,
       };
 
       const mobileParams = {
         ...params,
-        fcmToken: MOCK_MOBILE_FCM_TOKEN,
         platform: 'mobile' as const,
       };
 
@@ -84,17 +81,6 @@ describe('NotificationServicesPushController Services', () => {
       expect(apis.mockPut.isDone()).toBe(true);
 
       expect(result).toBe(MOCK_NEW_REG_TOKEN);
-    });
-
-    it('should successfully call APIs and add provided mobile fcmToken', async () => {
-      const { mobileParams, apis } = arrangeMocks();
-      mockErrorLog();
-      const result = await activatePushNotifications(mobileParams);
-
-      expect(mobileParams.createRegToken).not.toHaveBeenCalled();
-      expect(apis.mockPut.isDone()).toBe(true);
-
-      expect(result).toBe(MOCK_MOBILE_FCM_TOKEN);
     });
 
     it('should return null if unable to create new registration token', async () => {
@@ -164,6 +150,7 @@ describe('NotificationServicesPushController Services', () => {
         deleteRegToken: jest.fn().mockResolvedValue(true),
         createRegToken: jest.fn().mockResolvedValue(MOCK_NEW_REG_TOKEN),
         platform: 'extension' as const,
+        locale: 'en',
         env: {} as PushNotificationEnv,
       };
 
@@ -185,7 +172,6 @@ describe('NotificationServicesPushController Services', () => {
       expect(apis.mockPut.isDone()).toBe(true);
 
       expect(result.fcmToken).toBeDefined();
-      expect(result.isTriggersLinkedToPushNotifications).toBe(true);
     });
 
     it('should throw error if fails to create reg token', async () => {
@@ -196,44 +182,12 @@ describe('NotificationServicesPushController Services', () => {
         async () => await updateTriggerPushNotifications(params),
       ).rejects.toThrow(expect.any(Error));
     });
-  });
 
-  describe('listenToPushNotifications', () => {
-    const arrangeMocks = () => {
-      const params = {
-        listenToPushReceived: jest.fn(),
-        listenToPushClicked: jest.fn(),
-        env: {} as PushNotificationEnv,
-      };
-
-      const mockReceivedUnsub = jest.fn();
-      const mockClickUnsub = jest.fn();
-
-      return {
-        params,
-        mocks: {
-          listenToPushNotificationsReceivedMock: jest
-            .spyOn(PushWebModule, 'listenToPushNotificationsReceived')
-            .mockResolvedValue(mockReceivedUnsub),
-          listenToPushNotificationsClickedMock: jest
-            .spyOn(PushWebModule, 'listenToPushNotificationsClicked')
-            .mockReturnValue(mockClickUnsub),
-          mockReceivedUnsub,
-          mockClickUnsub,
-        },
-      };
-    };
-
-    it('should start listening to notifications and can unsubscribe', async () => {
-      const { params, mocks } = arrangeMocks();
-
-      const unsub = await listenToPushNotifications(params);
-      expect(mocks.listenToPushNotificationsClickedMock).toHaveBeenCalled();
-      expect(mocks.listenToPushNotificationsReceivedMock).toHaveBeenCalled();
-
-      unsub();
-      expect(mocks.mockClickUnsub).toHaveBeenCalled();
-      expect(mocks.mockReceivedUnsub).toHaveBeenCalled();
+    it('should throw error if fails to update links', async () => {
+      const { params } = arrangeMocks({ mockPut: { status: 500 } });
+      await expect(
+        async () => await updateTriggerPushNotifications(params),
+      ).rejects.toThrow(expect.any(Error));
     });
   });
 });
