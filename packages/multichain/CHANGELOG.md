@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: Integrate non-evm SIP-26 support into `@metamask/multichain` ([#5191](https://github.com/MetaMask/core/pull/5191))
-
 ## [3.0.0]
 
 ### Added

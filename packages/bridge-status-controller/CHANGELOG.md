@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Chore/bridge bridge status superstruct ([#5408](https://github.com/MetaMask/core/pull/5408))
-
 ## [2.0.0]
 
 ### Changed
