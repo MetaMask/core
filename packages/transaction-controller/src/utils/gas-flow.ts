@@ -49,6 +49,7 @@ export function getGasFeeFlow(
 
 /**
  * Merge the gas fee estimates from the gas fee controller with the gas fee estimates from a transaction.
+ *
  * @param request - Data required to merge gas fee estimates.
  * @param request.gasFeeControllerEstimates - Gas fee estimates from the GasFeeController.
  * @param request.transactionGasFeeEstimates - Gas fee estimates from the transaction.
@@ -94,6 +95,7 @@ export function mergeGasFeeEstimates({
 
 /**
  * Merge a specific priority level of EIP-1559 gas fee estimates.
+ *
  * @param gasFeeControllerEstimate - The gas fee estimate from the gas fee controller.
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
  * @returns The merged gas fee estimate.
@@ -115,6 +117,7 @@ function mergeFeeMarketEstimate(
 
 /**
  * Generate a specific priority level for a legacy gas fee estimate.
+ *
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
  * @param level - The gas fee estimate level.
  * @returns The legacy gas fee estimate.
@@ -128,6 +131,7 @@ function getLegacyEstimate(
 
 /**
  * Generate the value for a gas price gas fee estimate.
+ *
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
  * @returns The legacy gas fee estimate.
  */

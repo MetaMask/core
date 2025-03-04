@@ -6,6 +6,8 @@
     { "path": "./packages/approval-controller/tsconfig.build.json" },
     { "path": "./packages/assets-controllers/tsconfig.build.json" },
     { "path": "./packages/base-controller/tsconfig.build.json" },
+    { "path": "./packages/bridge-controller/tsconfig.build.json" },
+    { "path": "./packages/bridge-status-controller/tsconfig.build.json" },
     { "path": "./packages/build-utils/tsconfig.build.json" },
     { "path": "./packages/composable-controller/tsconfig.build.json" },
     { "path": "./packages/controller-utils/tsconfig.build.json" },

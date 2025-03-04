@@ -39,6 +39,7 @@
 
 ## Swaps-Bridge Team
 /packages/bridge-controller                @MetaMask/swaps-engineers
+/packages/bridge-status-controller        @MetaMask/swaps-engineers
 
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
@@ -68,7 +69,7 @@
 /packages/network-controller           @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
 /packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/snaps-devs
 /packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
-/packages/profile-sync-controller      @MetaMask/notifications @MetaMask/identity
+/packages/profile-sync-controller      @MetaMask/identity
 /packages/remote-feature-flag-controller @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ## Package Release related
@@ -100,8 +101,8 @@
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
 /packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
-/packages/profile-sync-controller/package.json    @MetaMask/notifications @MetaMask/identity @MetaMask/wallet-framework-engineers
-/packages/profile-sync-controller/CHANGELOG.md    @MetaMask/notifications @MetaMask/identity @MetaMask/wallet-framework-engineers
+/packages/profile-sync-controller/package.json    @MetaMask/identity @MetaMask/wallet-framework-engineers
+/packages/profile-sync-controller/CHANGELOG.md    @MetaMask/identity @MetaMask/wallet-framework-engineers
 /packages/multichain/package.json                 @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/multichain/CHANGELOG.md                 @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
@@ -124,3 +125,5 @@
 /packages/bridge-controller/CHANGELOG.md                 @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
 /packages/remote-feature-flag-controller/package.json @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
 /packages/remote-feature-flag-controller/CHANGELOG.md @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
+/packages/bridge-status-controller/package.json         @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
+/packages/bridge-status-controller/CHANGELOG.md         @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers

@@ -13,7 +13,6 @@ import * as AccountSyncingControllerIntegrationModule from './controller-integra
 import * as AccountSyncingUtils from './sync-utils';
 import * as AccountsUserStorageModule from './utils';
 import UserStorageController, { USER_STORAGE_FEATURE_NAMES } from '..';
-import { MOCK_STORAGE_KEY } from '../__fixtures__';
 import {
   mockEndpointBatchDeleteUserStorage,
   mockEndpointBatchUpsertUserStorage,
@@ -25,6 +24,7 @@ import {
   createMockUserStorageEntries,
   decryptBatchUpsertBody,
 } from '../__fixtures__/test-utils';
+import { MOCK_STORAGE_KEY } from '../mocks';
 
 const baseState = {
   isProfileSyncingEnabled: true,

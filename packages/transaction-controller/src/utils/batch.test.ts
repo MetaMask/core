@@ -10,6 +10,7 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { validateBatchRequest } from './validation';
 import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
@@ -18,6 +19,11 @@ import {
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
+
+jest.mock('./validation', () => ({
+  ...jest.requireActual('./validation'),
+  validateBatchRequest: jest.fn(),
+}));
 
 type AddBatchTransactionOptions = Parameters<typeof addTransactionBatch>[0];
 
@@ -32,6 +38,7 @@ const MESSENGER_MOCK = {} as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const BATCH_ID_MOCK = 'testBatchId';
 const GET_ETH_QUERY_MOCK = jest.fn();
+const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_MOCK,
@@ -40,6 +47,7 @@ const TRANSACTION_META_MOCK = {
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
+  const validateBatchRequestMock = jest.mocked(validateBatchRequest);
 
   const isAccountUpgradedToEIP7702Mock = jest.mocked(
     isAccountUpgradedToEIP7702,
@@ -73,6 +81,7 @@ describe('Batch Utils', () => {
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
+        getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         messenger: MESSENGER_MOCK,
         request: {
           from: FROM_MOCK,
@@ -249,6 +258,16 @@ describe('Batch Utils', () => {
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
         rpcErrors.internal('Upgrade contract address not found'),
+      );
+    });
+
+    it('validates request', async () => {
+      validateBatchRequestMock.mockImplementationOnce(() => {
+        throw new Error('Validation Error');
+      });
+
+      await expect(addTransactionBatch(request)).rejects.toThrow(
+        'Validation Error',
       );
     });
   });

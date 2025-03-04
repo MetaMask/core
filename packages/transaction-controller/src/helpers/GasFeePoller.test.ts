@@ -1,6 +1,7 @@
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
+import { GasFeePoller } from './GasFeePoller';
 import { flushPromises } from '../../../../tests/helpers';
 import type { GasFeeFlowResponse, Layer1GasFeeFlow } from '../types';
 import {
@@ -10,7 +11,6 @@ import {
   type TransactionMeta,
 } from '../types';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
-import { GasFeePoller } from './GasFeePoller';
 
 jest.mock('../utils/layer1-gas-fee-flow', () => ({
   getTransactionLayer1GasFee: jest.fn(),
@@ -50,6 +50,7 @@ const GAS_FEE_FLOW_RESPONSE_MOCK: GasFeeFlowResponse = {
 
 /**
  * Creates a mock GasFeeFlow.
+ *
  * @returns The mock GasFeeFlow.
  */
 function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
@@ -93,7 +94,7 @@ describe('GasFeePoller', () => {
       onStateChange: (listener: () => void) => {
         triggerOnStateChange = listener;
       },
-      getProvider: () => ({} as Provider),
+      getProvider: () => ({}) as Provider,
     };
   });
 

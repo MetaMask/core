@@ -6,6 +6,7 @@
   "metamask/assets-controllers": "team-assets",
   "metamask/base-controller": "team-wallet-framework",
   "metamask/bridge-controller": "team-swaps,team-bridge",
+  "metamask/bridge-status-controller": "team-swaps,team-bridge",
   "metamask/build-utils": "team-wallet-framework",
   "metamask/composable-controller": "team-wallet-framework",
   "metamask/controller-utils": "team-wallet-framework",
