@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: bump keyring packages ([#5405](https://github.com/metamask/core/pull/5405))
+- Release 312.0.0 ([#5399](https://github.com/metamask/core/pull/5399))
+
 ## [0.5.0]
 
 ### Changed
@@ -67,10 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.5.0...HEAD
-[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.4.0...@metamask/multichain-transactions-controller@0.5.0
-[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.3.0...@metamask/multichain-transactions-controller@0.4.0
-[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.2.0...@metamask/multichain-transactions-controller@0.3.0
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.1.0...@metamask/multichain-transactions-controller@0.2.0
-[0.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.0.1...@metamask/multichain-transactions-controller@0.1.0
-[0.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/multichain-transactions-controller@0.0.1
+[Unreleased]: https://github.com/metamask/core/compare/@metamask/multichain-transactions-controller@0.5.0...HEAD
+[0.5.0]: https://github.com/metamask/core/compare/@metamask/multichain-transactions-controller@0.4.0...@metamask/multichain-transactions-controller@0.5.0
+[0.4.0]: https://github.com/metamask/core/compare/@metamask/multichain-transactions-controller@0.3.0...@metamask/multichain-transactions-controller@0.4.0
+[0.3.0]: https://github.com/metamask/core/compare/@metamask/multichain-transactions-controller@0.2.0...@metamask/multichain-transactions-controller@0.3.0
+[0.2.0]: https://github.com/metamask/core/compare/@metamask/multichain-transactions-controller@0.1.0...@metamask/multichain-transactions-controller@0.2.0
+[0.1.0]: https://github.com/metamask/core/compare/@metamask/multichain-transactions-controller@0.0.1...@metamask/multichain-transactions-controller@0.1.0
+[0.0.1]: https://github.com/metamask/core/releases/tag/@metamask/multichain-transactions-controller@0.0.1
