@@ -363,13 +363,13 @@ export type TransactionControllerOptions = {
      */
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
-    ) => boolean;
+    ) => Promise<boolean>;
 
     /**
      * Additional logic to execute before publishing a transaction.
      * Return false to prevent the broadcast of the transaction.
      */
-    beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    beforePublish?: (transactionMeta: TransactionMeta) => Promise<boolean>;
 
     /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
@@ -707,7 +707,7 @@ export class TransactionController extends BaseController<
 
   private readonly beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
-  ) => boolean;
+  ) => Promise<boolean>;
 
   private readonly beforePublish: (
     transactionMeta: TransactionMeta,
@@ -856,9 +856,8 @@ export class TransactionController extends BaseController<
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeCheckPendingTransaction =
-      hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
-      (() => true);
+      hooks?.beforeCheckPendingTransaction ?? (() => Promise.resolve(true));
     this.beforePublish = hooks?.beforePublish ?? (() => Promise.resolve(true));
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
