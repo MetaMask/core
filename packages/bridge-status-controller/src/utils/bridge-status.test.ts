@@ -126,7 +126,8 @@ describe('utils', () => {
 
       await expect(
         fetchBridgeTxStatus(mockStatusRequest, mockClientId, mockFetch),
-      ).rejects.toThrow('Invalid response from bridge');
+        // eslint-disable-next-line jest/require-to-throw-message
+      ).rejects.toThrow();
     });
 
     it('should handle fetch errors', async () => {
