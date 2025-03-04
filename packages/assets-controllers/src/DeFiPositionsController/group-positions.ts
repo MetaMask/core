@@ -19,7 +19,7 @@ export type GroupedPositions = {
       positionTypes: {
         [key in PositionType]?: {
           aggregatedMarketValue: number;
-          positions: ProtocolTokenWithMarketValue[];
+          positions: ProtocolTokenWithMarketValue[][];
         };
       };
     };
@@ -90,7 +90,16 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
     for (const protocolToken of position.tokens) {
       const token = processToken(protocolToken) as ProtocolTokenWithMarketValue;
 
-      positionTypeData.positions.push(token);
+      // If groupPositions is true, we group all positions of the same type
+      if (position.metadata?.groupPositions) {
+        if (positionTypeData.positions.length === 0) {
+          positionTypeData.positions.push([token]);
+        } else {
+          positionTypeData.positions[0].push(token);
+        }
+      } else {
+        positionTypeData.positions.push([token]);
+      }
 
       if (token.marketValue) {
         const multiplier = position.positionType === 'borrow' ? -1 : 1;

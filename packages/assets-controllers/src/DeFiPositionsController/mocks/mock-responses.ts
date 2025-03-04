@@ -14,6 +14,9 @@ export const MOCK_DEFI_RESPONSE_MULTI_CHAIN: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -48,9 +51,12 @@ export const MOCK_DEFI_RESPONSE_MULTI_CHAIN: DefiPositionResponse[] = [
     siteUrl: 'https://aave.com/',
     iconUrl: 'https://cryptologos.cc/logos/aave-aave-logo.png',
     positionType: 'supply',
-    chainId: 59144,
+    chainId: 8453,
     productId: 'a-token',
-    chainName: 'linea',
+    chainName: 'base',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -94,6 +100,9 @@ export const MOCK_DEFI_RESPONSE_FAILED_ENTRY: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'variable-debt-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: false,
     error: {
       message: 'Failed to fetch positions',
@@ -109,6 +118,9 @@ export const MOCK_DEFI_RESPONSE_FAILED_ENTRY: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -152,6 +164,9 @@ export const MOCK_DEFI_RESPONSE_NO_PRICES: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -218,6 +233,9 @@ export const MOCK_DEFI_RESPONSE_BORROW: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -278,6 +296,9 @@ export const MOCK_DEFI_RESPONSE_BORROW: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'variable-debt-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -321,6 +342,9 @@ export const MOCK_DEFI_RESPONSE_COMPLEX: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'a-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -381,6 +405,9 @@ export const MOCK_DEFI_RESPONSE_COMPLEX: DefiPositionResponse[] = [
     chainId: 1,
     productId: 'variable-debt-token',
     chainName: 'ethereum',
+    metadata: {
+      groupPositions: true,
+    },
     success: true,
     tokens: [
       {
@@ -468,68 +495,128 @@ export const MOCK_DEFI_RESPONSE_COMPLEX: DefiPositionResponse[] = [
     iconUrl:
       'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
     positionType: 'supply',
-    chainId: 59144,
+    chainId: 8453,
     productId: 'pool',
-    chainName: 'linea',
+    chainName: 'base',
     success: true,
     tokens: [
       {
-        address: '0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1',
-        tokenId: '123456',
-        name: 'USDC / AERO - 0.05%',
-        symbol: 'USDC / AERO - 0.05%',
+        address: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+        tokenId: '940758',
+        name: 'GASP / USDT - 0.3%',
+        symbol: 'GASP / USDT - 0.3%',
         decimals: 18,
-        balanceRaw: '5000000000000000',
-        balance: 0.005,
+        balanceRaw: '1000000000000000000',
+        balance: 1,
         type: 'protocol',
         tokens: [
           {
-            address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balanceRaw: '300000000',
-            type: 'underlying',
-            balance: 300,
-            price: 1,
-            iconUrl:
-              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png',
-          },
-          {
-            address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-            name: 'USD Coin',
-            symbol: 'USDC',
-            decimals: 6,
-            balanceRaw: '20000000',
-            type: 'underlying-claimable',
-            balance: 20,
-            price: 1,
-            iconUrl:
-              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913/logo.png',
-          },
-          {
-            address: '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
-            name: 'Aerodrome',
-            symbol: 'AERO',
+            address: '0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E',
+            name: 'GASP',
+            symbol: 'GASP',
             decimals: 18,
-            balanceRaw: '2000000000000000000000',
+            balanceRaw: '100000000000000000000',
             type: 'underlying',
-            balance: 2000,
-            price: 0.5,
+            balance: 100,
+            price: 0.1,
             iconUrl:
-              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x940181a94A35A4569E4529A3CDfB74e38FD98631/logo.png',
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E/logo.png',
           },
           {
-            address: '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
-            name: 'Aerodrome',
-            symbol: 'AERO',
+            address: '0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E',
+            name: 'GASP',
+            symbol: 'GASP',
+            decimals: 18,
+            balanceRaw: '10000000000000000000',
+            type: 'underlying-claimable',
+            balance: 10,
+            price: 0.1,
+            iconUrl:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E/logo.png',
+          },
+          {
+            address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            name: 'Tether USD',
+            symbol: 'USDT',
+            decimals: 6,
+            balanceRaw: '500000000',
+            type: 'underlying',
+            balance: 500,
+            price: 1,
+            iconUrl:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
+          },
+          {
+            address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            name: 'Tether USD',
+            symbol: 'USDT',
+            decimals: 6,
+            balanceRaw: '2000000',
+            type: 'underlying-claimable',
+            balance: 2,
+            price: 1,
+            iconUrl:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
+          },
+        ],
+      },
+      {
+        address: '0xC36442b4a4522E871399CD717aBDD847Ab11FE88',
+        tokenId: '940760',
+        name: 'GASP / USDT - 0.3%',
+        symbol: 'GASP / USDT - 0.3%',
+        decimals: 18,
+        balanceRaw: '2000000000000000000',
+        balance: 2,
+        type: 'protocol',
+        tokens: [
+          {
+            address: '0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E',
+            name: 'GASP',
+            symbol: 'GASP',
+            decimals: 18,
+            balanceRaw: '90000000000000000000000',
+            type: 'underlying',
+            balance: 90000,
+            price: 0.1,
+            iconUrl:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E/logo.png',
+          },
+          {
+            address: '0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E',
+            name: 'GASP',
+            symbol: 'GASP',
             decimals: 18,
             balanceRaw: '50000000000000000000',
             type: 'underlying-claimable',
             balance: 50,
-            price: 0.5,
+            price: 0.1,
             iconUrl:
-              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/base/assets/0x940181a94A35A4569E4529A3CDfB74e38FD98631/logo.png',
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x736ECc5237B31eDec6f1aB9a396FaE2416b1d96E/logo.png',
+          },
+          {
+            address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            name: 'Tether USD',
+            symbol: 'USDT',
+            decimals: 6,
+            balanceRaw: '60000000',
+            type: 'underlying',
+            balance: 60,
+            price: 1,
+            iconUrl:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
+          },
+          {
+            address: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+            name: 'Tether USD',
+            symbol: 'USDT',
+            decimals: 6,
+            balanceRaw: '2000000',
+            type: 'underlying-claimable',
+            balance: 2,
+            price: 1,
+            iconUrl:
+              'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xdAC17F958D2ee523a2206206994597C13D831ec7/logo.png',
           },
         ],
       },

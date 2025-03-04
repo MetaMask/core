@@ -11,6 +11,9 @@ type ProtocolDetails = {
   iconUrl: string;
   siteUrl: string;
   positionType: PositionType;
+  metadata?: {
+    groupPositions?: boolean;
+  };
 };
 
 type AdapterResponse<ProtocolResponse> =
