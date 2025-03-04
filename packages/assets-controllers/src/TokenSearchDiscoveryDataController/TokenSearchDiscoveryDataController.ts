@@ -1,20 +1,21 @@
 import {
   BaseController,
-    type ControllerGetStateAction,
-    type ControllerStateChangeEvent,
-    type RestrictedMessenger,
-  } from '@metamask/base-controller';
+  type ControllerGetStateAction,
+  type ControllerStateChangeEvent,
+  type RestrictedMessenger,
+} from '@metamask/base-controller';
+import type { Hex } from '@metamask/utils';
 
-import type {
-  TokenDisplayData
-} from './types';
-import { fetchTokenMetadata, TOKEN_METADATA_NO_SUPPORT_ERROR } from '../token-service';
-import { Hex } from '@metamask/utils';
-import type { TokenListToken } from '../TokenListController';
-import type { formatIconUrlWithProxy } from '../assetsUtil';
+import type { TokenDisplayData } from './types';
+import { formatIconUrlWithProxy } from '../assetsUtil';
+import type { GetCurrencyRateState } from '../CurrencyRateController';
 import type { AbstractTokenPricesService } from '../token-prices-service';
-import type {GetCurrencyRateState} from '../CurrencyRateController';
 import type { TokenPrice } from '../token-prices-service/abstract-token-prices-service';
+import {
+  fetchTokenMetadata,
+  TOKEN_METADATA_NO_SUPPORT_ERROR,
+} from '../token-service';
+import type { TokenListToken } from '../TokenListController';
 
 // === GENERAL ===
 
@@ -26,7 +27,10 @@ const MAX_TOKEN_DISPLAY_DATA_LENGTH = 10;
 
 export type TokenSearchDiscoveryDataControllerState = {
   tokenDisplayData: TokenDisplayData[];
-  swapsTokenAddressesByChainId: Record<Hex, { lastFetched: number; addresses: string[] }>;
+  swapsTokenAddressesByChainId: Record<
+    Hex,
+    { lastFetched: number; addresses: string[]; isFetching: boolean }
+  >;
 };
 
 const tokenSearchDiscoveryDataControllerMetadata = {
@@ -116,15 +120,15 @@ export class TokenSearchDiscoveryDataController extends BaseController<
   TokenSearchDiscoveryDataControllerState,
   TokenSearchDiscoveryDataControllerMessenger
 > {
-  #abortController: AbortController;
+  readonly #abortController: AbortController;
 
-  #tokenPricesService: AbstractTokenPricesService;
+  readonly #tokenPricesService: AbstractTokenPricesService;
 
-  #swapsSupportedChainIds: Hex[];
+  readonly #swapsSupportedChainIds: Hex[];
 
-  #fetchTokens: (chainId: Hex) => Promise<{ address: string; }[]>;
+  readonly #fetchTokens: (chainId: Hex) => Promise<{ address: string }[]>;
 
-  #fetchSwapsTokensThresholdMs: number;
+  readonly #fetchSwapsTokensThresholdMs: number;
 
   constructor({
     state = {},
@@ -138,14 +142,17 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     messenger: TokenSearchDiscoveryDataControllerMessenger;
     tokenPricesService: AbstractTokenPricesService;
     swapsSupportedChainIds: Hex[];
-    fetchTokens: (chainId: Hex) => Promise<{ address: string; }[]>;
+    fetchTokens: (chainId: Hex) => Promise<{ address: string }[]>;
     fetchSwapsTokensThresholdMs: number;
   }) {
     super({
       name: controllerName,
       metadata: tokenSearchDiscoveryDataControllerMetadata,
       messenger,
-      state: { ...getDefaultTokenSearchDiscoveryDataControllerState(), ...state },
+      state: {
+        ...getDefaultTokenSearchDiscoveryDataControllerState(),
+        ...state,
+      },
     });
 
     this.#abortController = new AbortController();
@@ -155,8 +162,13 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     this.#fetchSwapsTokensThresholdMs = fetchSwapsTokensThresholdMs;
   }
 
-  async #fetchPriceData(chainId: Hex, address: string): Promise<TokenPrice<Hex, string> | null> {
-    const { currentCurrency } = this.messagingSystem.call('CurrencyRateController:getState');
+  async #fetchPriceData(
+    chainId: Hex,
+    address: string,
+  ): Promise<TokenPrice<Hex, string> | null> {
+    const { currentCurrency } = this.messagingSystem.call(
+      'CurrencyRateController:getState',
+    );
 
     try {
       const pricesData = await this.#tokenPricesService.fetchTokenPrices({
@@ -171,19 +183,36 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     }
   }
 
-  async #fetchSwapsTokens(chainId: Hex): Promise<void> {
+  async fetchSwapsTokens(chainId: Hex): Promise<void> {
     if (!this.#swapsSupportedChainIds.includes(chainId)) {
       return;
     }
 
     const swapsTokens = this.state.swapsTokenAddressesByChainId[chainId];
-    if (!swapsTokens || swapsTokens.lastFetched < Date.now() - this.#fetchSwapsTokensThresholdMs) {
+    if (
+      (!swapsTokens ||
+        swapsTokens.lastFetched <
+          Date.now() - this.#fetchSwapsTokensThresholdMs) &&
+      !swapsTokens?.isFetching
+    ) {
       try {
+        this.update((state) => {
+          if (!state.swapsTokenAddressesByChainId[chainId]) {
+            state.swapsTokenAddressesByChainId[chainId] = {
+              lastFetched: Date.now(),
+              addresses: [],
+              isFetching: true,
+            };
+          } else {
+            state.swapsTokenAddressesByChainId[chainId].isFetching = true;
+          }
+        });
         const tokens = await this.#fetchTokens(chainId);
         this.update((state) => {
           state.swapsTokenAddressesByChainId[chainId] = {
             lastFetched: Date.now(),
             addresses: tokens.map((token) => token.address),
+            isFetching: false,
           };
         });
       } catch (error) {
@@ -193,11 +222,15 @@ export class TokenSearchDiscoveryDataController extends BaseController<
   }
 
   async fetchTokenDisplayData(chainId: Hex, address: string): Promise<void> {
-    await this.#fetchSwapsTokens(chainId);
+    await this.fetchSwapsTokens(chainId);
 
     let tokenMetadata: TokenListToken | undefined;
     try {
-      tokenMetadata = await fetchTokenMetadata<TokenListToken>(chainId, address, this.#abortController.signal);
+      tokenMetadata = await fetchTokenMetadata<TokenListToken>(
+        chainId,
+        address,
+        this.#abortController.signal,
+      );
     } catch (error) {
       if (
         !(error instanceof Error) ||
@@ -207,7 +240,9 @@ export class TokenSearchDiscoveryDataController extends BaseController<
       }
     }
 
-    const { currentCurrency } = this.messagingSystem.call('CurrencyRateController:getState');
+    const { currentCurrency } = this.messagingSystem.call(
+      'CurrencyRateController:getState',
+    );
 
     let tokenDisplayData: TokenDisplayData;
     if (!tokenMetadata) {
@@ -239,7 +274,12 @@ export class TokenSearchDiscoveryDataController extends BaseController<
     this.update((state) => {
       state.tokenDisplayData = [
         tokenDisplayData,
-        ...state.tokenDisplayData.filter(token => token.address !== address && token.chainId !== chainId && token.currency !== currentCurrency)
+        ...state.tokenDisplayData.filter(
+          (token) =>
+            token.address !== address &&
+            token.chainId !== chainId &&
+            token.currency !== currentCurrency,
+        ),
       ].slice(0, MAX_TOKEN_DISPLAY_DATA_LENGTH);
     });
   }
