@@ -377,7 +377,7 @@ describe('PendingTransactionTracker', () => {
             ...options,
             getTransactions: () => freeze([transactionMetaMock], true),
             hooks: {
-              beforeCheckPendingTransaction: () => false,
+              beforeCheckPendingTransaction: () => Promise.resolve(false),
             },
           });
 
@@ -736,7 +736,7 @@ describe('PendingTransactionTracker', () => {
             ...options,
             getTransactions,
             hooks: {
-              beforeCheckPendingTransaction: () => false,
+              beforeCheckPendingTransaction: () => Promise.resolve(false),
             },
           });
 
