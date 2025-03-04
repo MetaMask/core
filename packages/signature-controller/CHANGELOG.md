@@ -9,12 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 306.0.0 ([#5373](https://github.com/MetaMask/core/pull/5373))
-- Release 303.0.0 ([#5357](https://github.com/MetaMask/core/pull/5357))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- Release 298.0.0 ([#5314](https://github.com/MetaMask/core/pull/5314))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
 
 ## [23.2.1]
 

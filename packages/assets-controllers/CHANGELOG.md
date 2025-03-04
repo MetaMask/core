@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [52.0.0]
 
-### Uncategorized
+### Fixed
 
-- fix: Add MANTLE support for conversion rates ([#5402](https://github.com/MetaMask/core/pull/5402))
-- Release 312.0.0 ([#5399](https://github.com/MetaMask/core/pull/5399))
+- Fixed conversion rates for MANTLE ([#5402](https://github.com/MetaMask/core/pull/5402))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^25.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency to `^16.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
 
 ### Changed
 

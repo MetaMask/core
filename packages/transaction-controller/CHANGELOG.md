@@ -9,21 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [47.0.0]
 
-### Uncategorized
-
-- Release/314.0.0 ([#5412](https://github.com/MetaMask/core/pull/5412))
-- chore: align keyring controller sign authorization action ([#5410](https://github.com/MetaMask/core/pull/5410))
-- chore: resolve transaction controller linting warnings ([#5404](https://github.com/MetaMask/core/pull/5404))
-- Release 312.0.0 ([#5399](https://github.com/MetaMask/core/pull/5399))
-- Integrate RPC failover into NetworkController ([#5360](https://github.com/MetaMask/core/pull/5360))
-- Release 306.0.0 ([#5373](https://github.com/MetaMask/core/pull/5373))
-- fix: Persist user rejection optional data in rejected error ([#5355](https://github.com/MetaMask/core/pull/5355))
-- Release 302.0.0 ([#5346](https://github.com/MetaMask/core/pull/5346))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core/pull/5290))
-
 ### Added
 
+- Persist user rejection optional data in rejected error ([#5355](https://github.com/MetaMask/core/pull/5355))
 - Add `updateAtomicBatchData` method ([#5380](https://github.com/MetaMask/core/pull/5380))
 - Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
   - Add methods:
@@ -40,10 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account ([#5369](https://github.com/MetaMask/core/pull/5369))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^25.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- **BREAKING**: Require messenger permissions for `KeyringController:signEip7702Authorization` action ([#5410](https://github.com/MetaMask/core/pull/5410))
 - **BREAKING:** Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
   - Require `AccountsController:getState` action permission in messenger.
   - Require `RemoteFeatureFlagController:getState` action permission in messenger.
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core/pull/5290))
+- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account ([#5369](https://github.com/MetaMask/core/pull/5369))
 
 ## [46.0.0]
 

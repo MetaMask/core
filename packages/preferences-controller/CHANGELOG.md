@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [16.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 306.0.0 ([#5373](https://github.com/MetaMask/core/pull/5373))
-- Release 303.0.0 ([#5357](https://github.com/MetaMask/core/pull/5357))
-- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
-- Release 298.0.0 ([#5314](https://github.com/MetaMask/core/pull/5314))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
 
 ## [15.0.2]
 
