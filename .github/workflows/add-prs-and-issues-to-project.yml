@@ -1,4 +1,4 @@
-name: "Add Issue/PR to Project Board"
+name: 'Add Issue/PR to Project Board'
 
 on:
   pull_request:
@@ -8,11 +8,11 @@ on:
 
 jobs:
   call_shared_workflow:
-    name: "Call the Shared Workflow"
+    name: 'Call the Shared Workflow'
     uses: metamask/github-tools/.github/actions/add-item-to-project.yml@main
     with:
-      project-url: "https://github.com/orgs/MetaMask/projects/113"
-      team-name: "wallet-framework-engineers"
-      team-label: "team-wallet-framework"
+      project-url: 'https://github.com/orgs/MetaMask/projects/113'
+      team-name: 'wallet-framework-engineers'
+      team-label: 'team-wallet-framework'
     secrets:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
