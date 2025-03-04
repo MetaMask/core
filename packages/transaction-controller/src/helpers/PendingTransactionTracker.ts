@@ -95,8 +95,6 @@ export class PendingTransactionTracker {
     transactionMeta: TransactionMeta,
   ) => boolean;
 
-  readonly #beforePublish: (transactionMeta: TransactionMeta) => boolean;
-
   constructor({
     blockTracker,
     getChainId,
