@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+
 ### Uncategorized
 
 - Release 306.0.0 ([#5373](https://github.com/metamask/core/pull/5373))
@@ -347,7 +349,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/metamask/core/compare/@metamask/preferences-controller@15.0.2...HEAD
+[Unreleased]: https://github.com/metamask/core/compare/@metamask/preferences-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/metamask/core/compare/@metamask/preferences-controller@15.0.2...@metamask/preferences-controller@16.0.0
 [15.0.2]: https://github.com/metamask/core/compare/@metamask/preferences-controller@15.0.1...@metamask/preferences-controller@15.0.2
 [15.0.1]: https://github.com/metamask/core/compare/@metamask/preferences-controller@15.0.0...@metamask/preferences-controller@15.0.1
 [15.0.0]: https://github.com/metamask/core/compare/@metamask/preferences-controller@14.0.0...@metamask/preferences-controller@15.0.0

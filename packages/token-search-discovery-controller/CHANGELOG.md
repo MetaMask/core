@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Add top gainers losers to token discovery service ([#5309](https://github.com/metamask/core/pull/5309))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/metamask/core/pull/5301))
-
 ### Added
 
 - All param types (e.g. `TokenSearchParams`, `TrendingTokensParams`, etc.) inherit from `ParamsBase`
@@ -62,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This service is responsible for making search related requests to the Portfolio API
   - Specifically, it handles the `tokens-search` endpoint which returns a list of tokens based on the provided query parameters
 
-[Unreleased]: https://github.com/metamask/core/compare/@metamask/token-search-discovery-controller@2.1.0...HEAD
-[2.1.0]: https://github.com/metamask/core/compare/@metamask/token-search-discovery-controller@2.0.0...@metamask/token-search-discovery-controller@2.1.0
-[2.0.0]: https://github.com/metamask/core/compare/@metamask/token-search-discovery-controller@1.0.0...@metamask/token-search-discovery-controller@2.0.0
-[1.0.0]: https://github.com/metamask/core/releases/tag/@metamask/token-search-discovery-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@2.1.0...HEAD
+[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@2.0.0...@metamask/token-search-discovery-controller@2.1.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/token-search-discovery-controller@1.0.0...@metamask/token-search-discovery-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/token-search-discovery-controller@1.0.0

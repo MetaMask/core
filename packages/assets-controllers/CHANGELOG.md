@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [52.0.0]
+
 ### Uncategorized
 
 - fix: Add MANTLE support for conversion rates ([#5402](https://github.com/metamask/core/pull/5402))
@@ -1437,7 +1439,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/metamask/core/compare/@metamask/assets-controllers@51.0.2...HEAD
+[Unreleased]: https://github.com/metamask/core/compare/@metamask/assets-controllers@52.0.0...HEAD
+[52.0.0]: https://github.com/metamask/core/compare/@metamask/assets-controllers@51.0.2...@metamask/assets-controllers@52.0.0
 [51.0.2]: https://github.com/metamask/core/compare/@metamask/assets-controllers@51.0.1...@metamask/assets-controllers@51.0.2
 [51.0.1]: https://github.com/metamask/core/compare/@metamask/assets-controllers@51.0.0...@metamask/assets-controllers@51.0.1
 [51.0.0]: https://github.com/metamask/core/compare/@metamask/assets-controllers@50.0.0...@metamask/assets-controllers@51.0.0

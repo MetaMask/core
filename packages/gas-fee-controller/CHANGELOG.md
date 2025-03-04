@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.0.0]
+
 ### Uncategorized
 
 - feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/metamask/core/pull/5301))
@@ -407,7 +409,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/metamask/core/compare/@metamask/gas-fee-controller@22.0.3...HEAD
+[Unreleased]: https://github.com/metamask/core/compare/@metamask/gas-fee-controller@23.0.0...HEAD
+[23.0.0]: https://github.com/metamask/core/compare/@metamask/gas-fee-controller@22.0.3...@metamask/gas-fee-controller@23.0.0
 [22.0.3]: https://github.com/metamask/core/compare/@metamask/gas-fee-controller@22.0.2...@metamask/gas-fee-controller@22.0.3
 [22.0.2]: https://github.com/metamask/core/compare/@metamask/gas-fee-controller@22.0.1...@metamask/gas-fee-controller@22.0.2
 [22.0.1]: https://github.com/metamask/core/compare/@metamask/gas-fee-controller@22.0.0...@metamask/gas-fee-controller@22.0.1
