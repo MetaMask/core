@@ -51,51 +51,51 @@ type Events = {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): this;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 }
 
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #droppedBlockCountByHash: Map<string, number>;
+  readonly #droppedBlockCountByHash: Map<string, number>;
 
-  #getChainId: () => string;
+  readonly #getChainId: () => string;
 
-  #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
+  readonly #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
 
   readonly #getNetworkClientId: () => NetworkClientId;
 
-  #getTransactions: () => TransactionMeta[];
+  readonly #getTransactions: () => TransactionMeta[];
 
-  #isResubmitEnabled: () => boolean;
+  readonly #isResubmitEnabled: () => boolean;
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  #listener: any;
+  readonly #listener: any;
 
-  #log: debug.Debugger;
+  readonly #log: debug.Debugger;
 
-  #getGlobalLock: () => Promise<() => void>;
+  readonly #getGlobalLock: () => Promise<() => void>;
 
-  #publishTransaction: (
+  readonly #publishTransaction: (
     ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<string>;
 
   #running: boolean;
 
-  #transactionPoller: TransactionPoller;
+  readonly #transactionPoller: TransactionPoller;
 
-  #beforeCheckPendingTransaction: (transactionMeta: TransactionMeta) => boolean;
+  readonly #beforeCheckPendingTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
+
+  readonly #beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
   constructor({
     blockTracker,

@@ -1,8 +1,6 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 
-import { CHAIN_IDS } from '../constants';
-import type { TransactionMeta } from '../types';
 import type { UpdateGasRequest } from './gas';
 import {
   addGasBuffer,
@@ -13,6 +11,8 @@ import {
   GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT,
   MAX_GAS_BLOCK_PERCENT,
 } from './gas';
+import { CHAIN_IDS } from '../constants';
+import type { TransactionMeta } from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -42,6 +42,7 @@ const UPDATE_GAS_REQUEST_MOCK = {
 
 /**
  * Converts number to hex string.
+ *
  * @param value - The number to convert.
  * @returns The hex string.
  */
@@ -55,6 +56,7 @@ describe('gas', () => {
 
   /**
    * Mocks query responses.
+   *
    * @param options - The options.
    * @param options.getCodeResponse - The response for getCode.
    * @param options.getBlockByNumberResponse - The response for getBlockByNumber.
