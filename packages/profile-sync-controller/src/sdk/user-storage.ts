@@ -297,7 +297,13 @@ export class UserStorage {
         );
       }
 
-      const { Data: encryptedData } = await response.json();
+      const userStorage = await response.json();
+      const encryptedData = userStorage?.Data ?? null;
+
+      if (!encryptedData) {
+        return null;
+      }
+
       const decryptedData = await encryption.decryptString(
         encryptedData,
         storageKey,
