@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
 - **BREAKING:** Bump `@metamask/profile-sync-controller` peer dependency to `^9.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
-- Rename notification exported `__fixtures__` folder to `mocks` ([#5379](https://github.com/MetaMask/core/pull/5379))
 
 ## [1.0.0]
 

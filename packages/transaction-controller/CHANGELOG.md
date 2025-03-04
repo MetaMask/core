@@ -34,7 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Require `AccountsController:getState` action permission in messenger.
   - Require `RemoteFeatureFlagController:getState` action permission in messenger.
 - Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
-- Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core/pull/5290))
 - Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account ([#5369](https://github.com/MetaMask/core/pull/5369))
 
 ## [46.0.0]
