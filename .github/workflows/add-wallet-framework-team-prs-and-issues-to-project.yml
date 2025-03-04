@@ -1,4 +1,4 @@
-name: 'Add Issue/PR to Project Board'
+name: 'Add Wallet Framework Issues/PRs to Project Board'
 
 on:
   pull_request:
