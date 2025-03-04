@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.1.0]
+### Added
+- Add Base Sentinel endpoint to STX controller ([#500](https://github.com/MetaMask/smart-transactions-controller/pull/500))
+
+### Changed
+- Add workflow_dispatch to security-code-scanner ([#499](https://github.com/MetaMask/smart-transactions-controller/pull/499))
+- SmartTransactionsController `state` should persist ([#493](https://github.com/MetaMask/smart-transactions-controller/pull/493))
+  After opening your browser smart transactions should be preserved.
+
 ## [16.0.1]
 ### Fixed
 - Extend definition of when a regular tx is marked as failed based on a smart transaction status, clean up unsupported statuses ([#485](https://github.com/MetaMask/smart-transactions-controller/pull/485))
@@ -396,7 +405,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.1.0...HEAD
+[16.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.0.1...v16.1.0
 [16.0.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.0.0...v16.0.1
 [16.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v15.1.0...v16.0.0
 [15.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v15.0.0...v15.1.0
