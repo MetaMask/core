@@ -75,7 +75,7 @@ type AllowedEvents = never;
 /**
  * Messenger type for the {@link AppMetadataController}.
  */
-type AppMetadataControllerMessenger = RestrictedMessenger<
+export type AppMetadataControllerMessenger = RestrictedMessenger<
   typeof controllerName,
   AppMetadataControllerActions | AllowedActions,
   AppMetadataControllerEvents | AllowedEvents,
