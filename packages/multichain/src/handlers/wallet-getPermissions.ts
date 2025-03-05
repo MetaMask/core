@@ -36,7 +36,8 @@ export const getPermissionsHandler = {
 };
 
 /**
- * Get Permissions implementation to be used in JsonRpcEngine middleware.
+ * Get Permissions implementation to be used in JsonRpcEngine middleware, specifically for `wallet_getPermissions` RPC method.
+ * It makes use of a CAIP-25 endowment permission returned by `getPermissionsForOrigin` hook, if it exists.
  *
  * @param _req - The JsonRpcEngine request - unused
  * @param res - The JsonRpcEngine result object
@@ -78,12 +79,12 @@ async function getPermissionsImplementation(
     const ethAccounts = getAccounts({ ignoreLock: true });
 
     if (ethAccounts.length > 0) {
-      permissions[RestrictedMethods.eth_accounts] = {
+      permissions[RestrictedMethods.EthAccounts] = {
         ...caip25Endowment,
-        parentCapability: RestrictedMethods.eth_accounts,
+        parentCapability: RestrictedMethods.EthAccounts,
         caveats: [
           {
-            type: CaveatTypes.restrictReturnedAccounts,
+            type: CaveatTypes.RestrictReturnedAccounts,
             value: ethAccounts,
           },
         ],
@@ -93,12 +94,12 @@ async function getPermissionsImplementation(
     const ethChainIds = getPermittedEthChainIds(caip25CaveatValue);
 
     if (ethChainIds.length > 0) {
-      permissions[EndowmentTypes.permittedChains] = {
+      permissions[EndowmentTypes.PermittedChains] = {
         ...caip25Endowment,
-        parentCapability: EndowmentTypes.permittedChains,
+        parentCapability: EndowmentTypes.PermittedChains,
         caveats: [
           {
-            type: CaveatTypes.restrictNetworkSwitching,
+            type: CaveatTypes.RestrictNetworkSwitching,
             value: ethChainIds,
           },
         ],

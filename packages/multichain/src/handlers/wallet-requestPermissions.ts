@@ -52,7 +52,8 @@ type GrantedPermissions = Awaited<
 >[0];
 
 /**
- * Request Permissions implementation to be used in JsonRpcEngine middleware.
+ * Request Permissions implementation to be used in JsonRpcEngine middleware, specifically for `wallet_requestPermissions` RPC method.
+ * The request object is expected to contain a CAIP-25 endowment permission.
  *
  * @param req - The JsonRpcEngine request
  * @param res - The JsonRpcEngine result object
@@ -95,11 +96,11 @@ async function requestPermissionsImplementation(
   const caip25EquivalentPermissions: Partial<
     Pick<RequestedPermissions, 'eth_accounts' | 'endowment:permitted-chains'>
   > = pick(requestedPermissions, [
-    RestrictedMethods.eth_accounts,
-    EndowmentTypes.permittedChains,
+    RestrictedMethods.EthAccounts,
+    EndowmentTypes.PermittedChains,
   ]);
-  delete requestedPermissions[RestrictedMethods.eth_accounts];
-  delete requestedPermissions[EndowmentTypes.permittedChains];
+  delete requestedPermissions[RestrictedMethods.EthAccounts];
+  delete requestedPermissions[EndowmentTypes.PermittedChains];
 
   const hasCaip25EquivalentPermissions =
     Object.keys(caip25EquivalentPermissions).length > 0;
@@ -141,12 +142,12 @@ async function requestPermissionsImplementation(
     // because the accounts will not be in order of lastSelected
     const ethAccounts = getAccounts();
 
-    grantedPermissions[RestrictedMethods.eth_accounts] = {
+    grantedPermissions[RestrictedMethods.EthAccounts] = {
       ...caip25Endowment,
-      parentCapability: RestrictedMethods.eth_accounts,
+      parentCapability: RestrictedMethods.EthAccounts,
       caveats: [
         {
-          type: CaveatTypes.restrictReturnedAccounts,
+          type: CaveatTypes.RestrictReturnedAccounts,
           value: ethAccounts,
         },
       ],
@@ -155,12 +156,12 @@ async function requestPermissionsImplementation(
     const ethChainIds = getPermittedEthChainIds(caip25CaveatValue);
 
     if (ethChainIds.length > 0) {
-      grantedPermissions[EndowmentTypes.permittedChains] = {
+      grantedPermissions[EndowmentTypes.PermittedChains] = {
         ...caip25Endowment,
-        parentCapability: EndowmentTypes.permittedChains,
+        parentCapability: EndowmentTypes.PermittedChains,
         caveats: [
           {
-            type: CaveatTypes.restrictNetworkSwitching,
+            type: CaveatTypes.RestrictNetworkSwitching,
             value: ethChainIds,
           },
         ],

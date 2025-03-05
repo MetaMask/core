@@ -202,7 +202,7 @@ describe('requestPermissionsHandler', () => {
         getBaseRequest({
           params: [
             {
-              [RestrictedMethods.eth_accounts]: {
+              [RestrictedMethods.EthAccounts]: {
                 foo: 'bar',
               },
             },
@@ -213,7 +213,7 @@ describe('requestPermissionsHandler', () => {
       expect(
         getCaip25PermissionFromLegacyPermissionsForOrigin,
       ).toHaveBeenCalledWith({
-        [RestrictedMethods.eth_accounts]: {
+        [RestrictedMethods.EthAccounts]: {
           foo: 'bar',
         },
       });
@@ -254,10 +254,10 @@ describe('requestPermissionsHandler', () => {
         getBaseRequest({
           params: [
             {
-              [EndowmentTypes.permittedChains]: {
+              [EndowmentTypes.PermittedChains]: {
                 caveats: [
                   {
-                    type: CaveatTypes.restrictNetworkSwitching,
+                    type: CaveatTypes.RestrictNetworkSwitching,
                     value: ['0x64'],
                   },
                 ],
@@ -270,10 +270,10 @@ describe('requestPermissionsHandler', () => {
       expect(
         getCaip25PermissionFromLegacyPermissionsForOrigin,
       ).toHaveBeenCalledWith({
-        [EndowmentTypes.permittedChains]: {
+        [EndowmentTypes.PermittedChains]: {
           caveats: [
             {
-              type: CaveatTypes.restrictNetworkSwitching,
+              type: CaveatTypes.RestrictNetworkSwitching,
               value: ['0x64'],
             },
           ],
@@ -318,13 +318,13 @@ describe('requestPermissionsHandler', () => {
         getBaseRequest({
           params: [
             {
-              [RestrictedMethods.eth_accounts]: {
+              [RestrictedMethods.EthAccounts]: {
                 foo: 'bar',
               },
-              [EndowmentTypes.permittedChains]: {
+              [EndowmentTypes.PermittedChains]: {
                 caveats: [
                   {
-                    type: CaveatTypes.restrictNetworkSwitching,
+                    type: CaveatTypes.RestrictNetworkSwitching,
                     value: ['0x64'],
                   },
                 ],
@@ -337,13 +337,13 @@ describe('requestPermissionsHandler', () => {
       expect(
         getCaip25PermissionFromLegacyPermissionsForOrigin,
       ).toHaveBeenCalledWith({
-        [RestrictedMethods.eth_accounts]: {
+        [RestrictedMethods.EthAccounts]: {
           foo: 'bar',
         },
-        [EndowmentTypes.permittedChains]: {
+        [EndowmentTypes.PermittedChains]: {
           caveats: [
             {
-              type: CaveatTypes.restrictNetworkSwitching,
+              type: CaveatTypes.RestrictNetworkSwitching,
               value: ['0x64'],
             },
           ],
@@ -404,13 +404,13 @@ describe('requestPermissionsHandler', () => {
                   },
                 ],
               },
-              [RestrictedMethods.eth_accounts]: {
+              [RestrictedMethods.EthAccounts]: {
                 foo: 'bar',
               },
-              [EndowmentTypes.permittedChains]: {
+              [EndowmentTypes.PermittedChains]: {
                 caveats: [
                   {
-                    type: CaveatTypes.restrictNetworkSwitching,
+                    type: CaveatTypes.RestrictNetworkSwitching,
                     value: ['0x64'],
                   },
                 ],
@@ -423,13 +423,13 @@ describe('requestPermissionsHandler', () => {
       expect(
         getCaip25PermissionFromLegacyPermissionsForOrigin,
       ).toHaveBeenCalledWith({
-        [RestrictedMethods.eth_accounts]: {
+        [RestrictedMethods.EthAccounts]: {
           foo: 'bar',
         },
-        [EndowmentTypes.permittedChains]: {
+        [EndowmentTypes.PermittedChains]: {
           caveats: [
             {
-              type: CaveatTypes.restrictNetworkSwitching,
+              type: CaveatTypes.RestrictNetworkSwitching,
               value: ['0x64'],
             },
           ],
@@ -497,20 +497,20 @@ describe('requestPermissionsHandler', () => {
           {
             caveats: [
               {
-                type: CaveatTypes.restrictReturnedAccounts,
+                type: CaveatTypes.RestrictReturnedAccounts,
                 value: ['0xdeadbeef'],
               },
             ],
-            parentCapability: RestrictedMethods.eth_accounts,
+            parentCapability: RestrictedMethods.EthAccounts,
           },
           {
             caveats: [
               {
-                type: CaveatTypes.restrictNetworkSwitching,
+                type: CaveatTypes.RestrictNetworkSwitching,
                 value: ['0x1', '0x5'],
               },
             ],
-            parentCapability: EndowmentTypes.permittedChains,
+            parentCapability: EndowmentTypes.PermittedChains,
           },
         ]);
       });

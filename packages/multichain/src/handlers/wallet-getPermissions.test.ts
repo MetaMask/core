@@ -222,10 +222,10 @@ describe('getPermissionsHandler', () => {
         },
         {
           id: '1',
-          parentCapability: RestrictedMethods.eth_accounts,
+          parentCapability: RestrictedMethods.EthAccounts,
           caveats: [
             {
-              type: CaveatTypes.restrictReturnedAccounts,
+              type: CaveatTypes.RestrictReturnedAccounts,
               value: ['0x1', '0x2', '0x3', '0xdeadbeef'],
             },
           ],
@@ -315,10 +315,10 @@ describe('getPermissionsHandler', () => {
         },
         {
           id: '1',
-          parentCapability: EndowmentTypes.permittedChains,
+          parentCapability: EndowmentTypes.PermittedChains,
           caveats: [
             {
-              type: CaveatTypes.restrictNetworkSwitching,
+              type: CaveatTypes.RestrictNetworkSwitching,
               value: ['0x1', '0x64'],
             },
           ],
@@ -348,20 +348,20 @@ describe('getPermissionsHandler', () => {
         },
         {
           id: '1',
-          parentCapability: RestrictedMethods.eth_accounts,
+          parentCapability: RestrictedMethods.EthAccounts,
           caveats: [
             {
-              type: CaveatTypes.restrictReturnedAccounts,
+              type: CaveatTypes.RestrictReturnedAccounts,
               value: ['0x1', '0x2', '0xdeadbeef'],
             },
           ],
         },
         {
           id: '1',
-          parentCapability: EndowmentTypes.permittedChains,
+          parentCapability: EndowmentTypes.PermittedChains,
           caveats: [
             {
-              type: CaveatTypes.restrictNetworkSwitching,
+              type: CaveatTypes.RestrictNetworkSwitching,
               value: ['0x1', '0x64'],
             },
           ],

@@ -31,7 +31,7 @@ export const revokePermissionsHandler = {
  * @param end - JsonRpcEngine end() callback
  * @param options - Method hooks passed to the method implementation
  * @param options.revokePermissionsForOrigin - A hook that revokes given permission keys for an origin
- * @returns A promise that resolves to nothing
+ * @returns Nothing.
  */
 function revokePermissionsImplementation(
   req: JsonRpcRequest<Json[]>,
@@ -63,8 +63,8 @@ function revokePermissionsImplementation(
   }
 
   const caip25EquivalentPermissions: string[] = [
-    RestrictedMethods.eth_accounts,
-    EndowmentTypes.permittedChains,
+    RestrictedMethods.EthAccounts,
+    EndowmentTypes.PermittedChains,
   ];
   const relevantPermissionKeys = permissionKeys.filter(
     (name: string) => !caip25EquivalentPermissions.includes(name),

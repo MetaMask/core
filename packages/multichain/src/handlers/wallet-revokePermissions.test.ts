@@ -89,8 +89,8 @@ describe('revokePermissionsHandler', () => {
   });
 
   describe.each([
-    [RestrictedMethods.eth_accounts],
-    [EndowmentTypes.permittedChains],
+    [RestrictedMethods.EthAccounts],
+    [EndowmentTypes.PermittedChains],
   ])('%s permission is specified', (permission: string) => {
     it('revokes the CAIP-25 endowment permission', () => {
       const { handler, revokePermissionsForOrigin } = createMockedHandler();
