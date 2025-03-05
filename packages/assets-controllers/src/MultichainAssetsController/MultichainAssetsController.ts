@@ -69,6 +69,11 @@ export function getDefaultMultichainAssetsControllerState(): MultichainAssetsCon
   return { accountsAssets: {}, assetsMetadata: {} };
 }
 
+export type MultichainAssetsControllerGetAssetMetadataAction = {
+  type: 'MultichainAssetsController:getAssetMetadata';
+  handler: MultichainAssetsController['getAssetMetadata'];
+};
+
 /**
  * Returns the state of the {@link MultichainAssetsController}.
  */
@@ -90,7 +95,8 @@ export type MultichainAssetsControllerStateChangeEvent =
  * Actions exposed by the {@link MultichainAssetsController}.
  */
 export type MultichainAssetsControllerActions =
-  MultichainAssetsControllerGetStateAction;
+  | MultichainAssetsControllerGetStateAction
+  | MultichainAssetsControllerGetAssetMetadataAction;
 
 /**
  * Events emitted by {@link MultichainAssetsController}.
@@ -199,6 +205,8 @@ export class MultichainAssetsController extends BaseController<
       'AccountsController:accountAssetListUpdated',
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
+
+    this.#registerMessageHandlers();
   }
 
   async #handleAccountAssetListUpdatedEvent(
@@ -213,6 +221,27 @@ export class MultichainAssetsController extends BaseController<
     return this.#withControllerLock(async () =>
       this.#handleOnAccountAdded(account),
     );
+  }
+
+  /**
+   * Constructor helper for registering the controller's messaging system
+   * actions.
+   */
+  #registerMessageHandlers() {
+    this.messagingSystem.registerActionHandler(
+      'MultichainAssetsController:getAssetMetadata',
+      this.getAssetMetadata.bind(this),
+    );
+  }
+
+  /**
+   * Returns the metadata for the given asset
+   *
+   * @param asset - The asset to get metadata for
+   * @returns The metadata for the asset or undefined if not found.
+   */
+  getAssetMetadata(asset: CaipAssetType): FungibleAssetMetadata | undefined {
+    return this.state.assetsMetadata[asset];
   }
 
   /**
