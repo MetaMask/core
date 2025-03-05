@@ -209,7 +209,7 @@ export function mockUserStorageMessenger(
       const keyring = {
         getAccounts: mockKeyringGetAccounts,
         addAccounts: mockKeyringAddAccounts,
-      } as unknown as EthKeyring<never>;
+      } as unknown as EthKeyring;
 
       const metadata = { id: 'mock-id', name: '' };
 
