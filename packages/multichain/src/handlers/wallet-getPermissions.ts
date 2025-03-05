@@ -3,12 +3,6 @@ import type {
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
 import {
-  Caip25CaveatType,
-  type Caip25CaveatValue,
-  Caip25EndowmentPermissionName,
-  getPermittedEthChainIds,
-} from '@metamask/multichain';
-import {
   type CaveatSpecificationConstraint,
   MethodNames,
   type PermissionController,
@@ -20,6 +14,12 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
+import { getPermittedEthChainIds } from '../adapters/caip-permission-adapter-permittedChains';
+import {
+  Caip25CaveatType,
+  type Caip25CaveatValue,
+  Caip25EndowmentPermissionName,
+} from '../caip25Permission';
 import {
   EndowmentTypes,
   RestrictedMethods,

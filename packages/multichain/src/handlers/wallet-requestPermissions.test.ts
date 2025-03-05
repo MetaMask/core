@@ -1,8 +1,4 @@
 import {
-  Caip25CaveatType,
-  Caip25EndowmentPermissionName,
-} from '@metamask/multichain';
-import {
   invalidParams,
   type RequestedPermissions,
 } from '@metamask/permission-controller';
@@ -13,6 +9,10 @@ import type {
 } from '@metamask/utils';
 
 import { requestPermissionsHandler } from './wallet-requestPermissions';
+import {
+  Caip25CaveatType,
+  Caip25EndowmentPermissionName,
+} from '../caip25Permission';
 import {
   CaveatTypes,
   EndowmentTypes,

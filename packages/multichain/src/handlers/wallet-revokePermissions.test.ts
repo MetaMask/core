@@ -1,4 +1,3 @@
-import { Caip25EndowmentPermissionName } from '@metamask/multichain';
 import { invalidParams } from '@metamask/permission-controller';
 import type {
   Json,
@@ -7,6 +6,7 @@ import type {
 } from '@metamask/utils';
 
 import { revokePermissionsHandler } from './wallet-revokePermissions';
+import { Caip25EndowmentPermissionName } from '../caip25Permission';
 import { EndowmentTypes, RestrictedMethods } from '../constants/permissions';
 
 const baseRequest = {
