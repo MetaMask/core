@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: migrate wallet handlers (and unit tests) ([#5420](https://github.com/MetaMask/core/pull/5420))
+- feat: Integrate non-evm SIP-26 support into `@metamask/multichain` ([#5191](https://github.com/MetaMask/core/pull/5191))
+
 ## [3.0.0]
 
 ### Added

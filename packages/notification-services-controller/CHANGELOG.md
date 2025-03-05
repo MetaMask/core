@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: profile sync controllers should consume SDK methods ([#5413](https://github.com/MetaMask/core/pull/5413))
+
 ## [2.0.0]
 
 ### Added
