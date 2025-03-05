@@ -1,6 +1,6 @@
 import { verifyMessage } from '@ethersproject/wallet';
 import type { Hex } from '@metamask/utils';
-import { add0x, remove0x } from '@metamask/utils';
+import { add0x, hexToBytes, remove0x } from '@metamask/utils';
 
 /**
  * Verify if the signature is the specified data signed by the specified public key.
@@ -16,11 +16,8 @@ export function isValidSignature(
   publicKey: Hex,
 ): boolean {
   const joinedHex = add0x(data.map(remove0x).join(''));
-
-  const actualPublicKey = verifyMessage(
-    Buffer.from(joinedHex, 'hex'),
-    signature,
-  );
+  const dataBytes = hexToBytes(joinedHex);
+  const actualPublicKey = verifyMessage(dataBytes, signature);
 
   return actualPublicKey.toLowerCase() === publicKey.toLowerCase();
 }
