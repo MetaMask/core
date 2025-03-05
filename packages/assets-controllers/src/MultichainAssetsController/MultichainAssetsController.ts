@@ -70,7 +70,7 @@ export function getDefaultMultichainAssetsControllerState(): MultichainAssetsCon
 }
 
 export type MultichainAssetsControllerGetAssetMetadataAction = {
-  type: 'MultichainAssetsController:getAssetMetadata';
+  type: `${typeof controllerName}:getAssetMetadata`;
   handler: MultichainAssetsController['getAssetMetadata'];
 };
 
