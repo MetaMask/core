@@ -216,6 +216,10 @@ export type NetworkConfiguration = {
    * Allows comparison of local network state with state to sync.
    */
   lastUpdatedAt?: number;
+  /**
+   * The URL of the portfolio discover page for the network.
+   */
+  portfolioDiscoverUrl?: string;
 };
 
 /**
