@@ -2345,7 +2345,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('correctly calls the Price API with unqiue native token addresses (e.g. MATIC)', async () => {
+      it('correctly calls the Price API with unique native token addresses (e.g. MATIC)', async () => {
         const tokenPricesService = buildMockTokenPricesService({
           fetchTokenPrices: jest.fn().mockResolvedValue({
             '0x0000000000000000000000000000000000001010': {
