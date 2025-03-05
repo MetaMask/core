@@ -559,11 +559,7 @@ describe('requestPermissionsHandler', () => {
 
     it("returns an error if requestPermissionsForOrigin hook doesn't return a valid CAIP-25 permission", async () => {
       const { handler, requestPermissionsForOrigin } = createMockedHandler();
-      requestPermissionsForOrigin.mockResolvedValue([
-        {
-          otherPermission: { foo: 'bar' },
-        },
-      ]);
+      requestPermissionsForOrigin.mockResolvedValue([{ foo: 'bar' }]);
 
       await expect(
         handler(
