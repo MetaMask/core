@@ -179,7 +179,7 @@ describe('getPermissionsHandler', () => {
       getAccounts.mockReturnValue([]);
       jest
         .spyOn(caipPermissionAdapterPermittedChains, 'getPermittedEthChainIds')
-        .mockReturnValue(['0x1', '0x64']);
+        .mockReturnValue([]);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
@@ -197,13 +197,13 @@ describe('getPermissionsHandler', () => {
       ]);
     });
 
-    it('gets the lastSelected sorted permissioned eth accounts for the origin', async () => {
+    it('gets the lastSelected sorted permitted eth accounts for the origin', async () => {
       const { handler, getAccounts } = createMockedHandler();
       await handler(baseRequest);
       expect(getAccounts).toHaveBeenCalledWith({ ignoreLock: true });
     });
 
-    it('returns the permissions with an eth_accounts permission if some eth accounts are permissioned', async () => {
+    it('returns the permissions with an eth_accounts permission if some eth accounts are permitted', async () => {
       const { handler, getAccounts, response } = createMockedHandler();
       getAccounts.mockReturnValue(['0x1', '0x2', '0x3', '0xdeadbeef']);
 
@@ -294,7 +294,7 @@ describe('getPermissionsHandler', () => {
       });
     });
 
-    it('returns the permissions with a permittedChains permission if some eip155 chainIds are permissioned', async () => {
+    it('returns the permissions with a permittedChains permission if some eip155 chainIds are permitted', async () => {
       const { handler, response } = createMockedHandler();
       jest
         .spyOn(caipPermissionAdapterPermittedChains, 'getPermittedEthChainIds')
@@ -326,7 +326,7 @@ describe('getPermissionsHandler', () => {
       ]);
     });
 
-    it('returns the permissions with a eth_accounts and permittedChains permission if some eip155 accounts and chainIds are permissioned', async () => {
+    it('returns the permissions with a eth_accounts and permittedChains permission if some eip155 accounts and chainIds are permitted', async () => {
       const { handler, getAccounts, response } = createMockedHandler();
       getAccounts.mockReturnValue(['0x1', '0x2', '0xdeadbeef']);
       jest
