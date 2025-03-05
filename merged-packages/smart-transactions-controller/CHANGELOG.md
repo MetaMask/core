@@ -1,4 +1,5 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -7,34 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [16.1.0]
+
 ### Added
+
 - Add Base Sentinel endpoint to STX controller ([#500](https://github.com/MetaMask/smart-transactions-controller/pull/500))
 
 ### Changed
+
 - Add workflow_dispatch to security-code-scanner ([#499](https://github.com/MetaMask/smart-transactions-controller/pull/499))
 - SmartTransactionsController `state` should persist ([#493](https://github.com/MetaMask/smart-transactions-controller/pull/493))
   After opening your browser smart transactions should be preserved.
 
 ## [16.0.1]
+
 ### Fixed
+
 - Extend definition of when a regular tx is marked as failed based on a smart transaction status, clean up unsupported statuses ([#485](https://github.com/MetaMask/smart-transactions-controller/pull/485))
 
 ## [16.0.0]
+
 ### Changed
+
 - **BREAKING** Update `@metamask/transaction-controller` peer dependency from `^38.0.0` to `^42.0.0` ([#482](https://github.com/MetaMask/smart-transactions-controller/pull/482))
 
 ### Removed
+
 - **BREAKING** Remove exports for `AllowedActions` and `AllowedEvents` types ([#482](https://github.com/MetaMask/smart-transactions-controller/pull/482))
 
 ## [15.1.0]
+
 ### Changed
+
 - Update constants.ts to add a BSC url for smart transactions ([#483](https://github.com/MetaMask/smart-transactions-controller/pull/483))
 
 ### Removed
+
 - Remove unnecessary `events` dependency ([#473](https://github.com/MetaMask/smart-transactions-controller/pull/473))
 
 ## [15.0.0]
+
 ### Changed
+
 - **BREAKING**: Recategorize controllers as peer dependencies ([#472](https://github.com/MetaMask/smart-transactions-controller/pull/472))
   - The following packages have been removed as dependencies, and added as peer dependencies:
     - `@metamask/network-controller@^22.0.0`
@@ -48,7 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/eth-json-rpc-provider` from `^4.1.0` to `^4.1.6` ([#460](https://github.com/MetaMask/smart-transactions-controller/pull/460))
 
 ## [14.0.0]
+
 ### Changed
+
 - **BREAKING** Update `@metamask/polling-controller` from `^8.0.0` to `^11.0.0` ([#448](https://github.com/MetaMask/smart-transactions-controller/pull/448))
   - `startPollingByNetworkClientId` has been renamed to `startPolling`, accepting a `SmartTransactionsControllerPollingInput` object instead of a string as argument.
 - Update `@metamask/transaction-controller` from `^34.0.0` to `^37.3.0` ([#446](https://github.com/MetaMask/smart-transactions-controller/pull/446))
@@ -56,18 +72,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `@metamask/network-controller` from `^20.0.0` to `^21.1.0` ([#447](https://github.com/MetaMask/smart-transactions-controller/pull/447))
 
 ## [13.2.0]
+
 ### Added
+
 - Add metrics events for Receive and Request ([#429](https://github.com/MetaMask/smart-transactions-controller/pull/429))
   - Add `ReceiveRequest` variant to `MetaMetricsEvents` enum
   - Add `Navigation` variant to `MetaMetricsEventCategory` enum
 
 ## [13.1.0]
+
 ### Changed
+
 - Emit a new "smartTransactionConfirmationDone" event ([#424](https://github.com/MetaMask/smart-transactions-controller/pull/424))
 - Use a new API (Sentinel) for a health check ([#411](https://github.com/MetaMask/smart-transactions-controller/pull/411))
 
 ## [13.0.0]
+
 ### Changed
+
 - **BREAKING:** Updated `SmartTransactionsController` to inherit from `StaticIntervalPollingController` instead of `StaticIntervalPollingControllerV1` ([#397](https://github.com/MetaMask/smart-transactions-controller/pull/397)).
   - The constructor for `SmartTransactionsController` now accepts a single options object instead of three separate arguments, with configuration options merged into this object.
   - `SmartTransactionsController` now requires a `messenger` option (with the corresponding type `SmartTransactionsControllerMessenger` now available).
@@ -79,75 +101,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added and exported the following types: `SmartTransactionsControllerMessenger`, `SmartTransactionsControllerState`, `SmartTransactionsControllerGetStateAction`, `SmartTransactionsControllerActions`, `SmartTransactionsControllerStateChangeEvent`, `SmartTransactionsControllerSmartTransactionEvent`, and `SmartTransactionsControllerEvents`.
 
 ## [12.0.1]
+
 ### Changed
+
 - Remove logic for ensuring uniqueness of smart transactions ([#404](https://github.com/MetaMask/smart-transactions-controller/pull/404))
   - This issue has been resolved in production.
 
 ### Fixed
+
 - Fix issue where this.ethQuery is sometimes unexpectedly undefined ([#405](https://github.com/MetaMask/smart-transactions-controller/pull/405))
 
 ## [12.0.0]
+
 ### Changed
+
 - Upgrade @metamask/network-controller from 19.0.0 to 20.0.0 ([#395](https://github.com/MetaMask/smart-transactions-controller/pull/395))
 - **BREAKING**: Removed providerConfig from state and provider object from constructor parameters. Instead provider object will be used from selected network client. ([#395](https://github.com/MetaMask/smart-transactions-controller/pull/395))
 
 ## [11.0.0]
+
 ### Changed
+
 - adapt to eip-1193 provider changes ([#384](https://github.com/MetaMask/smart-transactions-controller/pull/384))
 - **BREAKING**: Save new event props to a newly created smart transaction, use both `properties` and `sensitiveProperties` for events. ([#386](https://github.com/MetaMask/smart-transactions-controller/pull/386))([#390](https://github.com/MetaMask/smart-transactions-controller/pull/390))
 
 ## [10.2.0]
+
 ### Changed
+
 - Update metrics, so events work even for non-swaps transactions ([#374](https://github.com/MetaMask/smart-transactions-controller/pull/374))
 - Update @metamask/transaction-controller from 32.0.0 to 34.0.0 ([#371](https://github.com/MetaMask/smart-transactions-controller/pull/371))
 - Update braces from 3.0.2 to 3.0.3 and remove the `--immutable-cache` flag in a build file ([#367](https://github.com/MetaMask/smart-transactions-controller/pull/367))
 
 ## [10.1.6]
+
 ### Changed
+
 - Update @metamask/transaction-controller from 29.1.0 to 32.0.0 ([#348](https://github.com/MetaMask/smart-transactions-controller/pull/348))
 
 ## [10.1.5]
+
 ### Changed
+
 - Update @metamask/polling-controller from 6.0.2 to 8.0.0 ([#352](https://github.com/MetaMask/smart-transactions-controller/pull/352))
 
 ## [10.1.4]
+
 ### Changed
+
 - Update @metamask/network-controller from 18.1.1 to 19.0.0 ([#349](https://github.com/MetaMask/smart-transactions-controller/pull/349))
 - Update @metamask/base-controller from 5.0.2 to 6.0.0 ([#351](https://github.com/MetaMask/smart-transactions-controller/pull/351))
 
 ## [10.1.3]
+
 ### Changed
+
 - Update jest from v26 to v29, ts-jest from v26 to v29 and nock from v13 to v14 ([#325](https://github.com/MetaMask/smart-transactions-controller/pull/325))
 
 ## [10.1.2]
+
 ### Fixed
+
 - fix: Improve state management to ensure unique smart transactions in a rare edge case. This will be removed in a future version once we have confirmed this is resolved. ([#353](https://github.com/MetaMask/smart-transactions-controller/pull/353))
 - Bring release instructions in README up to date ([#354](https://github.com/MetaMask/smart-transactions-controller/pull/354))
 
 ## [10.1.1]
+
 ### Fixed
+
 - Call the "poll" function only once on a network switch ([#348](https://github.com/MetaMask/smart-transactions-controller/pull/348))
 - Update `@metamask/transaction-controller` from `^29.1.0` to `^30.0.0` ([#342](https://github.com/MetaMask/smart-transactions-controller/pull/342))
 
 ## [10.1.0]
+
 ### Changed
+
 - Update `@metamask/transaction-controller` from `^28.1.0` to `^29.1.0` ([#339](https://github.com/MetaMask/smart-transactions-controller/pull/339))
 
 ## [10.0.1]
+
 ### Fixed
+
 - Emit an event with an updated Smart Transaction before confirmation ([#333](https://github.com/MetaMask/smart-transactions-controller/pull/333))
 
 ## [10.0.0]
+
 ### Fixed
+
 - **BREAKING**: Flip the behavior of the `wipeSmartTransactions` method's `ignoreNetwork` option ([#323](https://github.com/MetaMask/smart-transactions-controller/pull/323))
   - Passing `false` will now wipe transactions for the globally selected chain, and passing `true` will now wipe transactions from each chain stored in state, instead of the other way around
 
 ## [9.0.0]
+
 ### Added
+
 - Add Sepolia support ([#316](https://github.com/MetaMask/smart-transactions-controller/pull/316))
 - Add function `wipeSmartTransactions` to clear all state for a given address (needs to be supplied in all-lowercase) ([#316](https://github.com/MetaMask/smart-transactions-controller/pull/316))
 
 ### Changed
+
 - Update `@metamask/base-controller` from `^4.1.1` to `^5.0.1` ([#296](https://github.com/MetaMask/smart-transactions-controller/pull/296))
 - Update `@metamask/controller-utils` from `^8.0.3` to `^9.1.0` ([#318](https://github.com/MetaMask/smart-transactions-controller/pull/318))
 - Update `@metamask/network-controller` from `^17.2.0` to `^18.1.0` ([#310](https://github.com/MetaMask/smart-transactions-controller/pull/310))
@@ -155,21 +207,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `@metamask/transaction-controller` from `^25.1.0` to `^28.1.0` ([#319](https://github.com/MetaMask/smart-transactions-controller/pull/319))
 
 ### Removed
+
 - **BREAKING**: Remove Goerli support ([#316](https://github.com/MetaMask/smart-transactions-controller/pull/316))
 
 ## [8.1.0]
+
 ### Changed
+
 - Update a URL for transaction-api from `https://transaction.metaswap.codefi.network` to `https://transaction.api.cx.metamask.io`, since we shouldn't be using `codefi.network` anymore ([#314](https://github.com/MetaMask/smart-transactions-controller/pull/314))
 - Add a new function called `getSmartTransactionByMinedTxHash`, which can be used to get a smart transaction by its `minedHash` prop ([#314](https://github.com/MetaMask/smart-transactions-controller/pull/314))
 - Add new props on the `SmartTransactionsStatus` type, so they can be used e.g. as event props ([#314](https://github.com/MetaMask/smart-transactions-controller/pull/314))
 
 ## [8.0.0]
+
 ### Changed
+
 - **BREAKING:** The constructor now requires a `getTransactions` option, which can be used to get a list of existing transactions ([#301](https://github.com/MetaMask/smart-transactions-controller/pull/301))
 - Ensure that a transaction does not get re-confirmed if it is already confirmed or submitted. MetaMask Swaps are confirmed from this controller, other transaction types are most of the time confirmed from the TransactionController. ([#301](https://github.com/MetaMask/smart-transactions-controller/pull/301))
 
 ## [7.0.0]
+
 ### Added
+
 - **BREAKING:** Track fees and liveness for multiple chains by adding `feesByChainId` and `livenessByChainId` properties to SmartTransactionsControllerState ([#237](https://github.com/MetaMask/smart-transactions-controller/pull/237))
   - In particular, clients should prefer accessing `feesByChainId` and `livenessByChainId` instead of `fees` and `liveness`, which will be removed in a future major version.
 - `SmartTransactionsController` now inherits from `StaticIntervalPollingControllerV1` ([#237](https://github.com/MetaMask/smart-transactions-controller/pull/237), [#265](https://github.com/MetaMask/smart-transactions-controller/pull/265))
@@ -197,6 +256,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This occurs after transactions are submitted, after they are confirmed, after statuses are updated, and also explicitly via `updateSmartTransaction`.
 
 ### Changed
+
 - **BREAKING**: Bump `@metamask/network-controller` from `^15.0.0` to `^17.0.0` ([#238](https://github.com/MetaMask/smart-transactions-controller/pull/238) [#241](https://github.com/MetaMask/smart-transactions-controller/pull/241))
   - This is breaking because the type of the `messenger` has backward-incompatible changes. See the changelog for `@metamask/base-controller@4.0.0` for more.
 - **BREAKING**: The set of supported chains (configurable via `supportedChainIds`) now defaults to including Goerli instead of Rinkeby ([#237](https://github.com/MetaMask/smart-transactions-controller/pull/237))
@@ -216,9 +276,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deprecate `time` property on `SmartTransaction` type in favor of `creationTime` ([#298](https://github.com/MetaMask/smart-transactions-controller/pull/298))
 
 ### Removed
+
 - **BREAKING:** Remove property `ethersProvider` from `SmartTransactionsController` ([#237](https://github.com/MetaMask/smart-transactions-controller/pull/237))
 
 ### Fixed
+
 - Fix `getFees` so that it does not blow away an existing `nonce` on the trade transaction ([#271](https://github.com/MetaMask/smart-transactions-controller/pull/271))
 - Fix `submitSignedTransactions` so that it sets a `nonce` on the resulting transaction if it doesn't have one ([#271](https://github.com/MetaMask/smart-transactions-controller/pull/271))
 - Fix updating a smart transaction to no longer throw when no smart transactions have been previously saved under the current chain ([#271](https://github.com/MetaMask/smart-transactions-controller/pull/271))
@@ -229,49 +291,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This change may cause errors to be thrown immediately following a network switch until a future NetworkController state update or polling iteration.
 
 ## [6.2.2]
+
 ### Fixed
+
 - Revert "Parameterize SmartTransactionsController state by ChainId for MultiChain + Integrate PollingController Mixin ([#235](https://github.com/MetaMask/smart-transactions-controller/pull/235))
 
 ## [6.2.1] [DEPRECATED]
+
 ### Fixed
+
 - Fix a typo in a URL for submitting transactions ([#230](https://github.com/MetaMask/smart-transactions-controller/pull/230))
 
 ## [6.2.0] [DEPRECATED]
+
 ### Added
+
 - Pass current version of this package to API when submitting transactions ([#227](https://github.com/MetaMask/smart-transactions-controller/pull/227))
 
 ## [6.1.0] [DEPRECATED]
+
 ### Added
+
 - Add a new "userOptInV2" prop ([#222](https://github.com/MetaMask/smart-transactions-controller/pull/222))
 
 ### Changed
+
 - Bump @metamask/network-controller from 15.0.0 to 15.1.0 ([#219](https://github.com/MetaMask/smart-transactions-controller/pull/219))
 
 ## [6.0.0] [DEPRECATED]
+
 ### Added
+
 - **BREAKING:** `getNetworkClientById` is now required argument in constructor options object ([#210](https://github.com/MetaMask/smart-transactions-controller/pull/210))
 - Integrate `PollingController` mixin and `_executePoll` method used for concurrent multichain polling ([#210](https://github.com/MetaMask/smart-transactions-controller/pull/210))
 - Consumers can now call `startPollingByNetworkClientId` with a networkClientId to start polling for a specific chain and `stopPollingByPollingToken` with the returned pollingToken to stop polling for that chain.
 
 ### Changed
+
 - **BREAKING**: Bump `@metamask/network-controller` from ^13.0.1 to ^15.0.0 ([#211](https://github.com/MetaMask/smart-transactions-controller/pull/211))
 - **BREAKING**: Replace `@ethersproject/providers` with `@metamask/eth-query` ([#210](https://github.com/MetaMask/smart-transactions-controller/pull/210))
 - Remove `@ethersproject/bignumber` ([#210](https://github.com/MetaMask/smart-transactions-controller/pull/210))
 - Add optional options object containing a `networkClientId` argument to the `updateSmartTransaction` method ([#210](https://github.com/MetaMask/smart-transactions-controller/pull/210))
 
 ## [5.0.0]
+
 ### Changed
+
 - Bump dependency on `@metamask/network-controller` to ^13.0.0 ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
 - Bump dependency on `@metamask/base-controller` to ^3.2.1 ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
 - Bump dependency on `@metamask/controller-utils` to ^5.0.0 ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
 
 ### Removed
+
 - **BREAKING:** Remove `metamaskNetworkId` from smart transaction state ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
   - To migrate, remove references to `TransactionMeta.metamaskNetworkId` and `TransactionMeta.history.metamaskNetworkId`
 - Remove `getNetwork` from constructor options ([#191](https://github.com/MetaMask/smart-transactions-controller/pull/191))
 
 ## [4.0.0]
+
 ### Changed
+
 - **BREAKING**: Bump minimum Node.js version to v16 ([#161](https://github.com/MetaMask/smart-transactions-controller/pull/161))
 - **BREAKING:** Remove `isomorphic-fetch` ([#131](https://github.com/MetaMask/smart-transactions-controller/pull/131))
   - Projects lacking `fetch` will now have to supply their own polyfill.
@@ -279,23 +358,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move `@types/lodash` to devDependencies ([#141](https://github.com/MetaMask/smart-transactions-controller/pull/141))
 
 ## [3.1.0]
+
 ### Changed
+
 - Replace use of full `@metamask/controllers` repo with packages from `@metamask/core-monorepo` ([#110](https://github.com/MetaMask/smart-transactions-controller/pull/110), [#112](https://github.com/MetaMask/smart-transactions-controller/pull/112), [#113](https://github.com/MetaMask/smart-transactions-controller/pull/113))
 
 ## [3.0.0]
+
 ### Changed
+
 - **BREAKING:** Bump required Node version to v14 ([#90](https://github.com/MetaMask/smart-transactions-controller/pull/90))
 - `@metamask/controllers@32.0.2` ([#104](https://github.com/MetaMask/smart-transactions-controller/pull/104))
 
 ### Fixed
+
 - Ensure the nonce lock is always released ([#108](https://github.com/MetaMask/smart-transactions-controller/pull/108))
 
 ## [2.3.2]
+
 ### Changed
+
 - Replace `ethers` with submodules (@ethersproject/bignumber,@ethersproject/bytes, @ethersproject/providers,) - no functional change ([#95](https://github.com/MetaMask/smart-transactions-controller/pull/95))
 
 ## [2.3.1]
+
 ### Changed
+
 - Remove unnecessary event props ([#93](https://github.com/MetaMask/smart-transactions-controller/pull/93))
 - Update `is-release` filter ([#91](https://github.com/MetaMask/smart-transactions-controller/pull/91))
 - update is-release filter ([#89](https://github.com/MetaMask/smart-transactions-controller/pull/89))
@@ -303,57 +391,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - add config for MetaMask/action-npm-publish ([#85](https://github.com/MetaMask/smart-transactions-controller/pull/85))
 
 ## [2.3.0]
+
 ### Added
+
 - Add the "clearFees" function ([#84](https://github.com/MetaMask/smart-transactions-controller/pull/84))
 
 ## [2.2.0]
+
 ### Changed
+
 - chore(deps): bump @metamask/controllers from 30.0.0 to 30.1.0 ([#81](https://github.com/MetaMask/smart-transactions-controller/pull/81))
 - chore(deps-dev): bump @metamask/eslint-config-nodejs from 8.0.0 to 9.0.0 ([#80](https://github.com/MetaMask/smart-transactions-controller/pull/80))
 - chore(deps-dev): bump @metamask/auto-changelog from 2.6.0 to 2.6.1 ([#79](https://github.com/MetaMask/smart-transactions-controller/pull/79))
 - Return all error props in an error response ([#82](https://github.com/MetaMask/smart-transactions-controller/pull/82))
 
 ## [2.1.0]
+
 ### Added
+
 - chore(deps): bump @metamask/controllers from 29.0.1 to 30.0.0 ([#75](https://github.com/MetaMask/smart-transactions-controller/pull/75))
 - chore(deps-dev): bump @metamask/auto-changelog from 2.5.0 to 2.6.0 ([#71](https://github.com/MetaMask/smart-transactions-controller/pull/71))
 - Return a pending status for a cancelled tx that hasn't been settled yet ([#74](https://github.com/MetaMask/smart-transactions-controller/pull/74))
 
 ## [2.0.1]
+
 ### Changed
+
 - Previous version deprecated due to missing build files. No code changes made.
 
 ## [2.0.0] [DEPRECATED]
+
 ### Added
+
 - "estimateGas" -> "getFees", support a new cancellation reason, refactoring ([#69](https://github.com/MetaMask/smart-transactions-controller/pull/69))
 - chore(deps): bump @metamask/controllers from 28.0.0 to 29.0.1 ([#68](https://github.com/MetaMask/smart-transactions-controller/pull/68))
 - If mined status is not mined and cancel reason not set, then show the cancel link, refactoring ([#66](https://github.com/MetaMask/smart-transactions-controller/pull/66))
 - chore(deps): bump @metamask/controllers from 27.1.1 to 28.0.0 ([#65](https://github.com/MetaMask/smart-transactions-controller/pull/65))
 
 ## [1.10.0]
+
 ### Added
+
 - Handle the "cancelled" status, lower status polling interval from 10s to 5s, don't mark a tx as cancelled immediately, track uuid ([#63](https://github.com/MetaMask/smart-transactions-controller/pull/63))
 - chore(deps): bump @metamask/controllers from 25.1.0 to 27.1.1 ([#62](https://github.com/MetaMask/smart-transactions-controller/pull/62))
 - Add tracking of the "current_stx_enabled" param ([#58](https://github.com/MetaMask/smart-transactions-controller/pull/58))
 
 ## [1.9.1]
+
 ### Added
+
 - Use the "confirmExternalTransaction" fn directly ([#56](https://github.com/MetaMask/smart-transactions-controller/pull/56))
 
 ## [1.9.0]
+
 ### Added
+
 - Only accept the "getNonceLock" fn and not the whole "nonceTracker" ([#54](https://github.com/MetaMask/smart-transactions-controller/pull/54))
 
 ## [1.8.0]
+
 ### Added
+
 - Do not update an STX which doesn't exist anymore, add UTs ([#52](https://github.com/MetaMask/smart-transactions-controller/pull/52))
 
 ## [1.7.0]
+
 ### Added
+
 - Fix UTs, change threshold ([#49](https://github.com/MetaMask/smart-transactions-controller/pull/49))
 
 ## [1.6.0]
+
 ### Added
+
 - Change cancellable interval to be 1 minute ([#47](https://github.com/MetaMask/smart-transactions-controller/pull/47))
 - Estimate approval transaction along with swaps transaction ([#46](https://github.com/MetaMask/smart-transactions-controller/pull/46))
 - chore(deps): bump @metamask/controllers from 20.1.0 to 25.1.0 ([#44](https://github.com/MetaMask/smart-transactions-controller/pull/44))
@@ -361,11 +471,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add method for estimateGas ([#43](https://github.com/MetaMask/smart-transactions-controller/pull/43))
 
 ## [1.5.0]
+
 ### Added
+
 - Add "fees" and "liveness" into the smartTransactionsState, update version ([#41](https://github.com/MetaMask/smart-transactions-controller/pull/41))
 
 ## [1.4.0]
+
 ### Added
+
 - Add isomorphic-fetch to stx controller ([#38](https://github.com/MetaMask/smart-transactions-controller/pull/38))
 - feat: create new handleFetch with custom error handling ([#35](https://github.com/MetaMask/smart-transactions-controller/pull/35))
 - Unblock submit if ethers errors ([#30](https://github.com/MetaMask/smart-transactions-controller/pull/30))
@@ -376,18 +490,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switch license with MetaMask license ([#25](https://github.com/MetaMask/smart-transactions-controller/pull/25))
 
 ## [1.3.0]
+
 ### Added
+
 - Use the production version of the Transaction APIs repo ([#37](https://github.com/MetaMask/smart-transactions-controller/pull/37))
 
 ## [1.2.0]
+
 ### Added
+
 - Add more unit tests for SmartTransactionsController ([#23](https://github.com/MetaMask/smart-transactions-controller/pull/23))
 - chore(deps): bump @metamask/controllers from 16.0.0 to 19.0.0 ([#18](https://github.com/MetaMask/smart-transactions-controller/pull/18))
 - Add cancelled status to stx after successful cancel request ([#21](https://github.com/MetaMask/smart-transactions-controller/pull/21))
 - 1.1.0 ([#22](https://github.com/MetaMask/smart-transactions-controller/pull/22))
 
 ## [1.1.0]
+
 ### Added
+
 - Tracking of STX status changes ([#20](https://github.com/MetaMask/smart-transactions-controller/pull/20))
 - Remove cancelled transaction when new trx with same nonce submitted ([#19](https://github.com/MetaMask/smart-transactions-controller/pull/19))
 - chore: modify polling and clean up tests ([#17](https://github.com/MetaMask/smart-transactions-controller/pull/17))
@@ -396,7 +516,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Smart Transactions List ([#13](https://github.com/MetaMask/smart-transactions-controller/pull/13))
 
 ## [1.0.0]
+
 ### Added
+
 - Adds nonce to a tx, adds `yarn build:link` support, updates functions for API calls, refactoring ([#8](https://github.com/MetaMask/smart-transactions-controller/pull/8))
 - Add many unit tests, support for the batch_status API, refactoring ([#6](https://github.com/MetaMask/smart-transactions-controller/pull/6))
 - Bump @metamask/controllers from 15.1.0 to 16.0.0
