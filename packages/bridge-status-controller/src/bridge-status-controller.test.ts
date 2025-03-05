@@ -5,20 +5,21 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 
 import { BridgeStatusController } from './bridge-status-controller';
-import { DEFAULT_BRIDGE_STATUS_STATE } from './constants';
-import type { BridgeStatusControllerMessenger } from './types';
+import { DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE } from './constants';
 import type {
   BridgeId,
   StatusTypes,
   ActionTypes,
   StartPollingForBridgeTxStatusArgsSerialized,
   BridgeHistoryItem,
+  BridgeStatusControllerState,
+  BridgeStatusControllerMessenger,
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
 import { flushPromises } from '../../../tests/helpers';
 
-const EMPTY_INIT_STATE = {
-  bridgeStatusState: { ...DEFAULT_BRIDGE_STATUS_STATE },
+const EMPTY_INIT_STATE: BridgeStatusControllerState = {
+  ...DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
 };
 
 const MockStatusResponse = {
@@ -453,9 +454,7 @@ describe('BridgeStatusController', () => {
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
         state: {
-          bridgeStatusState: {
-            txHistory: MockTxHistory.getPending(),
-          },
+          txHistory: MockTxHistory.getPending(),
         },
       });
 
@@ -465,9 +464,7 @@ describe('BridgeStatusController', () => {
       );
 
       // Assertion
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toMatchSnapshot();
+      expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
     it('restarts polling for history items that are not complete', async () => {
       // Setup
@@ -482,9 +479,7 @@ describe('BridgeStatusController', () => {
       const bridgeStatusController = new BridgeStatusController({
         messenger: getMessengerMock(),
         state: {
-          bridgeStatusState: {
-            txHistory: MockTxHistory.getPending(),
-          },
+          txHistory: MockTxHistory.getPending(),
         },
         clientId: BridgeClientId.EXTENSION,
         fetchFn: jest.fn(),
@@ -511,9 +506,7 @@ describe('BridgeStatusController', () => {
       );
 
       // Assertion
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toMatchSnapshot();
+      expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
     it('starts polling and updates the tx history when the status response is received', async () => {
       const {
@@ -525,9 +518,9 @@ describe('BridgeStatusController', () => {
       // Assertions
       expect(startPollingSpy).toHaveBeenCalledTimes(1);
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalled();
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toStrictEqual(MockTxHistory.getPending());
+      expect(bridgeStatusController.state.txHistory).toStrictEqual(
+        MockTxHistory.getPending(),
+      );
     });
     it('stops polling when the status response is complete', async () => {
       // Setup
@@ -561,9 +554,9 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       expect(stopPollingByNetworkClientIdSpy).toHaveBeenCalledTimes(1);
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toStrictEqual(MockTxHistory.getComplete());
+      expect(bridgeStatusController.state.txHistory).toStrictEqual(
+        MockTxHistory.getComplete(),
+      );
 
       // Cleanup
       jest.restoreAllMocks();
@@ -626,12 +619,12 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
+      expect(bridgeStatusController.state.txHistory).toHaveProperty(
+        'bridgeTxMetaId1',
+      );
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toHaveProperty('bridgeTxMetaId1');
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
-          .status.srcChain.txHash,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.srcChain
+          .txHash,
       ).toBeUndefined();
 
       // Cleanup
@@ -777,8 +770,8 @@ describe('BridgeStatusController', () => {
 
       // Verify initial state has no srcTxHash
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
-          .status.srcChain.txHash,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.srcChain
+          .txHash,
       ).toBeUndefined();
 
       // Advance timer to trigger polling with new hash
@@ -787,8 +780,8 @@ describe('BridgeStatusController', () => {
 
       // Verify the srcTxHash was updated
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
-          .status.srcChain.txHash,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.status.srcChain
+          .txHash,
       ).toBe('0xnewTxHash');
 
       // Cleanup
@@ -800,13 +793,13 @@ describe('BridgeStatusController', () => {
       const { bridgeStatusController } =
         await executePollingWithPendingStatus();
 
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toStrictEqual(MockTxHistory.getPending());
+      expect(bridgeStatusController.state.txHistory).toStrictEqual(
+        MockTxHistory.getPending(),
+      );
       bridgeStatusController.resetState();
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toStrictEqual(EMPTY_INIT_STATE.bridgeStatusState.txHistory);
+      expect(bridgeStatusController.state.txHistory).toStrictEqual(
+        EMPTY_INIT_STATE.txHistory,
+      );
     });
   });
   describe('wipeBridgeStatus', () => {
@@ -882,12 +875,12 @@ describe('BridgeStatusController', () => {
       expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(2);
 
       // Check that both accounts have a tx history entry
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toHaveProperty('bridgeTxMetaId1');
-      expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
-      ).toHaveProperty('bridgeTxMetaId2');
+      expect(bridgeStatusController.state.txHistory).toHaveProperty(
+        'bridgeTxMetaId1',
+      );
+      expect(bridgeStatusController.state.txHistory).toHaveProperty(
+        'bridgeTxMetaId2',
+      );
 
       // Wipe the status for 1 account only
       bridgeStatusController.wipeBridgeStatus({
@@ -897,7 +890,7 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       const txHistoryItems = Object.values(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
+        bridgeStatusController.state.txHistory,
       );
       expect(txHistoryItems).toHaveLength(1);
       expect(txHistoryItems[0].account).toBe('0xaccount2');
@@ -972,21 +965,19 @@ describe('BridgeStatusController', () => {
 
       // Check we have a tx history entry for each chainId
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
-          .quote.srcChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote.srcChainId,
       ).toBe(42161);
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
-          .quote.destChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote
+          .destChainId,
       ).toBe(1);
 
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
-          .quote.srcChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote.srcChainId,
       ).toBe(10);
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
-          .quote.destChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote
+          .destChainId,
       ).toBe(123);
 
       bridgeStatusController.wipeBridgeStatus({
@@ -996,7 +987,7 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       const txHistoryItems = Object.values(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
+        bridgeStatusController.state.txHistory,
       );
       expect(txHistoryItems).toHaveLength(0);
     });
@@ -1071,21 +1062,19 @@ describe('BridgeStatusController', () => {
 
       // Check we have a tx history entry for each chainId
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
-          .quote.srcChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote.srcChainId,
       ).toBe(42161);
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId1
-          .quote.destChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId1.quote
+          .destChainId,
       ).toBe(1);
 
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
-          .quote.srcChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote.srcChainId,
       ).toBe(10);
       expect(
-        bridgeStatusController.state.bridgeStatusState.txHistory.bridgeTxMetaId2
-          .quote.destChainId,
+        bridgeStatusController.state.txHistory.bridgeTxMetaId2.quote
+          .destChainId,
       ).toBe(123);
 
       bridgeStatusController.wipeBridgeStatus({
@@ -1095,7 +1084,7 @@ describe('BridgeStatusController', () => {
 
       // Assertions
       const txHistoryItems = Object.values(
-        bridgeStatusController.state.bridgeStatusState.txHistory,
+        bridgeStatusController.state.txHistory,
       );
       expect(txHistoryItems).toHaveLength(1);
       expect(txHistoryItems[0].quote.srcChainId).toBe(10);
