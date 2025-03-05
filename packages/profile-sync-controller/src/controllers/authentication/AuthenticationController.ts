@@ -247,7 +247,6 @@ export default class AuthenticationController extends BaseController<
   }
 
   public performSignOut(): void {
-    this.#assertIsUnlocked('performSignOut');
     this.update((state) => {
       state.isSignedIn = false;
       state.sessionData = undefined;
@@ -278,7 +277,6 @@ export default class AuthenticationController extends BaseController<
   }
 
   public isSignedIn(): boolean {
-    this.#assertIsUnlocked('isSignedIn');
     return this.state.isSignedIn;
   }
 
