@@ -71,6 +71,7 @@ import {
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
+  TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
   WalletDevice,
@@ -4892,7 +4893,7 @@ describe('TransactionController', () => {
         options: {
           hooks: {
             afterSign: () => false,
-            beforePublish: () => false,
+            beforePublish: () => Promise.resolve(false),
             getAdditionalSignArguments: () => [metadataMock],
           },
         },
@@ -4934,7 +4935,7 @@ describe('TransactionController', () => {
         options: {
           hooks: {
             afterSign: () => false,
-            beforePublish: () => false,
+            beforePublish: () => Promise.resolve(false),
             getAdditionalSignArguments: () => [metadataMock],
           },
           // @ts-expect-error sign intentionally returns undefined
@@ -5228,7 +5229,6 @@ describe('TransactionController', () => {
       };
       transactionMeta = {
         ...baseTransaction,
-        custodyId: '123',
         history: [{ ...baseTransaction }],
       };
     });
@@ -5311,7 +5311,7 @@ describe('TransactionController', () => {
     );
 
     it('updates transaction hash', async () => {
-      const newHash = '1234';
+      const newHash = '0x1234';
       const { controller } = setupController({
         options: {
           state: {
@@ -5330,6 +5330,146 @@ describe('TransactionController', () => {
       expect(updatedTransaction.hash).toStrictEqual(newHash);
     });
 
+    it('updates gasLimit', async () => {
+      const newGasLimit = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction(transactionId, {
+        gasLimit: newGasLimit,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.gasLimit).toStrictEqual(newGasLimit);
+    });
+
+    it('updates gasPrice', async () => {
+      const newGasPrice = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction(transactionId, {
+        gasPrice: newGasPrice,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.gasPrice).toStrictEqual(newGasPrice);
+    });
+
+    it('updates maxFeePerGas', async () => {
+      const newMaxFeePerGas = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction(transactionId, {
+        maxFeePerGas: newMaxFeePerGas,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxFeePerGas).toStrictEqual(
+        newMaxFeePerGas,
+      );
+    });
+
+    it('updates maxPriorityFeePerGas', async () => {
+      const newMaxPriorityFeePerGas = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction(transactionId, {
+        maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxPriorityFeePerGas).toStrictEqual(
+        newMaxPriorityFeePerGas,
+      );
+    });
+
+    it('updates nonce', async () => {
+      const newNonce = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction(transactionId, {
+        nonce: newNonce,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.nonce).toStrictEqual(newNonce);
+    });
+
+    it('updates type from legacy to feeMarket', async () => {
+      const newType = TransactionEnvelopeType.feeMarket;
+      const { controller } = setupController({
+        options: { state: { transactions: [transactionMeta] } },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction(transactionId, {
+        type: newType,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.type).toStrictEqual(newType);
+    });
+
+    it('updates type from feeMarket to legacy', async () => {
+      const newType = TransactionEnvelopeType.legacy;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...transactionMeta,
+                txParams: {
+                  ...transactionMeta.txParams,
+                  maxFeePerGas: '0x1234',
+                  maxPriorityFeePerGas: '0x1234',
+                },
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction(transactionId, {
+        type: newType,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxFeePerGas).toBeUndefined();
+      expect(updatedTransaction.txParams.maxPriorityFeePerGas).toBeUndefined();
+    });
+
     it('throws if custodial transaction does not exists', async () => {
       const nonExistentId = 'nonExistentId';
       const newStatus = TransactionStatus.approved as const;
@@ -5342,28 +5482,6 @@ describe('TransactionController', () => {
       ).toThrow(
         'Cannot update custodial transaction as no transaction metadata found',
       );
-    });
-
-    it('throws if transaction is not a custodial transaction', async () => {
-      const nonCustodialTransaction: TransactionMeta = {
-        ...baseTransaction,
-        history: [{ ...baseTransaction }],
-      };
-      const newStatus = TransactionStatus.approved as const;
-      const { controller } = setupController({
-        options: {
-          state: {
-            transactions: [nonCustodialTransaction],
-          },
-        },
-        updateToInitialState: true,
-      });
-
-      expect(() =>
-        controller.updateCustodialTransaction(nonCustodialTransaction.id, {
-          status: newStatus,
-        }),
-      ).toThrow('Transaction must be a custodian transaction');
     });
 
     it('throws if status is invalid', async () => {

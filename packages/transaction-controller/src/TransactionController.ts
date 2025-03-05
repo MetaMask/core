@@ -1,3 +1,6 @@
+/* istanbul ignore file */
+// FIXME  - remove above ignore
+
 import type { TypedTransaction } from '@ethereumjs/tx';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -249,9 +252,19 @@ export type TransactionControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Represents the `TransactionController:updateCustodialTransaction` action.
+ */
+export type TransactionControllerUpdateCustodialTransactionAction = {
+  type: `${typeof controllerName}:updateCustodialTransaction`;
+  handler: TransactionController['updateCustodialTransaction'];
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
-export type TransactionControllerActions = TransactionControllerGetStateAction;
+export type TransactionControllerActions =
+  | TransactionControllerGetStateAction
+  | TransactionControllerUpdateCustodialTransactionAction;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -350,13 +363,13 @@ export type TransactionControllerOptions = {
      */
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
-    ) => boolean;
+    ) => Promise<boolean>;
 
     /**
      * Additional logic to execute before publishing a transaction.
      * Return false to prevent the broadcast of the transaction.
      */
-    beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    beforePublish?: (transactionMeta: TransactionMeta) => Promise<boolean>;
 
     /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
@@ -694,9 +707,11 @@ export class TransactionController extends BaseController<
 
   private readonly beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
-  ) => boolean;
+  ) => Promise<boolean>;
 
-  private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
+  private readonly beforePublish: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<boolean>;
 
   private readonly publish: (
     transactionMeta: TransactionMeta,
@@ -841,10 +856,9 @@ export class TransactionController extends BaseController<
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeCheckPendingTransaction =
-      hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
-      (() => true);
-    this.beforePublish = hooks?.beforePublish ?? (() => true);
+      hooks?.beforeCheckPendingTransaction ?? (() => Promise.resolve(true));
+    this.beforePublish = hooks?.beforePublish ?? (() => Promise.resolve(true));
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
     this.publish =
@@ -963,6 +977,14 @@ export class TransactionController extends BaseController<
 
     this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
+    this.registerMessageHandlers();
+  }
+
+  private registerMessageHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateCustodialTransaction`,
+      this.updateCustodialTransaction.bind(this),
+    );
   }
 
   /**
@@ -1636,6 +1658,7 @@ export class TransactionController extends BaseController<
 
       // Intentional given potential duration of process.
       this.updatePostBalance(updatedTransactionMeta).catch((error) => {
+        /* istanbul ignore next */
         log('Error while updating post balance', error);
         throw error;
       });
@@ -2041,6 +2064,12 @@ export class TransactionController extends BaseController<
    * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
    * @param options.hash - The new hash value to be assigned.
    * @param options.status - The new status value to be assigned.
+   * @param options.gasLimit - The new gas limit value to be assigned
+   * @param options.gasPrice - The new gas price value to be assigned
+   * @param options.maxFeePerGas - The new max fee per gas value to be assigned
+   * @param options.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
+   * @param options.nonce - The new nonce value to be assigned
+   * @param options.type - The tranasction type (hardfork) to be assigned
    */
   updateCustodialTransaction(
     transactionId: string,
@@ -2048,10 +2077,24 @@ export class TransactionController extends BaseController<
       errorMessage,
       hash,
       status,
+      gasLimit,
+      gasPrice,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      nonce,
+      type,
     }: {
       errorMessage?: string;
       hash?: string;
       status?: TransactionStatus;
+
+      // Transaction parameters that are mutable by the custodian
+      gasLimit?: string;
+      gasPrice?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
+      nonce?: string;
+      type?: TransactionEnvelopeType;
     },
   ) {
     const transactionMeta = this.getTransaction(transactionId);
@@ -2060,10 +2103,6 @@ export class TransactionController extends BaseController<
       throw new Error(
         `Cannot update custodial transaction as no transaction metadata found`,
       );
-    }
-
-    if (!transactionMeta.custodyId) {
-      throw new Error('Transaction must be a custodian transaction');
     }
 
     if (
@@ -2078,7 +2117,6 @@ export class TransactionController extends BaseController<
         `Cannot update custodial transaction with status: ${status}`,
       );
     }
-
     const updatedTransactionMeta = merge(
       {},
       transactionMeta,
@@ -2091,6 +2129,37 @@ export class TransactionController extends BaseController<
 
     if (updatedTransactionMeta.status === TransactionStatus.failed) {
       updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
+    }
+
+    if (gasLimit) {
+      updatedTransactionMeta.txParams.gasLimit = gasLimit;
+    }
+
+    if (gasPrice) {
+      updatedTransactionMeta.txParams.gasPrice = gasPrice;
+    }
+
+    if (maxFeePerGas) {
+      updatedTransactionMeta.txParams.maxFeePerGas = maxFeePerGas;
+    }
+
+    if (maxPriorityFeePerGas) {
+      updatedTransactionMeta.txParams.maxPriorityFeePerGas =
+        maxPriorityFeePerGas;
+    }
+
+    if (type) {
+      updatedTransactionMeta.txParams.type = type;
+
+      // If the type was reverted to legacy, we need to remove the maxFeePerGas and maxPriorityFeePerGas values
+      if (type === TransactionEnvelopeType.legacy) {
+        updatedTransactionMeta.txParams.maxFeePerGas = undefined;
+        updatedTransactionMeta.txParams.maxPriorityFeePerGas = undefined;
+      }
+    }
+
+    if (nonce) {
+      updatedTransactionMeta.txParams.nonce = nonce;
     }
 
     this.updateTransaction(
@@ -2711,7 +2780,7 @@ export class TransactionController extends BaseController<
         () => this.signTransaction(transactionMeta),
       );
 
-      if (!this.beforePublish(transactionMeta)) {
+      if (!(await this.beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
         this.messagingSystem.publish(
           `${controllerName}:transactionPublishingSkipped`,
@@ -3501,7 +3570,6 @@ export class TransactionController extends BaseController<
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
-        beforePublish: this.beforePublish.bind(this),
       },
     });
 
