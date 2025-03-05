@@ -303,6 +303,8 @@ export type TransactionControllerOptions = {
     /** API keys to be used for Etherscan requests to prevent rate limiting. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
+
+  /** Whether the first time interaction check is enabled. */
   isFirstTimeInteractionEnabled?: () => boolean;
 
   /** Whether new transactions will be automatically simulated. */
@@ -313,6 +315,9 @@ export type TransactionControllerOptions = {
 
   /** Configuration options for pending transaction support. */
   pendingTransactions?: PendingTransactionOptions;
+
+  /** Public key used to validate EIP-7702 contract signatures in feature flags. */
+  publicKeyEIP7702?: Hex;
 
   /** A function for verifying a transaction, whether it is malicious or not. */
   securityProviderRequest?: SecurityProviderRequest;
@@ -672,6 +677,8 @@ export class TransactionController extends BaseController<
 
   readonly #pendingTransactionOptions: PendingTransactionOptions;
 
+  readonly #publicKeyEIP7702?: Hex;
+
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
   readonly #trace: TraceCallback;
@@ -791,6 +798,7 @@ export class TransactionController extends BaseController<
       isSimulationEnabled,
       messenger,
       pendingTransactions = {},
+      publicKeyEIP7702,
       securityProviderRequest,
       sign,
       state,
@@ -831,6 +839,7 @@ export class TransactionController extends BaseController<
     this.securityProviderRequest = securityProviderRequest;
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
+    this.#publicKeyEIP7702 = publicKeyEIP7702;
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
@@ -998,6 +1007,7 @@ export class TransactionController extends BaseController<
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getInternalAccounts: this.#getInternalAccounts.bind(this),
       messenger: this.messagingSystem,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
       request,
     });
   }
@@ -1013,6 +1023,7 @@ export class TransactionController extends BaseController<
       address,
       getEthQuery: (chainId) => this.#getEthQuery({ chainId }),
       messenger: this.messagingSystem,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
     });
   }
 
