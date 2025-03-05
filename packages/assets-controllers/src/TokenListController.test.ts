@@ -403,6 +403,17 @@ const existingState = {
   preventPollingOnNetworkRestart: false,
 };
 
+const existingEmptyDataState = {
+  tokenList: {},
+  tokensChainsCache: {
+    [toHex(1)]: {
+      timestamp,
+      data: {},
+    },
+  },
+  preventPollingOnNetworkRestart: false,
+}
+
 const outdatedExistingState = {
   tokenList: {
     '0x514910771af9ca656af840dff83e8264ecf986ca': {
@@ -823,6 +834,36 @@ describe('TokenListController', () => {
         sampleSingleChainState.tokensChainsCache[ChainId.mainnet].timestamp,
       );
       controller.destroy();
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  it('should update the cache before threshold time if the current data is {}', async () => {
+    nock(tokenService.TOKEN_END_POINT_API)
+      .get(getTokensPath(ChainId.mainnet))
+      .reply(200, sampleMainnetTokenList)
+      .persist();
+
+    const messenger = getMessenger();
+    const restrictedMessenger = getRestrictedMessenger(messenger);
+    const controller = new TokenListController({
+      chainId: ChainId.mainnet,
+      preventPollingOnNetworkRestart: false,
+      messenger: restrictedMessenger,
+      interval: 100,
+      state: existingEmptyDataState,
+    });
+    expect(controller.state.tokenList).toStrictEqual({});
+    await controller.start();
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      expect(controller.state.tokenList).toStrictEqual(
+        sampleSingleChainState.tokenList,
+      );
+      expect(controller.state.tokensChainsCache[toHex(1)].data).toStrictEqual(
+        sampleSingleChainState.tokensChainsCache[toHex(1)].data,
+      );
     } finally {
       controller.destroy();
     }
