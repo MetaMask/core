@@ -1,21 +1,18 @@
 import { Messenger } from '@metamask/base-controller';
 
 import {
-  MOCK_ACCESS_TOKEN,
-  MOCK_LOGIN_RESPONSE,
-} from './__fixtures__/mockResponses';
-import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
 } from './__fixtures__/mockServices';
+import AuthenticationController from './AuthenticationController';
 import type {
   Actions,
   AllowedActions,
   AllowedEvents,
   AuthenticationControllerState,
 } from './AuthenticationController';
-import AuthenticationController from './AuthenticationController';
+import { MOCK_ACCESS_TOKEN, MOCK_LOGIN_RESPONSE } from './mocks/mockResponses';
 
 const mockSignedInState = (): AuthenticationControllerState => ({
   isSignedIn: true,
@@ -193,6 +190,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     const { messenger } = createMockAuthenticationMessenger();
     mockAuthenticationFlowEndpoints();
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.accessToken = 'ACCESS_TOKEN_1';
 
@@ -222,6 +220,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
 
     // Invalid/old state
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.accessToken = 'ACCESS_TOKEN_1';
 
@@ -280,6 +279,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     const { messenger } = createMockAuthenticationMessenger();
     mockAuthenticationFlowEndpoints();
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.profile.identifierId = 'ID_1';
 
@@ -310,6 +310,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
 
     // Invalid/old state
     const originalState = mockSignedInState();
+    // eslint-disable-next-line jest/no-conditional-in-test
     if (originalState.sessionData) {
       originalState.sessionData.profile.identifierId = 'ID_1';
 

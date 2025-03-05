@@ -1,16 +1,16 @@
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
+import { NotFoundError, UserStorageError } from './errors';
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import { SHARED_SALT } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
 import type {
-  UserStorageFeatureKeys,
-  UserStorageFeatureNames,
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
+  UserStorageGenericFeatureKey,
+  UserStorageGenericFeatureName,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
 } from '../shared/storage-schema';
 import { createEntryPath } from '../shared/storage-schema';
-import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { NotFoundError, UserStorageError } from './errors';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
   `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;
@@ -30,9 +30,8 @@ export type UserStorageOptions = {
 };
 
 export type GetUserStorageAllFeatureEntriesResponse = {
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   HashedKey: string;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   Data: string;
 }[];
 
@@ -55,42 +54,46 @@ export class UserStorage {
   }
 
   async setItem(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     value: string,
   ): Promise<void> {
     await this.#upsertUserStorage(path, value);
   }
 
-  async batchSetItems<FeatureName extends UserStorageFeatureNames>(
-    path: FeatureName,
-    values: [UserStorageFeatureKeys<FeatureName>, string][],
+  async batchSetItems(
+    path: UserStorageGenericFeatureName,
+    values: [UserStorageGenericFeatureKey, string][],
   ) {
     await this.#batchUpsertUserStorage(path, values);
   }
 
-  async getItem(path: UserStoragePathWithFeatureAndKey): Promise<string> {
+  async getItem(
+    path: UserStorageGenericPathWithFeatureAndKey,
+  ): Promise<string> {
     return this.#getUserStorage(path);
   }
 
   async getAllFeatureItems(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericFeatureName,
   ): Promise<string[] | null> {
     return this.#getUserStorageAllFeatureEntries(path);
   }
 
-  async deleteItem(path: UserStoragePathWithFeatureAndKey): Promise<void> {
+  async deleteItem(
+    path: UserStorageGenericPathWithFeatureAndKey,
+  ): Promise<void> {
     return this.#deleteUserStorage(path);
   }
 
   async deleteAllFeatureItems(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericFeatureName,
   ): Promise<void> {
     return this.#deleteUserStorageAllFeatureEntries(path);
   }
 
   async batchDeleteItems(
-    path: UserStoragePathWithFeatureOnly,
-    values: string[],
+    path: UserStorageGenericFeatureName,
+    values: UserStorageGenericFeatureKey[],
   ) {
     return this.#batchDeleteUserStorage(path, values);
   }
@@ -111,14 +114,16 @@ export class UserStorage {
   }
 
   async #upsertUserStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
     data: string,
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
       const encryptedData = await encryption.encryptString(data, storageKey);
-      const encryptedPath = createEntryPath(path, storageKey);
+      const encryptedPath = createEntryPath(path, storageKey, {
+        validateAgainstSchema: false,
+      });
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
@@ -151,7 +156,7 @@ export class UserStorage {
   }
 
   async #batchUpsertUserStorage(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
     data: [string, string][],
   ): Promise<void> {
     try {
@@ -202,7 +207,7 @@ export class UserStorage {
   }
 
   async #batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
     encryptedData: [string, string][],
   ): Promise<void> {
     try {
@@ -243,12 +248,14 @@ export class UserStorage {
   }
 
   async #getUserStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
   ): Promise<string> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
-      const encryptedPath = createEntryPath(path, storageKey);
+      const encryptedPath = createEntryPath(path, storageKey, {
+        validateAgainstSchema: false,
+      });
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
@@ -301,7 +308,7 @@ export class UserStorage {
   }
 
   async #getUserStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
   ): Promise<string[] | null> {
     try {
       const headers = await this.#getAuthorizationHeader();
@@ -384,12 +391,14 @@ export class UserStorage {
   }
 
   async #deleteUserStorage(
-    path: UserStoragePathWithFeatureAndKey,
+    path: UserStorageGenericPathWithFeatureAndKey,
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
-      const encryptedPath = createEntryPath(path, storageKey);
+      const encryptedPath = createEntryPath(path, storageKey, {
+        validateAgainstSchema: false,
+      });
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
@@ -429,7 +438,7 @@ export class UserStorage {
   }
 
   async #deleteUserStorageAllFeatureEntries(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
@@ -470,7 +479,7 @@ export class UserStorage {
   }
 
   async #batchDeleteUserStorage(
-    path: UserStoragePathWithFeatureOnly,
+    path: UserStorageGenericPathWithFeatureOnly,
     data: string[],
   ): Promise<void> {
     try {
@@ -493,7 +502,7 @@ export class UserStorage {
           'Content-Type': 'application/json',
           ...headers,
         },
-        // eslint-disable-next-line @typescript-eslint/naming-convention
+
         body: JSON.stringify({ batch_delete: encryptedData }),
       });
 
@@ -522,7 +531,7 @@ export class UserStorage {
   }
 
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.config.auth.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };

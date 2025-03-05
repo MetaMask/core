@@ -7,15 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Implement circuit breaker pattern when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - If the network is perceived to be down after 5 attempts, further retries will be paused for 30 seconds
+  - "Down" means the following:
+    - A failure to reach the network (exact error depending on platform / HTTP client)
+    - The request responds with a non-JSON-parseable or non-JSON-RPC-compatible body
+    - The request returns a non-200 response
+- Use exponential backoff / jitter when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - As requests are retried, the delay between retries will increase exponentially (using random variance to prevent bursts)
+- Add support for automatic failover when Infura is down ([#5630](https://github.com/MetaMask/core/pull/5630))
+  - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverUrls`.
+  - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
+
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+- **BREAKING:** `NetworkController` constructor now takes two required options, `fetch` and `btoa` ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - These are passed along to functions that create the JSON-RPC middleware.
+- **BREAKING:** Add required property `failoverUrls` to `RpcEndpoint` ([#5630](https://github.com/MetaMask/core/pull/5630))
+- **BREAKING:** Add required property `failoverRpcUrls` to `NetworkClientConfiguration` ([#5630](https://github.com/MetaMask/core/pull/5630))
+- Synchronize retry logic and error handling behavior between Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - A request to a custom endpoint that returns a 418 response will no longer return a JSON-RPC response with the error "Request is being rate limited"
+  - A request to a custom endpoint that returns a 429 response now returns a JSON-RPC response with the error "Request is being rate limited"
+  - A request to a custom endpoint that throws an "ECONNRESET" error will now be retried up to 5 times
+  - A request to a Infura endpoint that fails more than 5 times in a row will now respond with a JSON-RPC error that encompasses the failure instead of hiding it as "InfuraProvider - cannot complete request. All retries exhausted"
+  - A request to a Infura endpoint that returns a non-retriable, non-2xx response will now respond with a JSON-RPC error that has the underling message "Non-200 status code: '\<code\>'" rather than including the raw response from the endpoint
+  - A request to a custom endpoint that fails with a retriable error more than 5 times in a row will now respond with a JSON-RPC error that encompasses the failure instead of returning an empty response
+  - A "retriable error" is now regarded as the following:
+    - A failure to reach the network (exact error depending on platform / HTTP client)
+    - The request responds with a non-JSON-parseable or non-JSON-RPC-compatible body
+    - The request returns a 503 or 504 response
+- Bump dependencies to support usage of RPC services internally for network requests ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - Bump `@metamask/eth-json-rpc-infura` to `^10.1.0`
+  - Bump `@metamask/eth-json-rpc-middleware` to `^15.1.0`
+
+## [22.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+## [22.2.0]
+
+### Added
+
+- Export `AbstractRpcService` type ([#5263](https://github.com/MetaMask/core/pull/5263))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.6` to `^4.1.8` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/rpc-errors` from `^7.0.1` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 
 ### Fixed
 
-- Fix `selectAvailableNetworkClientIds` so that it is properly memoized ([#5193](https://github.com/MetaMask/core/pull/5193))
 - Fix `lookupNetwork` so that it will no longer throw an error if `networkDidChange` subscriptions have been removed before it returns ([#5116](https://github.com/MetaMask/core/pull/5116))
   - This error could occur if the NetworkController's messenger is cleared of subscriptions, as in a "destroy" step.
+- Fix race condition so that after adding a new RPC endpoint to a network, it is possible to access the new endpoint inside of a `stateChange` event listener via `getNetworkConfigurationByNetworkClientId` ([#5122](https://github.com/MetaMask/core/pull/5122))
+- Fix `selectAvailableNetworkClientIds` so that it is properly memoized ([#5193](https://github.com/MetaMask/core/pull/5193))
 
 ## [22.1.1]
 
@@ -704,7 +757,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.1...HEAD
+[22.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.0...@metamask/network-controller@22.2.1
+[22.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.1...@metamask/network-controller@22.2.0
 [22.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.0...@metamask/network-controller@22.1.1
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.2...@metamask/network-controller@22.1.0
 [22.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.1...@metamask/network-controller@22.0.2

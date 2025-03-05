@@ -8,24 +8,23 @@ import {
   BtcScope,
   EthScope,
   SolScope,
+  SolMethod,
+  SolAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { v4 as uuidv4 } from 'uuid';
 
+import { MultichainBalancesController } from '.';
+import type {
+  MultichainBalancesControllerMessenger,
+  MultichainBalancesControllerState,
+} from '.';
+import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-import { BalancesTracker } from './BalancesTracker';
-import {
-  MultichainBalancesController,
-  getDefaultMultichainBalancesControllerState,
-} from './MultichainBalancesController';
-import type {
-  MultichainBalancesControllerMessenger,
-  MultichainBalancesControllerState,
-} from './MultichainBalancesController';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -47,6 +46,28 @@ const mockBtcAccount = {
   options: {},
   methods: [BtcMethod.SendBitcoin],
   type: BtcAccountType.P2wpkh,
+};
+
+const mockSolAccount = {
+  address: 'EBBYfhQzVzurZiweJ2keeBWpgGLs1cbWYcz28gjGgi5x',
+  id: uuidv4(),
+  metadata: {
+    name: 'Solana Account 1',
+    importTime: Date.now(),
+    keyring: {
+      type: KeyringTypes.snap,
+    },
+    snap: {
+      id: 'mock-sol-snap',
+      name: 'mock-sol-snap',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+  scopes: [SolScope.Devnet],
+  options: {},
+  methods: [SolMethod.SendAndConfirmTransaction],
+  type: SolAccountType.DataAccount,
 };
 
 const mockEthAccount = {
@@ -71,9 +92,10 @@ const mockEthAccount = {
   type: EthAccountType.Eoa,
 };
 
+const mockBtcNativeAsset = 'bip122:000000000933ea01ad0ee984209779ba/slip44:0';
 const mockBalanceResult = {
-  'bip122:000000000933ea01ad0ee984209779ba/slip44:0': {
-    amount: '0.00000000',
+  [mockBtcNativeAsset]: {
+    amount: '1.00000000',
     unit: 'BTC',
   },
 };
@@ -98,6 +120,31 @@ function getRootMessenger(): Messenger<RootAction, RootEvent> {
   return new Messenger<RootAction, RootEvent>();
 }
 
+/**
+ * Constructs the restricted messenger for the MultichainBalancesController.
+ *
+ * @param messenger - The root messenger.
+ * @returns The unrestricted messenger suited for MultichainBalancesController.
+ */
+function getRestrictedMessenger(
+  messenger: Messenger<RootAction, RootEvent>,
+): MultichainBalancesControllerMessenger {
+  return messenger.getRestricted({
+    name: 'MultichainBalancesController',
+    allowedActions: [
+      'SnapController:handleRequest',
+      'AccountsController:listMultichainAccounts',
+      'MultichainAssetsController:getState',
+    ],
+    allowedEvents: [
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+      'AccountsController:accountBalancesUpdated',
+      'MultichainAssetsController:stateChange',
+    ],
+  });
+}
+
 const setupController = ({
   state = getDefaultMultichainBalancesControllerState(),
   mocks,
@@ -109,19 +156,7 @@ const setupController = ({
   };
 } = {}) => {
   const messenger = getRootMessenger();
-
-  const multichainBalancesMessenger: MultichainBalancesControllerMessenger =
-    messenger.getRestricted({
-      name: 'MultichainBalancesController',
-      allowedActions: [
-        'SnapController:handleRequest',
-        'AccountsController:listMultichainAccounts',
-      ],
-      allowedEvents: [
-        'AccountsController:accountAdded',
-        'AccountsController:accountRemoved',
-      ],
-    });
+  const multichainBalancesMessenger = getRestrictedMessenger(messenger);
 
   const mockSnapHandleRequest = jest.fn();
   messenger.registerActionHandler(
@@ -139,6 +174,16 @@ const setupController = ({
     ),
   );
 
+  const mockGetAssetsState = jest.fn().mockReturnValue({
+    accountsAssets: {
+      [mockBtcAccount.id]: [mockBtcNativeAsset],
+    },
+  });
+  messenger.registerActionHandler(
+    'MultichainAssetsController:getState',
+    mockGetAssetsState,
+  );
+
   const controller = new MultichainBalancesController({
     messenger: multichainBalancesMessenger,
     state,
@@ -149,80 +194,58 @@ const setupController = ({
     messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
+    mockGetAssetsState,
   };
 };
 
+/**
+ * Utility function that waits for all pending promises to be resolved.
+ * This is necessary when testing asynchronous execution flows that are
+ * initiated by synchronous calls.
+ *
+ * @returns A promise that resolves when all pending promises are completed.
+ */
+async function waitForAllPromises(): Promise<void> {
+  // Wait for next tick to flush all pending promises. It's requires since
+  // we are testing some asynchronous execution flows that are started by
+  // synchronous calls.
+  await new Promise(process.nextTick);
+}
+
 describe('BalancesController', () => {
   it('initialize with default state', () => {
-    const { controller } = setupController({});
+    const messenger = getRootMessenger();
+    const multichainBalancesMessenger = getRestrictedMessenger(messenger);
+
+    messenger.registerActionHandler('SnapController:handleRequest', jest.fn());
+    messenger.registerActionHandler(
+      'AccountsController:listMultichainAccounts',
+      jest.fn().mockReturnValue([]),
+    );
+    messenger.registerActionHandler(
+      'MultichainAssetsController:getState',
+      jest.fn(),
+    );
+
+    const controller = new MultichainBalancesController({
+      messenger: multichainBalancesMessenger,
+    });
     expect(controller.state).toStrictEqual({ balances: {} });
   });
 
-  it('starts tracking when calling start', async () => {
-    const spyTracker = jest.spyOn(BalancesTracker.prototype, 'start');
+  it('updates the balance for a specific account', async () => {
     const { controller } = setupController();
-    controller.start();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('stops tracking when calling stop', async () => {
-    const spyTracker = jest.spyOn(BalancesTracker.prototype, 'stop');
-    const { controller } = setupController();
-    controller.start();
-    controller.stop();
-    expect(spyTracker).toHaveBeenCalledTimes(1);
-  });
-
-  it('updates balances when calling updateBalances', async () => {
-    const { controller } = setupController();
-
-    await controller.updateBalances();
-
-    expect(controller.state).toStrictEqual({
-      balances: {
-        [mockBtcAccount.id]: mockBalanceResult,
-      },
-    });
-  });
-
-  it('updates the balance for a specific account when calling updateBalance', async () => {
-    const { controller } = setupController();
-
     await controller.updateBalance(mockBtcAccount.id);
 
-    expect(controller.state).toStrictEqual({
-      balances: {
-        [mockBtcAccount.id]: mockBalanceResult,
-      },
-    });
-  });
-
-  it('updates balances when "AccountsController:accountAdded" is fired', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
-      setupController({
-        mocks: {
-          listMultichainAccounts: [],
-        },
-      });
-
-    controller.start();
-    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
-    messenger.publish('AccountsController:accountAdded', mockBtcAccount);
-    await controller.updateBalances();
-
-    expect(controller.state).toStrictEqual({
-      balances: {
-        [mockBtcAccount.id]: mockBalanceResult,
-      },
-    });
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
   });
 
   it('updates balances when "AccountsController:accountRemoved" is fired', async () => {
-    const { controller, messenger, mockListMultichainAccounts } =
-      setupController();
+    const { controller, messenger } = setupController();
 
-    controller.start();
-    await controller.updateBalances();
+    await controller.updateBalance(mockBtcAccount.id);
     expect(controller.state).toStrictEqual({
       balances: {
         [mockBtcAccount.id]: mockBalanceResult,
@@ -230,8 +253,6 @@ describe('BalancesController', () => {
     });
 
     messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
-    mockListMultichainAccounts.mockReturnValue([]);
-    await controller.updateBalances();
 
     expect(controller.state).toStrictEqual({
       balances: {},
@@ -246,13 +267,163 @@ describe('BalancesController', () => {
         },
       });
 
-    controller.start();
     mockListMultichainAccounts.mockReturnValue([mockEthAccount]);
     messenger.publish('AccountsController:accountAdded', mockEthAccount);
-    await controller.updateBalances();
 
     expect(controller.state).toStrictEqual({
       balances: {},
     });
+  });
+
+  it('handles errors gracefully when updating balance', async () => {
+    const { controller, mockSnapHandleRequest, mockListMultichainAccounts } =
+      setupController({
+        mocks: {
+          listMultichainAccounts: [],
+        },
+      });
+
+    mockSnapHandleRequest.mockReset();
+    mockSnapHandleRequest.mockImplementation(() =>
+      Promise.reject(new Error('Failed to fetch')),
+    );
+    mockListMultichainAccounts.mockReturnValue([mockBtcAccount]);
+
+    await controller.updateBalance(mockBtcAccount.id);
+    await waitForAllPromises();
+
+    expect(controller.state.balances).toStrictEqual({});
+  });
+
+  it('handles errors gracefully when account could not be found', async () => {
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [],
+      },
+    });
+
+    await controller.updateBalance(mockBtcAccount.id);
+    await waitForAllPromises();
+
+    expect(controller.state.balances).toStrictEqual({});
+  });
+
+  it('handles errors when trying to upgrade the balance of a non-existing account', async () => {
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    // Solana account is not registered, so this should not update anything for this account
+    await controller.updateBalance(mockSolAccount.id);
+    expect(controller.state.balances).toStrictEqual({});
+  });
+
+  it('stores balances when receiving new balances from the "AccountsController:accountBalancesUpdated" event', async () => {
+    const { controller, messenger } = setupController();
+    const balanceUpdate = {
+      balances: {
+        [mockBtcAccount.id]: mockBalanceResult,
+      },
+    };
+
+    messenger.publish(
+      'AccountsController:accountBalancesUpdated',
+      balanceUpdate,
+    );
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('updates balances when receiving "AccountsController:accountBalancesUpdated" event', async () => {
+    const mockInitialBalances = {
+      [mockBtcNativeAsset]: {
+        amount: '0.00000000',
+        unit: 'BTC',
+      },
+    };
+    // Just to make sure we will run a "true update", we want to make the
+    // initial state is different from the updated one.
+    expect(mockInitialBalances).not.toStrictEqual(mockBalanceResult);
+
+    const { controller, messenger } = setupController({
+      state: {
+        balances: {
+          [mockBtcAccount.id]: mockInitialBalances,
+        },
+      },
+    });
+    const balanceUpdate = {
+      balances: {
+        [mockBtcAccount.id]: mockBalanceResult,
+      },
+    };
+
+    messenger.publish(
+      'AccountsController:accountBalancesUpdated',
+      balanceUpdate,
+    );
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('fetches initial balances for existing non-EVM accounts', async () => {
+    const { controller } = setupController({
+      mocks: {
+        listMultichainAccounts: [mockBtcAccount],
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('handles an account with no assets in MultichainAssetsController state', async () => {
+    const { controller, mockGetAssetsState } = setupController({
+      mocks: {
+        handleRequestReturnValue: {},
+      },
+    });
+
+    mockGetAssetsState.mockReturnValue({
+      accountsAssets: {},
+    });
+
+    await controller.updateBalance(mockBtcAccount.id);
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual({});
+  });
+
+  it('updates balances when receiving "MultichainAssetsController:stateChange" event', async () => {
+    const { controller, messenger } = setupController();
+
+    messenger.publish(
+      'MultichainAssetsController:stateChange',
+      {
+        assetsMetadata: {},
+        accountsAssets: {
+          [mockBtcAccount.id]: [mockBtcNativeAsset],
+        },
+      },
+      [],
+    );
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
   });
 });

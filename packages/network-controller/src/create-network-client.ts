@@ -25,6 +25,7 @@ import {
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 
+import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -48,30 +49,53 @@ export type NetworkClient = {
 /**
  * Create a JSON RPC network client for a specific network.
  *
- * @param networkConfig - The network configuration.
+ * @param args - The arguments.
+ * @param args.configuration - The network configuration.
+ * @param args.fetch - A function that can be used to make an HTTP request,
+ * compatible with the Fetch API.
+ * @param args.btoa - A function that can be used to convert a binary string
+ * into base-64.
  * @returns The network client.
  */
-export function createNetworkClient(
-  networkConfig: NetworkClientConfiguration,
-): NetworkClient {
+export function createNetworkClient({
+  configuration,
+  fetch: givenFetch,
+  btoa: givenBtoa,
+}: {
+  configuration: NetworkClientConfiguration;
+  fetch: typeof fetch;
+  btoa: typeof btoa;
+}): NetworkClient {
+  const primaryEndpointUrl =
+    configuration.type === NetworkClientType.Infura
+      ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
+      : configuration.rpcUrl;
+  const availableEndpointUrls = [
+    primaryEndpointUrl,
+    ...configuration.failoverRpcUrls,
+  ];
+  const rpcService = new RpcServiceChain({
+    fetch: givenFetch,
+    btoa: givenBtoa,
+    serviceConfigurations: availableEndpointUrls.map((endpointUrl) => ({
+      endpointUrl,
+    })),
+  });
+
   const rpcApiMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    configuration.type === NetworkClientType.Infura
       ? createInfuraMiddleware({
-          network: networkConfig.network,
-          projectId: networkConfig.infuraProjectId,
-          maxAttempts: 5,
-          source: 'metamask',
+          rpcService,
+          options: {
+            source: 'metamask',
+          },
         })
-      : createFetchMiddleware({
-          btoa: global.btoa,
-          fetch: global.fetch,
-          rpcUrl: networkConfig.rpcUrl,
-        });
+      : createFetchMiddleware({ rpcService });
 
   const rpcProvider = providerFromMiddleware(rpcApiMiddleware);
 
   const blockTrackerOpts =
-    process.env.IN_TEST && networkConfig.type === 'custom'
+    process.env.IN_TEST && configuration.type === NetworkClientType.Custom
       ? { pollingInterval: SECOND }
       : {};
   const blockTracker = new PollingBlockTracker({
@@ -80,16 +104,16 @@ export function createNetworkClient(
   });
 
   const networkMiddleware =
-    networkConfig.type === NetworkClientType.Infura
+    configuration.type === NetworkClientType.Infura
       ? createInfuraNetworkMiddleware({
           blockTracker,
-          network: networkConfig.network,
+          network: configuration.network,
           rpcProvider,
           rpcApiMiddleware,
         })
       : createCustomNetworkMiddleware({
           blockTracker,
-          chainId: networkConfig.chainId,
+          chainId: configuration.chainId,
           rpcApiMiddleware,
         });
 
@@ -105,7 +129,7 @@ export function createNetworkClient(
     blockTracker.destroy();
   };
 
-  return { configuration: networkConfig, provider, blockTracker, destroy };
+  return { configuration, provider, blockTracker, destroy };
 }
 
 /**

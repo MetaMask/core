@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [47.0.0]
+
+### Added
+
+- Persist user rejection optional data in rejected error ([#5355](https://github.com/MetaMask/core/pull/5355))
+- Add `updateAtomicBatchData` method ([#5380](https://github.com/MetaMask/core/pull/5380))
+- Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Add methods:
+    - `addTransactionBatch`
+    - `isAtomicBatchSupported`
+  - Add `batch` to `TransactionType`.
+  - Add `nestedTransactions` to `TransactionMeta`.
+  - Add new types:
+    - `BatchTransactionParams`
+    - `TransactionBatchSingleRequest`
+    - `TransactionBatchRequest`
+    - `TransactionBatchResult`
+  - Add dependency on `@metamask/remote-feature-flag-controller:^1.4.0`.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^25.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- **BREAKING**: Require messenger permissions for `KeyringController:signEip7702Authorization` action ([#5410](https://github.com/MetaMask/core/pull/5410))
+- **BREAKING:** Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
+  - Require `AccountsController:getState` action permission in messenger.
+  - Require `RemoteFeatureFlagController:getState` action permission in messenger.
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Throw if `addTransactionBatch` is called with any nested transaction with `to` matching internal account ([#5369](https://github.com/MetaMask/core/pull/5369))
+
+## [46.0.0]
+
+### Added
+
+- Adds ability of re-simulating transaction depending on the `isActive` property on `transactionMeta` ([#5189](https://github.com/MetaMask/core/pull/5189))
+  - `isActive` property is expected to set by client.
+  - Re-simulation of transactions will occur every 3 seconds if `isActive` is `true`.
+- Adds `setTransactionActive` function to update the `isActive` property on `transactionMeta`. ([#5189](https://github.com/MetaMask/core/pull/5189))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^23.0.0` to `^24.0.0` ([#5318](https://github.com/MetaMask/core/pull/5318))
+
+## [45.1.0]
+
+### Added
+
+- Add support for EIP-7702 / type 4 transactions ([#5285](https://github.com/MetaMask/core/pull/5285))
+  - Add `setCode` to `TransactionEnvelopeType`.
+  - Add `authorizationList` to `TransactionParams`.
+  - Export `Authorization` and `AuthorizationList` types.
+
+### Changed
+
+- The TransactionController messenger must now allow the `KeyringController:signAuthorization` action ([#5285](https://github.com/MetaMask/core/pull/5285))
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `ethereumjs/tx` from `^4.2.0` to `^5.4.0` ([#5285](https://github.com/MetaMask/core/pull/5285))
+- Bump `ethereumjs/common` from `^3.2.0` to `^4.5.0` ([#5285](https://github.com/MetaMask/core/pull/5285))
+
+## [45.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^22.0.0` to `^23.0.0` ([#5292](https://github.com/MetaMask/core/pull/5292))
+
+## [44.1.0]
+
+### Changed
+
+- Rename `ControllerMessenger` to `Messenger` ([#5234](https://github.com/MetaMask/core/pull/5234))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Fixed
+
+- Prevent transaction resubmit on multiple endpoints ([#5262](https://github.com/MetaMask/core/pull/5262))
+
 ## [44.0.0]
 
 ### Changed
@@ -1244,7 +1319,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@47.0.0...HEAD
+[47.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@46.0.0...@metamask/transaction-controller@47.0.0
+[46.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.1.0...@metamask/transaction-controller@46.0.0
+[45.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.0.0...@metamask/transaction-controller@45.1.0
+[45.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.1.0...@metamask/transaction-controller@45.0.0
+[44.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@44.0.0...@metamask/transaction-controller@44.1.0
 [44.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@43.0.0...@metamask/transaction-controller@44.0.0
 [43.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.1.0...@metamask/transaction-controller@43.0.0
 [42.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@42.0.0...@metamask/transaction-controller@42.1.0

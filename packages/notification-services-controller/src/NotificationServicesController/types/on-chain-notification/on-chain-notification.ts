@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+import type { components } from './schema';
 import type { TRIGGER_TYPES } from '../../constants/notification-schema';
 import type { Compute } from '../type-utils';
-import type { components } from './schema';
 
 export type Data_MetamaskSwapCompleted =
   components['schemas']['Data_MetamaskSwapCompleted'];

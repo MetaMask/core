@@ -4,7 +4,6 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
-import type { NativeScrypt } from '../types/encryption';
 import {
   getCachedKeyBySalt,
   getCachedKeyGeneratedWithSharedSalt,
@@ -25,6 +24,7 @@ import {
   bytesToUtf8,
   stringToByteArray,
 } from './utils';
+import type { NativeScrypt } from '../types/encryption';
 
 export type EncryptedPayload = {
   // version
@@ -38,7 +38,6 @@ export type EncryptedPayload = {
 
   // encryption options - scrypt
   o: {
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     N: number;
     r: number;
     p: number;
@@ -287,6 +286,7 @@ export default encryption;
 
 /**
  * Receive a SHA256 hash from a given string
+ *
  * @param data - input
  * @returns sha256 hash
  */

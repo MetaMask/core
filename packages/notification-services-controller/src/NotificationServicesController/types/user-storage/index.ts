@@ -1,1 +1,1 @@
-export * from './user-storage';
+export type * from './user-storage';

@@ -9,9 +9,8 @@ import {
   NetworkStatus,
   RpcEndpointType,
 } from '@metamask/network-controller';
-import nock from 'nock';
+import nock, { cleanAll } from 'nock';
 
-import type { UserStorageControllerMessenger } from '..';
 import type { RPCEndpoint } from './__fixtures__/mockNetwork';
 import {
   createMockCustomRpcEndpoint,
@@ -19,6 +18,7 @@ import {
   createMockNetworkConfiguration,
 } from './__fixtures__/mockNetwork';
 import { dispatchUpdateNetwork } from './controller-integration';
+import type { UserStorageControllerMessenger } from '..';
 
 const createNetworkControllerState = (
   rpcs: RPCEndpoint[] = [createMockInfuraRpcEndpoint()],
@@ -62,7 +62,7 @@ describe('network-syncing/controller-integration - dispatchUpdateNetwork()', () 
   });
 
   afterAll(() => {
-    nock.cleanAll();
+    cleanAll();
   });
 
   const setupTest = ({
@@ -96,6 +96,8 @@ describe('network-syncing/controller-integration - dispatchUpdateNetwork()', () 
       messenger: networkControllerMessenger,
       state: networkState,
       infuraProjectId: 'TEST_ID',
+      fetch,
+      btoa,
     });
 
     return { networkController, baseMessenger };

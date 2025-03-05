@@ -1,12 +1,13 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
-import { MOCK_STORAGE_KEY_SIGNATURE } from '.';
 import type {
   AllowedActions,
   AllowedEvents,
   UserStorageControllerMessenger,
 } from '..';
+import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
   AllowedActions,
@@ -38,6 +39,7 @@ type ExternalEvents = NotNamespacedBy<
 
 /**
  * creates a custom user storage messenger, in case tests need different permissions
+ *
  * @param props - overrides
  * @param props.overrideEvents - override events
  * @returns base messenger, and messenger. You can pass this into the mocks below to mock messenger calls
@@ -50,15 +52,13 @@ export function createCustomUserStorageMessenger(props?: {
     name: 'UserStorageController',
     allowedActions: [
       'KeyringController:getState',
-      'KeyringController:addNewAccount',
+      'KeyringController:withKeyring',
       'SnapController:handleRequest',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignOut',
       'AuthenticationController:performSignIn',
-      'NotificationServicesController:disableNotificationServices',
-      'NotificationServicesController:selectIsNotificationServicesEnabled',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
       'NetworkController:getState',
@@ -88,6 +88,7 @@ type OverrideMessengers = {
 
 /**
  * Jest Mock Utility to generate a mock User Storage Messenger
+ *
  * @param overrideMessengers - override messengers if need to modify the underlying permissions
  * @returns series of mocks to actions that can be called
  */
@@ -125,21 +126,12 @@ export function mockUserStorageMessenger(
     'AuthenticationController:performSignOut',
   );
 
-  const mockNotificationServicesIsEnabled = typedMockFn(
-    'NotificationServicesController:selectIsNotificationServicesEnabled',
-  ).mockReturnValue(true);
+  const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
 
-  const mockNotificationServicesDisableNotifications = typedMockFn(
-    'NotificationServicesController:disableNotificationServices',
-  ).mockResolvedValue();
-
-  const mockKeyringAddNewAccount = typedMockFn(
-    'KeyringController:addNewAccount',
-  );
-
-  // Untyped mock as there is a TS(2742) issue.
-  // This will return `InternalAccount[]`
   const mockAccountsListAccounts = jest.fn();
+
+  const mockKeyringGetAccounts = jest.fn();
+  const mockKeyringAddAccounts = jest.fn();
 
   const mockAccountsUpdateAccountMetadata = typedMockFn(
     'AccountsController:updateAccountMetadata',
@@ -202,20 +194,6 @@ export function mockUserStorageMessenger(
       return mockAuthIsSignedIn();
     }
 
-    if (
-      actionType ===
-      'NotificationServicesController:selectIsNotificationServicesEnabled'
-    ) {
-      return mockNotificationServicesIsEnabled();
-    }
-
-    if (
-      actionType ===
-      'NotificationServicesController:disableNotificationServices'
-    ) {
-      return mockNotificationServicesDisableNotifications();
-    }
-
     if (actionType === 'AuthenticationController:performSignOut') {
       return mockAuthPerformSignOut();
     }
@@ -224,8 +202,18 @@ export function mockUserStorageMessenger(
       return { isUnlocked: true };
     }
 
-    if (actionType === 'KeyringController:addNewAccount') {
-      return mockKeyringAddNewAccount();
+    if (actionType === 'KeyringController:withKeyring') {
+      const [, ...params] = typedArgs;
+      const [, operation] = params;
+
+      const keyring = {
+        getAccounts: mockKeyringGetAccounts,
+        addAccounts: mockKeyringAddAccounts,
+      } as unknown as EthKeyring;
+
+      const metadata = { id: 'mock-id', name: '' };
+
+      return operation({ keyring, metadata });
     }
 
     if (actionType === 'AccountsController:listAccounts') {
@@ -270,10 +258,10 @@ export function mockUserStorageMessenger(
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
-    mockNotificationServicesIsEnabled,
-    mockNotificationServicesDisableNotifications,
     mockAuthPerformSignOut,
-    mockKeyringAddNewAccount,
+    mockKeyringGetAccounts,
+    mockKeyringAddAccounts,
+    mockKeyringWithKeyring,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,

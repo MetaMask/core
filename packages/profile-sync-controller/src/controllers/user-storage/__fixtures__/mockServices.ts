@@ -13,7 +13,7 @@ import {
   getMockUserStorageBatchDeleteResponse,
   deleteMockUserStorageAllFeatureEntriesResponse,
   deleteMockUserStorageResponse,
-} from './mockResponses';
+} from '../mocks/mockResponses';
 
 type MockReply = {
   status: nock.StatusCode;

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Added
+
+- **BREAKING** Renamed `mergeScopes` to `mergeNormalizedScopes` ([#5283](https://github.com/MetaMask/core/pull/5283))
+- Added merger to CaveatSpecification returned by `caip25CaveatBuilder()` ([#5283](https://github.com/MetaMask/core/pull/5283))
+- Added `mergeInternalScopes` which merges two `InternalScopesObject`s ([#5283](https://github.com/MetaMask/core/pull/5283))
+
+## [2.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` from ^11.1.0 to ^11.2.0 ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+### Fixed
+
+- Fixes scope creation to not insert accounts into `wallet` scope ([#5374](https://github.com/MetaMask/core/pull/5374))
+- Fixes invalid type import path in `@metamask/multichain` ([#5313](https://github.com/MetaMask/core/pull/5313))
+
+## [2.1.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.5` to `^11.5.0` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
 ## [2.1.0]
 
 ### Added
@@ -14,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add key Multichain API methods ([#4813](https://github.com/MetaMask/core/pull/4813))
   - Adds `getInternalScopesObject` and `getSessionScopes` helpers for transforming between `NormalizedScopesObject` and `InternalScopesObject`.
   - Adds handlers for `wallet_getSession`, `wallet_invokeMethod`, and `wallet_revokeSession` methods.
-  - Adds `multichainMethodCallValidatorMiddleware` for validating Multichain API method params as defined in @metamask/api-specs.
+  - Adds `multichainMethodCallValidatorMiddleware` for validating Multichain API method params as defined in `@metamask/api-specs`.
   - Adds `MultichainMiddlewareManager` to multiplex a request to other middleware based on requested scope.
   - Adds `MultichainSubscriptionManager` to handle concurrent subscriptions across multiple scopes.
   - Adds `bucketScopes` which groups the scopes in a `NormalizedScopesObject` based on if the scopes are already supported, could be supported, or are not supportable.
@@ -67,7 +93,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#4962](https://github.com/MetaMask/core/pull/4962))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.2.0...@metamask/multichain@3.0.0
+[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.1...@metamask/multichain@2.2.0
+[2.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.1.0...@metamask/multichain@2.1.1
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@2.0.0...@metamask/multichain@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.2...@metamask/multichain@2.0.0
 [1.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain@1.1.1...@metamask/multichain@1.1.2

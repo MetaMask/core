@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "19.0.5",
+  "version": "20.0.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -49,18 +49,18 @@
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
-    "@metamask/base-controller": "^7.1.1",
+    "@metamask/base-controller": "^8.0.0",
     "@metamask/browser-passworder": "^4.3.0",
-    "@metamask/eth-hd-keyring": "^7.0.4",
-    "@metamask/eth-sig-util": "^8.0.0",
-    "@metamask/eth-simple-keyring": "^6.0.5",
-    "@metamask/keyring-api": "^16.1.0",
-    "@metamask/keyring-internal-api": "^4.0.1",
-    "@metamask/message-manager": "^12.0.0",
-    "@metamask/utils": "^11.1.0",
+    "@metamask/eth-hd-keyring": "^11.0.0",
+    "@metamask/eth-sig-util": "^8.2.0",
+    "@metamask/eth-simple-keyring": "^9.0.0",
+    "@metamask/keyring-api": "^17.2.0",
+    "@metamask/keyring-internal-api": "^5.0.0",
+    "@metamask/utils": "^11.2.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
-    "immer": "^9.0.6"
+    "immer": "^9.0.6",
+    "ulid": "^2.3.0"
   },
   "devDependencies": {
     "@ethereumjs/common": "^3.2.0",
@@ -69,6 +69,7 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-utils": "^2.3.1",
     "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -89,6 +90,10 @@
     "registry": "https://registry.npmjs.org/"
   },
   "lavamoat": {
-    "allowScripts": {}
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail": false,
+      "ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "ethereumjs-wallet>ethereum-cryptography>secp256k1": false
+    }
   }
 }

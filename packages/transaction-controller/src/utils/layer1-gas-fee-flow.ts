@@ -14,6 +14,7 @@ export type UpdateLayer1GasFeeRequest = {
 
 /**
  * Updates the given transactionMeta with the layer 1 gas fee.
+ *
  * @param request - The request to use when getting the layer 1 gas fee.
  * @param request.provider - Provider used to create a new underlying EthQuery instance
  * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
@@ -37,6 +38,7 @@ export async function updateTransactionLayer1GasFee(
 
 /**
  * Get the layer 1 gas fee flow for a transaction.
+ *
  * @param transactionMeta - The transaction to get the layer 1 gas fee flow for.
  * @param layer1GasFeeFlows - The layer 1 gas fee flows to search.
  * @returns The layer 1 gas fee flow for the transaction, or undefined if none match.
@@ -51,11 +53,13 @@ function getLayer1GasFeeFlow(
 }
 
 /**
- * Get the layer 1 gas fee for a transaction and return the layer1Fee.
+ * Get the layer 1 gas fee for a transaction.
+ *
  * @param request - The request to use when getting the layer 1 gas fee.
  * @param request.layer1GasFeeFlows - The layer 1 gas fee flows to search.
  * @param request.provider - The provider to use to get the layer 1 gas fee.
  * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
+ * @returns The layer 1 gas fee.
  */
 export async function getTransactionLayer1GasFee({
   layer1GasFeeFlows,

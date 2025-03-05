@@ -1,8 +1,3 @@
-import encryption, { createSHA256Hash } from '../../shared/encryption';
-import { SHARED_SALT } from '../../shared/encryption/constants';
-import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
-import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
-import { createMockGetStorageResponse } from './__fixtures__';
 import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
@@ -12,10 +7,8 @@ import {
   mockEndpointDeleteUserStorageAllFeatureEntries,
   mockEndpointDeleteUserStorage,
 } from './__fixtures__/mockServices';
-import {
-  MOCK_STORAGE_DATA,
-  MOCK_STORAGE_KEY,
-} from './__fixtures__/mockStorage';
+import { createMockGetStorageResponse } from './mocks';
+import { MOCK_STORAGE_DATA, MOCK_STORAGE_KEY } from './mocks/mockStorage';
 import type { GetUserStorageResponse } from './services';
 import {
   batchUpsertUserStorage,
@@ -27,6 +20,10 @@ import {
   deleteUserStorage,
   batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries,
 } from './services';
+import encryption, { createSHA256Hash } from '../../shared/encryption';
+import { SHARED_SALT } from '../../shared/encryption/constants';
+import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
+import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
   const actCallGetUserStorage = async () => {
@@ -106,6 +103,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       undefined,
       async (requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -175,6 +173,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
       USER_STORAGE_FEATURE_NAMES.notifications,
       undefined,
       async (_uri, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -270,6 +269,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       undefined,
       async (requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -323,6 +323,7 @@ describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
       USER_STORAGE_FEATURE_NAMES.accounts,
       undefined,
       async (_uri, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -410,6 +411,7 @@ describe('user-storage/services.ts - batchUpsertUserStorageWithAlreadyHashedAndE
       USER_STORAGE_FEATURE_NAMES.accounts,
       undefined,
       async (_uri, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -592,6 +594,7 @@ describe('user-storage/services.ts - batchDeleteUserStorage() tests', () => {
       USER_STORAGE_FEATURE_NAMES.accounts,
       undefined,
       async (_uri, requestBody) => {
+        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }

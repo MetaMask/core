@@ -1,9 +1,10 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import { MOCK_INTERNAL_ACCOUNTS } from './mockAccounts';
 import { createSHA256Hash } from '../../../../shared/encryption';
 import { mockUserStorageMessenger } from '../../__fixtures__/mockMessenger';
 import { mapInternalAccountToUserStorageAccount } from '../utils';
-import { MOCK_INTERNAL_ACCOUNTS } from './mockAccounts';
 
 /**
  * Test Utility - create a mock user storage messenger for account syncing tests
@@ -20,12 +21,20 @@ export function mockUserStorageMessengerForAccountSyncing(options?: {
 }) {
   const messengerMocks = mockUserStorageMessenger();
 
-  messengerMocks.mockKeyringAddNewAccount.mockImplementation(async () => {
+  messengerMocks.mockKeyringAddAccounts.mockImplementation(async () => {
     messengerMocks.baseMessenger.publish(
       'AccountsController:accountAdded',
       MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
-    return MOCK_INTERNAL_ACCOUNTS.ONE[0].address;
+  });
+
+  messengerMocks.mockKeyringGetAccounts.mockImplementation(async () => {
+    return (
+      options?.accounts?.accountsList
+        ?.filter((a) => a.metadata.keyring.type === KeyringTypes.hd)
+        .map((a) => a.address) ??
+      MOCK_INTERNAL_ACCOUNTS.ALL.map((a) => a.address)
+    );
   });
 
   messengerMocks.mockAccountsListAccounts.mockReturnValue(
@@ -38,6 +47,7 @@ export function mockUserStorageMessengerForAccountSyncing(options?: {
 
 /**
  * Test Utility - creates a realistic expected batch upsert payload
+ *
  * @param data - data supposed to be upserted
  * @param storageKey - storage key
  * @returns expected body
@@ -54,6 +64,7 @@ export function createExpectedAccountSyncBatchUpsertBody(
 
 /**
  * Test Utility - creates a realistic expected batch delete payload
+ *
  * @param data - data supposed to be deleted
  * @param storageKey - storage key
  * @returns expected body

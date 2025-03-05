@@ -9,10 +9,10 @@ import type {
 import EventEmitter from 'events';
 import { cloneDeep, merge } from 'lodash';
 
+import { TransactionPoller } from './TransactionPoller';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
-import { TransactionPoller } from './TransactionPoller';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -51,56 +51,57 @@ type Events = {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): this;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 }
 
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #droppedBlockCountByHash: Map<string, number>;
+  readonly #droppedBlockCountByHash: Map<string, number>;
 
-  #getChainId: () => string;
+  readonly #getChainId: () => string;
 
-  #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
+  readonly #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
 
-  #getTransactions: () => TransactionMeta[];
+  readonly #getNetworkClientId: () => NetworkClientId;
 
-  #isResubmitEnabled: () => boolean;
+  readonly #getTransactions: () => TransactionMeta[];
+
+  readonly #isResubmitEnabled: () => boolean;
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  #listener: any;
+  readonly #listener: any;
 
-  #log: debug.Debugger;
+  readonly #log: debug.Debugger;
 
-  #getGlobalLock: () => Promise<() => void>;
+  readonly #getGlobalLock: () => Promise<() => void>;
 
-  #publishTransaction: (
+  readonly #publishTransaction: (
     ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<string>;
 
   #running: boolean;
 
-  #transactionPoller: TransactionPoller;
+  readonly #transactionPoller: TransactionPoller;
 
-  #beforeCheckPendingTransaction: (transactionMeta: TransactionMeta) => boolean;
+  readonly #beforeCheckPendingTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
 
-  #beforePublish: (transactionMeta: TransactionMeta) => boolean;
+  readonly #beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
   constructor({
     blockTracker,
     getChainId,
     getEthQuery,
+    getNetworkClientId,
     getTransactions,
     isResubmitEnabled,
     getGlobalLock,
@@ -110,6 +111,7 @@ export class PendingTransactionTracker {
     blockTracker: BlockTracker;
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
+    getNetworkClientId: () => string;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: () => boolean;
     getGlobalLock: () => Promise<() => void>;
@@ -129,10 +131,10 @@ export class PendingTransactionTracker {
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
     this.#getEthQuery = getEthQuery;
+    this.#getNetworkClientId = getNetworkClientId;
     this.#getTransactions = getTransactions;
     this.#isResubmitEnabled = isResubmitEnabled ?? (() => true);
     this.#listener = this.#onLatestBlock.bind(this);
-    this.#log = createModuleLogger(log, getChainId());
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
@@ -140,6 +142,11 @@ export class PendingTransactionTracker {
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
+
+    this.#log = createModuleLogger(
+      log,
+      `${getChainId()}:${getNetworkClientId()}`,
+    );
   }
 
   startIfPendingTransactions = () => {
@@ -478,7 +485,7 @@ export class PendingTransactionTracker {
   #isNonceTaken(txMeta: TransactionMeta): boolean {
     const { id, txParams } = txMeta;
 
-    return this.#getCurrentChainTransactions().some(
+    return this.#getChainTransactions().some(
       (tx) =>
         tx.id !== id &&
         tx.txParams.from === txParams.from &&
@@ -489,7 +496,7 @@ export class PendingTransactionTracker {
   }
 
   #getPendingTransactions(): TransactionMeta[] {
-    return this.#getCurrentChainTransactions().filter(
+    return this.#getNetworkClientTransactions().filter(
       (tx) =>
         tx.status === TransactionStatus.submitted &&
         !tx.verifiedOnBlockchain &&
@@ -543,11 +550,15 @@ export class PendingTransactionTracker {
     return await query(this.#getEthQuery(), 'getTransactionCount', [address]);
   }
 
-  #getCurrentChainTransactions(): TransactionMeta[] {
-    const currentChainId = this.#getChainId();
+  #getChainTransactions(): TransactionMeta[] {
+    const chainId = this.#getChainId();
+    return this.#getTransactions().filter((tx) => tx.chainId === chainId);
+  }
 
+  #getNetworkClientTransactions(): TransactionMeta[] {
+    const networkClientId = this.#getNetworkClientId();
     return this.#getTransactions().filter(
-      (tx) => tx.chainId === currentChainId,
+      (tx) => tx.networkClientId === networkClientId,
     );
   }
 }
