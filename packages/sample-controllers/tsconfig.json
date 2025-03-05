@@ -5,7 +5,8 @@
   },
   "references": [
     { "path": "../../packages/base-controller" },
-    { "path": "../../packages/controller-utils" }
+    { "path": "../../packages/controller-utils" },
+    { "path": "../../packages/network-controller" }
   ],
   "include": ["../../types", "./src"],
   /**
