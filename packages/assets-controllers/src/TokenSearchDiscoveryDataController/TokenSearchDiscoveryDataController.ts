@@ -19,9 +19,9 @@ import type { TokenListToken } from '../TokenListController';
 
 // === GENERAL ===
 
-const controllerName = 'TokenSearchDiscoveryDataController';
+export const controllerName = 'TokenSearchDiscoveryDataController';
 
-const MAX_TOKEN_DISPLAY_DATA_LENGTH = 10;
+export const MAX_TOKEN_DISPLAY_DATA_LENGTH = 10;
 
 // === STATE ===
 
@@ -60,7 +60,7 @@ export type TokenSearchDiscoveryDataControllerActions =
 /**
  * All actions that {@link TokenSearchDiscoveryDataController} calls internally.
  */
-type AllowedActions = GetCurrencyRateState;
+export type AllowedActions = GetCurrencyRateState;
 
 /**
  * The event that {@link TokenSearchDiscoveryDataController} publishes when updating
@@ -82,7 +82,7 @@ export type TokenSearchDiscoveryDataControllerEvents =
 /**
  * All events that {@link TokenSearchDiscoveryDataController} subscribes to internally.
  */
-type AllowedEvents = never;
+export type AllowedEvents = never;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -276,8 +276,8 @@ export class TokenSearchDiscoveryDataController extends BaseController<
         tokenDisplayData,
         ...state.tokenDisplayData.filter(
           (token) =>
-            token.address !== address &&
-            token.chainId !== chainId &&
+            token.address !== address ||
+            token.chainId !== chainId ||
             token.currency !== currentCurrency,
         ),
       ].slice(0, MAX_TOKEN_DISPLAY_DATA_LENGTH);
