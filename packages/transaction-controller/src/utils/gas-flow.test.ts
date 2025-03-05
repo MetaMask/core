@@ -1,5 +1,6 @@
 import type { GasFeeEstimates as GasFeeControllerEstimates } from '@metamask/gas-fee-controller';
 
+import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
 import type {
   FeeMarketGasFeeEstimates,
   GasFeeFlow,
@@ -8,7 +9,6 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateType, TransactionStatus } from '../types';
-import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
@@ -74,6 +74,7 @@ const TRANSACTION_GAS_FEE_ESTIMATES_GAS_PRICE_MOCK: GasPriceGasFeeEstimates = {
 
 /**
  * Creates a mock GasFeeFlow.
+ *
  * @returns The mock GasFeeFlow.
  */
 function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {

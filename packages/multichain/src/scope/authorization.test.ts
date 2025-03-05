@@ -96,6 +96,11 @@ describe('Scope Authorization', () => {
   });
 
   describe('bucketScopes', () => {
+    const isEvmChainIdSupported = jest.fn();
+    const isEvmChainIdSupportable = jest.fn();
+    const isNonEvmScopeSupported = jest.fn();
+    const getNonEvmSupportedMethods = jest.fn();
+
     beforeEach(() => {
       let callCount = 0;
       MockFilter.bucketScopesBySupport.mockImplementation(() => {
@@ -130,8 +135,10 @@ describe('Scope Authorization', () => {
           },
         },
         {
-          isChainIdSupported,
-          isChainIdSupportable: jest.fn(),
+          isEvmChainIdSupported,
+          isEvmChainIdSupportable,
+          isNonEvmScopeSupported,
+          getNonEvmSupportedMethods,
         },
       );
 
@@ -144,7 +151,9 @@ describe('Scope Authorization', () => {
           },
         },
         {
-          isChainIdSupported,
+          isEvmChainIdSupported,
+          isNonEvmScopeSupported,
+          getNonEvmSupportedMethods,
         },
       );
     });
@@ -160,8 +169,10 @@ describe('Scope Authorization', () => {
           },
         },
         {
-          isChainIdSupported: jest.fn(),
-          isChainIdSupportable,
+          isEvmChainIdSupported,
+          isEvmChainIdSupportable,
+          isNonEvmScopeSupported,
+          getNonEvmSupportedMethods,
         },
       );
 
@@ -174,7 +185,9 @@ describe('Scope Authorization', () => {
           },
         },
         {
-          isChainIdSupported: isChainIdSupportable,
+          isEvmChainIdSupported: isEvmChainIdSupportable,
+          isNonEvmScopeSupported,
+          getNonEvmSupportedMethods,
         },
       );
     });
@@ -190,8 +203,10 @@ describe('Scope Authorization', () => {
             },
           },
           {
-            isChainIdSupported: jest.fn(),
-            isChainIdSupportable: jest.fn(),
+            isEvmChainIdSupported,
+            isEvmChainIdSupportable,
+            isNonEvmScopeSupported,
+            getNonEvmSupportedMethods,
           },
         ),
       ).toStrictEqual({

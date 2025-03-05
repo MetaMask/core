@@ -182,8 +182,8 @@ export async function syncInternalAccountsWithUserStorage(
           type: KeyringTypes.hd,
           index: 0,
         },
-        async (keyring) => {
-          keyring.addAccounts(numberOfAccountsToAdd);
+        async ({ keyring }) => {
+          await keyring.addAccounts(numberOfAccountsToAdd);
         },
       );
 

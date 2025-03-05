@@ -14,13 +14,16 @@ const log = createModuleLogger(projectLogger, 'method-data');
 export class MethodDataHelper {
   hub: EventEmitter;
 
-  #getProvider: (networkClientId: NetworkClientId) => Provider;
+  readonly #getProvider: (networkClientId: NetworkClientId) => Provider;
 
-  #getState: () => Record<string, MethodData>;
+  readonly #getState: () => Record<string, MethodData>;
 
-  #methodRegistryByNetworkClientId: Map<NetworkClientId, MethodRegistry>;
+  readonly #methodRegistryByNetworkClientId: Map<
+    NetworkClientId,
+    MethodRegistry
+  >;
 
-  #mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
   constructor({
     getProvider,

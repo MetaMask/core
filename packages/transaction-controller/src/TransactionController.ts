@@ -26,6 +26,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignEip7702AuthorizationAction } from '@metamask/keyring-controller';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -105,8 +106,10 @@ import {
   SimulationErrorCode,
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
-import type { KeyringControllerSignAuthorization } from './utils/eip7702';
-import { signAuthorizationList } from './utils/eip7702';
+import {
+  generateEIP7702BatchTransaction,
+  signAuthorizationList,
+} from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
@@ -173,26 +176,26 @@ const SUBMIT_HISTORY_LIMIT = 100;
 /**
  * Object with new transaction's meta and a promise resolving to the
  * transaction hash if successful.
- *
- * @property result - Promise resolving to a new transaction hash
- * @property transactionMeta - Meta information about this new transaction
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface Result {
+  /** Promise resolving to a new transaction hash. */
   result: Promise<string>;
+
+  /** Meta information about this new transaction. */
   transactionMeta: TransactionMeta;
 }
 
 /**
  * Method data registry object
- *
- * @property registryMethod - Registry method raw string
- * @property parsedRegistryMethod - Registry method object, containing name and method arguments
  */
 export type MethodData = {
+  /** Registry method raw string. */
   registryMethod: string;
+
+  /** Registry method object, containing name and method arguments. */
   parsedRegistryMethod:
     | {
         name: string;
@@ -212,15 +215,18 @@ export type MethodData = {
 
 /**
  * Transaction controller state
- *
- * @property transactions - A list of TransactionMeta objects
- * @property methodData - Object containing all known method data information
- * @property lastFetchedBlockNumbers - Cache to optimise incoming transaction queries
  */
 export type TransactionControllerState = {
+  /** A list of TransactionMeta objects. */
   transactions: TransactionMeta[];
+
+  /** Object containing all known method data information. */
   methodData: Record<string, MethodData>;
+
+  /** Cache to optimise incoming transaction queries. */
   lastFetchedBlockNumbers: { [key: string]: number | string };
+
+  /** History of all tranasactions submitted from the wallet. */
   submitHistory: SubmitHistoryEntry[];
 };
 
@@ -249,91 +255,115 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
 
 /**
  * Configuration options for the PendingTransactionTracker
- *
- * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
+  /** Whether transaction publishing is automatically retried. */
   isResubmitEnabled?: () => boolean;
 };
 
-/**
- * TransactionController constructor options.
- *
- * @property disableHistory - Whether to disable storing history in transaction metadata.
- * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
- * @property disableSwaps - Whether to disable additional processing on swaps transactions.
- * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
- * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
- * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
- * @property getGasFeeEstimates - Callback to retrieve gas fee estimates.
- * @property getNetworkClientRegistry - Gets the network client registry.
- * @property getNetworkState - Gets the state of the network controller.
- * @property getPermittedAccounts - Get accounts that a given origin has permissions for.
- * @property getSavedGasFees - Gets the saved gas fee config.
- * @property getSelectedAddress - Gets the address of the currently selected account.
- * @property incomingTransactions - Configuration options for incoming transaction support.
- * @property isSimulationEnabled - Whether new transactions will be automatically simulated.
- * @property messenger - The controller messenger.
- * @property pendingTransactions - Configuration options for pending transaction support.
- * @property securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
- * @property sign - Function used to sign transactions.
- * @property state - Initial state to set on this controller.
- * @property transactionHistoryLimit - Transaction history limit.
- * @property hooks - The controller hooks.
- * @property hooks.afterSign - Additional logic to execute after signing a transaction. Return false to not change the status to signed.
- * @property hooks.beforeApproveOnInit - Additional logic to execute before starting an approval flow for a transaction during initialization. Return false to skip the transaction.
- * @property hooks.beforeCheckPendingTransaction - Additional logic to execute before checking pending transactions. Return false to prevent the broadcast of the transaction.
- * @property hooks.beforePublish - Additional logic to execute before publishing a transaction. Return false to prevent the broadcast of the transaction.
- * @property hooks.getAdditionalSignArguments - Returns additional arguments required to sign a transaction.
- * @property hooks.publish - Alternate logic to publish a transaction.
- */
+/** TransactionController constructor options. */
 export type TransactionControllerOptions = {
+  /** Whether to disable storing history in transaction metadata. */
   disableHistory: boolean;
+
+  /** Explicitly disable transaction metadata history. */
   disableSendFlowHistory: boolean;
+
+  /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
+
+  /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
+
+  /** Whether or not the network supports EIP-1559. */
   getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
+
+  /** Callback to retrieve pending transactions from external sources. */
   getExternalPendingTransactions?: (
     address: string,
     chainId?: string,
   ) => NonceTrackerTransaction[];
+
+  /** Callback to retrieve gas fee estimates. */
   getGasFeeEstimates?: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
+
+  /** Gets the network client registry. */
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
+
+  /** Gets the state of the network controller. */
   getNetworkState: () => NetworkState;
+
+  /** Get accounts that a given origin has permissions for. */
   getPermittedAccounts?: (origin?: string) => Promise<string[]>;
+
+  /** Gets the saved gas fee config. */
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+
+  /** Configuration options for incoming transaction support. */
   incomingTransactions?: IncomingTransactionOptions & {
     /** API keys to be used for Etherscan requests to prevent rate limiting. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
   isFirstTimeInteractionEnabled?: () => boolean;
+
+  /** Whether new transactions will be automatically simulated. */
   isSimulationEnabled?: () => boolean;
+
+  /** The controller messenger. */
   messenger: TransactionControllerMessenger;
+
+  /** Configuration options for pending transaction support. */
   pendingTransactions?: PendingTransactionOptions;
+
+  /** A function for verifying a transaction, whether it is malicious or not. */
   securityProviderRequest?: SecurityProviderRequest;
+
+  /** Function used to sign transactions. */
   sign?: (
     transaction: TypedTransaction,
     from: string,
     transactionMeta?: TransactionMeta,
   ) => Promise<TypedTransaction>;
+
+  /** Initial state to set on this controller. */
   state?: Partial<TransactionControllerState>;
+
   testGasFeeFlows?: boolean;
   trace?: TraceCallback;
+
+  /** Transaction history limit. */
   transactionHistoryLimit: number;
+
+  /** The controller hooks. */
   hooks: {
+    /** Additional logic to execute after signing a transaction. Return false to not change the status to signed. */
     afterSign?: (
       transactionMeta: TransactionMeta,
       signedTx: TypedTransaction,
     ) => boolean;
+
+    /**
+     * Additional logic to execute before checking pending transactions.
+     * Return false to prevent the broadcast of the transaction.
+     */
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => boolean;
+
+    /**
+     * Additional logic to execute before publishing a transaction.
+     * Return false to prevent the broadcast of the transaction.
+     */
     beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+
+    /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
       transactionMeta: TransactionMeta,
     ) => (TransactionMeta | undefined)[];
+
+    /** Alternate logic to publish a transaction. */
     publish?: (
       transactionMeta: TransactionMeta,
     ) => Promise<{ transactionHash: string }>;
@@ -352,7 +382,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
   | AddApprovalRequest
-  | KeyringControllerSignAuthorization
+  | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction;
@@ -745,55 +775,34 @@ export class TransactionController extends BaseController<
    * Constructs a TransactionController.
    *
    * @param options - The controller options.
-   * @param options.disableHistory - Whether to disable storing history in transaction metadata.
-   * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
-   * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
-   * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
-   * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
-   * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
-   * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
-   * @param options.getNetworkClientRegistry - Gets the network client registry.
-   * @param options.getNetworkState - Gets the state of the network controller.
-   * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
-   * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.incomingTransactions - Configuration options for incoming transaction support.
-   * @param options.isFirstTimeInteractionEnabled - Whether first time interaction checks are enabled.
-   * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
-   * @param options.messenger - The controller messenger.
-   * @param options.pendingTransactions - Configuration options for pending transaction support.
-   * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
-   * @param options.sign - Function used to sign transactions.
-   * @param options.state - Initial state to set on this controller.
-   * @param options.testGasFeeFlows - Whether to use the test gas fee flow.
-   * @param options.trace - Callback to generate trace information.
-   * @param options.transactionHistoryLimit - Transaction history limit.
-   * @param options.hooks - The controller hooks.
    */
-  constructor({
-    disableHistory,
-    disableSendFlowHistory,
-    disableSwaps,
-    getCurrentAccountEIP1559Compatibility,
-    getCurrentNetworkEIP1559Compatibility,
-    getExternalPendingTransactions,
-    getGasFeeEstimates,
-    getNetworkClientRegistry,
-    getNetworkState,
-    getPermittedAccounts,
-    getSavedGasFees,
-    incomingTransactions = {},
-    isFirstTimeInteractionEnabled,
-    isSimulationEnabled,
-    messenger,
-    pendingTransactions = {},
-    securityProviderRequest,
-    sign,
-    state,
-    testGasFeeFlows,
-    trace,
-    transactionHistoryLimit = 40,
-    hooks,
-  }: TransactionControllerOptions) {
+  constructor(options: TransactionControllerOptions) {
+    const {
+      disableHistory,
+      disableSendFlowHistory,
+      disableSwaps,
+      getCurrentAccountEIP1559Compatibility,
+      getCurrentNetworkEIP1559Compatibility,
+      getExternalPendingTransactions,
+      getGasFeeEstimates,
+      getNetworkClientRegistry,
+      getNetworkState,
+      getPermittedAccounts,
+      getSavedGasFees,
+      incomingTransactions = {},
+      isFirstTimeInteractionEnabled,
+      isSimulationEnabled,
+      messenger,
+      pendingTransactions = {},
+      securityProviderRequest,
+      sign,
+      state,
+      testGasFeeFlows,
+      trace,
+      transactionHistoryLimit = 40,
+      hooks,
+    } = options;
+
     super({
       name: controllerName,
       metadata,
@@ -990,6 +999,7 @@ export class TransactionController extends BaseController<
       addTransaction: this.addTransaction.bind(this),
       getChainId: this.#getChainId.bind(this),
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
+      getInternalAccounts: this.#getInternalAccounts.bind(this),
       messenger: this.messagingSystem,
       request,
     });
@@ -1264,7 +1274,7 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
-    return await this.#retryTransaction({
+    await this.#retryTransaction({
       actionId,
       estimatedBaseFee,
       gasValues,
@@ -1308,7 +1318,7 @@ export class TransactionController extends BaseController<
       estimatedBaseFee,
     }: { actionId?: string; estimatedBaseFee?: string } = {},
   ) {
-    return await this.#retryTransaction({
+    await this.#retryTransaction({
       actionId,
       estimatedBaseFee,
       gasValues,
@@ -1475,6 +1485,7 @@ export class TransactionController extends BaseController<
    * @param transaction - The transaction params to estimate gas for.
    * @param multiplier - The multiplier to use for the gas buffer.
    * @param networkClientId - The network client id to use for the estimate.
+   * @returns The buffered estimated gas and whether the estimation failed.
    */
   async estimateGasBuffered(
     transaction: TransactionParams,
@@ -2246,6 +2257,7 @@ export class TransactionController extends BaseController<
    * @param request.transactionParams - The transaction parameters to estimate the layer 1 gas fee for.
    * @param request.chainId - The ID of the chain where the transaction will be executed.
    * @param request.networkClientId - The ID of a specific network client to process the transaction.
+   * @returns The layer 1 gas fee.
    */
   async getLayer1GasFee({
     transactionParams,
@@ -2342,6 +2354,83 @@ export class TransactionController extends BaseController<
     this.signAbortCallbacks.delete(transactionId);
   }
 
+  /**
+   * Update the transaction data of a single nested transaction within an atomic batch transaction.
+   *
+   * @param options - The options bag.
+   * @param options.transactionId - ID of the atomic batch transaction.
+   * @param options.transactionIndex - Index of the nested transaction within the atomic batch transaction.
+   * @param options.transactionData - New data to set for the nested transaction.
+   * @returns The updated data for the atomic batch transaction.
+   */
+  async updateAtomicBatchData({
+    transactionId,
+    transactionIndex,
+    transactionData,
+  }: {
+    transactionId: string;
+    transactionIndex: number;
+    transactionData: Hex;
+  }) {
+    log('Updating atomic batch data', {
+      transactionId,
+      transactionIndex,
+      transactionData,
+    });
+
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateAtomicBatchData - Atomic batch data updated',
+      },
+      (transactionMeta) => {
+        const { nestedTransactions, txParams } = transactionMeta;
+        const from = txParams.from as Hex;
+        const nestedTransaction = nestedTransactions?.[transactionIndex];
+
+        if (!nestedTransaction) {
+          throw new Error(
+            `Nested transaction not found with index - ${transactionIndex}`,
+          );
+        }
+
+        nestedTransaction.data = transactionData;
+
+        const batchTransaction = generateEIP7702BatchTransaction(
+          from,
+          nestedTransactions,
+        );
+
+        transactionMeta.txParams.data = batchTransaction.data;
+      },
+    );
+
+    const draftTransaction = cloneDeep({
+      ...updatedTransactionMeta,
+      txParams: {
+        ...updatedTransactionMeta.txParams,
+        // Clear existing gas to force estimation
+        gas: undefined,
+      },
+    });
+
+    await this.#updateGasEstimate(draftTransaction);
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateAtomicBatchData - Gas estimate updated',
+      },
+      (transactionMeta) => {
+        transactionMeta.txParams.gas = draftTransaction.txParams.gas;
+        transactionMeta.simulationFails = draftTransaction.simulationFails;
+        transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+      },
+    );
+
+    return updatedTransactionMeta.txParams.data as Hex;
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -2360,24 +2449,14 @@ export class TransactionController extends BaseController<
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId));
 
-    const { networkClientId, chainId } = transactionMeta;
-
-    const isCustomNetwork =
-      this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
-        .configuration.type === NetworkClientType.Custom;
-
+    const { networkClientId } = transactionMeta;
     const ethQuery = this.#getEthQuery({ networkClientId });
     const provider = this.#getProvider({ networkClientId });
 
     await this.#trace(
       { name: 'Update Gas', parentContext: traceContext },
       async () => {
-        await updateGas({
-          ethQuery,
-          chainId,
-          isCustomNetwork,
-          txMeta: transactionMeta,
-        });
+        await this.#updateGasEstimate(transactionMeta);
       },
     );
 
@@ -2561,6 +2640,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - The ID of the transaction to approve.
    * @param traceContext - The parent context for any new traces.
+   * @returns The state of the approval.
    */
   private async approveTransaction(
     transactionId: string,
@@ -3559,6 +3639,12 @@ export class TransactionController extends BaseController<
         ({ id }) => id === transactionId,
       );
 
+      if (index === -1) {
+        throw new Error(
+          `Cannot update transaction as ID not found - ${transactionId}`,
+        );
+      }
+
       let transactionMeta = state.transactions[index];
 
       const originalTransactionMeta = cloneDeep(transactionMeta);
@@ -3805,12 +3891,12 @@ export class TransactionController extends BaseController<
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
 
-  #getInternalAccounts(): string[] {
+  #getInternalAccounts(): Hex[] {
     const state = this.messagingSystem.call('AccountsController:getState');
 
     return Object.values(state.internalAccounts?.accounts ?? {})
       .filter((account) => account.type === 'eip155:eoa')
-      .map((account) => account.address);
+      .map((account) => account.address as Hex);
   }
 
   #updateSubmitHistory(transactionMeta: TransactionMeta, hash: string): void {
@@ -3848,6 +3934,23 @@ export class TransactionController extends BaseController<
       }
 
       submitHistory.unshift(submitHistoryEntry);
+    });
+  }
+
+  async #updateGasEstimate(transactionMeta: TransactionMeta) {
+    const { chainId, networkClientId } = transactionMeta;
+
+    const isCustomNetwork =
+      this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
+        .configuration.type === NetworkClientType.Custom;
+
+    const ethQuery = this.#getEthQuery({ networkClientId });
+
+    await updateGas({
+      chainId,
+      ethQuery,
+      isCustomNetwork,
+      txMeta: transactionMeta,
     });
   }
 }
