@@ -98,7 +98,14 @@ export class ERC20Standard {
 
     // Parse as bytes - treat empty string as failure
     try {
-      const resultTrimmed = result?.replace(/(00)+$/u, '');
+      // Not done in bytesToUtf8 in ethereumjs/util.
+      const regexPreceedingAndTrailingZeroes = /^(00)+|(00)+$/gu;
+
+      const resultTrimmed = result?.replace(
+        regexPreceedingAndTrailingZeroes,
+        '',
+      );
+
       const utf8 = bytesToUtf8(hexToBytes(resultTrimmed));
       if (utf8.length > 0) {
         return utf8;
