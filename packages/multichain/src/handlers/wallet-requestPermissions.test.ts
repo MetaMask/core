@@ -575,5 +575,26 @@ describe('requestPermissionsHandler', () => {
         `could not find ${Caip25EndowmentPermissionName} permission.`,
       );
     });
+
+    it('returns an error if requestPermissionsForOrigin hook returns a an invalid CAIP-25 permission (with no CAIP-25 caveat value)', async () => {
+      const { handler, requestPermissionsForOrigin } = createMockedHandler();
+      requestPermissionsForOrigin.mockResolvedValue([
+        {
+          [Caip25EndowmentPermissionName]: {
+            caveats: [{ type: 'foo', value: 'bar' }],
+          },
+        },
+      ]);
+
+      await expect(
+        handler(
+          getBaseRequest({
+            params: [{ eth_accounts: {}, 'endowment:permitted-chains': {} }],
+          }),
+        ),
+      ).rejects.toThrow(
+        `could not find ${Caip25CaveatType} in granted ${Caip25EndowmentPermissionName} permission.`,
+      );
+    });
   });
 });
