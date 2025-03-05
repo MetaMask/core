@@ -70,6 +70,7 @@ export const toMultichainNetworkConfiguration = (
     nativeCurrency: network.nativeCurrency,
     blockExplorerUrls: network.blockExplorerUrls,
     defaultBlockExplorerUrlIndex: network.defaultBlockExplorerUrlIndex || 0,
+    portfolioDiscoverUrl: network.portfolioDiscoverUrl,
   };
 };
 
