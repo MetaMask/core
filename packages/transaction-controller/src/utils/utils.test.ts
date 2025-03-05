@@ -77,6 +77,21 @@ describe('utils', () => {
         }),
       ).toStrictEqual(expect.objectContaining({ data: '0x0123' }));
     });
+
+    it('ensures gas is set to gasLimit if gas is not specified', () => {
+      expect(
+        util.normalizeTransactionParams({
+          ...TRANSACTION_PARAMS_MOCK,
+          gasLimit: '123',
+          gas: undefined,
+        }),
+      ).toStrictEqual(
+        expect.objectContaining({
+          gasLimit: '0x123',
+          gas: '0x123',
+        }),
+      );
+    });
   });
 
   describe('isEIP1559Transaction', () => {
