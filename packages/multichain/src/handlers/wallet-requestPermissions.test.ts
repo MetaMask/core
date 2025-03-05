@@ -556,5 +556,24 @@ describe('requestPermissionsHandler', () => {
         ),
       ).rejects.toThrow('failed to request unexpected permission');
     });
+
+    it("returns an error if requestPermissionsForOrigin hook doesn't return a valid CAIP-25 permission", async () => {
+      const { handler, requestPermissionsForOrigin } = createMockedHandler();
+      requestPermissionsForOrigin.mockResolvedValue([
+        {
+          otherPermission: { foo: 'bar' },
+        },
+      ]);
+
+      await expect(
+        handler(
+          getBaseRequest({
+            params: [{ eth_accounts: {}, 'endowment:permitted-chains': {} }],
+          }),
+        ),
+      ).rejects.toThrow(
+        `could not find ${Caip25EndowmentPermissionName} permission.`,
+      );
+    });
   });
 });
