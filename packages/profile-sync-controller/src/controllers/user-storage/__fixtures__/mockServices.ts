@@ -23,6 +23,7 @@ type MockReply = {
 export const mockEndpointGetUserStorageAllFeatureEntries = async (
   path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   mockReply?: MockReply,
+  persist = true,
 ) => {
   const mockResponse = await getMockUserStorageAllFeatureEntriesResponse(path);
   const reply = mockReply ?? {
@@ -33,6 +34,10 @@ export const mockEndpointGetUserStorageAllFeatureEntries = async (
   const mockEndpoint = nock(mockResponse.url)
     .get('')
     .reply(reply.status, reply.body);
+
+  if (persist) {
+    mockEndpoint.persist();
+  }
 
   return mockEndpoint;
 };
