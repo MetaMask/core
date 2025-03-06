@@ -28,7 +28,7 @@ import {
   type AddLog,
 } from '@metamask/logging-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
-import type { Hex, Json } from '@metamask/utils';
+import { hexToNumber, type Hex, type Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
@@ -45,6 +45,8 @@ import type {
   TypedSigningOptions,
   LegacyStateMessage,
   StateSIWEMessage,
+  TypedData,
+  Delegation,
 } from './types';
 import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
 import {
@@ -125,12 +127,19 @@ export type GetSignatureState = ControllerGetStateAction<
   SignatureControllerState
 >;
 
+export type SignDelegationAction = {
+  type: `SignatureController:signDelegation`;
+  handler: SignatureController['signDelegation'];
+};
+
 export type SignatureStateChange = ControllerStateChangeEvent<
   typeof controllerName,
   SignatureControllerState
 >;
 
-export type SignatureControllerActions = GetSignatureState;
+export type SignatureControllerActions =
+  | GetSignatureState
+  | SignDelegationAction;
 
 export type SignatureControllerEvents = SignatureStateChange;
 
@@ -226,6 +235,11 @@ export class SignatureController extends BaseController<
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
     this.#decodingApiUrl = decodingApiUrl;
     this.#isDecodeSignatureRequestEnabled = isDecodeSignatureRequestEnabled;
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:signDelegation`,
+      this.signDelegation.bind(this),
+    );
   }
 
   /**
@@ -335,6 +349,7 @@ export class SignatureController extends BaseController<
    * @param version - The version of the signTypedData request.
    * @param signingOptions - Options for signing the typed message.
    * @param options - An options bag for the method.
+   * @param options.requireApproval - Whether to require user approval for the signature.
    * @param options.traceContext - The parent context for any new traces.
    * @returns Promise resolving to the raw signature hash generated from the signature request.
    */
@@ -343,7 +358,7 @@ export class SignatureController extends BaseController<
     request: OriginalRequest,
     version: string,
     signingOptions?: TypedSigningOptions,
-    options: { traceContext?: TraceContext } = {},
+    options: { requireApproval?: boolean; traceContext?: TraceContext } = {},
   ): Promise<string> {
     const chainId = this.#getChainId(request);
 
@@ -362,6 +377,7 @@ export class SignatureController extends BaseController<
       approvalType: ApprovalType.EthSignTypedData,
       messageParams: normalizedMessageParams,
       request,
+      requireApproval: options.requireApproval,
       signingOptions,
       traceContext: options.traceContext,
       type: SignatureRequestType.TypedSign,
@@ -427,6 +443,75 @@ export class SignatureController extends BaseController<
     this.setTypedMessageInProgress(signatureRequestId);
   }
 
+  async signDelegation({
+    chainId,
+    delegation,
+    delegationManagerAddress,
+    from,
+    networkClientId,
+    origin,
+    requireApproval,
+  }: {
+    chainId: Hex;
+    delegation: Delegation;
+    delegationManagerAddress: Hex;
+    from: Hex;
+    networkClientId: string;
+    origin?: string;
+    requireApproval?: boolean;
+  }) {
+    const EIP712Domain = [
+      { name: 'name', type: 'string' },
+      { name: 'version', type: 'string' },
+      { name: 'chainId', type: 'uint256' },
+      { name: 'verifyingContract', type: 'address' },
+    ];
+
+    const SIGNABLE_DELEGATION_TYPED_DATA = {
+      EIP712Domain,
+      Caveat: [
+        { name: 'enforcer', type: 'address' },
+        { name: 'terms', type: 'bytes' },
+      ],
+      Delegation: [
+        { name: 'delegate', type: 'address' },
+        { name: 'delegator', type: 'address' },
+        { name: 'authority', type: 'bytes32' },
+        { name: 'caveats', type: 'Caveat[]' },
+        { name: 'salt', type: 'uint256' },
+      ],
+    };
+
+    const data: TypedData = {
+      types: SIGNABLE_DELEGATION_TYPED_DATA,
+      primaryType: 'Delegation',
+      domain: {
+        chainId: String(hexToNumber(chainId)),
+        name: 'DelegationManager',
+        version: '1',
+        verifyingContract: delegationManagerAddress,
+      },
+      message: { ...delegation, chainId: hexToNumber(chainId) },
+    };
+
+    return await this.newUnsignedTypedMessage(
+      {
+        data,
+        from,
+        origin,
+        version: SignTypedDataVersion.V4,
+      },
+      {
+        networkClientId,
+        origin,
+        params: [],
+      },
+      SignTypedDataVersion.V4,
+      undefined,
+      { requireApproval },
+    );
+  }
+
   #parseTypedData(
     messageParams: MessageParamsTyped,
     version?: SignTypedDataVersion,
@@ -453,6 +538,7 @@ export class SignatureController extends BaseController<
     type,
     approvalType,
     version,
+    requireApproval,
     signingOptions,
     traceContext,
   }: {
@@ -462,6 +548,7 @@ export class SignatureController extends BaseController<
     type: SignatureRequestType;
     approvalType: ApprovalType;
     version?: SignTypedDataVersion;
+    requireApproval?: boolean;
     signingOptions?: TypedSigningOptions;
     traceContext?: TraceContext;
   }): Promise<string> {
@@ -492,12 +579,14 @@ export class SignatureController extends BaseController<
     this.#decodePermitSignatureRequest(metadata.id, request, chainId);
 
     try {
-      resultCallbacks = await this.#processApproval({
-        approvalType,
-        metadata,
-        request,
-        traceContext,
-      });
+      if (requireApproval !== false) {
+        resultCallbacks = await this.#processApproval({
+          approvalType,
+          metadata,
+          request,
+          traceContext,
+        });
+      }
 
       await this.#approveAndSignRequest(metadata, traceContext);
     } catch (error) {

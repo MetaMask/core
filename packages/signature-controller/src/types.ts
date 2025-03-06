@@ -86,18 +86,17 @@ export type MessageParamsPersonal = MessageParams & {
   siwe?: StateSIWEMessage;
 };
 
+export type TypedData = {
+  types: Record<string, Json>;
+  domain: Record<string, Json>;
+  primaryType: string;
+  message: Json;
+};
+
 /** Typed message parameters that were requested to be signed. */
 export type MessageParamsTyped = MessageParams & {
   /** Structured data to sign. */
-  data:
-    | Record<string, Json>[]
-    | string
-    | {
-        types: Record<string, Json>;
-        domain: Record<string, Json>;
-        primaryType: string;
-        message: Json;
-      };
+  data: Record<string, Json>[] | string | TypedData;
   /** Version of the signTypedData request. */
   version?: string;
 };
@@ -205,3 +204,17 @@ export enum SignatureRequestType {
   PersonalSign = 'personal_sign',
   TypedSign = 'eth_signTypedData',
 }
+
+export type Caveat = {
+  enforcer: Hex;
+  terms: Hex;
+  args: Hex;
+};
+
+export type Delegation = {
+  delegate: Hex;
+  delegator: Hex;
+  authority: Hex;
+  caveats: Caveat[];
+  salt: number;
+};
