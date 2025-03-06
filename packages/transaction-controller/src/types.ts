@@ -883,7 +883,7 @@ export interface RemoteTransactionSourceRequest {
   /**
    * The IDs of the chains to query.
    */
-  chainIds: Hex[];
+  chainIds?: Hex[];
 
   /**
    * Whether to also include incoming token transfers.
