@@ -5323,7 +5323,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         hash: newHash,
       });
 
@@ -5341,7 +5342,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         gasLimit: newGasLimit,
       });
 
@@ -5359,7 +5361,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         gasPrice: newGasPrice,
       });
 
@@ -5377,7 +5380,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         maxFeePerGas: newMaxFeePerGas,
       });
 
@@ -5397,7 +5401,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         maxPriorityFeePerGas: newMaxPriorityFeePerGas,
       });
 
@@ -5417,7 +5422,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         nonce: newNonce,
       });
 
@@ -5433,7 +5439,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         type: newType,
       });
 
@@ -5500,7 +5507,8 @@ describe('TransactionController', () => {
       });
 
       expect(() =>
-        controller.updateCustodialTransaction(transactionMeta.id, {
+        controller.updateCustodialTransaction({
+          transactionId: transactionMeta.id,
           status: newStatus,
         }),
       ).toThrow(
@@ -5518,7 +5526,10 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {});
+      controller.updateCustodialTransaction({
+        transactionId,
+        ...{},
+      });
 
       const updatedTransaction = controller.state.transactions[0];
 
