@@ -19,10 +19,9 @@ import {
 } from '@metamask/keyring-api';
 import {
   type KeyringControllerState,
-  type KeyringControllerGetKeyringForAccountAction,
   type KeyringControllerGetKeyringsByTypeAction,
-  type KeyringControllerGetAccountsAction,
   type KeyringControllerStateChangeEvent,
+  type KeyringControllerGetStateAction,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -120,9 +119,8 @@ export type AccountsControllerUpdateAccountMetadataAction = {
 };
 
 export type AllowedActions =
-  | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetAccountsAction;
+  | KeyringControllerGetStateAction;
 
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
@@ -646,54 +644,52 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves to an array of InternalAccount objects.
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
-    const addresses = await this.messagingSystem.call(
-      'KeyringController:getAccounts',
-    );
     const internalAccounts: InternalAccount[] = [];
-    for (const address of addresses) {
-      const keyring = await this.messagingSystem.call(
-        'KeyringController:getKeyringForAccount',
-        address,
-      );
-
-      const keyringType = (keyring as Keyring<Json>).type;
+    const { keyrings } = await this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    for (const keyring of keyrings) {
+      const keyringType = keyring.type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
         // We only consider "normal accounts" here, so keep looping
         continue;
       }
 
-      const id = getUUIDFromAddressOfNormalAccount(address);
+      for (const address of keyring.accounts) {
+        const id = getUUIDFromAddressOfNormalAccount(address);
 
-      const nameLastUpdatedAt = this.#populateExistingMetadata(
-        id,
-        'nameLastUpdatedAt',
-      );
+        const nameLastUpdatedAt = this.#populateExistingMetadata(
+          id,
+          'nameLastUpdatedAt',
+        );
 
-      internalAccounts.push({
-        id,
-        address,
-        options: {},
-        methods: [
-          EthMethod.PersonalSign,
-          EthMethod.Sign,
-          EthMethod.SignTransaction,
-          EthMethod.SignTypedDataV1,
-          EthMethod.SignTypedDataV3,
-          EthMethod.SignTypedDataV4,
-        ],
-        scopes: [EthScope.Eoa],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: this.#populateExistingMetadata(id, 'name') ?? '',
-          ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
-          importTime:
-            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
-          keyring: {
-            type: (keyring as Keyring<Json>).type,
+        internalAccounts.push({
+          id,
+          address,
+          options: {},
+          methods: [
+            EthMethod.PersonalSign,
+            EthMethod.Sign,
+            EthMethod.SignTransaction,
+            EthMethod.SignTypedDataV1,
+            EthMethod.SignTypedDataV3,
+            EthMethod.SignTypedDataV4,
+          ],
+          scopes: [EthScope.Eoa],
+          type: EthAccountType.Eoa,
+          metadata: {
+            name: this.#populateExistingMetadata(id, 'name') ?? '',
+            ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
+            importTime:
+              this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+            lastSelected:
+              this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
+            keyring: {
+              type: keyringType,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     return internalAccounts;
