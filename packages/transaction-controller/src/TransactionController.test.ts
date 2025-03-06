@@ -5256,7 +5256,8 @@ describe('TransactionController', () => {
           updateToInitialState: true,
         });
 
-        controller.updateCustodialTransaction(transactionId, {
+        controller.updateCustodialTransaction({
+          transactionId,
           status: newStatus,
           errorMessage,
         });
@@ -5292,7 +5293,8 @@ describe('TransactionController', () => {
           finishedEventListener,
         );
 
-        controller.updateCustodialTransaction(transactionId, {
+        controller.updateCustodialTransaction({
+          transactionId,
           status: newStatus,
           errorMessage,
         });
@@ -5460,7 +5462,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         type: newType,
       });
 
@@ -5476,7 +5479,8 @@ describe('TransactionController', () => {
       const { controller } = setupController();
 
       expect(() =>
-        controller.updateCustodialTransaction(nonExistentId, {
+        controller.updateCustodialTransaction({
+          transactionId: nonExistentId,
           status: newStatus,
         }),
       ).toThrow(

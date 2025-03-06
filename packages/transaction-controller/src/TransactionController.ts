@@ -2059,44 +2059,43 @@ export class TransactionController extends BaseController<
   /**
    * Update a custodial transaction.
    *
-   * @param transactionId - The ID of the transaction to update.
-   * @param options - The custodial transaction options to update.
-   * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
-   * @param options.hash - The new hash value to be assigned.
-   * @param options.status - The new status value to be assigned.
-   * @param options.gasLimit - The new gas limit value to be assigned
-   * @param options.gasPrice - The new gas price value to be assigned
-   * @param options.maxFeePerGas - The new max fee per gas value to be assigned
-   * @param options.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
-   * @param options.nonce - The new nonce value to be assigned
-   * @param options.type - The tranasction type (hardfork) to be assigned
+   * @param payload - The custodial transaction options to update.
+   * @param payload.transactionId - The ID of the transaction to update.
+   * @param payload.errorMessage - The error message to be assigned in case transaction status update to failed.
+   * @param payload.hash - The new hash value to be assigned.
+   * @param payload.status - The new status value to be assigned.
+   * @param payload.gasLimit - The new gas limit value to be assigned
+   * @param payload.gasPrice - The new gas price value to be assigned
+   * @param payload.maxFeePerGas - The new max fee per gas value to be assigned
+   * @param payload.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
+   * @param payload.nonce - The new nonce value to be assigned
+   * @param payload.type - The tranasction type (hardfork) to be assigned
    */
-  updateCustodialTransaction(
-    transactionId: string,
-    {
-      errorMessage,
-      hash,
-      status,
-      gasLimit,
-      gasPrice,
-      maxFeePerGas,
-      maxPriorityFeePerGas,
-      nonce,
-      type,
-    }: {
-      errorMessage?: string;
-      hash?: string;
-      status?: TransactionStatus;
+  updateCustodialTransaction({
+    transactionId,
+    errorMessage,
+    hash,
+    status,
+    gasLimit,
+    gasPrice,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
+    nonce,
+    type,
+  }: {
+    transactionId: string;
+    errorMessage?: string;
+    hash?: string;
+    status?: TransactionStatus;
 
-      // Transaction parameters that are mutable by the custodian
-      gasLimit?: string;
-      gasPrice?: string;
-      maxFeePerGas?: string;
-      maxPriorityFeePerGas?: string;
-      nonce?: string;
-      type?: TransactionEnvelopeType;
-    },
-  ) {
+    // Transaction parameters that are mutable by the custodian
+    gasLimit?: string;
+    gasPrice?: string;
+    maxFeePerGas?: string;
+    maxPriorityFeePerGas?: string;
+    nonce?: string;
+    type?: TransactionEnvelopeType;
+  }) {
     const transactionMeta = this.getTransaction(transactionId);
 
     if (!transactionMeta) {
