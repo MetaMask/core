@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#1234](https://github.com/MetaMask/core/pull/1234))
-- **BREAKING** Bump `@metamask/profile-sync-controller` peer dependency to `^10.0.0` ([#1234](https://github.com/MetaMask/core/pull/1234))
+- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5437](https://github.com/MetaMask/core/pull/5437))
+- **BREAKING** Bump `@metamask/profile-sync-controller` peer dependency to `^10.0.0` ([#5437](https://github.com/MetaMask/core/pull/5437))
 
 ## [2.0.0]
 
