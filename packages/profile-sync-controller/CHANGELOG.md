@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
 ### Changed
 
+- **BREAKING** `UserStorageController` and `AuthenticationController` now use the SDK under the hood ([#5413](https://github.com/MetaMask/core/pull/5413))
+  - **BREAKING** `AuthenticationController` state entry `sessionData` has changed shape to fully reflect the `LoginResponse` SDK type.
+  - **BREAKING** `UserStorageController` cannot use the `AuthenticationController:performSignOut` action anymore.
 - **BREAKING:** Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 
 ## [9.0.0]
@@ -515,7 +520,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@9.0.0...@metamask/profile-sync-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.1...@metamask/profile-sync-controller@9.0.0
 [8.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.0...@metamask/profile-sync-controller@8.1.1
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.0.0...@metamask/profile-sync-controller@8.1.0
