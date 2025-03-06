@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [53.0.0]
 
-### Uncategorized
+### Added
 
 - Add `getAssetMetadata` action to `MultichainAssetsController` ([#5430](https://github.com/MetaMask/core/pull/5430))
 
