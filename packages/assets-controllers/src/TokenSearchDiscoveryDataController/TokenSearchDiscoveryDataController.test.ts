@@ -279,10 +279,12 @@ describe('TokenSearchDiscoveryDataController', () => {
           },
         },
         async ({ controller }) => {
-          expect(controller.state.tokenDisplayData).toEqual(
+          expect(controller.state.tokenDisplayData).toStrictEqual(
             initialState.tokenDisplayData,
           );
-          expect(controller.state.swapsTokenAddressesByChainId).toEqual({});
+          expect(controller.state.swapsTokenAddressesByChainId).toStrictEqual(
+            {},
+          );
         },
       );
     });
@@ -338,7 +340,7 @@ describe('TokenSearchDiscoveryDataController', () => {
           expect(
             controller.state.swapsTokenAddressesByChainId[ChainId.mainnet]
               .addresses,
-          ).toEqual(['0xToken1', '0xToken2']);
+          ).toStrictEqual(['0xToken1', '0xToken2']);
           expect(
             controller.state.swapsTokenAddressesByChainId[ChainId.mainnet]
               .isFetching,
@@ -433,7 +435,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             await controller.fetchSwapsTokens(chainId);
             expect(
               controller.state.swapsTokenAddressesByChainId[chainId].addresses,
-            ).toEqual(initialAddresses);
+            ).toStrictEqual(initialAddresses);
 
             await controller.fetchSwapsTokens(chainId);
             expect(fetchTokensMock).toHaveBeenCalledTimes(1);
@@ -445,7 +447,7 @@ describe('TokenSearchDiscoveryDataController', () => {
             expect(fetchTokensMock).toHaveBeenCalledTimes(2);
             expect(
               controller.state.swapsTokenAddressesByChainId[chainId].addresses,
-            ).toEqual(newAddresses);
+            ).toStrictEqual(newAddresses);
           },
         );
       } finally {
