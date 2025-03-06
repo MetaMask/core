@@ -1676,7 +1676,14 @@ describe('AccountsController', () => {
 
       const messenger = buildMessenger();
 
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] }] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            { type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] },
+          ],
+        }),
+      );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
@@ -1722,7 +1729,17 @@ describe('AccountsController', () => {
 
     it('update accounts with Snap accounts when snap keyring is defined and has accounts', async () => {
       const messenger = buildMessenger();
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: KeyringTypes.snap, accounts: [mockSnapAccount, mockSnapAccount2] }] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            {
+              type: KeyringTypes.snap,
+              accounts: [mockSnapAccount, mockSnapAccount2],
+            },
+          ],
+        }),
+      );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
@@ -1775,7 +1792,10 @@ describe('AccountsController', () => {
 
     it('return an empty array if the Snap keyring is not defined', async () => {
       const messenger = buildMessenger();
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({ keyrings: [] }),
+      );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
@@ -1805,7 +1825,14 @@ describe('AccountsController', () => {
       mockUUIDWithNormalAccounts([mockAccount]);
 
       const messenger = buildMessenger();
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] }] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            { type: KeyringTypes.hd, accounts: [mockAddress1, mockAddress2] },
+          ],
+        }),
+      );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
@@ -1861,7 +1888,15 @@ describe('AccountsController', () => {
       );
 
       // first account will be normal, second will be a snap account
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: KeyringTypes.hd, accounts: [mockAddress1] }, { type: KeyringTypes.snap, accounts: ['0x1234'] }] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            { type: KeyringTypes.hd, accounts: [mockAddress1] },
+            { type: KeyringTypes.snap, accounts: ['0x1234'] },
+          ],
+        }),
+      );
 
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -1910,7 +1945,15 @@ describe('AccountsController', () => {
       );
 
       // first account will be normal, second will be a snap account
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: KeyringTypes.snap, accounts: ['0x1234'] }, { type: KeyringTypes.hd, accounts: [mockAddress1] }] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [
+            { type: KeyringTypes.snap, accounts: ['0x1234'] },
+            { type: KeyringTypes.hd, accounts: [mockAddress1] },
+          ],
+        }),
+      );
 
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -1958,7 +2001,12 @@ describe('AccountsController', () => {
 
       const messenger = buildMessenger();
 
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: keyringType, accounts: [mockAddress1] }] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [{ type: keyringType, accounts: [mockAddress1] }],
+        }),
+      );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
@@ -2000,7 +2048,12 @@ describe('AccountsController', () => {
       mockUUIDWithNormalAccounts([mockAccount]);
 
       const messenger = buildMessenger();
-      messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: 'unknown', accounts: [mockAddress1] }] }));
+      messenger.registerActionHandler(
+        'KeyringController:getState',
+        mockGetState.mockReturnValue({
+          keyrings: [{ type: 'unknown', accounts: [mockAddress1] }],
+        }),
+      );
 
       messenger.registerActionHandler(
         'KeyringController:getKeyringsByType',
@@ -2084,8 +2137,16 @@ describe('AccountsController', () => {
         );
 
         // first account will be normal, second will be a snap account
-        messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [{ type: KeyringTypes.snap, accounts: ['0x1234'] }, { type: KeyringTypes.hd, accounts: [mockAddress1]}] }));
-        
+        messenger.registerActionHandler(
+          'KeyringController:getState',
+          mockGetState.mockReturnValue({
+            keyrings: [
+              { type: KeyringTypes.snap, accounts: ['0x1234'] },
+              { type: KeyringTypes.hd, accounts: [mockAddress1] },
+            ],
+          }),
+        );
+
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -3017,7 +3078,10 @@ describe('AccountsController', () => {
     describe('updateAccounts', () => {
       it('update accounts', async () => {
         const messenger = buildMessenger();
-        messenger.registerActionHandler('KeyringController:getState', mockGetState.mockReturnValue({ keyrings: [] }));
+        messenger.registerActionHandler(
+          'KeyringController:getState',
+          mockGetState.mockReturnValue({ keyrings: [] }),
+        );
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValueOnce([]),
