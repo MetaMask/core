@@ -38,7 +38,6 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
     };
   },
   getCache: () => CACHE_MOCK,
-  getChainIds: () => [CHAIN_ID_MOCK],
   getLocalTransactions: () => [],
   remoteTransactionSource: {} as RemoteTransactionSource,
   trimTransactions: (transactions) => transactions,
@@ -154,7 +153,6 @@ describe('IncomingTransactionHelper', () => {
       expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
         cache: CACHE_MOCK,
-        chainIds: [CHAIN_ID_MOCK],
         includeTokenTransfers: true,
         queryEntireHistory: true,
         updateCache: expect.any(Function),
