@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain",
-  "version": "2.1.1",
+  "version": "4.0.0",
   "description": "Provides types, helpers, adapters, and wrappers for facilitating CAIP Multichain sessions",
   "keywords": [
     "MetaMask",
@@ -52,7 +52,7 @@
     "@metamask/eth-json-rpc-filters": "^9.0.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^11.1.0",
+    "@metamask/utils": "^11.2.0",
     "@open-rpc/schema-utils-js": "^2.0.5",
     "jsonschema": "^1.4.1",
     "lodash": "^4.17.21"

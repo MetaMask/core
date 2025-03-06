@@ -96,6 +96,10 @@ export enum RpcEndpointType {
  */
 export type InfuraRpcEndpoint = {
   /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: string[];
+  /**
    * The optional user-facing nickname of the endpoint.
    */
   name?: string;
@@ -123,6 +127,10 @@ export type InfuraRpcEndpoint = {
  * EVM chain. It may refer to an Infura network, but only by coincidence.
  */
 export type CustomRpcEndpoint = {
+  /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: string[];
   /**
    * The optional user-facing nickname of the endpoint.
    */
@@ -531,6 +539,15 @@ export type NetworkControllerOptions = {
   infuraProjectId: string;
   state?: Partial<NetworkState>;
   log?: Logger;
+  /**
+   * A function that can be used to make an HTTP request, compatible with the
+   * Fetch API.
+   */
+  fetch: typeof fetch;
+  /**
+   * A function that can be used to convert a binary string into base-64.
+   */
+  btoa: typeof btoa;
 };
 
 /**
@@ -560,6 +577,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
+          failoverUrls: [],
           networkClientId: infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,
@@ -909,6 +927,10 @@ export class NetworkController extends BaseController<
 
   #log: Logger | undefined;
 
+  readonly #fetch: typeof fetch;
+
+  readonly #btoa: typeof btoa;
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
@@ -919,6 +941,8 @@ export class NetworkController extends BaseController<
     state,
     infuraProjectId,
     log,
+    fetch: givenFetch,
+    btoa: givenBtoa,
   }: NetworkControllerOptions) {
     const initialState = { ...getDefaultNetworkControllerState(), ...state };
     validateNetworkControllerState(initialState);
@@ -948,6 +972,8 @@ export class NetworkController extends BaseController<
 
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
+    this.#fetch = givenFetch;
+    this.#btoa = givenBtoa;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1222,9 +1248,8 @@ export class NetworkController extends BaseController<
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
-        networkClientId,
-      );
+      updatedIsEIP1559Compatible =
+        await this.#determineEIP1559Compatibility(networkClientId);
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
       debugLog('NetworkController: lookupNetworkByClientId: ', error);
@@ -2425,20 +2450,30 @@ export class NetworkController extends BaseController<
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
           addedRpcEndpoint.networkClientId
         ] = createAutoManagedNetworkClient({
-          type: NetworkClientType.Infura,
-          chainId: networkFields.chainId,
-          network: addedRpcEndpoint.networkClientId,
-          infuraProjectId: this.#infuraProjectId,
-          ticker: networkFields.nativeCurrency,
+          networkClientConfiguration: {
+            type: NetworkClientType.Infura,
+            chainId: networkFields.chainId,
+            network: addedRpcEndpoint.networkClientId,
+            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
+            infuraProjectId: this.#infuraProjectId,
+            ticker: networkFields.nativeCurrency,
+          },
+          fetch: this.#fetch,
+          btoa: this.#btoa,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
           addedRpcEndpoint.networkClientId
         ] = createAutoManagedNetworkClient({
-          type: NetworkClientType.Custom,
-          chainId: networkFields.chainId,
-          rpcUrl: addedRpcEndpoint.url,
-          ticker: networkFields.nativeCurrency,
+          networkClientConfiguration: {
+            type: NetworkClientType.Custom,
+            chainId: networkFields.chainId,
+            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
+            rpcUrl: addedRpcEndpoint.url,
+            ticker: networkFields.nativeCurrency,
+          },
+          fetch: this.#fetch,
+          btoa: this.#btoa,
         });
       }
     }
@@ -2589,21 +2624,31 @@ export class NetworkController extends BaseController<
           return [
             rpcEndpoint.networkClientId,
             createAutoManagedNetworkClient({
-              type: NetworkClientType.Infura,
-              network: infuraNetworkName,
-              infuraProjectId: this.#infuraProjectId,
-              chainId: networkConfiguration.chainId,
-              ticker: networkConfiguration.nativeCurrency,
+              networkClientConfiguration: {
+                type: NetworkClientType.Infura,
+                network: infuraNetworkName,
+                failoverRpcUrls: rpcEndpoint.failoverUrls,
+                infuraProjectId: this.#infuraProjectId,
+                chainId: networkConfiguration.chainId,
+                ticker: networkConfiguration.nativeCurrency,
+              },
+              fetch: this.#fetch,
+              btoa: this.#btoa,
             }),
           ] as const;
         }
         return [
           rpcEndpoint.networkClientId,
           createAutoManagedNetworkClient({
-            type: NetworkClientType.Custom,
-            chainId: networkConfiguration.chainId,
-            rpcUrl: rpcEndpoint.url,
-            ticker: networkConfiguration.nativeCurrency,
+            networkClientConfiguration: {
+              type: NetworkClientType.Custom,
+              chainId: networkConfiguration.chainId,
+              failoverRpcUrls: rpcEndpoint.failoverUrls,
+              rpcUrl: rpcEndpoint.url,
+              ticker: networkConfiguration.nativeCurrency,
+            },
+            fetch: this.#fetch,
+            btoa: this.#btoa,
           }),
         ] as const;
       });

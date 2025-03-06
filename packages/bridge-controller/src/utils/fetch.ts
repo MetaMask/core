@@ -7,28 +7,21 @@ import {
   getBridgeApiBaseUrl,
 } from './bridge';
 import {
-  FEATURE_FLAG_VALIDATORS,
-  QUOTE_VALIDATORS,
-  TX_DATA_VALIDATORS,
-  TOKEN_VALIDATORS,
-  validateResponse,
-  QUOTE_RESPONSE_VALIDATORS,
-  FEE_DATA_VALIDATORS,
+  validateFeatureFlagsResponse,
+  validateQuoteResponse,
+  validateSwapsTokenObject,
 } from './validators';
-import { REFRESH_INTERVAL_MS } from '../constants/bridge';
+import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
 import type { SwapsTokenObject } from '../constants/tokens';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
-  FeatureFlagResponse,
-  FeeData,
-  Quote,
   QuoteRequest,
   QuoteResponse,
-  TxData,
   BridgeFeatureFlags,
   FetchFunction,
+  ChainConfiguration,
 } from '../types';
-import { BridgeFlag, FeeType, BridgeFeatureFlagsKey } from '../types';
+import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
 // TODO put this back in once we have a fetchWithCache equivalent
 // const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
@@ -49,40 +42,37 @@ export async function fetchBridgeFeatureFlags(
   fetchFn: FetchFunction,
 ): Promise<BridgeFeatureFlags> {
   const url = `${getBridgeApiBaseUrl()}/getAllFeatureFlags`;
-  const rawFeatureFlags = await fetchFn(url, {
+  const rawFeatureFlags: unknown = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
   });
 
-  if (
-    validateResponse<FeatureFlagResponse>(
-      FEATURE_FLAG_VALIDATORS,
-      rawFeatureFlags,
-      url,
-    )
-  ) {
+  if (validateFeatureFlagsResponse(rawFeatureFlags)) {
+    const getChainsObj = (chains: Record<number, ChainConfiguration>) =>
+      Object.entries(chains).reduce(
+        (acc, [chainId, value]) => ({
+          ...acc,
+          [numberToHex(Number(chainId))]: value,
+        }),
+        {},
+      );
+
     return {
       [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
         ...rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG],
-        chains: Object.entries(
+        chains: getChainsObj(
           rawFeatureFlags[BridgeFlag.EXTENSION_CONFIG].chains,
-        ).reduce(
-          (acc, [chainId, value]) => ({
-            ...acc,
-            [numberToHex(Number(chainId))]: value,
-          }),
-          {},
         ),
+      },
+      [BridgeFeatureFlagsKey.MOBILE_CONFIG]: {
+        ...rawFeatureFlags[BridgeFlag.MOBILE_CONFIG],
+        chains: getChainsObj(rawFeatureFlags[BridgeFlag.MOBILE_CONFIG].chains),
       },
     };
   }
 
   return {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-      refreshRate: REFRESH_INTERVAL_MS,
-      maxRefreshCount: 5,
-      support: false,
-      chains: {},
-    },
+    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
+    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
   };
 }
 
@@ -123,7 +113,7 @@ export async function fetchBridgeTokens(
 
   tokens.forEach((token: unknown) => {
     if (
-      validateResponse<SwapsTokenObject>(TOKEN_VALIDATORS, token, url, false) &&
+      validateSwapsTokenObject(token) &&
       !(
         isSwapsDefaultTokenSymbol(token.symbol, chainId) ||
         isSwapsDefaultTokenAddress(token.address, chainId)
@@ -162,40 +152,13 @@ export async function fetchBridgeQuotes(
     resetApproval: request.resetApproval ? 'true' : 'false',
   });
   const url = `${getBridgeApiBaseUrl()}/getQuote?${queryParams}`;
-  const quotes = await fetchFn(url, {
+  const quotes: unknown[] = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
     signal,
   });
 
-  const filteredQuotes = quotes.filter((quoteResponse: QuoteResponse) => {
-    const { quote, approval, trade } = quoteResponse;
-    return (
-      validateResponse<QuoteResponse>(
-        QUOTE_RESPONSE_VALIDATORS,
-        quoteResponse,
-        url,
-      ) &&
-      validateResponse<Quote>(QUOTE_VALIDATORS, quote, url) &&
-      validateResponse<SwapsTokenObject>(
-        TOKEN_VALIDATORS,
-        quote.srcAsset,
-        url,
-      ) &&
-      validateResponse<SwapsTokenObject>(
-        TOKEN_VALIDATORS,
-        quote.destAsset,
-        url,
-      ) &&
-      validateResponse<TxData>(TX_DATA_VALIDATORS, trade, url) &&
-      validateResponse<FeeData>(
-        FEE_DATA_VALIDATORS,
-        quote.feeData[FeeType.METABRIDGE],
-        url,
-      ) &&
-      (approval
-        ? validateResponse<TxData>(TX_DATA_VALIDATORS, approval, url)
-        : true)
-    );
+  const filteredQuotes = quotes.filter((quoteResponse: unknown) => {
+    return validateQuoteResponse(quoteResponse);
   });
-  return filteredQuotes;
+  return filteredQuotes as QuoteResponse[];
 }

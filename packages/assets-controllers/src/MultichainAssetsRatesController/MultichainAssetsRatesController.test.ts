@@ -3,7 +3,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import { useFakeTimers } from 'sinon';
 
-import { MultiChainAssetsRatesController } from '.';
+import { MultichainAssetsRatesController } from '.';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -81,7 +81,7 @@ const setupController = ({
   accountsAssets = [fakeNonEvmAccount, fakeEvmAccount, fakeEvmAccount2],
 }: {
   config?: Partial<
-    ConstructorParameters<typeof MultiChainAssetsRatesController>[0]
+    ConstructorParameters<typeof MultichainAssetsRatesController>[0]
   >;
   accountsAssets?: InternalAccount[];
 } = {}) => {
@@ -117,8 +117,8 @@ const setupController = ({
     currentCurrency: 'USD',
   }));
 
-  const multiChainAssetsRatesControllerMessenger = messenger.getRestricted({
-    name: 'MultiChainAssetsRatesController',
+  const multichainAssetsRatesControllerMessenger = messenger.getRestricted({
+    name: 'MultichainAssetsRatesController',
     allowedActions: [
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
@@ -135,15 +135,15 @@ const setupController = ({
   });
 
   return {
-    controller: new MultiChainAssetsRatesController({
-      messenger: multiChainAssetsRatesControllerMessenger,
+    controller: new MultichainAssetsRatesController({
+      messenger: multichainAssetsRatesControllerMessenger,
       ...config,
     }),
     messenger,
   };
 };
 
-describe('MultiChainAssetsRatesController', () => {
+describe('MultichainAssetsRatesController', () => {
   let clock: sinon.SinonFakeTimers;
 
   const mockedDate = 1705760550000;
@@ -238,6 +238,24 @@ describe('MultiChainAssetsRatesController', () => {
     // Since the controller is locked, no update should occur.
     expect(controller.state.conversionRates).toStrictEqual({});
     expect(snapHandler).not.toHaveBeenCalled();
+  });
+
+  it('does not update conversion rates if the assets are empty', async () => {
+    const { controller, messenger } = setupController();
+
+    const snapSpy = jest.fn().mockResolvedValue({ conversionRates: {} });
+    messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
+
+    // Publish a selectedAccountChange event.
+    // @ts-expect-error-next-line
+    messenger.publish('MultichainAssetsController:stateChange', {
+      accountsAssets: {
+        account3: [],
+      },
+    });
+
+    expect(snapSpy).not.toHaveBeenCalled();
+    expect(controller.state.conversionRates).toStrictEqual({});
   });
 
   it('resumes update tokens rates when the keyring is unlocked', async () => {

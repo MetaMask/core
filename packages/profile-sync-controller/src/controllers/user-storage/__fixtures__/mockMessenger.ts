@@ -1,12 +1,14 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
-import { MOCK_STORAGE_KEY_SIGNATURE } from '.';
 import type {
   AllowedActions,
   AllowedEvents,
   UserStorageControllerMessenger,
 } from '..';
+import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
+import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
   AllowedActions,
@@ -51,12 +53,11 @@ export function createCustomUserStorageMessenger(props?: {
     name: 'UserStorageController',
     allowedActions: [
       'KeyringController:getState',
-      'KeyringController:addNewAccount',
+      'KeyringController:withKeyring',
       'SnapController:handleRequest',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
       'AuthenticationController:isSignedIn',
-      'AuthenticationController:performSignOut',
       'AuthenticationController:performSignIn',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
@@ -109,8 +110,9 @@ export function mockUserStorageMessenger(
   const mockAuthGetSessionProfile = typedMockFn(
     'AuthenticationController:getSessionProfile',
   ).mockResolvedValue({
-    identifierId: '',
-    profileId: 'MOCK_PROFILE_ID',
+    identifierId: MOCK_LOGIN_RESPONSE.profile.identifier_id,
+    profileId: MOCK_LOGIN_RESPONSE.profile.profile_id,
+    metaMetricsId: MOCK_LOGIN_RESPONSE.profile.metametrics_id,
   });
 
   const mockAuthPerformSignIn = typedMockFn(
@@ -121,16 +123,18 @@ export function mockUserStorageMessenger(
     'AuthenticationController:isSignedIn',
   ).mockReturnValue(true);
 
-  const mockAuthPerformSignOut = typedMockFn(
-    'AuthenticationController:performSignOut',
-  );
+  const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
+  const mockKeyringGetAccounts = jest.fn();
+  const mockKeyringAddAccounts = jest.fn();
 
-  const mockKeyringAddNewAccount = typedMockFn(
-    'KeyringController:addNewAccount',
-  );
+  const mockKeyringGetState = typedMockFn(
+    'KeyringController:getState',
+  ).mockReturnValue({
+    isUnlocked: true,
+    keyrings: [],
+    keyringsMetadata: [],
+  });
 
-  // Untyped mock as there is a TS(2742) issue.
-  // This will return `InternalAccount[]`
   const mockAccountsListAccounts = jest.fn();
 
   const mockAccountsUpdateAccountMetadata = typedMockFn(
@@ -194,16 +198,22 @@ export function mockUserStorageMessenger(
       return mockAuthIsSignedIn();
     }
 
-    if (actionType === 'AuthenticationController:performSignOut') {
-      return mockAuthPerformSignOut();
-    }
-
     if (actionType === 'KeyringController:getState') {
-      return { isUnlocked: true };
+      return mockKeyringGetState();
     }
 
-    if (actionType === 'KeyringController:addNewAccount') {
-      return mockKeyringAddNewAccount();
+    if (actionType === 'KeyringController:withKeyring') {
+      const [, ...params] = typedArgs;
+      const [, operation] = params;
+
+      const keyring = {
+        getAccounts: mockKeyringGetAccounts,
+        addAccounts: mockKeyringAddAccounts,
+      } as unknown as EthKeyring;
+
+      const metadata = { id: 'mock-id', name: '' };
+
+      return operation({ keyring, metadata });
     }
 
     if (actionType === 'AccountsController:listAccounts') {
@@ -248,8 +258,10 @@ export function mockUserStorageMessenger(
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
-    mockAuthPerformSignOut,
-    mockKeyringAddNewAccount,
+    mockKeyringGetAccounts,
+    mockKeyringAddAccounts,
+    mockKeyringWithKeyring,
+    mockKeyringGetState,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,

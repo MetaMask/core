@@ -5,7 +5,7 @@ import type {
   AccountSyncingOptions,
   UserStorageAccount,
 } from './types';
-import { doesInternalAccountHaveCorrectKeyringType } from './utils';
+import { mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList } from './utils';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 
 /**
@@ -42,6 +42,8 @@ export function canPerformAccountSyncing(
 
 /**
  * Get the list of internal accounts
+ * This function returns only the internal accounts that are from the primary SRP
+ * and are from the HD keyring
  *
  * @param options - parameters used for getting the list of internal accounts
  * @returns the list of internal accounts
@@ -51,12 +53,14 @@ export async function getInternalAccountsList(
 ): Promise<InternalAccount[]> {
   const { getMessenger } = options;
 
+  // eslint-disable-next-line @typescript-eslint/await-thenable
   const internalAccountsList = await getMessenger().call(
     'AccountsController:listAccounts',
   );
 
-  return internalAccountsList?.filter(
-    doesInternalAccountHaveCorrectKeyringType,
+  return await mapInternalAccountsListToPrimarySRPHdKeyringInternalAccountsList(
+    internalAccountsList,
+    options,
   );
 }
 

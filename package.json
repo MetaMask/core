@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "299.0.0",
+  "version": "318.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -62,7 +62,7 @@
     "@metamask/eth-block-tracker": "^11.0.3",
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/json-rpc-engine": "^10.0.3",
-    "@metamask/utils": "^11.1.0",
+    "@metamask/utils": "^11.2.0",
     "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
@@ -93,6 +93,7 @@
     "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "prettier": "^3.3.3",
+    "prettier-2": "npm:prettier@^2.8.8",
     "prettier-plugin-packagejson": "^2.4.5",
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",

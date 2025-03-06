@@ -1,4 +1,9 @@
-import type { TokenTrendingResponseItem } from '../types';
+import type {
+  MoralisTokenResponseItem,
+  TrendingTokensParams,
+  TopLosersParams,
+  TopGainersParams,
+} from '../types';
 
 /**
  * Abstract class for fetching token discovery results.
@@ -10,8 +15,15 @@ export abstract class AbstractTokenDiscoveryApiService {
    * @param params - Optional parameters including chains and limit
    * @returns A promise resolving to an array of {@link TokenTrendingResponseItem}
    */
-  abstract getTrendingTokensByChains(params: {
-    chains?: string[];
-    limit?: string;
-  }): Promise<TokenTrendingResponseItem[]>;
+  abstract getTrendingTokensByChains(
+    params?: TrendingTokensParams,
+  ): Promise<MoralisTokenResponseItem[]>;
+
+  abstract getTopLosersByChains(
+    params?: TopLosersParams,
+  ): Promise<MoralisTokenResponseItem[]>;
+
+  abstract getTopGainersByChains(
+    params?: TopGainersParams,
+  ): Promise<MoralisTokenResponseItem[]>;
 }
