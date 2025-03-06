@@ -1676,7 +1676,8 @@ describe('PhishingController', () => {
         },
       ]);
     });
-    it('should not update phishing lists if hotlist fetch returns 400', async () => {
+
+    it('should not update phishing lists if hotlist fetch returns 404', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(404);
@@ -1706,6 +1707,31 @@ describe('PhishingController', () => {
         },
       ]);
     });
+
+    it('should not make API calls to update hotlist when phishingLists array is empty', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+      const hotlistNock = nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [],
+        },
+      });
+      await controller.updateHotlist();
+
+      expect(hotlistNock.isDone()).toBe(false);
+    });
+
     it('should handle empty hotlist and request blocklist responses gracefully', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
