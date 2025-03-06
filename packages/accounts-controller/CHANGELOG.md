@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5437](https://github.com/MetaMask/core/pull/5437))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
 - **BREAKING:** Bump `@metamask/keyring-utils` from `^2.3.1` to `^3.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 - **BREAKING:** Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 - **BREAKING:** Bump `@metamask/eth-snap-keyring` from `^11.1.0` to `^12.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
