@@ -1,12 +1,9 @@
-import type { Hex } from '@metamask/utils';
-
-import { AccountsApiRemoteTransactionSource } from './AccountsApiRemoteTransactionSource';
+import { AccountsApiRemoteTransactionSource, SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
 } from '../api/accounts-api';
 import { getAccountTransactions } from '../api/accounts-api';
-import { CHAIN_IDS } from '../constants';
 import type { RemoteTransactionSourceRequest } from '../types';
 
 jest.mock('../api/accounts-api');
@@ -14,13 +11,11 @@ jest.mock('../api/accounts-api');
 jest.useFakeTimers();
 
 const ADDRESS_MOCK = '0x123';
-const CHAIN_IDS_MOCK = [CHAIN_IDS.MAINNET, CHAIN_IDS.LINEA_MAINNET] as Hex[];
 const NOW_MOCK = 789000;
 const CURSOR_MOCK = 'abcdef';
 
 const REQUEST_MOCK: RemoteTransactionSourceRequest = {
   address: ADDRESS_MOCK,
-  chainIds: CHAIN_IDS_MOCK,
   cache: {},
   includeTokenTransfers: true,
   queryEntireHistory: true,
@@ -128,7 +123,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
       expect(getAccountTransactionsMock).toHaveBeenCalledTimes(1);
       expect(getAccountTransactionsMock).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
-        chainIds: CHAIN_IDS_MOCK,
+        chainIds: SUPPORTED_CHAIN_IDS,
         cursor: undefined,
         sortDirection: 'ASC',
       });
@@ -152,7 +147,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
       await new AccountsApiRemoteTransactionSource().fetchTransactions({
         ...REQUEST_MOCK,
         cache: {
-          [`accounts-api#${CHAIN_IDS_MOCK.join(',')}#${ADDRESS_MOCK}`]:
+          [`accounts-api#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
             CURSOR_MOCK,
         },
       });
@@ -247,7 +242,7 @@ describe('AccountsApiRemoteTransactionSource', () => {
 
       expect(updateCacheMock).toHaveBeenCalledTimes(2);
       expect(cacheMock).toStrictEqual({
-        [`accounts-api#${CHAIN_IDS_MOCK.join(',')}#${ADDRESS_MOCK}`]:
+        [`accounts-api#${SUPPORTED_CHAIN_IDS.join(',')}#${ADDRESS_MOCK}`]:
           CURSOR_MOCK,
       });
     });
