@@ -621,7 +621,7 @@ describe('NameController', () => {
             variation,
           } as SetNameRequest),
         ).toThrow(
-          `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
+          `Must specify a chain ID in hexadecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
         );
       });
 
@@ -1670,7 +1670,7 @@ describe('NameController', () => {
         });
       });
 
-      it('stores emtpy array if result error while getting proposed name using provider', async () => {
+      it('stores empty array if result error while getting proposed name using provider', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
         const error = new Error('TestError');
@@ -2015,7 +2015,7 @@ describe('NameController', () => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any),
           ).rejects.toThrow(
-            `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
+            `Must specify a chain ID in hexadecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
           );
         },
       );

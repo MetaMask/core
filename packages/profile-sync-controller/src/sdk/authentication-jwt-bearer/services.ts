@@ -2,6 +2,7 @@ import type { AccessToken, ErrorMessage, UserProfile } from './types';
 import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
+import type { MetaMetricsAuth } from '../../shared/types/services';
 import {
   NonceRetrievalError,
   PairError,
@@ -203,6 +204,7 @@ type Authentication = {
  * @param signature - signed raw message
  * @param authType - authentication type/flow used
  * @param env - server environment
+ * @param metametrics - optional metametrics
  * @returns Authentication Token
  */
 export async function authenticate(
@@ -210,6 +212,7 @@ export async function authenticate(
   signature: string,
   authType: AuthType,
   env: Env,
+  metametrics?: MetaMetricsAuth,
 ): Promise<Authentication> {
   const authenticationUrl = getAuthenticationUrl(authType, env);
 
@@ -221,9 +224,15 @@ export async function authenticate(
       },
       body: JSON.stringify({
         signature,
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         raw_message: rawMessage,
+        ...(metametrics
+          ? {
+              metametrics: {
+                metametrics_id: await metametrics.getMetaMetricsId(),
+                agent: metametrics.agent,
+              },
+            }
+          : {}),
       }),
     });
 
