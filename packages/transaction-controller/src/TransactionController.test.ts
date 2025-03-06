@@ -5536,6 +5536,114 @@ describe('TransactionController', () => {
       expect(updatedTransaction.status).toStrictEqual(transactionMeta.status);
       expect(updatedTransaction.hash).toStrictEqual(transactionMeta.hash);
     });
+
+    it.each([
+      {
+        paramName: 'hash',
+        newValue: '0x1234',
+        expectedPath: 'hash',
+      },
+      {
+        paramName: 'gasLimit',
+        newValue: '0x1234',
+        expectedPath: 'txParams.gasLimit',
+      },
+      {
+        paramName: 'gasPrice',
+        newValue: '0x1234',
+        expectedPath: 'txParams.gasPrice',
+      },
+      {
+        paramName: 'maxFeePerGas',
+        newValue: '0x1234',
+        expectedPath: 'txParams.maxFeePerGas',
+      },
+      {
+        paramName: 'maxPriorityFeePerGas',
+        newValue: '0x1234',
+        expectedPath: 'txParams.maxPriorityFeePerGas',
+      },
+      {
+        paramName: 'nonce',
+        newValue: '0x1234',
+        expectedPath: 'txParams.nonce',
+      },
+    ])('updates $paramName', async ({ paramName, newValue, expectedPath }) => {
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        [paramName]: newValue,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+      const pathParts = expectedPath.split('.');
+      let actualValue = updatedTransaction;
+
+      for (const key of pathParts) {
+        // Type assertion needed since we're accessing dynamic properties
+        actualValue = actualValue[
+          key as keyof typeof actualValue
+        ] as typeof actualValue;
+      }
+
+      expect(actualValue).toStrictEqual(newValue);
+    });
+
+    describe('type updates', () => {
+      it('updates from legacy to feeMarket', async () => {
+        const newType = TransactionEnvelopeType.feeMarket;
+        const { controller } = setupController({
+          options: { state: { transactions: [transactionMeta] } },
+          updateToInitialState: true,
+        });
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          type: newType,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+        expect(updatedTransaction.txParams.type).toStrictEqual(newType);
+      });
+
+      it('updates from feeMarket to legacy', async () => {
+        const newType = TransactionEnvelopeType.legacy;
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...transactionMeta,
+                  txParams: {
+                    ...transactionMeta.txParams,
+                    maxFeePerGas: '0x1234',
+                    maxPriorityFeePerGas: '0x1234',
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          type: newType,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+        expect(updatedTransaction.txParams.maxFeePerGas).toBeUndefined();
+        expect(
+          updatedTransaction.txParams.maxPriorityFeePerGas,
+        ).toBeUndefined();
+      });
+    });
   });
 
   describe('getTransactions', () => {
