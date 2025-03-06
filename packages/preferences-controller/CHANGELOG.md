@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [17.0.0]
-
-### Changed
-
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5437](https://github.com/MetaMask/core/pull/5437))
-
 ## [16.0.0]
 
 ### Changed
@@ -352,8 +346,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@17.0.0...HEAD
-[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@16.0.0...@metamask/preferences-controller@17.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@16.0.0...HEAD
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.2...@metamask/preferences-controller@16.0.0
 [15.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.1...@metamask/preferences-controller@15.0.2
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.0...@metamask/preferences-controller@15.0.1
