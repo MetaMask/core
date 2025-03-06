@@ -16,71 +16,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The CAIP-25 caveat specification now also validates if non-evm scopes and accounts are supported
 - **BREAKING**: The `wallet_getSession` handler now expects `getNonEvmSupportedMethods` to be provided in it's hooks. ([#5191](https://github.com/MetaMask/core/pull/5191))
   - The handler now resolves methods for non-evm scopes in the returned `sessionScopes` result
-- **BREAKING**: The `wallet_invokeMethod` handler now expects `getNonEvmSupportedMethods` and `handleNonEvmRequestForOrigin` to be provided in it's hooks. `handleNonEvmRequestForOrigin` should be a function with the following signature:
-  - ```
+- **BREAKING**: The `wallet_invokeMethod` handler now expects `getNonEvmSupportedMethods` and `handleNonEvmRequestForOrigin` to be provided in it's hooks. ([#5191](https://github.com/MetaMask/core/pull/5191))
+
+  - `handleNonEvmRequestForOrigin` should be a function with the following signature:
+    ```
      handleNonEvmRequestForOrigin: (params: {
        connectedAddresses: CaipAccountId[];
        scope: CaipChainId;
        request: JsonRpcRequest;
      }) => Promise<Json>;
     ```
-  - The handler now supports handling non-evm requests
-- **BREAKING**: `assertScopeSupported()` now expects the following hooks params object as it's last param:
-  - ```
-      {
-       isChainIdSupported: (chainId: Hex) => boolean;
-       isEvmChainIdSupported: (chainId: Hex) => boolean;
-       isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-       getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-     }
+
+- **BREAKING**: `assertScopeSupported()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
     ```
-- **BREAKING**: `assertScopesSupported()` now expects the following hooks params object as it's last param:
-  - ```
-      {
-       isChainIdSupported: (chainId: Hex) => boolean;
-       isEvmChainIdSupported: (chainId: Hex) => boolean;
-       isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-       getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-     }
+    {
+      isChainIdSupported: (chainId: Hex) => boolean;
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
     ```
-- **BREAKING**: `bucketScopes()` now expects the following hooks params object as it's last param:
-  - ```
-      {
-         isEvmChainIdSupported: (chainId: Hex) => boolean;
-         isEvmChainIdSupportable: (chainId: Hex) => boolean;
-         isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-         getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-     }
+- **BREAKING**: `assertScopesSupported()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
     ```
-- **BREAKING**: `bucketScopesBySupport()` now expects the following hooks params object as it's last param:
-  - ```
-      {
-         isEvmChainIdSupported: (chainId: Hex) => boolean;
-         isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-         getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-     }
+    {
+      isChainIdSupported: (chainId: Hex) => boolean;
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
     ```
-- **BREAKING**: `getSessionScopes()` now expects a hooks object as its last param. The hooks object should have a `getNonEvmSupportedMethods` property whose value should be a function that accepts a `CaipChainId` and returns an array of supported methods.
-- **BREAKING**: `isSupportedScopeString()` now expects the a hooks params object as it's last param with the following properties:
-  - ```
-      {
-         isEvmChainIdSupported: (chainId: Hex) => boolean;
-         isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
-     }
+- **BREAKING**: `bucketScopes()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
     ```
-- **BREAKING**: `isSupportedAccount()` now expects the a hooks params object as it's last param with the following properties:
-  - ```
-      {
-         getEvmInternalAccounts: () => { type: string; address: Hex }[];
-         getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
-     }
+    {
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isEvmChainIdSupportable: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
     ```
-- **BREAKING**: `isSupportedMethod()` now expects the a hooks params object as it's last param with the following properties:
-  - ```
-      {
-         getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
-     }
+- **BREAKING**: `bucketScopesBySupport()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
     ```
+    {
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
+    ```
+- **BREAKING**: `getSessionScopes()` now expects a hooks object as its last param. The hooks object should have a `getNonEvmSupportedMethods` property whose value should be a function that accepts a `CaipChainId` and returns an array of supported methods. ([#5191](https://github.com/MetaMask/core/pull/5191))
+- **BREAKING**: `isSupportedScopeString()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      isEvmChainIdSupported: (chainId: Hex) => boolean;
+      isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+    }
+    ```
+- **BREAKING**: `isSupportedAccount()` now expects a new hooks object as its last param ([#5191](https://github.com/MetaMask/core/pull/5191))
+  - The new hooks object is:
+    ```
+    {
+      getEvmInternalAccounts: () => { type: string; address: Hex }[];
+      getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
+    }
+    ```
+- **BREAKING**: `isSupportedMethod()` now expects a new hooks object as its last param:
+  - The new hooks object is:
+    ```
+    {
+      getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+    }
+    ```
+- Added `wallet_invokeMethod` handler now supports non-EVM requests ([#5191](https://github.com/MetaMask/core/pull/5191))
 - Added `wallet_getPermissions` handler (originally migrated from extension repo) ([#5420](https://github.com/MetaMask/core/pull/5420))
 - Added `wallet_requestPermissions` handler (originally migrated from extension repo) ([#5420](https://github.com/MetaMask/core/pull/5420))
 - Added `wallet_revokePermissions` handler (originally migrated from extension repo) ([#5420](https://github.com/MetaMask/core/pull/5420))
