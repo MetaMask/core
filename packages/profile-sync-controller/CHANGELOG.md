@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5437](https://github.com/MetaMask/core/pull/5437))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.0.0` ([#5437](https://github.com/MetaMask/core/pull/5437))
 - **BREAKING** `UserStorageController` and `AuthenticationController` now use the SDK under the hood ([#5413](https://github.com/MetaMask/core/pull/5413))
   - **BREAKING** `AuthenticationController` state entry `sessionData` has changed shape to fully reflect the `LoginResponse` SDK type.
   - **BREAKING** `UserStorageController` cannot use the `AuthenticationController:performSignOut` action anymore.
