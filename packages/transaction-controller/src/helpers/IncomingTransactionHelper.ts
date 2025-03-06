@@ -4,9 +4,9 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
+import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 
 export type IncomingTransactionOptions = {
   includeTokenTransfers?: boolean;
