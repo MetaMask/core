@@ -1,4 +1,4 @@
-import { ZeroAddress } from 'ethers';
+import { AddressZero } from '@ethersproject/constants';
 
 import {
   fetchBridgeFeatureFlags,
@@ -12,41 +12,43 @@ import { CHAIN_IDS } from '../constants/chains';
 
 const mockFetchFn = jest.fn();
 
-describe('Bridge utils', () => {
+describe('fetch', () => {
   describe('fetchBridgeFeatureFlags', () => {
     it('should fetch bridge feature flags successfully', async () => {
-      const mockResponse = {
-        'extension-config': {
-          refreshRate: 3,
-          maxRefreshCount: 1,
-          support: true,
-          chains: {
-            '1': {
-              isActiveSrc: true,
-              isActiveDest: true,
-            },
-            '10': {
-              isActiveSrc: true,
-              isActiveDest: false,
-            },
-            '59144': {
-              isActiveSrc: true,
-              isActiveDest: true,
-            },
-            '120': {
-              isActiveSrc: true,
-              isActiveDest: false,
-            },
-            '137': {
-              isActiveSrc: false,
-              isActiveDest: true,
-            },
-            '11111': {
-              isActiveSrc: false,
-              isActiveDest: true,
-            },
+      const commonResponse = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          '10': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          '59144': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          '120': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          '137': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          '11111': {
+            isActiveSrc: false,
+            isActiveDest: true,
           },
         },
+      };
+      const mockResponse = {
+        'extension-config': commonResponse,
+        'mobile-config': commonResponse,
       };
 
       mockFetchFn.mockResolvedValue(mockResponse);
@@ -63,58 +65,63 @@ describe('Bridge utils', () => {
         },
       );
 
-      expect(result).toStrictEqual({
-        extensionConfig: {
-          maxRefreshCount: 1,
-          refreshRate: 3,
-          support: true,
-          chains: {
-            [CHAIN_IDS.MAINNET]: {
-              isActiveSrc: true,
-              isActiveDest: true,
-            },
-            [CHAIN_IDS.OPTIMISM]: {
-              isActiveSrc: true,
-              isActiveDest: false,
-            },
-            [CHAIN_IDS.LINEA_MAINNET]: {
-              isActiveSrc: true,
-              isActiveDest: true,
-            },
-            '0x78': {
-              isActiveSrc: true,
-              isActiveDest: false,
-            },
-            [CHAIN_IDS.POLYGON]: {
-              isActiveSrc: false,
-              isActiveDest: true,
-            },
-            '0x2b67': {
-              isActiveSrc: false,
-              isActiveDest: true,
-            },
+      const commonExpected = {
+        maxRefreshCount: 1,
+        refreshRate: 3,
+        support: true,
+        chains: {
+          [CHAIN_IDS.MAINNET]: {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          [CHAIN_IDS.OPTIMISM]: {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          [CHAIN_IDS.LINEA_MAINNET]: {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          '0x78': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          [CHAIN_IDS.POLYGON]: {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          '0x2b67': {
+            isActiveSrc: false,
+            isActiveDest: true,
           },
         },
+      };
+
+      expect(result).toStrictEqual({
+        extensionConfig: commonExpected,
+        mobileConfig: commonExpected,
       });
     });
 
     it('should use fallback bridge feature flags if response is unexpected', async () => {
-      const mockResponse = {
-        'extension-config': {
-          refreshRate: 3,
-          maxRefreshCount: 1,
-          support: 25,
-          chains: {
-            a: {
-              isActiveSrc: 1,
-              isActiveDest: 'test',
-            },
-            '2': {
-              isActiveSrc: 'test',
-              isActiveDest: 2,
-            },
+      const commonResponse = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: 25,
+        chains: {
+          a: {
+            isActiveSrc: 1,
+            isActiveDest: 'test',
+          },
+          '2': {
+            isActiveSrc: 'test',
+            isActiveDest: 2,
           },
         },
+      };
+      const mockResponse = {
+        'extension-config': commonResponse,
+        'mobile-config': commonResponse,
       };
 
       mockFetchFn.mockResolvedValue(mockResponse);
@@ -131,13 +138,15 @@ describe('Bridge utils', () => {
         },
       );
 
+      const commonExpected = {
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        support: false,
+        chains: {},
+      };
       expect(result).toStrictEqual({
-        extensionConfig: {
-          maxRefreshCount: 5,
-          refreshRate: 30000,
-          support: false,
-          chains: {},
-        },
+        extensionConfig: commonExpected,
+        mobileConfig: commonExpected,
       });
     });
 
@@ -239,8 +248,8 @@ describe('Bridge utils', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: ZeroAddress,
-          destTokenAddress: ZeroAddress,
+          srcTokenAddress: AddressZero,
+          destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },
@@ -273,8 +282,8 @@ describe('Bridge utils', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: ZeroAddress,
-          destTokenAddress: ZeroAddress,
+          srcTokenAddress: AddressZero,
+          destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },
@@ -326,8 +335,8 @@ describe('Bridge utils', () => {
           walletAddress: '0x123',
           srcChainId: 1,
           destChainId: 10,
-          srcTokenAddress: ZeroAddress,
-          destTokenAddress: ZeroAddress,
+          srcTokenAddress: AddressZero,
+          destTokenAddress: AddressZero,
           srcTokenAmount: '20000',
           slippage: 0.5,
         },

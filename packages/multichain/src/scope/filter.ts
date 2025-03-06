@@ -1,4 +1,4 @@
-import { type Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { assertIsInternalScopeString, assertScopeSupported } from './assert';
 import { isSupportedMethod, isSupportedNotification } from './supported';
@@ -12,17 +12,23 @@ import type {
  * Groups a NormalizedScopesObject into two separate
  * NormalizedScopesObject with supported scopes in one
  * and unsupported scopes in the other.
+ *
  * @param scopes - The NormalizedScopesObject to group.
- * @param hooks - The hooks.
- * @param hooks.isChainIdSupported - A helper that returns true if an eth chainId is currently supported by the wallet.
- * @returns an object with two NormalizedScopesObjects separated by support.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.isEvmChainIdSupported - A predicate that determines if an EVM chainID is supported.
+ * @param hooks.isNonEvmScopeSupported - A predicate that determines if an non EVM scopeString is supported.
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  */
 export const bucketScopesBySupport = (
   scopes: NormalizedScopesObject,
   {
-    isChainIdSupported,
+    isEvmChainIdSupported,
+    isNonEvmScopeSupported,
+    getNonEvmSupportedMethods,
   }: {
-    isChainIdSupported: (chainId: Hex) => boolean;
+    isEvmChainIdSupported: (chainId: Hex) => boolean;
+    isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
   },
 ) => {
   const supportedScopes: NormalizedScopesObject = {};
@@ -32,7 +38,9 @@ export const bucketScopesBySupport = (
     assertIsInternalScopeString(scopeString);
     try {
       assertScopeSupported(scopeString, scopeObject, {
-        isChainIdSupported,
+        isEvmChainIdSupported,
+        isNonEvmScopeSupported,
+        getNonEvmSupportedMethods,
       });
       supportedScopes[scopeString] = scopeObject;
     } catch (err) {
@@ -46,18 +54,26 @@ export const bucketScopesBySupport = (
 /**
  * Returns a NormalizedScopeObject with
  * unsupported methods and notifications removed.
+ *
  * @param scopeString - The InternalScopeString for the scopeObject.
  * @param scopeObject - The NormalizedScopeObject to filter.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns a NormalizedScopeObject with only methods and notifications that are currently supported.
  */
 const getSupportedScopeObject = (
   scopeString: InternalScopeString,
   scopeObject: NormalizedScopeObject,
+  {
+    getNonEvmSupportedMethods,
+  }: {
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+  },
 ) => {
   const { methods, notifications } = scopeObject;
 
   const supportedMethods = methods.filter((method) =>
-    isSupportedMethod(scopeString, method),
+    isSupportedMethod(scopeString, method, { getNonEvmSupportedMethods }),
   );
 
   const supportedNotifications = notifications.filter((notification) =>
@@ -74,10 +90,20 @@ const getSupportedScopeObject = (
 /**
  * Returns a NormalizedScopesObject with
  * unsupported methods and notifications removed from scopeObjects.
+ *
  * @param scopes - The NormalizedScopesObject to filter.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getNonEvmSupportedMethods - A function that returns the supported methods for a non EVM scope.
  * @returns a NormalizedScopesObject with only methods, and notifications that are currently supported.
  */
-export const getSupportedScopeObjects = (scopes: NormalizedScopesObject) => {
+export const getSupportedScopeObjects = (
+  scopes: NormalizedScopesObject,
+  {
+    getNonEvmSupportedMethods,
+  }: {
+    getNonEvmSupportedMethods: (scope: CaipChainId) => string[];
+  },
+) => {
   const filteredScopesObject: NormalizedScopesObject = {};
 
   for (const [scopeString, scopeObject] of Object.entries(scopes)) {
@@ -85,6 +111,7 @@ export const getSupportedScopeObjects = (scopes: NormalizedScopesObject) => {
     filteredScopesObject[scopeString] = getSupportedScopeObject(
       scopeString,
       scopeObject,
+      { getNonEvmSupportedMethods },
     );
   }
 

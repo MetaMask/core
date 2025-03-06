@@ -2,15 +2,17 @@ import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
 
 import {
+  validateBatchRequest,
   validateParamTo,
   validateTransactionOrigin,
   validateTxParams,
 } from './validation';
-import { TransactionEnvelopeType } from '../types';
+import { TransactionEnvelopeType, TransactionType } from '../types';
 import type { TransactionParams } from '../types';
 
 const FROM_MOCK = '0x1678a085c290ebd122dc42cba69373b5953b831d';
 const TO_MOCK = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
+const ORIGIN_MOCK = 'test-origin';
 
 describe('validation', () => {
   describe('validateTxParams', () => {
@@ -539,7 +541,7 @@ describe('validation', () => {
         );
       });
 
-      it.each(['chainId', 'nonce', 'r', 's', 'yParity'])(
+      it.each(['chainId', 'nonce', 'r', 's'])(
         'throws if %s provided but not hexadecimal',
         (property) => {
           expect(() =>
@@ -561,6 +563,26 @@ describe('validation', () => {
           );
         },
       );
+
+      it('throws if yParity is not 0x or 0x1', () => {
+        expect(() =>
+          validateTxParams({
+            authorizationList: [
+              {
+                address: FROM_MOCK,
+                yParity: '0x2' as never,
+              },
+            ],
+            from: FROM_MOCK,
+            to: TO_MOCK,
+            type: TransactionEnvelopeType.setCode,
+          }),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            `Invalid transaction params: yParity must be '0x' or '0x1'. got: 0x2`,
+          ),
+        );
+      });
     });
   });
 
@@ -597,7 +619,7 @@ describe('validation', () => {
       await expect(
         validateTransactionOrigin({
           from: FROM_MOCK,
-          origin: 'test-origin',
+          origin: ORIGIN_MOCK,
           permittedAddresses: ['0x123', '0x456'],
           selectedAddress: '0x123',
           txParams: {} as TransactionParams,
@@ -613,7 +635,7 @@ describe('validation', () => {
       expect(
         await validateTransactionOrigin({
           from: FROM_MOCK,
-          origin: 'test-origin',
+          origin: ORIGIN_MOCK,
           permittedAddresses: ['0x123', FROM_MOCK],
           selectedAddress: '0x123',
           txParams: {} as TransactionParams,
@@ -621,11 +643,11 @@ describe('validation', () => {
       ).toBeUndefined();
     });
 
-    it('throw if external and type 4', async () => {
+    it('throws if external and type 4', async () => {
       await expect(
         validateTransactionOrigin({
           from: FROM_MOCK,
-          origin: 'test-origin',
+          origin: ORIGIN_MOCK,
           permittedAddresses: [FROM_MOCK],
           selectedAddress: '0x123',
           txParams: {
@@ -639,16 +661,16 @@ describe('validation', () => {
       );
     });
 
-    it('throw if external and authorization list provided', async () => {
+    it('throws if external and authorization list provided', async () => {
       await expect(
         validateTransactionOrigin({
           from: FROM_MOCK,
-          origin: 'test-origin',
+          origin: ORIGIN_MOCK,
           permittedAddresses: [FROM_MOCK],
           selectedAddress: '0x123',
           txParams: {
             authorizationList: [],
-            from: FROM_MOCK,
+            from: TO_MOCK,
           } as TransactionParams,
         }),
       ).rejects.toThrow(
@@ -656,6 +678,39 @@ describe('validation', () => {
           'External EIP-7702 transactions are not supported',
         ),
       );
+    });
+
+    it('throws if external and to is internal account', async () => {
+      await expect(
+        validateTransactionOrigin({
+          from: FROM_MOCK,
+          internalAccounts: [TO_MOCK],
+          origin: ORIGIN_MOCK,
+          selectedAddress: '0x123',
+          txParams: {
+            to: TO_MOCK,
+          } as TransactionParams,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.invalidParams(
+          'External transactions to internal accounts are not supported',
+        ),
+      );
+    });
+
+    it('does not throw if external and to is internal account but type is batch', async () => {
+      expect(
+        await validateTransactionOrigin({
+          from: FROM_MOCK,
+          internalAccounts: [TO_MOCK],
+          origin: ORIGIN_MOCK,
+          selectedAddress: '0x123',
+          txParams: {
+            to: TO_MOCK,
+          } as TransactionParams,
+          type: TransactionType.batch,
+        }),
+      ).toBeUndefined();
     });
   });
 
@@ -670,6 +725,86 @@ describe('validation', () => {
       expect(() => validateParamTo(123 as never)).toThrow(
         rpcErrors.invalidParams('Invalid "to" address'),
       );
+    });
+  });
+
+  describe('validateBatchRequest', () => {
+    it('throws if external origin and any transaction target is internal account', () => {
+      expect(() =>
+        validateBatchRequest({
+          internalAccounts: ['0x123', TO_MOCK],
+          request: {
+            from: FROM_MOCK,
+            networkClientId: 'testNetworkClientId',
+            origin: ORIGIN_MOCK,
+            transactions: [
+              {
+                params: {
+                  to: '0xabc',
+                },
+              },
+              {
+                params: {
+                  to: TO_MOCK,
+                },
+              },
+            ],
+          },
+        }),
+      ).toThrow(
+        rpcErrors.invalidParams(
+          'External transactions to internal accounts are not supported',
+        ),
+      );
+    });
+
+    it('does not throw if no origin and any transaction target is internal account', () => {
+      expect(() =>
+        validateBatchRequest({
+          internalAccounts: ['0x123', TO_MOCK],
+          request: {
+            from: FROM_MOCK,
+            networkClientId: 'testNetworkClientId',
+            transactions: [
+              {
+                params: {
+                  to: '0xabc',
+                },
+              },
+              {
+                params: {
+                  to: TO_MOCK,
+                },
+              },
+            ],
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('does not throw if internal origin and any transaction target is internal account', () => {
+      expect(() =>
+        validateBatchRequest({
+          internalAccounts: ['0x123', TO_MOCK],
+          request: {
+            from: FROM_MOCK,
+            networkClientId: 'testNetworkClientId',
+            origin: ORIGIN_METAMASK,
+            transactions: [
+              {
+                params: {
+                  to: '0xabc',
+                },
+              },
+              {
+                params: {
+                  to: TO_MOCK,
+                },
+              },
+            ],
+          },
+        }),
+      ).not.toThrow();
     });
   });
 });

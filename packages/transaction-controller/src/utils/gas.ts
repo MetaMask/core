@@ -1,5 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 import {
   BNToHex,
   fractionBN,
@@ -28,6 +26,11 @@ export const DEFAULT_GAS_MULTIPLIER = 1.5;
 export const GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 export const MAX_GAS_BLOCK_PERCENT = 90;
 
+/**
+ * Populate the gas properties of the provided transaction meta.
+ *
+ * @param request - The request object including the necessary parameters.
+ */
 export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
@@ -49,6 +52,14 @@ export async function updateGas(request: UpdateGasRequest) {
   txMeta.defaultGasEstimates.gas = txMeta.txParams.gas;
 }
 
+/**
+ * Estimate the gas for the provided transaction parameters.
+ * If the gas estimate fails, the fallback value is returned.
+ *
+ * @param txParams - The transaction parameters.
+ * @param ethQuery - The EthQuery instance to interact with the network.
+ * @returns The estimated gas and related info.
+ */
 export async function estimateGas(
   txParams: TransactionParams,
   ethQuery: EthQuery,
@@ -56,9 +67,8 @@ export async function estimateGas(
   const request = { ...txParams };
   const { data, value } = request;
 
-  const { gasLimit: blockGasLimit, number: blockNumber } = await getLatestBlock(
-    ethQuery,
-  );
+  const { gasLimit: blockGasLimit, number: blockNumber } =
+    await getLatestBlock(ethQuery);
 
   const blockGasLimitBN = hexToBN(blockGasLimit);
 
@@ -99,6 +109,15 @@ export async function estimateGas(
   };
 }
 
+/**
+ * Add a buffer to the provided estimated gas.
+ * The buffer is calculated based on the block gas limit and a multiplier.
+ *
+ * @param estimatedGas - The estimated gas.
+ * @param blockGasLimit - The block gas limit.
+ * @param multiplier - The multiplier to apply to the estimated gas.
+ * @returns The gas with the buffer applied.
+ */
 export function addGasBuffer(
   estimatedGas: string,
   blockGasLimit: string,
@@ -131,6 +150,12 @@ export function addGasBuffer(
   return maxHex;
 }
 
+/**
+ * Determine the gas for the provided request.
+ *
+ * @param request - The request object including the necessary parameters.
+ * @returns The final gas value and the estimate used.
+ */
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
@@ -174,6 +199,15 @@ async function getGas(
   return [bufferedGas, simulationFails, estimatedGas];
 }
 
+/**
+ * Determine if the gas for the provided request should be fixed.
+ *
+ * @param options - The options object.
+ * @param options.ethQuery - The EthQuery instance to interact with the network.
+ * @param options.txMeta - The transaction meta object.
+ * @param options.isCustomNetwork - Whether the network is a custom network.
+ * @returns Whether the gas should be fixed.
+ */
 async function requiresFixedGas({
   ethQuery,
   txMeta,
@@ -192,6 +226,13 @@ async function requiresFixedGas({
   return !code || code === '0x';
 }
 
+/**
+ * Get the contract code for the provided address.
+ *
+ * @param ethQuery - The EthQuery instance to interact with the network.
+ * @param address - The address to get the code for.
+ * @returns The contract code.
+ */
 async function getCode(
   ethQuery: EthQuery,
   address: string,
@@ -199,6 +240,12 @@ async function getCode(
   return await query(ethQuery, 'getCode', [address]);
 }
 
+/**
+ * Get the latest block from the network.
+ *
+ * @param ethQuery - The EthQuery instance to interact with the network.
+ * @returns The latest block number.
+ */
 async function getLatestBlock(
   ethQuery: EthQuery,
 ): Promise<{ gasLimit: string; number: string }> {

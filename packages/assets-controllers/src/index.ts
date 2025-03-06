@@ -173,7 +173,7 @@ export type {
 } from './MultichainAssetsController';
 
 export {
-  MultiChainAssetsRatesController,
+  MultichainAssetsRatesController,
   getDefaultMultichainAssetsRatesControllerState,
 } from './MultichainAssetsRatesController';
 
@@ -185,3 +185,13 @@ export type {
   MultichainAssetsRatesControllerStateChange,
   MultichainAssetsRatesControllerMessenger,
 } from './MultichainAssetsRatesController';
+export { TokenSearchDiscoveryDataController } from './TokenSearchDiscoveryDataController';
+export type {
+  TokenDisplayData,
+  TokenSearchDiscoveryDataControllerState,
+  TokenSearchDiscoveryDataControllerGetStateAction,
+  TokenSearchDiscoveryDataControllerEvents,
+  TokenSearchDiscoveryDataControllerStateChangeEvent,
+  TokenSearchDiscoveryDataControllerActions,
+  TokenSearchDiscoveryDataControllerMessenger,
+} from './TokenSearchDiscoveryDataController';

@@ -26,6 +26,7 @@ import {
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { isScopeEqualToAny } from '@metamask/keyring-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
@@ -38,7 +39,6 @@ import {
   type Json,
   type CaipChainId,
   isCaipChainId,
-  parseCaipChainId,
 } from '@metamask/utils';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
@@ -323,7 +323,7 @@ export class AccountsController extends BaseController<
     }
 
     return accounts.filter((account) =>
-      this.#isAccountCompatibleWithChain(account, chainId),
+      isScopeEqualToAny(chainId, account.scopes),
     );
   }
 
@@ -394,14 +394,7 @@ export class AccountsController extends BaseController<
       return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
     }
 
-    if (!isCaipChainId(chainId)) {
-      throw new Error(`Invalid CAIP-2 chain ID: ${chainId as string}`);
-    }
-
-    const accounts = Object.values(this.state.internalAccounts.accounts).filter(
-      (account) => this.#isAccountCompatibleWithChain(account, chainId),
-    );
-
+    const accounts = this.listMultichainAccounts(chainId);
     return this.#getLastSelectedAccount(accounts);
   }
 
@@ -1001,22 +994,6 @@ export class AccountsController extends BaseController<
     );
 
     return `${keyringName} ${index}`;
-  }
-
-  /**
-   * Checks if an account is compatible with a given chain namespace.
-   *
-   * @param account - The account to check compatibility for.
-   * @param chainId - The CAIP2 to check compatibility with.
-   * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
-   */
-  #isAccountCompatibleWithChain(
-    account: InternalAccount,
-    chainId: CaipChainId,
-  ): boolean {
-    // TODO: Change this logic to not use account's type
-    // Because we currently only use type, we can only use namespace for now.
-    return account.type.startsWith(parseCaipChainId(chainId).namespace);
   }
 
   /**
