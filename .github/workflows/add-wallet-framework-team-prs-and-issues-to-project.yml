@@ -9,10 +9,10 @@ on:
 jobs:
   call_shared_workflow:
     name: 'Call the Shared Workflow'
-    uses: metamask/github-tools/.github/actions/add-item-to-project.yml@d18bebcbb77f0a17b12ce481427382ad1239fe53
+    uses: metamask/github-tools/.github/workflows/add-item-to-project.yml@7660d69f991f13f9e8e180b02b4648def54c5577
     with:
       project-url: 'https://github.com/orgs/MetaMask/projects/113'
       team-name: 'wallet-framework-engineers'
       team-label: 'team-wallet-framework'
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      github-token: ${{ secrets.GITHUB_TOKEN }}
