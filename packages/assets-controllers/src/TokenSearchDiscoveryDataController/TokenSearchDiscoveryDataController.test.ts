@@ -649,6 +649,7 @@ describe('TokenSearchDiscoveryDataController', () => {
           return {
             [tokenAddress as Hex]: {
               ...basePrice,
+              // eslint-disable-next-line jest/no-conditional-in-test
               price: currency === 'USD' ? 10.5 : 9.5,
               currency,
             },
@@ -717,6 +718,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const mockFetchTokenPrices = jest
         .fn()
         .mockImplementation(({ currency }: { currency: string }) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (currency === 'USD') {
             return Promise.resolve({ [tokenAddress as Hex]: mockTokenPrice });
           }
@@ -759,12 +761,14 @@ describe('TokenSearchDiscoveryDataController', () => {
 
       (fetchTokenMetadata as jest.Mock).mockImplementation(
         (_chainId, address) => {
+          // eslint-disable-next-line jest/no-conditional-in-test
           if (address === tokenAddress1) {
             return Promise.resolve({
               decimals: 18,
               symbol: 'DAI',
               name: 'Dai Stablecoin',
             });
+            // eslint-disable-next-line jest/no-conditional-in-test
           } else if (address === tokenAddress2) {
             return Promise.resolve({
               decimals: 6,

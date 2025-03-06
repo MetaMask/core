@@ -179,6 +179,7 @@ export class TokenSearchDiscoveryDataController extends BaseController<
 
       return pricesData[address as Hex] ?? null;
     } catch (error) {
+      console.error(error);
       return null;
     }
   }
