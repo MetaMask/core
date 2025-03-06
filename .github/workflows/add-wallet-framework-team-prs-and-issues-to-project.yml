@@ -9,7 +9,7 @@ on:
 jobs:
   call_shared_workflow:
     name: 'Call the Shared Workflow'
-    uses: metamask/github-tools/.github/workflows/add-item-to-project.yml@7660d69f991f13f9e8e180b02b4648def54c5577
+    uses: metamask/github-tools/.github/workflows/add-item-to-project.yml@bce51a03da4736bef72f67b71ca77714a38fc067
     with:
       project-url: 'https://github.com/orgs/MetaMask/projects/113'
       team-name: 'wallet-framework-engineers'
