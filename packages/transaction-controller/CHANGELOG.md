@@ -7,11 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [48.0.0]
-
 ### Changed
 
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.0.0` ([#5437](https://github.com/MetaMask/core/pull/5437))
 - **BREAKING:** Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 
 ## [47.0.0]
@@ -1326,8 +1323,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.0.0...HEAD
-[48.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@47.0.0...@metamask/transaction-controller@48.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@47.0.0...HEAD
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@46.0.0...@metamask/transaction-controller@47.0.0
 [46.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.1.0...@metamask/transaction-controller@46.0.0
 [45.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.0.0...@metamask/transaction-controller@45.1.0
