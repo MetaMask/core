@@ -1,4 +1,7 @@
-import { AccountsApiRemoteTransactionSource, SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
+import {
+  AccountsApiRemoteTransactionSource,
+  SUPPORTED_CHAIN_IDS,
+} from './AccountsApiRemoteTransactionSource';
 import type {
   GetAccountTransactionsResponse,
   TransactionResponse,
