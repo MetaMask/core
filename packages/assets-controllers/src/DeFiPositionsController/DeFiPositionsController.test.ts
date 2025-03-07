@@ -114,20 +114,26 @@ describe('DeFiPositionsController', () => {
   });
 
   it('updates positions when selected account changes', async () => {
-    const { controller, triggerSelectedAccountChange } = setupController();
-
     const mockFetchPositionsResponse =
       'mock-data' as unknown as DefiPositionResponse[];
+    const mockFetchPositions = jest.fn().mockImplementation(() => {
+      console.log('SDJHKJKSAHJKDSAHKJDSAKHJDSAHKJHKDJSAHKJDSAJKHDSA');
+      return Promise.resolve(mockFetchPositionsResponse);
+    });
+
     const mockGroupPositionsResult = 'mock-grouped-data' as unknown as {
       [key: Hex]: GroupedPositions;
     };
 
     const fetchPositionsSpy = jest
-      .spyOn(fetchPositions, 'fetchPositions')
-      .mockResolvedValue(mockFetchPositionsResponse);
+      .spyOn(fetchPositions, 'buildPositionFetcher')
+      .mockReturnValue(mockFetchPositions);
+
     const groupPositionsSpy = jest
       .spyOn(groupPositions, 'groupPositions')
       .mockReturnValue(mockGroupPositionsResult);
+
+    const { controller, triggerSelectedAccountChange } = setupController();
     const updateSpy = jest.spyOn(controller, 'update' as never);
 
     triggerSelectedAccountChange(OWNER_ACCOUNT);
@@ -139,26 +145,30 @@ describe('DeFiPositionsController', () => {
         [OWNER_ADDRESS]: mockGroupPositionsResult,
       },
     });
-    expect(fetchPositionsSpy).toHaveBeenCalledWith(OWNER_ADDRESS);
+    expect(fetchPositionsSpy).toHaveBeenCalled();
+    expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ADDRESS);
     expect(groupPositionsSpy).toHaveBeenCalledWith(mockFetchPositionsResponse);
     expect(updateSpy).toHaveBeenCalledTimes(2);
   });
 
   it('updates positions when network state changes', async () => {
-    const { controller, triggerNetworkChange } = setupController();
-
     const mockFetchPositionsResponse =
       'mock-data' as unknown as DefiPositionResponse[];
+    const mockFetchPositions = jest
+      .fn()
+      .mockResolvedValue(mockFetchPositionsResponse);
     const mockGroupPositionsResult = 'mock-grouped-data' as unknown as {
       [key: Hex]: GroupedPositions;
     };
 
     const fetchPositionsSpy = jest
-      .spyOn(fetchPositions, 'fetchPositions')
-      .mockResolvedValue(mockFetchPositionsResponse);
+      .spyOn(fetchPositions, 'buildPositionFetcher')
+      .mockReturnValue(mockFetchPositions);
     const groupPositionsSpy = jest
       .spyOn(groupPositions, 'groupPositions')
       .mockReturnValue(mockGroupPositionsResult);
+
+    const { controller, triggerNetworkChange } = setupController();
     const updateSpy = jest.spyOn(controller, 'update' as never);
 
     triggerNetworkChange();
@@ -170,7 +180,8 @@ describe('DeFiPositionsController', () => {
         [OWNER_ADDRESS]: mockGroupPositionsResult,
       },
     });
-    expect(fetchPositionsSpy).toHaveBeenCalledWith(OWNER_ADDRESS);
+    expect(fetchPositionsSpy).toHaveBeenCalled();
+    expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ADDRESS);
     expect(groupPositionsSpy).toHaveBeenCalledWith(mockFetchPositionsResponse);
     expect(updateSpy).toHaveBeenCalledTimes(2);
   });

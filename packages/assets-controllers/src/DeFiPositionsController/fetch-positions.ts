@@ -55,26 +55,27 @@ export type Balance = {
 };
 
 // TODO: Update with new API URL
-export const DEFI_POSITIONS_API_URL =
+export const DEFAULT_DEFI_POSITIONS_API_URL =
   'https://defi-services.metamask-institutional.io/defi-data/positions';
 
 /**
+ * Builds a function that fetches DeFi positions for a given account address
  *
- * @param accountAddress - The account address to fetch the DeFi positions for
- * @returns The DeFi positions for the given account address
+ * @param apiUrl - The URL of the API to fetch the DeFi positions from
+ * @returns A function that fetches DeFi positions for a given account address
  */
-export async function fetchPositions(
-  accountAddress: string,
-): Promise<DefiPositionResponse[]> {
-  const defiPositionsResponse = await fetch(
-    `${DEFI_POSITIONS_API_URL}/${accountAddress}`,
-  );
+export function buildPositionFetcher(
+  apiUrl: string = DEFAULT_DEFI_POSITIONS_API_URL,
+) {
+  return async (accountAddress: string): Promise<DefiPositionResponse[]> => {
+    const defiPositionsResponse = await fetch(`${apiUrl}/${accountAddress}`);
 
-  if (defiPositionsResponse.status !== 200) {
-    throw new Error(
-      `Unable to fetch defi positions - HTTP ${defiPositionsResponse.status}`,
-    );
-  }
+    if (defiPositionsResponse.status !== 200) {
+      throw new Error(
+        `Unable to fetch defi positions - HTTP ${defiPositionsResponse.status}`,
+      );
+    }
 
-  return (await defiPositionsResponse.json()).data;
+    return (await defiPositionsResponse.json()).data;
+  };
 }
