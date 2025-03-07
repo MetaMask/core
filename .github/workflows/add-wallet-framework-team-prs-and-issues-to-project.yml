@@ -13,7 +13,7 @@ jobs:
       issues: write
       pull-requests: write
       contents: read
-      projects: write
+      repository-projects: write
     uses: metamask/github-tools/.github/workflows/add-item-to-project.yml@bce51a03da4736bef72f67b71ca77714a38fc067
     with:
       project-url: 'https://github.com/orgs/MetaMask/projects/113'
