@@ -85,9 +85,11 @@ export async function validateTransactionOrigin({
     );
   }
 
+  const hasData = Boolean(data && data !== '0x');
+
   if (
     isExternal &&
-    data &&
+    hasData &&
     internalAccounts?.some(
       (account) => account.toLowerCase() === to?.toLowerCase(),
     ) &&

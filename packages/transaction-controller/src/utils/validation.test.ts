@@ -700,20 +700,27 @@ describe('validation', () => {
       );
     });
 
-    it('does not throw if external and to is internal account but no data', async () => {
-      expect(
-        await validateTransactionOrigin({
-          data: '',
-          from: FROM_MOCK,
-          internalAccounts: [TO_MOCK],
-          origin: ORIGIN_MOCK,
-          selectedAddress: '0x123',
-          txParams: {
-            to: TO_MOCK,
-          } as TransactionParams,
-        }),
-      ).toBeUndefined();
-    });
+    it.each([
+      ['undefined', undefined],
+      ['empty', ''],
+      ['empty hex', '0x'],
+    ])(
+      'does not throw if external and to is internal account but data is %s',
+      async (_title, data) => {
+        expect(
+          await validateTransactionOrigin({
+            data,
+            from: FROM_MOCK,
+            internalAccounts: [TO_MOCK],
+            origin: ORIGIN_MOCK,
+            selectedAddress: '0x123',
+            txParams: {
+              to: TO_MOCK,
+            } as TransactionParams,
+          }),
+        ).toBeUndefined();
+      },
+    );
 
     it('does not throw if external and to is internal account but type is batch', async () => {
       expect(
