@@ -80,6 +80,7 @@ describe('NftDetectionController', () => {
           },
           {
             token: {
+              chainId: 1,
               contract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
               kind: 'erc721',
               name: 'ID 2578',
@@ -101,6 +102,7 @@ describe('NftDetectionController', () => {
           },
           {
             token: {
+              chainId: 1,
               contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
               kind: 'erc721',
               name: 'ID 2574',
@@ -124,8 +126,8 @@ describe('NftDetectionController', () => {
         tokens: [
           {
             token: {
+              chainId: 1,
               contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-
               kind: 'erc721',
               name: 'ID 2574',
               description: 'Description 2574',
@@ -148,6 +150,7 @@ describe('NftDetectionController', () => {
         tokens: [
           {
             token: {
+              chainId: 1,
               contract: '0xtest1',
               kind: 'erc721',
               name: 'ID 2574',
@@ -172,6 +175,7 @@ describe('NftDetectionController', () => {
           },
           {
             token: {
+              chainId: 1,
               contract: '0xtest2',
               kind: 'erc721',
               name: 'ID 2575',
@@ -203,6 +207,7 @@ describe('NftDetectionController', () => {
         tokens: [
           {
             token: {
+              chainId: 1,
               contract: '0xtestCollection1',
               kind: 'erc721',
               name: 'ID 1',
@@ -227,6 +232,7 @@ describe('NftDetectionController', () => {
           },
           {
             token: {
+              chainId: 1,
               contract: '0xtestCollection2',
               kind: 'erc721',
               name: 'ID 2',
@@ -246,6 +252,7 @@ describe('NftDetectionController', () => {
           },
           {
             token: {
+              chainId: 1,
               contract: '0xtestCollection3',
               kind: 'erc721',
               name: 'ID 3',
@@ -267,6 +274,7 @@ describe('NftDetectionController', () => {
           },
           {
             token: {
+              chainId: 1,
               contract: '0xtestCollection4',
               kind: 'erc721',
               name: 'ID 4',
@@ -288,6 +296,7 @@ describe('NftDetectionController', () => {
           },
           {
             token: {
+              chainId: 1,
               contract: '0xtestCollection5',
               kind: 'erc721',
               name: 'ID 5',
@@ -335,7 +344,7 @@ describe('NftDetectionController', () => {
         });
 
         // call detectNfts
-        await controller.detectNfts();
+        await controller.detectNfts(['0x1']);
         expect(mockNfts.calledOnce).toBe(true);
 
         await advanceTime({
@@ -346,31 +355,6 @@ describe('NftDetectionController', () => {
         expect(mockNfts.calledTwice).toBe(false);
       },
     );
-  });
-
-  it('should call detect NFTs by networkClientId on mainnet', async () => {
-    await withController(async ({ controller }) => {
-      const spy = jest
-        .spyOn(controller, 'detectNfts')
-        .mockImplementation(() => {
-          return Promise.resolve();
-        });
-
-      // call detectNfts
-      await controller.detectNfts({
-        networkClientId: 'mainnet',
-        userAddress: '0x1',
-      });
-
-      expect(spy.mock.calls).toMatchObject([
-        [
-          {
-            networkClientId: 'mainnet',
-            userAddress: '0x1',
-          },
-        ],
-      ]);
-    });
   });
 
   it('should detect mainnet truthy', async () => {
@@ -423,7 +407,7 @@ describe('NftDetectionController', () => {
           });
 
         // call detectNfts
-        await controller.detectNfts();
+        await controller.detectNfts(['0xe708']);
 
         expect(mockApiCall.isDone()).toBe(true);
       },
@@ -477,8 +461,7 @@ describe('NftDetectionController', () => {
           });
 
         // call detectNfts
-        await controller.detectNfts({
-          networkClientId: 'goerli',
+        await controller.detectNfts(['0x507'], {
           userAddress: selectedAddress,
         });
 
@@ -522,7 +505,7 @@ describe('NftDetectionController', () => {
         });
         mockAddNft.mockReset();
 
-        await controller.detectNfts();
+        await controller.detectNfts(['0x1']);
 
         expect(mockAddNft).toHaveBeenCalledWith(
           '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
@@ -537,7 +520,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            networkClientId: undefined,
+            chainId: '0x1',
           },
         );
       },
@@ -577,6 +560,7 @@ describe('NftDetectionController', () => {
               tokens: [
                 {
                   token: {
+                    chainId: 1,
                     contract: '0xtestCollection1',
                     kind: 'erc721',
                     name: 'ID 1',
@@ -601,6 +585,7 @@ describe('NftDetectionController', () => {
                 },
                 {
                   token: {
+                    chainId: 1,
                     contract: '0xtestCollection1',
                     kind: 'erc721',
                     name: 'ID 2',
@@ -621,7 +606,7 @@ describe('NftDetectionController', () => {
               ],
             });
 
-          await controller.detectNfts();
+          await controller.detectNfts(['0x1']);
 
           expect(mockAddNft).toHaveBeenCalledTimes(2);
           // In this test we mocked that reservoir returned 5 NFTs
@@ -643,7 +628,7 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              networkClientId: undefined,
+              chainId: '0x1',
             },
           );
           expect(mockAddNft).toHaveBeenNthCalledWith(
@@ -663,7 +648,7 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              networkClientId: undefined,
+              chainId: '0x1',
             },
           );
         },
@@ -698,7 +683,7 @@ describe('NftDetectionController', () => {
             .get(`/collections?contract=0xtest1&contract=0xtest2&chainId=1`)
             .replyWithError(new Error('Failed to fetch'));
 
-          await controller.detectNfts();
+          await controller.detectNfts(['0x1']);
 
           // Expect to be called twice
           expect(mockAddNft).toHaveBeenNthCalledWith(1, '0xtest1', '2574', {
@@ -714,7 +699,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            networkClientId: undefined,
+            chainId: '0x1',
           });
           expect(mockAddNft).toHaveBeenNthCalledWith(2, '0xtest2', '2575', {
             nftMetadata: {
@@ -729,7 +714,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            networkClientId: undefined,
+            chainId: '0x1',
           });
         },
       );
@@ -793,19 +778,21 @@ describe('NftDetectionController', () => {
               collections: [
                 {
                   id: '0xtest1',
+                  chainId: 1,
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
                   topBid: testTopBid,
                 },
                 {
                   id: '0xtest2',
+                  chainId: 1,
                   creator: '0xcreator2',
                   openseaVerificationStatus: 'verified',
                 },
               ],
             });
 
-          await controller.detectNfts();
+          await controller.detectNfts(['0x1']);
 
           // Expect to be called twice
           expect(mockAddNft).toHaveBeenNthCalledWith(1, '0xtest1', '2574', {
@@ -827,7 +814,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            networkClientId: undefined,
+            chainId: '0x1',
           });
           expect(mockAddNft).toHaveBeenNthCalledWith(2, '0xtest2', '2575', {
             nftMetadata: {
@@ -847,7 +834,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            networkClientId: undefined,
+            chainId: '0x1',
           });
         },
       );
@@ -884,11 +871,13 @@ describe('NftDetectionController', () => {
             .reply(200, {
               collections: [
                 {
+                  chainId: 1,
                   id: '0xtestCollection1',
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
                 },
                 {
+                  chainId: 1,
                   id: '0xtestCollection2',
                   creator: '0xcreator2',
                   openseaVerificationStatus: 'verified',
@@ -896,7 +885,7 @@ describe('NftDetectionController', () => {
               ],
             });
 
-          await controller.detectNfts();
+          await controller.detectNfts(['0x1']);
 
           expect(mockAddNft).toHaveBeenCalledTimes(2);
           // In this test we mocked that reservoir returned 5 NFTs
@@ -923,7 +912,7 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              networkClientId: undefined,
+              chainId: '0x1',
             },
           );
           expect(mockAddNft).toHaveBeenNthCalledWith(
@@ -948,7 +937,7 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              networkClientId: undefined,
+              chainId: '0x1',
             },
           );
         },
@@ -987,6 +976,7 @@ describe('NftDetectionController', () => {
               tokens: [
                 {
                   token: {
+                    chainId: 1,
                     contract: '0xtestCollection1',
                     kind: 'erc721',
                     name: 'ID 1',
@@ -1011,6 +1001,7 @@ describe('NftDetectionController', () => {
                 },
                 {
                   token: {
+                    chainId: 1,
                     contract: '0xtestCollection1',
                     kind: 'erc721',
                     name: 'ID 2',
@@ -1037,6 +1028,7 @@ describe('NftDetectionController', () => {
               collections: [
                 {
                   id: '0xtestCollection1',
+                  chainId: 1,
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
                   ownerCount: '555',
@@ -1044,7 +1036,7 @@ describe('NftDetectionController', () => {
               ],
             });
 
-          await controller.detectNfts();
+          await controller.detectNfts(['0x1']);
 
           expect(mockAddNft).toHaveBeenCalledTimes(2);
           // In this test we mocked that reservoir returned 5 NFTs
@@ -1071,7 +1063,7 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              networkClientId: undefined,
+              chainId: '0x1',
             },
           );
           expect(mockAddNft).toHaveBeenNthCalledWith(
@@ -1096,7 +1088,7 @@ describe('NftDetectionController', () => {
               },
               userAddress: selectedAccount.address,
               source: Source.Detected,
-              networkClientId: undefined,
+              chainId: '0x1',
             },
           );
         },
@@ -1138,6 +1130,7 @@ describe('NftDetectionController', () => {
             .reply(200, {
               collections: [
                 {
+                  chainId: 1,
                   id: '0xtest1',
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
@@ -1149,7 +1142,7 @@ describe('NftDetectionController', () => {
             .get(`/collections?contract=0xtest2&chainId=1`)
             .replyWithError(new Error('Failed to fetch'));
 
-          await controller.detectNfts();
+          await controller.detectNfts(['0x1']);
 
           // Expect to be called twice
           expect(mockAddNft).toHaveBeenNthCalledWith(1, '0xtest1', '2574', {
@@ -1170,7 +1163,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            networkClientId: undefined,
+            chainId: '0x1',
           });
           expect(mockAddNft).toHaveBeenNthCalledWith(2, '0xtest2', '2575', {
             nftMetadata: {
@@ -1185,7 +1178,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
-            networkClientId: undefined,
+            chainId: '0x1',
           });
 
           Object.defineProperty(constants, 'MAX_GET_COLLECTION_BATCH_SIZE', {
@@ -1229,8 +1222,7 @@ describe('NftDetectionController', () => {
           )
           .replyWithError(new Error('Failed to fetch'));
 
-        await controller.detectNfts({
-          networkClientId: 'mainnet',
+        await controller.detectNfts(['0x1'], {
           userAddress: '0x9',
         });
 
@@ -1247,7 +1239,7 @@ describe('NftDetectionController', () => {
             },
             userAddress: '0x9',
             source: Source.Detected,
-            networkClientId: 'mainnet',
+            chainId: '0x1',
           },
         );
       },
@@ -1300,7 +1292,7 @@ describe('NftDetectionController', () => {
           )
           .replyWithError(new Error('Failed to fetch'));
 
-        await controller.detectNfts();
+        await controller.detectNfts(['0x1']);
 
         expect(mockAddNft).not.toHaveBeenCalled();
       },
@@ -1323,7 +1315,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true, // auto-detect is enabled so it proceeds to check userAddress
         });
 
-        await controller.detectNfts();
+        await controller.detectNfts(['0x1']);
 
         expect(mockAddNft).not.toHaveBeenCalled();
       },
@@ -1402,7 +1394,7 @@ describe('NftDetectionController', () => {
         });
         mockAddNft.mockReset();
 
-        await controller.detectNfts();
+        await controller.detectNfts(['0x1']);
 
         expect(mockAddNft).not.toHaveBeenCalled();
       },
@@ -1445,7 +1437,7 @@ describe('NftDetectionController', () => {
         mockAddNft.mockReset();
 
         // eslint-disable-next-line jest/require-to-throw-message
-        await expect(() => controller.detectNfts()).rejects.toThrow();
+        await expect(() => controller.detectNfts(['0x1'])).rejects.toThrow();
 
         expect(mockAddNft).not.toHaveBeenCalled();
       },
@@ -1481,7 +1473,7 @@ describe('NftDetectionController', () => {
           })
           .replyWithError(new Error('UNEXPECTED ERROR'));
 
-        await expect(() => controller.detectNfts()).rejects.toThrow(
+        await expect(() => controller.detectNfts(['0x1'])).rejects.toThrow(
           'UNEXPECTED ERROR',
         );
       },
@@ -1521,9 +1513,9 @@ describe('NftDetectionController', () => {
           )
           .replyWithError(new Error('Failed to fetch'));
 
-        await expect(async () => await controller.detectNfts()).rejects.toThrow(
-          'UNEXPECTED ERROR',
-        );
+        await expect(
+          async () => await controller.detectNfts(['0x1']),
+        ).rejects.toThrow('UNEXPECTED ERROR');
       },
     );
   });
@@ -1588,7 +1580,10 @@ describe('NftDetectionController', () => {
             `/collections?contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
           )
           .replyWithError(new Error('Failed to fetch'));
-        await Promise.all([controller.detectNfts(), controller.detectNfts()]);
+        await Promise.all([
+          controller.detectNfts(['0x1']),
+          controller.detectNfts(['0x1']),
+        ]);
 
         expect(mockAddNft).toHaveBeenCalledTimes(1);
       },
