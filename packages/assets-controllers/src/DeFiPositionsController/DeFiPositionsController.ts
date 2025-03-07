@@ -92,10 +92,6 @@ export class DeFiPositionsController extends BaseController<
   DeFiPositionsControllerState,
   DeFiPositionsControllerMessenger
 > {
-  // TODO: Confirm whether we can store the account address instead of the id
-  // Storing the address means we don't need to query it in every event handler
-  #selectedAccountId: string;
-
   readonly #fetchPositions: (
     accountAddress: string,
   ) => Promise<DefiPositionResponse[]>;
@@ -129,15 +125,9 @@ export class DeFiPositionsController extends BaseController<
 
     this.#fetchPositions = buildPositionFetcher(apiUrl);
 
-    this.#selectedAccountId = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    ).id;
-
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       async (selectedAccount) => {
-        this.#selectedAccountId = selectedAccount.id;
-
         await this.#updateAccountPositions(selectedAccount.address);
       },
     );
@@ -145,19 +135,17 @@ export class DeFiPositionsController extends BaseController<
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       async () => {
-        const selectedAddress = this.messagingSystem.call(
-          'AccountsController:getAccount',
-          this.#selectedAccountId,
+        const { address } = this.messagingSystem.call(
+          'AccountsController:getSelectedAccount',
         );
 
-        if (selectedAddress) {
-          await this.#updateAccountPositions(selectedAddress.address);
+        if (address) {
+          await this.#updateAccountPositions(address);
         }
       },
     );
   }
 
-  // TODO: If this becomes an action, accountAddress needs to be inferred from the id
   async #updateAccountPositions(accountAddress: string) {
     // TODO: This is done to give the UI a loading effect. Probably not the best way to do this
     this.update((state) => {

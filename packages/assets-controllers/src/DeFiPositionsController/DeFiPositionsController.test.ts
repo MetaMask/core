@@ -116,10 +116,9 @@ describe('DeFiPositionsController', () => {
   it('updates positions when selected account changes', async () => {
     const mockFetchPositionsResponse =
       'mock-data' as unknown as DefiPositionResponse[];
-    const mockFetchPositions = jest.fn().mockImplementation(() => {
-      console.log('SDJHKJKSAHJKDSAHKJDSAKHJDSAHKJHKDJSAHKJDSAJKHDSA');
-      return Promise.resolve(mockFetchPositionsResponse);
-    });
+    const mockFetchPositions = jest
+      .fn()
+      .mockResolvedValue(mockFetchPositionsResponse);
 
     const mockGroupPositionsResult = 'mock-grouped-data' as unknown as {
       [key: Hex]: GroupedPositions;
