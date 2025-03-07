@@ -21,6 +21,7 @@ export type {
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
+  TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';

@@ -93,9 +93,7 @@ export class PendingTransactionTracker {
 
   readonly #beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
-  ) => boolean;
-
-  readonly #beforePublish: (transactionMeta: TransactionMeta) => boolean;
+  ) => Promise<boolean>;
 
   constructor({
     blockTracker,
@@ -122,8 +120,7 @@ export class PendingTransactionTracker {
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
-      ) => boolean;
-      beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+      ) => Promise<boolean>;
     };
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
@@ -139,9 +136,10 @@ export class PendingTransactionTracker {
     this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#transactionPoller = new TransactionPoller(blockTracker);
-    this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
-      hooks?.beforeCheckPendingTransaction ?? (() => true);
+      hooks?.beforeCheckPendingTransaction ??
+      /* istanbul ignore next */
+      (() => Promise.resolve(true));
 
     this.#log = createModuleLogger(
       log,
@@ -300,7 +298,7 @@ export class PendingTransactionTracker {
       return;
     }
 
-    if (!this.#beforePublish(txMeta)) {
+    if (!(await this.#beforeCheckPendingTransaction(txMeta))) {
       return;
     }
 
@@ -348,7 +346,7 @@ export class PendingTransactionTracker {
   async #checkTransaction(txMeta: TransactionMeta) {
     const { hash, id } = txMeta;
 
-    if (!hash && this.#beforeCheckPendingTransaction(txMeta)) {
+    if (!hash && (await this.#beforeCheckPendingTransaction(txMeta))) {
       const error = new Error(
         'We had an error while submitting this transaction, please try again.',
       );
