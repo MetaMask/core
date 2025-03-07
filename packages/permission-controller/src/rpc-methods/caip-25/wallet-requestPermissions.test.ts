@@ -2,10 +2,6 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '@metamask/multichain';
-import {
-  invalidParams,
-  type RequestedPermissions,
-} from '@metamask/permission-controller';
 import type {
   Json,
   JsonRpcRequest,
@@ -18,6 +14,8 @@ import {
   RestrictedMethods,
 } from './constants/permissions';
 import { requestPermissionsHandler } from './wallet-requestPermissions';
+import { invalidParams } from '../../errors';
+import type { RequestedPermissions } from '../../Permission';
 
 const getBaseRequest = (overrides = {}) => ({
   jsonrpc: '2.0' as const,

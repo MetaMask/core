@@ -3569,7 +3569,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain@workspace:packages/multichain":
+"@metamask/multichain@npm:4.0.0, @metamask/multichain@workspace:packages/multichain":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain@workspace:packages/multichain"
   dependencies:
@@ -3746,6 +3746,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/controller-utils": "npm:^11.6.0"
     "@metamask/json-rpc-engine": "npm:^10.0.3"
+    "@metamask/multichain": "npm:4.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/utils": "npm:^11.2.0"
     "@types/deep-freeze-strict": "npm:^1.1.0"

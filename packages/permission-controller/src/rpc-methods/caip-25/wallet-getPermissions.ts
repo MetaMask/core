@@ -8,12 +8,6 @@ import {
   type Caip25CaveatValue,
   Caip25EndowmentPermissionName,
 } from '@metamask/multichain';
-import {
-  type CaveatSpecificationConstraint,
-  MethodNames,
-  type PermissionController,
-  type PermissionSpecificationConstraint,
-} from '@metamask/permission-controller';
 import type {
   Json,
   JsonRpcRequest,
@@ -25,6 +19,10 @@ import {
   EndowmentTypes,
   RestrictedMethods,
 } from './constants/permissions';
+import type { CaveatSpecificationConstraint } from '../../Caveat';
+import type { PermissionSpecificationConstraint } from '../../Permission';
+import type { PermissionController } from '../../PermissionController';
+import { MethodNames } from '../../utils';
 
 export const getPermissionsHandler = {
   methodNames: [MethodNames.GetPermissions],

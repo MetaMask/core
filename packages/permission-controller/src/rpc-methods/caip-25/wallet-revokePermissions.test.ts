@@ -1,5 +1,4 @@
 import { Caip25EndowmentPermissionName } from '@metamask/multichain';
-import { invalidParams } from '@metamask/permission-controller';
 import type {
   Json,
   JsonRpcRequest,
@@ -8,6 +7,7 @@ import type {
 
 import { EndowmentTypes, RestrictedMethods } from './constants/permissions';
 import { revokePermissionsHandler } from './wallet-revokePermissions';
+import { invalidParams } from '../../errors';
 
 const baseRequest = {
   jsonrpc: '2.0' as const,
