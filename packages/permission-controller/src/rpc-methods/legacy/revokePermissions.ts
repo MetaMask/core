@@ -38,7 +38,7 @@ export type RevokePermissionsHooks = {
 };
 
 /**
- * Revoke Permissions implementation to be used in JsonRpcEngine middleware.
+ * Legacy Revoke Permissions implementation to be used in JsonRpcEngine middleware.
  *
  * @param req - The JsonRpcEngine request
  * @param res - The JsonRpcEngine result object

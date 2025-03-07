@@ -24,7 +24,7 @@ export type GetPermissionsHooks = {
 };
 
 /**
- * Get Permissions implementation to be used in JsonRpcEngine middleware.
+ * Legacy Get Permissions implementation to be used in JsonRpcEngine middleware.
  *
  * @param _req - The JsonRpcEngine request - unused
  * @param res - The JsonRpcEngine result object

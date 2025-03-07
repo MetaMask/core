@@ -33,7 +33,7 @@ export type RequestPermissionsHooks = {
 };
 
 /**
- * Request Permissions implementation to be used in JsonRpcEngine middleware.
+ * Legacy Request Permissions implementation to be used in JsonRpcEngine middleware.
  *
  * @param req - The JsonRpcEngine request
  * @param res - The JsonRpcEngine result object
