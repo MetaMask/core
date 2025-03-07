@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Prevent external transactions to internal accounts if `data` included ([#5418](https://github.com/MetaMask/core/pull/5418))
+
 ## [48.0.0]
 
 ### Changed
