@@ -33,12 +33,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import {
-  type Keyring,
-  type Json,
-  type CaipChainId,
-  isCaipChainId,
-} from '@metamask/utils';
+import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
