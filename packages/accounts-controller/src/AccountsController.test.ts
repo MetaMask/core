@@ -49,9 +49,7 @@ const defaultState: AccountsControllerState = {
   },
 };
 
-const mockGetKeyringForAccount = jest.fn();
 const mockGetKeyringByType = jest.fn();
-const mockGetAccounts = jest.fn();
 const mockGetState = jest.fn();
 
 const mockAccount: InternalAccount = {
