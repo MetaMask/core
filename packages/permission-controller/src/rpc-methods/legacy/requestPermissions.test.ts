@@ -13,11 +13,11 @@ import type {
   RequestedPermissions,
 } from 'src/Permission';
 
-import { requestPermissionsHandler } from './requestPermissions';
+import { legacyRequestPermissionsHandler } from './requestPermissions';
 
 describe('requestPermissions RPC method', () => {
   it('returns the values of the object returned by requestPermissionsForOrigin', async () => {
-    const { implementation } = requestPermissionsHandler;
+    const { implementation } = legacyRequestPermissionsHandler;
     const mockRequestPermissionsForOrigin = jest
       .fn()
       .mockImplementationOnce(() => {
@@ -56,7 +56,7 @@ describe('requestPermissions RPC method', () => {
   });
 
   it('returns an error if requestPermissionsForOrigin rejects', async () => {
-    const { implementation } = requestPermissionsHandler;
+    const { implementation } = legacyRequestPermissionsHandler;
     const mockRequestPermissionsForOrigin = jest
       .fn()
       .mockImplementationOnce(async () => {
@@ -100,7 +100,7 @@ describe('requestPermissions RPC method', () => {
   });
 
   it('returns an error if the request params are invalid', async () => {
-    const { implementation } = requestPermissionsHandler;
+    const { implementation } = legacyRequestPermissionsHandler;
     const mockRequestPermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();

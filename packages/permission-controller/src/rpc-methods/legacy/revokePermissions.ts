@@ -7,12 +7,12 @@ import {
   type PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { invalidParams } from '../errors';
-import type { PermissionConstraint } from '../Permission';
-import type { PermittedHandlerExport } from '../utils';
-import { MethodNames } from '../utils';
+import { invalidParams } from '../../errors';
+import type { PermissionConstraint } from '../../Permission';
+import type { PermittedHandlerExport } from '../../utils';
+import { MethodNames } from '../../utils';
 
-export const revokePermissionsHandler: PermittedHandlerExport<
+export const legacyRevokePermissionsHandler: PermittedHandlerExport<
   RevokePermissionsHooks,
   RevokePermissionArgs,
   null
@@ -38,7 +38,7 @@ export type RevokePermissionsHooks = {
 };
 
 /**
- * Revoke Permissions implementation to be used in JsonRpcEngine middleware.
+ * Legacy Revoke Permissions implementation to be used in JsonRpcEngine middleware.
  *
  * @param req - The JsonRpcEngine request
  * @param res - The JsonRpcEngine result object

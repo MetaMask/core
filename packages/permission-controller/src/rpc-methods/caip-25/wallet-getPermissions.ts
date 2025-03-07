@@ -3,28 +3,26 @@ import type {
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
 import {
-  type CaveatSpecificationConstraint,
-  MethodNames,
-  type PermissionController,
-  type PermissionSpecificationConstraint,
-} from '@metamask/permission-controller';
+  getPermittedEthChainIds,
+  Caip25CaveatType,
+  type Caip25CaveatValue,
+  Caip25EndowmentPermissionName,
+} from '@metamask/multichain';
 import type {
   Json,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { getPermittedEthChainIds } from '../adapters/caip-permission-adapter-permittedChains';
 import {
-  Caip25CaveatType,
-  type Caip25CaveatValue,
-  Caip25EndowmentPermissionName,
-} from '../caip25Permission';
-import {
+  CaveatTypes,
   EndowmentTypes,
   RestrictedMethods,
-  CaveatTypes,
-} from '../constants/permissions';
+} from './constants/permissions';
+import type { CaveatSpecificationConstraint } from '../../Caveat';
+import type { PermissionSpecificationConstraint } from '../../Permission';
+import type { PermissionController } from '../../PermissionController';
+import { MethodNames } from '../../utils';
 
 export const getPermissionsHandler = {
   methodNames: [MethodNames.GetPermissions],

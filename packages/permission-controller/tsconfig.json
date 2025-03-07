@@ -7,7 +7,8 @@
     { "path": "../approval-controller" },
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
-    { "path": "../json-rpc-engine" }
+    { "path": "../json-rpc-engine" },
+    { "path": "../multichain" }
   ],
   "include": ["../../types", "./src"]
 }

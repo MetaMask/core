@@ -418,12 +418,6 @@
   "packages/permission-controller/src/PermissionController.ts": {
     "prettier/prettier": 12
   },
-  "packages/permission-controller/src/rpc-methods/getPermissions.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/permission-controller/src/rpc-methods/requestPermissions.ts": {
-    "prettier/prettier": 1
-  },
   "packages/permission-log-controller/src/PermissionLogController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
     "jsdoc/check-tag-names": 2,
