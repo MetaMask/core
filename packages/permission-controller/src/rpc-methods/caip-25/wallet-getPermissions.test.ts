@@ -1,25 +1,27 @@
+import * as Multichain from '@metamask/multichain';
+import {
+  Caip25CaveatType,
+  Caip25EndowmentPermissionName,
+} from '@metamask/multichain';
 import type {
   Json,
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { getPermissionsHandler } from './wallet-getPermissions';
-import * as caipPermissionAdapterPermittedChains from '../adapters/caip-permission-adapter-permittedChains';
-import {
-  Caip25CaveatType,
-  Caip25EndowmentPermissionName,
-} from '../caip25Permission';
 import {
   CaveatTypes,
   EndowmentTypes,
   RestrictedMethods,
-} from '../constants/permissions';
+} from './constants/permissions';
+import { getPermissionsHandler } from './wallet-getPermissions';
 
-jest.mock('../adapters/caip-permission-adapter-permittedChains', () => ({
-  __esModule: true,
-  ...jest.requireActual('../adapters/caip-permission-adapter-permittedChains'),
+jest.mock('@metamask/multichain', () => ({
+  ...jest.requireActual('@metamask/multichain'),
+  getPermittedEthChainIds: jest.fn(),
 }));
+
+const MockMultichain = jest.mocked(Multichain);
 
 const baseRequest = {
   jsonrpc: '2.0' as const,
@@ -96,9 +98,7 @@ describe('getPermissionsHandler', () => {
   });
 
   beforeEach(() => {
-    jest
-      .spyOn(caipPermissionAdapterPermittedChains, 'getPermittedEthChainIds')
-      .mockReturnValue([]);
+    MockMultichain.getPermittedEthChainIds.mockReturnValue([]);
   });
 
   it('gets the permissions for the origin', async () => {
@@ -177,9 +177,7 @@ describe('getPermissionsHandler', () => {
         }),
       );
       getAccounts.mockReturnValue([]);
-      jest
-        .spyOn(caipPermissionAdapterPermittedChains, 'getPermittedEthChainIds')
-        .mockReturnValue([]);
+      MockMultichain.getPermittedEthChainIds.mockReturnValue([]);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
@@ -275,9 +273,7 @@ describe('getPermissionsHandler', () => {
         }),
       );
       await handler(baseRequest);
-      expect(
-        caipPermissionAdapterPermittedChains.getPermittedEthChainIds,
-      ).toHaveBeenCalledWith({
+      expect(MockMultichain.getPermittedEthChainIds).toHaveBeenCalledWith({
         requiredScopes: {
           'eip155:1': {
             accounts: [],
@@ -296,9 +292,7 @@ describe('getPermissionsHandler', () => {
 
     it('returns the permissions with a permittedChains permission if some eip155 chainIds are permitted', async () => {
       const { handler, response } = createMockedHandler();
-      jest
-        .spyOn(caipPermissionAdapterPermittedChains, 'getPermittedEthChainIds')
-        .mockReturnValue(['0x1', '0x64']);
+      MockMultichain.getPermittedEthChainIds.mockReturnValue(['0x1', '0x64']);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
@@ -329,9 +323,7 @@ describe('getPermissionsHandler', () => {
     it('returns the permissions with a eth_accounts and permittedChains permission if some eip155 accounts and chainIds are permitted', async () => {
       const { handler, getAccounts, response } = createMockedHandler();
       getAccounts.mockReturnValue(['0x1', '0x2', '0xdeadbeef']);
-      jest
-        .spyOn(caipPermissionAdapterPermittedChains, 'getPermittedEthChainIds')
-        .mockReturnValue(['0x1', '0x64']);
+      MockMultichain.getPermittedEthChainIds.mockReturnValue(['0x1', '0x64']);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([

@@ -2,12 +2,12 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { assertIsJsonRpcSuccess } from '@metamask/utils';
 
-import type { PermissionConstraint } from '../Permission';
-import { getPermissionsHandler } from './getPermissions';
+import { legacyGetPermissionsHandler } from './getPermissions';
+import type { PermissionConstraint } from '../../Permission';
 
 describe('getPermissions RPC method', () => {
   it('returns the values of the object returned by getPermissionsForOrigin', async () => {
-    const { implementation } = getPermissionsHandler;
+    const { implementation } = legacyGetPermissionsHandler;
     const mockGetPermissionsForOrigin = jest.fn().mockImplementationOnce(() => {
       return { a: 'a', b: 'b', c: 'c' };
     });
@@ -40,7 +40,7 @@ describe('getPermissions RPC method', () => {
   });
 
   it('returns an empty array if getPermissionsForOrigin returns a falsy value', async () => {
-    const { implementation } = getPermissionsHandler;
+    const { implementation } = legacyGetPermissionsHandler;
     const mockGetPermissionsForOrigin = jest
       .fn()
       .mockImplementationOnce(() => null);

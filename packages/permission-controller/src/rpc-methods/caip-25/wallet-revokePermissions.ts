@@ -2,6 +2,7 @@ import type {
   AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
+import { Caip25EndowmentPermissionName } from '@metamask/multichain';
 import { invalidParams, MethodNames } from '@metamask/permission-controller';
 import {
   isNonEmptyArray,
@@ -10,8 +11,7 @@ import {
   type PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { Caip25EndowmentPermissionName } from '../caip25Permission';
-import { EndowmentTypes, RestrictedMethods } from '../constants/permissions';
+import { EndowmentTypes, RestrictedMethods } from './constants/permissions';
 
 export const revokePermissionsHandler = {
   methodNames: [MethodNames.RevokePermissions],

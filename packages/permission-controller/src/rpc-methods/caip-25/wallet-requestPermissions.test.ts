@@ -1,4 +1,8 @@
 import {
+  Caip25CaveatType,
+  Caip25EndowmentPermissionName,
+} from '@metamask/multichain';
+import {
   invalidParams,
   type RequestedPermissions,
 } from '@metamask/permission-controller';
@@ -8,16 +12,12 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { requestPermissionsHandler } from './wallet-requestPermissions';
-import {
-  Caip25CaveatType,
-  Caip25EndowmentPermissionName,
-} from '../caip25Permission';
 import {
   CaveatTypes,
   EndowmentTypes,
   RestrictedMethods,
-} from '../constants/permissions';
+} from './constants/permissions';
+import { requestPermissionsHandler } from './wallet-requestPermissions';
 
 const getBaseRequest = (overrides = {}) => ({
   jsonrpc: '2.0' as const,

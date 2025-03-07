@@ -7,11 +7,11 @@ import {
 } from '@metamask/utils';
 
 import type { RevokePermissionArgs } from './revokePermissions';
-import { revokePermissionsHandler } from './revokePermissions';
+import { legacyRevokePermissionsHandler } from './revokePermissions';
 
 describe('revokePermissionsHandler', () => {
   it('has the expected shape', () => {
-    expect(revokePermissionsHandler).toStrictEqual({
+    expect(legacyRevokePermissionsHandler).toStrictEqual({
       methodNames: ['wallet_revokePermissions'],
       implementation: expect.any(Function),
       hookNames: {
@@ -23,7 +23,7 @@ describe('revokePermissionsHandler', () => {
 
 describe('revokePermissions RPC method', () => {
   it('revokes permissions using revokePermissionsForOrigin', async () => {
-    const { implementation } = revokePermissionsHandler;
+    const { implementation } = legacyRevokePermissionsHandler;
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
@@ -56,7 +56,7 @@ describe('revokePermissions RPC method', () => {
   });
 
   it('returns an error if the request params is a plain object', async () => {
-    const { implementation } = revokePermissionsHandler;
+    const { implementation } = legacyRevokePermissionsHandler;
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
@@ -93,7 +93,7 @@ describe('revokePermissions RPC method', () => {
   });
 
   it('returns an error if the permissionKeys is a plain object', async () => {
-    const { implementation } = revokePermissionsHandler;
+    const { implementation } = legacyRevokePermissionsHandler;
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
@@ -130,7 +130,7 @@ describe('revokePermissions RPC method', () => {
   });
 
   it('returns an error if the params are not set', async () => {
-    const { implementation } = revokePermissionsHandler;
+    const { implementation } = legacyRevokePermissionsHandler;
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
@@ -166,7 +166,7 @@ describe('revokePermissions RPC method', () => {
   });
 
   it('returns an error if the request params is an empty array', async () => {
-    const { implementation } = revokePermissionsHandler;
+    const { implementation } = legacyRevokePermissionsHandler;
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();

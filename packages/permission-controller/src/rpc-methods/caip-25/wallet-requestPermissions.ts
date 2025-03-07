@@ -4,6 +4,12 @@ import type {
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
 import {
+  getPermittedEthChainIds,
+  Caip25CaveatType,
+  type Caip25CaveatValue,
+  Caip25EndowmentPermissionName,
+} from '@metamask/multichain';
+import {
   type Caveat,
   type CaveatSpecificationConstraint,
   invalidParams,
@@ -20,17 +26,11 @@ import type {
 } from '@metamask/utils';
 import { pick } from 'lodash';
 
-import { getPermittedEthChainIds } from '../adapters/caip-permission-adapter-permittedChains';
-import {
-  Caip25CaveatType,
-  type Caip25CaveatValue,
-  Caip25EndowmentPermissionName,
-} from '../caip25Permission';
 import {
   CaveatTypes,
   EndowmentTypes,
   RestrictedMethods,
-} from '../constants/permissions';
+} from './constants/permissions';
 
 export const requestPermissionsHandler = {
   methodNames: [MethodNames.RequestPermissions],
