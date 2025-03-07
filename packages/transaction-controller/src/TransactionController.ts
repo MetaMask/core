@@ -1,6 +1,3 @@
-/* istanbul ignore file */
-// FIXME  - remove above ignore
-
 import type { TypedTransaction } from '@ethereumjs/tx';
 import type {
   AccountsControllerGetSelectedAccountAction,
