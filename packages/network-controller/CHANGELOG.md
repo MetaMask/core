@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 319.0.0 ([#5439](https://github.com/MetaMask/core/pull/5439))
+- Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/core/pull/5437))
+- Release 319.0.0 ([#5437](https://github.com/MetaMask/core/pull/5437))
+- Integrate RPC failover into NetworkController ([#5360](https://github.com/MetaMask/core/pull/5360))
+- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- RpcService: Regard node-fetch errors as retriable ([#5298](https://github.com/MetaMask/core/pull/5298))
+
 ### Added
 
 - Implement circuit breaker pattern when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))

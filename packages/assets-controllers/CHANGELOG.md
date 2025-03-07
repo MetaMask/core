@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add token display data controller for search & discovery ([#5307](https://github.com/MetaMask/core/pull/5307))
+
 ## [53.0.0]
 
 ### Added
