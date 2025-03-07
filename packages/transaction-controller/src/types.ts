@@ -752,12 +752,14 @@ export type TransactionParams = {
   from: string;
 
   /**
-   * same as gasLimit?
+   * Maximum number of units of gas to use for this transaction.
    */
   gas?: string;
 
   /**
-   * Maxmimum number of units of gas to use for this transaction.
+   * Maximum number of units of gas to use for this transaction.
+   *
+   * @deprecated Use `gas` instead.
    */
   gasLimit?: string;
 
