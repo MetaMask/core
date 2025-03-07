@@ -960,18 +960,12 @@ describe('NetworkController', () => {
                 chainId: '0x1337' as const,
                 defaultRpcEndpointIndex: 1,
                 rpcEndpoints: [
-                  {
-                    name: 'Test Endpoint 1',
+                  buildCustomRpcEndpoint({
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                    url: 'https://test.network/1',
-                    type: RpcEndpointType.Custom,
-                  },
-                  {
-                    name: 'Test Endpoint 2',
+                  }),
+                  buildCustomRpcEndpoint({
                     networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                    url: 'https://test.network/2',
-                    type: RpcEndpointType.Custom,
-                  },
+                  }),
                 ],
               }),
             },
