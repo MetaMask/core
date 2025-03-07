@@ -7,6 +7,7 @@ import type {
   AllowedEvents,
   UserStorageControllerMessenger,
 } from '..';
+import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
 import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
@@ -57,7 +58,6 @@ export function createCustomUserStorageMessenger(props?: {
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
       'AuthenticationController:isSignedIn',
-      'AuthenticationController:performSignOut',
       'AuthenticationController:performSignIn',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
@@ -110,8 +110,9 @@ export function mockUserStorageMessenger(
   const mockAuthGetSessionProfile = typedMockFn(
     'AuthenticationController:getSessionProfile',
   ).mockResolvedValue({
-    identifierId: '',
-    profileId: 'MOCK_PROFILE_ID',
+    identifierId: MOCK_LOGIN_RESPONSE.profile.identifier_id,
+    profileId: MOCK_LOGIN_RESPONSE.profile.profile_id,
+    metaMetricsId: MOCK_LOGIN_RESPONSE.profile.metametrics_id,
   });
 
   const mockAuthPerformSignIn = typedMockFn(
@@ -122,16 +123,19 @@ export function mockUserStorageMessenger(
     'AuthenticationController:isSignedIn',
   ).mockReturnValue(true);
 
-  const mockAuthPerformSignOut = typedMockFn(
-    'AuthenticationController:performSignOut',
-  );
-
   const mockKeyringWithKeyring = typedMockFn('KeyringController:withKeyring');
-
-  const mockAccountsListAccounts = jest.fn();
-
   const mockKeyringGetAccounts = jest.fn();
   const mockKeyringAddAccounts = jest.fn();
+
+  const mockKeyringGetState = typedMockFn(
+    'KeyringController:getState',
+  ).mockReturnValue({
+    isUnlocked: true,
+    keyrings: [],
+    keyringsMetadata: [],
+  });
+
+  const mockAccountsListAccounts = jest.fn();
 
   const mockAccountsUpdateAccountMetadata = typedMockFn(
     'AccountsController:updateAccountMetadata',
@@ -194,12 +198,8 @@ export function mockUserStorageMessenger(
       return mockAuthIsSignedIn();
     }
 
-    if (actionType === 'AuthenticationController:performSignOut') {
-      return mockAuthPerformSignOut();
-    }
-
     if (actionType === 'KeyringController:getState') {
-      return { isUnlocked: true };
+      return mockKeyringGetState();
     }
 
     if (actionType === 'KeyringController:withKeyring') {
@@ -209,7 +209,7 @@ export function mockUserStorageMessenger(
       const keyring = {
         getAccounts: mockKeyringGetAccounts,
         addAccounts: mockKeyringAddAccounts,
-      } as unknown as EthKeyring<never>;
+      } as unknown as EthKeyring;
 
       const metadata = { id: 'mock-id', name: '' };
 
@@ -258,10 +258,10 @@ export function mockUserStorageMessenger(
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
-    mockAuthPerformSignOut,
     mockKeyringGetAccounts,
     mockKeyringAddAccounts,
     mockKeyringWithKeyring,
+    mockKeyringGetState,
     mockAccountsUpdateAccountMetadata,
     mockAccountsListAccounts,
     mockNetworkControllerGetState,

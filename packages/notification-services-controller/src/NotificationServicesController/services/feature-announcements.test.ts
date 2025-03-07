@@ -103,7 +103,7 @@ describe('getFeatureAnnouncementUrl', () => {
   it('should construct the correct URL for the default domain', () => {
     const url = getFeatureAnnouncementUrl(featureAnnouncementsEnv);
     expect(url).toBe(
-      `https://cdn.contentful.com/spaces/:space_id/environments/master/entries?access_token=:access_token&content_type=productAnnouncement&include=10&fields.clients=extension`,
+      `https://cdn.contentful.com/spaces/:space_id/environments/master/entries?access_token=:access_token&content_type=productAnnouncement&include=10&fields.clients%5Bin%5D=extension`,
     );
   });
 
@@ -113,7 +113,7 @@ describe('getFeatureAnnouncementUrl', () => {
       ':preview_token',
     );
     expect(url).toBe(
-      `https://preview.contentful.com/spaces/:space_id/environments/master/entries?access_token=:preview_token&content_type=productAnnouncement&include=10&fields.clients=extension`,
+      `https://preview.contentful.com/spaces/:space_id/environments/master/entries?access_token=:preview_token&content_type=productAnnouncement&include=10&fields.clients%5Bin%5D=extension`,
     );
   });
 });

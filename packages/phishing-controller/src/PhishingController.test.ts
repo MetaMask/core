@@ -39,9 +39,10 @@ function getRestrictedMessenger() {
 }
 
 /**
- * Contruct a Phishing Controller with the given options if any.
+ * Construct a Phishing Controller with the given options if any.
+ *
  * @param options - The Phishing Controller options.
- * @returns The contstructed Phishing Controller.
+ * @returns The constructed Phishing Controller.
  */
 function getPhishingController(options?: Partial<PhishingControllerOptions>) {
   return new PhishingController({
@@ -183,6 +184,20 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController({
       hotlistRefreshInterval: 10,
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            lastUpdated: 1,
+            name: ListNames.MetaMask,
+            version: 0,
+          },
+        ],
+      },
     });
     clock.tick(1000 * 10);
     const pendingUpdate = controller.updateHotlist();
@@ -494,6 +509,20 @@ describe('PhishingController', () => {
       const clock = sinon.useFakeTimers();
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 0,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+              version: 0,
+            },
+          ],
+        },
       });
       clock.tick(1000 * 10);
       const pendingUpdate = controller.updateHotlist();
@@ -1647,7 +1676,8 @@ describe('PhishingController', () => {
         },
       ]);
     });
-    it('should not update phishing lists if hotlist fetch returns 400', async () => {
+
+    it('should not update phishing lists if hotlist fetch returns 404', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(404);
@@ -1677,6 +1707,31 @@ describe('PhishingController', () => {
         },
       ]);
     });
+
+    it('should not make API calls to update hotlist when phishingLists array is empty', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+      const hotlistNock = nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [],
+        },
+      });
+      await controller.updateHotlist();
+
+      expect(hotlistNock.isDone()).toBe(false);
+    });
+
     it('should handle empty hotlist and request blocklist responses gracefully', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
