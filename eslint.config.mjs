@@ -137,6 +137,17 @@ const config = createConfig([
       // another
       'import-x/no-duplicates': 'off',
 
+      // This rule does not allow use of the `@property` tag, which is useful
+      // when documenting types that are intersections of other types.
+      // Unfortunately there's not a way to prevent the rule from checking just
+      // this property, so we have to disable all of the type-specific rules.
+      'jsdoc/check-tag-names': [
+        'warn',
+        {
+          typed: false,
+        },
+      ],
+
       // Enable rules that are disabled in `@metamask/eslint-config-typescript`
       '@typescript-eslint/no-explicit-any': 'error',
 
@@ -169,7 +180,6 @@ const config = createConfig([
       'import-x/namespace': 'warn',
       'import-x/no-named-as-default': 'warn',
       'import-x/order': 'warn',
-      'jsdoc/check-tag-names': 'warn',
       'jsdoc/require-returns': 'warn',
       'jsdoc/tag-lines': 'warn',
       'no-unused-private-class-members': 'warn',

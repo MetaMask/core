@@ -16,9 +16,6 @@
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/address-book-controller/src/AddressBookController.ts": {
-    "jsdoc/check-tag-names": 13
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 16
@@ -35,22 +32,17 @@
     "import-x/namespace": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
-    "jsdoc/check-tag-names": 5,
     "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/AssetsContractController.test.ts": {
     "import-x/order": 3
   },
   "packages/assets-controllers/src/AssetsContractController.ts": {
-    "jsdoc/check-tag-names": 2,
     "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/CurrencyRateController.test.ts": {
     "import-x/order": 1,
     "jest/no-conditional-in-test": 1
-  },
-  "packages/assets-controllers/src/CurrencyRateController.ts": {
-    "jsdoc/check-tag-names": 6
   },
   "packages/assets-controllers/src/NftController.test.ts": {
     "import-x/namespace": 9,
@@ -59,7 +51,6 @@
   },
   "packages/assets-controllers/src/NftController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 46,
     "jsdoc/tag-lines": 4
   },
   "packages/assets-controllers/src/NftDetectionController.test.ts": {
@@ -67,7 +58,6 @@
     "import-x/order": 4
   },
   "packages/assets-controllers/src/NftDetectionController.ts": {
-    "jsdoc/check-tag-names": 34,
     "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/RatesController/RatesController.test.ts": {
@@ -93,7 +83,6 @@
   },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
     "@typescript-eslint/prefer-readonly": 4,
-    "jsdoc/check-tag-names": 4,
     "jsdoc/tag-lines": 11
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
@@ -103,7 +92,6 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
     "@typescript-eslint/prefer-readonly": 3,
-    "jsdoc/check-tag-names": 8,
     "jsdoc/tag-lines": 6,
     "no-unused-private-class-members": 2
   },
@@ -113,7 +101,6 @@
     "jest/no-conditional-in-test": 2
   },
   "packages/assets-controllers/src/TokenListController.ts": {
-    "jsdoc/check-tag-names": 1,
     "jsdoc/tag-lines": 7
   },
   "packages/assets-controllers/src/TokenRatesController.test.ts": {
@@ -121,7 +108,6 @@
   },
   "packages/assets-controllers/src/TokenRatesController.ts": {
     "@typescript-eslint/prefer-readonly": 2,
-    "jsdoc/check-tag-names": 11,
     "no-unused-private-class-members": 1
   },
   "packages/assets-controllers/src/TokensController.test.ts": {
@@ -132,7 +118,6 @@
   "packages/assets-controllers/src/TokensController.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 13,
     "jsdoc/tag-lines": 3
   },
   "packages/assets-controllers/src/assetsUtil.test.ts": {
@@ -159,9 +144,6 @@
   "packages/base-controller/src/BaseControllerV2.test.ts": {
     "import-x/namespace": 16
   },
-  "packages/base-controller/src/BaseControllerV2.ts": {
-    "jsdoc/check-tag-names": 2
-  },
   "packages/base-controller/src/Messenger.test.ts": {
     "import-x/namespace": 33
   },
@@ -186,8 +168,7 @@
     "no-shadow": 2
   },
   "packages/controller-utils/src/siwe.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/check-tag-names": 5
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/controller-utils/src/types.ts": {
     "@typescript-eslint/no-duplicate-enum-values": 2,
@@ -208,9 +189,6 @@
   "packages/ens-controller/src/EnsController.test.ts": {
     "import-x/order": 2
   },
-  "packages/ens-controller/src/EnsController.ts": {
-    "jsdoc/check-tag-names": 6
-  },
   "packages/eth-json-rpc-provider/src/safe-event-emitter-provider.test.ts": {
     "import-x/namespace": 1
   },
@@ -222,8 +200,7 @@
     "import-x/order": 1
   },
   "packages/gas-fee-controller/src/GasFeeController.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 21
+    "@typescript-eslint/prefer-readonly": 1
   },
   "packages/gas-fee-controller/src/determineGasFeeCalculations.ts": {
     "jsdoc/tag-lines": 4
@@ -255,9 +232,6 @@
   "packages/logging-controller/src/LoggingController.test.ts": {
     "import-x/namespace": 1
   },
-  "packages/logging-controller/src/LoggingController.ts": {
-    "jsdoc/check-tag-names": 1
-  },
   "packages/logging-controller/src/logTypes/index.ts": {
     "@typescript-eslint/consistent-type-exports": 1
   },
@@ -265,20 +239,13 @@
     "jest/no-conditional-in-test": 7
   },
   "packages/message-manager/src/AbstractMessageManager.ts": {
-    "jsdoc/check-tag-names": 25,
     "jsdoc/tag-lines": 2
   },
   "packages/message-manager/src/DecryptMessageManager.test.ts": {
     "jest/no-conditional-in-test": 3
   },
-  "packages/message-manager/src/DecryptMessageManager.ts": {
-    "jsdoc/check-tag-names": 11
-  },
   "packages/message-manager/src/EncryptionPublicKeyManager.test.ts": {
     "jest/no-conditional-in-test": 5
-  },
-  "packages/message-manager/src/EncryptionPublicKeyManager.ts": {
-    "jsdoc/check-tag-names": 13
   },
   "packages/message-manager/src/index.ts": {
     "@typescript-eslint/consistent-type-exports": 1
@@ -426,7 +393,6 @@
   },
   "packages/permission-log-controller/src/PermissionLogController.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 2,
     "jsdoc/tag-lines": 1
   },
   "packages/permission-log-controller/tests/PermissionLogController.test.ts": {
@@ -436,7 +402,6 @@
     "import-x/no-named-as-default-member": 1
   },
   "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 42,
     "jsdoc/tag-lines": 1
   },
   "packages/phishing-controller/src/PhishingDetector.ts": {
@@ -464,7 +429,6 @@
     "@typescript-eslint/prefer-readonly": 2
   },
   "packages/rate-limit-controller/src/RateLimitController.ts": {
-    "jsdoc/check-tag-names": 4,
     "jsdoc/require-returns": 1,
     "jsdoc/tag-lines": 3
   },
@@ -479,7 +443,6 @@
   },
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts": {
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 2,
     "prettier/prettier": 1
   },
   "packages/remote-feature-flag-controller/src/utils/user-segmentation-utils.ts": {
@@ -596,13 +559,11 @@
   },
   "tests/fake-provider.ts": {
     "@typescript-eslint/prefer-promise-reject-errors": 1,
-    "@typescript-eslint/prefer-readonly": 2,
-    "jsdoc/check-tag-names": 12
+    "@typescript-eslint/prefer-readonly": 2
   },
   "tests/mock-network.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1,
-    "@typescript-eslint/prefer-readonly": 3,
-    "jsdoc/check-tag-names": 10
+    "@typescript-eslint/prefer-readonly": 3
   },
   "tests/setupAfterEnv/nock.ts": {
     "import-x/no-named-as-default-member": 3
