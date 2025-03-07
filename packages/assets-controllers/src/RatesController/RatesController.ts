@@ -167,6 +167,8 @@ export class RatesController extends BaseController<
 
     this.messagingSystem.publish(`${name}:pollingStarted`);
 
+    await this.#updateRates();
+
     this.#intervalId = setInterval(() => {
       this.#executePoll().catch(console.error);
     }, this.#intervalLength);

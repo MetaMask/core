@@ -2,12 +2,12 @@ import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import { merge, pickBy } from 'lodash';
 
+import { validateIfTransactionUnapproved } from './utils';
 import { CHAIN_IDS } from '../constants';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType } from '../types';
-import { validateIfTransactionUnapproved } from './utils';
 
 const log = createModuleLogger(projectLogger, 'swaps');
 
@@ -211,6 +211,7 @@ export function updateSwapsTransaction(
  * @param updatePostTransactionBalanceRequest.ethQuery - EthQuery object
  * @param updatePostTransactionBalanceRequest.getTransaction - Reading function for the latest transaction state
  * @param updatePostTransactionBalanceRequest.updateTransaction - Updating transaction function
+ * @returns Updated transaction metadata and approval transaction metadata if applicable.
  */
 export async function updatePostTransactionBalance(
   transactionMeta: TransactionMeta,

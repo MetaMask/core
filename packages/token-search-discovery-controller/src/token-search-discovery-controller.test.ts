@@ -9,7 +9,7 @@ import {
 import type { TokenSearchDiscoveryControllerMessenger } from './token-search-discovery-controller';
 import type {
   TokenSearchResponseItem,
-  TokenTrendingResponseItem,
+  MoralisTokenResponseItem,
 } from './types';
 
 const controllerName = 'TokenSearchDiscoveryController';
@@ -42,7 +42,7 @@ describe('TokenSearchDiscoveryController', () => {
     },
   ];
 
-  const mockTrendingResults: TokenTrendingResponseItem[] = [
+  const mockTrendingResults: MoralisTokenResponseItem[] = [
     {
       chain_id: '1',
       token_address: '0x123',
@@ -102,7 +102,15 @@ describe('TokenSearchDiscoveryController', () => {
   }
 
   class MockTokenDiscoveryService extends AbstractTokenDiscoveryApiService {
-    async getTrendingTokensByChains(): Promise<TokenTrendingResponseItem[]> {
+    async getTrendingTokensByChains(): Promise<MoralisTokenResponseItem[]> {
+      return mockTrendingResults;
+    }
+
+    async getTopGainersByChains(): Promise<MoralisTokenResponseItem[]> {
+      return mockTrendingResults;
+    }
+
+    async getTopLosersByChains(): Promise<MoralisTokenResponseItem[]> {
       return mockTrendingResults;
     }
   }
@@ -161,6 +169,20 @@ describe('TokenSearchDiscoveryController', () => {
     });
   });
 
+  describe('getTopGainers', () => {
+    it('should return top gainers results', async () => {
+      const results = await mainController.getTopGainers({});
+      expect(results).toStrictEqual(mockTrendingResults);
+    });
+  });
+
+  describe('getTopLosers', () => {
+    it('should return top losers results', async () => {
+      const results = await mainController.getTopLosers({});
+      expect(results).toStrictEqual(mockTrendingResults);
+    });
+  });
+
   describe('error handling', () => {
     class ErrorTokenSearchService extends AbstractTokenSearchApiService {
       async searchTokens(): Promise<TokenSearchResponseItem[]> {
@@ -169,7 +191,15 @@ describe('TokenSearchDiscoveryController', () => {
     }
 
     class ErrorTokenDiscoveryService extends AbstractTokenDiscoveryApiService {
-      async getTrendingTokensByChains(): Promise<TokenTrendingResponseItem[]> {
+      async getTrendingTokensByChains(): Promise<MoralisTokenResponseItem[]> {
+        return [];
+      }
+
+      async getTopGainersByChains(): Promise<MoralisTokenResponseItem[]> {
+        return [];
+      }
+
+      async getTopLosersByChains(): Promise<MoralisTokenResponseItem[]> {
         return [];
       }
     }

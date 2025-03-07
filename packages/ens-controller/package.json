@@ -49,8 +49,8 @@
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.0",
-    "@metamask/controller-utils": "^11.5.0",
-    "@metamask/utils": "^11.1.0",
+    "@metamask/controller-utils": "^11.6.0",
+    "@metamask/utils": "^11.2.0",
     "punycode": "^2.1.1"
   },
   "devDependencies": {

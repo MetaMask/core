@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING** `UserStorageController` and `AuthenticationController` now use the SDK under the hood ([#5413](https://github.com/MetaMask/core/pull/5413))
+  - **BREAKING** `AuthenticationController` state entry `sessionData` has changed shape to fully reflect the `LoginResponse` SDK type.
+  - **BREAKING** `UserStorageController` cannot use the `AuthenticationController:performSignOut` action anymore.
+- **BREAKING:** Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^25.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- Bump `@metamask/keyring-internal-api` from `^4.0.3` to `^5.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+
+## [8.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller"` from `^19.2.0` to `^19.2.1` ([#5373](https://github.com/MetaMask/core/pull/5373))
+- Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
+
+## [8.1.0]
+
+### Added
+
+- Create RPC middleware using RPC services ([#5290](https://github.com/MetaMask/core/pull/5290))
+
+### Changed
+
+- Use `KeyringController:withKeyring` for account syncing operations ([#5345](https://github.com/MetaMask/core/pull/5345))
+  - Add accounts in bulk during big sync
+  - Filter and keep only HD accounts from the primary SRP for all account sync operations
+- Bump `@metamask/keyring-controller` dependency from `^19.1.0` to `^19.2.0` ([#5357](https://github.com/MetaMask/core/pull/5357))
+
 ## [8.0.0]
 
 ### Added
@@ -483,7 +522,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@9.0.0...@metamask/profile-sync-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.1...@metamask/profile-sync-controller@9.0.0
+[8.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.1.0...@metamask/profile-sync-controller@8.1.1
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@8.0.0...@metamask/profile-sync-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.1...@metamask/profile-sync-controller@8.0.0
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@7.0.0...@metamask/profile-sync-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@6.0.0...@metamask/profile-sync-controller@7.0.0

@@ -1,6 +1,11 @@
 import nock from 'nock';
 
 import {
+  USER_STORAGE_FEATURE_NAMES,
+  type UserStoragePathWithFeatureAndKey,
+  type UserStoragePathWithFeatureOnly,
+} from '../../../shared/storage-schema';
+import {
   getMockUserStorageGetResponse,
   getMockUserStoragePutResponse,
   getMockUserStorageAllFeatureEntriesResponse,
@@ -8,12 +13,7 @@ import {
   getMockUserStorageBatchDeleteResponse,
   deleteMockUserStorageAllFeatureEntriesResponse,
   deleteMockUserStorageResponse,
-} from './mockResponses';
-import {
-  USER_STORAGE_FEATURE_NAMES,
-  type UserStoragePathWithFeatureAndKey,
-  type UserStoragePathWithFeatureOnly,
-} from '../../../shared/storage-schema';
+} from '../mocks/mockResponses';
 
 type MockReply = {
   status: nock.StatusCode;
@@ -23,6 +23,7 @@ type MockReply = {
 export const mockEndpointGetUserStorageAllFeatureEntries = async (
   path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   mockReply?: MockReply,
+  persist = true,
 ) => {
   const mockResponse = await getMockUserStorageAllFeatureEntriesResponse(path);
   const reply = mockReply ?? {
@@ -33,6 +34,10 @@ export const mockEndpointGetUserStorageAllFeatureEntries = async (
   const mockEndpoint = nock(mockResponse.url)
     .get('')
     .reply(reply.status, reply.body);
+
+  if (persist) {
+    mockEndpoint.persist();
+  }
 
   return mockEndpoint;
 };
