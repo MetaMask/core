@@ -1231,6 +1231,10 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionHelper.stop();
   }
 
+  async updateIncomingTransactions() {
+    await this.#incomingTransactionHelper.update();
+  }
+
   /**
    * Attempts to cancel a transaction based on its ID by setting its status to "rejected"
    * and emitting a `<tx.id>:finished` hub event.

@@ -4,7 +4,6 @@ import type { Hex } from '@metamask/utils';
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
-import { SUPPORTED_CHAIN_IDS } from './AccountsApiRemoteTransactionSource';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
@@ -226,15 +225,6 @@ export class IncomingTransactionHelper {
   }
 
   #canStart(): boolean {
-    const isEnabled = this.#isEnabled();
-
-    const supportedChainIds =
-      this.#remoteTransactionSource.getSupportedChains();
-
-    const isAnyChainSupported = SUPPORTED_CHAIN_IDS.some((chainId) =>
-      supportedChainIds.includes(chainId),
-    );
-
-    return isEnabled && isAnyChainSupported;
+    return this.#isEnabled();
   }
 }
