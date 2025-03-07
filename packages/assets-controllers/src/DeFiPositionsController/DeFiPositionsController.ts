@@ -13,7 +13,8 @@ import { BaseController } from '@metamask/base-controller';
 import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { fetchPositions } from './fetch-positions';
+import type { DefiPositionResponse } from './fetch-positions';
+import { buildPositionFetcher } from './fetch-positions';
 import { groupPositions, type GroupedPositions } from './group-positions';
 
 const controllerName = 'DeFiPositionsController';
@@ -95,19 +96,26 @@ export class DeFiPositionsController extends BaseController<
   // Storing the address means we don't need to query it in every event handler
   #selectedAccountId: string;
 
+  readonly #fetchPositions: (
+    accountAddress: string,
+  ) => Promise<DefiPositionResponse[]>;
+
   /**
    * Tokens controller options
    *
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
    * @param options.state - Initial state to set on this controller.
+   * @param options.apiUrl
    */
   constructor({
     messenger,
     state,
+    apiUrl,
   }: {
     messenger: DeFiPositionsControllerMessenger;
     state?: Partial<DeFiPositionsControllerState>;
+    apiUrl?: string;
   }) {
     super({
       name: controllerName,
@@ -118,6 +126,8 @@ export class DeFiPositionsController extends BaseController<
         ...state,
       },
     });
+
+    this.#fetchPositions = buildPositionFetcher(apiUrl);
 
     this.#selectedAccountId = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
@@ -154,7 +164,7 @@ export class DeFiPositionsController extends BaseController<
       state.allDeFiPositions[accountAddress] = null;
     });
 
-    const defiPositionsResponse = await fetchPositions(accountAddress);
+    const defiPositionsResponse = await this.#fetchPositions(accountAddress);
 
     const accountPositionsPerChain = groupPositions(defiPositionsResponse);
 
