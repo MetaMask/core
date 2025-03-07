@@ -253,20 +253,6 @@ describe('IncomingTransactionHelper', () => {
         expect(incomingTransactionsListener).not.toHaveBeenCalled();
       });
 
-      it('does not if current network is not supported by remote transaction source', async () => {
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource: createRemoteTransactionSourceMock(
-            [TRANSACTION_MOCK],
-            { chainIds: ['0x123'] },
-          ),
-        });
-
-        const { incomingTransactionsListener } = await runInterval(helper);
-
-        expect(incomingTransactionsListener).not.toHaveBeenCalled();
-      });
-
       it('does not if no remote transactions', async () => {
         const helper = new IncomingTransactionHelper({
           ...CONTROLLER_ARGS_MOCK,
@@ -370,19 +356,6 @@ describe('IncomingTransactionHelper', () => {
         ...CONTROLLER_ARGS_MOCK,
         isEnabled: () => false,
         remoteTransactionSource: createRemoteTransactionSourceMock([]),
-      });
-
-      helper.start();
-
-      expect(jest.getTimerCount()).toBe(0);
-    });
-
-    it('does nothing if network not supported by remote transaction source', async () => {
-      const helper = new IncomingTransactionHelper({
-        ...CONTROLLER_ARGS_MOCK,
-        remoteTransactionSource: createRemoteTransactionSourceMock([], {
-          chainIds: ['0x123'],
-        }),
       });
 
       helper.start();
