@@ -17,11 +17,9 @@ import {
 import { getPermissionsHandler } from './wallet-getPermissions';
 
 jest.mock('@metamask/multichain', () => ({
+  __esModule: true,
   ...jest.requireActual('@metamask/multichain'),
-  getPermittedEthChainIds: jest.fn(),
 }));
-
-const MockMultichain = jest.mocked(Multichain);
 
 const baseRequest = {
   jsonrpc: '2.0' as const,
@@ -98,7 +96,7 @@ describe('getPermissionsHandler', () => {
   });
 
   beforeEach(() => {
-    MockMultichain.getPermittedEthChainIds.mockReturnValue([]);
+    jest.spyOn(Multichain, 'getPermittedEthChainIds').mockReturnValue([]);
   });
 
   it('gets the permissions for the origin', async () => {
@@ -177,7 +175,7 @@ describe('getPermissionsHandler', () => {
         }),
       );
       getAccounts.mockReturnValue([]);
-      MockMultichain.getPermittedEthChainIds.mockReturnValue([]);
+      jest.spyOn(Multichain, 'getPermittedEthChainIds').mockReturnValue([]);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
@@ -273,7 +271,7 @@ describe('getPermissionsHandler', () => {
         }),
       );
       await handler(baseRequest);
-      expect(MockMultichain.getPermittedEthChainIds).toHaveBeenCalledWith({
+      expect(Multichain.getPermittedEthChainIds).toHaveBeenCalledWith({
         requiredScopes: {
           'eip155:1': {
             accounts: [],
@@ -292,7 +290,9 @@ describe('getPermissionsHandler', () => {
 
     it('returns the permissions with a permittedChains permission if some eip155 chainIds are permitted', async () => {
       const { handler, response } = createMockedHandler();
-      MockMultichain.getPermittedEthChainIds.mockReturnValue(['0x1', '0x64']);
+      jest
+        .spyOn(Multichain, 'getPermittedEthChainIds')
+        .mockReturnValue(['0x1', '0x64']);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
@@ -323,7 +323,9 @@ describe('getPermissionsHandler', () => {
     it('returns the permissions with a eth_accounts and permittedChains permission if some eip155 accounts and chainIds are permitted', async () => {
       const { handler, getAccounts, response } = createMockedHandler();
       getAccounts.mockReturnValue(['0x1', '0x2', '0xdeadbeef']);
-      MockMultichain.getPermittedEthChainIds.mockReturnValue(['0x1', '0x64']);
+      jest
+        .spyOn(Multichain, 'getPermittedEthChainIds')
+        .mockReturnValue(['0x1', '0x64']);
 
       await handler(baseRequest);
       expect(response.result).toStrictEqual([
