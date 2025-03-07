@@ -2431,6 +2431,12 @@ export class TransactionController extends BaseController<
     return updatedTransactionMeta.txParams.data as Hex;
   }
 
+  updateGasFeeToken(transactionId: string, contractAddress: Hex) {
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      transactionMeta.selectedGasFeeToken = contractAddress;
+    });
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {

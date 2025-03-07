@@ -23,6 +23,12 @@ type MakeJsonCompatible<T> = T extends Json
  */
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
+export type GasFeeToken = {
+  contractAddress: Hex;
+  balance: Hex;
+  amount: Hex;
+};
+
 /**
  * Representation of transaction metadata.
  */
@@ -170,6 +176,8 @@ type TransactionMetaBase = {
    * The number of the latest block when the transaction submit was first retried.
    */
   firstRetryBlockNumber?: string;
+
+  gasFeeTokens?: GasFeeToken[];
 
   /**
    * Whether the transaction is active.
@@ -333,6 +341,8 @@ type TransactionMetaBase = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   securityProviderResponse?: Record<string, any>;
+
+  selectedGasFeeToken?: Hex;
 
   /**
    * An array of entries that describe the user's journey through the send flow.
