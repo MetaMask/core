@@ -102,7 +102,7 @@ export class DeFiPositionsController extends BaseController<
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.apiUrl
+   * @param options.apiUrl - Override for theAPI URL to use for fetching DeFi positions.
    */
   constructor({
     messenger,
