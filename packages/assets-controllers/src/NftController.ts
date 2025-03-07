@@ -1494,6 +1494,7 @@ export class NftController extends BaseController<
    * @param options.userAddress - The address of the current user.
    * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
    * @param options.networkClientId - The networkClientId that can be used to identify the network client to use for this request.
+   * @param options.chainId - The chain ID to add the NFT to.
    * @returns Promise resolving to the current NFT list.
    */
   async addNft(
@@ -1504,11 +1505,13 @@ export class NftController extends BaseController<
       userAddress,
       source = Source.Custom,
       networkClientId,
+      chainId,
     }: {
       nftMetadata?: NftMetadata;
       userAddress?: string;
       source?: Source;
       networkClientId?: NetworkClientId;
+      chainId?: Hex;
     } = {},
   ) {
     const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
@@ -1518,7 +1521,8 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    const chainId = this.#getCorrectChainId({ networkClientId });
+    const chainIdToAddTo =
+      chainId || this.#getCorrectChainId({ networkClientId });
 
     nftMetadata =
       nftMetadata ||
@@ -1549,7 +1553,7 @@ export class NftController extends BaseController<
         tokenId,
         nftMetadata,
         nftContract,
-        chainId,
+        chainIdToAddTo,
         addressToSearch,
         source,
       );
