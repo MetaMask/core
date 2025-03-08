@@ -47,6 +47,8 @@ describe('utils', () => {
         defaultBlockExplorerUrlIndex: 0,
         rpcEndpoints: [],
         defaultRpcEndpointIndex: 0,
+        portfolioDiscoverUrl:
+          'https://portfolio.metamask.io//explore/networks/ethereum',
       };
       expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
         chainId: 'eip155:1',
@@ -55,6 +57,8 @@ describe('utils', () => {
         nativeCurrency: 'ETH',
         blockExplorerUrls: ['https://etherscan.io'],
         defaultBlockExplorerUrlIndex: 0,
+        portfolioDiscoverUrl:
+          'https://portfolio.metamask.io//explore/networks/ethereum',
       });
     });
   });
@@ -70,6 +74,8 @@ describe('utils', () => {
           defaultBlockExplorerUrlIndex: 0,
           rpcEndpoints: [],
           defaultRpcEndpointIndex: 0,
+          portfolioDiscoverUrl:
+            'https://portfolio.metamask.io//explore/networks/ethereum',
         },
         '0xe708': {
           chainId: '0xe708',
@@ -79,6 +85,8 @@ describe('utils', () => {
           defaultBlockExplorerUrlIndex: 0,
           rpcEndpoints: [],
           defaultRpcEndpointIndex: 0,
+          portfolioDiscoverUrl:
+            'https://portfolio.metamask.io//explore/networks/linea',
         },
       };
       expect(
@@ -91,6 +99,8 @@ describe('utils', () => {
           nativeCurrency: 'ETH',
           blockExplorerUrls: ['https://etherscan.io'],
           defaultBlockExplorerUrlIndex: 0,
+          portfolioDiscoverUrl:
+            'https://portfolio.metamask.io//explore/networks/ethereum',
         },
         'eip155:59144': {
           chainId: 'eip155:59144',
@@ -99,6 +109,8 @@ describe('utils', () => {
           nativeCurrency: 'ETH',
           blockExplorerUrls: ['https://lineascan.build'],
           defaultBlockExplorerUrlIndex: 0,
+          portfolioDiscoverUrl:
+            'https://portfolio.metamask.io//explore/networks/linea',
         },
       });
     });

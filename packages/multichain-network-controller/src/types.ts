@@ -35,6 +35,10 @@ export type CommonNetworkConfiguration = {
    * The name of the network.
    */
   name: string;
+  /**
+   * The URL of the portfolio discover page for the network.
+   */
+  portfolioDiscoverUrl?: string;
 };
 
 export type NonEvmNetworkConfiguration = CommonNetworkConfiguration & {
