@@ -193,7 +193,7 @@ export class MultichainBalancesController extends BaseController<
    * anything, but it updates the state of the controller.
    *
    * @param accountId - The account ID.
-   * @param assets - The list of asset types for this account to upadte.
+   * @param assets - The list of asset types for this account to update.
    */
   async #updateBalance(
     accountId: string,
