@@ -10,6 +10,8 @@ import {
   EthAccountType,
   EthScope,
   BtcScope,
+  SolScope,
+  SolAccountType,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -578,77 +580,56 @@ describe('AccountsController', () => {
       });
 
       it('add Snap accounts', async () => {
-        mockUUIDWithNormalAccounts([mockAccount]);
-
         const messenger = buildMessenger();
+
+        messenger.registerActionHandler(
+          'KeyringController:getAccounts',
+          mockGetAccounts.mockResolvedValue([]),
+        );
+
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
             {
               type: KeyringTypes.snap,
-              getAccountByAddress: jest
-                .fn()
-                .mockReturnValueOnce(mockAccount3)
-                .mockReturnValueOnce(mockAccount4),
+              listAccounts: async () => [mockAccount3, mockAccount4],
             },
           ]),
         );
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address],
-            },
-            {
-              type: KeyringTypes.snap,
-              accounts: [mockAccount3.address, mockAccount4.address],
-            },
-          ],
-          keyringsMetadata: [
-            {
-              id: 'mock-id',
-              name: 'mock-name',
-            },
-            {
-              id: 'mock-id2',
-              name: 'mock-name2',
-            },
-          ],
-        };
-
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
-              accounts: {
-                [mockAccount.id]: mockAccount,
-                [mockAccount4.id]: mockAccount4,
-              },
-              selectedAccount: mockAccount.id,
+              accounts: {},
+              selectedAccount: '',
             },
           },
           messenger,
         });
 
-        messenger.publish(
-          'KeyringController:stateChange',
-          mockNewKeyringState,
-          [],
-        );
+        // Call updateAccounts which should add the Snap accounts
+        await accountsController.updateAccounts();
 
         const accounts = accountsController.listMultichainAccounts();
 
+        // Verify the accounts were added with correct names
         expect(accounts).toStrictEqual([
-          mockAccount,
-          setLastSelectedAsAny(mockAccount4),
           setLastSelectedAsAny(
             createExpectedInternalAccount({
-              id: 'mock-id3',
-              name: 'Snap Account 2',
+              id: mockAccount3.id,
+              name: 'Snap Account 1',
               address: mockAccount3.address,
               keyringType: mockAccount3.metadata.keyring.type as KeyringTypes,
               snap: mockAccount3.metadata.snap,
+            }),
+          ),
+          setLastSelectedAsAny(
+            createExpectedInternalAccount({
+              id: mockAccount4.id,
+              name: 'Snap Account 2',
+              address: mockAccount4.address,
+              keyringType: mockAccount4.metadata.keyring.type as KeyringTypes,
+              snap: mockAccount4.metadata.snap,
             }),
           ),
         ]);
@@ -658,6 +639,11 @@ describe('AccountsController', () => {
         mockUUIDWithNormalAccounts([mockAccount]);
 
         const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getAccounts',
+          mockGetAccounts.mockResolvedValue([]),
+        );
+
         messenger.registerActionHandler(
           'KeyringController:getKeyringsByType',
           mockGetKeyringByType.mockReturnValue([
@@ -3174,63 +3160,427 @@ describe('AccountsController', () => {
         );
         expect(account).toStrictEqual(mockAccount);
       });
+    });
 
-      describe('getNextAvailableAccountName', () => {
-        it('gets the next account name', async () => {
-          const messenger = buildMessenger();
+    describe('getNextAvailableAccountName', () => {
+      it('gets the next account name', async () => {
+        const messenger = buildMessenger();
 
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const accountsController = setupAccountsController({
-            initialState: {
-              internalAccounts: {
-                accounts: {
-                  [mockAccount.id]: mockAccount,
-                  // Next name should be: "Account 2"
-                },
-                selectedAccount: mockAccount.id,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
               },
+              selectedAccount: mockAccount.id,
             },
-            messenger,
-          });
-
-          const accountName = messenger.call(
-            'AccountsController:getNextAvailableAccountName',
-          );
-          expect(accountName).toBe('Account 2');
+          },
+          messenger,
         });
 
-        it('gets the next account name with a gap', async () => {
-          const messenger = buildMessenger();
+        const accountName = messenger.call(
+          'AccountsController:getNextAvailableAccountName',
+        );
+        expect(accountName).toBe('Account 2');
+      });
 
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const accountsController = setupAccountsController({
-            initialState: {
-              internalAccounts: {
-                accounts: {
-                  [mockAccount.id]: mockAccount,
-                  // We have a gap, cause there is no "Account 2"
-                  [mockAccount3.id]: {
-                    ...mockAccount3,
-                    metadata: {
-                      ...mockAccount3.metadata,
-                      name: 'Account 3',
-                      keyring: { type: KeyringTypes.hd },
-                    },
-                  },
-                  // Next name should be: "Account 4"
-                },
-                selectedAccount: mockAccount.id,
+      it('gets the next account name with a gap', async () => {
+        const messenger = buildMessenger();
+        const mockAccount2WithCustomName = {
+          ...mockAccount2,
+          metadata: {
+            ...mockAccount2.metadata,
+            name: 'Account 2',
+            keyring: { type: KeyringTypes.hd },
+          },
+        };
+        const mockAccount3WithCustomName = {
+          ...mockAccount3,
+          metadata: {
+            ...mockAccount3.metadata,
+            name: 'Account 3',
+            keyring: { type: KeyringTypes.hd },
+          },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount2WithCustomName.id]: mockAccount2WithCustomName,
+                [mockAccount3WithCustomName.id]: mockAccount3WithCustomName,
               },
+              selectedAccount: mockAccount.id,
             },
-            messenger,
-          });
-
-          const accountName = messenger.call(
-            'AccountsController:getNextAvailableAccountName',
-          );
-          expect(accountName).toBe('Account 4');
+          },
+          messenger,
         });
+
+        const accountName = messenger.call(
+          'AccountsController:getNextAvailableAccountName',
+          {
+            keyringType: KeyringTypes.hd,
+          },
+        );
+        expect(accountName).toBe('Account 4');
+      });
+
+      it('throws error for unsupported chain namespace', async () => {
+        const messenger = buildMessenger();
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {},
+              selectedAccount: '',
+            },
+          },
+          messenger,
+        });
+
+        expect(() =>
+          messenger.call('AccountsController:getNextAvailableAccountName', {
+            keyringType: KeyringTypes.snap,
+            entropySource: 'some-entropy-source',
+            chainId: 'lip9:9ee11e9df416b18b',
+          }),
+        ).toThrow('Unsupported chain namespace: lip9');
+      });
+
+      it('gets the next Solana account name', async () => {
+        const messenger = buildMessenger();
+        const mockSolanaAccount = {
+          id: 'solana-1',
+          name: 'Solana Account 1',
+          address: 'solana-address-1',
+          type: SolAccountType.DataAccount,
+          options: {},
+          methods: [],
+          scopes: [SolScope.Mainnet],
+          metadata: {
+            name: 'Solana Account 1',
+            keyring: { type: KeyringTypes.snap },
+            snap: {
+              id: 'snap-1',
+              enabled: true,
+              name: 'Solana Snap',
+            },
+            importTime: Date.now(),
+            lastSelected: Date.now(),
+          },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockSolanaAccount.id]: mockSolanaAccount,
+              },
+              selectedAccount: mockSolanaAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const accountName = messenger.call(
+          'AccountsController:getNextAvailableAccountName',
+          {
+            keyringType: KeyringTypes.snap,
+            entropySource: 'some-entropy-source',
+            chainId: 'solana:mainnet',
+          },
+        );
+        expect(accountName).toBe('Solana Account 2');
+      });
+
+      it('gets the next Bitcoin account name', async () => {
+        const messenger = buildMessenger();
+        const mockBitcoinAccount = {
+          id: 'bitcoin-1',
+          name: 'Bitcoin Account 1',
+          address: 'bitcoin-address-1',
+          type: BtcAccountType.P2wpkh,
+          options: {},
+          methods: [],
+          scopes: [BtcScope.Mainnet],
+          metadata: {
+            name: 'Bitcoin Account 1',
+            keyring: { type: KeyringTypes.snap },
+            snap: {
+              id: 'snap-1',
+              enabled: true,
+              name: 'Bitcoin Snap',
+            },
+            importTime: Date.now(),
+            lastSelected: Date.now(),
+          },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockBitcoinAccount.id]: mockBitcoinAccount,
+              },
+              selectedAccount: mockBitcoinAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const accountName = messenger.call(
+          'AccountsController:getNextAvailableAccountName',
+          {
+            keyringType: KeyringTypes.snap,
+            entropySource: 'some-entropy-source',
+            chainId: 'bip122:mainnet',
+          },
+        );
+        expect(accountName).toBe('Bitcoin Account 2');
+      });
+
+      it('gets the nextaccount name for snap with eth-hd-keyring entropy source', async () => {
+        const messenger = buildMessenger();
+        const mockSnapAccount = {
+          id: 'snap-1',
+          name: 'Account 1',
+          address: '0x123',
+          type: EthAccountType.Eoa,
+          options: {
+            entropySource: 'eth-hd-keyring-id',
+          },
+          methods: [],
+          scopes: [EthScope.Eoa],
+          metadata: {
+            name: 'Account 1',
+            keyring: { type: KeyringTypes.snap },
+            snap: {
+              id: 'eth-hd-keyring-id',
+              enabled: true,
+              name: 'ETH Snap',
+            },
+            importTime: Date.now(),
+            lastSelected: Date.now(),
+          },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const accountsController = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockSnapAccount.id]: mockSnapAccount,
+              },
+              selectedAccount: mockSnapAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const accountName = messenger.call(
+          'AccountsController:getNextAvailableAccountName',
+          {
+            keyringType: KeyringTypes.snap,
+            entropySource: 'eth-hd-keyring-id',
+            chainId: 'solana:mainnet',
+          },
+        );
+        expect(accountName).toBe('Solana Account 2');
       });
     });
+
+    it('gets the next account name for snap accounts with already existing snap accounts', async () => {
+      const mockSolanaAccount = createExpectedInternalAccount({
+        id: 'solana-1',
+        name: 'Solana Account 1',
+        address: 'solana-address-1',
+        keyringType: KeyringTypes.snap,
+        type: SolAccountType.DataAccount,
+        snap: {
+          id: 'solana-snap-id',
+          enabled: true,
+          name: 'Solana Snap',
+        },
+      });
+
+      const mockBitcoinAccount = createExpectedInternalAccount({
+        id: 'bitcoin-1',
+        name: 'Bitcoin Account 2',
+        address: 'bitcoin-address-2',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+        snap: {
+          id: 'bitcoin-snap-id',
+          enabled: true,
+          name: 'Bitcoin Snap',
+        },
+      });
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockSolanaAccount.id]: mockSolanaAccount,
+              [mockBitcoinAccount.id]: mockBitcoinAccount,
+            },
+            selectedAccount: mockSolanaAccount.id,
+          },
+        },
+      });
+
+      // Test getting next account name for Solana
+      const solanaAccountName = accountsController.getNextAvailableAccountName({
+        keyringType: KeyringTypes.snap,
+        entropySource: 'some-entropy',
+        chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+      });
+      expect(solanaAccountName).toBe('Solana Account 3');
+
+      // Test getting next account name for Bitcoin
+      const bitcoinAccountName = accountsController.getNextAvailableAccountName(
+        {
+          keyringType: KeyringTypes.snap,
+          entropySource: 'some-entropy',
+          chainId: 'bip122:000000000019d6689c085ae165831e93',
+        },
+      );
+      expect(bitcoinAccountName).toBe('Bitcoin Account 3');
+    });
+  });
+
+  it('gets the next account name for Trezor accounts', async () => {
+    const mockTrezorAccount = createExpectedInternalAccount({
+      id: 'trezor-1',
+      name: 'Trezor Account 1',
+      address: 'trezor-address-1',
+      keyringType: KeyringTypes.trezor,
+      type: EthAccountType.Eoa,
+    });
+
+    const { accountsController } = setupAccountsController({
+      initialState: {
+        internalAccounts: {
+          accounts: {
+            [mockTrezorAccount.id]: mockTrezorAccount,
+          },
+          selectedAccount: mockTrezorAccount.id,
+        },
+      },
+    });
+
+    // Test getting next account name for Trezor
+    const trezorAccountName = accountsController.getNextAvailableAccountName({
+      keyringType: KeyringTypes.trezor.toString(),
+    });
+    expect(trezorAccountName).toBe('Trezor Account 2');
+  });
+});
+
+describe('KeyringController:stateChange handling', () => {
+  it('adds a Snap account with entropySource and a regular HD account without entropySource', async () => {
+    const messenger = buildMessenger();
+
+    // Register mock handler for getKeyringsByType
+    messenger.registerActionHandler(
+      'KeyringController:getKeyringsByType',
+      mockGetKeyringByType.mockReturnValue([
+        {
+          type: KeyringTypes.snap,
+          getAccountByAddress: jest.fn().mockReturnValueOnce(
+            createExpectedInternalAccount({
+              id: 'snap-1',
+              name: 'Snap Account 1',
+              address: '0x123',
+              keyringType: KeyringTypes.snap,
+              type: SolAccountType.DataAccount,
+              snap: {
+                id: 'test-snap-id',
+                enabled: true,
+                name: 'Solana Snap',
+              },
+              options: {
+                entropySource: 'test-entropy' as string,
+              },
+            }),
+          ),
+        },
+      ]),
+    );
+
+    const mockSnapAccount = createExpectedInternalAccount({
+      id: 'snap-1',
+      name: 'Snap Account 1',
+      address: '0x123',
+      keyringType: KeyringTypes.snap,
+      type: SolAccountType.DataAccount,
+      snap: {
+        id: 'test-snap-id',
+        enabled: true,
+        name: 'Solana Snap',
+      },
+    });
+
+    // Ensure entropy source is set correctly
+    mockSnapAccount.options = {
+      entropySource: 'test-entropy' as string,
+    };
+
+    const mockHdAccount = createExpectedInternalAccount({
+      id: 'hd-1',
+      name: 'HD Account 1',
+      address: '0x456',
+      keyringType: KeyringTypes.hd,
+      type: EthAccountType.Eoa,
+    });
+
+    const { accountsController } = setupAccountsController({
+      initialState: {
+        internalAccounts: {
+          accounts: {},
+          selectedAccount: '',
+        },
+      },
+      messenger,
+    });
+
+    // Simulate KeyringController:stateChange
+    messenger.publish(
+      'KeyringController:stateChange',
+      {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.snap,
+            accounts: [mockSnapAccount.address],
+          },
+          {
+            type: KeyringTypes.hd,
+            accounts: [mockHdAccount.address],
+          },
+        ],
+        keyringsMetadata: [
+          {
+            id: 'snap-1',
+            name: 'Snap Keyring',
+          },
+          {
+            id: 'hd-1',
+            name: 'HD Keyring',
+          },
+        ],
+      },
+      [],
+    );
+
+    const accounts = accountsController.listMultichainAccounts();
+
+    expect(accounts).toHaveLength(2);
+    expect(accounts[0].metadata.name).toBe('Account 1');
+    expect(accounts[1].metadata.name).toBe('Solana Account 2');
   });
 });
