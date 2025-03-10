@@ -383,12 +383,12 @@ export class EarnController extends BaseController<
    * Refreshes pooled staking vault daily apys for the current chain.
    * Updates the pooled staking vault daily apys controller state.
    *
-   * @param days - The number of days to fetch pooled staking vault daily apys for (defaults to 30).
+   * @param days - The number of days to fetch pooled staking vault daily apys for (defaults to 365).
    * @param order - The order in which to fetch pooled staking vault daily apys. Descending order fetches the latest N days (latest working backwards). Ascending order fetches the oldest N days (oldest working forwards) (defaults to 'desc').
    * @returns A promise that resolves when the pooled staking vault daily apys have been updated.
    */
   async refreshPooledStakingVaultDailyApys(
-    days = 30,
+    days = 365,
     order: 'asc' | 'desc' = 'desc',
   ): Promise<void> {
     const chainId = this.#getCurrentChainId();
