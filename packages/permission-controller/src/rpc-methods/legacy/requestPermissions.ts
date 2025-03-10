@@ -2,12 +2,15 @@ import { isPlainObject } from '@metamask/controller-utils';
 import type { JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
-import { invalidParams } from '../errors';
-import type { PermissionConstraint, RequestedPermissions } from '../Permission';
-import type { PermittedHandlerExport } from '../utils';
-import { MethodNames } from '../utils';
+import { invalidParams } from '../../errors';
+import type {
+  PermissionConstraint,
+  RequestedPermissions,
+} from '../../Permission';
+import type { PermittedHandlerExport } from '../../utils';
+import { MethodNames } from '../../utils';
 
-export const requestPermissionsHandler: PermittedHandlerExport<
+export const legacyRequestPermissionsHandler: PermittedHandlerExport<
   RequestPermissionsHooks,
   [RequestedPermissions],
   PermissionConstraint[]
@@ -30,7 +33,7 @@ export type RequestPermissionsHooks = {
 };
 
 /**
- * Request Permissions implementation to be used in JsonRpcEngine middleware.
+ * Legacy Request Permissions implementation to be used in JsonRpcEngine middleware.
  *
  * @param req - The JsonRpcEngine request
  * @param res - The JsonRpcEngine result object
@@ -54,9 +57,8 @@ async function requestPermissionsImplementation(
   }
 
   const [requestedPermissions] = params;
-  const [grantedPermissions] = await requestPermissionsForOrigin(
-    requestedPermissions,
-  );
+  const [grantedPermissions] =
+    await requestPermissionsForOrigin(requestedPermissions);
 
   // `wallet_requestPermission` is specified to return an array.
   res.result = Object.values(grantedPermissions);
