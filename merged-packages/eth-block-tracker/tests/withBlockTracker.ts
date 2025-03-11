@@ -57,7 +57,7 @@ type FakeProviderStub =
     }
   | {
       methodName: string;
-      error: string;
+      error: unknown;
     };
 
 /**
@@ -124,7 +124,7 @@ function getFakeProvider({
         } else if ('result' in stub) {
           return stub.result;
         } else if ('error' in stub) {
-          throw new Error(stub.error);
+          throw stub.error;
         }
         return null;
       }

@@ -194,7 +194,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                error: 'boom',
+                error: new Error('boom'),
               },
             ],
           },
@@ -221,7 +221,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                error: 'boom',
+                error: new Error('boom'),
               },
             ],
           },
@@ -454,7 +454,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  error: 'boom',
+                  error: new Error('boom'),
                 },
                 {
                   methodName: 'eth_blockNumber',
@@ -560,7 +560,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                error: 'boom',
+                error: new Error('boom'),
               },
             ],
           },
@@ -782,7 +782,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                error: 'boom',
+                error: new Error('boom'),
               },
               {
                 methodName: 'eth_blockNumber',
@@ -1304,7 +1304,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -1419,7 +1419,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -1936,7 +1936,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -2043,7 +2043,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -2753,7 +2753,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -2869,7 +2869,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  error: 'boom',
+                  error: new Error('boom'),
                 },
                 {
                   methodName: 'eth_blockNumber',
@@ -3040,7 +3040,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -3156,7 +3156,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  error: 'boom',
+                  error: new Error('boom'),
                 },
                 {
                   methodName: 'eth_blockNumber',

@@ -358,7 +358,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -445,7 +445,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_subscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -532,7 +532,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_unsubscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -862,7 +862,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                   {
                     methodName: 'eth_subscribe',
@@ -960,7 +960,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_subscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -1535,7 +1535,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -1629,7 +1629,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_subscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -2071,7 +2071,7 @@ describe('SubscribeBlockTracker', () => {
                     {
                       methodName: 'eth_unsubscribe',
                       result: {
-                        error: 'boom',
+                        error: new Error('boom'),
                       },
                     },
                   ],
@@ -2177,7 +2177,7 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_unsubscribe',
-                      error: 'boom',
+                      error: new Error('boom'),
                     },
                   ],
                 },
@@ -2280,7 +2280,7 @@ describe('SubscribeBlockTracker', () => {
                     {
                       methodName: 'eth_unsubscribe',
                       result: {
-                        error: 'boom',
+                        error: new Error('boom'),
                       },
                     },
                   ],
@@ -2386,7 +2386,7 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_unsubscribe',
-                      error: 'boom',
+                      error: new Error('boom'),
                     },
                   ],
                 },
@@ -2568,7 +2568,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -2664,7 +2664,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_subscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -2756,7 +2756,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_unsubscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -2908,7 +2908,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -3004,7 +3004,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_subscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
@@ -3096,7 +3096,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_unsubscribe',
-                    error: 'boom',
+                    error: new Error('boom'),
                   },
                 ],
               },
