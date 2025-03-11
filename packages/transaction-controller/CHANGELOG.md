@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [48.1.0]
+
+### Changed
+
+- Prevent external transactions to internal accounts if `data` included ([#5418](https://github.com/MetaMask/core/pull/5418))
+
 ## [48.0.0]
 
 ### Changed
@@ -1326,7 +1332,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.1.0...HEAD
+[48.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.0.0...@metamask/transaction-controller@48.1.0
 [48.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@47.0.0...@metamask/transaction-controller@48.0.0
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@46.0.0...@metamask/transaction-controller@47.0.0
 [46.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@45.1.0...@metamask/transaction-controller@46.0.0
