@@ -10,6 +10,7 @@ import {
 import { TransactionEnvelopeType, TransactionType } from '../types';
 import type { TransactionParams } from '../types';
 
+const DATA_MOCK = '0x12345678';
 const FROM_MOCK = '0x1678a085c290ebd122dc42cba69373b5953b831d';
 const TO_MOCK = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
 const ORIGIN_MOCK = 'test-origin';
@@ -680,9 +681,10 @@ describe('validation', () => {
       );
     });
 
-    it('throws if external and to is internal account', async () => {
+    it('throws if external and to is internal account and data', async () => {
       await expect(
         validateTransactionOrigin({
+          data: DATA_MOCK,
           from: FROM_MOCK,
           internalAccounts: [TO_MOCK],
           origin: ORIGIN_MOCK,
@@ -693,10 +695,32 @@ describe('validation', () => {
         }),
       ).rejects.toThrow(
         rpcErrors.invalidParams(
-          'External transactions to internal accounts are not supported',
+          'External transactions to internal accounts cannot include data',
         ),
       );
     });
+
+    it.each([
+      ['undefined', undefined],
+      ['empty', ''],
+      ['empty hex', '0x'],
+    ])(
+      'does not throw if external and to is internal account but data is %s',
+      async (_title, data) => {
+        expect(
+          await validateTransactionOrigin({
+            data,
+            from: FROM_MOCK,
+            internalAccounts: [TO_MOCK],
+            origin: ORIGIN_MOCK,
+            selectedAddress: '0x123',
+            txParams: {
+              to: TO_MOCK,
+            } as TransactionParams,
+          }),
+        ).toBeUndefined();
+      },
+    );
 
     it('does not throw if external and to is internal account but type is batch', async () => {
       expect(
@@ -752,9 +776,7 @@ describe('validation', () => {
           },
         }),
       ).toThrow(
-        rpcErrors.invalidParams(
-          'External transactions to internal accounts are not supported',
-        ),
+        rpcErrors.invalidParams('Calls to internal accounts are not supported'),
       );
     });
 

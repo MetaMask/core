@@ -1096,6 +1096,7 @@ export class TransactionController extends BaseController<
     const internalAccounts = this.#getInternalAccounts();
 
     await validateTransactionOrigin({
+      data: txParams.data,
       from: txParams.from,
       internalAccounts,
       origin,
