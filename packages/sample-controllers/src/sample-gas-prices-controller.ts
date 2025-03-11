@@ -8,7 +8,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { NetworkControllerGetStateAction } from './network-controller-types';
-import type { AbstractGasPricesService } from './sample-gas-prices-service';
+import type { SampleAbstractGasPricesService } from './sample-gas-prices-service';
 
 // === GENERAL ===
 
@@ -195,7 +195,7 @@ export class SampleGasPricesController extends BaseController<
   /**
    * The service object that is used to obtain gas prices.
    */
-  readonly #gasPricesService: AbstractGasPricesService;
+  readonly #gasPricesService: SampleAbstractGasPricesService;
 
   /**
    * Constructs a new {@link SampleGasPricesController}.
@@ -214,7 +214,7 @@ export class SampleGasPricesController extends BaseController<
   }: {
     messenger: SampleGasPricesControllerMessenger;
     state?: Partial<SampleGasPricesControllerState>;
-    gasPricesService: AbstractGasPricesService;
+    gasPricesService: SampleAbstractGasPricesService;
   }) {
     super({
       messenger,

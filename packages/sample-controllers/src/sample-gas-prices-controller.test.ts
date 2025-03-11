@@ -6,7 +6,7 @@ import {
   getDefaultNetworkControllerState,
   type NetworkControllerGetStateAction,
 } from './network-controller-types';
-import type { AbstractGasPricesService } from './sample-gas-prices-service';
+import type { SampleAbstractGasPricesService } from './sample-gas-prices-service';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
@@ -152,7 +152,7 @@ function getMessenger(
  *
  * @returns The mock SampleGasPricesService object.
  */
-function buildGasPricesService(): AbstractGasPricesService {
+function buildGasPricesService(): SampleAbstractGasPricesService {
   return {
     fetchGasPrices: jest.fn(),
   };

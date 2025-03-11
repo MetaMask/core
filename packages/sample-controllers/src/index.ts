@@ -21,5 +21,5 @@ export type {
 export { SamplePetnamesController } from './sample-petnames-controller';
 export {
   SampleGasPricesService,
-  type AbstractGasPricesService,
+  type SampleAbstractGasPricesService,
 } from './sample-gas-prices-service';
