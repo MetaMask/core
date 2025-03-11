@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.4.1]
+
 ### Uncategorized
 
 - chore: add `RecommendedAction` to export ([#5456](https://github.com/MetaMask/core.git/pull/5456))
@@ -348,7 +350,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.4.1...HEAD
+[12.4.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.4.0...@metamask/phishing-controller@12.4.1
 [12.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.3.2...@metamask/phishing-controller@12.4.0
 [12.3.2]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.3.1...@metamask/phishing-controller@12.3.2
 [12.3.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@12.3.0...@metamask/phishing-controller@12.3.1
