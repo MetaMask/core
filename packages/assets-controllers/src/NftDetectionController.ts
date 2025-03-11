@@ -585,16 +585,6 @@ export class NftDetectionController extends BaseController<
       this.messagingSystem.call('AccountsController:getSelectedAccount')
         .address;
 
-    /*     const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    const {
-      configuration: { chainId },
-    } = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    ); */
-
     // filter out unsupported chainIds
     const supportedChainIds = chainIds.filter((chainId) =>
       supportedNftDetectionNetworks.includes(chainId),
@@ -792,6 +782,7 @@ export class NftDetectionController extends BaseController<
               rarityRank && { rarityRank },
               rarityScore && { rarityScore },
               collection && { collection },
+              chainId && { chainId },
             );
             await this.#addNft(contract, tokenId, {
               nftMetadata,

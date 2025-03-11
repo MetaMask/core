@@ -180,6 +180,7 @@ export type NftMetadata = {
   lastSale?: LastSale;
   rarityRank?: string;
   topBid?: TopBid;
+  chainId?: string;
 };
 
 /**
