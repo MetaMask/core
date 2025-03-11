@@ -3229,25 +3229,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/example-controllers@workspace:examples/example-controllers":
-  version: 0.0.0-use.local
-  resolution: "@metamask/example-controllers@workspace:examples/example-controllers"
-  dependencies:
-    "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/controller-utils": "npm:^11.6.0"
-    "@metamask/utils": "npm:^11.2.0"
-    "@types/jest": "npm:^27.4.1"
-    deepmerge: "npm:^4.2.2"
-    jest: "npm:^27.5.1"
-    nock: "npm:^13.3.1"
-    ts-jest: "npm:^27.1.4"
-    typedoc: "npm:^0.24.8"
-    typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.2.2"
-  languageName: unknown
-  linkType: soft
-
 "@metamask/gas-fee-controller@npm:^22.0.3, @metamask/gas-fee-controller@workspace:packages/gas-fee-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/gas-fee-controller@workspace:packages/gas-fee-controller"
@@ -4014,6 +3995,28 @@ __metadata:
   checksum: 10/e24db4d7c20764bfc5b025065f92518c805f0ffb1da4820078b8cff7dcae964c0f354cf053fcb7ac659de015d5ffdf21aae5e8d44e191ee8faa9066855f22653
   languageName: node
   linkType: hard
+
+"@metamask/sample-controllers@workspace:packages/sample-controllers":
+  version: 0.0.0-use.local
+  resolution: "@metamask/sample-controllers@workspace:packages/sample-controllers"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/controller-utils": "npm:^11.6.0"
+    "@metamask/network-controller": "npm:^22.2.1"
+    "@metamask/utils": "npm:^11.2.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    nock: "npm:^13.3.1"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/network-controller": ^22.0.0
+  languageName: unknown
+  linkType: soft
 
 "@metamask/scure-bip39@npm:^2.1.1":
   version: 2.1.1
