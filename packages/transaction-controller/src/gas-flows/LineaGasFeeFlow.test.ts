@@ -1,6 +1,8 @@
 import { query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+import { LineaGasFeeFlow } from './LineaGasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type {
   FeeMarketGasFeeEstimates,
@@ -13,8 +15,6 @@ import {
   GasFeeEstimateType,
   TransactionStatus,
 } from '../types';
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import { LineaGasFeeFlow } from './LineaGasFeeFlow';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

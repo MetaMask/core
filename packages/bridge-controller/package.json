@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "1.0.0",
+  "version": "5.0.0",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -47,19 +47,24 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
+    "@ethersproject/address": "^5.7.0",
+    "@ethersproject/bignumber": "^5.7.0",
+    "@ethersproject/constants": "^5.7.0",
+    "@ethersproject/contracts": "^5.7.0",
+    "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^8.0.0",
-    "@metamask/controller-utils": "^11.5.0",
+    "@metamask/controller-utils": "^11.6.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/polling-controller": "^12.0.3",
-    "@metamask/utils": "^11.2.0",
-    "ethers": "^6.12.0"
+    "@metamask/utils": "^11.2.0"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^24.0.1",
+    "@metamask/accounts-controller": "^26.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/network-controller": "^22.2.1",
-    "@metamask/transaction-controller": "^46.0.0",
+    "@metamask/superstruct": "^3.1.0",
+    "@metamask/transaction-controller": "^48.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -72,9 +77,9 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^24.0.0",
+    "@metamask/accounts-controller": "^26.0.0",
     "@metamask/network-controller": "^22.0.0",
-    "@metamask/transaction-controller": "^46.0.0"
+    "@metamask/transaction-controller": "^48.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

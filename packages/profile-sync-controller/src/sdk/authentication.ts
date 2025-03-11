@@ -16,7 +16,7 @@ import type { Env } from '../shared/env';
 
 type Compute<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 type SIWEInterface = Compute<SIWEJwtBearerAuth>;
-type SRPInterface = Compute<SRPJwtBearerAuth>;
+export type SRPInterface = Compute<SRPJwtBearerAuth>;
 
 type SiweParams = ConstructorParameters<typeof SIWEJwtBearerAuth>;
 type SRPParams = ConstructorParameters<typeof SRPJwtBearerAuth>;

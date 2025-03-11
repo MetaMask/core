@@ -15,8 +15,10 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import type { TransactionControllerGetStateAction } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  TransactionControllerGetStateAction,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 
 import type { BridgeStatusController } from './bridge-status-controller';
 import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
@@ -247,12 +249,8 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
 
 export type SourceChainTxMetaId = string;
 
-export type BridgeStatusState = {
-  txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
-};
-
 export type BridgeStatusControllerState = {
-  bridgeStatusState: BridgeStatusState;
+  txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
 };
 
 // Actions

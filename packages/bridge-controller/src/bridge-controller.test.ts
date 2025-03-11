@@ -1,6 +1,6 @@
+import { Contract } from '@ethersproject/contracts';
 import type { Hex } from '@metamask/utils';
 import { bigIntToHex } from '@metamask/utils';
-import { Contract } from 'ethers';
 import nock from 'nock';
 
 import { BridgeController } from './bridge-controller';
@@ -20,9 +20,7 @@ import mockBridgeQuotesErc20Native from '../tests/mock-quotes-erc20-native.json'
 import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
 import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
 
-const EMPTY_INIT_STATE = {
-  bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
-};
+const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
 const messengerMock = {
   call: jest.fn(),
@@ -31,13 +29,13 @@ const messengerMock = {
   publish: jest.fn(),
 } as unknown as jest.Mocked<BridgeControllerMessenger>;
 
-jest.mock('ethers', () => {
+jest.mock('@ethersproject/contracts', () => {
   return {
-    ...jest.requireActual('ethers'),
+    ...jest.requireActual('@ethersproject/contracts'),
     Contract: jest.fn(),
-    BrowserProvider: jest.fn(),
   };
 });
+
 const getLayer1GasFeeMock = jest.fn();
 const mockFetchFn = handleFetch;
 
@@ -174,14 +172,14 @@ describe('BridgeController', function () {
     );
 
     await bridgeController.setBridgeFeatureFlags();
-    expect(bridgeController.state.bridgeState.bridgeFeatureFlags).toStrictEqual(
+    expect(bridgeController.state.bridgeFeatureFlags).toStrictEqual(
       expectedFeatureFlagsResponse,
     );
     expect(setIntervalLengthSpy).toHaveBeenCalledTimes(1);
     expect(setIntervalLengthSpy).toHaveBeenCalledWith(3);
 
     bridgeController.resetState();
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         bridgeFeatureFlags: expectedFeatureFlagsResponse,
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
@@ -194,38 +192,34 @@ describe('BridgeController', function () {
 
   it('updateBridgeQuoteRequestParams should update the quoteRequest state', async function () {
     await bridgeController.updateBridgeQuoteRequestParams({ srcChainId: 1 });
-    expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
+    expect(bridgeController.state.quoteRequest).toStrictEqual({
       srcChainId: 1,
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({ destChainId: 10 });
-    expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
+    expect(bridgeController.state.quoteRequest).toStrictEqual({
       destChainId: 10,
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
       destChainId: undefined,
     });
-    expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
+    expect(bridgeController.state.quoteRequest).toStrictEqual({
       destChainId: undefined,
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
       srcTokenAddress: undefined,
     });
-    expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
+    expect(bridgeController.state.quoteRequest).toStrictEqual({
       slippage: 0.5,
       srcTokenAddress: undefined,
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
@@ -233,30 +227,26 @@ describe('BridgeController', function () {
       destTokenAddress: '0x123',
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
-    expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
+    expect(bridgeController.state.quoteRequest).toStrictEqual({
       srcTokenAmount: '100000',
       destTokenAddress: '0x123',
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
 
     await bridgeController.updateBridgeQuoteRequestParams({
       srcTokenAddress: '0x2ABC',
     });
-    expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
+    expect(bridgeController.state.quoteRequest).toStrictEqual({
       slippage: 0.5,
       srcTokenAddress: '0x2ABC',
-      walletAddress: undefined,
     });
 
     bridgeController.resetState();
-    expect(bridgeController.state.bridgeState.quoteRequest).toStrictEqual({
+    expect(bridgeController.state.quoteRequest).toStrictEqual({
       slippage: 0.5,
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
-      walletAddress: undefined,
     });
   });
 
@@ -326,7 +316,7 @@ describe('BridgeController', function () {
       },
     });
 
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, walletAddress: undefined },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
@@ -349,11 +339,9 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
     );
-    expect(
-      bridgeController.state.bridgeState.quotesLastFetched,
-    ).toBeUndefined();
+    expect(bridgeController.state.quotesLastFetched).toBeNull();
 
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: [],
@@ -364,20 +352,20 @@ describe('BridgeController', function () {
     // After first fetch
     jest.advanceTimersByTime(10000);
     await flushPromises();
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: mockBridgeQuotesNativeErc20Eth,
         quotesLoadingStatus: 1,
       }),
     );
-    const firstFetchTime = bridgeController.state.bridgeState.quotesLastFetched;
+    const firstFetchTime = bridgeController.state.quotesLastFetched;
     expect(firstFetchTime).toBeGreaterThan(0);
 
     // After 2nd fetch
     jest.advanceTimersByTime(50000);
     await flushPromises();
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: [
@@ -385,13 +373,12 @@ describe('BridgeController', function () {
           ...mockBridgeQuotesNativeErc20Eth,
         ],
         quotesLoadingStatus: 1,
-        quoteFetchError: undefined,
+        quoteFetchError: null,
         quotesRefreshCount: 2,
       }),
     );
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
-    const secondFetchTime =
-      bridgeController.state.bridgeState.quotesLastFetched;
+    const secondFetchTime = bridgeController.state.quotesLastFetched;
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(secondFetchTime).toBeGreaterThan(firstFetchTime!);
 
@@ -399,7 +386,7 @@ describe('BridgeController', function () {
     jest.advanceTimersByTime(50000);
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: false },
         quotes: [
@@ -412,7 +399,7 @@ describe('BridgeController', function () {
       }),
     );
     expect(
-      bridgeController.state.bridgeState.quotesLastFetched,
+      bridgeController.state.quotesLastFetched,
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     ).toBeGreaterThan(secondFetchTime!);
 
@@ -478,12 +465,12 @@ describe('BridgeController', function () {
       },
     });
 
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, walletAddress: undefined },
         quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
         quotesLastFetched: DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLastFetched,
-        quotesInitialLoadTime: undefined,
+        quotesInitialLoadTime: null,
         quotesLoadingStatus:
           DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
       }),
@@ -502,11 +489,9 @@ describe('BridgeController', function () {
       BridgeClientId.EXTENSION,
       mockFetchFn,
     );
-    expect(
-      bridgeController.state.bridgeState.quotesLastFetched,
-    ).toBeUndefined();
+    expect(bridgeController.state.quotesLastFetched).toBeNull();
 
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: [],
@@ -517,7 +502,7 @@ describe('BridgeController', function () {
     // After first fetch
     jest.advanceTimersByTime(10000);
     await flushPromises();
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: mockBridgeQuotesNativeErc20Eth,
@@ -526,14 +511,14 @@ describe('BridgeController', function () {
         quotesInitialLoadTime: 11000,
       }),
     );
-    const firstFetchTime = bridgeController.state.bridgeState.quotesLastFetched;
+    const firstFetchTime = bridgeController.state.quotesLastFetched;
     expect(firstFetchTime).toBeGreaterThan(0);
 
     // After 2nd fetch
     jest.advanceTimersByTime(50000);
     await flushPromises();
     expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: { ...quoteRequest, insufficientBal: true },
         quotes: mockBridgeQuotesNativeErc20Eth,
@@ -542,8 +527,7 @@ describe('BridgeController', function () {
         quotesInitialLoadTime: 11000,
       }),
     );
-    const secondFetchTime =
-      bridgeController.state.bridgeState.quotesLastFetched;
+    const secondFetchTime = bridgeController.state.quotesLastFetched;
     expect(secondFetchTime).toStrictEqual(firstFetchTime);
     expect(getLayer1GasFeeMock).not.toHaveBeenCalled();
   });
@@ -566,7 +550,7 @@ describe('BridgeController', function () {
     expect(stopAllPollingSpy).toHaveBeenCalledTimes(1);
     expect(startPollingSpy).not.toHaveBeenCalled();
 
-    expect(bridgeController.state.bridgeState).toStrictEqual(
+    expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
         quoteRequest: {
           srcChainId: 1,
@@ -709,7 +693,7 @@ describe('BridgeController', function () {
         },
       });
 
-      expect(bridgeController.state.bridgeState).toStrictEqual(
+      expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
           quoteRequest: { ...quoteRequest, walletAddress: undefined },
           quotes: DEFAULT_BRIDGE_CONTROLLER_STATE.quotes,
@@ -732,11 +716,9 @@ describe('BridgeController', function () {
         BridgeClientId.EXTENSION,
         mockFetchFn,
       );
-      expect(
-        bridgeController.state.bridgeState.quotesLastFetched,
-      ).toBeUndefined();
+      expect(bridgeController.state.quotesLastFetched).toBeNull();
 
-      expect(bridgeController.state.bridgeState).toStrictEqual(
+      expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
           quoteRequest: { ...quoteRequest, insufficientBal: true },
           quotes: [],
@@ -747,8 +729,8 @@ describe('BridgeController', function () {
       // After first fetch
       jest.advanceTimersByTime(1500);
       await flushPromises();
-      const { quotes } = bridgeController.state.bridgeState;
-      expect(bridgeController.state.bridgeState).toStrictEqual(
+      const { quotes } = bridgeController.state;
+      expect(bridgeController.state).toStrictEqual(
         expect.objectContaining({
           quoteRequest: { ...quoteRequest, insufficientBal: true },
           quotesLoadingStatus: 1,
@@ -761,8 +743,7 @@ describe('BridgeController', function () {
         expect(quote).toEqual(expectedQuote);
       });
 
-      const firstFetchTime =
-        bridgeController.state.bridgeState.quotesLastFetched;
+      const firstFetchTime = bridgeController.state.quotesLastFetched;
       expect(firstFetchTime).toBeGreaterThan(0);
 
       expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(
@@ -799,7 +780,7 @@ describe('BridgeController', function () {
 
     expect(fetchBridgeQuotesSpy).not.toHaveBeenCalled();
     expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
-    expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(
+    expect(bridgeController.state.quotesLoadingStatus).toBe(
       DEFAULT_BRIDGE_CONTROLLER_STATE.quotesLoadingStatus,
     );
   });
@@ -836,9 +817,9 @@ describe('BridgeController', function () {
     await flushPromises();
 
     // Verify state wasn't updated due to abort
-    expect(bridgeController.state.bridgeState.quoteFetchError).toBeUndefined();
-    expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(0);
-    expect(bridgeController.state.bridgeState.quotes).toStrictEqual([]);
+    expect(bridgeController.state.quoteFetchError).toBeNull();
+    expect(bridgeController.state.quotesLoadingStatus).toBe(0);
+    expect(bridgeController.state.quotes).toStrictEqual([]);
 
     // Test reset abort
     fetchBridgeQuotesSpy.mockRejectedValueOnce('Reset controller state');
@@ -849,8 +830,8 @@ describe('BridgeController', function () {
     await flushPromises();
 
     // Verify state wasn't updated due to reset
-    expect(bridgeController.state.bridgeState.quoteFetchError).toBeUndefined();
-    expect(bridgeController.state.bridgeState.quotesLoadingStatus).toBe(0);
-    expect(bridgeController.state.bridgeState.quotes).toStrictEqual([]);
+    expect(bridgeController.state.quoteFetchError).toBeNull();
+    expect(bridgeController.state.quotesLoadingStatus).toBe(0);
+    expect(bridgeController.state.quotes).toStrictEqual([]);
   });
 });

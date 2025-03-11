@@ -1,9 +1,10 @@
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
+import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
 import { Messenger } from '@metamask/base-controller';
-import HDKeyring from '@metamask/eth-hd-keyring';
+import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
   normalize,
   recoverPersonalSignature,
@@ -14,15 +15,9 @@ import {
 } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
+import type { KeyringClass } from '@metamask/keyring-utils';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
-import type { KeyringClass } from '@metamask/utils';
-import {
-  bytesToHex,
-  isValidHexAddress,
-  type Hex,
-  type Keyring,
-  type Json,
-} from '@metamask/utils';
+import { bytesToHex, isValidHexAddress, type Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
 import * as uuid from 'uuid';
 
@@ -122,7 +117,7 @@ describe('KeyringController', () => {
     it('allows overwriting the built-in HD keyring builder', async () => {
       // todo: keyring types are mismatched, this should be fixed in they keyrings themselves
       // @ts-expect-error keyring types are mismatched
-      const mockHdKeyringBuilder = buildKeyringBuilderWithSpy(HDKeyring);
+      const mockHdKeyringBuilder = buildKeyringBuilderWithSpy(HdKeyring);
       await withController(
         { keyringBuilders: [mockHdKeyringBuilder] },
         async () => {
@@ -311,7 +306,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
-          ) as Keyring<Json>[];
+          ) as EthKeyring[];
           const addedAccountAddress =
             await controller.addNewAccountForKeyring(primaryKeyring);
           expect(initialState.keyrings).toHaveLength(1);
@@ -341,7 +336,7 @@ describe('KeyringController', () => {
             // removed.
             const mockKeyring = controller.getKeyringsByType(
               MockShallowGetAccountsKeyring.type,
-            )[0] as EthKeyring<Json>;
+            )[0] as EthKeyring;
 
             const addedAccountAddress =
               await controller.addNewAccountForKeyring(mockKeyring);
@@ -361,7 +356,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
-          ) as Keyring<Json>[];
+          ) as EthKeyring[];
           const addedAccountAddress =
             await controller.addNewAccountForKeyring(primaryKeyring);
           expect(initialState.keyrings).toHaveLength(1);
@@ -382,7 +377,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller, initialState }) => {
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
-          ) as Keyring<Json>[];
+          ) as EthKeyring[];
           const accountCount = initialState.keyrings[0].accounts.length;
           await expect(
             controller.addNewAccountForKeyring(
@@ -398,7 +393,7 @@ describe('KeyringController', () => {
           const accountCount = initialState.keyrings[0].accounts.length;
           const [primaryKeyring] = controller.getKeyringsByType(
             KeyringTypes.hd,
-          ) as Keyring<Json>[];
+          ) as EthKeyring[];
           const firstAccountAdded = await controller.addNewAccountForKeyring(
             primaryKeyring,
             accountCount,
@@ -421,7 +416,7 @@ describe('KeyringController', () => {
         await controller.setLocked();
 
         await expect(
-          controller.addNewAccountForKeyring(keyring as EthKeyring<Json>),
+          controller.addNewAccountForKeyring(keyring as EthKeyring),
         ).rejects.toThrow(KeyringControllerError.ControllerLocked);
       });
     });
@@ -637,7 +632,7 @@ describe('KeyringController', () => {
           });
 
           it('should throw error if the first account is not found on the keyring', async () => {
-            jest.spyOn(HDKeyring.prototype, 'getAccounts').mockReturnValue([]);
+            jest.spyOn(HdKeyring.prototype, 'getAccounts').mockReturnValue([]);
             await withController(
               { cacheEncryptionKey, skipVaultCreation: true },
               async ({ controller }) => {
@@ -758,7 +753,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller }) => {
           const primaryKeyring = controller.getKeyringsByType(
             KeyringTypes.hd,
-          )[0] as Keyring<Json> & { mnemonic: string };
+          )[0] as EthKeyring & { mnemonic: string };
 
           primaryKeyring.mnemonic = '';
 
@@ -1070,7 +1065,7 @@ describe('KeyringController', () => {
           const keyring = (await controller.getKeyringForAccount(
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             normalizedInitialAccounts[0]!,
-          )) as Keyring<Json>;
+          )) as EthKeyring;
           expect(keyring.type).toBe('HD Key Tree');
           expect(keyring.getAccounts()).toStrictEqual(
             normalizedInitialAccounts,
@@ -1140,7 +1135,7 @@ describe('KeyringController', () => {
         await withController(async ({ controller }) => {
           const keyrings = controller.getKeyringsByType(
             KeyringTypes.hd,
-          ) as Keyring<Json>[];
+          ) as EthKeyring[];
           expect(keyrings).toHaveLength(1);
           expect(keyrings[0].type).toBe(KeyringTypes.hd);
           expect(keyrings[0].getAccounts()).toStrictEqual(
@@ -1175,7 +1170,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         const primaryKeyring = controller.getKeyringsByType(
           KeyringTypes.hd,
-        )[0] as Keyring<Json>;
+        )[0] as EthKeyring;
         const [addedAccount] = await primaryKeyring.addAccounts(1);
 
         await controller.persistAllKeyrings();
@@ -2081,10 +2076,9 @@ describe('KeyringController', () => {
       it('should sign transaction', async () => {
         await withController(async ({ controller, initialState }) => {
           const account = initialState.keyrings[0].accounts[0];
-          const txParams = {
+          const txParams: TypedTxData = {
             chainId: 5,
             data: '0x1',
-            from: account,
             gasLimit: '0x5108',
             gasPrice: '0x5108',
             to: '0x51253087e6f8358b5f10c0a94315d69db3357859',
@@ -2105,13 +2099,11 @@ describe('KeyringController', () => {
       });
 
       it('should not sign transaction if from account is not provided', async () => {
-        await withController(async ({ controller, initialState }) => {
+        await withController(async ({ controller }) => {
           await expect(async () => {
-            const account = initialState.keyrings[0].accounts[0];
-            const txParams = {
+            const txParams: TypedTxData = {
               chainId: 5,
               data: '0x1',
-              from: account,
               gasLimit: '0x5108',
               gasPrice: '0x5108',
               to: '0x51253087e6f8358b5f10c0a94315d69db3357859',
@@ -2780,7 +2772,7 @@ describe('KeyringController', () => {
       await withController(async ({ controller }) => {
         const primaryKeyring = controller.getKeyringsByType(
           KeyringTypes.hd,
-        )[0] as Keyring<Json> & { mnemonic: string };
+        )[0] as EthKeyring & { mnemonic: string };
 
         primaryKeyring.mnemonic = '';
 
@@ -2889,7 +2881,7 @@ describe('KeyringController', () => {
     it('should rollback if an error is thrown', async () => {
       await withController(async ({ controller, initialState }) => {
         const selector = { type: KeyringTypes.hd };
-        const fn = async ({ keyring }: { keyring: EthKeyring<Json> }) => {
+        const fn = async ({ keyring }: { keyring: EthKeyring }) => {
           await keyring.addAccounts(1);
           throw new Error('Oops');
         };
@@ -4270,7 +4262,7 @@ type WithControllerArgs<ReturnValue> =
  * @param account - The account to return.
  */
 function stubKeyringClassWithAccount(
-  keyringClass: KeyringClass<Json>,
+  keyringClass: KeyringClass,
   account: string,
 ) {
   jest
@@ -4343,14 +4335,14 @@ async function withController<ReturnValue>(
  * @param KeyringConstructor - The constructor to use for building the keyring.
  * @returns A keyring builder that uses `jest.fn()` to spy on invocations.
  */
-function buildKeyringBuilderWithSpy(KeyringConstructor: KeyringClass<Json>): {
-  (): EthKeyring<Json>;
+function buildKeyringBuilderWithSpy(KeyringConstructor: KeyringClass): {
+  (): EthKeyring;
   type: string;
 } {
-  const keyringBuilderWithSpy: { (): EthKeyring<Json>; type?: string } = jest
+  const keyringBuilderWithSpy: { (): EthKeyring; type?: string } = jest
     .fn()
     .mockImplementation((...args) => new KeyringConstructor(...args));
   keyringBuilderWithSpy.type = KeyringConstructor.type;
   // Not sure why TypeScript isn't smart enough to infer that `type` is set here.
-  return keyringBuilderWithSpy as { (): EthKeyring<Json>; type: string };
+  return keyringBuilderWithSpy as { (): EthKeyring; type: string };
 }

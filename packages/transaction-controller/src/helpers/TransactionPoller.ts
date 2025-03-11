@@ -18,7 +18,7 @@ const log = createModuleLogger(projectLogger, 'transaction-poller');
 export class TransactionPoller {
   #acceleratedCount = 0;
 
-  #blockTracker: BlockTracker;
+  readonly #blockTracker: BlockTracker;
 
   #blockTrackerListener?: (latestBlockNumber: string) => void;
 
@@ -36,6 +36,7 @@ export class TransactionPoller {
 
   /**
    * Start the poller with a listener that will be called on every interval.
+   *
    * @param listener - The listener to call on every interval.
    */
   start(listener: (latestBlockNumber: string) => Promise<void>) {
@@ -75,6 +76,7 @@ export class TransactionPoller {
    * Notify the poller of the pending transactions being monitored.
    * This will reset to the accelerated polling and reset the count
    * when new transactions are added or removed.
+   *
    * @param pendingTransactions - The pending transactions to poll.
    */
   setPendingTransactions(pendingTransactions: TransactionMeta[]) {
