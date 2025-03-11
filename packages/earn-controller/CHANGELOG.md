@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.0]
 
-### Uncategorized
+### Changed
 
-- feat: updated refreshPooledStakingVaultDailyApys days arg default value to 365 ([#5453](https://github.com/MetaMask/core/pull/5453))
+- Updated refreshPooledStakingVaultDailyApys days arg default value to 365 ([#5453](https://github.com/MetaMask/core/pull/5453))
 
 ## [0.7.0]
 
