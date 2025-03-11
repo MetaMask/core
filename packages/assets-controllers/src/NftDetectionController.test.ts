@@ -1103,6 +1103,103 @@ describe('NftDetectionController', () => {
       );
     });
 
+    it('should repro error when NFT token metadata is null', async () => {
+      const mockAddNft = jest.fn();
+      const selectedAddress = 'Oxuser';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+      const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+      await withController(
+        {
+          options: { addNft: mockAddNft },
+          mockPreferencesState: {},
+          mockGetSelectedAccount,
+        },
+        async ({ controller, controllerEvents }) => {
+          controllerEvents.triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useNftDetection: true,
+          });
+          // Wait for detect call triggered by preferences state change to settle
+          await advanceTime({
+            clock,
+            duration: 1,
+          });
+          mockAddNft.mockReset();
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+            )
+            .reply(200, {
+              tokens: [
+                {
+                  token: {
+                    contract: '0xtestCollection1',
+                    kind: 'erc721',
+                    name: 'ID 1',
+                    description: 'Description 1',
+                    image: 'image/1.png',
+                    tokenId: '1',
+                    metadata: null,
+                    isSpam: false,
+                    collection: {
+                      id: '0xtestCollection1',
+                    },
+                  },
+                  blockaidResult: {
+                    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                    // eslint-disable-next-line @typescript-eslint/naming-convention
+                    result_type: BlockaidResultType.Benign,
+                  },
+                },
+              ],
+            });
+
+          nock(NFT_API_BASE_URL)
+            .get(`/collections?contract=0xtestCollection1&chainId=1`)
+            .reply(200, {
+              collections: [
+                {
+                  id: '0xtestCollection1',
+                  creator: '0xcreator1',
+                  openseaVerificationStatus: 'verified',
+                  ownerCount: '555',
+                },
+              ],
+            });
+
+          await controller.detectNfts();
+
+          expect(mockAddNft).toHaveBeenCalledTimes(1);
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            1,
+            '0xtestCollection1',
+            '1',
+            {
+              nftMetadata: {
+                description: 'Description 1',
+                image: 'image/1.png',
+                name: 'ID 1',
+                standard: 'ERC721',
+                collection: {
+                  id: '0xtestCollection1',
+                  contractDeployedAt: undefined,
+                  creator: '0xcreator1',
+                  openseaVerificationStatus: 'verified',
+                  ownerCount: '555',
+                  topBid: undefined,
+                },
+              },
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
+              networkClientId: undefined,
+            },
+          );
+        },
+      );
+    });
+
     it('should add collection information correctly when a single batch fails to get collection informations', async () => {
       // Mock that MAX_GET_COLLECTION_BATCH_SIZE is equal 1 instead of 20
       Object.defineProperty(constants, 'MAX_GET_COLLECTION_BATCH_SIZE', {
