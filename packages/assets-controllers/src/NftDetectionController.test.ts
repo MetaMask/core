@@ -120,6 +120,47 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
+        `/users/0x1/tokens?chainIds=1&chainIds=59144&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 59144,
+              contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1e5',
+              kind: 'erc721',
+              name: 'ID 2',
+              description: 'Description 2',
+              image: 'image/2.png',
+              tokenId: '2',
+              metadata: {
+                imageOriginal: 'imageOriginal/2.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+          {
+            token: {
+              chainId: 1,
+              contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+        ],
+      })
+      .get(
         `/users/0x9/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
@@ -508,6 +549,81 @@ describe('NftDetectionController', () => {
         await controller.detectNfts(['0x1']);
 
         expect(mockAddNft).toHaveBeenCalledWith(
+          '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+          '2574',
+          {
+            nftMetadata: {
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              name: 'ID 2574',
+              standard: 'ERC721',
+              imageOriginal: 'imageOriginal/2574.png',
+              chainId: 1,
+            },
+            userAddress: selectedAccount.address,
+            source: Source.Detected,
+            chainId: '0x1',
+          },
+        );
+      },
+    );
+  });
+
+  it('should detect and add NFTs correctly with an array of chainIds', async () => {
+    const mockAddNft = jest.fn();
+    const selectedAddress = '0x1';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+    await withController(
+      {
+        options: { addNft: mockAddNft },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        // Mock /getCollections call
+
+        nock(NFT_API_BASE_URL)
+          .get(
+            `/collections?contract=0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc&contract=0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d&contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
+          )
+          .replyWithError(new Error('Failed to fetch'));
+
+        // Wait for detect call triggered by preferences state change to settle
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+        mockAddNft.mockReset();
+
+        await controller.detectNfts(['0x1', '0xe708']);
+        expect(mockAddNft).toHaveBeenNthCalledWith(
+          1,
+          '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1e5',
+          '2',
+          {
+            nftMetadata: {
+              description: 'Description 2',
+              image: 'image/2.png',
+              name: 'ID 2',
+              standard: 'ERC721',
+              imageOriginal: 'imageOriginal/2.png',
+              chainId: 59144,
+            },
+            userAddress: selectedAccount.address,
+            source: Source.Detected,
+            chainId: '0xe708',
+          },
+        );
+        expect(mockAddNft).toHaveBeenNthCalledWith(
+          2,
           '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
           '2574',
           {
