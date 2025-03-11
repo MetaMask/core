@@ -1546,6 +1546,9 @@ export class NftController extends BaseController<
       (contract) =>
         contract.address.toLowerCase() === checksumHexAddress.toLowerCase(),
     );
+    if (!nftMetadata.chainId) {
+      nftMetadata.chainId = chainIdToAddTo;
+    }
 
     // If NFT contract information, add individual NFT
     if (nftContract) {
