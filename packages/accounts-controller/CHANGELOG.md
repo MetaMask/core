@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- perf: Simplify account iteration logic ([#5445](https://github.com/MetaMask/core/pull/5445))
+
 ## [26.0.0]
 
 ### Changed
