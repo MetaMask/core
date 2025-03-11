@@ -202,5 +202,6 @@ export type {
   DeFiPositionsControllerEvents,
   DeFiPositionsControllerGetStateAction,
   DeFiPositionsControllerStateChangeEvent,
+  DeFiPositionsControllerMessenger,
 } from './DeFiPositionsController/DeFiPositionsController';
 export type { GroupedPositions } from './DeFiPositionsController/group-positions';
