@@ -1103,7 +1103,7 @@ describe('NftDetectionController', () => {
       );
     });
 
-    it('should repro error when NFT token metadata is null', async () => {
+    it('does not error when NFT token metadata is null', async () => {
       const mockAddNft = jest.fn();
       const selectedAddress = 'Oxuser';
       const selectedAccount = createMockInternalAccount({
