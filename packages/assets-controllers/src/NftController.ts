@@ -25,6 +25,7 @@ import {
   ApprovalType,
   NFT_API_BASE_URL,
   NFT_API_VERSION,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -180,7 +181,7 @@ export type NftMetadata = {
   lastSale?: LastSale;
   rarityRank?: string;
   topBid?: TopBid;
-  chainId?: string;
+  chainId?: number;
 };
 
 /**
@@ -1546,8 +1547,9 @@ export class NftController extends BaseController<
       (contract) =>
         contract.address.toLowerCase() === checksumHexAddress.toLowerCase(),
     );
+    // This is the case when the NFT is added manually and not detected automatically
     if (!nftMetadata.chainId) {
-      nftMetadata.chainId = chainIdToAddTo;
+      nftMetadata.chainId = convertHexToDecimal(chainIdToAddTo);
     }
 
     // If NFT contract information, add individual NFT

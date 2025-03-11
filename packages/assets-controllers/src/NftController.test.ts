@@ -19,6 +19,7 @@ import {
   NetworksTicker,
   NFT_API_BASE_URL,
   InfuraNetworkType,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -1239,7 +1240,7 @@ describe('NftController', () => {
               image: 'testERC721Image',
               name: 'testERC721Name',
               standard: ERC721,
-              chainId: '0x5',
+              chainId: convertHexToDecimal(ChainId.goerli),
             },
           ],
         },
@@ -1349,7 +1350,7 @@ describe('NftController', () => {
               image: 'testERC721Image',
               name: 'testERC721Name',
               standard: ERC721,
-              chainId: '0x5',
+              chainId: convertHexToDecimal(ChainId.goerli),
             },
           ],
         },
@@ -1410,7 +1411,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'image',
         name: 'name',
@@ -1434,7 +1435,6 @@ describe('NftController', () => {
         name: 'Name',
         totalSupply: '0',
         schemaName: 'standard',
-        // chainId: '0x1',
       });
     });
 
@@ -1543,7 +1543,7 @@ describe('NftController', () => {
         nftController.state.allNfts[firstAddress][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -1574,7 +1574,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'image',
         name: 'name',
@@ -1598,7 +1598,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'image-updated',
         name: 'name',
@@ -1628,7 +1628,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'image',
         name: 'name',
@@ -1657,7 +1657,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'image',
         name: 'name',
@@ -1702,7 +1702,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'image',
         name: 'name',
@@ -1740,7 +1740,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'image',
         name: 'name',
@@ -1849,7 +1849,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'Description',
         image: 'url',
         name: 'Name',
@@ -1921,7 +1921,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         image: 'url',
         name: 'Kudos Name (directly from tokenURI)',
         description: 'Kudos Description (directly from tokenURI)',
@@ -2011,7 +2011,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         image: 'url',
         name: 'Kudos Name (directly from tokenURI)',
         description: 'Kudos Description (directly from tokenURI)',
@@ -2077,7 +2077,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC1155_NFT_ADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         image: 'image (directly from tokenURI)',
         name: 'name (directly from tokenURI)',
         description: 'description (directly from tokenURI)',
@@ -2124,7 +2124,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         image: 'Kudos Image (directly from tokenURI)',
         name: 'Kudos Name (directly from tokenURI)',
         description: 'Kudos Description (directly from tokenURI)',
@@ -2163,7 +2163,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         image: testTokenUriEncoded,
         name: null,
         description: null,
@@ -2205,7 +2205,7 @@ describe('NftController', () => {
         ][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: ChainId.sepolia,
+        chainId: convertHexToDecimal(ChainId.sepolia),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -2257,7 +2257,7 @@ describe('NftController', () => {
           [ChainId.mainnet]: [
             {
               address: '0x01234abcdefg',
-              chainId: '0x1',
+              chainId: convertHexToDecimal(ChainId.mainnet),
               description: 'description',
               image: 'url',
               name: 'name',
@@ -2322,7 +2322,7 @@ describe('NftController', () => {
           [GOERLI.chainId]: [
             {
               address: '0x01234abcdefg',
-              chainId: '0x5',
+              chainId: convertHexToDecimal(ChainId.goerli),
               description: 'description',
               image: 'url',
               name: 'name',
@@ -2416,7 +2416,7 @@ describe('NftController', () => {
       ).toStrictEqual([
         {
           address: ERC721_KUDOSADDRESS,
-          chainId: '0x1',
+          chainId: convertHexToDecimal(ChainId.mainnet),
           description: 'Kudos Description',
           image: 'Kudos image (from proxy API)',
           name: 'Kudos Name',
@@ -2539,7 +2539,7 @@ describe('NftController', () => {
       ).toStrictEqual([
         {
           address: ERC721_KUDOSADDRESS,
-          chainId: '0x1',
+          chainId: convertHexToDecimal(ChainId.mainnet),
           description: 'Kudos Description',
           image: 'Kudos image (from proxy API)',
           name: 'Kudos Name',
@@ -2720,7 +2720,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_DEPRESSIONIST_ADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         tokenId: '36',
         image: 'image',
         name: 'name',
@@ -2747,7 +2747,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_NFT_ADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         image: null,
         name: null,
         description: null,
@@ -2834,7 +2834,7 @@ describe('NftController', () => {
       ).toStrictEqual([
         {
           address: '0x01',
-          chainId: SEPOLIA.chainId,
+          chainId: convertHexToDecimal(ChainId.sepolia),
           description: 'test-description-1',
           image: 'test-image-1',
           name: 'test-name-1',
@@ -2851,7 +2851,7 @@ describe('NftController', () => {
       ).toStrictEqual([
         {
           address: '0x02',
-          chainId: GOERLI.chainId,
+          chainId: convertHexToDecimal(ChainId.goerli),
           description: 'test-description-2',
           image: 'test-image-2',
           name: 'test-name-2',
@@ -2866,7 +2866,7 @@ describe('NftController', () => {
       expect(nftController.state.allNfts[OWNER_ADDRESS]['0xa']).toStrictEqual([
         {
           address: '0x03',
-          chainId: '0xa',
+          chainId: convertHexToDecimal('0xa'),
           description: 'test-description-3',
           image: 'test-image-3',
           name: 'test-name-3',
@@ -2953,7 +2953,7 @@ describe('NftController', () => {
       expect(nftController.state.allNfts[userAddress]['0x1']).toStrictEqual([
         {
           address: '0x01',
-          chainId: '0x1',
+          chainId: convertHexToDecimal(ChainId.mainnet),
           description: 'test-description-1',
           image: 'test-image-1',
           name: 'test-name-1',
@@ -2969,7 +2969,7 @@ describe('NftController', () => {
       ).toStrictEqual([
         {
           address: '0x02',
-          chainId: '0x5',
+          chainId: convertHexToDecimal(ChainId.goerli),
           description: 'test-description-2',
           image: 'test-image-2',
           name: 'test-name-2',
@@ -2985,7 +2985,7 @@ describe('NftController', () => {
       ).toStrictEqual([
         {
           address: '0x03',
-          chainId: SEPOLIA.chainId,
+          chainId: convertHexToDecimal(ChainId.sepolia),
           description: 'test-description-3',
           image: 'test-image-3',
           name: 'test-name-3',
@@ -3080,7 +3080,7 @@ describe('NftController', () => {
         nftController.state.allNfts[firstAccount.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -3173,7 +3173,7 @@ describe('NftController', () => {
         nftController.state.allNfts[firstAccount.address][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: SEPOLIA.chainId,
+        chainId: convertHexToDecimal(ChainId.sepolia),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -3187,7 +3187,7 @@ describe('NftController', () => {
         nftController.state.allNfts[secondAccount.address][GOERLI.chainId][0],
       ).toStrictEqual({
         address: '0x02',
-        chainId: GOERLI.chainId,
+        chainId: convertHexToDecimal(ChainId.goerli),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -3243,7 +3243,7 @@ describe('NftController', () => {
         nftController.state.allNfts[firstAddress][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: SEPOLIA.chainId,
+        chainId: convertHexToDecimal(ChainId.sepolia),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -3257,7 +3257,7 @@ describe('NftController', () => {
         nftController.state.allNfts[secondAddress][GOERLI.chainId][0],
       ).toStrictEqual({
         address: '0x02',
-        chainId: GOERLI.chainId,
+        chainId: convertHexToDecimal(ChainId.goerli),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -3380,7 +3380,7 @@ describe('NftController', () => {
         nftController.state.allNfts[firstAccount.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: '0x02',
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -3420,7 +3420,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0x02',
-        chainId: SEPOLIA.chainId,
+        chainId: convertHexToDecimal(ChainId.sepolia),
         description: 'description',
         image: 'url',
         name: 'name',
@@ -3473,7 +3473,7 @@ describe('NftController', () => {
         nftController.state.allNfts[userAddress1][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0x01',
-        chainId: SEPOLIA.chainId,
+        chainId: convertHexToDecimal(ChainId.sepolia),
         description: 'description',
         image: 'image',
         name: 'name',
@@ -3676,7 +3676,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC1155_NFT_ADDRESS,
-        chainId: '0x1',
+        chainId: convertHexToDecimal(ChainId.mainnet),
         name: null,
         description: null,
         image: null,
@@ -4661,7 +4661,7 @@ describe('NftController', () => {
         nftController.state.allNfts[OWNER_ACCOUNT.address][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0xtest',
-        chainId: '0xaa36a7',
+        chainId: convertHexToDecimal(ChainId.sepolia),
         description: 'description',
         favorite: false,
         image: 'image.png',
