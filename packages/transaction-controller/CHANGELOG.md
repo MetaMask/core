@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional batch ID to metadata ([#5462](https://github.com/MetaMask/core/pull/5462))
+  - Add optional `batchId` property to `TransactionMeta`.
+  - Add optional `transactionHash` to `TransactionReceipt`.
+  - Add optional `data` to `Log`.
+  - Add optional `batchId` to `TransactionBatchRequest`.
+  - Add optional `batchId` to `addTransaction` options.
+  - Throw if `batchId` already exists on a transaction.
+
+### Changed
+
+- **BREAKING:** Add optional batch ID to metadata ([#5462](https://github.com/MetaMask/core/pull/5462))
+  - Change `batchId` in `TransactionBatchResult` to `Hex`.
+  - Return `batchId` from `addTransactionBatch` if provided.
+  - Generate random batch ID if no `batchId` provided.
+
 ## [48.1.0]
 
 ### Changed
