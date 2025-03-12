@@ -18,22 +18,6 @@ import type {
   TransactionMeta,
 } from '../types';
 
-export type KeyringControllerAuthorization = [
-  chainId: number,
-  contractAddress: string,
-  nonce: number,
-];
-
-export type KeyringControllerSignAuthorization = {
-  type: 'KeyringController:signEip7702AuthorizationMessage';
-  handler: (authorization: {
-    chainId: number;
-    contractAddress: string;
-    from: string;
-    nonce: number;
-  }) => Promise<string>;
-};
-
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
@@ -208,7 +192,7 @@ async function signAuthorization(
   const nonceDecimal = parseInt(nonce, 16);
 
   const signature = await messenger.call(
-    'KeyringController:signEip7702AuthorizationMessage',
+    'KeyringController:signEip7702Authorization',
     {
       chainId: chainIdDecimal,
       contractAddress: address,

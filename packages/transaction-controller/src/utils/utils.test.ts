@@ -1,11 +1,11 @@
 import { BN } from 'bn.js';
 
+import * as util from './utils';
 import type {
   FeeMarketEIP1559Values,
   GasPriceValue,
   TransactionParams,
 } from '../types';
-import * as util from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';

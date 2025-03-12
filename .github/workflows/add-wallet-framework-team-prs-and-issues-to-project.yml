@@ -1,0 +1,23 @@
+name: 'Add Wallet Framework Issues/PRs to Project Board'
+
+on:
+  pull_request:
+    types: [opened, labeled, review_requested]
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  call_shared_workflow:
+    name: 'Call the Shared Workflow'
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+      repository-projects: write
+    uses: metamask/github-tools/.github/workflows/add-item-to-project.yml@bce51a03da4736bef72f67b71ca77714a38fc067
+    with:
+      project-url: 'https://github.com/orgs/MetaMask/projects/113'
+      team-name: 'wallet-framework-engineers'
+      team-label: 'team-wallet-framework'
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
