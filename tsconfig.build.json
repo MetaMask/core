@@ -9,9 +9,11 @@
     { "path": "./packages/bridge-controller/tsconfig.build.json" },
     { "path": "./packages/bridge-status-controller/tsconfig.build.json" },
     { "path": "./packages/build-utils/tsconfig.build.json" },
+    { "path": "./packages/chain-agnostic-permission/tsconfig.build.json" },
     { "path": "./packages/composable-controller/tsconfig.build.json" },
     { "path": "./packages/controller-utils/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
+    { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
@@ -24,6 +26,7 @@
       "path": "./packages/multichain-transactions-controller/tsconfig.build.json"
     },
     { "path": "./packages/multichain/tsconfig.build.json" },
+    { "path": "./packages/multichain-api-middleware/tsconfig.build.json" },
     { "path": "./packages/name-controller/tsconfig.build.json" },
     { "path": "./packages/network-controller/tsconfig.build.json" },
     {
