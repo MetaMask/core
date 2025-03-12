@@ -57,6 +57,11 @@ type TransactionMetaBase = {
   baseFeePerGas?: Hex;
 
   /**
+   * ID of the associated transaction batch.
+   */
+  batchId?: Hex;
+
+  /**
    * Number of the block where the transaction has been included.
    */
   blockNumber?: string;
@@ -1431,6 +1436,8 @@ export type TransactionBatchSingleRequest = {
  * Currently only atomic batches are supported via EIP-7702.
  */
 export type TransactionBatchRequest = {
+  batchId?: Hex;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 

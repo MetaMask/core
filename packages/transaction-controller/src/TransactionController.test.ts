@@ -1578,6 +1578,7 @@ describe('TransactionController', () => {
 
       const expectedInitialSnapshot = {
         actionId: undefined,
+        batchId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
         deviceConfirmedOn: undefined,
