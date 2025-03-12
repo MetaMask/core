@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- fix: Override lower bound gas when gasLimit is defined ([#5396](https://github.com/MetaMask/core/pull/5396))
+- Normalize gas limit using `gas` and `gasLimit` properties ([#5396](https://github.com/MetaMask/core/pull/5396))
 
 ## [48.1.0]
 
