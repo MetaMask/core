@@ -848,6 +848,9 @@ export type TransactionReceipt = {
    */
   status?: string;
 
+  /** Hash of the associated transaction. */
+  transactionHash?: Hex;
+
   /**
    * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
@@ -862,6 +865,10 @@ export type Log = {
    * Address of the contract that generated log.
    */
   address?: string;
+
+  /** Data for the log. */
+  data?: Hex;
+
   /**
    * List of topics for log.
    */
@@ -1459,5 +1466,5 @@ export type TransactionBatchRequest = {
  */
 export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
-  batchId: string;
+  batchId: Hex;
 };
