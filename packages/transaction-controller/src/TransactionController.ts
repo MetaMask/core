@@ -1114,6 +1114,16 @@ export class TransactionController extends BaseController<
 
     validateTxParams(txParams, isEIP1559Compatible);
 
+    const isDuplicateBatchId =
+      batchId?.length &&
+      this.state.transactions.some(
+        (tx) => tx.batchId?.toLowerCase() === batchId?.toLowerCase(),
+      );
+
+    if (isDuplicateBatchId) {
+      throw rpcErrors.invalidInput('Batch ID already exists');
+    }
+
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,
       origin,
