@@ -7,11 +7,8 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json } from '@metamask/utils';
 import util from 'util';
 
-import type {
-  PollingBlockTrackerOptions,
-  SubscribeBlockTrackerOptions,
-} from '../src';
-import { PollingBlockTracker, SubscribeBlockTracker } from '../src';
+import type { PollingBlockTrackerOptions } from '../src';
+import { PollingBlockTracker } from '../src';
 
 interface WithPollingBlockTrackerOptions {
   provider?: FakeProviderOptions;
@@ -21,16 +18,6 @@ interface WithPollingBlockTrackerOptions {
 type WithPollingBlockTrackerCallback = (args: {
   provider: SafeEventEmitterProvider;
   blockTracker: PollingBlockTracker;
-}) => void | Promise<void>;
-
-interface WithSubscribeBlockTrackerOptions {
-  provider?: FakeProviderOptions;
-  blockTracker?: SubscribeBlockTrackerOptions;
-}
-
-type WithSubscribeBlockTrackerCallback = (args: {
-  provider: SafeEventEmitterProvider;
-  blockTracker: SubscribeBlockTracker;
 }) => void | Promise<void>;
 
 /**
@@ -151,7 +138,7 @@ function getFakeProvider({
  * tracker.
  * @returns The provider and block tracker.
  */
-async function withPollingBlockTracker(
+export async function withPollingBlockTracker(
   options: WithPollingBlockTrackerOptions,
   callback: WithPollingBlockTrackerCallback,
 ): Promise<void>;
@@ -164,11 +151,12 @@ async function withPollingBlockTracker(
  * tracker.
  * @returns The provider and block tracker.
  */
-async function withPollingBlockTracker(
+export async function withPollingBlockTracker(
   callback: WithPollingBlockTrackerCallback,
 ): Promise<void>;
+
 /* eslint-disable-next-line jsdoc/require-jsdoc */
-async function withPollingBlockTracker(
+export async function withPollingBlockTracker(
   ...args:
     | [WithPollingBlockTrackerOptions, WithPollingBlockTrackerCallback]
     | [WithPollingBlockTrackerCallback]
@@ -189,56 +177,3 @@ async function withPollingBlockTracker(
   const callbackArgs = { provider, blockTracker };
   await callback(callbackArgs);
 }
-
-/**
- * Calls the given function with a built-in SubscribeBlockTracker, ensuring that
- * all listeners that are on the block tracker are removed and any timers or
- * loops that are running within the block tracker are properly stopped.
- *
- * @param options - Options that allow configuring the block tracker or
- * provider.
- * @param callback - A callback which will be called with the built block
- * tracker.
- * @returns The provider and block tracker.
- */
-async function withSubscribeBlockTracker(
-  options: WithSubscribeBlockTrackerOptions,
-  callback: WithSubscribeBlockTrackerCallback,
-): Promise<void>;
-/**
- * Calls the given function with a built-in SubscribeBlockTracker, ensuring that
- * all listeners that are on the block tracker are removed and any timers or
- * loops that are running within the block tracker are properly stopped.
- *
- * @param callback - A callback which will be called with the built block
- * tracker.
- * @returns The provider and block tracker.
- */
-async function withSubscribeBlockTracker(
-  callback: WithSubscribeBlockTrackerCallback,
-): Promise<void>;
-/* eslint-disable-next-line jsdoc/require-jsdoc */
-async function withSubscribeBlockTracker(
-  ...args:
-    | [WithSubscribeBlockTrackerOptions, WithSubscribeBlockTrackerCallback]
-    | [WithSubscribeBlockTrackerCallback]
-) {
-  const [options, callback] = args.length === 2 ? args : [{}, args[0]];
-  const provider =
-    options.provider === undefined
-      ? getFakeProvider()
-      : getFakeProvider(options.provider);
-
-  const blockTrackerOptions =
-    options.blockTracker === undefined
-      ? { provider }
-      : {
-          provider,
-          ...options.blockTracker,
-        };
-  const blockTracker = new SubscribeBlockTracker(blockTrackerOptions);
-  const callbackArgs = { provider, blockTracker };
-  await callback(callbackArgs);
-}
-
-export { withPollingBlockTracker, withSubscribeBlockTracker };

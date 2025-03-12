@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Removed
+- **BREAKING:** Remove `SubscribeBlockTracker`
+  - Although we continue to maintain this, we have not used it internally for quite some time. In general we have found a polling-based approval to be reliable than a subscription-based approach. We recommend using `PollingBlockTracker` instead.
 
 ## [11.0.4]
 ### Changed
