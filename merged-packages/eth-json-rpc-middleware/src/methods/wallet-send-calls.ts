@@ -1,6 +1,8 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Infer } from '@metamask/superstruct';
 import {
+  boolean,
+  record,
   nonempty,
   type,
   string,
@@ -10,6 +12,7 @@ import {
   tuple,
 } from '@metamask/superstruct';
 import type {
+  Hex,
   Json,
   JsonRpcRequest,
   PendingJsonRpcResponse,
@@ -21,29 +24,43 @@ import {
   validateParams,
 } from '../utils/validation';
 
+const CapabilitiesStruct = record(
+  string(),
+  type({
+    optional: optional(boolean()),
+  }),
+);
+
 const SendCallsStruct = tuple([
   object({
     version: nonempty(string()),
+    id: optional(StrictHexStruct),
     from: HexChecksumAddressStruct,
-    chainId: optional(StrictHexStruct),
+    chainId: StrictHexStruct,
     calls: array(
       object({
         to: optional(HexChecksumAddressStruct),
         data: optional(StrictHexStruct),
         value: optional(StrictHexStruct),
+        capabilities: optional(CapabilitiesStruct),
       }),
     ),
-    capabilities: optional(type({})),
+    capabilities: optional(CapabilitiesStruct),
   }),
 ]);
 
 export type SendCallsParams = Infer<typeof SendCallsStruct>;
 export type SendCalls = SendCallsParams[0];
 
+export type SendCallsResult = {
+  id: Hex;
+  capabilities?: Record<string, Json>;
+};
+
 export type ProcessSendCallsHook = (
   sendCalls: SendCalls,
   req: JsonRpcRequest,
-) => Promise<string>;
+) => Promise<SendCallsResult>;
 
 export async function walletSendCalls(
   req: JsonRpcRequest,

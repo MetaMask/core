@@ -1,14 +1,18 @@
-import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import type {
+  Hex,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import { klona } from 'klona';
 
 import type {
+  GetCallsStatusHook,
   GetCallsStatusParams,
   GetCallsStatusResult,
-  GetTransactionReceiptsByBatchIdHook,
 } from './wallet-get-calls-status';
 import { walletGetCallsStatus } from './wallet-get-calls-status';
 
-const ID_MOCK = '1234-5678';
+const ID_MOCK = '0x12345678';
 
 const RECEIPT_MOCK = {
   logs: [
@@ -30,15 +34,23 @@ const REQUEST_MOCK = {
   params: [ID_MOCK],
 } as unknown as JsonRpcRequest<GetCallsStatusParams>;
 
+const RESULT_MOCK = {
+  version: '1.0',
+  id: ID_MOCK,
+  chainId: '0x1',
+  status: 1,
+  receipts: [RECEIPT_MOCK, RECEIPT_MOCK],
+};
+
 describe('wallet_getCallsStatus', () => {
   let request: JsonRpcRequest<GetCallsStatusParams>;
   let params: GetCallsStatusParams;
   let response: PendingJsonRpcResponse<GetCallsStatusResult>;
-  let getTransactionReceiptsByBatchIdMock: jest.MockedFunction<GetTransactionReceiptsByBatchIdHook>;
+  let getCallsStatusMock: jest.MockedFunction<GetCallsStatusHook>;
 
   async function callMethod() {
     return walletGetCallsStatus(request, response, {
-      getTransactionReceiptsByBatchId: getTransactionReceiptsByBatchIdMock,
+      getCallsStatus: getCallsStatusMock,
     });
   }
 
@@ -49,48 +61,17 @@ describe('wallet_getCallsStatus', () => {
     params = request.params as GetCallsStatusParams;
     response = {} as PendingJsonRpcResponse<GetCallsStatusResult>;
 
-    getTransactionReceiptsByBatchIdMock = jest
-      .fn()
-      .mockResolvedValue([RECEIPT_MOCK, RECEIPT_MOCK]);
+    getCallsStatusMock = jest.fn().mockResolvedValue(RESULT_MOCK);
   });
 
   it('calls hook', async () => {
     await callMethod();
-    expect(getTransactionReceiptsByBatchIdMock).toHaveBeenCalledWith(
-      params[0],
-      request,
-    );
+    expect(getCallsStatusMock).toHaveBeenCalledWith(params[0], request);
   });
 
-  it('returns confirmed status if all receipts available', async () => {
+  it('returns result from hook', async () => {
     await callMethod();
-    expect(response.result?.status).toBe('CONFIRMED');
-  });
-
-  it('returns pending status if missing receipts', async () => {
-    getTransactionReceiptsByBatchIdMock = jest
-      .fn()
-      .mockResolvedValue([RECEIPT_MOCK, undefined]);
-
-    await callMethod();
-    expect(response.result?.status).toBe('PENDING');
-    expect(response.result?.receipts).toBeNull();
-  });
-
-  it('returns receipts', async () => {
-    await callMethod();
-
-    expect(response.result?.receipts).toStrictEqual([
-      RECEIPT_MOCK,
-      RECEIPT_MOCK,
-    ]);
-  });
-
-  it('returns null if no receipts', async () => {
-    getTransactionReceiptsByBatchIdMock = jest.fn().mockResolvedValue([]);
-
-    await callMethod();
-    expect(response.result).toBeNull();
+    expect(response.result).toStrictEqual(RESULT_MOCK);
   });
 
   it('throws if no hook', async () => {
@@ -119,27 +100,23 @@ describe('wallet_getCallsStatus', () => {
           `);
   });
 
-  it('throws if empty', async () => {
-    params[0] = '';
+  it('throws if address is not hex', async () => {
+    params[0] = '123' as Hex;
 
     await expect(callMethod()).rejects.toMatchInlineSnapshot(`
             [Error: Invalid params
 
-            0 - Expected a nonempty string but received an empty one]
+            0 - Expected a string matching \`/^0x[0-9a-f]+$/\` but received "123"]
           `);
   });
 
-  it('removes excess properties from receipts', async () => {
-    getTransactionReceiptsByBatchIdMock.mockResolvedValue([
-      {
-        ...RECEIPT_MOCK,
-        extra: 'value1',
-        logs: [{ ...RECEIPT_MOCK.logs[0], extra2: 'value2' }],
-      } as never,
-    ]);
+  it('throws if address is empty', async () => {
+    params[0] = '' as never;
 
-    await callMethod();
+    await expect(callMethod()).rejects.toMatchInlineSnapshot(`
+            [Error: Invalid params
 
-    expect(response.result?.receipts).toStrictEqual([RECEIPT_MOCK]);
+            0 - Expected a string matching \`/^0x[0-9a-f]+$/\` but received ""]
+          `);
   });
 });

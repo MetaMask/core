@@ -9,6 +9,8 @@ import type {
 import { walletGetCapabilities } from './wallet-get-capabilities';
 
 const ADDRESS_MOCK = '0x123abc123abc123abc123abc123abc123abc123a';
+const CHAIN_ID_MOCK = '0x1';
+const CHAIN_ID_2_MOCK = '0x2';
 
 const RESULT_MOCK = {
   testCapability: {
@@ -18,10 +20,10 @@ const RESULT_MOCK = {
 
 const REQUEST_MOCK = {
   params: [ADDRESS_MOCK],
-} as unknown as JsonRpcRequest<GetCapabilitiesParams>;
+};
 
 describe('wallet_getCapabilities', () => {
-  let request: JsonRpcRequest<GetCapabilitiesParams>;
+  let request: JsonRpcRequest;
   let params: GetCapabilitiesParams;
   let response: PendingJsonRpcResponse<GetCapabilitiesResult>;
   let getCapabilitiesMock: jest.MockedFunction<GetCapabilitiesHook>;
@@ -35,7 +37,7 @@ describe('wallet_getCapabilities', () => {
   beforeEach(() => {
     jest.resetAllMocks();
 
-    request = klona(REQUEST_MOCK);
+    request = klona(REQUEST_MOCK) as JsonRpcRequest;
     params = request.params as GetCapabilitiesParams;
     response = {} as PendingJsonRpcResponse<GetCapabilitiesResult>;
 
@@ -44,12 +46,27 @@ describe('wallet_getCapabilities', () => {
 
   it('calls hook', async () => {
     await callMethod();
-    expect(getCapabilitiesMock).toHaveBeenCalledWith(params[0], request);
+    expect(getCapabilitiesMock).toHaveBeenCalledWith(
+      params[0],
+      undefined,
+      request,
+    );
+  });
+
+  it('calls hook with chain IDs', async () => {
+    request.params = [ADDRESS_MOCK, [CHAIN_ID_MOCK, CHAIN_ID_2_MOCK]];
+
+    await callMethod();
+
+    expect(getCapabilitiesMock).toHaveBeenCalledWith(
+      params[0],
+      [CHAIN_ID_MOCK, CHAIN_ID_2_MOCK],
+      request,
+    );
   });
 
   it('returns capabilities from hook', async () => {
     await callMethod();
-
     expect(response.result).toStrictEqual(RESULT_MOCK);
   });
 
