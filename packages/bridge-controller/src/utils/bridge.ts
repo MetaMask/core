@@ -4,8 +4,6 @@ import type { Hex } from '@metamask/utils';
 
 import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-  BRIDGE_DEV_API_BASE_URL,
-  BRIDGE_PROD_API_BASE_URL,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
