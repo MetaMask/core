@@ -189,7 +189,9 @@ Have changes that you need to release? There are a few things to understand:
 - Unlike clients, releases are not issued on a schedule; **anyone may create a release at any time**. Because of this, you may wish to review the Pull Requests tab on GitHub and ensure that no one else has a release candidate already in progress. If not, then you are free to start the process.
 - The release process is a work in progress. Further improvements to simplify the process are planned, but in the meantime, if you encounter any issues, please reach out to the Wallet Framework team.
 
-Now for the process itself:
+Now for the process itself, you have two options:
+
+### Option A: Manual Release Specification
 
 1. **Start by creating the release branch.**
 
@@ -210,6 +212,8 @@ Now for the process itself:
    To address the errors, you'll need to copy the path to the YAML file, reopen it in your editor, and include the packages it mentions. You also have the option to skip any packages you think aren't an issue, but make sure you've checked. (If you have any questions about this step, let the Wallet Framework team know.)
 
    Once you've made the requisite changes to the YAML file, save it and re-run `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
+
+<a id="review-changelogs"></a>
 
 4. **Review and update changelogs for relevant packages.**
 
@@ -248,6 +252,45 @@ Now for the process itself:
    Once the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
 
    You're done!
+
+### Option B: Interactive Mode
+
+You can use the interactive web UI to streamline the release process by running:
+`yarn create-release-branch -i`
+
+This will:
+
+1. Start a local web server (default port 3000)
+
+2. Open a browser interface showing all packages with changes since their last release
+
+3. Allow you to visually select which packages to include in the release
+
+4. Provide instant validation of your selections, including:
+
+   - Identifying packages that need updates when their dependencies are being released
+   - Flagging packages that need to be included when their peer dependencies are being updated
+   - Validating version bumps against semantic versioning rules
+   - Ensuring all necessary dependent packages are included in the release
+
+5. Once your selections are complete, it will directly create the release branch with all necessary version bumps and changelog updates
+
+For example:
+
+- If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
+- If you're releasing Package B with breaking changes, the UI will identify any packages that have peer dependencies on Package B that need to be updated
+
+You can specify a different port if needed:
+`yarn create-release-branch -i -p 3001`
+
+The interactive UI simplifies the release process by:
+
+- Providing immediate feedback on your package selections
+- Visualizing package dependencies and relationships
+- Ensuring complete and valid release configurations
+- Eliminating the need to manually edit release specifications
+
+After completing your selections in the UI, proceed to [reviewing and updating changelogs](#review-changelogs).
 
 ## Performing operations across the monorepo
 
