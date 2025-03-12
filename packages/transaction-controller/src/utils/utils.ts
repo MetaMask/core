@@ -58,6 +58,10 @@ export function normalizeTransactionParams(txParams: TransactionParams) {
     normalizedTxParams.value = '0x0';
   }
 
+  if (normalizedTxParams.gasLimit && !normalizedTxParams.gas) {
+    normalizedTxParams.gas = normalizedTxParams.gasLimit;
+  }
+
   return normalizedTxParams;
 }
 
