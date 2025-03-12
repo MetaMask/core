@@ -17,17 +17,6 @@ export const getDefaultBridgeControllerState = (): BridgeControllerState => {
   return DEFAULT_BRIDGE_CONTROLLER_STATE;
 };
 
-export const getBridgeApiBaseUrl = () => {
-  if (process.env.BRIDGE_CUSTOM_API_BASE_URL) {
-    return process.env.BRIDGE_CUSTOM_API_BASE_URL;
-  }
-
-  if (process.env.BRIDGE_USE_DEV_APIS) {
-    return BRIDGE_DEV_API_BASE_URL;
-  }
-
-  return BRIDGE_PROD_API_BASE_URL;
-};
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
  *
