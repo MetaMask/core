@@ -48,6 +48,7 @@ export const TESTNET_TICKER_SYMBOLS = {
   SEPOLIA: 'SepoliaETH',
   LINEA_GOERLI: 'LineaETH',
   LINEA_SEPOLIA: 'LineaETH',
+  MEGA_ETH: 'MegaETH',
 };
 
 /**
