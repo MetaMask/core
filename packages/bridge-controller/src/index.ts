@@ -1,31 +1,22 @@
 export { BridgeController } from './bridge-controller';
 
 export type {
-  AssetType,
   ChainConfiguration,
   L1GasFees,
   QuoteMetadata,
-  SortOrder,
   BridgeToken,
-  BridgeFlag,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
   QuoteRequest,
   Protocol,
-  ActionTypes,
   Step,
   RefuelData,
   Quote,
   QuoteResponse,
-  ChainId,
   FeeData,
   TxData,
-  BridgeFeatureFlagsKey,
   BridgeFeatureFlags,
-  RequestStatus,
-  BridgeUserAction,
-  BridgeBackgroundAction,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
@@ -33,7 +24,18 @@ export type {
   BridgeControllerMessenger,
 } from './types';
 
-export { FeeType } from './types';
+export {
+  AssetType,
+  SortOrder,
+  BridgeFlag,
+  ActionTypes,
+  ChainId,
+  BridgeFeatureFlagsKey,
+  RequestStatus,
+  BridgeUserAction,
+  BridgeBackgroundAction,
+  FeeType,
+} from './types';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
