@@ -86,18 +86,18 @@ export type MessageParamsPersonal = MessageParams & {
   siwe?: StateSIWEMessage;
 };
 
+/** Typed data used in the signTypedData request. */
+export type MessageParamsTypedData = {
+  types: Record<string, Json>;
+  domain: Record<string, Json>;
+  primaryType: string;
+  message: Json;
+};
+
 /** Typed message parameters that were requested to be signed. */
 export type MessageParamsTyped = MessageParams & {
   /** Structured data to sign. */
-  data:
-    | Record<string, Json>[]
-    | string
-    | {
-        types: Record<string, Json>;
-        domain: Record<string, Json>;
-        primaryType: string;
-        message: Json;
-      };
+  data: Record<string, Json>[] | string | MessageParamsTypedData;
   /** Version of the signTypedData request. */
   version?: string;
 };
