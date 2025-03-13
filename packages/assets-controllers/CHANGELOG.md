@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: fix case when metadata are null ([#5455](https://github.com/MetaMask/core/pull/5455))
-
 ## [53.1.0]
 
 ### Added

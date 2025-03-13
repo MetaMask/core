@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [49.0.0]
+
 ### Added
 
 - Add `revertDelegation` to `TransactionType` ([#5468](https://github.com/MetaMask/core/pull/5468))
@@ -1356,7 +1358,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...HEAD
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.2.0...@metamask/transaction-controller@49.0.0
 [48.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.1.0...@metamask/transaction-controller@48.2.0
 [48.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.0.0...@metamask/transaction-controller@48.1.0
 [48.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@47.0.0...@metamask/transaction-controller@48.0.0
