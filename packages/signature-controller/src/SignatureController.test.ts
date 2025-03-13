@@ -4,7 +4,6 @@ import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { LogType, SigningStage } from '@metamask/logging-controller';
 import { v1 } from 'uuid';
 
-import { flushPromises } from '../../../tests/helpers';
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
@@ -23,6 +22,7 @@ import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
 } from './utils/normalize';
+import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('uuid');
 jest.mock('./utils/validation');
@@ -89,26 +89,30 @@ const PERMIT_REQUEST_MOCK = {
 
 /**
  * Create a mock messenger instance.
+ *
  * @returns The mock messenger instance plus individual mock functions for each action.
  */
 function createMessengerMock() {
-  const loggingControllerAddMock = jest.fn();
+  const accountsControllerGetStateMock = jest.fn();
   const approvalControllerAddRequestMock = jest.fn();
   const keyringControllerSignPersonalMessageMock = jest.fn();
   const keyringControllerSignTypedMessageMock = jest.fn();
+  const loggingControllerAddMock = jest.fn();
   const networkControllerGetNetworkClientByIdMock = jest.fn();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callMock = (method: string, ...args: any[]) => {
     switch (method) {
-      case 'LoggingController:add':
-        return loggingControllerAddMock(...args);
+      case 'AccountsController:getState':
+        return accountsControllerGetStateMock(...args);
       case 'ApprovalController:addRequest':
         return approvalControllerAddRequestMock(...args);
       case 'KeyringController:signPersonalMessage':
         return keyringControllerSignPersonalMessageMock(...args);
       case 'KeyringController:signTypedMessage':
         return keyringControllerSignTypedMessageMock(...args);
+      case 'LoggingController:add':
+        return loggingControllerAddMock(...args);
       case 'NetworkController:getNetworkClientById':
         return networkControllerGetNetworkClientByIdMock(...args);
       default:
@@ -122,6 +126,12 @@ function createMessengerMock() {
     publish: jest.fn(),
     call: callMock,
   } as unknown as jest.Mocked<SignatureControllerMessenger>;
+
+  accountsControllerGetStateMock.mockReturnValue({
+    internalAccounts: {
+      accounts: [],
+    },
+  });
 
   approvalControllerAddRequestMock.mockResolvedValue({});
   loggingControllerAddMock.mockResolvedValue({});
@@ -143,6 +153,7 @@ function createMessengerMock() {
 
 /**
  * Create a new instance of the SignatureController.
+ *
  * @param options - Optional overrides for the default options.
  * @returns The controller instance plus individual mock functions for each action.
  */
@@ -159,6 +170,7 @@ function createController(options?: Partial<SignatureControllerOptions>) {
 
 /**
  * Create a mock error.
+ *
  * @returns The mock error instance.
  */
 function createErrorMock(): Error {
