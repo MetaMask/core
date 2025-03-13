@@ -16,6 +16,9 @@ import type {
   OriginalRequest,
 } from '../types';
 
+export const PRIMARY_TYPE_DELEGATION = 'Delegation';
+export const DELEGATOR_FIELD = 'delegator';
+
 /**
  * Validate a personal signature request.
  *
@@ -252,12 +255,14 @@ function validateDelegation({
 }) {
   const { primaryType } = data;
 
-  if (primaryType !== 'Delegation') {
+  if (primaryType !== PRIMARY_TYPE_DELEGATION) {
     return;
   }
 
   const isExternal = origin && origin !== ORIGIN_METAMASK;
-  const delegator = (data.message as Record<string, Json>)?.delegator as Hex;
+  const delegator = (data.message as Record<string, Json>)?.[
+    DELEGATOR_FIELD
+  ] as Hex;
 
   if (
     isExternal &&

@@ -1,8 +1,10 @@
 import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import type { Hex } from '@metamask/utils';
 
 import {
+  PRIMARY_TYPE_DELEGATION,
   validatePersonalSignatureRequest,
   validateTypedSignatureRequest,
 } from './validation';
@@ -12,7 +14,6 @@ import type {
   MessageParamsTyped,
   OriginalRequest,
 } from '../types';
-import { Hex } from '@metamask/utils';
 
 const CHAIN_ID_MOCK = '0x1';
 const ORIGIN_MOCK = 'test.com';
@@ -395,7 +396,7 @@ describe('Validation Utils', () => {
           it('throws if external origin in request and delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
-            data.primaryType = 'Delegation';
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
 
@@ -418,7 +419,7 @@ describe('Validation Utils', () => {
           it('throws if external origin in message params and delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
-            data.primaryType = 'Delegation';
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
 
@@ -442,7 +443,7 @@ describe('Validation Utils', () => {
           it('throws if external origin and delegation from internal account with different case', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
-            data.primaryType = 'Delegation';
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
 
@@ -468,7 +469,7 @@ describe('Validation Utils', () => {
           it('does not throw if internal origin and delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
-            data.primaryType = 'Delegation';
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
 
@@ -489,7 +490,7 @@ describe('Validation Utils', () => {
           it('does not throw if no origin and delegation from internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
 
-            data.primaryType = 'Delegation';
+            data.primaryType = PRIMARY_TYPE_DELEGATION;
             data.types.Delegation = [{ name: 'delegator', type: 'address' }];
             data.message.delegator = INTERNAL_ACCOUNT_MOCK;
 
