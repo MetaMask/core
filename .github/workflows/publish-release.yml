@@ -67,7 +67,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: publish-release-artifacts-${{ github.sha }}
-      - name: Publish ${{ needs.get-release-tag.outputs.tag }} to NPM
+      - name: Publish to NPM
         uses: MetaMask/action-npm-publish@v5
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
