@@ -1,5 +1,6 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import type { BridgeClientId } from '@metamask/bridge-controller';
+import { BRIDGE_PROD_API_BASE_URL } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
@@ -46,16 +47,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #fetchFn: FetchFunction;
 
+  readonly #config: {
+    customBridgeApiBaseUrl?: string;
+  };
+
   constructor({
     messenger,
     state,
     clientId,
     fetchFn,
+    config,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
     fetchFn: FetchFunction;
+    config?: {
+      customBridgeApiBaseUrl?: string;
+    };
   }) {
     super({
       name: BRIDGE_STATUS_CONTROLLER_NAME,
@@ -70,6 +79,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
+    this.#config = config ?? {};
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -242,6 +252,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         statusRequest,
         this.#clientId,
         this.#fetchFn,
+        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       );
       const newBridgeHistoryItem = {
         ...historyItem,
