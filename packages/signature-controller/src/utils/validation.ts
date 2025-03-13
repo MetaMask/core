@@ -257,7 +257,7 @@ function validateDelegation({
   }
 
   const isExternal = origin && origin !== ORIGIN_METAMASK;
-  const delegator = (data.message as Record<string, Json>)?.delegate as Hex;
+  const delegator = (data.message as Record<string, Json>)?.delegator as Hex;
 
   if (
     isExternal &&

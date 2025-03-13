@@ -1,3 +1,4 @@
+import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
@@ -11,10 +12,11 @@ import type {
   MessageParamsTyped,
   OriginalRequest,
 } from '../types';
-import { ORIGIN_METAMASK } from '@metamask/approval-controller';
+import { Hex } from '@metamask/utils';
 
 const CHAIN_ID_MOCK = '0x1';
 const ORIGIN_MOCK = 'test.com';
+const INTERNAL_ACCOUNT_MOCK = '0x12345678abcd';
 
 const DATA_TYPED_MOCK =
   '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Person":[{"name":"name","type":"string"},{"name":"wallet","type":"address"}],"Mail":[{"name":"from","type":"Person"},{"name":"to","type":"Person"},{"name":"contents","type":"string"}]},"primaryType":"Mail","domain":{"name":"Ether Mail","version":"1","chainId":1,"verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"},"message":{"from":{"name":"Cow","wallet":"0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"},"to":{"name":"Bob","wallet":"0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"},"contents":"Hello, Bob!"}}';
@@ -290,11 +292,12 @@ describe('Validation Utils', () => {
         describe('verifying contract', () => {
           it('throws if external origin in request and verifying contract is internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
+            data.domain.verifyingContract = INTERNAL_ACCOUNT_MOCK;
 
             expect(() =>
               validateTypedSignatureRequest({
                 currentChainId: CHAIN_ID_MOCK,
-                internalAccounts: ['0x1234', data.domain.verifyingContract],
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
                 messageData: {
                   data,
                   from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -309,11 +312,12 @@ describe('Validation Utils', () => {
 
           it('throws if external origin in message params and verifying contract is internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
+            data.domain.verifyingContract = INTERNAL_ACCOUNT_MOCK;
 
             expect(() =>
               validateTypedSignatureRequest({
                 currentChainId: CHAIN_ID_MOCK,
-                internalAccounts: ['0x1234', data.domain.verifyingContract],
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
                 messageData: {
                   data,
                   from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -329,13 +333,14 @@ describe('Validation Utils', () => {
 
           it('throws if external origin and verifying contract is internal account with different case', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
+            data.domain.verifyingContract = INTERNAL_ACCOUNT_MOCK;
 
             expect(() =>
               validateTypedSignatureRequest({
                 currentChainId: CHAIN_ID_MOCK,
                 internalAccounts: [
                   '0x1234',
-                  data.domain.verifyingContract.toUpperCase(),
+                  INTERNAL_ACCOUNT_MOCK.toUpperCase() as Hex,
                 ],
                 messageData: {
                   data,
@@ -351,11 +356,12 @@ describe('Validation Utils', () => {
 
           it('does not throw if internal origin and verifying contract is internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
+            data.domain.verifyingContract = INTERNAL_ACCOUNT_MOCK;
 
             expect(() =>
               validateTypedSignatureRequest({
                 currentChainId: CHAIN_ID_MOCK,
-                internalAccounts: ['0x1234', data.domain.verifyingContract],
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
                 messageData: {
                   data,
                   from: '0x3244e191f1b4903970224322180f1fbbc415696b',
@@ -368,11 +374,129 @@ describe('Validation Utils', () => {
 
           it('does not throw if no origin and verifying contract is internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
+            data.domain.verifyingContract = INTERNAL_ACCOUNT_MOCK;
 
             expect(() =>
               validateTypedSignatureRequest({
                 currentChainId: CHAIN_ID_MOCK,
-                internalAccounts: ['0x1234', data.domain.verifyingContract],
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: REQUEST_MOCK,
+                version,
+              }),
+            ).not.toThrow();
+          });
+        });
+
+        describe('delegation', () => {
+          it('throws if external origin in request and delegation from internal account', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+
+            data.primaryType = 'Delegation';
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).toThrow(
+              'External signature requests cannot sign delegations for internal accounts.',
+            );
+          });
+
+          it('throws if external origin in message params and delegation from internal account', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+
+            data.primaryType = 'Delegation';
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                  origin: ORIGIN_MOCK,
+                },
+                request: REQUEST_MOCK,
+                version,
+              }),
+            ).toThrow(
+              'External signature requests cannot sign delegations for internal accounts.',
+            );
+          });
+
+          it('throws if external origin and delegation from internal account with different case', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+
+            data.primaryType = 'Delegation';
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: [
+                  '0x1234',
+                  INTERNAL_ACCOUNT_MOCK.toUpperCase() as Hex,
+                ],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).toThrow(
+              'External signature requests cannot sign delegations for internal accounts.',
+            );
+          });
+
+          it('does not throw if internal origin and delegation from internal account', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+
+            data.primaryType = 'Delegation';
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: { origin: ORIGIN_METAMASK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
+          it('does not throw if no origin and delegation from internal account', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+
+            data.primaryType = 'Delegation';
+            data.types.Delegation = [{ name: 'delegator', type: 'address' }];
+            data.message.delegator = INTERNAL_ACCOUNT_MOCK;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
                 messageData: {
                   data,
                   from: '0x3244e191f1b4903970224322180f1fbbc415696b',
