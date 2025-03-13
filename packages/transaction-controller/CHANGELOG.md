@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `revertDelegation` to `TransactionType` ([#5468](https://github.com/MetaMask/core/pull/5468))
 - Add optional batch ID to metadata ([#5462](https://github.com/MetaMask/core/pull/5462))
   - Add optional `batchId` property to `TransactionMeta`.
   - Add optional `transactionHash` to `TransactionReceipt`.
