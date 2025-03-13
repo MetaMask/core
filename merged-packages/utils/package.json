@@ -1,6 +1,6 @@
 {
   "name": "@metamask/utils",
-  "version": "11.2.0",
+  "version": "11.3.0",
   "description": "Various JavaScript/TypeScript utilities of wide relevance to the MetaMask codebase",
   "homepage": "https://github.com/MetaMask/utils#readme",
   "bugs": {
@@ -45,7 +45,7 @@
     "build": "ts-bridge --project tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "lint": "yarn lint:eslint && yarn lint:constraints && yarn lint:misc --check && yarn lint:dependencies --check && yarn lint:changelog",
-    "lint:changelog": "auto-changelog validate",
+    "lint:changelog": "auto-changelog validate --prettier",
     "lint:constraints": "yarn constraints",
     "lint:dependencies": "depcheck && yarn dedupe",
     "lint:eslint": "eslint . --cache --ext js,ts",
