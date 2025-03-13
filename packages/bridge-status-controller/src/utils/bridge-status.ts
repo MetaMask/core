@@ -1,5 +1,4 @@
 import type { Quote } from '@metamask/bridge-controller';
-import { getBridgeApiBaseUrl } from '@metamask/bridge-controller';
 
 import { validateBridgeStatusResponse } from './validators';
 import type {
@@ -13,7 +12,8 @@ export const getClientIdHeader = (clientId: string) => ({
   'X-Client-Id': clientId,
 });
 
-export const BRIDGE_STATUS_BASE_URL = `${getBridgeApiBaseUrl()}/getTxStatus`;
+export const getBridgeStatusUrl = (bridgeApiBaseUrl: string) =>
+  `${bridgeApiBaseUrl}/getTxStatus`;
 
 export const getStatusRequestDto = (
   statusRequest: StatusRequestWithSrcTxHash,
@@ -40,12 +40,13 @@ export const fetchBridgeTxStatus = async (
   statusRequest: StatusRequestWithSrcTxHash,
   clientId: string,
   fetchFn: FetchFunction,
+  bridgeApiBaseUrl: string,
 ): Promise<StatusResponse> => {
   const statusRequestDto = getStatusRequestDto(statusRequest);
   const params = new URLSearchParams(statusRequestDto);
 
   // Fetch
-  const url = `${BRIDGE_STATUS_BASE_URL}?${params.toString()}`;
+  const url = `${getBridgeStatusUrl(bridgeApiBaseUrl)}?${params.toString()}`;
 
   const rawTxStatus: unknown = await fetchFn(url, {
     headers: getClientIdHeader(clientId),

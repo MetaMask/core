@@ -49,6 +49,8 @@ export {
   DEFAULT_MAX_REFRESH_COUNT,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
+  BRIDGE_DEV_API_BASE_URL,
+  BRIDGE_PROD_API_BASE_URL,
 } from './constants/bridge';
 
 export type { AllowedBridgeChainIds } from './constants/bridge';
@@ -57,8 +59,4 @@ export type { SwapsTokenObject } from './constants/tokens';
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
-export {
-  getEthUsdtResetData,
-  isEthUsdt,
-  getBridgeApiBaseUrl,
-} from './utils/bridge';
+export { getEthUsdtResetData, isEthUsdt } from './utils/bridge';
