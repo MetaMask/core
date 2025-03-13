@@ -137,6 +137,8 @@ function getRestrictedMessenger(
       'MultichainAssetsController:getState',
     ],
     allowedEvents: [
+      'KeyringController:lock',
+      'KeyringController:unlock',
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountBalancesUpdated',
@@ -422,6 +424,22 @@ describe('BalancesController', () => {
 
     await waitForAllPromises();
 
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('resumes updating balances after unlocking KeyringController', async () => {
+    const { controller, messenger } = setupController();
+
+    messenger.publish('KeyringController:lock');
+
+    await controller.updateBalance(mockBtcAccount.id);
+    expect(controller.state.balances[mockBtcAccount.id]).toBeUndefined();
+
+    messenger.publish('KeyringController:unlock');
+
+    await controller.updateBalance(mockBtcAccount.id);
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );

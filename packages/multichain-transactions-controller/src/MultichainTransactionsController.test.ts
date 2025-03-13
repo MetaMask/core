@@ -147,6 +147,8 @@ const setupController = ({
         'AccountsController:listMultichainAccounts',
       ],
       allowedEvents: [
+        'KeyringController:lock',
+        'KeyringController:unlock',
         'AccountsController:accountAdded',
         'AccountsController:accountRemoved',
         'AccountsController:accountTransactionsUpdated',
@@ -660,5 +662,27 @@ describe('MultichainTransactionsController', () => {
       nullTimestampTx1,
       nullTimestampTx2,
     ]);
+  });
+
+  it('resumes updating transactions after unlocking KeyringController', async () => {
+    const { controller, messenger } = setupController();
+
+    messenger.publish('KeyringController:lock');
+
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id],
+    ).toBeUndefined();
+
+    messenger.publish('KeyringController:unlock');
+
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id],
+    ).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      next: null,
+      lastUpdated: expect.any(Number),
+    });
   });
 });

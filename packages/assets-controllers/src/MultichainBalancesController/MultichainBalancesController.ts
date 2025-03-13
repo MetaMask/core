@@ -16,6 +16,10 @@ import type {
   CaipAssetType,
   AccountBalancesUpdatedEventPayload,
 } from '@metamask/keyring-api';
+import type {
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -100,6 +104,8 @@ type AllowedActions =
  * Events that this controller is allowed to subscribe.
  */
 type AllowedEvents =
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountBalancesUpdatesEvent
@@ -139,6 +145,8 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
+  #isUnlocked = true;
+
   constructor({
     messenger,
     state = {},
@@ -154,6 +162,14 @@ export class MultichainBalancesController extends BaseController<
         ...getDefaultMultichainBalancesControllerState(),
         ...state,
       },
+    });
+
+    // Subscribe to keyring lock/unlock events.
+    this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.#isUnlocked = false;
+    });
+    this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.#isUnlocked = true;
     });
 
     // Fetch initial balances for all non-EVM accounts
@@ -199,6 +215,10 @@ export class MultichainBalancesController extends BaseController<
     accountId: string,
     assets: CaipAssetType[],
   ): Promise<void> {
+    if (!this.isActive) {
+      return;
+    }
+
     try {
       const account = this.#getAccount(accountId);
 
@@ -333,6 +353,15 @@ export class MultichainBalancesController extends BaseController<
         delete state.balances[accountId];
       });
     }
+  }
+
+  /**
+   * Determines whether the controller is active.
+   *
+   * @returns True if the keyring is unlocked; otherwise, false.
+   */
+  get isActive(): boolean {
+    return this.#isUnlocked;
   }
 
   /**
