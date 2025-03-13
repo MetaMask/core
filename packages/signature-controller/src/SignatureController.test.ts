@@ -22,6 +22,7 @@ import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
 } from './utils/normalize';
+import { validateTypedSignatureRequest } from './utils/validation';
 import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('uuid');
@@ -143,6 +144,7 @@ function createMessengerMock() {
   });
 
   return {
+    accountsControllerGetStateMock,
     approvalControllerAddRequestMock,
     keyringControllerSignPersonalMessageMock,
     keyringControllerSignTypedMessageMock,
@@ -187,6 +189,10 @@ describe('SignatureController', () => {
 
   const normalizeTypedMessageParamsMock = jest.mocked(
     normalizeTypedMessageParams,
+  );
+
+  const validateTypedSignatureRequestMock = jest.mocked(
+    validateTypedSignatureRequest,
   );
 
   const detectSIWEMock = jest.mocked(detectSIWE);
@@ -1079,6 +1085,56 @@ describe('SignatureController', () => {
         expect(
           controller.state.signatureRequests[ID_MOCK].decodingLoading,
         ).toBe(true);
+      });
+
+      it('validates the request', async () => {
+        const { controller } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          PARAMS_MOCK,
+          REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(validateTypedSignatureRequestMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('validates the request using EOA internal accounts', async () => {
+        const { controller, accountsControllerGetStateMock } =
+          createController();
+
+        accountsControllerGetStateMock.mockReturnValue({
+          internalAccounts: {
+            accounts: [
+              {
+                type: 'eip155:eoa',
+                address: '0x123',
+              },
+              {
+                type: 'invalid',
+                address: '0x321',
+              },
+              {
+                type: 'eip155:eoa',
+                address: '0xabc',
+              },
+            ],
+          },
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PARAMS_MOCK,
+          REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(validateTypedSignatureRequestMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            internalAccounts: ['0x123', '0xabc'],
+          }),
+        );
       });
     });
   });

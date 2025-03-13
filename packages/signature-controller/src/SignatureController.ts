@@ -955,6 +955,7 @@ export class SignatureController extends BaseController<
   #getInternalAccounts(): Hex[] {
     const state = this.messagingSystem.call('AccountsController:getState');
 
+    /* istanbul ignore next */
     return Object.values(state.internalAccounts?.accounts ?? {})
       .filter((account) => account.type === 'eip155:eoa')
       .map((account) => account.address as Hex);
