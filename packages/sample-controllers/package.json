@@ -1,13 +1,12 @@
 {
-  "name": "@metamask/example-controllers",
+  "name": "@metamask/sample-controllers",
   "version": "0.0.0",
-  "private": true,
-  "description": "Example package to illustrate best practices for controllers",
+  "description": "Sample package to illustrate best practices for controllers",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/example-controllers#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/sample-controllers#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -38,9 +37,10 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/example-controllers",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/example-controllers",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/sample-controllers",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/sample-controllers",
     "since-latest-release": "../../scripts/since-latest-release.sh",
+    "publish:preview": "yarn npm publish --tag preview",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
@@ -52,7 +52,8 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/controller-utils": "^11.5.0",
+    "@metamask/controller-utils": "^11.6.0",
+    "@metamask/network-controller": "^22.2.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -64,5 +65,12 @@
   },
   "engines": {
     "node": "^18.18 || >=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "peerDependencies": {
+    "@metamask/network-controller": "^22.0.0"
   }
 }
