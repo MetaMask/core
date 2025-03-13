@@ -437,7 +437,7 @@ export const PendingJsonRpcResponseStruct = superstructObject({
 /**
  * A JSON-RPC response object that has not yet been resolved.
  */
-export type PendingJsonRpcResponse<Result extends Json> = Omit<
+export type PendingJsonRpcResponse<Result extends Json = Json> = Omit<
   Infer<typeof PendingJsonRpcResponseStruct>,
   'result'
 > & {
@@ -453,7 +453,7 @@ export const JsonRpcSuccessStruct = object({
 /**
  * A successful JSON-RPC response object.
  */
-export type JsonRpcSuccess<Result extends Json> = Omit<
+export type JsonRpcSuccess<Result extends Json = Json> = Omit<
   Infer<typeof JsonRpcSuccessStruct>,
   'result'
 > & {
@@ -482,7 +482,7 @@ export const JsonRpcResponseStruct = union([
  *
  * @template Result - The type of the result.
  */
-export type JsonRpcResponse<Result extends Json> =
+export type JsonRpcResponse<Result extends Json = Json> =
   | JsonRpcSuccess<Result>
   | JsonRpcFailure;
 
@@ -495,7 +495,7 @@ export type JsonRpcResponse<Result extends Json> =
  */
 export function isPendingJsonRpcResponse(
   response: unknown,
-): response is PendingJsonRpcResponse<Json> {
+): response is PendingJsonRpcResponse {
   return is(response, PendingJsonRpcResponseStruct);
 }
 
@@ -512,7 +512,7 @@ export function assertIsPendingJsonRpcResponse(
   response: unknown,
   // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
-): asserts response is PendingJsonRpcResponse<Json> {
+): asserts response is PendingJsonRpcResponse {
   assertStruct(
     response,
     PendingJsonRpcResponseStruct,
@@ -529,7 +529,7 @@ export function assertIsPendingJsonRpcResponse(
  */
 export function isJsonRpcResponse(
   response: unknown,
-): response is JsonRpcResponse<Json> {
+): response is JsonRpcResponse {
   return is(response, JsonRpcResponseStruct);
 }
 
@@ -545,7 +545,7 @@ export function assertIsJsonRpcResponse(
   value: unknown,
   // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
-): asserts value is JsonRpcResponse<Json> {
+): asserts value is JsonRpcResponse {
   assertStruct(
     value,
     JsonRpcResponseStruct,
@@ -560,9 +560,7 @@ export function assertIsJsonRpcResponse(
  * @param value - The value to check.
  * @returns Whether the given value is a valid {@link JsonRpcSuccess} object.
  */
-export function isJsonRpcSuccess(
-  value: unknown,
-): value is JsonRpcSuccess<Json> {
+export function isJsonRpcSuccess(value: unknown): value is JsonRpcSuccess {
   return is(value, JsonRpcSuccessStruct);
 }
 
@@ -578,7 +576,7 @@ export function assertIsJsonRpcSuccess(
   value: unknown,
   // eslint-disable-next-line @typescript-eslint/naming-convention
   ErrorWrapper?: AssertionErrorConstructor,
-): asserts value is JsonRpcSuccess<Json> {
+): asserts value is JsonRpcSuccess {
   assertStruct(
     value,
     JsonRpcSuccessStruct,
