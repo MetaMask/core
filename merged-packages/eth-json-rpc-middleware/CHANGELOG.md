@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+### Added
+- Support updated EIP-5792 specification ([#363](https://github.com/MetaMask/eth-json-rpc-middleware/pull/363))
+  - Add optional `id` to `SendCallsParams`.
+  - Add optional `capabilities` to each call in `SendCallsParams`.
+  - Add `optional` property to both top-level and call-level capabilities.
+  - Add `SendCallsResult` type.
+  - Add `id`, `version`, and optional `capabilities` to `GetCallsStatusResult`.
+  - Add `GetCallsStatusCode` enum.
+  - Add `GetCallsStatusHook` type.
+  - Add optional `chainIds` argument to `GetCapabilitiesParams`.
+
+### Changed
+- **BREAKING:** Support updated EIP-5792 specification ([#363](https://github.com/MetaMask/eth-json-rpc-middleware/pull/363))
+  - Return `SendCallsResult` from `wallet_sendCalls` instead of `string`.
+  - Change `GetCallsStatusParams` to contain `Hex` instead of `string`. 
+  - Change `status` in `GetCallsStatusResult` to `number` instead of `string`.
+  - Replace `GetTransactionReceiptsByBatchIdHook` with `GetCallsStatusHook`.
+
+### Removed
+- **BREAKING:** Support updated EIP-5792 specification ([#363](https://github.com/MetaMask/eth-json-rpc-middleware/pull/363))
+  - Remove `GetCallsStatusReceipt` type.
+  - Remove `GetTransactionReceiptsByBatchIdHook` type.
+
 ## [15.3.0]
 ### Added
 - Support EIP-5792 ([#357](https://github.com/MetaMask/eth-json-rpc-middleware/pull/359))
@@ -282,7 +306,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.3.0...v16.0.0
 [15.3.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.2.0...v15.3.0
 [15.2.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.2...v15.2.0
 [15.1.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.1...v15.1.2

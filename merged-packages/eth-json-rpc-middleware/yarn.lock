@@ -993,7 +993,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@^15.0.1, @metamask/eth-json-rpc-middleware@workspace:.":
+"@metamask/eth-json-rpc-middleware@npm:^15.0.1":
+  version: 15.3.0
+  resolution: "@metamask/eth-json-rpc-middleware@npm:15.3.0"
+  dependencies:
+    "@metamask/eth-block-tracker": ^11.0.4
+    "@metamask/eth-json-rpc-provider": ^4.1.7
+    "@metamask/eth-sig-util": ^8.1.2
+    "@metamask/json-rpc-engine": ^10.0.2
+    "@metamask/rpc-errors": ^7.0.2
+    "@metamask/superstruct": ^3.1.0
+    "@metamask/utils": ^11.1.0
+    "@types/bn.js": ^5.1.5
+    bn.js: ^5.2.1
+    klona: ^2.0.6
+    pify: ^5.0.0
+    safe-stable-stringify: ^2.4.3
+  checksum: 6d6946daf799d898d66133104c10718966e96c3edc59b71c4910fd29587a0aa800dcaa0ba12d404418f7508c5559593d218b5a5f9245f51dd02d229dd913b57f
+  languageName: node
+  linkType: hard
+
+"@metamask/eth-json-rpc-middleware@workspace:.":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-middleware@workspace:."
   dependencies:
