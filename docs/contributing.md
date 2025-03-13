@@ -283,13 +283,6 @@ For example:
 You can specify a different port if needed:
 `yarn create-release-branch -i -p 3001`
 
-The interactive UI simplifies the release process by:
-
-- Providing immediate feedback on your package selections
-- Visualizing package dependencies and relationships
-- Ensuring complete and valid release configurations
-- Eliminating the need to manually edit release specifications
-
 After completing your selections in the UI, proceed to [reviewing and updating changelogs](#review-changelogs).
 
 ## Performing operations across the monorepo
