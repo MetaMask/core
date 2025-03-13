@@ -619,6 +619,12 @@ export enum TransactionType {
   retry = 'retry',
 
   /**
+   * Remove the code / delegation from an upgraded EOA.
+   * Introduced in EIP-7702.
+   */
+  revokeDelegation = 'revokeDelegation',
+
+  /**
    * A transaction sending a network's native asset to a recipient.
    */
   simpleSend = 'simpleSend',
