@@ -145,6 +145,7 @@ const setupController = ({
       allowedActions: [
         'SnapController:handleRequest',
         'AccountsController:listMultichainAccounts',
+        'KeyringController:getState',
       ],
       allowedEvents: [
         'KeyringController:lock',
@@ -171,6 +172,14 @@ const setupController = ({
     ),
   );
 
+  const mockGetKeyringState = jest.fn().mockReturnValue({
+    isUnlocked: true,
+  });
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    mockGetKeyringState,
+  );
+
   const controller = new MultichainTransactionsController({
     messenger: multichainTransactionsControllerMessenger,
     state,
@@ -181,6 +190,7 @@ const setupController = ({
     messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
+    mockGetKeyringState,
   };
 };
 
@@ -665,8 +675,9 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('resumes updating transactions after unlocking KeyringController', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, messenger, mockGetKeyringState } = setupController();
 
+    mockGetKeyringState.mockReturnValueOnce({ isUnlocked: false });
     messenger.publish('KeyringController:lock');
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
@@ -674,6 +685,7 @@ describe('MultichainTransactionsController', () => {
       controller.state.nonEvmTransactions[mockBtcAccount.id],
     ).toBeUndefined();
 
+    mockGetKeyringState.mockReturnValueOnce({ isUnlocked: true });
     messenger.publish('KeyringController:unlock');
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);

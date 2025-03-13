@@ -16,6 +16,7 @@ import {
   type AccountTransactionsUpdatedEventPayload,
 } from '@metamask/keyring-api';
 import type {
+  KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
@@ -114,6 +115,7 @@ export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
  */
 export type AllowedActions =
   | HandleSnapRequest
+  | KeyringControllerGetStateAction
   | AccountsControllerListMultichainAccountsAction;
 
 /**
@@ -176,6 +178,12 @@ export class MultichainTransactionsController extends BaseController<
         ...state,
       },
     });
+
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    this.#isUnlocked = isUnlocked;
 
     // Subscribe to keyring lock/unlock events.
     this.messagingSystem.subscribe('KeyringController:lock', () => {

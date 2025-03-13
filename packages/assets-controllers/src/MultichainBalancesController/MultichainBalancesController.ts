@@ -17,6 +17,7 @@ import type {
   AccountBalancesUpdatedEventPayload,
 } from '@metamask/keyring-api';
 import type {
+  KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
@@ -98,7 +99,8 @@ export type MultichainBalancesControllerEvents =
 type AllowedActions =
   | HandleSnapRequest
   | AccountsControllerListMultichainAccountsAction
-  | MultichainAssetsControllerGetStateAction;
+  | MultichainAssetsControllerGetStateAction
+  | KeyringControllerGetStateAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -163,6 +165,12 @@ export class MultichainBalancesController extends BaseController<
         ...state,
       },
     });
+
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    this.#isUnlocked = isUnlocked;
 
     // Subscribe to keyring lock/unlock events.
     this.messagingSystem.subscribe('KeyringController:lock', () => {

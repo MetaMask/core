@@ -135,6 +135,7 @@ function getRestrictedMessenger(
       'SnapController:handleRequest',
       'AccountsController:listMultichainAccounts',
       'MultichainAssetsController:getState',
+      'KeyringController:getState',
     ],
     allowedEvents: [
       'KeyringController:lock',
@@ -186,6 +187,13 @@ const setupController = ({
     mockGetAssetsState,
   );
 
+  const mockGetKeyringState = jest.fn().mockReturnValue({
+    isUnlocked: true,
+  });
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    mockGetKeyringState,
+  );
   const controller = new MultichainBalancesController({
     messenger: multichainBalancesMessenger,
     state,
@@ -227,6 +235,10 @@ describe('BalancesController', () => {
     messenger.registerActionHandler(
       'MultichainAssetsController:getState',
       jest.fn(),
+    );
+    messenger.registerActionHandler(
+      'KeyringController:getState',
+      jest.fn().mockReturnValue({ isUnlocked: true }),
     );
 
     const controller = new MultichainBalancesController({
