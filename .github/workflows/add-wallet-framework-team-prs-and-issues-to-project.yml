@@ -20,4 +20,4 @@ jobs:
       team-name: 'wallet-framework-engineers'
       team-label: 'team-wallet-framework'
     secrets:
-      github-token: ${{ secrets.GITHUB_TOKEN }}
+      github-token: ${{ secrets.CORE_ADD_PRS_TO_PROJECT }}
