@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Adds safeguard for keyring being locked or unlocked ([#5473](https://github.com/MetaMask/core/pull/5473))
-- Release 327.0.0 ([#5481](https://github.com/MetaMask/core/pull/5481))
-- Publish example controllers and service as @metamask/sample-controllers ([#5363](https://github.com/MetaMask/core/pull/5363))
-- Fix case when metadata are null ([#5455](https://github.com/MetaMask/core/pull/5455))
+- Check if `KeyringController` is unlocked before processing account events in `MultichainBalancesController` ([#5473](https://github.com/MetaMask/core/pull/5473))
+  - This is needed since some Snaps might encrypt their state which needs the `KeyringController` to be unlocked.
+
+## Fixed
+
+- Fix runtime error in NFT detection when metadata is `null` ([#5455](https://github.com/MetaMask/core/pull/5455))
 
 ## [53.1.0]
 
