@@ -1,6 +1,6 @@
 # `@metamask/eip1193-permission-middleware`
 
-Implements the JSON-RPC methods for managing permissions as referenced in [EIP-2255](https://eips.ethereum.org/EIPS/eip-2255) and [MIP-2](https://github.com/MetaMask/metamask-improvement-proposals/blob/main/MIPs/mip-2.md), but supporting [chain-agnostic permission caveats](https://npmjs.com/package/@metamask/chain-agnostic-permission) in alignment with [`@metamask/multichain-api-middleware`](https://npmjs.com/package/@metamask/multichain-api-middleware).
+Implements the JSON-RPC methods for managing permissions as referenced in [EIP-2255](https://eips.ethereum.org/EIPS/eip-2255) and [MIP-2](https://github.com/MetaMask/metamask-improvement-proposals/blob/main/MIPs/mip-2.md), but adapted to support [chain-agnostic permission caveats](https://npmjs.com/package/@metamask/chain-agnostic-permission).
 
 ## Installation
 
