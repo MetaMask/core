@@ -901,11 +901,6 @@ export interface RemoteTransactionSourceRequest {
   cache: Record<string, unknown>;
 
   /**
-   * The IDs of the chains to query.
-   */
-  chainIds: Hex[];
-
-  /**
    * Whether to also include incoming token transfers.
    */
   includeTokenTransfers: boolean;
