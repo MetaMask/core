@@ -236,6 +236,7 @@ linkStyle default opacity:0.5
   selected_network_controller --> permission_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
+  signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
