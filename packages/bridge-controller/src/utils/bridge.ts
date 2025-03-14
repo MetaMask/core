@@ -11,9 +11,10 @@ import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type { BridgeControllerState } from '../types';
 
-export const getDefaultBridgeControllerState = (): BridgeControllerState => {
-  return DEFAULT_BRIDGE_CONTROLLER_STATE;
-};
+export const getDefaultBridgeControllerState =
+  (): BridgeControllerState['bridgeState'] => {
+    return DEFAULT_BRIDGE_CONTROLLER_STATE;
+  };
 
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum

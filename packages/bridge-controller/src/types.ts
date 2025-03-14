@@ -1,4 +1,4 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
@@ -8,15 +8,29 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type {
+  CaipAccountId,
+  CaipAssetId,
+  CaipChainId,
+  Hex,
+} from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
 
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 
+// The extension's fetch function accepts additional options
+type FetchWithCacheOptions = {
+  cacheOptions?: {
+    cacheRefreshTime: number;
+  };
+  functionName?: string;
+};
+
 export type FetchFunction = (
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: RequestInit & FetchWithCacheOptions,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) => Promise<any>;
 
@@ -41,11 +55,18 @@ export enum AssetType {
 export type ChainConfiguration = {
   isActiveSrc: boolean;
   isActiveDest: boolean;
+  refreshRate?: number;
+  topAssets?: string[];
 };
 
 export type L1GasFees = {
   l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by controller
 };
+
+export type SolanaFees = {
+  solanaFeesInLamports?: string; // solana fees in lamports, appended by controller
+};
+
 // Values derived from the quote response
 // valueInCurrency values are calculated based on the user's selected currency
 
@@ -72,12 +93,11 @@ export type BridgeToken = {
   symbol: string;
   image: string;
   decimals: number;
-  chainId: Hex;
+  chainId: number | Hex | ChainId | CaipChainId;
   balance: string; // raw balance
   string: string | undefined; // normalized balance as a stringified number
   tokenFiatAmount?: number | null;
-} | null;
-// Types copied from Metabridge API
+};
 
 export enum BridgeFlag {
   EXTENSION_CONFIG = 'extension-config',
@@ -105,26 +125,43 @@ export type BridgeAsset = {
   name: string;
   decimals: number;
   icon?: string;
+  assetId: string;
 };
 
-export type QuoteRequest = {
-  walletAddress: string;
-  destWalletAddress?: string;
-  srcChainId: ChainId;
-  destChainId: ChainId;
-  srcTokenAddress: string;
-  destTokenAddress: string;
+// This is the interface for the quote request sent to the bridge-api
+// and should only be used by the fetchBridgeQuotes function
+// Components and redux store should use the GenericQuoteRequest type
+export type QuoteRequest<
+  ChainIdType = ChainId | number,
+  TokenAddressType = string,
+  WalletAddressType = string,
+> = {
+  walletAddress: WalletAddressType;
+  destWalletAddress?: WalletAddressType;
+  srcChainId: ChainIdType;
+  destChainId: ChainIdType;
+  srcTokenAddress: TokenAddressType;
+  destTokenAddress: TokenAddressType;
   /**
    * This is the amount sent, in atomic amount
    */
   srcTokenAmount: string;
-  slippage: number;
+  slippage?: number;
   aggIds?: string[];
   bridgeIds?: string[];
   insufficientBal?: boolean;
   resetApproval?: boolean;
   refuel?: boolean;
 };
+
+// These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
+// Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
+export type GenericQuoteRequest = QuoteRequest<
+  Hex | CaipChainId | string | number, // chainIds
+  Hex | CaipAssetId | string, // assetIds/addresses
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-arguments
+  Hex | CaipAccountId | string // accountIds/addresses
+>;
 
 export type Protocol = {
   name: string;
@@ -185,6 +222,7 @@ export enum ChainId {
   ARBITRUM = 42161,
   AVALANCHE = 43114,
   LINEA = 59144,
+  SOLANA = 1151111081099710,
 }
 
 export enum FeeType {
@@ -212,7 +250,7 @@ type FeatureFlagsPlatformConfig = {
   refreshRate: number;
   maxRefreshCount: number;
   support: boolean;
-  chains: Record<Hex, ChainConfiguration>;
+  chains: Record<CaipChainId, ChainConfiguration>;
 };
 
 export type BridgeFeatureFlags = {
@@ -233,16 +271,19 @@ export enum BridgeBackgroundAction {
   RESET_STATE = 'resetState',
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
 }
-export type BridgeControllerState = {
+
+type BridgeState = {
   bridgeFeatureFlags: BridgeFeatureFlags;
-  quoteRequest: Partial<QuoteRequest>;
-  quotes: (QuoteResponse & L1GasFees)[];
+  quoteRequest: Partial<GenericQuoteRequest>;
+  quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
   quotesInitialLoadTime: number | null;
   quotesLastFetched: number | null;
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
   quotesRefreshCount: number;
 };
+
+export type BridgeControllerState = { bridgeState: BridgeState };
 
 export type BridgeControllerAction<
   FunctionName extends keyof BridgeController,
@@ -264,7 +305,8 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 >;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction
+  | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction;

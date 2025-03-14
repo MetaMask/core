@@ -1,3 +1,6 @@
+import { SolScope } from '@metamask/keyring-api';
+
+import { MULTICHAIN_ID_TO_NATIVE_ASSET_MAP } from './bridge';
 import { CHAIN_IDS } from './chains';
 
 export type SwapsTokenObject = {
@@ -126,6 +129,14 @@ export const BASE_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
   ...ETH_SWAPS_TOKEN_OBJECT,
 } as const;
 
+const SOLANA_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
+  symbol: 'SOL',
+  name: 'Solana',
+  address: MULTICHAIN_ID_TO_NATIVE_ASSET_MAP[SolScope.Mainnet],
+  decimals: 9,
+  iconUrl: '',
+};
+
 const SWAPS_TESTNET_CHAIN_ID = '0x539';
 
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
@@ -141,4 +152,5 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.LINEA_MAINNET]: LINEA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BASE]: BASE_SWAPS_TOKEN_OBJECT,
+  [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
 } as const;
