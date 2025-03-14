@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: adds safeguard for keyring being locked or unlocked ([#5473](https://github.com/MetaMask/core/pull/5473))
+- Release 327.0.0 ([#5481](https://github.com/MetaMask/core/pull/5481))
+- docs: publish example controllers and service as @metamask/sample-controllers ([#5363](https://github.com/MetaMask/core/pull/5363))
+- fix: fix case when metadata are null ([#5455](https://github.com/MetaMask/core/pull/5455))
+
 ## [53.1.0]
 
 ### Added
