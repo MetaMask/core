@@ -138,8 +138,6 @@ function getRestrictedMessenger(
       'KeyringController:getState',
     ],
     allowedEvents: [
-      'KeyringController:lock',
-      'KeyringController:unlock',
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountBalancesUpdated',

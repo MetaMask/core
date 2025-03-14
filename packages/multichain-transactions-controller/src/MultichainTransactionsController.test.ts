@@ -148,8 +148,6 @@ const setupController = ({
         'KeyringController:getState',
       ],
       allowedEvents: [
-        'KeyringController:lock',
-        'KeyringController:unlock',
         'AccountsController:accountAdded',
         'AccountsController:accountRemoved',
         'AccountsController:accountTransactionsUpdated',
