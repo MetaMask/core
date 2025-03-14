@@ -137,7 +137,7 @@ export async function fetchBridgeTokens(
 
 /**
  * Converts the generic quote request to the type that the bridge-api expects
- * and fetches quotes from the bridge-api
+ * then fetches quotes from the bridge-api
  *
  * @param request - The quote request
  * @param signal - The abort signal
@@ -153,12 +153,11 @@ export async function fetchBridgeQuotes(
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
 ): Promise<QuoteResponse[]> {
+  const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
   // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
     walletAddress: formatAddressToString(request.walletAddress),
-    destWalletAddress: formatAddressToString(
-      request.destWalletAddress ?? request.walletAddress,
-    ),
+    destWalletAddress: formatAddressToString(destWalletAddress),
     srcChainId: formatChainIdToDec(request.srcChainId),
     destChainId: formatChainIdToDec(request.destChainId),
     srcTokenAddress: formatAddressToString(request.srcTokenAddress),

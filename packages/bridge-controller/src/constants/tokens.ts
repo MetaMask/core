@@ -1,6 +1,5 @@
 import { SolScope } from '@metamask/keyring-api';
 
-import { MULTICHAIN_ID_TO_NATIVE_ASSET_MAP } from './bridge';
 import { CHAIN_IDS } from './chains';
 
 export type SwapsTokenObject = {
@@ -27,6 +26,7 @@ export type SwapsTokenObject = {
 };
 
 const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+export const DEFAULT_SOLANA_TOKEN_ADDRESS = `${SolScope.Mainnet}/slip44:501`;
 
 export const CURRENCY_SYMBOLS = {
   ARBITRUM: 'ETH',
@@ -51,6 +51,7 @@ export const CURRENCY_SYMBOLS = {
   GLIMMER: 'GLMR',
   MOONRIVER: 'MOVR',
   ONE: 'ONE',
+  SOL: 'SOL',
 } as const;
 
 export const ETH_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
@@ -130,9 +131,9 @@ export const BASE_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
 } as const;
 
 const SOLANA_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
-  symbol: 'SOL',
+  symbol: CURRENCY_SYMBOLS.SOL,
   name: 'Solana',
-  address: MULTICHAIN_ID_TO_NATIVE_ASSET_MAP[SolScope.Mainnet],
+  address: DEFAULT_SOLANA_TOKEN_ADDRESS,
   decimals: 9,
   iconUrl: '',
 };
