@@ -167,14 +167,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
+      const providerConfig = this.#getSelectedNetworkClient()?.configuration;
 
-      // Query the balance of the source token if the source chain is an EVM chain
       let insufficientBal: boolean | undefined;
       if (isSolanaChainId(updatedQuoteRequest.srcChainId)) {
+        // If the source chain is not an EVM network, use value from params
         insufficientBal = paramsToUpdate.insufficientBal;
+      } else if (providerConfig?.rpcUrl?.includes('tenderly')) {
+        // If the rpcUrl is a tenderly fork (e2e tests), set insufficientBal=true
+        // The bridge-api filters out quotes if the balance on mainnet is insufficient so this override allows quotes to always be returned
+        insufficientBal = true;
       } else {
+        // Otherwise query the src token balance from the RPC provider
         insufficientBal =
-          paramsToUpdate.insufficientBal ||
+          paramsToUpdate.insufficientBal ??
           !(await this.#hasSufficientBalance(updatedQuoteRequest));
       }
 
