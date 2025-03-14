@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- docs: publish example controllers and service as @metamask/sample-controllers ([#5363](https://github.com/MetaMask/core/pull/5363))
-
 [Unreleased]: https://github.com/MetaMask/core/
