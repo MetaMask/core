@@ -1,3 +1,5 @@
+import { SolScope } from '@metamask/keyring-api';
+
 import { CHAIN_IDS } from './chains';
 
 export type SwapsTokenObject = {
@@ -24,6 +26,7 @@ export type SwapsTokenObject = {
 };
 
 const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+export const DEFAULT_SOLANA_TOKEN_ADDRESS = `${SolScope.Mainnet}/slip44:501`;
 
 export const CURRENCY_SYMBOLS = {
   ARBITRUM: 'ETH',
@@ -48,6 +51,7 @@ export const CURRENCY_SYMBOLS = {
   GLIMMER: 'GLMR',
   MOONRIVER: 'MOVR',
   ONE: 'ONE',
+  SOL: 'SOL',
 } as const;
 
 export const ETH_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
@@ -126,6 +130,14 @@ export const BASE_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
   ...ETH_SWAPS_TOKEN_OBJECT,
 } as const;
 
+const SOLANA_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
+  symbol: CURRENCY_SYMBOLS.SOL,
+  name: 'Solana',
+  address: DEFAULT_SOLANA_TOKEN_ADDRESS,
+  decimals: 9,
+  iconUrl: '',
+};
+
 const SWAPS_TESTNET_CHAIN_ID = '0x539';
 
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
@@ -141,4 +153,5 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.LINEA_MAINNET]: LINEA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BASE]: BASE_SWAPS_TOKEN_OBJECT,
+  [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
 } as const;
