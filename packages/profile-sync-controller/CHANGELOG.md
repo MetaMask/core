@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: handle primary SRP switch cases ([#5478](https://github.com/MetaMask/core/pull/5478))
+
 ## [10.0.0]
 
 ### Changed
