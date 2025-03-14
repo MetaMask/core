@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 326.0.0 ([#5479](https://github.com/MetaMask/core/pull/5479))
-- fix: add support for fetching shared announcements cross platforms ([#5441](https://github.com/MetaMask/core/pull/5441))
-
 ## [3.0.0]
 
 ### Changed
