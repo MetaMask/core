@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 327.0.0 ([#5481](https://github.com/MetaMask/core/pull/5481))
-- chore: make QuoteResponse.approval optional to align with response from API ([#5475](https://github.com/MetaMask/core/pull/5475))
-- chore: export enums properly rather than as types ([#5466](https://github.com/MetaMask/core/pull/5466))
-- Feat/bridge bridge status controller env config ([#5465](https://github.com/MetaMask/core/pull/5465))
+- Bump `@metamask/accounts-controller` dev dependency to `^26.1.0` ([#5481](https://github.com/MetaMask/core/pull/5481))
+- **BREAKING:** Allow changing the Bridge API url happens through the `config` param in the constructor. Remove previous method of doing it through `process.env`. ([#5465](https://github.com/MetaMask/core/pull/5465))
+
+### Fixed
+
+- Make `QuoteResponse.approval` optional to align with response from API ([#5475](https://github.com/MetaMask/core/pull/5475))
+- Export enums properly rather than as types ([#5466](https://github.com/MetaMask/core/pull/5466))
 
 ## [6.0.0]
 
