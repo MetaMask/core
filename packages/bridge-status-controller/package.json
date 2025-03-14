@@ -55,7 +55,7 @@
     "@metamask/utils": "^11.2.0"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^26.0.0",
+    "@metamask/accounts-controller": "^26.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^22.2.1",
     "@metamask/transaction-controller": "^49.0.0",
@@ -72,7 +72,6 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^26.0.0",
-    "@metamask/bridge-controller": "^6.0.0",
     "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^49.0.0"
   },
