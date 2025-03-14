@@ -15,11 +15,7 @@ import {
   type Transaction,
   type AccountTransactionsUpdatedEventPayload,
 } from '@metamask/keyring-api';
-import type {
-  KeyringControllerGetStateAction,
-  KeyringControllerLockEvent,
-  KeyringControllerUnlockEvent,
-} from '@metamask/keyring-controller';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -122,8 +118,6 @@ export type AllowedActions =
  * Events that this controller is allowed to subscribe.
  */
 export type AllowedEvents =
-  | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountTransactionsUpdatedEvent;
