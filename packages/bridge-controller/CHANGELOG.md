@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 327.0.0 ([#5481](https://github.com/MetaMask/core/pull/5481))
-- chore: make QuoteResponse.approval optional to align with response from API ([#5475](https://github.com/MetaMask/core/pull/5475))
-- chore: export enums properly rather than as types ([#5466](https://github.com/MetaMask/core/pull/5466))
-- Feat/bridge bridge status controller env config ([#5465](https://github.com/MetaMask/core/pull/5465))
-
 ## [6.0.0]
 
 ### Changed
