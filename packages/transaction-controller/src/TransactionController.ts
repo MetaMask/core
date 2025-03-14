@@ -1027,6 +1027,7 @@ export class TransactionController extends BaseController<
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
    * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
@@ -1046,6 +1047,7 @@ export class TransactionController extends BaseController<
     txParams: TransactionParams,
     options: {
       actionId?: string;
+      batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       method?: string;
       nestedTransactions?: BatchTransactionParams[];
@@ -1066,6 +1068,7 @@ export class TransactionController extends BaseController<
 
     const {
       actionId,
+      batchId,
       deviceConfirmedOn,
       method,
       nestedTransactions,
@@ -1096,6 +1099,7 @@ export class TransactionController extends BaseController<
     const internalAccounts = this.#getInternalAccounts();
 
     await validateTransactionOrigin({
+      data: txParams.data,
       from: txParams.from,
       internalAccounts,
       origin,
@@ -1109,6 +1113,16 @@ export class TransactionController extends BaseController<
       await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
+
+    const isDuplicateBatchId =
+      batchId?.length &&
+      this.state.transactions.some(
+        (tx) => tx.batchId?.toLowerCase() === batchId?.toLowerCase(),
+      );
+
+    if (isDuplicateBatchId) {
+      throw rpcErrors.invalidInput('Batch ID already exists');
+    }
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,
@@ -1132,6 +1146,7 @@ export class TransactionController extends BaseController<
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
+          batchId,
           chainId,
           dappSuggestedGasFees,
           deviceConfirmedOn,
