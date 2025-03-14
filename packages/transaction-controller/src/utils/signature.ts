@@ -15,9 +15,15 @@ export function isValidSignature(
   signature: Hex,
   publicKey: Hex,
 ): boolean {
-  const joinedHex = add0x(data.map(remove0x).join(''));
-  const dataBytes = hexToBytes(joinedHex);
-  const actualPublicKey = verifyMessage(dataBytes, signature);
+  try {
+    const joinedHex = add0x(data.map(remove0x).join(''));
+    const dataBytes = hexToBytes(joinedHex);
+    const actualPublicKey = verifyMessage(dataBytes, signature);
 
-  return actualPublicKey.toLowerCase() === publicKey.toLowerCase();
+    return actualPublicKey.toLowerCase() === publicKey.toLowerCase();
+    // Not used
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    return false;
+  }
 }
