@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Feat/bridge bridge status controller env config ([#5465](https://github.com/MetaMask/core/pull/5465))
+
 ## [6.0.0]
 
 ### Changed

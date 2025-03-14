@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add EIP-7702 signature validations ([#5470](https://github.com/MetaMask/core/pull/5470))
+
 ## [25.0.0]
 
 ### Changed
