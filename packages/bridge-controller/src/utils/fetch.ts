@@ -153,6 +153,7 @@ export async function fetchBridgeQuotes(
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
 ): Promise<QuoteResponse[]> {
+  // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
     walletAddress: formatAddressToString(request.walletAddress),
     destWalletAddress: formatAddressToString(
@@ -175,7 +176,6 @@ export async function fetchBridgeQuotes(
     queryParams.append(key, value.toString());
   });
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
-
   const quotes: unknown[] = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
     signal,

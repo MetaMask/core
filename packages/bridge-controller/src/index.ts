@@ -59,6 +59,11 @@ export type { SwapsTokenObject } from './constants/tokens';
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
-export { getEthUsdtResetData, isEthUsdt } from './utils/bridge';
+export {
+  getEthUsdtResetData,
+  isEthUsdt,
+  isNativeAddress,
+  isSolanaChainId,
+} from './utils/bridge';
 
 export { isValidQuoteRequest } from './utils/quote';
