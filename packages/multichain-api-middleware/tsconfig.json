@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "resolveJsonModule": true,
+    "rootDir": "../.."
+  },
+  "references": [
+    { "path": "../chain-agnostic-permission" },
+    { "path": "../json-rpc-engine" },
+    { "path": "../network-controller" },
+    { "path": "../permission-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}
