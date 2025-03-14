@@ -38,12 +38,6 @@ type MainMessenger = Messenger<
 function setupController(state?: Partial<DeFiPositionsControllerState>) {
   const messenger: MainMessenger = new Messenger();
 
-  const mockGetAccount = jest.fn().mockReturnValue(OWNER_ACCOUNT);
-  messenger.registerActionHandler(
-    'AccountsController:getAccount',
-    mockGetAccount,
-  );
-
   const mockGetSelectedAccount = jest.fn().mockReturnValue(OWNER_ACCOUNT);
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
@@ -52,10 +46,7 @@ function setupController(state?: Partial<DeFiPositionsControllerState>) {
 
   const restrictedMessenger = messenger.getRestricted({
     name: 'DeFiPositionsController',
-    allowedActions: [
-      'AccountsController:getSelectedAccount',
-      'AccountsController:getAccount',
-    ],
+    allowedActions: ['AccountsController:getSelectedAccount'],
     allowedEvents: [
       'AccountsController:selectedAccountChange',
       'NetworkController:stateChange',
