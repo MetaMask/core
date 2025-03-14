@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [53.1.1]
+
+### Fixed
+
+- Check if `KeyringController` is unlocked before processing account events in `MultichainBalancesController` ([#5473](https://github.com/MetaMask/core/pull/5473))
+  - This is needed since some Snaps might decrypt their state which needs the `KeyringController` to be unlocked.
+- Fix runtime error in NFT detection when metadata is `null` ([#5455](https://github.com/MetaMask/core/pull/5455))
+
 ## [53.1.0]
 
 ### Added
@@ -1460,7 +1468,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@53.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@53.1.1...HEAD
+[53.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@53.1.0...@metamask/assets-controllers@53.1.1
 [53.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@53.0.0...@metamask/assets-controllers@53.1.0
 [53.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@52.0.0...@metamask/assets-controllers@53.0.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@51.0.2...@metamask/assets-controllers@52.0.0
