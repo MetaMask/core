@@ -20,7 +20,9 @@ import type { BigNumber } from 'bignumber.js';
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 
-// The extension's fetch function accepts additional options
+/**
+ * The extension's fetch function accepts additional options
+ */
 type FetchWithCacheOptions = {
   cacheOptions?: {
     cacheRefreshTime: number;
@@ -36,7 +38,6 @@ export type FetchFunction = (
 
 /**
  * The types of assets that a user can send
- *
  */
 export enum AssetType {
   /** The native asset for the current network, such as ETH */
@@ -67,9 +68,10 @@ export type SolanaFees = {
   solanaFeesInLamports?: string; // solana fees in lamports, appended by controller
 };
 
-// Values derived from the quote response
-// valueInCurrency values are calculated based on the user's selected currency
-
+/**
+ * Values derived from the quote response
+ * valueInCurrency values are calculated based on the user's selected currency
+ */
 export type QuoteMetadata = {
   gasFee: { amount: BigNumber; valueInCurrency: BigNumber | null };
   totalNetworkFee: { amount: BigNumber; valueInCurrency: BigNumber | null }; // estimatedGasFees + relayerFees
@@ -80,8 +82,10 @@ export type QuoteMetadata = {
   swapRate: BigNumber; // destTokenAmount / sentAmount
   cost: { valueInCurrency: BigNumber | null }; // sentAmount - adjustedReturn
 };
-// Sort order set by the user
 
+/**
+ * Sort order set by the user
+ */
 export enum SortOrder {
   COST_ASC = 'cost_ascending',
   ETA_ASC = 'time_descending',
@@ -128,9 +132,11 @@ export type BridgeAsset = {
   assetId: string;
 };
 
-// This is the interface for the quote request sent to the bridge-api
-// and should only be used by the fetchBridgeQuotes function
-// Components and redux store should use the GenericQuoteRequest type
+/**
+ * This is the interface for the quote request sent to the bridge-api
+ * and should only be used by the fetchBridgeQuotes function
+ * Components and redux store should use the GenericQuoteRequest type
+ */
 export type QuoteRequest<
   ChainIdType = ChainId | number,
   TokenAddressType = string,
@@ -154,8 +160,10 @@ export type QuoteRequest<
   refuel?: boolean;
 };
 
-// These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
-// Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
+/**
+ * These are types that components pass in. Since data is a mix of types when coming from the redux store, we need to use a generic type that can cover all the types.
+ * Payloads with this type are transformed into QuoteRequest by fetchBridgeQuotes right before fetching quotes
+ */
 export type GenericQuoteRequest = QuoteRequest<
   Hex | CaipChainId | string | number, // chainIds
   Hex | CaipAssetId | string, // assetIds/addresses

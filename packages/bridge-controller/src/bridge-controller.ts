@@ -3,7 +3,6 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
-import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -34,7 +33,7 @@ import {
   RequestStatus,
 } from './types';
 import { hasSufficientBalance } from './utils/balance';
-import { getDefaultBridgeControllerState, sumHexes } from './utils/bridge';
+import { isSolanaChainId, sumHexes } from './utils/bridge';
 import {
   formatAddressToString,
   formatChainIdToCaip,
@@ -105,7 +104,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       metadata,
       messenger,
       state: {
-        bridgeState: { ...getDefaultBridgeControllerState() },
+        bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
         ...state,
       },
     });
@@ -168,11 +167,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
-      const srcChainIdString = updatedQuoteRequest.srcChainId.toString();
 
       // Query the balance of the source token if the source chain is an EVM chain
       let insufficientBal: boolean | undefined;
-      if (formatChainIdToCaip(srcChainIdString) === SolScope.Mainnet) {
+      if (isSolanaChainId(updatedQuoteRequest.srcChainId)) {
         insufficientBal = paramsToUpdate.insufficientBal;
       } else {
         insufficientBal =
@@ -180,10 +178,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           !(await this.#hasSufficientBalance(updatedQuoteRequest));
       }
 
+      const networkClientId = this.#getSelectedNetworkClientId();
       // Set refresh rate based on the source chain before starting polling
       this.#setIntervalLength();
       this.startPolling({
-        networkClientId: srcChainIdString,
+        networkClientId,
         updatedQuoteRequest: {
           ...updatedQuoteRequest,
           insufficientBal,
@@ -350,58 +349,55 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #appendL1GasFees = async (
     quotes: QuoteResponse[],
   ): Promise<(QuoteResponse & L1GasFees)[] | undefined> => {
-    // Return undefined if some of the quotes are not for optimism or base
-    if (
-      quotes.some(({ quote }) => {
-        const chainId = formatChainIdToCaip(quote.srcChainId);
-        return ![CHAIN_IDS.OPTIMISM, CHAIN_IDS.BASE]
-          .map(formatChainIdToCaip)
-          .includes(chainId);
-      })
-    ) {
-      return undefined;
+    // Indicates whether some of the quotes are not for optimism or base
+    const hasInvalidQuotes = quotes.some(({ quote }) => {
+      const chainId = formatChainIdToCaip(quote.srcChainId);
+      return ![CHAIN_IDS.OPTIMISM, CHAIN_IDS.BASE]
+        .map(formatChainIdToCaip)
+        .includes(chainId);
+    });
+
+    // Only append L1 gas fees if all quotes are for either optimism or base
+    if (!hasInvalidQuotes) {
+      return await Promise.all(
+        quotes.map(async (quoteResponse) => {
+          const { quote, trade, approval } = quoteResponse;
+          const chainId = numberToHex(quote.srcChainId) as ChainId;
+
+          const getTxParams = (txData: TxData) => ({
+            from: txData.from,
+            to: txData.to,
+            value: txData.value,
+            data: txData.data,
+            gasLimit: txData.gasLimit?.toString(),
+          });
+          const approvalL1GasFees = approval
+            ? await this.#getLayer1GasFee({
+                transactionParams: getTxParams(approval),
+                chainId,
+              })
+            : '0';
+          const tradeL1GasFees = await this.#getLayer1GasFee({
+            transactionParams: getTxParams(trade),
+            chainId,
+          });
+          return {
+            ...quoteResponse,
+            l1GasFeesInHexWei: sumHexes(approvalL1GasFees, tradeL1GasFees),
+          };
+        }),
+      );
     }
 
-    return await Promise.all(
-      quotes.map(async (quoteResponse) => {
-        const { quote, trade, approval } = quoteResponse;
-        const chainId = numberToHex(quote.srcChainId) as ChainId;
-
-        const getTxParams = (txData: TxData) => ({
-          from: txData.from,
-          to: txData.to,
-          value: txData.value,
-          data: txData.data,
-          gasLimit: txData.gasLimit?.toString(),
-        });
-        const approvalL1GasFees = approval
-          ? await this.#getLayer1GasFee({
-              transactionParams: getTxParams(approval),
-              chainId,
-            })
-          : '0';
-        const tradeL1GasFees = await this.#getLayer1GasFee({
-          transactionParams: getTxParams(trade),
-          chainId,
-        });
-        return {
-          ...quoteResponse,
-          l1GasFeesInHexWei: sumHexes(approvalL1GasFees, tradeL1GasFees),
-        };
-
-        return quoteResponse;
-      }),
-    );
+    return undefined;
   };
 
   readonly #appendSolanaFees = async (
     quotes: QuoteResponse[],
   ): Promise<(QuoteResponse & SolanaFees)[] | undefined> => {
-    // Return undefined if some of the quotes are not for solana
+    // Return early if some of the quotes are not for solana
     if (
-      quotes.some(({ quote }) => {
-        return formatChainIdToCaip(quote.srcChainId) !== SolScope.Mainnet;
-      })
+      quotes.some(({ quote: { srcChainId } }) => !isSolanaChainId(srcChainId))
     ) {
       return undefined;
     }
@@ -444,10 +440,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
   }
 
-  #getSelectedNetworkClient() {
+  #getSelectedNetworkClientId() {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
+    return selectedNetworkClientId;
+  }
+
+  #getSelectedNetworkClient() {
+    const selectedNetworkClientId = this.#getSelectedNetworkClientId();
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
