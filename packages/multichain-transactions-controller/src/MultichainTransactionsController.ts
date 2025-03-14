@@ -160,7 +160,7 @@ export class MultichainTransactionsController extends BaseController<
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger
 > {
-  #isUnlocked = true;
+  #isUnlocked: boolean;
 
   constructor({
     messenger,
