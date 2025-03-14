@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [53.2.0]
 
-### Uncategorized
+### Changed
 
 - Adds safeguard for keyring being locked or unlocked ([#5473](https://github.com/MetaMask/core/pull/5473))
 - Release 327.0.0 ([#5481](https://github.com/MetaMask/core/pull/5481))
