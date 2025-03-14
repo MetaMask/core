@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [53.1.1]
 
-## Fixed
+### Fixed
+
 - Check if `KeyringController` is unlocked before processing account events in `MultichainBalancesController` ([#5473](https://github.com/MetaMask/core/pull/5473))
   - This is needed since some Snaps might encrypt their state which needs the `KeyringController` to be unlocked.
 - Fix runtime error in NFT detection when metadata is `null` ([#5455](https://github.com/MetaMask/core/pull/5455))
