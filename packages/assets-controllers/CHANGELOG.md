@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [53.1.0]
+
+### Added
+
+- Add token display data controller for search & discovery ([#5307](https://github.com/MetaMask/core/pull/5307))
+
+## [53.0.0]
+
+### Added
+
+- Add `getAssetMetadata` action to `MultichainAssetsController` ([#5430](https://github.com/MetaMask/core/pull/5430))
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING:** Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- **BREAKING:** Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+
 ## [52.0.0]
 
 ### Changed
@@ -1441,7 +1460,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@52.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@53.1.0...HEAD
+[53.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@53.0.0...@metamask/assets-controllers@53.1.0
+[53.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@52.0.0...@metamask/assets-controllers@53.0.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@51.0.2...@metamask/assets-controllers@52.0.0
 [51.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@51.0.1...@metamask/assets-controllers@51.0.2
 [51.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@51.0.0...@metamask/assets-controllers@51.0.1

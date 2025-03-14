@@ -28,6 +28,7 @@ type GasFieldsToValidate =
  * Validates whether a transaction initiated by a specific 'from' address is permitted by the origin.
  *
  * @param options - Options bag.
+ * @param options.data - The data included in the transaction.
  * @param options.from - The address from which the transaction is initiated.
  * @param options.internalAccounts - The internal accounts added to the wallet.
  * @param options.origin - The origin or source of the transaction.
@@ -38,6 +39,7 @@ type GasFieldsToValidate =
  * @throws Throws an error if the transaction is not permitted.
  */
 export async function validateTransactionOrigin({
+  data,
   from,
   internalAccounts,
   origin,
@@ -46,6 +48,7 @@ export async function validateTransactionOrigin({
   txParams,
   type,
 }: {
+  data?: string;
   from: string;
   internalAccounts?: string[];
   origin?: string;
@@ -82,15 +85,18 @@ export async function validateTransactionOrigin({
     );
   }
 
+  const hasData = Boolean(data && data !== '0x');
+
   if (
     isExternal &&
+    hasData &&
     internalAccounts?.some(
       (account) => account.toLowerCase() === to?.toLowerCase(),
     ) &&
     type !== TransactionType.batch
   ) {
     throw rpcErrors.invalidParams(
-      'External transactions to internal accounts are not supported',
+      'External transactions to internal accounts cannot include data',
     );
   }
 }
@@ -279,7 +285,7 @@ export function validateBatchRequest({
     )
   ) {
     throw rpcErrors.invalidParams(
-      'External transactions to internal accounts are not supported',
+      'Calls to internal accounts are not supported',
     );
   }
 }

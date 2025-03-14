@@ -1,7 +1,7 @@
 import type { Env, Platform } from '../../shared/env';
 
 export enum AuthType {
-  /* sign in using a private key derived from your secret recovery phrase (SRP). 
+  /* sign in using a private key derived from your secret recovery phrase (SRP).
        Uses message signing snap to perform this operation */
   SRP = 'SRP',
 

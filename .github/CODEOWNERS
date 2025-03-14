@@ -67,6 +67,13 @@
 /packages/selected-network-controller @MetaMask/wallet-api-platform-engineers
 
 ## Wallet Framework Team
+/packages/base-controller              @MetaMask/wallet-framework-engineers
+/packages/build-utils                  @MetaMask/wallet-framework-engineers
+/packages/composable-controller        @MetaMask/wallet-framework-engineers
+/packages/controller-utils             @MetaMask/wallet-framework-engineers
+/packages/sample-controllers          @MetaMask/wallet-framework-engineers
+/packages/polling-controller           @MetaMask/wallet-framework-engineers
+/packages/preferences-controller       @MetaMask/wallet-framework-engineers
 
 /packages/base-controller @MetaMask/wallet-framework-engineers
 /packages/build-utils @MetaMask/wallet-framework-engineers
