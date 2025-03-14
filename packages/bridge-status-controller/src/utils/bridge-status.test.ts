@@ -1,8 +1,12 @@
-import { BridgeClientId, FeeType } from '@metamask/bridge-controller';
+import {
+  BridgeClientId,
+  BRIDGE_PROD_API_BASE_URL,
+  FeeType,
+} from '@metamask/bridge-controller';
 
 import {
   fetchBridgeTxStatus,
-  BRIDGE_STATUS_BASE_URL,
+  getBridgeStatusUrl,
   getStatusRequestDto,
 } from './bridge-status';
 import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
@@ -93,11 +97,12 @@ describe('utils', () => {
         mockStatusRequest,
         mockClientId,
         mockFetch,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       // Verify the fetch was called with correct parameters
       expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining(BRIDGE_STATUS_BASE_URL),
+        expect.stringContaining(getBridgeStatusUrl(BRIDGE_PROD_API_BASE_URL)),
         {
           headers: { 'X-Client-Id': mockClientId },
         },
@@ -125,7 +130,12 @@ describe('utils', () => {
         .mockResolvedValue(invalidResponse);
 
       await expect(
-        fetchBridgeTxStatus(mockStatusRequest, mockClientId, mockFetch),
+        fetchBridgeTxStatus(
+          mockStatusRequest,
+          mockClientId,
+          mockFetch,
+          BRIDGE_PROD_API_BASE_URL,
+        ),
         // eslint-disable-next-line jest/require-to-throw-message
       ).rejects.toThrow();
     });
@@ -136,7 +146,12 @@ describe('utils', () => {
         .mockRejectedValue(new Error('Network error'));
 
       await expect(
-        fetchBridgeTxStatus(mockStatusRequest, mockClientId, mockFetch),
+        fetchBridgeTxStatus(
+          mockStatusRequest,
+          mockClientId,
+          mockFetch,
+          BRIDGE_PROD_API_BASE_URL,
+        ),
       ).rejects.toThrow('Network error');
     });
   });
