@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 327.0.0 ([#5481](https://github.com/MetaMask/core/pull/5481))
+- Feat/bridge bridge status controller env config ([#5465](https://github.com/MetaMask/core/pull/5465))
+
 ### Fixed
 
 - `@metamask/bridge-controller` dependency is no longer a peer dependency, just a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464)))
