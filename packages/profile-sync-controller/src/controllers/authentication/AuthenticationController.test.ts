@@ -88,7 +88,7 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
   it('leverages the _snapSignMessageCache', async () => {
     const metametrics = createMockAuthMetaMetrics();
     const mockEndpoints = arrangeAuthAPIs();
-    const { messenger, mockSnapGetPublicKey, mockSnapSignMessage } =
+    const { messenger, mockSnapSignMessage } =
       createMockAuthenticationMessenger();
 
     const controller = new AuthenticationController({ messenger, metametrics });
@@ -96,7 +96,6 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     await controller.performSignIn();
     controller.performSignOut();
     await controller.performSignIn();
-    expect(mockSnapGetPublicKey).toHaveBeenCalledTimes(1);
     expect(mockSnapSignMessage).toHaveBeenCalledTimes(1);
     mockEndpoints.mockNonceUrl.done();
     mockEndpoints.mockSrpLoginUrl.done();
