@@ -10,7 +10,10 @@ import {
   METABRIDGE_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
-import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
+import {
+  DEFAULT_SOLANA_TOKEN_ADDRESS,
+  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+} from '../constants/tokens';
 import { ChainId } from '../types';
 
 /**
@@ -85,16 +88,16 @@ export const isSwapsDefaultTokenSymbol = (symbol: string, chainId: Hex) => {
 };
 
 /**
- * Checks whether the address is a native asset in any supported xchain swapsnetwork
+ * Checks whether the address is a native asset in any supported xchain swaps network
  *
  * @param address - The address to check
  * @returns Whether the address is a native asset
  */
 export const isNativeAddress = (address?: string | null) =>
   address === AddressZero || // bridge and swap apis set the native asset address to zero
-  address === '' || // assets controllers set the native asset address to empty string
+  address === '' || // assets controllers set the native asset address to an empty string
   !address ||
-  [`${SolScope.Mainnet}/slip44:501`].some(
+  [DEFAULT_SOLANA_TOKEN_ADDRESS].some(
     (assetId) => assetId.includes(address) && !isStrictHexString(address),
   ); // multichain native assets are represented in caip format
 

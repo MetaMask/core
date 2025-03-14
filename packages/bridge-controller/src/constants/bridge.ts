@@ -1,7 +1,5 @@
 import { AddressZero } from '@ethersproject/constants';
-import type { MultichainNetworkConfiguration } from '@metamask/multichain-network-controller';
-import { getDefaultMultichainNetworkControllerState } from '@metamask/multichain-network-controller';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import { CHAIN_IDS } from './chains';
 import type { BridgeControllerState } from '../types';
@@ -71,19 +69,3 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState['bridgeState
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {
   [CHAIN_IDS.MAINNET]: METABRIDGE_ETHEREUM_ADDRESS,
 };
-
-export const MULTICHAIN_ID_TO_NATIVE_ASSET_MAP: Record<CaipChainId, string> =
-  Object.entries(
-    getDefaultMultichainNetworkControllerState()
-      .multichainNetworkConfigurationsByChainId,
-  ).reduce(
-    (acc, [chainId, config]) => ({ ...acc, [chainId]: config.nativeCurrency }),
-    {},
-  );
-
-export const MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
-  CaipChainId,
-  MultichainNetworkConfiguration
-> =
-  getDefaultMultichainNetworkControllerState()
-    .multichainNetworkConfigurationsByChainId;

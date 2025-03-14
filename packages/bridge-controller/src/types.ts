@@ -21,7 +21,7 @@ import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 
 /**
- * The extension's fetch function accepts additional options
+ * Additional options accepted by the extension's fetchWithCache function
  */
 type FetchWithCacheOptions = {
   cacheOptions?: {
@@ -134,8 +134,8 @@ export type BridgeAsset = {
 
 /**
  * This is the interface for the quote request sent to the bridge-api
- * and should only be used by the fetchBridgeQuotes function
- * Components and redux store should use the GenericQuoteRequest type
+ * and should only be used by the fetchBridgeQuotes utility function
+ * Components and redux stores should use the {@link GenericQuoteRequest} type
  */
 export type QuoteRequest<
   ChainIdType = ChainId | number,
