@@ -1,7 +1,7 @@
 {
   "name": "@metamask/multichain-api-middleware",
   "version": "0.0.0",
-  "description": "Implements JSON-RPC methods in the MetaMask Multichain API that manage and utilize chain-agnostic permissions",
+  "description": "JSON-RPC methods and middleware to support the MetaMask Multichain API",
   "keywords": [
     "MetaMask",
     "Ethereum"

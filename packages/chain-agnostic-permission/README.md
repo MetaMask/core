@@ -1,6 +1,6 @@
 # `@metamask/chain-agnostic-permission`
 
-Defines a permission caveat and endowment designed to match [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) and related specifications.
+Defines a permission caveat and endowment designed to mimic a [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request object.
 
 ## Installation
 

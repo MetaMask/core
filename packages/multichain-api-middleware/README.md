@@ -1,6 +1,6 @@
 # `@metamask/multichain-api-middleware`
 
-Implements JSON-RPC methods in the [MetaMask Multichain API](https://github.com/MetaMask/metamask-improvement-proposals/blob/main/MIPs/mip-5.md) that manage and utilize [chain-agnostic permissions](https://npmjs.com/package/@metamask/chain-agnostic-permission).
+JSON-RPC methods and middleware to support the the [MetaMask Multichain API](https://github.com/MetaMask/metamask-improvement-proposals/blob/main/MIPs/mip-5.md).
 
 ## Installation
 
