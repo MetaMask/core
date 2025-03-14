@@ -115,7 +115,7 @@ const controllerMetadata = {
  * run migration.
  *
  */
-export default class AppMetadataController extends BaseController<
+export class AppMetadataController extends BaseController<
   typeof controllerName,
   AppMetadataControllerState,
   AppMetadataControllerMessenger
