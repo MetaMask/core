@@ -7,7 +7,6 @@ import type {
 
 import { getPermissionsHandler } from './wallet-getPermissions';
 
-// Allow individual modules to be mocked
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),
   __esModule: true,

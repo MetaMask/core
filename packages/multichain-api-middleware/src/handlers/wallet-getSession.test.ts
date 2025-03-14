@@ -3,7 +3,6 @@ import type { JsonRpcRequest } from '@metamask/utils';
 
 import { walletGetSession } from './wallet-getSession';
 
-// Allow individual modules to be mocked
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),
   __esModule: true,
