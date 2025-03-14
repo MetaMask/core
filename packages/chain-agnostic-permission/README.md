@@ -1,6 +1,6 @@
 # `@metamask/chain-agnostic-permission`
 
-Defines an endowment type permission designed to persist the account and chain components of a [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request. This package also includes adapters and utility functions for interfacing with this permission.  
+Defines an endowment type permission designed to persist the account and chain components of a [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request. This package also includes adapters and utility functions for interfacing with this permission.
 
 ## Installation
 
