@@ -48,6 +48,7 @@ export function doesChainSupportEIP7702(
  *
  * @param address - The EOA address to check.
  * @param chainId - The chain ID.
+ * @param publicKey - Public key used to validate EIP-7702 contract signatures in feature flags.
  * @param messenger - The messenger instance.
  * @param ethQuery - The EthQuery instance to communicate with the blockchain.
  * @returns An object with the results of the check.
@@ -55,10 +56,16 @@ export function doesChainSupportEIP7702(
 export async function isAccountUpgradedToEIP7702(
   address: Hex,
   chainId: Hex,
+  publicKey: Hex,
   messenger: TransactionControllerMessenger,
   ethQuery: EthQuery,
 ) {
-  const contractAddresses = getEIP7702ContractAddresses(chainId, messenger);
+  const contractAddresses = getEIP7702ContractAddresses(
+    chainId,
+    messenger,
+    publicKey,
+  );
+
   const code = await query(ethQuery, 'eth_getCode', [address]);
   const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
 
