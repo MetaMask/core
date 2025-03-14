@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Check if `KeyringController` is unlocked before processing account events in `MultichainTransactionsController` ([#5473](https://github.com/MetaMask/core/pull/5473))
-  - This is needed since some Snaps might encrypt their state which needs the `KeyringController` to be unlocked.
+  - This is needed since some Snaps might decrypt their state which needs the `KeyringController` to be unlocked.
 
 ## [0.7.0]
 
