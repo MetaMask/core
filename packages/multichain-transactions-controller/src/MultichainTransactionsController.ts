@@ -160,8 +160,6 @@ export class MultichainTransactionsController extends BaseController<
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger
 > {
-  #isUnlocked: boolean;
-
   constructor({
     messenger,
     state,
@@ -177,20 +175,6 @@ export class MultichainTransactionsController extends BaseController<
         ...getDefaultMultichainTransactionsControllerState(),
         ...state,
       },
-    });
-
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-
-    this.#isUnlocked = isUnlocked;
-
-    // Subscribe to keyring lock/unlock events.
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.#isUnlocked = false;
-    });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
-      this.#isUnlocked = true;
     });
 
     // Fetch initial transactions for all non-EVM accounts
@@ -268,7 +252,11 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
-    if (!this.isActive) {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    if (!isUnlocked) {
       return;
     }
 
@@ -409,15 +397,6 @@ export class MultichainTransactionsController extends BaseController<
         },
       );
     });
-  }
-
-  /**
-   * Determines whether the controller is active.
-   *
-   * @returns True if the keyring is unlocked; otherwise, false.
-   */
-  get isActive(): boolean {
-    return this.#isUnlocked;
   }
 
   /**

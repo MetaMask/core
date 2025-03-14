@@ -205,6 +205,7 @@ const setupController = ({
     mockSnapHandleRequest,
     mockListMultichainAccounts,
     mockGetAssetsState,
+    mockGetKeyringState,
   };
 };
 
@@ -442,14 +443,14 @@ describe('BalancesController', () => {
   });
 
   it('resumes updating balances after unlocking KeyringController', async () => {
-    const { controller, messenger } = setupController();
+    const { controller, mockGetKeyringState } = setupController();
 
-    messenger.publish('KeyringController:lock');
+    mockGetKeyringState.mockReturnValue({ isUnlocked: false });
 
     await controller.updateBalance(mockBtcAccount.id);
     expect(controller.state.balances[mockBtcAccount.id]).toBeUndefined();
 
-    messenger.publish('KeyringController:unlock');
+    mockGetKeyringState.mockReturnValue({ isUnlocked: true });
 
     await controller.updateBalance(mockBtcAccount.id);
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(

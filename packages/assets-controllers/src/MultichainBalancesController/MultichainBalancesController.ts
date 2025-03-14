@@ -147,8 +147,6 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
-  #isUnlocked: boolean;
-
   constructor({
     messenger,
     state = {},
@@ -164,20 +162,6 @@ export class MultichainBalancesController extends BaseController<
         ...getDefaultMultichainBalancesControllerState(),
         ...state,
       },
-    });
-
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
-
-    this.#isUnlocked = isUnlocked;
-
-    // Subscribe to keyring lock/unlock events.
-    this.messagingSystem.subscribe('KeyringController:lock', () => {
-      this.#isUnlocked = false;
-    });
-    this.messagingSystem.subscribe('KeyringController:unlock', () => {
-      this.#isUnlocked = true;
     });
 
     // Fetch initial balances for all non-EVM accounts
@@ -223,7 +207,11 @@ export class MultichainBalancesController extends BaseController<
     accountId: string,
     assets: CaipAssetType[],
   ): Promise<void> {
-    if (!this.isActive) {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    if (!isUnlocked) {
       return;
     }
 
@@ -361,15 +349,6 @@ export class MultichainBalancesController extends BaseController<
         delete state.balances[accountId];
       });
     }
-  }
-
-  /**
-   * Determines whether the controller is active.
-   *
-   * @returns True if the keyring is unlocked; otherwise, false.
-   */
-  get isActive(): boolean {
-    return this.#isUnlocked;
   }
 
   /**

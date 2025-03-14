@@ -675,18 +675,16 @@ describe('MultichainTransactionsController', () => {
   });
 
   it('resumes updating transactions after unlocking KeyringController', async () => {
-    const { controller, messenger, mockGetKeyringState } = setupController();
+    const { controller, mockGetKeyringState } = setupController();
 
-    mockGetKeyringState.mockReturnValueOnce({ isUnlocked: false });
-    messenger.publish('KeyringController:lock');
+    mockGetKeyringState.mockReturnValue({ isUnlocked: false });
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
     expect(
       controller.state.nonEvmTransactions[mockBtcAccount.id],
     ).toBeUndefined();
 
-    mockGetKeyringState.mockReturnValueOnce({ isUnlocked: true });
-    messenger.publish('KeyringController:unlock');
+    mockGetKeyringState.mockReturnValue({ isUnlocked: true });
 
     await controller.updateTransactionsForAccount(mockBtcAccount.id);
     expect(
