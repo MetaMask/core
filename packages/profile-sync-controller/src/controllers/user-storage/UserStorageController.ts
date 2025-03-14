@@ -310,7 +310,7 @@ export default class UserStorageController extends BaseController<
 
   #isUnlocked = false;
 
-  #storageKeyCache: string | null = null;
+  #storageKeyCache: Record<`metamask:${string}`, string> = {};
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -377,9 +377,10 @@ export default class UserStorageController extends BaseController<
       },
       {
         storage: {
-          getStorageKey: async () => this.#storageKeyCache,
-          setStorageKey: async (key) => {
-            this.#storageKeyCache = key;
+          getStorageKey: async (message) =>
+            this.#storageKeyCache[message] ?? null,
+          setStorageKey: async (message, key) => {
+            this.#storageKeyCache[message] = key;
           },
         },
       },
@@ -596,8 +597,13 @@ export default class UserStorageController extends BaseController<
     return await this.#userStorage.getStorageKey();
   }
 
+  /**
+   * Flushes the storage key cache.
+   * CAUTION: This is only public for testing purposes.
+   * It should not be used in production code.
+   */
   public flushStorageKeyCache(): void {
-    this.#storageKeyCache = null;
+    this.#storageKeyCache = {};
   }
 
   #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};

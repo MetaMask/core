@@ -1,16 +1,27 @@
+import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import { isValidHexAddress } from '@metamask/controller-utils';
 import {
   TYPED_MESSAGE_SCHEMA,
   typedSignatureHash,
 } from '@metamask/eth-sig-util';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import type { Json } from '@metamask/utils';
 import { type Hex } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
-import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
+import type {
+  MessageParamsPersonal,
+  MessageParamsTyped,
+  MessageParamsTypedData,
+  OriginalRequest,
+} from '../types';
+
+export const PRIMARY_TYPE_DELEGATION = 'Delegation';
+export const DELEGATOR_FIELD = 'delegator';
 
 /**
  * Validate a personal signature request.
+ *
  * @param messageData - The message data to validate.
  */
 export function validatePersonalSignatureRequest(
@@ -27,26 +38,44 @@ export function validatePersonalSignatureRequest(
 
 /**
  * Validate a typed signature request.
- * @param messageData - The message data to validate.
- * @param version - The version of the typed signature request.
- * @param currentChainId - The current chain ID.
+ *
+ * @param options - Options bag.
+ * @param options.currentChainId - The current chain ID.
+ * @param options.internalAccounts - The addresses of all internal accounts.
+ * @param options.messageData - The message data to validate.
+ * @param options.request - The original request.
+ * @param options.version - The version of the typed signature request.
  */
-export function validateTypedSignatureRequest(
-  messageData: MessageParamsTyped,
-  version: SignTypedDataVersion,
-  currentChainId: Hex | undefined,
-) {
+export function validateTypedSignatureRequest({
+  currentChainId,
+  internalAccounts,
+  messageData,
+  request,
+  version,
+}: {
+  currentChainId: Hex | undefined;
+  internalAccounts: Hex[];
+  messageData: MessageParamsTyped;
+  request: OriginalRequest;
+  version: SignTypedDataVersion;
+}) {
   validateAddress(messageData.from, 'from');
 
   if (version === SignTypedDataVersion.V1) {
     validateTypedSignatureRequestV1(messageData);
   } else {
-    validateTypedSignatureRequestV3V4(messageData, currentChainId);
+    validateTypedSignatureRequestV3V4({
+      currentChainId,
+      internalAccounts,
+      messageData,
+      request,
+    });
   }
 }
 
 /**
  * Validate a V1 typed signature request.
+ *
  * @param messageData - The message data to validate.
  */
 function validateTypedSignatureRequestV1(messageData: MessageParamsTyped) {
@@ -71,13 +100,23 @@ function validateTypedSignatureRequestV1(messageData: MessageParamsTyped) {
 /**
  * Validate a V3 or V4 typed signature request.
  *
- * @param messageData - The message data to validate.
- * @param currentChainId - The current chain ID.
+ * @param options - Options bag.
+ * @param options.currentChainId - The current chain ID.
+ * @param options.internalAccounts - The addresses of all internal accounts.
+ * @param options.messageData - The message data to validate.
+ * @param options.request - The original request.
  */
-function validateTypedSignatureRequestV3V4(
-  messageData: MessageParamsTyped,
-  currentChainId: Hex | undefined,
-) {
+function validateTypedSignatureRequestV3V4({
+  currentChainId,
+  internalAccounts,
+  messageData,
+  request,
+}: {
+  currentChainId: Hex | undefined;
+  internalAccounts: Hex[];
+  messageData: MessageParamsTyped;
+  request: OriginalRequest;
+}) {
   if (
     !messageData.data ||
     Array.isArray(messageData.data) ||
@@ -134,10 +173,25 @@ function validateTypedSignatureRequestV3V4(
       );
     }
   }
+
+  const origin = request?.origin ?? messageData?.origin;
+
+  validateVerifyingContract({
+    data,
+    internalAccounts,
+    origin,
+  });
+
+  validateDelegation({
+    data,
+    internalAccounts,
+    origin,
+  });
 }
 
 /**
  * Validate an Ethereum address.
+ *
  * @param address - The address to validate.
  * @param propertyName - The name of the property source to use in the error message.
  */
@@ -145,6 +199,80 @@ function validateAddress(address: string, propertyName: string) {
   if (!address || typeof address !== 'string' || !isValidHexAddress(address)) {
     throw new Error(
       `Invalid "${propertyName}" address: ${address} must be a valid string.`,
+    );
+  }
+}
+
+/**
+ * Validate the verifying contract from a typed signature request.
+ *
+ * @param options - Options bag.
+ * @param options.data - The typed data to validate.
+ * @param options.internalAccounts - The internal accounts.
+ * @param options.origin - The origin of the request.
+ */
+function validateVerifyingContract({
+  data,
+  internalAccounts,
+  origin,
+}: {
+  data: MessageParamsTypedData;
+  internalAccounts: Hex[];
+  origin: string | undefined;
+}) {
+  const verifyingContract = data?.domain?.verifyingContract as Hex;
+  const isExternal = origin && origin !== ORIGIN_METAMASK;
+
+  if (
+    isExternal &&
+    internalAccounts.some(
+      (internalAccount) =>
+        internalAccount.toLowerCase() === verifyingContract.toLowerCase(),
+    )
+  ) {
+    throw new Error(
+      `External signature requests cannot use internal accounts as the verifying contract.`,
+    );
+  }
+}
+
+/**
+ * Validate a delegation signature request.
+ *
+ * @param options - Options bag.
+ * @param options.data - The typed data to validate.
+ * @param options.internalAccounts - The internal accounts.
+ * @param options.origin - The origin of the request.
+ */
+function validateDelegation({
+  data,
+  internalAccounts,
+  origin,
+}: {
+  data: MessageParamsTypedData;
+  internalAccounts: Hex[];
+  origin: string | undefined;
+}) {
+  const { primaryType } = data;
+
+  if (primaryType !== PRIMARY_TYPE_DELEGATION) {
+    return;
+  }
+
+  const isExternal = origin && origin !== ORIGIN_METAMASK;
+  const delegator = (data.message as Record<string, Json>)?.[
+    DELEGATOR_FIELD
+  ] as Hex;
+
+  if (
+    isExternal &&
+    internalAccounts.some(
+      (internalAccount) =>
+        internalAccount.toLowerCase() === delegator?.toLowerCase(),
+    )
+  ) {
+    throw new Error(
+      `External signature requests cannot sign delegations for internal accounts.`,
     );
   }
 }

@@ -22,8 +22,8 @@ export type UserStorageConfig = {
 };
 
 export type StorageOptions = {
-  getStorageKey: () => Promise<string | null>;
-  setStorageKey: (val: string) => Promise<void>;
+  getStorageKey: (message: `metamask:${string}`) => Promise<string | null>;
+  setStorageKey: (message: `metamask:${string}`, val: string) => Promise<void>;
 };
 
 export type UserStorageOptions = {
@@ -110,17 +110,20 @@ export class UserStorage {
   }
 
   async getStorageKey(): Promise<string> {
-    const storageKey = await this.options.storage?.getStorageKey();
+    const userProfile = await this.config.auth.getUserProfile();
+    const message = `metamask:${userProfile.profileId}` as const;
+
+    const storageKey = await this.options.storage?.getStorageKey(message);
     if (storageKey) {
       return storageKey;
     }
 
-    const userProfile = await this.config.auth.getUserProfile();
-    const storageKeySignature = await this.config.auth.signMessage(
-      `metamask:${userProfile.profileId}`,
-    );
+    const storageKeySignature = await this.config.auth.signMessage(message);
     const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
-    await this.options.storage?.setStorageKey(hashedStorageKeySignature);
+    await this.options.storage?.setStorageKey(
+      message,
+      hashedStorageKeySignature,
+    );
     return hashedStorageKeySignature;
   }
 

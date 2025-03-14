@@ -6,13 +6,13 @@ import nock from 'nock';
 import { BridgeController } from './bridge-controller';
 import {
   BridgeClientId,
+  BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import type { BridgeControllerMessenger, QuoteResponse } from './types';
 import * as balanceUtils from './utils/balance';
-import { getBridgeApiBaseUrl } from './utils/bridge';
 import * as fetchUtils from './utils/fetch';
 import { flushPromises } from '../../../tests/helpers';
 import { handleFetch } from '../../controller-utils/src';
@@ -55,7 +55,7 @@ describe('BridgeController', function () {
     jest.clearAllMocks();
     jest.clearAllTimers();
 
-    nock(getBridgeApiBaseUrl())
+    nock(BRIDGE_PROD_API_BASE_URL)
       .get('/getAllFeatureFlags')
       .reply(200, {
         'extension-config': {
@@ -117,7 +117,7 @@ describe('BridgeController', function () {
           '534352': 2.4,
         },
       });
-    nock(getBridgeApiBaseUrl())
+    nock(BRIDGE_PROD_API_BASE_URL)
       .get('/getTokens?chainId=10')
       .reply(200, [
         {
@@ -338,6 +338,7 @@ describe('BridgeController', function () {
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
       mockFetchFn,
+      BRIDGE_PROD_API_BASE_URL,
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -488,6 +489,7 @@ describe('BridgeController', function () {
       expect.any(AbortSignal),
       BridgeClientId.EXTENSION,
       mockFetchFn,
+      BRIDGE_PROD_API_BASE_URL,
     );
     expect(bridgeController.state.quotesLastFetched).toBeNull();
 
@@ -715,6 +717,7 @@ describe('BridgeController', function () {
         expect.any(AbortSignal),
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
       expect(bridgeController.state.quotesLastFetched).toBeNull();
 

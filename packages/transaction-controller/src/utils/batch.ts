@@ -1,7 +1,8 @@
 import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { bytesToHex, createModuleLogger } from '@metamask/utils';
+import { parse, v4 } from 'uuid';
 
 import {
   doesChainSupportEIP7702,
@@ -13,11 +14,14 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { validateBatchRequest } from './validation';
-import type { TransactionController, TransactionControllerMessenger } from '..';
+import type {
+  TransactionBatchRequest,
+  TransactionController,
+  TransactionControllerMessenger,
+} from '..';
 import { projectLogger } from '../logger';
 import {
   TransactionEnvelopeType,
-  type TransactionBatchRequest,
   type TransactionBatchResult,
   type TransactionParams,
   TransactionType,
@@ -62,7 +66,13 @@ export async function addTransactionBatch(
     request: userRequest,
   });
 
-  const { from, networkClientId, requireApproval, transactions } = userRequest;
+  const {
+    batchId: batchIdOverride,
+    from,
+    networkClientId,
+    requireApproval,
+    transactions,
+  } = userRequest;
 
   log('Adding', userRequest);
 
@@ -113,14 +123,15 @@ export async function addTransactionBatch(
 
   log('Adding batch transaction', txParams, networkClientId);
 
-  const { transactionMeta, result } = await addTransaction(txParams, {
+  const batchId = batchIdOverride ?? generateBatchId();
+
+  const { result } = await addTransaction(txParams, {
+    batchId,
     nestedTransactions,
     networkClientId,
     requireApproval,
     type: TransactionType.batch,
   });
-
-  const batchId = transactionMeta.id;
 
   // Wait for the transaction to be published.
   await result;
@@ -162,4 +173,15 @@ export async function isAtomicBatchSupported(
   log('Atomic batch supported chains', chainIds);
 
   return chainIds;
+}
+
+/**
+ * Generate a tranasction batch ID.
+ *
+ * @returns  A unique batch ID as a hexadecimal string.
+ */
+function generateBatchId(): Hex {
+  const idString = v4();
+  const idBytes = new Uint8Array(parse(idString));
+  return bytesToHex(idBytes);
 }

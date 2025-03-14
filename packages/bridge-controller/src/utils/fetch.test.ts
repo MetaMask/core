@@ -7,7 +7,7 @@ import {
 } from './fetch';
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
-import { BridgeClientId } from '../constants/bridge';
+import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 
 const mockFetchFn = jest.fn();
@@ -56,6 +56,7 @@ describe('fetch', () => {
       const result = await fetchBridgeFeatureFlags(
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -129,6 +130,7 @@ describe('fetch', () => {
       const result = await fetchBridgeFeatureFlags(
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -156,7 +158,11 @@ describe('fetch', () => {
       mockFetchFn.mockRejectedValue(mockError);
 
       await expect(
-        fetchBridgeFeatureFlags(BridgeClientId.EXTENSION, mockFetchFn),
+        fetchBridgeFeatureFlags(
+          BridgeClientId.EXTENSION,
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+        ),
       ).rejects.toThrow(mockError);
     });
   });
@@ -196,6 +202,7 @@ describe('fetch', () => {
         '0xa',
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -233,7 +240,12 @@ describe('fetch', () => {
       mockFetchFn.mockRejectedValue(mockError);
 
       await expect(
-        fetchBridgeTokens('0xa', BridgeClientId.EXTENSION, mockFetchFn),
+        fetchBridgeTokens(
+          '0xa',
+          BridgeClientId.EXTENSION,
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+        ),
       ).rejects.toThrow(mockError);
     });
   });
@@ -256,6 +268,7 @@ describe('fetch', () => {
         signal,
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -290,6 +303,7 @@ describe('fetch', () => {
         signal,
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
@@ -343,6 +357,7 @@ describe('fetch', () => {
         signal,
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(

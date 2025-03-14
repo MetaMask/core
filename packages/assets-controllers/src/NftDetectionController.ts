@@ -713,7 +713,7 @@ export class NftDetectionController extends BaseController<
             kind,
             image: imageUrl,
             imageSmall: imageThumbnailUrl,
-            metadata: { imageOriginal: imageOriginalUrl } = {},
+            metadata,
             name,
             description,
             attributes,
@@ -723,6 +723,9 @@ export class NftDetectionController extends BaseController<
             rarityScore,
             collection,
           } = nft.token;
+
+          // Use a fallback if metadata is null
+          const { imageOriginal: imageOriginalUrl } = metadata || {};
 
           let ignored;
           /* istanbul ignore else */

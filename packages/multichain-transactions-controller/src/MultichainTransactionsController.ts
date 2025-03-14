@@ -15,6 +15,7 @@ import {
   type Transaction,
   type AccountTransactionsUpdatedEventPayload,
 } from '@metamask/keyring-api';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -110,6 +111,7 @@ export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
  */
 export type AllowedActions =
   | HandleSnapRequest
+  | KeyringControllerGetStateAction
   | AccountsControllerListMultichainAccountsAction;
 
 /**
@@ -244,6 +246,14 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    if (!isUnlocked) {
+      return;
+    }
+
     try {
       const account = this.#listAccounts().find(
         (accountItem) => accountItem.id === accountId,

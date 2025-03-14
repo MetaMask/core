@@ -36,13 +36,11 @@ const DATA_MOCK = '0xabcdef';
 const VALUE_MOCK = '0x1234';
 const MESSENGER_MOCK = {} as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
-const BATCH_ID_MOCK = 'testBatchId';
+const BATCH_ID_CUSTOM_MOCK = '0x123456';
 const GET_ETH_QUERY_MOCK = jest.fn();
 const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
 
-const TRANSACTION_META_MOCK = {
-  id: BATCH_ID_MOCK,
-} as TransactionMeta;
+const TRANSACTION_META_MOCK = {} as TransactionMeta;
 
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
@@ -105,6 +103,56 @@ describe('Batch Utils', () => {
           ],
         },
       };
+    });
+
+    it('returns generated batch ID', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      const result = await addTransactionBatch(request);
+
+      expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+    });
+
+    it('returns provided batch ID', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      request.request.batchId = BATCH_ID_CUSTOM_MOCK;
+
+      const result = await addTransactionBatch(request);
+
+      expect(result.batchId).toBe(BATCH_ID_CUSTOM_MOCK);
     });
 
     it('adds generated EIP-7702 transaction', async () => {

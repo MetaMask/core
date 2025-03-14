@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.4.1]
+
 ### Fixed
 
 - Fixed an edge case in `PhishingController` where empty phishing lists could trigger API requests with invalid `-Infinity` timestamps ([#5385](https://github.com/MetaMask/core/pull/5385))
+- Fixed `RecommendedAction` not being exported correctly ([#5456](https://github.com/MetaMask/core/pull/5456))
 
 ## [12.4.0]
 
@@ -341,7 +344,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.1...HEAD
+[12.4.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.4.0...@metamask/phishing-controller@12.4.1
 [12.4.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.2...@metamask/phishing-controller@12.4.0
 [12.3.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.1...@metamask/phishing-controller@12.3.2
 [12.3.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.0...@metamask/phishing-controller@12.3.1

@@ -219,19 +219,20 @@ export default class AuthenticationController extends BaseController<
       return null;
     }
 
-    return {
-      ...this.state.sessionData,
-      profile: {
-        ...this.state.sessionData.profile,
-        metaMetricsId: await this.#metametrics.getMetaMetricsId(),
-      },
-    };
+    return this.state.sessionData;
   }
 
   async #setLoginResponseToState(loginResponse: LoginResponse) {
+    const metaMetricsId = await this.#metametrics.getMetaMetricsId();
     this.update((state) => {
       state.isSignedIn = true;
-      state.sessionData = loginResponse;
+      state.sessionData = {
+        ...loginResponse,
+        profile: {
+          ...loginResponse.profile,
+          metaMetricsId,
+        },
+      };
     });
   }
 
@@ -280,26 +281,18 @@ export default class AuthenticationController extends BaseController<
     return this.state.isSignedIn;
   }
 
-  #_snapPublicKeyCache: string | undefined;
-
   /**
    * Returns the auth snap public key.
    *
    * @returns The snap public key.
    */
   async #snapGetPublicKey(): Promise<string> {
-    if (this.#_snapPublicKeyCache) {
-      return this.#_snapPublicKeyCache;
-    }
-
     this.#assertIsUnlocked('#snapGetPublicKey');
 
     const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       createSnapPublicKeyRequest(),
     )) as string;
-
-    this.#_snapPublicKeyCache = result;
 
     return result;
   }
