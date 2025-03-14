@@ -46,7 +46,8 @@
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
+    { "path": "./packages/user-operation-controller/tsconfig.build.json" },
+    { "path": "./packages/app-metadata-controller/tsconfig.build.json" }
   ],
   "files": [],
   "include": []

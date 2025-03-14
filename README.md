@@ -23,6 +23,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
+- [`@metamask/app-metadata-controller`](packages/app-metadata-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
 - [`@metamask/assets-controllers`](packages/assets-controllers)
 - [`@metamask/base-controller`](packages/base-controller)
@@ -73,6 +74,7 @@ linkStyle default opacity:0.5
   accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
+  app_metadata_controller(["@metamask/app-metadata-controller"]);
   approval_controller(["@metamask/approval-controller"]);
   assets_controllers(["@metamask/assets-controllers"]);
   base_controller(["@metamask/base-controller"]);
@@ -117,6 +119,7 @@ linkStyle default opacity:0.5
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
+  app_metadata_controller --> base_controller;
   approval_controller --> base_controller;
   assets_controllers --> base_controller;
   assets_controllers --> controller_utils;
@@ -225,12 +228,12 @@ linkStyle default opacity:0.5
   token_search_discovery_controller --> base_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
-  transaction_controller --> remote_feature_flag_controller;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> eth_json_rpc_provider;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
+  transaction_controller --> remote_feature_flag_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
   user_operation_controller --> polling_controller;

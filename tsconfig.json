@@ -10,6 +10,7 @@
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
     { "path": "./packages/announcement-controller" },
+    { "path": "./packages/app-metadata-controller" },
     { "path": "./packages/approval-controller" },
     { "path": "./packages/assets-controllers" },
     { "path": "./packages/base-controller" },
