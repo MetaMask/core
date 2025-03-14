@@ -147,7 +147,7 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
-  #isUnlocked = true;
+  #isUnlocked: boolean;
 
   constructor({
     messenger,
