@@ -20,19 +20,39 @@ npm_scope="$1"
 shorthash="$2"
 
 prepare-preview-manifest() {
-  local manifest_file="$1"
+  local name="$1"
+  local location="$2"
+
+  local name_without_scope="${name##@metamask/}"
+  local manifest_file="$location/package.json"
+  local version="$(jq --raw-output '.version' "$manifest_file")"
+
+  echo "- $name ($version)"
 
   # jq does not support in-place modification of files, so a temporary file is
   # used to store the result of the operation. The original file is then
   # overwritten with the temporary file.
   jq --raw-output --arg npm_scope "$npm_scope" --arg hash "$shorthash" --from-file scripts/prepare-preview-builds.jq "$manifest_file" > temp.json
   mv temp.json "$manifest_file"
+
+  # Allow for publishing preview builds of unreleased packages
+  # TODO: This won't work because we also need to update dependency lines in dependents of unreleased packages
+  local regex1="s!^\"$name@npm:\\^$version, $name@workspace:$location\":\$!\"$npm_scope/$name_without_scope@npm:^$version, $npm_scope/$name_without_scope@workspace:$location\":!"
+  local regex2="s!^\"$name@workspace:$location\":\$!\"$npm_scope/$name_without_scope@workspace:$location\":!"
+  local regex3="s!^  resolution: \"$name@workspace:$location\"\$!  resolution: \"$npm_scope/$name_without_scope@workspace:$location\"!"
+  local regex4="s!^    \"$name\": \"npm:\\^$version\"\$!    \"$npm_scope/$name_without_scope\": \"npm:^$version\"!"
+
+  sed -i '' -E "$regex1" yarn.lock
+  sed -i '' -E "$regex2" yarn.lock
+  sed -i '' -E "$regex3" yarn.lock
+  if [[ "$version" == "0.0.0" ]]; then
+    sed -i '' -E "$regex4" yarn.lock
+  fi
 }
 
 echo "Preparing manifests..."
 while IFS=$'\t' read -r location name; do
-  echo "- $name"
-  prepare-preview-manifest "$location/package.json"
+  prepare-preview-manifest "$name" "$location"
 done < <(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(select(.location != ".")) | map([.location, .name]) | map(@tsv) | .[]')
 
 echo "Installing dependencies..."
