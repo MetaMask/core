@@ -1,10 +1,15 @@
 import type { Hex } from '@metamask/utils';
-import { hexToNumber, numberToHex } from '@metamask/utils';
+import { Duration, hexToNumber } from '@metamask/utils';
 
 import {
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
 } from './bridge';
+import {
+  formatAddressToString,
+  formatChainIdToCaip,
+  formatChainIdToDec,
+} from './caip-formatters';
 import {
   validateFeatureFlagsResponse,
   validateQuoteResponse,
@@ -14,16 +19,16 @@ import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
 import type { SwapsTokenObject } from '../constants/tokens';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
-  QuoteRequest,
   QuoteResponse,
   BridgeFeatureFlags,
   FetchFunction,
   ChainConfiguration,
+  GenericQuoteRequest,
+  QuoteRequest,
 } from '../types';
 import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
-// TODO put this back in once we have a fetchWithCache equivalent
-// const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
+const CACHE_REFRESH_TEN_MINUTES = 10 * Duration.Minute;
 
 export const getClientIdHeader = (clientId: string) => ({
   'X-Client-Id': clientId,
@@ -45,6 +50,8 @@ export async function fetchBridgeFeatureFlags(
   const url = `${bridgeApiBaseUrl}/getAllFeatureFlags`;
   const rawFeatureFlags: unknown = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
+    cacheOptions: { cacheRefreshTime: CACHE_REFRESH_TEN_MINUTES },
+    functionName: 'fetchBridgeFeatureFlags',
   });
 
   if (validateFeatureFlagsResponse(rawFeatureFlags)) {
@@ -52,7 +59,7 @@ export async function fetchBridgeFeatureFlags(
       Object.entries(chains).reduce(
         (acc, [chainId, value]) => ({
           ...acc,
-          [numberToHex(Number(chainId))]: value,
+          [formatChainIdToCaip(chainId)]: value,
         }),
         {},
       );
@@ -100,6 +107,8 @@ export async function fetchBridgeTokens(
   // note that the Assets controller won't be able to provide tokens. In extension we fetch+cache the token list from bridge-api to handle this
   const tokens = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
+    cacheOptions: { cacheRefreshTime: CACHE_REFRESH_TEN_MINUTES },
+    functionName: 'fetchBridgeTokens',
   });
 
   const nativeToken =
@@ -126,8 +135,9 @@ export async function fetchBridgeTokens(
   return transformedTokens;
 }
 
-// Returns a list of bridge tx quotes
 /**
+ * Converts the generic quote request to the type that the bridge-api expects
+ * and fetches quotes from the bridge-api
  *
  * @param request - The quote request
  * @param signal - The abort signal
@@ -137,27 +147,40 @@ export async function fetchBridgeTokens(
  * @returns A list of bridge tx quotes
  */
 export async function fetchBridgeQuotes(
-  request: QuoteRequest,
+  request: GenericQuoteRequest,
   signal: AbortSignal,
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
 ): Promise<QuoteResponse[]> {
-  const queryParams = new URLSearchParams({
-    walletAddress: request.walletAddress,
-    srcChainId: request.srcChainId.toString(),
-    destChainId: request.destChainId.toString(),
-    srcTokenAddress: request.srcTokenAddress,
-    destTokenAddress: request.destTokenAddress,
+  const normalizedRequest: QuoteRequest = {
+    walletAddress: formatAddressToString(request.walletAddress),
+    destWalletAddress: formatAddressToString(
+      request.destWalletAddress ?? request.walletAddress,
+    ),
+    srcChainId: formatChainIdToDec(request.srcChainId),
+    destChainId: formatChainIdToDec(request.destChainId),
+    srcTokenAddress: formatAddressToString(request.srcTokenAddress),
+    destTokenAddress: formatAddressToString(request.destTokenAddress),
     srcTokenAmount: request.srcTokenAmount,
-    slippage: request.slippage.toString(),
-    insufficientBal: request.insufficientBal ? 'true' : 'false',
-    resetApproval: request.resetApproval ? 'true' : 'false',
+    insufficientBal: Boolean(request.insufficientBal),
+    resetApproval: Boolean(request.resetApproval),
+  };
+  if (request.slippage !== undefined) {
+    normalizedRequest.slippage = request.slippage;
+  }
+
+  const queryParams = new URLSearchParams();
+  Object.entries(normalizedRequest).forEach(([key, value]) => {
+    queryParams.append(key, value.toString());
   });
   const url = `${bridgeApiBaseUrl}/getQuote?${queryParams}`;
+
   const quotes: unknown[] = await fetchFn(url, {
     headers: getClientIdHeader(clientId),
     signal,
+    cacheOptions: { cacheRefreshTime: 0 },
+    functionName: 'fetchBridgeQuotes',
   });
 
   const filteredQuotes = quotes.filter((quoteResponse: unknown) => {

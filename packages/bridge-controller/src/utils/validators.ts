@@ -11,8 +11,8 @@ import {
   optional,
   enums,
   define,
-  intersection,
   size,
+  union,
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
@@ -37,7 +37,7 @@ const TruthyDigitStringSchema = define(
 
 const SwapsTokenObjectSchema = type({
   decimals: number(),
-  address: intersection([string(), HexAddressSchema]),
+  address: string(),
   symbol: size(string(), 1, 12),
 });
 
@@ -77,6 +77,7 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
   const BridgeAssetSchema = type({
     chainId: ChainIdSchema,
     address: string(),
+    assetId: string(),
     symbol: string(),
     name: string(),
     decimals: number(),
@@ -134,7 +135,7 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
   const QuoteResponseSchema = type({
     quote: QuoteSchema,
     approval: optional(TxDataSchema),
-    trade: TxDataSchema,
+    trade: union([TxDataSchema, string()]),
     estimatedProcessingTimeInSeconds: number(),
   });
 

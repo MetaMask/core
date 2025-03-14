@@ -10,7 +10,8 @@
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
     { "path": "../polling-controller" },
-    { "path": "../transaction-controller" }
+    { "path": "../transaction-controller" },
+    { "path": "../multichain-network-controller" }
   ],
   "include": ["../../types", "./src"]
 }
