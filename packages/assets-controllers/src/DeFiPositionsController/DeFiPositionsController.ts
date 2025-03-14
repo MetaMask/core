@@ -1,5 +1,4 @@
 import type {
-  AccountsControllerGetAccountAction,
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
@@ -62,9 +61,7 @@ export type DeFiPositionsControllerStateChangeEvent =
 /**
  * The external actions available to the {@link DeFiPositionsController}.
  */
-export type AllowedActions =
-  | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction;
+export type AllowedActions = AccountsControllerGetSelectedAccountAction;
 
 /**
  * The external events available to the {@link DeFiPositionsController}.
@@ -128,6 +125,10 @@ export class DeFiPositionsController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       async (selectedAccount) => {
+        console.log(
+          'DEFI POSITIONS CONTROLLER EVENT: AccountsController:selectedAccountChange',
+          selectedAccount.address,
+        );
         await this.#updateAccountPositions(selectedAccount.address);
       },
     );
@@ -137,6 +138,10 @@ export class DeFiPositionsController extends BaseController<
       async () => {
         const { address } = this.messagingSystem.call(
           'AccountsController:getSelectedAccount',
+        );
+        console.log(
+          'DEFI POSITIONS CONTROLLER EVENT: NetworkController:stateChange',
+          address,
         );
 
         if (address) {
