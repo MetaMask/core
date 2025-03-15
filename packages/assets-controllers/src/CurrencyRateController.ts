@@ -162,7 +162,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     try {
       const { currentCurrency } = this.state;
 
-      // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
+      // For preloaded testnets (Sepolia, Linea Sepolia, Mega Testnet) we want to fetch exchange rate for real ETH.
       // Map each native currency to the symbol we want to fetch for it.
       const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
       const nativeCurrenciesToFetch = nativeCurrencies.reduce(
