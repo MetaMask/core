@@ -191,7 +191,8 @@ export class IncomingTransactionHelper {
           (currentTx) =>
             currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
             currentTx.txParams.from?.toLowerCase() ===
-              tx.txParams.from?.toLowerCase(),
+              tx.txParams.from?.toLowerCase() && 
+              currentTx.type?.toLocaleLowerCase() === tx.type?.toLocaleLowerCase(),
         ),
     );
 
