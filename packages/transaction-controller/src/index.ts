@@ -44,6 +44,7 @@ export type {
   InferTransactionTypeResult,
   LegacyGasFeeEstimates,
   Log,
+  NestedTransactionMetadata,
   SavedGasFees,
   SecurityAlertResponse,
   SecurityProviderRequest,

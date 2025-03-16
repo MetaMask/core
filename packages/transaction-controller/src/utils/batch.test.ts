@@ -261,16 +261,16 @@ describe('Batch Utils', () => {
         expect.any(Object),
         expect.objectContaining({
           nestedTransactions: [
-            {
+            expect.objectContaining({
               to: TO_MOCK,
               data: DATA_MOCK,
               value: VALUE_MOCK,
-            },
-            {
+            }),
+            expect.objectContaining({
               to: TO_MOCK,
               data: DATA_MOCK,
               value: VALUE_MOCK,
-            },
+            }),
           ],
         }),
       );

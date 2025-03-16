@@ -76,6 +76,7 @@ import {
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
+import { isAccountUpgradedToEIP7702 } from './utils/eip7702';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -119,13 +120,20 @@ jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
 jest.mock('./utils/layer1-gas-fee-flow');
+jest.mock('./utils/simulation');
+jest.mock('./utils/swaps');
+jest.mock('uuid');
+
 jest.mock('./helpers/ResimulateHelper', () => ({
   ...jest.requireActual('./helpers/ResimulateHelper'),
   shouldResimulate: jest.fn(),
 }));
-jest.mock('./utils/simulation');
-jest.mock('./utils/swaps');
-jest.mock('uuid');
+
+jest.mock('./utils/eip7702', () => ({
+  ...jest.requireActual('./utils/eip7702'),
+  isAccountUpgradedToEIP7702: jest.fn(),
+}));
+
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -496,6 +504,9 @@ describe('TransactionController', () => {
   );
   const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
+  const isAccountUpgradedToEIP7702Mock = jest.mocked(
+    isAccountUpgradedToEIP7702,
+  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -641,11 +652,12 @@ describe('TransactionController', () => {
       unrestrictedMessenger.getRestricted({
         name: 'TransactionController',
         allowedActions: [
+          'AccountsController:getSelectedAccount',
+          'AccountsController:getState',
           'ApprovalController:addRequest',
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
-          'AccountsController:getSelectedAccount',
-          'AccountsController:getState',
+          'RemoteFeatureFlagController:getState',
         ],
         allowedEvents: [],
       });
@@ -659,6 +671,15 @@ describe('TransactionController', () => {
     unrestrictedMessenger.registerActionHandler(
       'AccountsController:getState',
       () => ({}) as never,
+    );
+
+    const remoteFeatureFlagControllerGetStateMock = jest.fn().mockReturnValue({
+      featureFlags: {},
+    });
+
+    unrestrictedMessenger.registerActionHandler(
+      'RemoteFeatureFlagController:getState',
+      remoteFeatureFlagControllerGetStateMock,
     );
 
     const controller = new TransactionController({
@@ -677,6 +698,15 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {} as any,
     );
+
+    isAccountUpgradedToEIP7702Mock.mockResolvedValue({
+      delegationAddress: undefined,
+      isSupported: false,
+    });
+
+    remoteFeatureFlagControllerGetStateMock.mockReturnValue({
+      remoteFeatureFlags: {},
+    });
 
     return {
       controller,
@@ -1582,6 +1612,7 @@ describe('TransactionController', () => {
         batchId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
+        delegationAddress: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
@@ -5981,13 +6012,9 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.failed,
       );
-      expect(
-        (
-          controller.state.transactions[0] as TransactionMeta & {
-            status: TransactionStatus.failed;
-          }
-        ).error.message,
-      ).toBe('Signing aborted by user');
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Signing aborted by user',
+      );
     });
   });
 
