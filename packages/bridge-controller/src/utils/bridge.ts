@@ -1,11 +1,9 @@
+import { Contract } from '@ethersproject/contracts';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
-import { Contract } from 'ethers';
 
 import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-  BRIDGE_DEV_API_BASE_URL,
-  BRIDGE_PROD_API_BASE_URL,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
@@ -17,17 +15,6 @@ export const getDefaultBridgeControllerState = (): BridgeControllerState => {
   return DEFAULT_BRIDGE_CONTROLLER_STATE;
 };
 
-export const getBridgeApiBaseUrl = () => {
-  if (process.env.BRIDGE_CUSTOM_API_BASE_URL) {
-    return process.env.BRIDGE_CUSTOM_API_BASE_URL;
-  }
-
-  if (process.env.BRIDGE_USE_DEV_APIS) {
-    return BRIDGE_DEV_API_BASE_URL;
-  }
-
-  return BRIDGE_PROD_API_BASE_URL;
-};
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
  *

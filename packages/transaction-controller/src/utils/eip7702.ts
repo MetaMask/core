@@ -18,22 +18,6 @@ import type {
   TransactionMeta,
 } from '../types';
 
-export type KeyringControllerAuthorization = [
-  chainId: number,
-  contractAddress: string,
-  nonce: number,
-];
-
-export type KeyringControllerSignAuthorization = {
-  type: 'KeyringController:signEip7702AuthorizationMessage';
-  handler: (authorization: {
-    chainId: number;
-    contractAddress: string;
-    from: string;
-    nonce: number;
-  }) => Promise<string>;
-};
-
 export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
@@ -64,6 +48,7 @@ export function doesChainSupportEIP7702(
  *
  * @param address - The EOA address to check.
  * @param chainId - The chain ID.
+ * @param publicKey - Public key used to validate EIP-7702 contract signatures in feature flags.
  * @param messenger - The messenger instance.
  * @param ethQuery - The EthQuery instance to communicate with the blockchain.
  * @returns An object with the results of the check.
@@ -71,10 +56,16 @@ export function doesChainSupportEIP7702(
 export async function isAccountUpgradedToEIP7702(
   address: Hex,
   chainId: Hex,
+  publicKey: Hex,
   messenger: TransactionControllerMessenger,
   ethQuery: EthQuery,
 ) {
-  const contractAddresses = getEIP7702ContractAddresses(chainId, messenger);
+  const contractAddresses = getEIP7702ContractAddresses(
+    chainId,
+    messenger,
+    publicKey,
+  );
+
   const code = await query(ethQuery, 'eth_getCode', [address]);
   const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
 
@@ -208,7 +199,7 @@ async function signAuthorization(
   const nonceDecimal = parseInt(nonce, 16);
 
   const signature = await messenger.call(
-    'KeyringController:signEip7702AuthorizationMessage',
+    'KeyringController:signEip7702Authorization',
     {
       chainId: chainIdDecimal,
       contractAddress: address,

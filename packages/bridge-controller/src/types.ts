@@ -86,19 +86,16 @@ export enum BridgeFlag {
 type DecimalChainId = string;
 export type GasMultiplierByChainId = Record<DecimalChainId, number>;
 
+type FeatureFlagResponsePlatformConfig = {
+  refreshRate: number;
+  maxRefreshCount: number;
+  support: boolean;
+  chains: Record<string, ChainConfiguration>;
+};
+
 export type FeatureFlagResponse = {
-  [BridgeFlag.EXTENSION_CONFIG]: {
-    refreshRate: number;
-    maxRefreshCount: number;
-    support: boolean;
-    chains: Record<number, ChainConfiguration>;
-  };
-  [BridgeFlag.MOBILE_CONFIG]: {
-    refreshRate: number;
-    maxRefreshCount: number;
-    support: boolean;
-    chains: Record<number, ChainConfiguration>;
-  };
+  [BridgeFlag.EXTENSION_CONFIG]: FeatureFlagResponsePlatformConfig;
+  [BridgeFlag.MOBILE_CONFIG]: FeatureFlagResponsePlatformConfig;
 };
 
 export type BridgeAsset = {
@@ -173,7 +170,7 @@ export type Quote = {
 
 export type QuoteResponse = {
   quote: Quote;
-  approval: TxData | null;
+  approval?: TxData | null;
   trade: TxData;
   estimatedProcessingTimeInSeconds: number;
 };
@@ -211,19 +208,16 @@ export enum BridgeFeatureFlagsKey {
   MOBILE_CONFIG = 'mobileConfig',
 }
 
+type FeatureFlagsPlatformConfig = {
+  refreshRate: number;
+  maxRefreshCount: number;
+  support: boolean;
+  chains: Record<Hex, ChainConfiguration>;
+};
+
 export type BridgeFeatureFlags = {
-  [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-    refreshRate: number;
-    maxRefreshCount: number;
-    support: boolean;
-    chains: Record<Hex, ChainConfiguration>;
-  };
-  [BridgeFeatureFlagsKey.MOBILE_CONFIG]: {
-    refreshRate: number;
-    maxRefreshCount: number;
-    support: boolean;
-    chains: Record<Hex, ChainConfiguration>;
-  };
+  [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: FeatureFlagsPlatformConfig;
+  [BridgeFeatureFlagsKey.MOBILE_CONFIG]: FeatureFlagsPlatformConfig;
 };
 export enum RequestStatus {
   LOADING,

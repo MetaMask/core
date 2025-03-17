@@ -1,18 +1,4 @@
 {
-  "examples/example-controllers/src/gas-prices-controller.test.ts": {
-    "import-x/order": 1
-  },
-  "examples/example-controllers/src/gas-prices-controller.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "prettier/prettier": 1
-  },
-  "examples/example-controllers/src/gas-prices-service/gas-prices-service.ts": {
-    "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/require-returns": 1
-  },
-  "examples/example-controllers/src/pet-names-controller.test.ts": {
-    "import-x/order": 2
-  },
   "packages/accounts-controller/src/AccountsController.test.ts": {
     "import-x/namespace": 1
   },
@@ -300,29 +286,20 @@
     "jsdoc/tag-lines": 5
   },
   "packages/multichain/src/adapters/caip-permission-adapter-session-scopes.test.ts": {
-    "import-x/order": 1
-  },
-  "packages/multichain/src/adapters/caip-permission-adapter-session-scopes.ts": {
-    "jsdoc/tag-lines": 3
+    "@typescript-eslint/no-unused-vars": 2
   },
   "packages/multichain/src/caip25Permission.test.ts": {
-    "@typescript-eslint/no-unused-vars": 3
+    "@typescript-eslint/no-unused-vars": 5
   },
   "packages/multichain/src/caip25Permission.ts": {
-    "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/tag-lines": 1
-  },
-  "packages/multichain/src/handlers/wallet-getSession.test.ts": {
-    "import-x/order": 1
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/multichain/src/handlers/wallet-getSession.ts": {
-    "@typescript-eslint/no-unused-vars": 2,
+    "@typescript-eslint/no-unused-vars": 1,
     "jsdoc/require-returns": 1
   },
-  "packages/multichain/src/handlers/wallet-invokeMethod.test.ts": {
-    "import-x/order": 2
-  },
   "packages/multichain/src/handlers/wallet-invokeMethod.ts": {
+    "@typescript-eslint/no-unsafe-enum-comparison": 1,
     "@typescript-eslint/no-unused-vars": 1,
     "jsdoc/require-returns": 1
   },
@@ -348,26 +325,23 @@
     "@typescript-eslint/no-unused-vars": 3
   },
   "packages/multichain/src/scope/assert.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 1,
-    "jsdoc/tag-lines": 8
+    "@typescript-eslint/no-unsafe-enum-comparison": 1
   },
-  "packages/multichain/src/scope/authorization.ts": {
-    "jsdoc/tag-lines": 2
+  "packages/multichain/src/scope/authorization.test.ts": {
+    "@typescript-eslint/no-unused-vars": 2
   },
   "packages/multichain/src/scope/errors.ts": {
     "jsdoc/tag-lines": 5
   },
   "packages/multichain/src/scope/filter.test.ts": {
-    "jest/no-conditional-in-test": 9,
-    "prettier/prettier": 1
+    "jest/no-conditional-in-test": 9
   },
   "packages/multichain/src/scope/filter.ts": {
     "@typescript-eslint/no-unused-vars": 1,
-    "jsdoc/tag-lines": 3
+    "jsdoc/require-returns": 1
   },
   "packages/multichain/src/scope/supported.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4,
-    "jsdoc/tag-lines": 4
+    "@typescript-eslint/no-unsafe-enum-comparison": 6
   },
   "packages/multichain/src/scope/validation.ts": {
     "jsdoc/tag-lines": 2
@@ -445,8 +419,7 @@
     "import-x/order": 1
   },
   "packages/phishing-controller/src/PhishingController.test.ts": {
-    "import-x/no-named-as-default-member": 1,
-    "jsdoc/tag-lines": 1
+    "import-x/no-named-as-default-member": 1
   },
   "packages/phishing-controller/src/PhishingController.ts": {
     "jsdoc/check-tag-names": 42,
@@ -505,14 +478,8 @@
   "packages/selected-network-controller/tests/SelectedNetworkController.test.ts": {
     "jest/no-conditional-in-test": 1
   },
-  "packages/signature-controller/src/SignatureController.test.ts": {
-    "import-x/order": 1,
-    "jsdoc/tag-lines": 3
-  },
   "packages/signature-controller/src/SignatureController.ts": {
-    "@typescript-eslint/no-unsafe-enum-comparison": 4,
-    "@typescript-eslint/prefer-readonly": 3,
-    "jsdoc/tag-lines": 8
+    "@typescript-eslint/no-unsafe-enum-comparison": 4
   },
   "packages/signature-controller/src/utils/decoding-api.test.ts": {
     "import-x/order": 1,
@@ -528,13 +495,9 @@
     "@typescript-eslint/no-unused-vars": 1,
     "jsdoc/tag-lines": 2
   },
-  "packages/signature-controller/src/utils/validation.test.ts": {
-    "import-x/order": 1
-  },
   "packages/signature-controller/src/utils/validation.ts": {
     "@typescript-eslint/no-base-to-string": 1,
-    "@typescript-eslint/no-unused-vars": 2,
-    "jsdoc/tag-lines": 4
+    "@typescript-eslint/no-unused-vars": 2
   },
   "packages/user-operation-controller/src/UserOperationController.test.ts": {
     "jsdoc/tag-lines": 4

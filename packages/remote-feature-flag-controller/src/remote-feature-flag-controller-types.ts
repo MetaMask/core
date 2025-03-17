@@ -10,6 +10,7 @@ export enum ClientType {
 export enum DistributionType {
   Main = 'main',
   Flask = 'flask',
+  Beta = 'beta',
 }
 
 export enum EnvironmentType {

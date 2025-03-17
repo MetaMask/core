@@ -1,3 +1,6 @@
+import type { BigNumber } from '@ethersproject/bignumber';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import type { StateMetadata } from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
@@ -6,11 +9,11 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { BrowserProvider, Contract } from 'ethers';
 
 import type { BridgeClientId } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
+  BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
   REFRESH_INTERVAL_MS,
@@ -93,12 +96,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #fetchFn: FetchFunction;
 
+  readonly #config: {
+    customBridgeApiBaseUrl?: string;
+  };
+
   constructor({
     messenger,
     state,
     clientId,
     getLayer1GasFee,
     fetchFn,
+    config,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -108,6 +116,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       chainId: ChainId;
     }) => Promise<string>;
     fetchFn: FetchFunction;
+    config?: {
+      customBridgeApiBaseUrl?: string;
+    };
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -125,6 +136,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#getLayer1GasFee = getLayer1GasFee;
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
+    this.#config = config ?? {};
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -240,6 +252,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const bridgeFeatureFlags = await fetchBridgeFeatureFlags(
       this.#clientId,
       this.#fetchFn,
+      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
     this.update((state) => {
       state.bridgeFeatureFlags = bridgeFeatureFlags;
@@ -276,6 +289,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         this.#abortController!.signal as AbortSignal,
         this.#clientId,
         this.#fetchFn,
+        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       );
 
       const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
@@ -400,10 +414,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       throw new Error('No provider found');
     }
 
-    const ethersProvider = new BrowserProvider(provider);
+    const ethersProvider = new Web3Provider(provider);
     const contract = new Contract(contractAddress, abiERC20, ethersProvider);
     const { address: walletAddress } = this.#getSelectedAccount();
-    const allowance: bigint = await contract.allowance(
+    const allowance: BigNumber = await contract.allowance(
       walletAddress,
       METABRIDGE_CHAIN_TO_ADDRESS_MAP[chainId],
     );

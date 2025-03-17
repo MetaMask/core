@@ -1,7 +1,6 @@
-/* eslint-disable n/no-process-env */
+import { Contract } from '@ethersproject/contracts';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
-import { Contract } from 'ethers';
 
 import {
   getEthUsdtResetData,
@@ -9,15 +8,10 @@ import {
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
   sumHexes,
-  getBridgeApiBaseUrl,
 } from './bridge';
 import {
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants/bridge';
-import {
-  BRIDGE_DEV_API_BASE_URL,
-  BRIDGE_PROD_API_BASE_URL,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
@@ -139,32 +133,6 @@ describe('Bridge utils', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
       expect(isSwapsDefaultTokenSymbol('', chainId)).toBe(false);
       expect(isSwapsDefaultTokenSymbol('ETH', '' as Hex)).toBe(false);
-    });
-  });
-
-  describe('getBridgeApiBaseUrl', () => {
-    const originalEnv = process.env;
-
-    beforeEach(() => {
-      process.env = { ...originalEnv };
-    });
-
-    afterEach(() => {
-      process.env = originalEnv;
-    });
-
-    it('returns custom API URL when BRIDGE_CUSTOM_API_BASE_URL is set', () => {
-      process.env.BRIDGE_CUSTOM_API_BASE_URL = 'https://custom-api.example.com';
-      expect(getBridgeApiBaseUrl()).toBe('https://custom-api.example.com');
-    });
-
-    it('returns dev API URL when BRIDGE_USE_DEV_APIS is set', () => {
-      process.env.BRIDGE_USE_DEV_APIS = 'true';
-      expect(getBridgeApiBaseUrl()).toBe(BRIDGE_DEV_API_BASE_URL);
-    });
-
-    it('returns prod API URL by default', () => {
-      expect(getBridgeApiBaseUrl()).toBe(BRIDGE_PROD_API_BASE_URL);
     });
   });
 });

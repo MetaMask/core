@@ -26,6 +26,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignEip7702AuthorizationAction } from '@metamask/keyring-controller';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -105,8 +106,10 @@ import {
   SimulationErrorCode,
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
-import type { KeyringControllerSignAuthorization } from './utils/eip7702';
-import { signAuthorizationList } from './utils/eip7702';
+import {
+  generateEIP7702BatchTransaction,
+  signAuthorizationList,
+} from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
@@ -306,6 +309,8 @@ export type TransactionControllerOptions = {
     /** API keys to be used for Etherscan requests to prevent rate limiting. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
+
+  /** Whether the first time interaction check is enabled. */
   isFirstTimeInteractionEnabled?: () => boolean;
 
   /** Whether new transactions will be automatically simulated. */
@@ -316,6 +321,9 @@ export type TransactionControllerOptions = {
 
   /** Configuration options for pending transaction support. */
   pendingTransactions?: PendingTransactionOptions;
+
+  /** Public key used to validate EIP-7702 contract signatures in feature flags. */
+  publicKeyEIP7702?: Hex;
 
   /** A function for verifying a transaction, whether it is malicious or not. */
   securityProviderRequest?: SecurityProviderRequest;
@@ -382,7 +390,7 @@ export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetStateAction
   | AddApprovalRequest
-  | KeyringControllerSignAuthorization
+  | KeyringControllerSignEip7702AuthorizationAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction;
@@ -677,6 +685,8 @@ export class TransactionController extends BaseController<
 
   readonly #pendingTransactionOptions: PendingTransactionOptions;
 
+  readonly #publicKeyEIP7702?: Hex;
+
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
   readonly #trace: TraceCallback;
@@ -797,6 +807,7 @@ export class TransactionController extends BaseController<
       isSimulationEnabled,
       messenger,
       pendingTransactions = {},
+      publicKeyEIP7702,
       securityProviderRequest,
       sign,
       state,
@@ -838,6 +849,7 @@ export class TransactionController extends BaseController<
     this.securityProviderRequest = securityProviderRequest;
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
+    this.#publicKeyEIP7702 = publicKeyEIP7702;
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
@@ -1005,6 +1017,7 @@ export class TransactionController extends BaseController<
       getEthQuery: (networkClientId) => this.#getEthQuery({ networkClientId }),
       getInternalAccounts: this.#getInternalAccounts.bind(this),
       messenger: this.messagingSystem,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
       request,
     });
   }
@@ -1020,6 +1033,7 @@ export class TransactionController extends BaseController<
       address,
       getEthQuery: (chainId) => this.#getEthQuery({ chainId }),
       messenger: this.messagingSystem,
+      publicKeyEIP7702: this.#publicKeyEIP7702,
     });
   }
 
@@ -1031,6 +1045,7 @@ export class TransactionController extends BaseController<
    * @param txParams - Standard parameters for an Ethereum transaction.
    * @param options - Additional options to control how the transaction is added.
    * @param options.actionId - Unique ID to prevent duplicate requests.
+   * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
@@ -1050,6 +1065,7 @@ export class TransactionController extends BaseController<
     txParams: TransactionParams,
     options: {
       actionId?: string;
+      batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
       method?: string;
       nestedTransactions?: BatchTransactionParams[];
@@ -1070,6 +1086,7 @@ export class TransactionController extends BaseController<
 
     const {
       actionId,
+      batchId,
       deviceConfirmedOn,
       method,
       nestedTransactions,
@@ -1100,6 +1117,7 @@ export class TransactionController extends BaseController<
     const internalAccounts = this.#getInternalAccounts();
 
     await validateTransactionOrigin({
+      data: txParams.data,
       from: txParams.from,
       internalAccounts,
       origin,
@@ -1113,6 +1131,16 @@ export class TransactionController extends BaseController<
       await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
+
+    const isDuplicateBatchId =
+      batchId?.length &&
+      this.state.transactions.some(
+        (tx) => tx.batchId?.toLowerCase() === batchId?.toLowerCase(),
+      );
+
+    if (isDuplicateBatchId) {
+      throw rpcErrors.invalidInput('Batch ID already exists');
+    }
 
     const dappSuggestedGasFees = this.generateDappSuggestedGasFees(
       txParams,
@@ -1136,6 +1164,7 @@ export class TransactionController extends BaseController<
       : {
           // Add actionId to txMeta to check if same actionId is seen again
           actionId,
+          batchId,
           chainId,
           dappSuggestedGasFees,
           deviceConfirmedOn,
@@ -2358,6 +2387,83 @@ export class TransactionController extends BaseController<
     this.signAbortCallbacks.delete(transactionId);
   }
 
+  /**
+   * Update the transaction data of a single nested transaction within an atomic batch transaction.
+   *
+   * @param options - The options bag.
+   * @param options.transactionId - ID of the atomic batch transaction.
+   * @param options.transactionIndex - Index of the nested transaction within the atomic batch transaction.
+   * @param options.transactionData - New data to set for the nested transaction.
+   * @returns The updated data for the atomic batch transaction.
+   */
+  async updateAtomicBatchData({
+    transactionId,
+    transactionIndex,
+    transactionData,
+  }: {
+    transactionId: string;
+    transactionIndex: number;
+    transactionData: Hex;
+  }) {
+    log('Updating atomic batch data', {
+      transactionId,
+      transactionIndex,
+      transactionData,
+    });
+
+    const updatedTransactionMeta = this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateAtomicBatchData - Atomic batch data updated',
+      },
+      (transactionMeta) => {
+        const { nestedTransactions, txParams } = transactionMeta;
+        const from = txParams.from as Hex;
+        const nestedTransaction = nestedTransactions?.[transactionIndex];
+
+        if (!nestedTransaction) {
+          throw new Error(
+            `Nested transaction not found with index - ${transactionIndex}`,
+          );
+        }
+
+        nestedTransaction.data = transactionData;
+
+        const batchTransaction = generateEIP7702BatchTransaction(
+          from,
+          nestedTransactions,
+        );
+
+        transactionMeta.txParams.data = batchTransaction.data;
+      },
+    );
+
+    const draftTransaction = cloneDeep({
+      ...updatedTransactionMeta,
+      txParams: {
+        ...updatedTransactionMeta.txParams,
+        // Clear existing gas to force estimation
+        gas: undefined,
+      },
+    });
+
+    await this.#updateGasEstimate(draftTransaction);
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateAtomicBatchData - Gas estimate updated',
+      },
+      (transactionMeta) => {
+        transactionMeta.txParams.gas = draftTransaction.txParams.gas;
+        transactionMeta.simulationFails = draftTransaction.simulationFails;
+        transactionMeta.gasLimitNoBuffer = draftTransaction.gasLimitNoBuffer;
+      },
+    );
+
+    return updatedTransactionMeta.txParams.data as Hex;
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -2376,24 +2482,14 @@ export class TransactionController extends BaseController<
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId));
 
-    const { networkClientId, chainId } = transactionMeta;
-
-    const isCustomNetwork =
-      this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
-        .configuration.type === NetworkClientType.Custom;
-
+    const { networkClientId } = transactionMeta;
     const ethQuery = this.#getEthQuery({ networkClientId });
     const provider = this.#getProvider({ networkClientId });
 
     await this.#trace(
       { name: 'Update Gas', parentContext: traceContext },
       async () => {
-        await updateGas({
-          ethQuery,
-          chainId,
-          isCustomNetwork,
-          txMeta: transactionMeta,
-        });
+        await this.#updateGasEstimate(transactionMeta);
       },
     );
 
@@ -3576,6 +3672,12 @@ export class TransactionController extends BaseController<
         ({ id }) => id === transactionId,
       );
 
+      if (index === -1) {
+        throw new Error(
+          `Cannot update transaction as ID not found - ${transactionId}`,
+        );
+      }
+
       let transactionMeta = state.transactions[index];
 
       const originalTransactionMeta = cloneDeep(transactionMeta);
@@ -3863,6 +3965,23 @@ export class TransactionController extends BaseController<
       }
 
       submitHistory.unshift(submitHistoryEntry);
+    });
+  }
+
+  async #updateGasEstimate(transactionMeta: TransactionMeta) {
+    const { chainId, networkClientId } = transactionMeta;
+
+    const isCustomNetwork =
+      this.#multichainTrackingHelper.getNetworkClient({ networkClientId })
+        .configuration.type === NetworkClientType.Custom;
+
+    const ethQuery = this.#getEthQuery({ networkClientId });
+
+    await updateGas({
+      chainId,
+      ethQuery,
+      isCustomNetwork,
+      txMeta: transactionMeta,
     });
   }
 }
