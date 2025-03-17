@@ -10,6 +10,7 @@ import {
   isAccountUpgradedToEIP7702,
 } from './eip7702';
 import {
+  getBatchSizeLimit,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
@@ -64,9 +65,12 @@ export async function addTransactionBatch(
     request: userRequest,
   } = request;
 
+  const sizeLimit = getBatchSizeLimit(messenger);
+
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
     request: userRequest,
+    sizeLimit,
   });
 
   const {

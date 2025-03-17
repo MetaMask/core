@@ -5,6 +5,8 @@ import type { Hex } from '@metamask/utils';
 import type { TransactionControllerFeatureFlags } from './feature-flags';
 import {
   FEATURE_FLAG_EIP_7702,
+  FEATURE_FLAG_TRANSACTIONS,
+  getBatchSizeLimit,
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
@@ -40,16 +42,10 @@ describe('Feature Flags Utils', () => {
    *
    * @param featureFlags - The feature flags to mock.
    */
-  function mockFeatureFlags(
-    featureFlags: Partial<
-      TransactionControllerFeatureFlags['confirmations-eip-7702']
-    >,
-  ) {
+  function mockFeatureFlags(featureFlags: TransactionControllerFeatureFlags) {
     getFeatureFlagsMock.mockReturnValue({
       cacheTimestamp: 0,
-      remoteFeatureFlags: {
-        [FEATURE_FLAG_EIP_7702]: featureFlags,
-      } as TransactionControllerFeatureFlags,
+      remoteFeatureFlags: featureFlags,
     });
   }
 
@@ -77,7 +73,9 @@ describe('Feature Flags Utils', () => {
   describe('getEIP7702SupportedChains', () => {
     it('returns value from remote feature flag controller', () => {
       mockFeatureFlags({
-        supportedChains: [CHAIN_ID_MOCK, CHAIN_ID_2_MOCK],
+        [FEATURE_FLAG_EIP_7702]: {
+          supportedChains: [CHAIN_ID_MOCK, CHAIN_ID_2_MOCK],
+        },
       });
 
       expect(getEIP7702SupportedChains(controllerMessenger)).toStrictEqual([
@@ -95,11 +93,13 @@ describe('Feature Flags Utils', () => {
   describe('getEIP7702ContractAddresses', () => {
     it('returns value from remote feature flag controller', () => {
       mockFeatureFlags({
-        contracts: {
-          [CHAIN_ID_MOCK]: [
-            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
-            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
-          ],
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [CHAIN_ID_MOCK]: [
+              { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+              { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+            ],
+          },
         },
       });
 
@@ -126,11 +126,13 @@ describe('Feature Flags Utils', () => {
 
     it('returns empty array if chain ID not found', () => {
       mockFeatureFlags({
-        contracts: {
-          [CHAIN_ID_2_MOCK]: [
-            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
-            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
-          ],
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [CHAIN_ID_2_MOCK]: [
+              { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+              { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+            ],
+          },
         },
       });
 
@@ -147,11 +149,13 @@ describe('Feature Flags Utils', () => {
       isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       mockFeatureFlags({
-        contracts: {
-          [CHAIN_ID_MOCK]: [
-            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
-            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
-          ],
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [CHAIN_ID_MOCK]: [
+              { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+              { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+            ],
+          },
         },
       });
 
@@ -168,13 +172,15 @@ describe('Feature Flags Utils', () => {
       isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       mockFeatureFlags({
-        contracts: {
-          [CHAIN_ID_MOCK]: [
-            { address: ADDRESS_MOCK, signature: undefined },
-            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
-          ],
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [CHAIN_ID_MOCK]: [
+              { address: ADDRESS_MOCK, signature: undefined as never },
+              { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+            ],
+          },
         },
-      } as never);
+      });
 
       expect(
         getEIP7702ContractAddresses(
@@ -189,11 +195,13 @@ describe('Feature Flags Utils', () => {
   describe('getEIP7702UpgradeContractAddress', () => {
     it('returns first contract address for chain', () => {
       mockFeatureFlags({
-        contracts: {
-          [CHAIN_ID_MOCK]: [
-            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
-            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
-          ],
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [CHAIN_ID_MOCK]: [
+              { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+              { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+            ],
+          },
         },
       });
 
@@ -220,8 +228,10 @@ describe('Feature Flags Utils', () => {
 
     it('returns undefined if empty contract addresses', () => {
       mockFeatureFlags({
-        contracts: {
-          [CHAIN_ID_MOCK]: [],
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [CHAIN_ID_MOCK]: [],
+          },
         },
       });
 
@@ -238,11 +248,13 @@ describe('Feature Flags Utils', () => {
       isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
 
       mockFeatureFlags({
-        contracts: {
-          [CHAIN_ID_MOCK]: [
-            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
-            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
-          ],
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [CHAIN_ID_MOCK]: [
+              { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+              { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+            ],
+          },
         },
       });
 
@@ -253,6 +265,23 @@ describe('Feature Flags Utils', () => {
           PUBLIC_KEY_MOCK,
         ),
       ).toStrictEqual(ADDRESS_2_MOCK);
+    });
+  });
+
+  describe('getBatchSizeLimit', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          batchSizeLimit: 5,
+        },
+      });
+
+      expect(getBatchSizeLimit(controllerMessenger)).toBe(5);
+    });
+
+    it('returns default value if undefined', () => {
+      mockFeatureFlags({});
+      expect(getBatchSizeLimit(controllerMessenger)).toBe(10);
     });
   });
 });
