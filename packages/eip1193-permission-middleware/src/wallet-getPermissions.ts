@@ -2,9 +2,6 @@ import type { Caip25CaveatValue } from '@metamask/chain-agnostic-permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-  EndowmentTypes,
-  RestrictedMethods,
-  CaveatTypes,
   getPermittedEthChainIds,
 } from '@metamask/chain-agnostic-permission';
 import type {
@@ -22,6 +19,8 @@ import type {
   JsonRpcRequest,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
+
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 
 export const getPermissionsHandler = {
   methodNames: [MethodNames.GetPermissions],

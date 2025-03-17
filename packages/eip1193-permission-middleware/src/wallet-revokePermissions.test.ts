@@ -1,8 +1,4 @@
-import {
-  Caip25EndowmentPermissionName,
-  EndowmentTypes,
-  RestrictedMethods,
-} from '@metamask/chain-agnostic-permission';
+import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permission';
 import { invalidParams } from '@metamask/permission-controller';
 import type {
   Json,
@@ -10,6 +6,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
+import { EndowmentTypes, RestrictedMethods } from './types';
 import { revokePermissionsHandler } from './wallet-revokePermissions';
 
 const baseRequest = {

@@ -33,9 +33,6 @@ describe('@metamask/chain-agnostic-permission', () => {
         "Caip25EndowmentPermissionName",
         "caip25EndowmentBuilder",
         "Caip25CaveatMutators",
-        "CaveatTypes",
-        "EndowmentTypes",
-        "RestrictedMethods",
       ]
     `);
   });

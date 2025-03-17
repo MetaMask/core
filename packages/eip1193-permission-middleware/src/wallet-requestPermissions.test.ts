@@ -1,9 +1,6 @@
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-  CaveatTypes,
-  EndowmentTypes,
-  RestrictedMethods,
 } from '@metamask/chain-agnostic-permission';
 import {
   invalidParams,
@@ -15,6 +12,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 import { requestPermissionsHandler } from './wallet-requestPermissions';
 
 const getBaseRequest = (overrides = {}) => ({

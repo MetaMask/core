@@ -5,6 +5,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
 import { getPermissionsHandler } from './wallet-getPermissions';
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
@@ -12,13 +13,8 @@ jest.mock('@metamask/chain-agnostic-permission', () => ({
   __esModule: true,
 }));
 
-const {
-  Caip25CaveatType,
-  Caip25EndowmentPermissionName,
-  CaveatTypes,
-  EndowmentTypes,
-  RestrictedMethods,
-} = chainAgnosticPermissionModule;
+const { Caip25CaveatType, Caip25EndowmentPermissionName } =
+  chainAgnosticPermissionModule;
 
 const baseRequest = {
   jsonrpc: '2.0' as const,

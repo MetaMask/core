@@ -1,8 +1,4 @@
-import {
-  Caip25EndowmentPermissionName,
-  EndowmentTypes,
-  RestrictedMethods,
-} from '@metamask/chain-agnostic-permission';
+import { Caip25EndowmentPermissionName } from '@metamask/chain-agnostic-permission';
 import type {
   AsyncJsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
@@ -14,6 +10,8 @@ import {
   type JsonRpcRequest,
   type PendingJsonRpcResponse,
 } from '@metamask/utils';
+
+import { EndowmentTypes, RestrictedMethods } from './types';
 
 export const revokePermissionsHandler = {
   methodNames: [MethodNames.RevokePermissions],
