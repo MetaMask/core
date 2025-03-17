@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Throw if `addTransactionBatch` called with external origin and size limit exceeded ([#5489](https://github.com/MetaMask/core/pull/5489))
+
 ## [49.0.0]
 
 ### Added
