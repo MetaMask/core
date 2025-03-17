@@ -7,6 +7,7 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 
 import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
+import { MultichainApiNotifications } from 'src/handlers/types';
 
 export type SubscriptionManager = {
   events: SafeEventEmitter;
@@ -66,7 +67,7 @@ export class MultichainSubscriptionManager extends SafeEventEmitter {
     { method, params }: SubscriptionNotificationEvent,
   ) {
     this.emit('notification', origin, tabId, {
-      method: 'wallet_notify',
+      method: MultichainApiNotifications.walletNotify,
       params: {
         scope,
         notification: { method, params },

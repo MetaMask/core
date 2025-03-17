@@ -2,6 +2,7 @@ import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscripti
 import type SafeEventEmitter from '@metamask/safe-event-emitter';
 
 import { MultichainSubscriptionManager } from './MultichainSubscriptionManager';
+import { MultichainApiNotifications } from 'src/handlers/types';
 
 jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
   jest.fn(),
@@ -102,7 +103,7 @@ describe('MultichainSubscriptionManager', () => {
     );
 
     expect(notifySpy).toHaveBeenCalledWith(origin, tabId, {
-      method: 'wallet_notify',
+      method: MultichainApiNotifications.walletNotify,
       params: {
         scope,
         notification: newHeadsNotificationMock,

@@ -5,6 +5,7 @@ import type {
 } from '@metamask/utils';
 
 import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidatorMiddleware';
+import { MultichainApiNotifications } from 'src/handlers/types';
 
 describe('multichainMethodCallValidatorMiddleware', () => {
   const mockNext = jest.fn();
@@ -240,7 +241,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
       const request: JsonRpcRequest = {
         id: 2,
         jsonrpc: '2.0',
-        method: 'wallet_notify',
+        method: MultichainApiNotifications.walletNotify,
         params: {
           scope: 'test_scope',
           notification: {
@@ -284,7 +285,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
       const request: JsonRpcRequest = {
         id: 2,
         jsonrpc: '2.0',
-        method: 'wallet_notify',
+        method: MultichainApiNotifications.walletNotify, 
         params: {
           scope: 'test_scope',
           request: {
