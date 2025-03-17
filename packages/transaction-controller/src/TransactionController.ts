@@ -1150,12 +1150,18 @@ export class TransactionController extends BaseController<
     const transactionType =
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
-    const { delegationAddress } = await isAccountUpgradedToEIP7702(
-      txParams.from as Hex,
-      chainId,
-      this.messagingSystem,
-      ethQuery,
-    );
+    let delegationAddress = undefined;
+
+    try {
+      ({ delegationAddress } = await isAccountUpgradedToEIP7702(
+        txParams.from as Hex,
+        chainId,
+        this.messagingSystem,
+        ethQuery,
+      ));
+    } catch (error) {
+      log('Error checking if account is upgraded to EIP-7702', error);
+    }
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
 
