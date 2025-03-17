@@ -1126,8 +1126,6 @@ export type TransactionError = {
   // <https://github.com/immerjs/immer/issues/839>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rpc?: any;
-
-  data?: Json;
 };
 
 /**

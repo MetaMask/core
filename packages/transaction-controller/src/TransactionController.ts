@@ -1627,7 +1627,6 @@ export class TransactionController extends BaseController<
     );
 
     this.update((state) => {
-      // @ts-expect-error - Excessively deep and possibly infinite.
       state.transactions = this.trimTransactionsForState(newTransactions);
     });
   }
