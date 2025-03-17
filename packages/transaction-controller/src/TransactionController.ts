@@ -108,7 +108,7 @@ import {
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import {
   generateEIP7702BatchTransaction,
-  isAccountUpgradedToEIP7702,
+  getDelegationAddress,
   signAuthorizationList,
 } from './utils/eip7702';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
@@ -1153,13 +1153,10 @@ export class TransactionController extends BaseController<
     let delegationAddress;
 
     try {
-      ({ delegationAddress } = await isAccountUpgradedToEIP7702(
+      delegationAddress = await getDelegationAddress(
         txParams.from as Hex,
-        chainId,
-        this.#publicKeyEIP7702 as Hex,
-        this.messagingSystem,
         ethQuery,
-      ));
+      );
     } catch (error) {
       log('Error checking if account is upgraded to EIP-7702', error);
     }

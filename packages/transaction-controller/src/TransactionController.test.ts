@@ -76,7 +76,7 @@ import {
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
-import { isAccountUpgradedToEIP7702 } from './utils/eip7702';
+import { getDelegationAddress } from './utils/eip7702';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -131,7 +131,7 @@ jest.mock('./helpers/ResimulateHelper', () => ({
 
 jest.mock('./utils/eip7702', () => ({
   ...jest.requireActual('./utils/eip7702'),
-  isAccountUpgradedToEIP7702: jest.fn(),
+  getDelegationAddress: jest.fn(),
 }));
 
 // TODO: Replace `any` with type
@@ -503,9 +503,7 @@ describe('TransactionController', () => {
   );
   const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
-  const isAccountUpgradedToEIP7702Mock = jest.mocked(
-    isAccountUpgradedToEIP7702,
-  );
+  const getDelegationAddressMock = jest.mocked(getDelegationAddress);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -698,10 +696,7 @@ describe('TransactionController', () => {
       {} as any,
     );
 
-    isAccountUpgradedToEIP7702Mock.mockResolvedValue({
-      delegationAddress: undefined,
-      isSupported: false,
-    });
+    getDelegationAddressMock.mockResolvedValue(undefined);
 
     remoteFeatureFlagControllerGetStateMock.mockReturnValue({
       remoteFeatureFlags: {},
@@ -1966,10 +1961,7 @@ describe('TransactionController', () => {
     it('adds delegration address to metadata', async () => {
       const { controller } = setupController();
 
-      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
-        delegationAddress: ACCOUNT_MOCK,
-        isSupported: true,
-      });
+      getDelegationAddressMock.mockResolvedValueOnce(ACCOUNT_MOCK);
 
       await controller.addTransaction(
         {

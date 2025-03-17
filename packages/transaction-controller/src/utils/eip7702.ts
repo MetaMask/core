@@ -44,6 +44,28 @@ export function doesChainSupportEIP7702(
 }
 
 /**
+ * Retrieve the delegation address for an account.
+ *
+ * @param address - The address to check.
+ * @param ethQuery - The EthQuery instance to communicate with the blockchain.
+ * @returns  The delegation address if it exists.
+ */
+export async function getDelegationAddress(
+  address: Hex,
+  ethQuery: EthQuery,
+): Promise<Hex | undefined> {
+  const code = await query(ethQuery, 'eth_getCode', [address]);
+  const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
+
+  const hasDelegation =
+    code?.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
+
+  return hasDelegation
+    ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))
+    : undefined;
+}
+
+/**
  * Determine if an account has been upgraded to a supported EIP-7702 contract.
  *
  * @param address - The EOA address to check.
@@ -66,15 +88,7 @@ export async function isAccountUpgradedToEIP7702(
     publicKey,
   );
 
-  const code = await query(ethQuery, 'eth_getCode', [address]);
-  const normalizedCode = add0x(code?.toLowerCase?.() ?? '');
-
-  const hasDelegation =
-    code?.length === 48 && normalizedCode.startsWith(DELEGATION_PREFIX);
-
-  const delegationAddress = hasDelegation
-    ? add0x(normalizedCode.slice(DELEGATION_PREFIX.length))
-    : undefined;
+  const delegationAddress = await getDelegationAddress(address, ethQuery);
 
   const isSupported = Boolean(
     delegationAddress &&
