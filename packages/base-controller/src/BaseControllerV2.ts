@@ -271,12 +271,15 @@ export class BaseController<
       ) => [ControllerState, Patch[], Patch[]]
     )(this.#internalState, callback);
 
-    this.#internalState = nextState;
-    this.messagingSystem.publish(
-      `${this.name}:stateChange`,
-      nextState,
-      patches,
-    );
+    // Protect against unnecessary state updates when there is no state diff.
+    if (patches.length > 0) {
+      this.#internalState = nextState;
+      this.messagingSystem.publish(
+        `${this.name}:stateChange`,
+        nextState,
+        patches,
+      );
+    }
 
     return { nextState, patches, inversePatches };
   }
