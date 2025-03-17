@@ -35,7 +35,6 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
-import { determineTransactionType } from '.';
 import { getAccountAddressRelationship } from './api/accounts-api';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
