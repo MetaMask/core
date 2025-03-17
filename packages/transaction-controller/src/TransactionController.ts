@@ -1156,6 +1156,7 @@ export class TransactionController extends BaseController<
       ({ delegationAddress } = await isAccountUpgradedToEIP7702(
         txParams.from as Hex,
         chainId,
+        this.#publicKeyEIP7702 as Hex,
         this.messagingSystem,
         ethQuery,
       ));
