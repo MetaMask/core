@@ -170,7 +170,7 @@ export type Quote = {
 
 export type QuoteResponse = {
   quote: Quote;
-  approval: TxData | null;
+  approval?: TxData | null;
   trade: TxData;
   estimatedProcessingTimeInSeconds: number;
 };

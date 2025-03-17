@@ -57,6 +57,11 @@ type TransactionMetaBase = {
   baseFeePerGas?: Hex;
 
   /**
+   * ID of the associated transaction batch.
+   */
+  batchId?: Hex;
+
+  /**
    * Number of the block where the transaction has been included.
    */
   blockNumber?: string;
@@ -604,6 +609,12 @@ export enum TransactionType {
   retry = 'retry',
 
   /**
+   * Remove the code / delegation from an upgraded EOA.
+   * Introduced in EIP-7702.
+   */
+  revokeDelegation = 'revokeDelegation',
+
+  /**
    * A transaction sending a network's native asset to a recipient.
    */
   simpleSend = 'simpleSend',
@@ -742,12 +753,14 @@ export type TransactionParams = {
   from: string;
 
   /**
-   * same as gasLimit?
+   * Maximum number of units of gas to use for this transaction.
    */
   gas?: string;
 
   /**
-   * Maxmimum number of units of gas to use for this transaction.
+   * Maximum number of units of gas to use for this transaction.
+   *
+   * @deprecated Use `gas` instead.
    */
   gasLimit?: string;
 
@@ -833,6 +846,9 @@ export type TransactionReceipt = {
    */
   status?: string;
 
+  /** Hash of the associated transaction. */
+  transactionHash?: Hex;
+
   /**
    * The hexadecimal index of this transaction in the list of transactions included in the block this transaction was mined in.
    */
@@ -847,6 +863,10 @@ export type Log = {
    * Address of the contract that generated log.
    */
   address?: string;
+
+  /** Data for the log. */
+  data?: Hex;
+
   /**
    * List of topics for log.
    */
@@ -1421,6 +1441,8 @@ export type TransactionBatchSingleRequest = {
  * Currently only atomic batches are supported via EIP-7702.
  */
 export type TransactionBatchRequest = {
+  batchId?: Hex;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
@@ -1442,5 +1464,5 @@ export type TransactionBatchRequest = {
  */
 export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
-  batchId: string;
+  batchId: Hex;
 };

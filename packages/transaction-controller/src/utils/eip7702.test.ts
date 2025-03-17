@@ -33,6 +33,7 @@ const CHAIN_ID_2_MOCK = '0x456';
 const ADDRESS_MOCK = '0x1234567890123456789012345678901234567890';
 const ADDRESS_2_MOCK = '0x0987654321098765432109876543210987654321';
 const ADDRESS_3_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+const PUBLIC_KEY_MOCK = '0x112233';
 const ETH_QUERY_MOCK = {} as EthQuery;
 
 const DATA_MOCK =
@@ -271,6 +272,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -293,6 +295,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK.toUpperCase() as Hex,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -313,6 +316,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -331,6 +335,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -349,6 +354,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -369,6 +375,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
