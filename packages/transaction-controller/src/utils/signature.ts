@@ -21,9 +21,7 @@ export function isValidSignature(
     const actualPublicKey = verifyMessage(dataBytes, signature);
 
     return actualPublicKey.toLowerCase() === publicKey.toLowerCase();
-    // Not used
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
+  } catch {
     return false;
   }
 }
