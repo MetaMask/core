@@ -437,6 +437,21 @@ describe('SmartTransactionsController', () => {
         },
       );
     });
+
+    it('calls updateSmartTransactions if there is a timeoutHandle and pending transactions', async () => {
+      await withController(({ controller }) => {
+        const updateSmartTransactionsSpy = jest.spyOn(
+          controller,
+          'updateSmartTransactions',
+        );
+
+        controller.timeoutHandle = setTimeout(() => ({}));
+
+        controller.poll(1000);
+
+        expect(updateSmartTransactionsSpy).toHaveBeenCalled();
+      });
+    });
   });
 
   describe('updateSmartTransactions', () => {
@@ -725,9 +740,12 @@ describe('SmartTransactionsController', () => {
           .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
           .reply(200, pendingBatchStatusApiResponse);
 
-        await controller.fetchSmartTransactionsStatus(uuids, {
-          networkClientId: NetworkType.mainnet,
-        });
+        const params = uuids.map((uuid) => ({
+          uuid,
+          chainId: ChainId.mainnet,
+        }));
+
+        await controller.fetchSmartTransactionsStatus(params);
 
         const pendingState = createStateAfterPending()[0];
         const pendingTransaction = { ...pendingState, history: [pendingState] };
@@ -786,9 +804,12 @@ describe('SmartTransactionsController', () => {
             .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
             .reply(200, successBatchStatusApiResponse);
 
-          await controller.fetchSmartTransactionsStatus(uuids, {
-            networkClientId: NetworkType.mainnet,
-          });
+          const params = uuids.map((uuid) => ({
+            uuid,
+            chainId: ChainId.mainnet,
+          }));
+
+          await controller.fetchSmartTransactionsStatus(params);
 
           const [successState] = createStateAfterSuccess();
           const successTransaction = {
@@ -1601,9 +1622,12 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          const handleFetchSpy = jest.spyOn(utils, 'handleFetch');
+          const handleFetchSpy = jest
+            .spyOn(utils, 'handleFetch')
+            .mockImplementation(async () => Promise.resolve({}));
+
           const mainnetPollingToken = controller.startPolling({
-            networkClientId: NetworkType.mainnet,
+            chainIds: [ChainId.mainnet],
           });
 
           await advanceTime({ clock, duration: 0 });
@@ -1633,7 +1657,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          controller.startPolling({ networkClientId: NetworkType.sepolia });
+          controller.startPolling({ chainIds: [ChainId.sepolia] });
           await advanceTime({ clock, duration: 0 });
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
@@ -1678,6 +1702,57 @@ describe('SmartTransactionsController', () => {
             )}/batchStatus?uuids=uuid2`,
             fetchHeaders,
           );
+        },
+      );
+    });
+
+    it('does not poll for chains that are not supported', async () => {
+      // mock this to a noop because it causes an extra fetch call to the API upon state changes
+      jest
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
+        .mockImplementation(() => undefined);
+      await withController(
+        {
+          options: {
+            // pending transactions in state are required to test polling
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    {
+                      uuid: 'uuid1',
+                      status: 'pending',
+                      cancellable: true,
+                      chainId: ChainId.mainnet,
+                    },
+                  ],
+                  [ChainId.sepolia]: [
+                    {
+                      uuid: 'uuid2',
+                      status: 'pending',
+                      cancellable: true,
+                      chainId: ChainId.sepolia,
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const handleFetchSpy = jest
+            .spyOn(utils, 'handleFetch')
+            .mockImplementation(async () => Promise.resolve({}));
+
+          controller.startPolling({
+            chainIds: ['notSupportedChainId' as Hex],
+          });
+
+          await advanceTime({ clock, duration: 0 });
+
+          expect(handleFetchSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -1984,6 +2059,38 @@ async function withController<ReturnValue>(
     'NetworkController:getState',
     jest.fn().mockReturnValue({
       selectedNetworkClientId: NetworkType.mainnet,
+      networkConfigurationsByChainId: {
+        '0x1': {
+          blockExplorerUrls: ['https://etherscan.io'],
+          chainId: '0x1',
+          defaultBlockExplorerUrlIndex: 0,
+          defaultRpcEndpointIndex: 0,
+          name: 'Ethereum Mainnet',
+          nativeCurrency: 'ETH',
+          rpcEndpoints: [
+            {
+              networkClientId: NetworkType.mainnet,
+              type: 'infura',
+              url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+            },
+          ],
+        },
+        '0xaa36a7': {
+          blockExplorerUrls: ['https://sepolia.etherscan.io'],
+          chainId: '0xaa36a7',
+          defaultBlockExplorerUrlIndex: 0,
+          defaultRpcEndpointIndex: 0,
+          name: 'Sepolia',
+          nativeCurrency: 'SepoliaETH',
+          rpcEndpoints: [
+            {
+              networkClientId: NetworkType.sepolia,
+              type: 'infura',
+              url: 'https://sepolia.infura.io/v3/{infuraProjectId}',
+            },
+          ],
+        },
+      },
     }),
   );
 

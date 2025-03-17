@@ -209,7 +209,7 @@ type SmartTransactionsControllerOptions = {
 };
 
 export type SmartTransactionsControllerPollingInput = {
-  networkClientId: string;
+  chainIds: Hex[];
 };
 
 export default class SmartTransactionsController extends StaticIntervalPollingController<SmartTransactionsControllerPollingInput>()<
@@ -322,24 +322,29 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
   }
 
   async _executePoll({
-    networkClientId,
+    chainIds,
   }: SmartTransactionsControllerPollingInput): Promise<void> {
     // if this is going to be truly UI driven polling we shouldn't really reach here
     // with a networkClientId that is not supported, but for now I'll add a check in case
     // wondering if we should add some kind of predicate to the polling controller to check whether
     // we should poll or not
-    const chainId = this.#getChainId({ networkClientId });
-    if (!this.#supportedChainIds.includes(chainId)) {
+    const filteredChainIds = (chainIds ?? []).filter((chainId) =>
+      this.#supportedChainIds.includes(chainId),
+    );
+
+    if (filteredChainIds.length === 0) {
       return Promise.resolve();
     }
-    return this.updateSmartTransactions({ networkClientId });
+    return this.updateSmartTransactions({ chainIds: filteredChainIds });
   }
 
   checkPoll({
     smartTransactionsState: { smartTransactions },
   }: SmartTransactionsControllerState) {
-    const currentSmartTransactions = smartTransactions[this.#chainId];
-    const pendingTransactions = currentSmartTransactions?.filter(
+    const smartTransactionsForAllChains =
+      Object.values(smartTransactions).flat();
+
+    const pendingTransactions = smartTransactionsForAllChains?.filter(
       isSmartTransactionPending,
     );
     if (!this.timeoutHandle && pendingTransactions?.length > 0) {
@@ -410,11 +415,12 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     });
   }
 
-  isNewSmartTransaction(smartTransactionUuid: string): boolean {
+  isNewSmartTransaction(smartTransactionUuid: string, chainId?: Hex): boolean {
     const {
       smartTransactionsState: { smartTransactions },
     } = this.state;
-    const currentSmartTransactions = smartTransactions[this.#chainId];
+    const currentSmartTransactions =
+      smartTransactions[chainId ?? this.#chainId];
     const currentIndex = currentSmartTransactions?.findIndex(
       (stx) => stx.uuid === smartTransactionUuid,
     );
@@ -505,6 +511,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     );
     const isNewSmartTransaction = this.isNewSmartTransaction(
       smartTransaction.uuid,
+      chainId,
     );
     if (this.#ethQuery === undefined) {
       throw new Error(ETH_QUERY_ERROR_MSG);
@@ -540,7 +547,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           : currentSmartTransactions.concat(historifiedSmartTransaction);
 
       this.update((state) => {
-        state.smartTransactionsState.smartTransactions[this.#chainId] =
+        state.smartTransactionsState.smartTransactions[chainId] =
           nextSmartTransactions;
       });
       return;
@@ -589,25 +596,43 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     }
   }
 
-  async updateSmartTransactions({
-    networkClientId,
-  }: {
-    networkClientId?: NetworkClientId;
-  } = {}): Promise<void> {
+  async updateSmartTransactions(
+    {
+      chainIds,
+    }: {
+      chainIds: Hex[];
+    } = {
+      chainIds: this.#getChainIds(),
+    },
+  ): Promise<void> {
     const {
       smartTransactionsState: { smartTransactions },
     } = this.state;
-    const chainId = this.#getChainId({ networkClientId });
-    const smartTransactionsForChainId = smartTransactions[chainId];
 
-    const transactionsToUpdate: string[] = smartTransactionsForChainId
-      .filter(isSmartTransactionPending)
-      .map((smartTransaction) => smartTransaction.uuid);
+    // Iterate over each chain group directly
+    for (const [chainId, transactions] of Object.entries(smartTransactions)) {
+      if (chainIds && !chainIds.includes(chainId as Hex)) {
+        continue;
+      }
+      // Filter pending transactions and map them to the desired shape
+      const pendingTransactions = transactions
+        .filter(isSmartTransactionPending)
+        .map((pendingSmartTransaction) => {
+          // Use the transaction's chainId (from the key) to derive a networkClientId
+          const networkClientIdToUse = this.#getNetworkClientId({
+            chainId: chainId as Hex,
+          });
+          return {
+            uuid: pendingSmartTransaction.uuid,
+            networkClientId: networkClientIdToUse,
+            chainId: pendingSmartTransaction.chainId as Hex, // same as the key, but explicit on the transaction
+          };
+        });
 
-    if (transactionsToUpdate.length > 0) {
-      this.fetchSmartTransactionsStatus(transactionsToUpdate, {
-        networkClientId,
-      });
+      if (pendingTransactions.length > 0) {
+        // Since each group is per chain, all transactions share the same chainId.
+        await this.fetchSmartTransactionsStatus(pendingTransactions);
+      }
     }
   }
 
@@ -734,32 +759,50 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   // ! Ask backend API to accept list of uuids as params
   async fetchSmartTransactionsStatus(
-    uuids: string[],
-    { networkClientId }: { networkClientId?: NetworkClientId } = {},
+    transactions: {
+      uuid: string;
+      networkClientId?: NetworkClientId;
+      chainId: Hex;
+    }[],
   ): Promise<Record<string, SmartTransactionsStatus>> {
-    const params = new URLSearchParams({
-      uuids: uuids.join(','),
+    // Since transactions come from the same chain group, take the chainId from the first one.
+    const { chainId } = transactions[0];
+
+    // Build query parameters with all UUIDs
+    const uuids = transactions.map((tx) => tx.uuid);
+    const params = new URLSearchParams({ uuids: uuids.join(',') });
+
+    // Get the ethQuery for the first transaction's networkClientId
+    const ethQuery = this.#getEthQuery({
+      networkClientId: transactions[0].networkClientId,
     });
-    const chainId = this.#getChainId({ networkClientId });
-    const ethQuery = this.#getEthQuery({ networkClientId });
+
+    // Construct the URL and fetch the data
     const url = `${getAPIRequestURL(
       APIType.BATCH_STATUS,
       chainId,
     )}?${params.toString()}`;
-
     const data = (await this.#fetch(url)) as Record<
       string,
       SmartTransactionsStatus
     >;
 
+    // Process each returned status
     for (const [uuid, stxStatus] of Object.entries(data)) {
+      const matchingTx = transactions.find((tx) => tx.uuid === uuid);
+      if (!matchingTx) {
+        console.error(`No matching transaction found for uuid: ${uuid}`);
+        continue;
+      }
+
       const smartTransaction: SmartTransaction = {
         statusMetadata: stxStatus,
         status: calculateStatus(stxStatus),
         cancellable: isSmartTransactionCancellable(stxStatus),
         uuid,
-        networkClientId,
+        networkClientId: matchingTx.networkClientId,
       };
+
       await this.#createOrUpdateSmartTransaction(smartTransaction, {
         chainId,
         ethQuery,
@@ -970,6 +1013,25 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     return this.#chainId;
   }
 
+  #getChainIds(): Hex[] {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    return Object.keys(networkConfigurationsByChainId).filter(
+      (chainId): chainId is Hex =>
+        this.#supportedChainIds.includes(chainId as Hex),
+    );
+  }
+
+  #getNetworkClientId({ chainId }: { chainId: string }): string {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    return networkConfigurationsByChainId[chainId as Hex].rpcEndpoints[
+      networkConfigurationsByChainId[chainId as Hex].defaultRpcEndpointIndex
+    ].networkClientId;
+  }
+
   #getEthQuery({
     networkClientId,
   }: {
@@ -1044,11 +1106,15 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     const {
       smartTransactionsState: { smartTransactions },
     } = this.state;
-    const currentSmartTransactions = smartTransactions?.[this.#chainId];
-    if (!currentSmartTransactions || currentSmartTransactions.length === 0) {
+    const smartTransactionsForAllChains =
+      Object.values(smartTransactions).flat();
+    if (
+      !smartTransactionsForAllChains ||
+      smartTransactionsForAllChains.length === 0
+    ) {
       return [];
     }
-    return currentSmartTransactions;
+    return smartTransactionsForAllChains;
   }
 
   getTransactions({
