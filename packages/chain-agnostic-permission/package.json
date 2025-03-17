@@ -1,7 +1,7 @@
 {
   "name": "@metamask/chain-agnostic-permission",
   "version": "0.0.0",
-  "description": "Defines a permission caveat and endowment designed to mimic a CAIP-25 request object",
+  "description": "Defines a CAIP-25 based endowment permission and helpers for interfacing with it",
   "keywords": [
     "MetaMask",
     "Ethereum"
