@@ -1150,7 +1150,7 @@ export class TransactionController extends BaseController<
     const transactionType =
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
-    let delegationAddress = undefined;
+    let delegationAddress;
 
     try {
       ({ delegationAddress } = await isAccountUpgradedToEIP7702(
