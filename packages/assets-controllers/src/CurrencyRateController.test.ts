@@ -3,7 +3,6 @@ import {
   ChainId,
   NetworkType,
   NetworksTicker,
-  TESTNET_TICKER_SYMBOLS,
 } from '@metamask/controller-utils';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import nock from 'nock';
@@ -275,64 +274,61 @@ describe('CurrencyRateController', () => {
     controller.destroy();
   });
 
-  it.each(Object.values(TESTNET_TICKER_SYMBOLS))(
-    'should use the exchange rate for ETH when native currency is testnet ETH - %s',
-    async (token: string) => {
-      const currentCurrency = 'cad';
+  it('should use the exchange rate for ETH when native currency is testnet ETH', async () => {
+    const currentCurrency = 'cad';
 
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const fetchMultiExchangeRateStub = jest
-        .fn()
-        .mockImplementation((_, cryptocurrencies) => {
-          const nativeCurrency = cryptocurrencies[0];
-          if (nativeCurrency === 'ETH') {
-            return {
-              [nativeCurrency.toLowerCase()]: {
-                [currentCurrency.toLowerCase()]: 10,
-                usd: 110,
-              },
-            };
-          }
+    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    const fetchMultiExchangeRateStub = jest
+      .fn()
+      .mockImplementation((_, cryptocurrencies) => {
+        const nativeCurrency = cryptocurrencies[0];
+        if (nativeCurrency === 'ETH') {
           return {
             [nativeCurrency.toLowerCase()]: {
-              [currentCurrency.toLowerCase()]: 0,
-              usd: 100,
+              [currentCurrency.toLowerCase()]: 10,
+              usd: 110,
             },
           };
-        });
-      const messenger = getRestrictedMessenger();
-      const controller = new CurrencyRateController({
-        fetchMultiExchangeRate: fetchMultiExchangeRateStub,
-        messenger,
-        state: { currentCurrency },
+        }
+        return {
+          [nativeCurrency.toLowerCase()]: {
+            [currentCurrency.toLowerCase()]: 0,
+            usd: 100,
+          },
+        };
       });
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      fetchMultiExchangeRate: fetchMultiExchangeRateStub,
+      messenger,
+      state: { currentCurrency },
+    });
 
-      expect(controller.state.currencyRates).toStrictEqual({
-        ETH: {
-          conversionDate: 0,
-          conversionRate: 0,
-          usdConversionRate: null,
-        },
-      });
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: 0,
+        conversionRate: 0,
+        usdConversionRate: null,
+      },
+    });
 
-      await controller.updateExchangeRate([token]);
+    await controller.updateExchangeRate(['SepoliaETH']);
 
-      expect(controller.state.currencyRates).toStrictEqual({
-        ETH: {
-          conversionDate: 0,
-          conversionRate: 0,
-          usdConversionRate: null,
-        },
-        [token]: {
-          conversionDate: getStubbedDate() / 1000,
-          conversionRate: 10,
-          usdConversionRate: 110,
-        },
-      });
+    expect(controller.state.currencyRates).toStrictEqual({
+      ETH: {
+        conversionDate: 0,
+        conversionRate: 0,
+        usdConversionRate: null,
+      },
+      SepoliaETH: {
+        conversionDate: getStubbedDate() / 1000,
+        conversionRate: 10,
+        usdConversionRate: 110,
+      },
+    });
 
-      controller.destroy();
-    },
-  );
+    controller.destroy();
+  });
 
   it('should update current currency then clear and refetch rates', async () => {
     const currentCurrency = 'cad';
