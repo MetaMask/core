@@ -3,6 +3,7 @@ export { BridgeController } from './bridge-controller';
 export type {
   ChainConfiguration,
   L1GasFees,
+  SolanaFees,
   QuoteMetadata,
   BridgeToken,
   GasMultiplierByChainId,
@@ -10,6 +11,7 @@ export type {
   BridgeAsset,
   GenericQuoteRequest,
   Protocol,
+  TokenAmountValues,
   Step,
   RefuelData,
   Quote,
@@ -40,6 +42,7 @@ export {
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
   BridgeClientId,
+  BRIDGE_CONTROLLER_NAME,
   BRIDGE_QUOTE_MAX_ETA_SECONDS,
   BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE,
   BRIDGE_PREFERRED_GAS_ESTIMATE,
@@ -55,7 +58,10 @@ export {
 
 export type { AllowedBridgeChainIds } from './constants/bridge';
 
-export type { SwapsTokenObject } from './constants/tokens';
+export {
+  type SwapsTokenObject,
+  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+} from './constants/tokens';
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
@@ -67,3 +73,9 @@ export {
 } from './utils/bridge';
 
 export { isValidQuoteRequest } from './utils/quote';
+
+export { calcLatestSrcBalance } from './utils/balance';
+
+export { fetchBridgeTokens } from './utils/fetch';
+
+export * from './utils/caip-formatters';
