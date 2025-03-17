@@ -9,12 +9,17 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
+import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
+
+jest.mock('./signature');
 
 const CHAIN_ID_MOCK = '0x123' as Hex;
 const CHAIN_ID_2_MOCK = '0xabc' as Hex;
 const ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
+const PUBLIC_KEY_MOCK = '0x321' as Hex;
+const SIGNATURE_MOCK = '0xcba' as Hex;
 
 describe('Feature Flags Utils', () => {
   let baseMessenger: Messenger<
@@ -27,6 +32,8 @@ describe('Feature Flags Utils', () => {
   let getFeatureFlagsMock: jest.MockedFn<
     RemoteFeatureFlagControllerGetStateAction['handler']
   >;
+
+  const isValidSignatureMock = jest.mocked(isValidSignature);
 
   /**
    * Mocks the feature flags returned by the remote feature flag controller.
@@ -63,6 +70,8 @@ describe('Feature Flags Utils', () => {
       allowedActions: ['RemoteFeatureFlagController:getState'],
       allowedEvents: [],
     });
+
+    isValidSignatureMock.mockReturnValue(true);
   });
 
   describe('getEIP7702SupportedChains', () => {
@@ -86,13 +95,20 @@ describe('Feature Flags Utils', () => {
   describe('getEIP7702ContractAddresses', () => {
     it('returns value from remote feature flag controller', () => {
       mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_MOCK]: [ADDRESS_MOCK, ADDRESS_2_MOCK],
+        contracts: {
+          [CHAIN_ID_MOCK]: [
+            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+          ],
         },
       });
 
       expect(
-        getEIP7702ContractAddresses(CHAIN_ID_MOCK, controllerMessenger),
+        getEIP7702ContractAddresses(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
       ).toStrictEqual([ADDRESS_MOCK, ADDRESS_2_MOCK]);
     });
 
@@ -100,33 +116,93 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
 
       expect(
-        getEIP7702ContractAddresses(CHAIN_ID_MOCK, controllerMessenger),
+        getEIP7702ContractAddresses(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
       ).toStrictEqual([]);
     });
 
     it('returns empty array if chain ID not found', () => {
       mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_2_MOCK]: [ADDRESS_MOCK, ADDRESS_2_MOCK],
+        contracts: {
+          [CHAIN_ID_2_MOCK]: [
+            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+          ],
         },
       });
 
       expect(
-        getEIP7702ContractAddresses(CHAIN_ID_MOCK, controllerMessenger),
+        getEIP7702ContractAddresses(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
       ).toStrictEqual([]);
+    });
+
+    it('does not return contracts with invalid signature', () => {
+      isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+      mockFeatureFlags({
+        contracts: {
+          [CHAIN_ID_MOCK]: [
+            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+          ],
+        },
+      });
+
+      expect(
+        getEIP7702ContractAddresses(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
+      ).toStrictEqual([ADDRESS_2_MOCK]);
+    });
+
+    it('does not return contracts with missing signature', () => {
+      isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+      mockFeatureFlags({
+        contracts: {
+          [CHAIN_ID_MOCK]: [
+            { address: ADDRESS_MOCK, signature: undefined },
+            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+          ],
+        },
+      } as never);
+
+      expect(
+        getEIP7702ContractAddresses(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
+      ).toStrictEqual([ADDRESS_2_MOCK]);
     });
   });
 
   describe('getEIP7702UpgradeContractAddress', () => {
     it('returns first contract address for chain', () => {
       mockFeatureFlags({
-        contractAddresses: {
-          [CHAIN_ID_MOCK]: [ADDRESS_MOCK, ADDRESS_2_MOCK],
+        contracts: {
+          [CHAIN_ID_MOCK]: [
+            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+          ],
         },
       });
 
       expect(
-        getEIP7702UpgradeContractAddress(CHAIN_ID_MOCK, controllerMessenger),
+        getEIP7702UpgradeContractAddress(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
       ).toStrictEqual(ADDRESS_MOCK);
     });
 
@@ -134,20 +210,49 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
 
       expect(
-        getEIP7702UpgradeContractAddress(CHAIN_ID_MOCK, controllerMessenger),
+        getEIP7702UpgradeContractAddress(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
       ).toBeUndefined();
     });
 
     it('returns undefined if empty contract addresses', () => {
       mockFeatureFlags({
-        contractAddresses: {
+        contracts: {
           [CHAIN_ID_MOCK]: [],
         },
       });
 
       expect(
-        getEIP7702UpgradeContractAddress(CHAIN_ID_MOCK, controllerMessenger),
+        getEIP7702UpgradeContractAddress(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
       ).toBeUndefined();
+    });
+
+    it('returns first contract address with valid signature', () => {
+      isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+      mockFeatureFlags({
+        contracts: {
+          [CHAIN_ID_MOCK]: [
+            { address: ADDRESS_MOCK, signature: SIGNATURE_MOCK },
+            { address: ADDRESS_2_MOCK, signature: SIGNATURE_MOCK },
+          ],
+        },
+      });
+
+      expect(
+        getEIP7702UpgradeContractAddress(
+          CHAIN_ID_MOCK,
+          controllerMessenger,
+          PUBLIC_KEY_MOCK,
+        ),
+      ).toStrictEqual(ADDRESS_2_MOCK);
     });
   });
 });
