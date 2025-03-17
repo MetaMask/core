@@ -35,6 +35,7 @@ import assert from 'assert';
 // eslint-disable-next-line import-x/namespace
 import * as uuidModule from 'uuid';
 
+import { determineTransactionType } from '.';
 import { getAccountAddressRelationship } from './api/accounts-api';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -133,7 +134,6 @@ jest.mock('./utils/eip7702', () => ({
   ...jest.requireActual('./utils/eip7702'),
   isAccountUpgradedToEIP7702: jest.fn(),
 }));
-
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1964,6 +1964,29 @@ describe('TransactionController', () => {
       });
     });
 
+    it('adds delegration address to metadata', async () => {
+      const { controller } = setupController();
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: ACCOUNT_MOCK,
+        isSupported: true,
+      });
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      expect(controller.state.transactions[0].delegationAddress).toBe(
+        ACCOUNT_MOCK,
+      );
+    });
+
     describe('updates simulation data', () => {
       it('by default', async () => {
         getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
@@ -2415,6 +2438,57 @@ describe('TransactionController', () => {
               status: 'rejected',
             }),
             actionId: mockActionId,
+          }),
+        );
+      });
+
+      it('publishes TransactionController:transactionRejected if error is method not supported', async () => {
+        const error = {
+          code: errorCodes.rpc.methodNotSupported,
+        };
+
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
+              error,
+            },
+          },
+        });
+
+        const rejectedEventListener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:transactionRejected',
+          rejectedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const finishedPromise = waitForTransactionFinished(messenger);
+
+        try {
+          await result;
+        } catch {
+          // Ignore user rejected error as it is expected
+        }
+        await finishedPromise;
+
+        expect(rejectedEventListener).toHaveBeenCalledTimes(1);
+        expect(rejectedEventListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              error,
+              status: 'rejected',
+            }),
           }),
         );
       });
