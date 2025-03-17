@@ -280,7 +280,7 @@ export enum BridgeBackgroundAction {
   GET_BRIDGE_ERC20_ALLOWANCE = 'getBridgeERC20Allowance',
 }
 
-type BridgeState = {
+export type BridgeControllerState = {
   bridgeFeatureFlags: BridgeFeatureFlags;
   quoteRequest: Partial<GenericQuoteRequest>;
   quotes: (QuoteResponse & L1GasFees & SolanaFees)[];
@@ -290,8 +290,6 @@ type BridgeState = {
   quoteFetchError: string | null;
   quotesRefreshCount: number;
 };
-
-export type BridgeControllerState = { bridgeState: BridgeState };
 
 export type BridgeControllerAction<
   FunctionName extends keyof BridgeController,

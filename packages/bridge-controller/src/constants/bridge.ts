@@ -49,22 +49,21 @@ export const DEFAULT_FEATURE_FLAG_CONFIG = {
   chains: {},
 };
 
-export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState['bridgeState'] =
-  {
-    bridgeFeatureFlags: {
-      [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-      [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
-    },
-    quoteRequest: {
-      srcTokenAddress: AddressZero,
-    },
-    quotesInitialLoadTime: null,
-    quotes: [],
-    quotesLastFetched: null,
-    quotesLoadingStatus: null,
-    quoteFetchError: null,
-    quotesRefreshCount: 0,
-  };
+export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
+  bridgeFeatureFlags: {
+    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
+    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
+  },
+  quoteRequest: {
+    srcTokenAddress: AddressZero,
+  },
+  quotesInitialLoadTime: null,
+  quotes: [],
+  quotesLastFetched: null,
+  quotesLoadingStatus: null,
+  quoteFetchError: null,
+  quotesRefreshCount: 0,
+};
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {
   [CHAIN_IDS.MAINNET]: METABRIDGE_ETHEREUM_ADDRESS,

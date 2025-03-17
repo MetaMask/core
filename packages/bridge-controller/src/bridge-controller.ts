@@ -33,7 +33,11 @@ import {
   RequestStatus,
 } from './types';
 import { hasSufficientBalance } from './utils/balance';
-import { isSolanaChainId, sumHexes } from './utils/bridge';
+import {
+  getDefaultBridgeControllerState,
+  isSolanaChainId,
+  sumHexes,
+} from './utils/bridge';
 import {
   formatAddressToString,
   formatChainIdToCaip,
@@ -43,7 +47,35 @@ import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
 import { isValidQuoteRequest } from './utils/quote';
 
 const metadata: StateMetadata<BridgeControllerState> = {
-  bridgeState: {
+  bridgeFeatureFlags: {
+    persist: false,
+    anonymous: false,
+  },
+  quoteRequest: {
+    persist: false,
+    anonymous: false,
+  },
+  quotes: {
+    persist: false,
+    anonymous: false,
+  },
+  quotesInitialLoadTime: {
+    persist: false,
+    anonymous: false,
+  },
+  quotesLastFetched: {
+    persist: false,
+    anonymous: false,
+  },
+  quotesLoadingStatus: {
+    persist: false,
+    anonymous: false,
+  },
+  quoteFetchError: {
+    persist: false,
+    anonymous: false,
+  },
+  quotesRefreshCount: {
     persist: false,
     anonymous: false,
   },
@@ -104,7 +136,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       metadata,
       messenger,
       state: {
-        bridgeState: DEFAULT_BRIDGE_CONTROLLER_STATE,
+        ...getDefaultBridgeControllerState(),
         ...state,
       },
     });
@@ -151,7 +183,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       ...paramsToUpdate,
     };
 
-    this.update(({ bridgeState: state }) => {
+    this.update((state) => {
       state.quoteRequest = updatedQuoteRequest;
       state.quotes = DEFAULT_BRIDGE_CONTROLLER_STATE.quotes;
       state.quotesLastFetched =
@@ -227,7 +259,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.stopAllPolling();
     this.#abortController?.abort(RESET_STATE_ABORT_MESSAGE);
 
-    this.update(({ bridgeState: state }) => {
+    this.update((state) => {
       // Cannot do direct assignment to state, i.e. state = {... }, need to manually assign each field
       state.quoteRequest = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest;
       state.quotesInitialLoadTime =
@@ -253,7 +285,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       this.#fetchFn,
       this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
-    this.update(({ bridgeState: state }) => {
+    this.update((state) => {
       state.bridgeFeatureFlags = bridgeFeatureFlags;
     });
     this.#setIntervalLength();
@@ -263,7 +295,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Sets the interval length based on the source chain
    */
   readonly #setIntervalLength = () => {
-    const { bridgeState: state } = this.state;
+    const { state } = this;
     const { srcChainId } = state.quoteRequest;
     const refreshRateOverride = srcChainId
       ? state.bridgeFeatureFlags[BridgeFeatureFlagsKey.EXTENSION_CONFIG].chains[
@@ -281,11 +313,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     updatedQuoteRequest,
   }: BridgePollingInput) => {
     const { bridgeFeatureFlags, quotesInitialLoadTime, quotesRefreshCount } =
-      this.state.bridgeState;
+      this.state;
     this.#abortController?.abort('New quote request');
     this.#abortController = new AbortController();
 
-    this.update(({ bridgeState: state }) => {
+    this.update((state) => {
       state.quotesLoadingStatus = RequestStatus.LOADING;
       state.quoteRequest = updatedQuoteRequest;
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
@@ -307,7 +339,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
       const quotesWithSolanaFees = await this.#appendSolanaFees(quotes);
 
-      this.update(({ bridgeState: state }) => {
+      this.update((state) => {
         state.quotes = quotesWithL1GasFees ?? quotesWithSolanaFees ?? quotes;
         state.quotesLoadingStatus = RequestStatus.FETCHED;
       });
@@ -318,7 +350,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         return;
       }
 
-      this.update(({ bridgeState: state }) => {
+      this.update((state) => {
         state.quoteFetchError =
           error instanceof Error ? error.message : 'Unknown error';
         state.quotesLoadingStatus = RequestStatus.ERROR;
@@ -341,7 +373,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
       // Update quote fetching stats
       const quotesLastFetched = Date.now();
-      this.update(({ bridgeState: state }) => {
+      this.update((state) => {
         state.quotesInitialLoadTime =
           updatedQuotesRefreshCount === 1 && this.#quotesFirstFetched
             ? quotesLastFetched - this.#quotesFirstFetched

@@ -6,6 +6,7 @@ import type { CaipChainId } from '@metamask/utils';
 import { isCaipChainId, isStrictHexString, type Hex } from '@metamask/utils';
 
 import {
+  DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
@@ -14,7 +15,12 @@ import {
   DEFAULT_SOLANA_TOKEN_ADDRESS,
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from '../constants/tokens';
+import type { BridgeControllerState } from '../types';
 import { ChainId } from '../types';
+
+export const getDefaultBridgeControllerState = (): BridgeControllerState => {
+  return DEFAULT_BRIDGE_CONTROLLER_STATE;
+};
 
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
