@@ -345,6 +345,7 @@ export async function updateTransactionGasFees({
       (await getEIP1559Compatibility(txMeta.networkClientId));
 
     if (isEIP1559Compatible) {
+      // Handle EIP-1559 compatible transactions
       if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
         const feeMarketGasFeeEstimates =
           gasFeeEstimates as FeeMarketGasFeeEstimates;
@@ -362,9 +363,40 @@ export async function updateTransactionGasFees({
         txMeta.txParams.maxFeePerGas = gasPriceGasFeeEstimates.gasPrice;
         txMeta.txParams.maxPriorityFeePerGas = gasPriceGasFeeEstimates.gasPrice;
       }
+
+      if (gasEstimateType === GasFeeEstimateType.Legacy) {
+        const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+        const gasPrice = legacyGasFeeEstimates[userFeeLevel];
+
+        txMeta.txParams.maxFeePerGas = gasPrice;
+        txMeta.txParams.maxPriorityFeePerGas = gasPrice;
+      }
+
+      // Remove gasPrice for EIP-1559 transactions
+      delete txMeta.txParams.gasPrice;
     } else {
-      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
-      txMeta.txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
+      // Handle non-EIP-1559 transactions
+      if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+        const feeMarketGasFeeEstimates =
+          gasFeeEstimates as FeeMarketGasFeeEstimates;
+        txMeta.txParams.gasPrice =
+          feeMarketGasFeeEstimates[userFeeLevel].maxFeePerGas;
+      }
+
+      if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+        const gasPriceGasFeeEstimates =
+          gasFeeEstimates as GasPriceGasFeeEstimates;
+        txMeta.txParams.gasPrice = gasPriceGasFeeEstimates.gasPrice;
+      }
+
+      if (gasEstimateType === GasFeeEstimateType.Legacy) {
+        const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+        txMeta.txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
+      }
+
+      // Remove EIP-1559 specific parameters for legacy transactions
+      delete txMeta.txParams.maxFeePerGas;
+      delete txMeta.txParams.maxPriorityFeePerGas;
     }
   }
 
