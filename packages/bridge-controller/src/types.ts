@@ -69,18 +69,26 @@ export type SolanaFees = {
 };
 
 /**
- * Values derived from the quote response
  * valueInCurrency values are calculated based on the user's selected currency
  */
+export type TokenAmountValues = {
+  amount: BigNumber;
+  valueInCurrency: BigNumber | null;
+  usd: BigNumber | null;
+};
+
+/**
+ * Values derived from the quote response
+ */
 export type QuoteMetadata = {
-  gasFee: { amount: BigNumber; valueInCurrency: BigNumber | null };
-  totalNetworkFee: { amount: BigNumber; valueInCurrency: BigNumber | null }; // estimatedGasFees + relayerFees
-  totalMaxNetworkFee: { amount: BigNumber; valueInCurrency: BigNumber | null }; // maxGasFees + relayerFees
-  toTokenAmount: { amount: BigNumber; valueInCurrency: BigNumber | null };
-  adjustedReturn: { valueInCurrency: BigNumber | null }; // destTokenAmount - totalNetworkFee
-  sentAmount: { amount: BigNumber; valueInCurrency: BigNumber | null }; // srcTokenAmount + metabridgeFee
+  gasFee: TokenAmountValues;
+  totalNetworkFee: TokenAmountValues; // estimatedGasFees + relayerFees
+  totalMaxNetworkFee: TokenAmountValues; // maxGasFees + relayerFees
+  toTokenAmount: TokenAmountValues;
+  adjustedReturn: Omit<TokenAmountValues, 'amount'>; // destTokenAmount - totalNetworkFee
+  sentAmount: TokenAmountValues; // srcTokenAmount + metabridgeFee
   swapRate: BigNumber; // destTokenAmount / sentAmount
-  cost: { valueInCurrency: BigNumber | null }; // sentAmount - adjustedReturn
+  cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
 
 /**
@@ -92,7 +100,6 @@ export enum SortOrder {
 }
 
 export type BridgeToken = {
-  type: AssetType.native | AssetType.token;
   address: string;
   symbol: string;
   image: string;
@@ -129,6 +136,7 @@ export type BridgeAsset = {
   name: string;
   decimals: number;
   icon?: string;
+  iconUrl: string;
   assetId: string;
 };
 
