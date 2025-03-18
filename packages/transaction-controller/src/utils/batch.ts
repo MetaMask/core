@@ -15,12 +15,17 @@ import {
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
 import { validateBatchRequest } from './validation';
-import type {
-  TransactionBatchRequest,
-  TransactionController,
-  TransactionControllerMessenger,
+import {
+  determineTransactionType,
+  type TransactionBatchRequest,
+  type TransactionController,
+  type TransactionControllerMessenger,
 } from '..';
 import { projectLogger } from '../logger';
+import type {
+  NestedTransactionMetadata,
+  TransactionBatchSingleRequest,
+} from '../types';
 import {
   TransactionEnvelopeType,
   type TransactionBatchResult,
@@ -111,7 +116,12 @@ export async function addTransactionBatch(
     throw rpcErrors.internal('Account upgraded to unsupported contract');
   }
 
-  const nestedTransactions = transactions.map((tx) => tx.params);
+  const nestedTransactions = await Promise.all(
+    transactions.map((tx) =>
+      getNestedTransactionMeta(userRequest, tx, ethQuery),
+    ),
+  );
+
   const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
 
   const txParams: TransactionParams = {
@@ -207,4 +217,31 @@ function generateBatchId(): Hex {
   const idString = v4();
   const idBytes = new Uint8Array(parse(idString));
   return bytesToHex(idBytes);
+}
+
+/**
+ * Generate the metadata for a nested transaction.
+ *
+ * @param request - The batch request.
+ * @param singleRequest - The request for a single transaction.
+ * @param ethQuery - The EthQuery instance used to interact with the Ethereum blockchain.
+ * @returns The metadata for the nested transaction.
+ */
+async function getNestedTransactionMeta(
+  request: TransactionBatchRequest,
+  singleRequest: TransactionBatchSingleRequest,
+  ethQuery: EthQuery,
+): Promise<NestedTransactionMetadata> {
+  const { from } = request;
+  const { params } = singleRequest;
+
+  const { type } = await determineTransactionType(
+    { from, ...params },
+    ethQuery,
+  );
+
+  return {
+    ...params,
+    type,
+  };
 }
