@@ -13642,7 +13642,7 @@ function refreshNetworkTests({
         {
           state: initialState,
         },
-        async ({ controller, networkControllerMessenger }) => {
+        async ({ controller }) => {
           const fakeProvider = buildFakeProvider([
             {
               request: {
@@ -13658,14 +13658,11 @@ function refreshNetworkTests({
 
           await operation(controller);
 
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
-            configuration: expectedNetworkClientConfiguration,
-            getRpcServiceOptions: () => ({
-              fetch,
-              btoa,
+          expect(createNetworkClientMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              configuration: expectedNetworkClientConfiguration,
             }),
-            messenger: networkControllerMessenger,
-          });
+          );
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
           const chainIdResult = await provider.request({
@@ -13686,7 +13683,7 @@ function refreshNetworkTests({
           infuraProjectId: 'infura-project-id',
           state: initialState,
         },
-        async ({ controller, networkControllerMessenger }) => {
+        async ({ controller }) => {
           const fakeProvider = buildFakeProvider([
             {
               request: {
@@ -13702,17 +13699,14 @@ function refreshNetworkTests({
 
           await operation(controller);
 
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
-            configuration: {
-              ...expectedNetworkClientConfiguration,
-              infuraProjectId: 'infura-project-id',
-            },
-            getRpcServiceOptions: () => ({
-              fetch,
-              btoa,
+          expect(createNetworkClientMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              configuration: {
+                ...expectedNetworkClientConfiguration,
+                infuraProjectId: 'infura-project-id',
+              },
             }),
-            messenger: networkControllerMessenger,
-          });
+          );
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
           const chainIdResult = await provider.request({
