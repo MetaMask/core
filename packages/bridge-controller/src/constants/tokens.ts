@@ -23,10 +23,6 @@ export type SwapsTokenObject = {
    * URL for token icon
    */
   iconUrl: string;
-  /**
-   * The CAIP asset ID of the token
-   */
-  assetId?: string;
 };
 
 const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
