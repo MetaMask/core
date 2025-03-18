@@ -12,10 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Filters out non-mainnet Solana transactions from the transactions update events ([#5497](https://github.com/MetaMask/core/pull/5497))
-
-### Fixed
-
-- `@metamask/snaps-controllers` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464)))
+- `@metamask/snaps-controllers` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464))
 
 ## [0.7.1]
 
