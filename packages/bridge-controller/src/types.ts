@@ -148,7 +148,6 @@ export type FeatureFlagResponse = {
   [BridgeFlag.MOBILE_CONFIG]: FeatureFlagResponsePlatformConfig;
 };
 
-
 /**
  * This is the interface for the quote request sent to the bridge-api
  * and should only be used by the fetchBridgeQuotes utility function
