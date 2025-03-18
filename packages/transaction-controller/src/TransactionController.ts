@@ -1102,6 +1102,12 @@ export class TransactionController extends BaseController<
       );
     }
 
+    const chainId = this.#getChainId(networkClientId);
+
+    const ethQuery = this.#getEthQuery({
+      networkClientId,
+    });
+
     const permittedAddresses =
       origin === undefined
         ? undefined
@@ -1120,6 +1126,11 @@ export class TransactionController extends BaseController<
       txParams,
       type,
     });
+
+    const delegationAddressPromise = getDelegationAddress(
+      txParams.from as Hex,
+      ethQuery,
+    ).catch(() => undefined);
 
     const isEIP1559Compatible =
       await this.getEIP1559Compatibility(networkClientId);
@@ -1141,25 +1152,10 @@ export class TransactionController extends BaseController<
       origin,
     );
 
-    const chainId = this.#getChainId(networkClientId);
-
-    const ethQuery = this.#getEthQuery({
-      networkClientId,
-    });
-
     const transactionType =
       type ?? (await determineTransactionType(txParams, ethQuery)).type;
 
-    let delegationAddress;
-
-    try {
-      delegationAddress = await getDelegationAddress(
-        txParams.from as Hex,
-        ethQuery,
-      );
-    } catch (error) {
-      log('Error checking if account is upgraded to EIP-7702', error);
-    }
+    const delegationAddress = await delegationAddressPromise;
 
     const existingTransactionMeta = this.getTransactionWithActionId(actionId);
 
