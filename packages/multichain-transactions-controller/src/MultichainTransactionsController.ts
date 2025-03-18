@@ -266,20 +266,7 @@ export class MultichainTransactionsController extends BaseController<
           { limit: 10 },
         );
 
-        // Filter only Solana transactions to ensure they're on mainnet.
-        // All other chain transactions are included as-is.
-        // TODO: Maybe we should not do any filtering here? Or maybe have it
-        // being configurable somehow?
-        const transactions = response.data.filter((tx) => {
-          const chain = tx.chain as MultichainNetwork;
-          const { namespace } = parseCaipChainId(chain);
-          // Enum comparison is safe here as we control both enum values
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-          if (namespace === KnownCaipNamespace.Solana) {
-            return chain === MultichainNetwork.Solana;
-          }
-          return true;
-        });
+        const transactions = this.#filterTransactions(response.data);
 
         this.update((state: Draft<MultichainTransactionsControllerState>) => {
           const entry: TransactionStateEntry = {
@@ -297,6 +284,27 @@ export class MultichainTransactionsController extends BaseController<
         error,
       );
     }
+  }
+
+  /**
+   * Filters transactions to only include mainnet Solana transactions for Solana chains.
+   * Non-Solana chain transactions are kept as is.
+   *
+   * @param transactions - Array of transactions to filter
+   * @returns Filtered transactions array
+   */
+  #filterTransactions(transactions: Transaction[]): Transaction[] {
+    return transactions.filter((tx) => {
+      const chain = tx.chain as MultichainNetwork;
+      const { namespace } = parseCaipChainId(chain);
+
+      // Enum comparison is safe here as we control both enum values
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      if (namespace === KnownCaipNamespace.Solana) {
+        return chain === MultichainNetwork.Solana;
+      }
+      return true;
+    });
   }
 
   /**
@@ -359,6 +367,9 @@ export class MultichainTransactionsController extends BaseController<
         const oldTransactions =
           this.state.nonEvmTransactions[accountId]?.transactions ?? [];
 
+        const filteredNewTransactions =
+          this.#filterTransactions(newTransactions);
+
         // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
         // of each transaction while preserving older transactions and transactions from other accounts.
         // Transactions are sorted by timestamp (newest first).
@@ -368,7 +379,7 @@ export class MultichainTransactionsController extends BaseController<
           transactions.set(tx.id, tx);
         });
 
-        newTransactions.forEach((tx) => {
+        filteredNewTransactions.forEach((tx) => {
           transactions.set(tx.id, tx);
         });
 
