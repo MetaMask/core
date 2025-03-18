@@ -72,8 +72,8 @@
             "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png"
           },
           "destAsset": {
-            "address": "0x0000000000000000000000000000000000000000",        "assetId": "eip155:42161/slip44:614",
-
+            "address": "0x0000000000000000000000000000000000000000",
+            "assetId": "eip155:42161/slip44:614",
             "chainId": 42161,
             "symbol": "ETH",
             "decimals": 18,
@@ -112,7 +112,7 @@
       "srcChainId": 10,
       "srcTokenAmount": "991250000000000000",
       "srcAsset": {
-        "address": "0x4200000000000000000000000000000000000006",   
+        "address": "0x4200000000000000000000000000000000000006",
         "assetId": "eip155:10/erc20:0x4200000000000000000000000000000000000006",
         "chainId": 10,
         "symbol": "WETH",
