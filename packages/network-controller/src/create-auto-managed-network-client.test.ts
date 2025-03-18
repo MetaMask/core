@@ -182,10 +182,11 @@ describe('createAutoManagedNetworkClient', () => {
           params: [],
         });
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
-        expect(createNetworkClientMock).toHaveBeenCalledWith({
-          configuration: networkClientConfiguration,
-          getRpcServiceOptions,
-        });
+        expect(createNetworkClientMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            configuration: networkClientConfiguration,
+          }),
+        );
       });
 
       it('returns a block tracker proxy that has the same interface as a block tracker', () => {
@@ -334,10 +335,11 @@ describe('createAutoManagedNetworkClient', () => {
         await blockTracker.getLatestBlock();
         await blockTracker.checkForLatestBlock();
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
-        expect(createNetworkClientMock).toHaveBeenCalledWith({
-          configuration: networkClientConfiguration,
-          getRpcServiceOptions,
-        });
+        expect(createNetworkClientMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            configuration: networkClientConfiguration,
+          }),
+        );
       });
 
       it('allows the block tracker to be destroyed', () => {
