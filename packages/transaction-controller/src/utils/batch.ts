@@ -10,6 +10,7 @@ import {
   isAccountUpgradedToEIP7702,
 } from './eip7702';
 import {
+  getBatchSizeLimit,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
 } from './feature-flags';
@@ -33,6 +34,7 @@ type AddTransactionBatchRequest = {
   getEthQuery: (networkClientId: string) => EthQuery;
   getInternalAccounts: () => Hex[];
   messenger: TransactionControllerMessenger;
+  publicKeyEIP7702?: Hex;
   request: TransactionBatchRequest;
 };
 
@@ -40,6 +42,7 @@ type IsAtomicBatchSupportedRequest = {
   address: Hex;
   getEthQuery: (chainId: Hex) => EthQuery;
   messenger: TransactionControllerMessenger;
+  publicKeyEIP7702?: Hex;
 };
 
 const log = createModuleLogger(projectLogger, 'batch');
@@ -58,12 +61,16 @@ export async function addTransactionBatch(
     getChainId,
     getInternalAccounts,
     messenger,
+    publicKeyEIP7702,
     request: userRequest,
   } = request;
+
+  const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
     request: userRequest,
+    sizeLimit,
   });
 
   const {
@@ -85,9 +92,14 @@ export async function addTransactionBatch(
     throw rpcErrors.internal('Chain does not support EIP-7702');
   }
 
+  if (!publicKeyEIP7702) {
+    throw rpcErrors.internal('EIP-7702 public key not specified');
+  }
+
   const { delegationAddress, isSupported } = await isAccountUpgradedToEIP7702(
     from,
     chainId,
+    publicKeyEIP7702,
     messenger,
     ethQuery,
   );
@@ -111,6 +123,7 @@ export async function addTransactionBatch(
     const upgradeContractAddress = getEIP7702UpgradeContractAddress(
       chainId,
       messenger,
+      publicKeyEIP7702,
     );
 
     if (!upgradeContractAddress) {
@@ -150,7 +163,16 @@ export async function addTransactionBatch(
 export async function isAtomicBatchSupported(
   request: IsAtomicBatchSupportedRequest,
 ): Promise<Hex[]> {
-  const { address, getEthQuery, messenger } = request;
+  const {
+    address,
+    getEthQuery,
+    messenger,
+    publicKeyEIP7702: publicKey,
+  } = request;
+
+  if (!publicKey) {
+    throw rpcErrors.internal('EIP-7702 public key not specified');
+  }
 
   const chainIds7702 = getEIP7702SupportedChains(messenger);
   const chainIds: Hex[] = [];
@@ -161,6 +183,7 @@ export async function isAtomicBatchSupported(
     const { isSupported, delegationAddress } = await isAccountUpgradedToEIP7702(
       address,
       chainId,
+      publicKey,
       messenger,
       ethQuery,
     );

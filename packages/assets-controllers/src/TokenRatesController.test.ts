@@ -180,6 +180,52 @@ describe('TokenRatesController', () => {
         );
       });
 
+      it('should update exchange rates when any of the addresses in the "all tokens" collection change with invalid addresses', async () => {
+        const tokenAddresses = ['0xinvalidAddress'];
+        await withController(
+          {
+            mockTokensControllerState: {
+              allTokens: {
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: tokenAddresses[0],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+          async ({ controller, triggerTokensStateChange }) => {
+            const updateExchangeRatesSpy = jest
+              .spyOn(controller, 'updateExchangeRatesByChainId')
+              .mockResolvedValue();
+            await controller.start();
+            triggerTokensStateChange({
+              ...getDefaultTokensState(),
+              allTokens: {
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
+                    {
+                      address: tokenAddresses[1],
+                      decimals: 0,
+                      symbol: '',
+                      aggregators: [],
+                    },
+                  ],
+                },
+              },
+            });
+
+            // Once when starting, and another when tokens state changes
+            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
       it('should update exchange rates when any of the addresses in the "all detected tokens" collection change', async () => {
         const tokenAddresses = ['0xE1', '0xE2'];
         await withController(

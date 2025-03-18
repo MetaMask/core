@@ -259,13 +259,16 @@ export function validateParamTo(to?: string) {
  * @param options - Options bag.
  * @param options.internalAccounts - The internal accounts added to the wallet.
  * @param options.request - The batch request object.
+ * @param options.sizeLimit - The maximum number of calls allowed in a batch request.
  */
 export function validateBatchRequest({
   internalAccounts,
   request,
+  sizeLimit,
 }: {
   internalAccounts: string[];
   request: TransactionBatchRequest;
+  sizeLimit: number;
 }) {
   const { origin } = request;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
@@ -286,6 +289,12 @@ export function validateBatchRequest({
   ) {
     throw rpcErrors.invalidParams(
       'Calls to internal accounts are not supported',
+    );
+  }
+
+  if (isExternal && request.transactions.length > sizeLimit) {
+    throw rpcErrors.invalidParams(
+      `Batch size cannot exceed ${sizeLimit}. got: ${request.transactions.length}`,
     );
   }
 }
