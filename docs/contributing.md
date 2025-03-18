@@ -189,9 +189,84 @@ Have changes that you need to release? There are a few things to understand:
 - Unlike clients, releases are not issued on a schedule; **anyone may create a release at any time**. Because of this, you may wish to review the Pull Requests tab on GitHub and ensure that no one else has a release candidate already in progress. If not, then you are free to start the process.
 - The release process is a work in progress. Further improvements to simplify the process are planned, but in the meantime, if you encounter any issues, please reach out to the Wallet Framework team.
 
-Now for the process itself, you have two options:
+Now for the process itself, you have two options: using our interactive UI (recommended for most users) or manual specification.
 
-### Option A: Manual Release Specification
+### Option A: Interactive Mode (Recommended)
+
+This option provides a visual interface to streamline the release process:
+
+1. **Start the interactive release tool.**
+
+   On the `main` branch, run:
+
+   ```
+   yarn create-release-branch -i
+   ```
+
+   This will start a local web server (default port 3000) and open a browser interface.
+
+2. **Select packages to release.**
+
+   The UI will show all packages with changes since their last release. For each package:
+
+   - Choose whether to include it in the release
+   - Select an appropriate version bump (patch, minor, or major) following SemVer rules
+   - The UI will automatically validate your selections and identify dependencies that need to be included
+
+3. **Review dependency requirements.**
+
+   The tool will automatically:
+
+   - Identify packages that need updates when their dependencies are being released
+   - Flag packages that need to be included when their peer dependencies are being updated
+   - Validate version bumps against semantic versioning rules
+   - Ensure all necessary dependent packages are included in the release
+
+4. **Confirm your selections.**
+
+   Once you're satisfied with your package selections and version bumps, confirm them in the UI. This will:
+
+   - Create a new branch named `release/<new release version>`
+   - Update the version in each package's `package.json`
+   - Add a new section to each package's `CHANGELOG.md` for the new version
+
+5. **Review and update changelogs.**
+
+   Each selected package will have a new changelog section. Review these entries to ensure they are helpful for consumers:
+
+   - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines
+   - Remove changelog entries that don't affect consumers of the package (e.g., lockfile changes)
+   - Reword entries to explain changes in terms that users of the package will understand
+   - Consolidate related changes into single entries where appropriate
+
+   Run `yarn changelog:validate` when you're done to ensure all changelogs are correctly formatted.
+
+6. **Push and submit a pull request.**
+
+   Create a PR for the release branch so that it can be reviewed and tested.
+   Release PRs can be approved by codeowners of affected packages, so as long as the above guidelines have been followed, there is no need to reach out to the Wallet Framework team for approval.
+
+7. **Incorporate any new changes from `main`.**
+
+   If you see the "Update branch" button on your release PR, stop and look over the most recent commits made to `main`. If there are new changes to packages you are releasing, make sure they are reflected in the appropriate changelogs.
+
+8. **Merge the release PR and wait for approval.**
+
+   "Squash & Merge" the release PR when it's approved.
+
+   Merging triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub. Before packages are published to NPM, this action will automatically notify the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team in Slack to review and approve the release.
+
+9. **Verify publication.**
+
+   Once the `npm-publishers` team has approved the release, you can click on the link in the Slack message to monitor the remainder of the process.
+
+   After the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages have been published.
+
+> **Tip:** You can specify a different port if needed: `yarn create-release-branch -i -p 3001`
+
+### Option B: Manual Release Specification
+
+If you prefer more direct control over the release process:
 
 1. **Start by creating the release branch.**
 
@@ -213,8 +288,6 @@ Now for the process itself, you have two options:
 
    Once you've made the requisite changes to the YAML file, save it and re-run `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
 
-<a id="review-changelogs"></a>
-
 4. **Review and update changelogs for relevant packages.**
 
    Once the tool proceeds without issue, you will be on the new release branch. In addition, each package you intend to release has been updated in two ways:
@@ -231,59 +304,7 @@ Now for the process itself, you have two options:
 
    Make sure to run `yarn changelog:validate` once you're done to ensure all changelogs are correctly formatted.
 
-5. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
-
-   Release PRs can be approved by codeowners of affected packages, so as long as the above guidelines have been followed, there is no need to reach out to the Wallet Framework team for approval.
-
-6. **Incorporate new changes made to `main` into changelogs.**
-
-   If at any point you see the "Update branch" button on your release PR, stop and look over the most recent commits made to `main`. If there are new changes to package you are trying to release, make sure that the changes are reflected in the changelog for that package.
-
-7. **"Squash & Merge" the release and wait for approval.**
-
-   You're almost there!
-
-   Merging triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub. Before packages are published to NPM, this action will automatically notify the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team in Slack to review and approve the release.
-
-8. **Verify that the new versions have been published.**
-
-   Once the `npm-publishers` team has approved the release, you can click on the link in the Slack message to monitor the remainder of the process.
-
-   Once the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
-
-   You're done!
-
-### Option B: Interactive Mode
-
-You can use the interactive web UI to streamline the release process by running:
-`yarn create-release-branch -i`
-
-This will:
-
-1. Start a local web server (default port 3000)
-
-2. Open a browser interface showing all packages with changes since their last release
-
-3. Allow you to visually select which packages to include in the release
-
-4. Provide instant validation of your selections, including:
-
-   - Identifying packages that need updates when their dependencies are being released
-   - Flagging packages that need to be included when their peer dependencies are being updated
-   - Validating version bumps against semantic versioning rules
-   - Ensuring all necessary dependent packages are included in the release
-
-5. Once your selections are complete, it will directly create the release branch with all necessary version bumps and changelog updates
-
-For example:
-
-- If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
-- If you're releasing Package B with breaking changes, the UI will identify any packages that have peer dependencies on Package B that need to be updated
-
-You can specify a different port if needed:
-`yarn create-release-branch -i -p 3001`
-
-After completing your selections in the UI, proceed to [reviewing and updating changelogs](#review-changelogs).
+5. **Follow steps 6-9 from Option A above to complete the release.**
 
 ## Performing operations across the monorepo
 
