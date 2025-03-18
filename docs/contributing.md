@@ -240,10 +240,10 @@ This option provides a visual interface to streamline the release process:
 
    Each selected package will have a new changelog section. Review these entries to ensure they are helpful for consumers:
 
-   - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines
-   - Remove changelog entries that don't affect consumers of the package (e.g., lockfile changes)
-   - Reword entries to explain changes in terms that users of the package will understand
-   - Consolidate related changes into single entries where appropriate
+   - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines. Ensure that no changes are listed under "Uncategorized".
+   - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+   - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
+   - Consolidate related changes into single entries where appropriate.
 
    Run `yarn changelog:validate` when you're done to ensure all changelogs are correctly formatted.
 
@@ -288,7 +288,7 @@ If you prefer more direct control over the release process:
 
 3. **Review and resolve dependency requirements.**
 
-   The UI automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
+   The tool automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
 
    - Including the suggested additional packages
    - Confirming that you want to skip certain packages (if you're certain they don't need to be updated)
@@ -299,7 +299,7 @@ If you prefer more direct control over the release process:
    - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
    - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
 
-   Unlike the manual workflow where you need to repeatedly edit a YAML file, in the interactive mode you can quickly resolve these issues by checking boxes and selecting version bumps directly in the UI.
+   To address these issues, you will need to reopen the YAML file, modify it by either adding more packages to the release or omitting packages from the release you think are safe, and then re-running `yarn create-release-branch. You may need to repeat this step multiple times until you don't see any more errors.
 
 4. **Review and update changelogs for relevant packages.**
 
@@ -317,7 +317,26 @@ If you prefer more direct control over the release process:
 
    Make sure to run `yarn changelog:validate` once you're done to ensure all changelogs are correctly formatted.
 
-5. **Follow steps 6-9 from Option A above to complete the release.**
+5. **Push and submit a pull request.**
+
+   Create a PR for the release branch so that it can be reviewed and tested.
+   Release PRs can be approved by codeowners of affected packages, so as long as the above guidelines have been followed, there is no need to reach out to the Wallet Framework team for approval.
+
+6. **Incorporate any new changes from `main`.**
+
+   If you see the "Update branch" button on your release PR, stop and look over the most recent commits made to `main`. If there are new changes to packages you are releasing, make sure they are reflected in the appropriate changelogs.
+
+7. **Merge the release PR and wait for approval.**
+
+   "Squash & Merge" the release PR when it's approved.
+
+   Merging triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub. Before packages are published to NPM, this action will automatically notify the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team in Slack to review and approve the release.
+
+8. **Verify publication.**
+
+   Once the `npm-publishers` team has approved the release, you can click on the link in the Slack message to monitor the remainder of the process.
+
+   After the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages have been published.
 
 ## Performing operations across the monorepo
 
