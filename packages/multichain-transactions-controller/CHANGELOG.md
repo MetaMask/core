@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(multichain-transactions-controller): filters out non-mainnet Solana transactions from `:accountTransactionsUpdated` events ([#5497](https://github.com/MetaMask/core/pull/5497))
+
 ### Fixed
 
 - `@metamask/snaps-controllers` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464)))
