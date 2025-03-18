@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Explicitly pass chainIds to detectNfts ([#5448](https://github.com/MetaMask/core/pull/5448))
+- **BREAKING**: The `detectNfts` method in the `NftDetectionController` now accepts chain IDs directly instead of networkClientId, enabling NFT detection across multiple chains simultaneously ([#5448](https://github.com/MetaMask/core/pull/5448))
 
 ### Fixed
 
