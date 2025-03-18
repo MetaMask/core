@@ -13,6 +13,7 @@ import type { Hex } from '@metamask/utils';
 import type { BridgeClientId } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
+  BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
   REFRESH_INTERVAL_MS,
@@ -95,12 +96,17 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
   readonly #fetchFn: FetchFunction;
 
+  readonly #config: {
+    customBridgeApiBaseUrl?: string;
+  };
+
   constructor({
     messenger,
     state,
     clientId,
     getLayer1GasFee,
     fetchFn,
+    config,
   }: {
     messenger: BridgeControllerMessenger;
     state?: Partial<BridgeControllerState>;
@@ -110,6 +116,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       chainId: ChainId;
     }) => Promise<string>;
     fetchFn: FetchFunction;
+    config?: {
+      customBridgeApiBaseUrl?: string;
+    };
   }) {
     super({
       name: BRIDGE_CONTROLLER_NAME,
@@ -127,6 +136,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     this.#getLayer1GasFee = getLayer1GasFee;
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
+    this.#config = config ?? {};
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -242,6 +252,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const bridgeFeatureFlags = await fetchBridgeFeatureFlags(
       this.#clientId,
       this.#fetchFn,
+      this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
     );
     this.update((state) => {
       state.bridgeFeatureFlags = bridgeFeatureFlags;
@@ -278,6 +289,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         this.#abortController!.signal as AbortSignal,
         this.#clientId,
         this.#fetchFn,
+        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       );
 
       const quotesWithL1GasFees = await this.#appendL1GasFees(quotes);
