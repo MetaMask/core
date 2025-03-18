@@ -159,23 +159,11 @@ export enum ApprovalType {
 }
 
 /**
- * Chains that support ENS resolution
- */
-export type EnsCompatibleChainId =
-  | typeof ChainId.goerli
-  | typeof ChainId.sepolia
-  | typeof ChainId.mainnet
-  | (typeof ChainId)['linea-goerli']
-  | (typeof ChainId)['linea-sepolia']
-  | (typeof ChainId)['linea-mainnet']
-  | typeof ChainId.aurora;
-
-/**
- * Mapping of ENS-compatible chain IDs to their network names.
- * MegaETH-testnet is intentionally excluded as it doesn't support ENS.
+ * Mapping of chain IDs to their network names for ENS functionality.
+ * Note: MegaETH-testnet is intentionally excluded from this mapping as it doesn't support ENS.
  */
 export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-  EnsCompatibleChainId,
+  string,
   BuiltInNetworkName
 > = {
   [ChainId.goerli]: BuiltInNetworkName.Goerli,
