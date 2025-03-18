@@ -2670,29 +2670,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^7.0.0":
-  version: 7.0.0
-  resolution: "@metamask/bridge-controller@npm:7.0.0"
-  dependencies:
-    "@ethersproject/address": "npm:^5.7.0"
-    "@ethersproject/bignumber": "npm:^5.7.0"
-    "@ethersproject/constants": "npm:^5.7.0"
-    "@ethersproject/contracts": "npm:^5.7.0"
-    "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/controller-utils": "npm:^11.6.0"
-    "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/polling-controller": "npm:^12.0.3"
-    "@metamask/utils": "npm:^11.2.0"
-  peerDependencies:
-    "@metamask/accounts-controller": ^26.0.0
-    "@metamask/network-controller": ^22.0.0
-    "@metamask/transaction-controller": ^49.0.0
-  checksum: 10/c2dbb888e28a372d11b936bd822ac8bff3bb9cac70eaee2fade3ed61ee00d51892e0340acfb7433a99073c3c9136da3edb63b1edac27ac8362b96275a589a907
-  languageName: node
-  linkType: hard
-
-"@metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^8.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2736,7 +2714,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^26.1.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/bridge-controller": "npm:^7.0.0"
+    "@metamask/bridge-controller": "npm:^8.0.0"
     "@metamask/controller-utils": "npm:^11.6.0"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/polling-controller": "npm:^12.0.3"
