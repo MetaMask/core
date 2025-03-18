@@ -693,4 +693,66 @@ describe('MultichainTransactionsController', () => {
       lastUpdated: expect.any(Number),
     });
   });
+
+  it('filters out non-mainnet Solana transactions in transaction updates', async () => {
+    const mockSolAccountWithId = {
+      ...mockSolAccount,
+      id: TEST_ACCOUNT_ID,
+    };
+
+    const mockSolTransaction = {
+      type: 'send' as const,
+      status: 'confirmed' as const,
+      timestamp: Date.now(),
+      from: [],
+      to: [],
+      fees: [],
+      account: mockSolAccountWithId.id,
+      events: [
+        {
+          status: 'confirmed' as const,
+          timestamp: Date.now(),
+        },
+      ],
+    };
+
+    const mainnetTransaction = {
+      ...mockSolTransaction,
+      id: '1',
+      chain: MultichainNetwork.Solana,
+    };
+
+    const devnetTransaction = {
+      ...mockSolTransaction,
+      id: '2',
+      chain: MultichainNetwork.SolanaDevnet,
+    };
+
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [mockSolAccountWithId.id]: {
+            transactions: [],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockSolAccountWithId.id]: [mainnetTransaction, devnetTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    const finalTransactions =
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
+
+    expect(finalTransactions).toHaveLength(1);
+    expect(finalTransactions[0].id).toBe('1');
+    expect(finalTransactions[0].chain).toBe(MultichainNetwork.Solana);
+  });
 });
