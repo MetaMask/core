@@ -752,7 +752,7 @@ describe('MultichainTransactionsController', () => {
       controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
 
     expect(finalTransactions).toHaveLength(1);
-    expect(finalTransactions[0].id).toBe('1');
+    expect(finalTransactions[0].id).toBe(mainnetTransaction.id);
     expect(finalTransactions[0].chain).toBe(MultichainNetwork.Solana);
   });
 });
