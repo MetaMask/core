@@ -284,8 +284,8 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   }
 
   describe.each([
-    [405, 'The method does not exist / is not available'],
-    [429, 'Request is being rate limited'],
+    [405, 'The method does not exist / is not available.'],
+    [429, 'Request is being rate limited.'],
   ])(
     'if the RPC endpoint returns a %d response',
     (httpStatus, errorMessage) => {
@@ -424,6 +424,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                       chainId,
                       endpointUrl: rpcUrl,
                       failoverEndpointUrl: 'https://failover.endpoint/',
+                      error: expect.objectContaining({
+                        message: errorMessage,
+                      }),
                     });
                   },
                 );
@@ -493,6 +496,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                     ).toHaveBeenNthCalledWith(2, {
                       chainId,
                       endpointUrl: 'https://failover.endpoint/',
+                      error: expect.objectContaining({
+                        message: errorMessage,
+                      }),
                     });
                   },
                 );
@@ -611,6 +617,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
 
   describe('if the RPC endpoint returns a response that is not 405, 429, 503, or 504', () => {
     const httpStatus = 500;
+    const errorMessage = `Non-200 status code: '${httpStatus}'`;
 
     it('throws a generic, undescriptive error', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
@@ -746,6 +753,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                     chainId,
                     endpointUrl: rpcUrl,
                     failoverEndpointUrl: 'https://failover.endpoint/',
+                    error: expect.objectContaining({
+                      message: errorMessage,
+                    }),
                   },
                 );
               },
@@ -813,6 +823,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                 ).toHaveBeenNthCalledWith(2, {
                   chainId,
                   endpointUrl: 'https://failover.endpoint/',
+                  error: expect.objectContaining({
+                    message: errorMessage,
+                  }),
                 });
               },
             );
@@ -925,6 +938,8 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   describe.each([503, 504])(
     'if the RPC endpoint returns a %d response',
     (httpStatus) => {
+      const errorMessage = 'Gateway timeout';
+
       it('retries the request up to 5 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
@@ -990,7 +1005,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
               );
             },
           );
-          await expect(promiseForResult).rejects.toThrow('Gateway timeout');
+          await expect(promiseForResult).rejects.toThrow(errorMessage);
         });
       });
 
@@ -1131,6 +1146,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                       chainId,
                       endpointUrl: rpcUrl,
                       failoverEndpointUrl: 'https://failover.endpoint/',
+                      error: expect.objectContaining({
+                        message: expect.stringContaining(errorMessage),
+                      }),
                     });
                   },
                 );
@@ -1231,6 +1249,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                     ).toHaveBeenNthCalledWith(2, {
                       chainId,
                       endpointUrl: 'https://failover.endpoint/',
+                      error: expect.objectContaining({
+                        message: expect.stringContaining(errorMessage),
+                      }),
                     });
                   },
                 );
@@ -1560,6 +1581,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                       chainId,
                       endpointUrl: rpcUrl,
                       failoverEndpointUrl: 'https://failover.endpoint/',
+                      error: expect.objectContaining({
+                        message: `request to ${rpcUrl} failed, reason: ${errorCode}`,
+                      }),
                     });
                   },
                 );
@@ -1658,6 +1682,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                     ).toHaveBeenNthCalledWith(2, {
                       chainId,
                       endpointUrl: 'https://failover.endpoint/',
+                      error: expect.objectContaining({
+                        message: `request to https://failover.endpoint/ failed, reason: ${errorCode}`,
+                      }),
                     });
                   },
                 );
@@ -1777,6 +1804,8 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   );
 
   describe('if the RPC endpoint responds with invalid JSON', () => {
+    const errorMessage = 'not valid JSON';
+
     it('retries the request up to 5 times until it responds with valid JSON', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
         const request = { method };
@@ -1841,7 +1870,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           },
         );
 
-        await expect(promiseForResult).rejects.toThrow('not valid JSON');
+        await expect(promiseForResult).rejects.toThrow(errorMessage);
       });
     });
 
@@ -1973,6 +2002,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                     chainId,
                     endpointUrl: rpcUrl,
                     failoverEndpointUrl: 'https://failover.endpoint/',
+                    error: expect.objectContaining({
+                      message: expect.stringContaining(errorMessage),
+                    }),
                   },
                 );
               },
@@ -2068,6 +2100,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                 ).toHaveBeenNthCalledWith(2, {
                   chainId,
                   endpointUrl: 'https://failover.endpoint/',
+                  error: expect.objectContaining({
+                    message: expect.stringContaining(errorMessage),
+                  }),
                 });
               },
             );
@@ -2371,6 +2406,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                     chainId,
                     endpointUrl: rpcUrl,
                     failoverEndpointUrl: 'https://failover.endpoint/',
+                    error: expect.objectContaining({
+                      message: `request to ${rpcUrl} failed, reason: Failed to fetch`,
+                    }),
                   },
                 );
               },
@@ -2464,6 +2502,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
                 ).toHaveBeenNthCalledWith(2, {
                   chainId,
                   endpointUrl: 'https://failover.endpoint/',
+                  error: expect.objectContaining({
+                    message: `request to https://failover.endpoint/ failed, reason: Failed to fetch`,
+                  }),
                 });
               },
             );

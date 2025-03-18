@@ -444,6 +444,7 @@ export type NetworkControllerRpcEndpointUnavailableEvent = {
       chainId: Hex;
       endpointUrl: string;
       failoverEndpointUrl?: string;
+      error: unknown;
     },
   ];
 };

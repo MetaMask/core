@@ -84,11 +84,19 @@ export function createNetworkClient({
       endpointUrl,
     })),
   );
-  rpcService.onBreak(({ endpointUrl, failoverEndpointUrl }) => {
+  rpcService.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
+    let error: unknown;
+    if ('error' in rest) {
+      error = rest.error;
+    } else if ('value' in rest) {
+      error = rest.value;
+    }
+
     messenger.publish('NetworkController:rpcEndpointUnavailable', {
       chainId: configuration.chainId,
       endpointUrl,
       failoverEndpointUrl,
+      error,
     });
   });
   rpcService.onDegraded(({ endpointUrl }) => {

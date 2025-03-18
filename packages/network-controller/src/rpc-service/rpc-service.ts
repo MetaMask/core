@@ -136,7 +136,7 @@ export const CONNECTION_ERRORS = [
  * @returns True if the error indicates that the network cannot be connected to,
  * and false otherwise.
  */
-export default function isConnectionError(error: unknown) {
+export function isConnectionError(error: unknown) {
   if (!(typeof error === 'object' && error !== null && 'message' in error)) {
     return false;
   }
