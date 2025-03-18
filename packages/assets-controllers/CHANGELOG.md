@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix invalid character error ([#5490](https://github.com/MetaMask/core/pull/5490))
+- Fixed token address conversion in the `TokenRatesController` to correctly preserve the checksum address format without unnecessary hex conversion ([#5490](https://github.com/MetaMask/core/pull/5490))
 
 ## [53.1.1]
 
