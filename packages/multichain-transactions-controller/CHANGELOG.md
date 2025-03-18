@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.7.2]
 
-### Uncategorized
+### Fixed
 
 - Filters out non-mainnet Solana transactions from the transactions update events ([#5497](https://github.com/MetaMask/core/pull/5497))
 
