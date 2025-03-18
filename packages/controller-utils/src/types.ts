@@ -16,7 +16,11 @@ export type InfuraNetworkType =
 /**
  * Custom network types that are not part of Infura.
  */
-export type CustomNetworkType = 'megaeth-testnet';
+export const CustomNetworkType = {
+  'megaeth-testnet': 'megaeth-testnet',
+} as const;
+export type CustomNetworkType =
+  (typeof CustomNetworkType)[keyof typeof CustomNetworkType];
 
 /**
  * Network types supported including both Infura networks and other networks.
@@ -28,7 +32,7 @@ export type BuiltInNetworkType = InfuraNetworkType | CustomNetworkType;
  */
 export const NetworkType = {
   ...InfuraNetworkType,
-  'megaeth-testnet': 'megaeth-testnet',
+  ...CustomNetworkType,
   rpc: 'rpc',
 } as const;
 
