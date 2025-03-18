@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: explicitly pass chainIds to detectNfts ([#5448](https://github.com/MetaMask/core/pull/5448))
+- fix: fix invalid character error ([#5490](https://github.com/MetaMask/core/pull/5490))
+
 ## [53.1.1]
 
 ### Fixed

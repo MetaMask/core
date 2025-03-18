@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
+- Release 327.0.0 ([#5481](https://github.com/MetaMask/core/pull/5481))
+
 ### Added
 
 - Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
