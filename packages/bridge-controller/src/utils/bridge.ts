@@ -59,7 +59,10 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the address is the provided chain's default token address
  */
-export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
+export const isSwapsDefaultTokenAddress = (
+  address: string,
+  chainId: Hex | CaipChainId,
+) => {
   if (!address || !chainId) {
     return false;
   }
@@ -80,7 +83,10 @@ export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the symbol is the provided chain's default token symbol
  */
-export const isSwapsDefaultTokenSymbol = (symbol: string, chainId: Hex) => {
+export const isSwapsDefaultTokenSymbol = (
+  symbol: string,
+  chainId: Hex | CaipChainId,
+) => {
   if (!symbol || !chainId) {
     return false;
   }
@@ -103,6 +109,7 @@ export const isNativeAddress = (address?: string | null) =>
   address === AddressZero || // bridge and swap apis set the native asset address to zero
   address === '' || // assets controllers set the native asset address to an empty string
   !address ||
+  address.endsWith('11111111111111111111111111111111') ||
   [DEFAULT_SOLANA_TOKEN_ADDRESS].some(
     (assetId) => assetId.includes(address) && !isStrictHexString(address),
   ); // multichain native assets are represented in caip format

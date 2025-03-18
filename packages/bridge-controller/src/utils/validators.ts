@@ -11,13 +11,11 @@ import {
   optional,
   enums,
   define,
-  size,
   union,
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
-import type { SwapsTokenObject } from '../constants/tokens';
-import type { FeatureFlagResponse, QuoteResponse } from '../types';
+import type { BridgeAsset, FeatureFlagResponse, QuoteResponse } from '../types';
 import { ActionTypes, BridgeFlag, FeeType } from '../types';
 
 const HexAddressSchema = define('HexAddress', (v: unknown) =>
@@ -35,10 +33,16 @@ const TruthyDigitStringSchema = define(
     truthyString(v as string) && Boolean((v as string).match(/^\d+$/u)),
 );
 
-const SwapsTokenObjectSchema = type({
-  decimals: number(),
+const ChainIdSchema = number();
+
+const BridgeAssetSchema = type({
+  chainId: ChainIdSchema,
   address: string(),
-  symbol: size(string(), 1, 12),
+  assetId: string(),
+  symbol: string(),
+  name: string(),
+  decimals: number(),
+  icon: optional(string()),
 });
 
 export const validateFeatureFlagsResponse = (
@@ -67,23 +71,11 @@ export const validateFeatureFlagsResponse = (
 
 export const validateSwapsTokenObject = (
   data: unknown,
-): data is SwapsTokenObject => {
-  return is(data, SwapsTokenObjectSchema);
+): data is BridgeAsset => {
+  return is(data, BridgeAssetSchema);
 };
 
 export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
-  const ChainIdSchema = number();
-
-  const BridgeAssetSchema = type({
-    chainId: ChainIdSchema,
-    address: string(),
-    assetId: string(),
-    symbol: string(),
-    name: string(),
-    decimals: number(),
-    icon: optional(string()),
-  });
-
   const FeeDataSchema = type({
     amount: TruthyDigitStringSchema,
     asset: BridgeAssetSchema,
@@ -111,10 +103,10 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
   const QuoteSchema = type({
     requestId: string(),
     srcChainId: ChainIdSchema,
-    srcAsset: SwapsTokenObjectSchema,
+    srcAsset: BridgeAssetSchema,
     srcTokenAmount: string(),
     destChainId: ChainIdSchema,
-    destAsset: SwapsTokenObjectSchema,
+    destAsset: BridgeAssetSchema,
     destTokenAmount: string(),
     feeData: record(enums(Object.values(FeeType)), FeeDataSchema),
     bridgeId: string(),

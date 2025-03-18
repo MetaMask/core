@@ -1,10 +1,6 @@
-import type { Hex } from '@metamask/utils';
-import { Duration, hexToNumber } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
+import { Duration } from '@metamask/utils';
 
-import {
-  isSwapsDefaultTokenAddress,
-  isSwapsDefaultTokenSymbol,
-} from './bridge';
 import {
   formatAddressToString,
   formatChainIdToCaip,
@@ -16,8 +12,6 @@ import {
   validateSwapsTokenObject,
 } from './validators';
 import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
-import type { SwapsTokenObject } from '../constants/tokens';
-import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import type {
   QuoteResponse,
   BridgeFeatureFlags,
@@ -25,6 +19,7 @@ import type {
   ChainConfiguration,
   GenericQuoteRequest,
   QuoteRequest,
+  BridgeAsset,
 } from '../types';
 import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
@@ -94,13 +89,13 @@ export async function fetchBridgeFeatureFlags(
  * @returns A list of enabled (unblocked) tokens
  */
 export async function fetchBridgeTokens(
-  chainId: Hex,
+  chainId: Hex | CaipChainId,
   clientId: string,
   fetchFn: FetchFunction,
   bridgeApiBaseUrl: string,
-): Promise<Record<string, SwapsTokenObject>> {
+): Promise<Record<string, BridgeAsset>> {
   // TODO make token api v2 call
-  const url = `${bridgeApiBaseUrl}/getTokens?chainId=${hexToNumber(chainId)}`;
+  const url = `${bridgeApiBaseUrl}/getTokens?chainId=${formatChainIdToDec(chainId)}`;
 
   // TODO we will need to cache these. In Extension fetchWithCache is used. This is due to the following:
   // If we allow selecting dest networks which the user has not imported,
@@ -111,24 +106,9 @@ export async function fetchBridgeTokens(
     functionName: 'fetchBridgeTokens',
   });
 
-  const nativeToken =
-    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-    ];
-
-  const transformedTokens: Record<string, SwapsTokenObject> = {};
-  if (nativeToken) {
-    transformedTokens[nativeToken.address] = nativeToken;
-  }
-
+  const transformedTokens: Record<string, BridgeAsset> = {};
   tokens.forEach((token: unknown) => {
-    if (
-      validateSwapsTokenObject(token) &&
-      !(
-        isSwapsDefaultTokenSymbol(token.symbol, chainId) ||
-        isSwapsDefaultTokenAddress(token.address, chainId)
-      )
-    ) {
+    if (validateSwapsTokenObject(token)) {
       transformedTokens[token.address] = token;
     }
   });

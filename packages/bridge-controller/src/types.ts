@@ -99,6 +99,25 @@ export enum SortOrder {
   ETA_ASC = 'time_descending',
 }
 
+/**
+ * This is the interface for the asset object returned by the bridge-api
+ * This type is used in the QuoteResponse and in the fetchBridgeTokens response
+ */
+export type BridgeAsset = {
+  chainId: ChainId;
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  icon?: string;
+  iconUrl: string;
+  assetId: string;
+};
+
+/**
+ * This is the interface for the token object used in the extension client
+ * In addition to the {@link BridgeAsset} fields, it includes balance information
+ */
 export type BridgeToken = {
   address: string;
   symbol: string;
@@ -129,16 +148,6 @@ export type FeatureFlagResponse = {
   [BridgeFlag.MOBILE_CONFIG]: FeatureFlagResponsePlatformConfig;
 };
 
-export type BridgeAsset = {
-  chainId: ChainId;
-  address: string;
-  symbol: string;
-  name: string;
-  decimals: number;
-  icon?: string;
-  iconUrl: string;
-  assetId: string;
-};
 
 /**
  * This is the interface for the quote request sent to the bridge-api
