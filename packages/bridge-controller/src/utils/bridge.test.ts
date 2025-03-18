@@ -1,10 +1,12 @@
 import { Contract } from '@ethersproject/contracts';
+import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 
 import {
   getEthUsdtResetData,
   isEthUsdt,
+  isSolanaChainId,
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
   sumHexes,
@@ -133,6 +135,21 @@ describe('Bridge utils', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
       expect(isSwapsDefaultTokenSymbol('', chainId)).toBe(false);
       expect(isSwapsDefaultTokenSymbol('ETH', '' as Hex)).toBe(false);
+    });
+  });
+
+  describe('isSolanaChainId', () => {
+    it('returns true for ChainId.SOLANA', () => {
+      expect(isSolanaChainId(1151111081099710)).toBe(true);
+    });
+
+    it('returns true for SolScope.Mainnet', () => {
+      expect(isSolanaChainId(SolScope.Mainnet)).toBe(true);
+    });
+
+    it('returns false for other chainIds', () => {
+      expect(isSolanaChainId(1)).toBe(false);
+      expect(isSolanaChainId('0x0')).toBe(false);
     });
   });
 });
