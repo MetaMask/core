@@ -8,7 +8,6 @@ import {
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
-import { CHAIN_IDS } from '../constants/chains';
 
 const mockFetchFn = jest.fn();
 
