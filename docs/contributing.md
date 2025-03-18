@@ -213,14 +213,20 @@ This option provides a visual interface to streamline the release process:
    - Select an appropriate version bump (patch, minor, or major) following SemVer rules
    - The UI will automatically validate your selections and identify dependencies that need to be included
 
-3. **Review dependency requirements.**
+3. **Review and resolve dependency requirements.**
 
-   The tool will automatically:
+   The UI automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
 
-   - Identify packages that need updates when their dependencies are being released
-   - Flag packages that need to be included when their peer dependencies are being updated
-   - Validate version bumps against semantic versioning rules
-   - Ensure all necessary dependent packages are included in the release
+   - Including the suggested additional packages
+   - Confirming that you want to skip certain packages (if you're certain they don't need to be updated)
+
+   Common types of dependency issues you might encounter:
+
+   - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
+   - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
+   - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
+
+   Unlike the manual workflow where you need to repeatedly edit a YAML file, in the interactive mode you can quickly resolve these issues by checking boxes and selecting version bumps directly in the UI.
 
 4. **Confirm your selections.**
 
@@ -280,13 +286,20 @@ If you prefer more direct control over the release process:
 
    Once you save and close the release spec, the tool will proceed.
 
-3. **Include more packages as necessary.**
+3. **Review and resolve dependency requirements.**
 
-   Some packages in the monorepo have dependencies on other packages elsewhere in the monorepo. To ensure that clients are able to upgrade without receiving compile time or runtime errors, you may need to include some of these dependencies in your release. If the tool thinks that there are some packages you've left out, it will pause and let you know what they are.
+   The UI automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
 
-   To address the errors, you'll need to copy the path to the YAML file, reopen it in your editor, and include the packages it mentions. You also have the option to skip any packages you think aren't an issue, but make sure you've checked. (If you have any questions about this step, let the Wallet Framework team know.)
+   - Including the suggested additional packages
+   - Confirming that you want to skip certain packages (if you're certain they don't need to be updated)
 
-   Once you've made the requisite changes to the YAML file, save it and re-run `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
+   Common types of dependency issues you might encounter:
+
+   - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
+   - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
+   - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
+
+   Unlike the manual workflow where you need to repeatedly edit a YAML file, in the interactive mode you can quickly resolve these issues by checking boxes and selecting version bumps directly in the UI.
 
 4. **Review and update changelogs for relevant packages.**
 
