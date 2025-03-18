@@ -43,6 +43,7 @@ const BridgeAssetSchema = type({
   name: string(),
   decimals: number(),
   icon: optional(string()),
+  iconUrl: optional(string()),
 });
 
 export const validateFeatureFlagsResponse = (

@@ -110,7 +110,7 @@ export type BridgeAsset = {
   name: string;
   decimals: number;
   icon?: string;
-  iconUrl: string;
+  iconUrl?: string;
   assetId: string;
 };
 
