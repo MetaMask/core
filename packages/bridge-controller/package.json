@@ -59,12 +59,17 @@
     "@metamask/utils": "^11.2.0"
   },
   "devDependencies": {
+    "@metamask/accounts-controller": "^26.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.8",
     "@metamask/keyring-api": "^17.2.0",
+    "@metamask/multichain-network-controller": "^0.2.0",
+    "@metamask/network-controller": "^22.2.1",
     "@metamask/snaps-controllers": "^9.19.0",
+    "@metamask/snaps-utils": "^8.10.0",
     "@metamask/superstruct": "^3.1.0",
-    "@ts-bridge/cli": "^0.6.3",
+    "@metamask/transaction-controller": "^50.0.0",
+    "@ts-bridge/cli": "^0.6.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -78,11 +83,11 @@
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^26.0.0",
-    "@metamask/multichain-network-controller": "^0.1.0",
+    "@metamask/multichain-network-controller": "^0.0.0",
     "@metamask/network-controller": "^22.0.0",
     "@metamask/snaps-controllers": "^9.19.0",
     "@metamask/snaps-utils": "^8.10.0",
-    "@metamask/transaction-controller": "^49.0.0"
+    "@metamask/transaction-controller": "^50.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
