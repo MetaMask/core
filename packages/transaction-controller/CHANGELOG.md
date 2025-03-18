@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Add `delegationAddress` to `TransactionMetadata`.
+  - Add `NestedTransactionMetadata` type containing `BatchTransactionParams` and `type`.
+  - Add optional `type` to `TransactionBatchSingleRequest`.
+
 ### Changed
 
+- **BREAKING:** Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Change `error` in `TransactionMetadata` to optional for all statuses.
+  - Change `nestedTransactions` in `TransactionMetadata` to array of `NestedTransactionMetadata`.
 - Throw if `addTransactionBatch` called with external origin and size limit exceeded ([#5489](https://github.com/MetaMask/core/pull/5489))
 
 ## [49.0.0]
