@@ -287,7 +287,7 @@ export class MultichainTransactionsController extends BaseController<
   }
 
   /**
-   * Filterstransactions to only include mainnet Solana transactions for Solana chains.
+   * Filters transactions to only include mainnet Solana transactions for Solana chains.
    * Non-Solana chain transactions are kept as is.
    *
    * @param transactions - Array of transactions to filter
