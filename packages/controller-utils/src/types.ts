@@ -14,10 +14,21 @@ export type InfuraNetworkType =
   (typeof InfuraNetworkType)[keyof typeof InfuraNetworkType];
 
 /**
+ * Custom network types that are not part of Infura.
+ */
+export type CustomNetworkType = 'megaeth-testnet';
+
+/**
+ * Network types supported including both Infura networks and other networks.
+ */
+export type BuiltInNetworkType = InfuraNetworkType | CustomNetworkType;
+
+/**
  * The "network type"; either the name of a built-in network, or "rpc" for custom networks.
  */
 export const NetworkType = {
   ...InfuraNetworkType,
+  'megaeth-testnet': 'megaeth-testnet',
   rpc: 'rpc',
 } as const;
 
@@ -60,6 +71,7 @@ export enum BuiltInNetworkName {
   LineaSepolia = 'linea-sepolia',
   LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
+  MegaETHTestnet = 'megaeth-testnet',
 }
 
 /**
@@ -75,6 +87,7 @@ export const ChainId = {
   [BuiltInNetworkName.LineaGoerli]: '0xe704', // toHex(59140)
   [BuiltInNetworkName.LineaSepolia]: '0xe705', // toHex(59141)
   [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
+  [BuiltInNetworkName.MegaETHTestnet]: '0x18c6', // toHex(6342)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
@@ -91,6 +104,7 @@ export enum NetworksTicker {
   'linea-goerli' = 'LineaETH',
   'linea-sepolia' = 'LineaETH',
   'linea-mainnet' = 'ETH',
+  'megaeth-testnet' = 'MegaETH',
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   rpc = '',
@@ -103,7 +117,8 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.LineaGoerli]: 'https://goerli.lineascan.build',
   [BuiltInNetworkName.LineaSepolia]: 'https://sepolia.lineascan.build',
   [BuiltInNetworkName.LineaMainnet]: 'https://lineascan.build',
-} as const satisfies Record<InfuraNetworkType, string>;
+  [BuiltInNetworkName.MegaETHTestnet]: 'https://megaexplorer.xyz',
+} as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
 
@@ -114,7 +129,8 @@ export const NetworkNickname = {
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
   [BuiltInNetworkName.LineaSepolia]: 'Linea Sepolia',
   [BuiltInNetworkName.LineaMainnet]: 'Linea',
-} as const satisfies Record<InfuraNetworkType, string>;
+  [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
+} as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
 
