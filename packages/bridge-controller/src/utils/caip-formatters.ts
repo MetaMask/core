@@ -70,7 +70,7 @@ export const formatChainIdToDec = (
  */
 export const formatChainIdToHex = (
   chainId: Hex | CaipChainId | string | number,
-) => {
+): Hex => {
   if (isStrictHexString(chainId)) {
     return chainId;
   }
