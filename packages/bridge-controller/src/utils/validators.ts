@@ -52,6 +52,8 @@ export const validateFeatureFlagsResponse = (
   const ChainConfigurationSchema = type({
     isActiveSrc: boolean(),
     isActiveDest: boolean(),
+    refreshRate: optional(number()),
+    topAssets: optional(array(string())),
   });
 
   const ConfigSchema = type({
