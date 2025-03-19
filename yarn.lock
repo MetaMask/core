@@ -2707,10 +2707,7 @@ __metadata:
     typescript: "npm:~5.2.2"
   peerDependencies:
     "@metamask/accounts-controller": ^26.0.0
-    "@metamask/multichain-network-controller": ^0.0.0
     "@metamask/network-controller": ^22.0.0
-    "@metamask/snaps-controllers": ^9.19.0
-    "@metamask/snaps-utils": ^8.10.0
     "@metamask/transaction-controller": ^50.0.0
   languageName: unknown
   linkType: soft
