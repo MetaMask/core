@@ -11,7 +11,7 @@ import {
   CaveatMutatorOperation,
   PermissionType,
 } from '@metamask/permission-controller';
-import type { CaipAccountId, Json } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Json } from '@metamask/utils';
 import {
   hasProperty,
   KnownCaipNamespace,
@@ -68,6 +68,8 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
 type Caip25EndowmentCaveatSpecificationBuilderOptions = {
   findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
   listAccounts: () => { address: Hex }[];
+  isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
+  getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
 };
 
 /**
@@ -108,7 +110,7 @@ export const caip25CaveatBuilder = ({
       assertIsInternalScopesObject(requiredScopes);
       assertIsInternalScopesObject(optionalScopes);
 
-      const isChainIdSupported = (chainId: Hex) => {
+      const isEvmChainIdSupported = (chainId: Hex) => {
         try {
           findNetworkClientIdByChainId(chainId);
           return true;
@@ -119,11 +121,17 @@ export const caip25CaveatBuilder = ({
 
       const allRequiredScopesSupported = Object.keys(requiredScopes).every(
         (scopeString) =>
-          isSupportedScopeString(scopeString, isChainIdSupported),
+          isSupportedScopeString(scopeString, {
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported: () => false,
+          }),
       );
       const allOptionalScopesSupported = Object.keys(optionalScopes).every(
         (scopeString) =>
-          isSupportedScopeString(scopeString, isChainIdSupported),
+          isSupportedScopeString(scopeString, {
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported: () => false,
+          }),
       );
       if (!allRequiredScopesSupported || !allOptionalScopesSupported) {
         throw new Error(
