@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Solana constants, utils and quote-fetching support
+- Utilities to convert chainIds between `ChainId`, `Hex`, `string` and `CaipChainId`
+- Add `refreshRate` feature flag to enable chain-specific quote refresh intervals
+- `isNativeAddress` and `isSolanaChainId` utilities that can be used by both the controller and clients
+
+### Changed
+- Replace QuoteRequest usages with `GenericQuoteRequest` to support both EVM and multichain input parameters
+- Make `QuoteRequest.slippage` optional
+- Deprecate `SwapsTokenObject` and replace usages with BridgeAsset (compatible with multichain assets)
+- Changed `bridgeFeatureFlags.extensionConfig.chains` to key configs by CAIP chainIds
+ 
 ## [8.0.0]
 
 ### Changed
