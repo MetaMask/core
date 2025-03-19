@@ -52,8 +52,10 @@ export const TESTNET_TICKER_SYMBOLS = {
   MEGAETH_TESTNET: 'MegaETH',
 };
 
-// DEFAULT RPC URLS
-export const DEFAULT_RPC_URLS = {
+/**
+ * Map of all built-in custom networks to their RPC endpoints.
+ */
+export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
   MEGAETH_TESTNET: 'https://carrot.megaeth.com/rpc',
 };
 
@@ -108,7 +110,6 @@ export const BUILT_IN_NETWORKS = {
     ticker: NetworksTicker['megaeth-testnet'],
     rpcPrefs: {
       blockExplorerUrl: BlockExplorerUrl['megaeth-testnet'],
-      rpcUrl: DEFAULT_RPC_URLS.MEGAETH_TESTNET,
     },
   },
   [NetworkType.rpc]: {
