@@ -4136,14 +4136,14 @@ export class TransactionController extends BaseController<
       },
     );
 
-    log('Calling afterSimulate hook', finalTransactionMeta);
-
     if (ethQuery) {
+      log('Calling afterSimulate hook', finalTransactionMeta);
+
       const result = await this.#afterSimulate({
         transactionMeta: finalTransactionMeta,
       });
 
-      if (result.updateTransaction) {
+      if (result?.updateTransaction) {
         log('Updating transaction with afterSimulate data');
 
         finalTransactionMeta = this.#updateTransactionInternal(
@@ -4158,6 +4158,8 @@ export class TransactionController extends BaseController<
           messenger: this.messagingSystem,
           txParams: { ...finalTransactionMeta.txParams, gas: undefined },
         });
+
+        log('Updating gas following afterSimulate hook', estimatedGas);
 
         finalTransactionMeta = this.#updateTransactionInternal(
           { transactionId },
