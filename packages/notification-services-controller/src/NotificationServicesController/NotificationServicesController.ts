@@ -9,12 +9,13 @@ import {
   isValidHexAddress,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import type {
-  KeyringControllerGetAccountsAction,
-  KeyringControllerStateChangeEvent,
-  KeyringControllerGetStateAction,
-  KeyringControllerLockEvent,
-  KeyringControllerUnlockEvent,
+import {
+  type KeyringControllerStateChangeEvent,
+  type KeyringControllerGetStateAction,
+  type KeyringControllerLockEvent,
+  type KeyringControllerUnlockEvent,
+  type KeyringControllerWithKeyringAction,
+  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type {
   AuthenticationController,
@@ -199,7 +200,7 @@ export type Actions =
 // Allowed Actions
 export type AllowedActions =
   // Keyring Controller Requests
-  | KeyringControllerGetAccountsAction
+  | KeyringControllerWithKeyringAction
   | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
@@ -408,6 +409,21 @@ export default class NotificationServicesController extends BaseController<
     // Flag to ensure we only setup once
     isNotificationAccountsSetup: false,
 
+    getNotificationAccounts: async () => {
+      const mainHDWalletAccounts = (await this.messagingSystem.call(
+        'KeyringController:withKeyring',
+        {
+          type: KeyringTypes.hd,
+          index: 0,
+        },
+        async ({ keyring }): Promise<string[]> => {
+          return await keyring.getAccounts();
+        },
+      )) as string[];
+
+      return mainHDWalletAccounts;
+    },
+
     /**
      * Used to get list of addresses from keyring (wallet addresses)
      *
@@ -415,9 +431,8 @@ export default class NotificationServicesController extends BaseController<
      */
     listAccounts: async () => {
       // Get previous and current account sets
-      const nonChecksumAccounts = await this.messagingSystem.call(
-        'KeyringController:getAccounts',
-      );
+      const nonChecksumAccounts =
+        await this.#accounts.getNotificationAccounts();
       const accounts = nonChecksumAccounts
         .map((a) => toChecksumHexAddress(a))
         .filter((a) => isValidHexAddress(a));
@@ -442,7 +457,7 @@ export default class NotificationServicesController extends BaseController<
 
       // Update accounts seen
       this.update((state) => {
-        state.subscriptionAccountsSeen = [...prevAccountsSet, ...accountsAdded];
+        state.subscriptionAccountsSeen = [...currentAccountsSet];
       });
 
       return {
@@ -530,7 +545,9 @@ export default class NotificationServicesController extends BaseController<
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
+  }
 
+  init() {
     this.#keyringController.setupLockedStateSubscriptions(async () => {
       await this.#accounts.initialize();
       await this.#pushNotifications.initializePushNotifications();
