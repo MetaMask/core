@@ -4021,7 +4021,8 @@ export class TransactionController extends BaseController<
       `${controllerName}:updateCustodialTransaction`,
       this.updateCustodialTransaction.bind(this),
     );
-    
+  }
+
   #deleteTransaction(transactionId: string) {
     this.update((state) => {
       const transactions = state.transactions.filter(
