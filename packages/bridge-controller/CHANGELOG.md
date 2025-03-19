@@ -9,17 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Solana constants, utils and quote-fetching support
-- Utilities to convert chainIds between `ChainId`, `Hex`, `string` and `CaipChainId`
-- Add `refreshRate` feature flag to enable chain-specific quote refresh intervals
-- `isNativeAddress` and `isSolanaChainId` utilities that can be used by both the controller and clients
+- Solana constants, utils, quote and token support ([#5486](https://github.com/MetaMask/core/pull/5486))
+- Utilities to convert chainIds between `ChainId`, `Hex`, `string` and `CaipChainId` ([#5486](https://github.com/MetaMask/core/pull/5486))
+- Add `refreshRate` feature flag to enable chain-specific quote refresh intervals ([#5486](https://github.com/MetaMask/core/pull/5486))
+- `isNativeAddress` and `isSolanaChainId` utilities that can be used by both the controller and clients ([#5486](https://github.com/MetaMask/core/pull/5486))
 
 ### Changed
 
-- Replace QuoteRequest usages with `GenericQuoteRequest` to support both EVM and multichain input parameters
-- Make `QuoteRequest.slippage` optional
-- Deprecate `SwapsTokenObject` and replace usages with multichain BridgeAsset
-- Changed `bridgeFeatureFlags.extensionConfig.chains` to key configs by CAIP chainIds
+- Replace QuoteRequest usages with `GenericQuoteRequest` to support both EVM and multichain input parameters ([#5486](https://github.com/MetaMask/core/pull/5486))
+- Make `QuoteRequest.slippage` optional ([#5486](https://github.com/MetaMask/core/pull/5486))
+- Deprecate `SwapsTokenObject` and replace usages with multichain BridgeAsset ([#5486](https://github.com/MetaMask/core/pull/5486))
+- Changed `bridgeFeatureFlags.extensionConfig.chains` to key configs by CAIP chainIds ([#5486](https://github.com/MetaMask/core/pull/5486))
 
 ## [8.0.0]
 
