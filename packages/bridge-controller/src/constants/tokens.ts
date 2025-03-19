@@ -1,8 +1,8 @@
 import type { CaipChainId } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
-import { formatChainIdToCaip } from 'src/utils/caip-formatters';
 
 import { CHAIN_IDS } from './chains';
+import { formatChainIdToCaip } from '../utils/caip-formatters';
 
 export type SwapsTokenObject = {
   /**
