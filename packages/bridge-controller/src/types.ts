@@ -61,11 +61,11 @@ export type ChainConfiguration = {
 };
 
 export type L1GasFees = {
-  l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by controller
+  l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
 export type SolanaFees = {
-  solanaFeesInLamports?: string; // solana fees in lamports, appended by controller
+  solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
 };
 
 /**
