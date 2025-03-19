@@ -22,7 +22,7 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { assertIsInternalScopesObject } from './scope/assert';
-import { isSupportedAccount, isSupportedScopeString } from './scope/supported';
+import { isSupportedAccount, isSupportedScopeString, isSupportedSessionProperty } from './scope/supported';
 import { mergeInternalScopes } from './scope/transform';
 import {
   parseScopeString,
@@ -39,7 +39,7 @@ import {
 export type Caip25CaveatValue = {
   requiredScopes: InternalScopesObject;
   optionalScopes: InternalScopesObject;
-  sessionProperties?: Record<string, Json>;
+  sessionProperties: Record<string, Json>;
   isMultichainOrigin: boolean;
 };
 
@@ -177,7 +177,28 @@ export const caip25CaveatBuilder = ({
         );
       }
 
-      const { requiredScopes, optionalScopes } = caveat.value;
+      if (
+        !hasProperty(caveat.value, 'sessionProperties') ||
+        typeof caveat.value.sessionProperties !== 'object' ||
+        caveat.value.sessionProperties === null
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
+
+      const { requiredScopes, optionalScopes, sessionProperties } =
+        caveat.value;
+
+      const unknownSessionProperties = Object.keys(sessionProperties).filter(
+        (key) => !isSupportedSessionProperty(key),
+      );
+
+      if (unknownSessionProperties.length > 0) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received unknown session property(s) for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
 
       assertIsInternalScopesObject(requiredScopes);
       assertIsInternalScopesObject(optionalScopes);
@@ -186,7 +207,7 @@ export const caip25CaveatBuilder = ({
         try {
           findNetworkClientIdByChainId(chainId);
           return true;
-        } catch {
+        } catch (err) {
           return false;
         }
       };
@@ -241,10 +262,17 @@ export const caip25CaveatBuilder = ({
         leftValue.optionalScopes,
         rightValue.optionalScopes,
       );
+      
+      // Merge the sessionProperties
+      const mergedSessionProperties = {
+        ...leftValue.sessionProperties,
+        ...rightValue.sessionProperties,
+      };
 
       const mergedValue: Caip25CaveatValue = {
         requiredScopes: mergedRequiredScopes,
         optionalScopes: mergedOptionalScopes,
+        sessionProperties: mergedSessionProperties,
         isMultichainOrigin: leftValue.isMultichainOrigin,
       };
 
