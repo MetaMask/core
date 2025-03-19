@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.0]
 
-### Uncategorized
+### Changed
 
-- feat: refactor notification controller initialisation ([#5504](https://github.com/MetaMask/core/pull/5504))
-- feat: use withKeyring to get notification accounts for main keyring ([#5459](https://github.com/MetaMask/core/pull/5459))
-- Release 326.0.0 ([#5479](https://github.com/MetaMask/core/pull/5479))
-- fix: add support for fetching shared announcements cross platforms ([#5441](https://github.com/MetaMask/core/pull/5441))
+- **BREAKING** split `NotificationServiceController` constructor and initialization methods ([#5504](https://github.com/MetaMask/core/pull/5504))
+  - Now requires calling `.init()` to finalize initialization, making it compatible with the Modular Controller Initialization architecture.
+
+### Fixed
+
+- use `withKeyring` to get main keyring accounts for enabling notifications ([#5459](https://github.com/MetaMask/core/pull/5459))
+- add support for fetching shared announcements cross platforms ([#5441](https://github.com/MetaMask/core/pull/5441))
 
 ## [3.0.0]
 
