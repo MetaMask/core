@@ -22,7 +22,11 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { assertIsInternalScopesObject } from './scope/assert';
-import { isSupportedAccount, isSupportedScopeString, isSupportedSessionProperty } from './scope/supported';
+import {
+  isSupportedAccount,
+  isSupportedScopeString,
+  isSupportedSessionProperty,
+} from './scope/supported';
 import { mergeInternalScopes } from './scope/transform';
 import {
   parseScopeString,
@@ -262,7 +266,7 @@ export const caip25CaveatBuilder = ({
         leftValue.optionalScopes,
         rightValue.optionalScopes,
       );
-      
+
       // Merge the sessionProperties
       const mergedSessionProperties = {
         ...leftValue.sessionProperties,

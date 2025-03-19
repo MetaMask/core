@@ -5,7 +5,7 @@ import type {
 } from '@metamask/utils';
 
 import { multichainMethodCallValidatorMiddleware } from './multichainMethodCallValidatorMiddleware';
-import { MultichainApiNotifications } from 'src/handlers/types';
+import { MultichainApiNotifications } from '../handlers/types';
 
 describe('multichainMethodCallValidatorMiddleware', () => {
   const mockNext = jest.fn();

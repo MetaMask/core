@@ -7,7 +7,7 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 
 import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
-import { MultichainApiNotifications } from 'src/handlers/types';
+import { MultichainApiNotifications } from '../handlers/types';
 
 export type SubscriptionManager = {
   events: SafeEventEmitter;

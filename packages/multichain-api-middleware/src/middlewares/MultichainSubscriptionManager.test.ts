@@ -2,7 +2,7 @@ import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscripti
 import type SafeEventEmitter from '@metamask/safe-event-emitter';
 
 import { MultichainSubscriptionManager } from './MultichainSubscriptionManager';
-import { MultichainApiNotifications } from 'src/handlers/types';
+import { MultichainApiNotifications } from '../handlers/types';
 
 jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
   jest.fn(),
