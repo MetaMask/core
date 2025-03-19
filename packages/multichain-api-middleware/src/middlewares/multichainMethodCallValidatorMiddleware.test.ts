@@ -285,7 +285,7 @@ describe('multichainMethodCallValidatorMiddleware', () => {
       const request: JsonRpcRequest = {
         id: 2,
         jsonrpc: '2.0',
-        method: MultichainApiNotifications.walletNotify, 
+        method: MultichainApiNotifications.walletNotify,
         params: {
           scope: 'test_scope',
           request: {

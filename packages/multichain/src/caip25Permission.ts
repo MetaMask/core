@@ -55,6 +55,7 @@ export const Caip25EndowmentPermissionName = 'endowment:caip25';
 
 /**
  * Creates a CAIP-25 permission caveat.
+ *
  * @param value - The CAIP-25 permission caveat value.
  * @returns The CAIP-25 permission caveat (now including the type).
  */

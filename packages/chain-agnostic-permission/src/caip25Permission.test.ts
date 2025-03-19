@@ -13,8 +13,8 @@ import {
   caip25CaveatBuilder,
   diffScopesForCaip25CaveatValue,
 } from './caip25Permission';
-import * as ScopeSupported from './scope/supported';
 import { KnownSessionProperties } from './scope/constants';
+import * as ScopeSupported from './scope/supported';
 
 jest.mock('./scope/supported', () => ({
   ...jest.requireActual('./scope/supported'),
