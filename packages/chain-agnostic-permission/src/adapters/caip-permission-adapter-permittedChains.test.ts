@@ -33,6 +33,8 @@ describe('CAIP-25 permittedChains adapters', () => {
             accounts: ['eip155:100:0x100'],
           },
         },
+        sessionProperties: {},
+        isMultichainOrigin: false,
       });
 
       expect(ethChainIds).toStrictEqual(['0x1', '0x5', '0xa', '0x64']);
@@ -56,6 +58,7 @@ describe('CAIP-25 permittedChains adapters', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: false,
         },
         '0x65',
@@ -78,6 +81,7 @@ describe('CAIP-25 permittedChains adapters', () => {
             accounts: [],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
     });
@@ -90,6 +94,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -102,6 +107,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
       expect(input).not.toStrictEqual(result);
@@ -119,6 +125,7 @@ describe('CAIP-25 permittedChains adapters', () => {
             accounts: ['eip155:100:0x100'],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
       const result = addPermittedEthChainId(input, '0x1');
@@ -138,6 +145,7 @@ describe('CAIP-25 permittedChains adapters', () => {
             accounts: ['eip155:100:0x100'],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
       const result = addPermittedEthChainId(input, '0x64'); // 0x64 === 100
@@ -169,6 +177,7 @@ describe('CAIP-25 permittedChains adapters', () => {
               accounts: ['eip155:100:0x100'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: false,
         },
         ['0x1'],
@@ -191,6 +200,7 @@ describe('CAIP-25 permittedChains adapters', () => {
             accounts: [],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
     });
@@ -211,6 +221,7 @@ describe('CAIP-25 permittedChains adapters', () => {
               accounts: ['eip155:100:0x100'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: false,
         },
         ['0x1', '0x64', '0x65'],
@@ -233,6 +244,7 @@ describe('CAIP-25 permittedChains adapters', () => {
             accounts: [],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
     });
@@ -245,6 +257,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -257,6 +270,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
       expect(input).not.toStrictEqual(result);
