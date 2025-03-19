@@ -160,6 +160,9 @@
   "packages/build-utils/src/transforms/remove-fenced-code.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1
   },
+  "packages/chain-agnostic-permission/src/caip25Permission.ts": {
+    "jsdoc/no-unused-vars": 1
+  },
   "packages/composable-controller/src/ComposableController.test.ts": {
     "import-x/namespace": 3
   },
