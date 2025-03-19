@@ -534,6 +534,24 @@ describe('User Storage', () => {
     );
     expect(mockAuthSignMessage).toHaveBeenCalled(); // SignMessage called since generating new key
   });
+
+  it('uses existing storage key (in storage)', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage, mockGetStorageKey } = arrangeUserStorage(auth);
+    mockGetStorageKey.mockResolvedValue(MOCK_STORAGE_KEY);
+
+    const mockAuthSignMessage = jest
+      .spyOn(auth, 'signMessage')
+      .mockResolvedValue(MOCK_STORAGE_KEY);
+
+    handleMockUserStoragePut();
+
+    await userStorage.setItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      'some fake data',
+    );
+    expect(mockAuthSignMessage).not.toHaveBeenCalled(); // SignMessage not called since key already exists
+  });
 });
 
 /**

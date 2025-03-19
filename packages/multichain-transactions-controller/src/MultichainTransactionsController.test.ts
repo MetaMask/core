@@ -145,6 +145,7 @@ const setupController = ({
       allowedActions: [
         'SnapController:handleRequest',
         'AccountsController:listMultichainAccounts',
+        'KeyringController:getState',
       ],
       allowedEvents: [
         'AccountsController:accountAdded',
@@ -169,6 +170,14 @@ const setupController = ({
     ),
   );
 
+  const mockGetKeyringState = jest.fn().mockReturnValue({
+    isUnlocked: true,
+  });
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    mockGetKeyringState,
+  );
+
   const controller = new MultichainTransactionsController({
     messenger: multichainTransactionsControllerMessenger,
     state,
@@ -179,6 +188,7 @@ const setupController = ({
     messenger,
     mockSnapHandleRequest,
     mockListMultichainAccounts,
+    mockGetKeyringState,
   };
 };
 
@@ -660,5 +670,88 @@ describe('MultichainTransactionsController', () => {
       nullTimestampTx1,
       nullTimestampTx2,
     ]);
+  });
+
+  it('resumes updating transactions after unlocking KeyringController', async () => {
+    const { controller, mockGetKeyringState } = setupController();
+
+    mockGetKeyringState.mockReturnValue({ isUnlocked: false });
+
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id],
+    ).toBeUndefined();
+
+    mockGetKeyringState.mockReturnValue({ isUnlocked: true });
+
+    await controller.updateTransactionsForAccount(mockBtcAccount.id);
+    expect(
+      controller.state.nonEvmTransactions[mockBtcAccount.id],
+    ).toStrictEqual({
+      transactions: mockTransactionResult.data,
+      next: null,
+      lastUpdated: expect.any(Number),
+    });
+  });
+
+  it('filters out non-mainnet Solana transactions in transaction updates', async () => {
+    const mockSolAccountWithId = {
+      ...mockSolAccount,
+      id: TEST_ACCOUNT_ID,
+    };
+
+    const mockSolTransaction = {
+      type: 'send' as const,
+      status: 'confirmed' as const,
+      timestamp: Date.now(),
+      from: [],
+      to: [],
+      fees: [],
+      account: mockSolAccountWithId.id,
+      events: [
+        {
+          status: 'confirmed' as const,
+          timestamp: Date.now(),
+        },
+      ],
+    };
+
+    const mainnetTransaction = {
+      ...mockSolTransaction,
+      id: '1',
+      chain: MultichainNetwork.Solana,
+    };
+
+    const devnetTransaction = {
+      ...mockSolTransaction,
+      id: '2',
+      chain: MultichainNetwork.SolanaDevnet,
+    };
+
+    const { controller, messenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [mockSolAccountWithId.id]: {
+            transactions: [],
+            next: null,
+            lastUpdated: Date.now(),
+          },
+        },
+      },
+    });
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockSolAccountWithId.id]: [mainnetTransaction, devnetTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    const finalTransactions =
+      controller.state.nonEvmTransactions[mockSolAccountWithId.id].transactions;
+
+    expect(finalTransactions).toHaveLength(1);
+    expect(finalTransactions[0]).toBe(mainnetTransaction);
   });
 });

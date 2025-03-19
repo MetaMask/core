@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [50.0.0]
+
+### Added
+
+- Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Add `delegationAddress` to `TransactionMetadata`.
+  - Add `NestedTransactionMetadata` type containing `BatchTransactionParams` and `type`.
+  - Add optional `type` to `TransactionBatchSingleRequest`.
+- Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
+  - Add optional `publicKeyEIP7702` property to constructor.
+  - Add dependency on `^5.7.0` of `@ethersproject/wallet`.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.1.0` ([#5481](https://github.com/MetaMask/core/pull/5481))
+- **BREAKING:** Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Change `error` in `TransactionMetadata` to optional for all statuses.
+  - Change `nestedTransactions` in `TransactionMetadata` to array of `NestedTransactionMetadata`.
+- Throw if `addTransactionBatch` called with external origin and size limit exceeded ([#5489](https://github.com/MetaMask/core/pull/5489))
+- Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
+  - Use new `contracts` property from feature flags instead of `contractAddresses`.
+
+## [49.0.0]
+
+### Added
+
+- Add `revertDelegation` to `TransactionType` ([#5468](https://github.com/MetaMask/core/pull/5468))
+- Add optional batch ID to metadata ([#5462](https://github.com/MetaMask/core/pull/5462))
+  - Add optional `batchId` property to `TransactionMeta`.
+  - Add optional `transactionHash` to `TransactionReceipt`.
+  - Add optional `data` to `Log`.
+  - Add optional `batchId` to `TransactionBatchRequest`.
+  - Add optional `batchId` to `addTransaction` options.
+  - Throw if `batchId` already exists on a transaction.
+
+### Changed
+
+- **BREAKING:** Add optional batch ID to metadata ([#5462](https://github.com/MetaMask/core/pull/5462))
+  - Change `batchId` in `TransactionBatchResult` to `Hex`.
+  - Return `batchId` from `addTransactionBatch` if provided.
+  - Generate random batch ID if no `batchId` provided.
+
+## [48.2.0]
+
+### Changed
+
+- Normalize gas limit using `gas` and `gasLimit` properties ([#5396](https://github.com/MetaMask/core/pull/5396))
+
 ## [48.1.0]
 
 ### Changed
@@ -1332,7 +1380,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@50.0.0...HEAD
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...@metamask/transaction-controller@50.0.0
+[49.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.2.0...@metamask/transaction-controller@49.0.0
+[48.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.1.0...@metamask/transaction-controller@48.2.0
 [48.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.0.0...@metamask/transaction-controller@48.1.0
 [48.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@47.0.0...@metamask/transaction-controller@48.0.0
 [47.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@46.0.0...@metamask/transaction-controller@47.0.0
