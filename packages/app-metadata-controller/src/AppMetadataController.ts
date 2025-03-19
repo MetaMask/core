@@ -1,10 +1,10 @@
-import {
-  BaseController,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { StateMetadata } from '@metamask/controllers';
 
 // Unique name for the controller
 const controllerName = 'AppMetadataController';
@@ -146,9 +146,9 @@ export class AppMetadataController extends BaseController<
       messenger,
     });
 
-    this.#maybeUpdateAppVersion(currentAppVersion);
+    this.#updateAppVersion(currentAppVersion);
 
-    this.#maybeUpdateMigrationVersion(currentMigrationVersion);
+    this.#updateMigrationVersion(currentMigrationVersion);
   }
 
   /**
@@ -156,7 +156,7 @@ export class AppMetadataController extends BaseController<
    *
    * @param newAppVersion
    */
-  #maybeUpdateAppVersion(newAppVersion: string): void {
+  #updateAppVersion(newAppVersion: string): void {
     const oldCurrentAppVersion = this.state.currentAppVersion;
 
     if (newAppVersion !== oldCurrentAppVersion) {
@@ -172,7 +172,7 @@ export class AppMetadataController extends BaseController<
    *
    * @param newMigrationVersion
    */
-  #maybeUpdateMigrationVersion(newMigrationVersion: number): void {
+  #updateMigrationVersion(newMigrationVersion: number): void {
     const oldCurrentMigrationVersion = this.state.currentMigrationVersion;
 
     if (newMigrationVersion !== oldCurrentMigrationVersion) {
