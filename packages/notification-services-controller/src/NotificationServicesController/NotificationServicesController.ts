@@ -530,7 +530,9 @@ export default class NotificationServicesController extends BaseController<
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
+  }
 
+  init() {
     this.#keyringController.setupLockedStateSubscriptions(async () => {
       await this.#accounts.initialize();
       await this.#pushNotifications.initializePushNotifications();
