@@ -1,5 +1,6 @@
 import {
   getInternalScopesObject,
+  getPermittedAccountsForScopes,
   getSessionScopes,
 } from './caip-permission-adapter-session-scopes';
 import {
@@ -201,6 +202,45 @@ describe('CAIP-25 session scopes adapters', () => {
           accounts: ['eip155:1:0xdeadbeef'],
         },
       });
+    });
+  });
+
+  describe('getPermittedAccountsForScopes', () => {
+    it('returns an array of permitted accounts for a given scope', () => {
+      const result = getPermittedAccountsForScopes(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'wallet:eip155': {
+              accounts: ['wallet:eip155:0xdeadbeef'],
+            },
+          },
+        },
+        ['wallet:eip155'],
+      );
+
+      expect(result).toStrictEqual(['wallet:eip155:0xdeadbeef']);
+    });
+    it('returns an empty array if the scope does not exist', () => {
+      const result = getPermittedAccountsForScopes(
+        { requiredScopes: {}, optionalScopes: {} },
+        ['wallet:eip155'],
+      );
+      expect(result).toStrictEqual([]);
+    });
+    it('returns an empty array if the scope does not have any accounts', () => {
+      const result = getPermittedAccountsForScopes(
+        {
+          requiredScopes: {
+            'wallet:eip155': {
+              accounts: [],
+            },
+          },
+          optionalScopes: {},
+        },
+        ['wallet:eip155'],
+      );
+      expect(result).toStrictEqual([]);
     });
   });
 });
