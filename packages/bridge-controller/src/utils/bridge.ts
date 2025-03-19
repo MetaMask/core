@@ -5,7 +5,11 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 import { isCaipChainId, isStrictHexString, type Hex } from '@metamask/utils';
 
-import { formatChainIdToCaip, formatChainIdToDec } from './caip-formatters';
+import {
+  formatChainIdToCaip,
+  formatChainIdToDec,
+  formatChainIdToHex,
+} from './caip-formatters';
 import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
@@ -41,7 +45,17 @@ export const getNativeAssetForChainId = (
   chainId: string | number | Hex | CaipChainId,
 ): BridgeAsset => {
   const chainIdInCaip = formatChainIdToCaip(chainId);
-  const nativeToken = SWAPS_CHAINID_DEFAULT_TOKEN_MAP[chainIdInCaip];
+  const nativeToken =
+    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
+      formatChainIdToHex(
+        chainId,
+      ) as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+    ] ??
+    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
+      formatChainIdToCaip(
+        chainId,
+      ) as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+    ];
   return {
     ...nativeToken,
     chainId: formatChainIdToDec(chainId),

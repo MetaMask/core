@@ -1,8 +1,9 @@
 import type { CaipChainId } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
+import type { Hex } from '@metamask/utils';
 
+import type { AllowedBridgeChainIds } from './bridge';
 import { CHAIN_IDS } from './chains';
-import { formatChainIdToCaip } from '../utils/caip-formatters';
 
 export type SwapsTokenObject = {
   /**
@@ -143,23 +144,25 @@ const SOLANA_SWAPS_TOKEN_OBJECT = {
 const SWAPS_TESTNET_CHAIN_ID = '0x539';
 
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
-  [formatChainIdToCaip(CHAIN_IDS.MAINNET)]: ETH_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(SWAPS_TESTNET_CHAIN_ID)]: TEST_ETH_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.BSC)]: BNB_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.POLYGON)]: MATIC_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.GOERLI)]: GOERLI_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.SEPOLIA)]: SEPOLIA_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.AVALANCHE)]: AVAX_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.OPTIMISM)]: OPTIMISM_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.ARBITRUM)]: ARBITRUM_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.ZKSYNC_ERA)]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.LINEA_MAINNET)]: LINEA_SWAPS_TOKEN_OBJECT,
-  [formatChainIdToCaip(CHAIN_IDS.BASE)]: BASE_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
+  [SWAPS_TESTNET_CHAIN_ID]: TEST_ETH_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.BSC]: BNB_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.POLYGON]: MATIC_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.GOERLI]: GOERLI_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.SEPOLIA]: SEPOLIA_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.AVALANCHE]: AVAX_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.OPTIMISM]: OPTIMISM_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.ARBITRUM]: ARBITRUM_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.LINEA_MAINNET]: LINEA_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.BASE]: BASE_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export type SupportedSwapsNativeCurrencySymbols =
-  (typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[CaipChainId]['symbol'];
+  (typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[
+    | AllowedBridgeChainIds
+    | typeof SWAPS_TESTNET_CHAIN_ID]['symbol'];
 
 /**
  * A map of native currency symbols to their SLIP-44 representation
