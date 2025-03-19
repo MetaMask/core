@@ -36,6 +36,7 @@ const DATA_MOCK = '0xabcdef';
 const VALUE_MOCK = '0x1234';
 const MESSENGER_MOCK = {} as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
+const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_CUSTOM_MOCK = '0x123456';
 const GET_ETH_QUERY_MOCK = jest.fn();
 const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
@@ -81,6 +82,7 @@ describe('Batch Utils', () => {
         getEthQuery: GET_ETH_QUERY_MOCK,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
         request: {
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
@@ -282,6 +284,16 @@ describe('Batch Utils', () => {
       );
     });
 
+    it('throws if no public key', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      await expect(
+        addTransactionBatch({ ...request, publicKeyEIP7702: undefined }),
+      ).rejects.toThrow(
+        rpcErrors.internal('EIP-7702 public key not specified'),
+      );
+    });
+
     it('throws if account upgraded to unsupported contract', async () => {
       doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
@@ -341,6 +353,7 @@ describe('Batch Utils', () => {
         address: FROM_MOCK,
         getEthQuery: GET_ETH_QUERY_MOCK,
         messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
 
       expect(result).toStrictEqual([CHAIN_ID_MOCK, CHAIN_ID_2_MOCK]);
@@ -358,9 +371,23 @@ describe('Batch Utils', () => {
         address: FROM_MOCK,
         getEthQuery: GET_ETH_QUERY_MOCK,
         messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
 
       expect(result).toStrictEqual([]);
+    });
+
+    it('throws if no public key', async () => {
+      await expect(
+        isAtomicBatchSupported({
+          address: FROM_MOCK,
+          getEthQuery: GET_ETH_QUERY_MOCK,
+          messenger: MESSENGER_MOCK,
+          publicKeyEIP7702: undefined,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.internal('EIP-7702 public key not specified'),
+      );
     });
   });
 });
