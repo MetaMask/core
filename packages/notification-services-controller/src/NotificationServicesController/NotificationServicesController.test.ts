@@ -69,6 +69,28 @@ const mockErrorLog = () =>
 const mockWarnLog = () => jest.spyOn(log, 'warn').mockImplementation(jest.fn());
 
 describe('metamask-notifications - constructor()', () => {
+  it('initializes state & override state', () => {
+    const controller1 = new NotificationServicesController({
+      messenger: mockNotificationMessenger().messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+    expect(controller1.state).toStrictEqual(defaultState);
+
+    const controller2 = new NotificationServicesController({
+      messenger: mockNotificationMessenger().messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: {
+        ...defaultState,
+        isFeatureAnnouncementsEnabled: true,
+        isNotificationServicesEnabled: true,
+      },
+    });
+    expect(controller2.state.isFeatureAnnouncementsEnabled).toBe(true);
+    expect(controller2.state.isNotificationServicesEnabled).toBe(true);
+  });
+});
+
+describe('metamask-notifications - init()', () => {
   const arrangeMocks = () => {
     const messengerMocks = mockNotificationMessenger();
     jest
@@ -89,26 +111,6 @@ describe('metamask-notifications - constructor()', () => {
     );
   };
 
-  it('initializes state & override state', () => {
-    const controller1 = new NotificationServicesController({
-      messenger: mockNotificationMessenger().messenger,
-      env: { featureAnnouncements: featureAnnouncementsEnv },
-    });
-    expect(controller1.state).toStrictEqual(defaultState);
-
-    const controller2 = new NotificationServicesController({
-      messenger: mockNotificationMessenger().messenger,
-      env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: {
-        ...defaultState,
-        isFeatureAnnouncementsEnabled: true,
-        isNotificationServicesEnabled: true,
-      },
-    });
-    expect(controller2.state.isFeatureAnnouncementsEnabled).toBe(true);
-    expect(controller2.state.isNotificationServicesEnabled).toBe(true);
-  });
-
   it('keyring Change Event but feature not enabled will not add or remove triggers', async () => {
     const { messenger, globalMessenger, mockWithKeyring } = arrangeMocks();
 
@@ -118,6 +120,7 @@ describe('metamask-notifications - constructor()', () => {
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
     });
+    controller.init();
 
     const mockUpdate = jest
       .spyOn(controller, 'updateOnChainTriggersByAccount')
@@ -146,6 +149,7 @@ describe('metamask-notifications - constructor()', () => {
         subscriptionAccountsSeen: [ADDRESS_1],
       },
     });
+    controller.init();
 
     const mockUpdate = jest
       .spyOn(controller, 'updateOnChainTriggersByAccount')
@@ -199,11 +203,13 @@ describe('metamask-notifications - constructor()', () => {
     modifications?.(mocks);
 
     // Act
-    new NotificationServicesController({
+    const controller = new NotificationServicesController({
       messenger: mocks.messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { isNotificationServicesEnabled: true },
     });
+
+    controller.init();
 
     return mocks;
   };
@@ -287,7 +293,7 @@ describe('metamask-notifications - constructor()', () => {
     modifications?.(mocks);
 
     // Act
-    new NotificationServicesController({
+    const controller = new NotificationServicesController({
       messenger: mocks.messenger,
       env: {
         featureAnnouncements: featureAnnouncementsEnv,
@@ -295,6 +301,8 @@ describe('metamask-notifications - constructor()', () => {
       },
       state: { isNotificationServicesEnabled: true },
     });
+
+    controller.init();
 
     return mocks;
   };
