@@ -57,7 +57,7 @@ describe('@metamask/controller-utils', () => {
         "GWEI",
         "ASSET_TYPES",
         "TESTNET_TICKER_SYMBOLS",
-        "DEFAULT_RPC_URLS",
+        "BUILT_IN_CUSTOM_NETWORKS_RPC",
         "BUILT_IN_NETWORKS",
         "OPENSEA_PROXY_URL",
         "NFT_API_BASE_URL",
