@@ -10,23 +10,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Implement circuit breaker pattern when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
-  - If the network is perceived to be down after 5 attempts, further retries will be paused for 30 seconds
-  - "Down" means the following:
+  - If the network is perceived to be unavailable after 5 attempts, further retries will be paused for 30 seconds.
+  - "Unavailable" means the following:
     - A failure to reach the network (exact error depending on platform / HTTP client)
     - The request responds with a non-JSON-parseable or non-JSON-RPC-compatible body
     - The request returns a non-200 response
 - Use exponential backoff / jitter when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
-  - As requests are retried, the delay between retries will increase exponentially (using random variance to prevent bursts)
-- Add support for automatic failover when Infura is down ([#5630](https://github.com/MetaMask/core/pull/5630))
+  - As requests are retried, the delay between retries will increase exponentially (using random variance to prevent bursts).
+- Add support for automatic failover when Infura is unavailable ([#5630](https://github.com/MetaMask/core/pull/5630))
   - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverUrls`.
   - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
+- Add messenger action `NetworkController:rpcEndpointUnavailable` for responding to when a RPC endpoint becomes unavailable (see above) ([#5492](https://github.com/MetaMask/core/pull/5492), [#5501](https://github.com/MetaMask/core/pull/5501))
+  - Also add associated type `NetworkControllerRpcEndpointUnavailableEvent`.
+- Add messenger action `NetworkController:rpcEndpointDegraded` for responding to when a RPC endpoint becomes degraded ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - Also add associated type `NetworkControllerRpcEndpointDegradedEvent`.
+- Add messenger action `NetworkController:rpcEndpointRequestRetried` for responding to when a RPC endpoint is retried following a retriable error ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - Also add associated type `NetworkControllerRpcEndpointRequestRetriedEvent`.
+  - This is mainly useful for tests when mocking timers.
+- Export `RpcServiceRequestable` type, which was previously named `AbstractRpcService` ([#5492](https://github.com/MetaMask/core/pull/5492))
+- Export `isConnectionError` utility function ([#5501](https://github.com/MetaMask/core/pull/5501))
 
 ### Changed
 
-- **BREAKING:** `NetworkController` constructor now takes two required options, `fetch` and `btoa` ([#5290](https://github.com/MetaMask/core/pull/5290))
-  - These are passed along to functions that create the JSON-RPC middleware.
+- **BREAKING:** `NetworkController` constructor now takes a new required option, `getRpcServiceOptions` ([#5290](https://github.com/MetaMask/core/pull/5290), [#5492](https://github.com/MetaMask/core/pull/5492))
+  - This can be used to customize how RPC services (which eventually hit RPC endpoints) are constructed.
+  - For instance, you could set one `circuitBreakDuration` for one class of endpoints, and another `circuitBreakDuration` for another class.
+  - At minimum you will need to pass `fetch` and `btoa`.
+  - The `NetworkControllerOptions` also reflects this change.
 - **BREAKING:** Add required property `failoverUrls` to `RpcEndpoint` ([#5630](https://github.com/MetaMask/core/pull/5630))
+  - The `NetworkControllerState` and the `state` option to `NetworkController` also reflect this change
 - **BREAKING:** Add required property `failoverRpcUrls` to `NetworkClientConfiguration` ([#5630](https://github.com/MetaMask/core/pull/5630))
+  - The `configuration` property in the `AutoManagedNetworkClient` and `NetworkClient` types also reflect this change
+- **BREAKING:** The `AbstractRpcService` type now has a non-optional `endpointUrl` property ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - The old version of `AbstractRpcService` is now called `RpcServiceRequestable`
 - Synchronize retry logic and error handling behavior between Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
   - A request to a custom endpoint that returns a 418 response will no longer return a JSON-RPC response with the error "Request is being rate limited"
   - A request to a custom endpoint that returns a 429 response now returns a JSON-RPC response with the error "Request is being rate limited"

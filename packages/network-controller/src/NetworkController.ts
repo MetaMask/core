@@ -35,6 +35,7 @@ import type {
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -431,6 +432,50 @@ export type NetworkControllerNetworkRemovedEvent = {
   payload: [networkConfiguration: NetworkConfiguration];
 };
 
+/**
+ * `rpcEndpointUnavailable` is published after an attempt to make a request to
+ * an RPC endpoint fails too many times in a row (because of a connection error
+ * or an unusable response).
+ */
+export type NetworkControllerRpcEndpointUnavailableEvent = {
+  type: 'NetworkController:rpcEndpointUnavailable';
+  payload: [
+    {
+      chainId: Hex;
+      endpointUrl: string;
+      failoverEndpointUrl?: string;
+      error: unknown;
+    },
+  ];
+};
+
+/**
+ * `rpcEndpointDegraded` is published after a request to an RPC endpoint
+ * responds successfully but takes too long.
+ */
+export type NetworkControllerRpcEndpointDegradedEvent = {
+  type: 'NetworkController:rpcEndpointDegraded';
+  payload: [
+    {
+      endpointUrl: string;
+    },
+  ];
+};
+
+/**
+ * `rpcEndpointRequestRetried` is published after a request to an RPC endpoint
+ * is retried following a connection error or an unusable response.
+ */
+export type NetworkControllerRpcEndpointRequestRetriedEvent = {
+  type: 'NetworkController:rpcEndpointRequestRetried';
+  payload: [
+    {
+      endpointUrl: string;
+      attempt: number;
+    },
+  ];
+};
+
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkWillChangeEvent
@@ -438,7 +483,10 @@ export type NetworkControllerEvents =
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent
   | NetworkControllerNetworkAddedEvent
-  | NetworkControllerNetworkRemovedEvent;
+  | NetworkControllerNetworkRemovedEvent
+  | NetworkControllerRpcEndpointUnavailableEvent
+  | NetworkControllerRpcEndpointDegradedEvent
+  | NetworkControllerRpcEndpointRequestRetriedEvent;
 
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -534,20 +582,39 @@ export type NetworkControllerMessenger = RestrictedMessenger<
   never
 >;
 
+/**
+ * Options for the NetworkController constructor.
+ */
 export type NetworkControllerOptions = {
+  /**
+   * The messenger suited for this controller.
+   */
   messenger: NetworkControllerMessenger;
+  /**
+   * The API key for Infura, used to make requests to Infura.
+   */
   infuraProjectId: string;
+  /**
+   * The desired state with which to initialize this controller.
+   * Missing properties will be filled in with defaults. For instance, if not
+   * specified, `networkConfigurationsByChainId` will default to a basic set of
+   * network configurations (see {@link InfuraNetworkType} for the list).
+   */
   state?: Partial<NetworkState>;
+  /**
+   * A `loglevel` logger object.
+   */
   log?: Logger;
   /**
-   * A function that can be used to make an HTTP request, compatible with the
-   * Fetch API.
+   * A function that can be used to customize the options passed to a
+   * RPC service constructed for an RPC endpoint. The object that the function
+   * should return is the same as {@link RpcServiceOptions}, except that
+   * `failoverService` and `endpointUrl` are not accepted (as they are filled in
+   * automatically).
    */
-  fetch: typeof fetch;
-  /**
-   * A function that can be used to convert a binary string into base-64.
-   */
-  btoa: typeof btoa;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
 };
 
 /**
@@ -927,23 +994,21 @@ export class NetworkController extends BaseController<
 
   #log: Logger | undefined;
 
-  readonly #fetch: typeof fetch;
-
-  readonly #btoa: typeof btoa;
+  readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
   >;
 
-  constructor({
-    messenger,
-    state,
-    infuraProjectId,
-    log,
-    fetch: givenFetch,
-    btoa: givenBtoa,
-  }: NetworkControllerOptions) {
+  /**
+   * Constructs a NetworkController.
+   *
+   * @param options - The options; see {@link NetworkControllerOptions}.
+   */
+  constructor(options: NetworkControllerOptions) {
+    const { messenger, state, infuraProjectId, log, getRpcServiceOptions } =
+      options;
     const initialState = { ...getDefaultNetworkControllerState(), ...state };
     validateNetworkControllerState(initialState);
     if (!infuraProjectId || typeof infuraProjectId !== 'string') {
@@ -972,8 +1037,7 @@ export class NetworkController extends BaseController<
 
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
-    this.#fetch = givenFetch;
-    this.#btoa = givenBtoa;
+    this.#getRpcServiceOptions = getRpcServiceOptions;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -2465,8 +2529,8 @@ export class NetworkController extends BaseController<
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
-          fetch: this.#fetch,
-          btoa: this.#btoa,
+          getRpcServiceOptions: this.#getRpcServiceOptions,
+          messenger: this.messagingSystem,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2479,8 +2543,8 @@ export class NetworkController extends BaseController<
             rpcUrl: addedRpcEndpoint.url,
             ticker: networkFields.nativeCurrency,
           },
-          fetch: this.#fetch,
-          btoa: this.#btoa,
+          getRpcServiceOptions: this.#getRpcServiceOptions,
+          messenger: this.messagingSystem,
         });
       }
     }
@@ -2639,8 +2703,8 @@ export class NetworkController extends BaseController<
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,
               },
-              fetch: this.#fetch,
-              btoa: this.#btoa,
+              getRpcServiceOptions: this.#getRpcServiceOptions,
+              messenger: this.messagingSystem,
             }),
           ] as const;
         }
@@ -2654,8 +2718,8 @@ export class NetworkController extends BaseController<
               rpcUrl: rpcEndpoint.url,
               ticker: networkConfiguration.nativeCurrency,
             },
-            fetch: this.#fetch,
-            btoa: this.#btoa,
+            getRpcServiceOptions: this.#getRpcServiceOptions,
+            messenger: this.messagingSystem,
           }),
         ] as const;
       });
