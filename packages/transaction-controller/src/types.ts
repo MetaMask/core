@@ -1853,3 +1853,13 @@ export type AfterAddHook = (request: {
 }) => Promise<{
   updateTransaction?: (transaction: TransactionMeta) => void;
 }>;
+
+/**
+ * Custom logic to be executed after a transaction is simulated.
+ * Can optionally update the transaction by returning the `updateTransaction` callback.
+ */
+export type AfterSimulateHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<{
+  updateTransaction?: (transaction: TransactionMeta) => void;
+}>;
