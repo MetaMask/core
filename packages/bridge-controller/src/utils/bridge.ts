@@ -2,9 +2,10 @@ import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { CaipChainId } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 import { isCaipChainId, isStrictHexString, type Hex } from '@metamask/utils';
 
+import { formatChainIdToCaip, formatChainIdToDec } from './caip-formatters';
 import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
@@ -12,14 +13,40 @@ import {
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import {
-  DEFAULT_SOLANA_TOKEN_ADDRESS,
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+  SYMBOL_TO_SLIP44_MAP,
+  type SupportedSwapsNativeCurrencySymbols,
 } from '../constants/tokens';
-import type { BridgeControllerState } from '../types';
+import type { BridgeAsset, BridgeControllerState } from '../types';
 import { ChainId } from '../types';
 
 export const getDefaultBridgeControllerState = (): BridgeControllerState => {
   return DEFAULT_BRIDGE_CONTROLLER_STATE;
+};
+
+const getNativeAssetCaipAssetType = (
+  chainId: CaipChainId,
+  nativeCurrencySymbol: SupportedSwapsNativeCurrencySymbols,
+): CaipAssetType => {
+  return `${formatChainIdToCaip(chainId)}/${SYMBOL_TO_SLIP44_MAP[nativeCurrencySymbol]}`;
+};
+
+/**
+ * Returns the native swaps or bridge asset for a given chainId
+ *
+ * @param chainId - The chainId to get the default token for
+ * @returns The native asset for the given chainId
+ */
+export const getNativeAssetForChainId = (
+  chainId: string | number | Hex | CaipChainId,
+): BridgeAsset => {
+  const chainIdInCaip = formatChainIdToCaip(chainId);
+  const nativeToken = SWAPS_CHAINID_DEFAULT_TOKEN_MAP[chainIdInCaip];
+  return {
+    ...nativeToken,
+    chainId: formatChainIdToDec(chainId),
+    assetId: getNativeAssetCaipAssetType(chainIdInCaip, nativeToken.symbol),
+  };
 };
 
 /**
@@ -67,12 +94,7 @@ export const isSwapsDefaultTokenAddress = (
     return false;
   }
 
-  return (
-    address ===
-    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-    ]?.address
-  );
+  return address === getNativeAssetForChainId(chainId)?.address;
 };
 
 /**
@@ -91,12 +113,7 @@ export const isSwapsDefaultTokenSymbol = (
     return false;
   }
 
-  return (
-    symbol ===
-    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-    ]?.symbol
-  );
+  return symbol === getNativeAssetForChainId(chainId)?.symbol;
 };
 
 /**
@@ -110,7 +127,7 @@ export const isNativeAddress = (address?: string | null) =>
   address === '' || // assets controllers set the native asset address to an empty string
   !address ||
   address.endsWith('11111111111111111111111111111111') || // token-api and bridge-api use this as the solana native assetId
-  [DEFAULT_SOLANA_TOKEN_ADDRESS].some(
+  [getNativeAssetForChainId(ChainId.SOLANA).assetId].some(
     (assetId) => assetId.includes(address) && !isStrictHexString(address),
   ); // solana native assetId used in the extension client
 

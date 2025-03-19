@@ -59,7 +59,13 @@ export {
 export type { AllowedBridgeChainIds } from './constants/bridge';
 
 export {
+  /**
+   * @deprecated This type should not be used. Use {@link BridgeAsset} instead.
+   */
   type SwapsTokenObject,
+  /**
+   * @deprecated This map should not be used. Use getNativeAssetForChainId" } instead.
+   */
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from './constants/tokens';
 
@@ -70,6 +76,7 @@ export {
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
+  getNativeAssetForChainId,
 } from './utils/bridge';
 
 export { isValidQuoteRequest } from './utils/quote';

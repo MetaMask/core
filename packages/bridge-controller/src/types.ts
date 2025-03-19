@@ -104,13 +104,34 @@ export enum SortOrder {
  * This type is used in the QuoteResponse and in the fetchBridgeTokens response
  */
 export type BridgeAsset = {
+  /**
+   * The chainId of the token
+   */
   chainId: ChainId;
+  /**
+   * An address that the metaswap-api recognizes as the default token
+   */
   address: string;
+  /**
+   * The symbol of token object
+   */
   symbol: string;
+  /**
+   * The name for the network
+   */
   name: string;
+  /**
+   * Number of digits after decimal point
+   */
   decimals: number;
   icon?: string;
+  /**
+   * URL for token icon
+   */
   iconUrl?: string;
+  /**
+   * The assetId of the token
+   */
   assetId: string;
 };
 

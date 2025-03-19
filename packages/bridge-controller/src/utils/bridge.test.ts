@@ -5,6 +5,7 @@ import type { Hex } from '@metamask/utils';
 
 import {
   getEthUsdtResetData,
+  getNativeAssetForChainId,
   isEthUsdt,
   isSolanaChainId,
   isSwapsDefaultTokenAddress,
@@ -91,10 +92,7 @@ describe('Bridge utils', () => {
   describe('isSwapsDefaultTokenAddress', () => {
     it('returns true for default token address of given chain', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
-      const defaultToken =
-        SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-          chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-        ];
+      const defaultToken = getNativeAssetForChainId(chainId);
 
       expect(isSwapsDefaultTokenAddress(defaultToken.address, chainId)).toBe(
         true,
@@ -116,10 +114,7 @@ describe('Bridge utils', () => {
   describe('isSwapsDefaultTokenSymbol', () => {
     it('returns true for default token symbol of given chain', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
-      const defaultToken =
-        SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-          chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-        ];
+      const defaultToken = getNativeAssetForChainId(chainId);
 
       expect(isSwapsDefaultTokenSymbol(defaultToken.symbol, chainId)).toBe(
         true,
