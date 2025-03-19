@@ -4,16 +4,19 @@ import { isValidSignature } from './signature';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
+export const FEATURE_FLAG_TRANSACTIONS = 'confirmations-transactions';
 export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
 
+const DEFAULT_BATCH_SIZE_LIMIT = 10;
+
 export type TransactionControllerFeatureFlags = {
-  [FEATURE_FLAG_EIP_7702]: {
+  [FEATURE_FLAG_EIP_7702]?: {
     /**
      * All contracts that support EIP-7702 batch transactions.
      * Keyed by chain ID.
      * First entry in each array is the contract that standard EOAs will be upgraded to.
      */
-    contracts: Record<
+    contracts?: Record<
       Hex,
       {
         /** Address of the smart contract. */
@@ -25,7 +28,12 @@ export type TransactionControllerFeatureFlags = {
     >;
 
     /** Chains enabled for EIP-7702 batch transactions. */
-    supportedChains: Hex[];
+    supportedChains?: Hex[];
+  };
+
+  [FEATURE_FLAG_TRANSACTIONS]?: {
+    /** Maximum number of transactions that can be in an external batch. */
+    batchSizeLimit?: number;
   };
 };
 
@@ -89,6 +97,23 @@ export function getEIP7702UpgradeContractAddress(
   publicKey: Hex,
 ): Hex | undefined {
   return getEIP7702ContractAddresses(chainId, messenger, publicKey)?.[0];
+}
+
+/**
+ * Retrieves the batch size limit.
+ * Defaults to 10 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns  The batch size limit.
+ */
+export function getBatchSizeLimit(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.batchSizeLimit ??
+    DEFAULT_BATCH_SIZE_LIMIT
+  );
 }
 
 /**

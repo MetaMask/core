@@ -11,7 +11,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed coupling of "Update custodial transactions" and MMI by removing the `custodyId` property from `TransactionMeta`
 - Changes signature of `beforePublish` and `beforeCheckPendingTransaction` hook to return promises
-- `updateCustodialTransaction` now allows changing more properties
+- `updateCustodialTransaction` now allows changing more properties, and is now triggered by an action
+
+## [50.0.0]
+
+### Added
+
+- Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Add `delegationAddress` to `TransactionMetadata`.
+  - Add `NestedTransactionMetadata` type containing `BatchTransactionParams` and `type`.
+  - Add optional `type` to `TransactionBatchSingleRequest`.
+- Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
+  - Add optional `publicKeyEIP7702` property to constructor.
+  - Add dependency on `^5.7.0` of `@ethersproject/wallet`.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.1.0` ([#5481](https://github.com/MetaMask/core/pull/5481))
+- **BREAKING:** Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
+  - Change `error` in `TransactionMetadata` to optional for all statuses.
+  - Change `nestedTransactions` in `TransactionMetadata` to array of `NestedTransactionMetadata`.
+- Throw if `addTransactionBatch` called with external origin and size limit exceeded ([#5489](https://github.com/MetaMask/core/pull/5489))
+- Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
+  - Use new `contracts` property from feature flags instead of `contractAddresses`.
+
 ## [49.0.0]
 
 ### Added
@@ -1363,7 +1386,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@50.0.0...HEAD
+[50.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...@metamask/transaction-controller@50.0.0
 [49.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.2.0...@metamask/transaction-controller@49.0.0
 [48.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.1.0...@metamask/transaction-controller@48.2.0
 [48.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.0.0...@metamask/transaction-controller@48.1.0

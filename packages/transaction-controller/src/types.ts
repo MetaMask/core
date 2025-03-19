@@ -24,23 +24,9 @@ type MakeJsonCompatible<T> = T extends Json
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
 /**
- * Representation of transaction metadata.
- */
-export type TransactionMeta = TransactionMetaBase &
-  (
-    | {
-        status: Exclude<TransactionStatus, TransactionStatus.failed>;
-      }
-    | {
-        status: TransactionStatus.failed;
-        error: TransactionError;
-      }
-  );
-
-/**
  * Information about a single transaction such as status and block number.
  */
-type TransactionMetaBase = {
+export type TransactionMeta = {
   /**
    * ID of the transaction that approved the swap token transfer.
    */
@@ -110,6 +96,12 @@ type TransactionMetaBase = {
   defaultGasEstimates?: DefaultGasEstimates;
 
   /**
+   * Address of the sender's current contract code delegation.
+   * Introduced in EIP-7702.
+   */
+  delegationAddress?: Hex;
+
+  /**
    * String to indicate what device the transaction was confirmed on.
    */
   deviceConfirmedOn?: WalletDevice;
@@ -138,6 +130,11 @@ type TransactionMetaBase = {
    * The symbol of the token being received with swap.
    */
   destinationTokenSymbol?: string;
+
+  /**
+   * Error that occurred during the transaction processing.
+   */
+  error?: TransactionError;
 
   /**
    * The estimated base fee of the transaction.
@@ -218,10 +215,10 @@ type TransactionMetaBase = {
   layer1GasFee?: Hex;
 
   /**
-   * Parameters for any nested transactions encoded in the data.
+   * Data for any nested transactions.
    * For example, in an atomic batch transaction via EIP-7702.
    */
-  nestedTransactions?: BatchTransactionParams[];
+  nestedTransactions?: NestedTransactionMetadata[];
 
   /**
    * The ID of the network client used by the transaction.
@@ -351,6 +348,9 @@ type TransactionMetaBase = {
       blockGasLimit?: string;
     };
   };
+
+  /** Current status of the transaction. */
+  status: TransactionStatus;
 
   /**
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
@@ -1428,12 +1428,21 @@ export type BatchTransactionParams = {
   value?: Hex;
 };
 
+/** Metadata for a nested transaction within a standard transaction. */
+export type NestedTransactionMetadata = BatchTransactionParams & {
+  /** Type of the neted transaction. */
+  type?: TransactionType;
+};
+
 /**
  * Specification for a single transaction within a batch request.
  */
 export type TransactionBatchSingleRequest = {
   /** Parameters of the single transaction. */
   params: BatchTransactionParams;
+
+  /** Type of the transaction. */
+  type?: TransactionType;
 };
 
 /**

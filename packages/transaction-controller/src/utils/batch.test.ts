@@ -15,10 +15,13 @@ import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
   type TransactionMeta,
+  determineTransactionType,
+  TransactionType,
 } from '..';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
+jest.mock('./transaction-type');
 
 jest.mock('./validation', () => ({
   ...jest.requireActual('./validation'),
@@ -47,6 +50,7 @@ describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const validateBatchRequestMock = jest.mocked(validateBatchRequest);
+  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
 
   const isAccountUpgradedToEIP7702Mock = jest.mocked(
     isAccountUpgradedToEIP7702,
@@ -75,6 +79,10 @@ describe('Batch Utils', () => {
       jest.resetAllMocks();
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
+
+      determineTransactionTypeMock.mockResolvedValue({
+        type: TransactionType.simpleSend,
+      });
 
       request = {
         addTransaction: addTransactionMock,
@@ -261,16 +269,61 @@ describe('Batch Utils', () => {
         expect.any(Object),
         expect.objectContaining({
           nestedTransactions: [
-            {
+            expect.objectContaining({
               to: TO_MOCK,
               data: DATA_MOCK,
               value: VALUE_MOCK,
-            },
-            {
+            }),
+            expect.objectContaining({
               to: TO_MOCK,
               data: DATA_MOCK,
               value: VALUE_MOCK,
-            },
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('determines transaction type for nested transactions', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      determineTransactionTypeMock
+        .mockResolvedValueOnce({
+          type: TransactionType.tokenMethodSafeTransferFrom,
+        })
+        .mockResolvedValueOnce({
+          type: TransactionType.simpleSend,
+        });
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          nestedTransactions: [
+            expect.objectContaining({
+              type: TransactionType.tokenMethodSafeTransferFrom,
+            }),
+            expect.objectContaining({
+              type: TransactionType.simpleSend,
+            }),
           ],
         }),
       );
