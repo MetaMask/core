@@ -93,8 +93,10 @@ async function setupAssetContractControllers({
       allowedActions: [],
       allowedEvents: [],
     }),
-    fetch,
-    btoa,
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
+    }),
   });
   if (useNetworkControllerProvider) {
     await networkController.initializeProvider();
