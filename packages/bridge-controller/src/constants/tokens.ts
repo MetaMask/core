@@ -1,6 +1,4 @@
-import type { CaipChainId } from '@metamask/keyring-api';
 import { SolScope } from '@metamask/keyring-api';
-import type { Hex } from '@metamask/utils';
 
 import type { AllowedBridgeChainIds } from './bridge';
 import { CHAIN_IDS } from './chains';
