@@ -1444,3 +1444,32 @@ export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
   batchId: string;
 };
+
+/**
+ * Request parameters for updating a custodial transaction.
+ *
+ * @param transactionId - The ID of the transaction to update.
+ * @param errorMessage - The error message to be assigned in case transaction status update to failed.
+ * @param hash - The new hash value to be assigned.
+ * @param status - The new status value to be assigned.
+ * @param gasLimit - The new gas limit value to be assigned
+ * @param gasPrice - The new gas price value to be assigned
+ * @param maxFeePerGas - The new max fee per gas value to be assigned
+ * @param maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
+ * @param nonce - The new nonce value to be assigned
+ * @param type - The transaction type (hardfork) to be assigned
+ */
+export type UpdateCustodialTransactionRequest = {
+  transactionId: string;
+  errorMessage?: string;
+  hash?: string;
+  status?: TransactionStatus;
+
+  // Standard txParams that are mutable by the custodian
+  gasLimit?: string;
+  gasPrice?: string;
+  maxFeePerGas?: string;
+  maxPriorityFeePerGas?: string;
+  nonce?: string;
+  type?: TransactionEnvelopeType;
+};

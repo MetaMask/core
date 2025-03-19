@@ -98,6 +98,7 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   BatchTransactionParams,
+  UpdateCustodialTransactionRequest,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -974,14 +975,7 @@ export class TransactionController extends BaseController<
 
     this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
-    this.registerMessageHandlers();
-  }
-
-  private registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:updateCustodialTransaction`,
-      this.updateCustodialTransaction.bind(this),
-    );
+    this.#registerActionHandlers();
   }
 
   /**
@@ -2056,43 +2050,22 @@ export class TransactionController extends BaseController<
   /**
    * Update a custodial transaction.
    *
-   * @param payload - The custodial transaction options to update.
-   * @param payload.transactionId - The ID of the transaction to update.
-   * @param payload.errorMessage - The error message to be assigned in case transaction status update to failed.
-   * @param payload.hash - The new hash value to be assigned.
-   * @param payload.status - The new status value to be assigned.
-   * @param payload.gasLimit - The new gas limit value to be assigned
-   * @param payload.gasPrice - The new gas price value to be assigned
-   * @param payload.maxFeePerGas - The new max fee per gas value to be assigned
-   * @param payload.maxPriorityFeePerGas - The new max priority fee per gas value to be assigned
-   * @param payload.nonce - The new nonce value to be assigned
-   * @param payload.type - The tranasction type (hardfork) to be assigned
+   * @param request - The custodial transaction update request.
    */
-  updateCustodialTransaction({
-    transactionId,
-    errorMessage,
-    hash,
-    status,
-    gasLimit,
-    gasPrice,
-    maxFeePerGas,
-    maxPriorityFeePerGas,
-    nonce,
-    type,
-  }: {
-    transactionId: string;
-    errorMessage?: string;
-    hash?: string;
-    status?: TransactionStatus;
+  updateCustodialTransaction(request: UpdateCustodialTransactionRequest) {
+    const {
+      transactionId,
+      errorMessage,
+      hash,
+      status,
+      gasLimit,
+      gasPrice,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      nonce,
+      type,
+    } = request;
 
-    // Transaction parameters that are mutable by the custodian
-    gasLimit?: string;
-    gasPrice?: string;
-    maxFeePerGas?: string;
-    maxPriorityFeePerGas?: string;
-    nonce?: string;
-    type?: TransactionEnvelopeType;
-  }) {
     const transactionMeta = this.getTransaction(transactionId);
 
     if (!transactionMeta) {
@@ -2127,35 +2100,24 @@ export class TransactionController extends BaseController<
       updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
     }
 
-    if (gasLimit) {
-      updatedTransactionMeta.txParams.gasLimit = gasLimit;
-    }
+    // Update txParams properties with a single pickBy operation
+    updatedTransactionMeta.txParams = merge(
+      {},
+      updatedTransactionMeta.txParams,
+      pickBy({
+        gasLimit,
+        gasPrice,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+        nonce,
+        type,
+      }),
+    );
 
-    if (gasPrice) {
-      updatedTransactionMeta.txParams.gasPrice = gasPrice;
-    }
-
-    if (maxFeePerGas) {
-      updatedTransactionMeta.txParams.maxFeePerGas = maxFeePerGas;
-    }
-
-    if (maxPriorityFeePerGas) {
-      updatedTransactionMeta.txParams.maxPriorityFeePerGas =
-        maxPriorityFeePerGas;
-    }
-
-    if (type) {
-      updatedTransactionMeta.txParams.type = type;
-
-      // If the type was reverted to legacy, we need to remove the maxFeePerGas and maxPriorityFeePerGas values
-      if (type === TransactionEnvelopeType.legacy) {
-        updatedTransactionMeta.txParams.maxFeePerGas = undefined;
-        updatedTransactionMeta.txParams.maxPriorityFeePerGas = undefined;
-      }
-    }
-
-    if (nonce) {
-      updatedTransactionMeta.txParams.nonce = nonce;
+    // Special case for type change to legacy
+    if (type === TransactionEnvelopeType.legacy) {
+      delete updatedTransactionMeta.txParams.maxFeePerGas;
+      delete updatedTransactionMeta.txParams.maxPriorityFeePerGas;
     }
 
     this.updateTransaction(
@@ -2164,6 +2126,7 @@ export class TransactionController extends BaseController<
     );
 
     if (
+      status &&
       [TransactionStatus.submitted, TransactionStatus.failed].includes(
         status as TransactionStatus,
       )
@@ -2177,6 +2140,8 @@ export class TransactionController extends BaseController<
         updatedTransactionMeta,
       );
     }
+
+    return updatedTransactionMeta;
   }
 
   /**
@@ -4016,5 +3981,12 @@ export class TransactionController extends BaseController<
       isCustomNetwork,
       txMeta: transactionMeta,
     });
+  }
+
+  #registerActionHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateCustodialTransaction`,
+      this.updateCustodialTransaction.bind(this),
+    );
   }
 }

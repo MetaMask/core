@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Removed coupling of "Update custodial transactions" and MMI by removing the `custodyId` property from `TransactionMeta`
+- Changes signature of `beforePublish` and `beforeCheckPendingTransaction` hook to return promises
+- `updateCustodialTransaction` now allows changing more properties
+
 ## [48.0.0]
 
 ### Changed
