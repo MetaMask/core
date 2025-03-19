@@ -111,18 +111,3 @@ export const formatAddressToCaipReference = (address: string) => {
   }
   return addressWithoutPrefix;
 };
-
-/**
- * Converts a chainId to a hex string or CaipChainId
- *
- * @param chainId - The chainId to convert
- * @returns The hex string or CaipChainId
- */
-export const formatChainIdToHexOrCaip = (
-  chainId: number | Hex | CaipChainId,
-) => {
-  if (isSolanaChainId(chainId)) {
-    return SolScope.Mainnet;
-  }
-  return formatChainIdToHex(chainId);
-};

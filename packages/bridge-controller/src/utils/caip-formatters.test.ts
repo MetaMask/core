@@ -6,7 +6,6 @@ import {
   formatChainIdToDec,
   formatChainIdToHex,
   formatAddressToCaipReference,
-  formatChainIdToHexOrCaip,
 } from './caip-formatters';
 import { ChainId } from '../types';
 
@@ -100,22 +99,9 @@ describe('CAIP Formatters', () => {
     });
 
     it('should throw error for invalid address', () => {
-      expect(() => formatAddressToCaipReference('test:')).toThrow('Invalid address');
-    });
-  });
-
-  describe('formatChainIdToHexOrCaip', () => {
-    it('should return SolScope.Mainnet for Solana chainId', () => {
-      expect(formatChainIdToHexOrCaip(ChainId.SOLANA)).toBe(SolScope.Mainnet);
-      expect(formatChainIdToHexOrCaip(SolScope.Mainnet)).toBe(SolScope.Mainnet);
-    });
-
-    it('should return hex for EVM chainId', () => {
-      expect(formatChainIdToHexOrCaip(1)).toBe('0x1');
-    });
-
-    it('should handle CAIP chainId', () => {
-      expect(formatChainIdToHexOrCaip('eip155:1')).toBe('0x1');
+      expect(() => formatAddressToCaipReference('test:')).toThrow(
+        'Invalid address',
+      );
     });
   });
 });
