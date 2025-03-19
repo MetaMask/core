@@ -98,6 +98,7 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   BatchTransactionParams,
+  BeforeSignHook,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -363,6 +364,8 @@ export type TransactionControllerOptions = {
      * Return false to prevent the broadcast of the transaction.
      */
     beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+
+    beforeSign?: BeforeSignHook;
 
     /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
@@ -706,6 +709,8 @@ export class TransactionController extends BaseController<
 
   private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
+  readonly #beforeSign: BeforeSignHook;
+
   private readonly publish: (
     transactionMeta: TransactionMeta,
     rawTx: string,
@@ -855,6 +860,7 @@ export class TransactionController extends BaseController<
       /* istanbul ignore next */
       (() => true);
     this.beforePublish = hooks?.beforePublish ?? (() => true);
+    this.#beforeSign = hooks?.beforeSign ?? (() => Promise.resolve({}));
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
     this.publish =
@@ -1227,6 +1233,7 @@ export class TransactionController extends BaseController<
 
       if (requireApproval !== false) {
         this.#updateSimulationData(addedTransactionMeta, {
+          ethQuery,
           traceContext,
         }).catch((error) => {
           log('Error while updating simulation data', error);
@@ -3811,9 +3818,11 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     {
       blockTime,
+      ethQuery,
       traceContext,
     }: {
       blockTime?: number;
+      ethQuery?: EthQuery;
       traceContext?: TraceContext;
     } = {},
   ) {
@@ -3864,7 +3873,7 @@ export class TransactionController extends BaseController<
       }
     }
 
-    const finalTransactionMeta = this.getTransaction(transactionId);
+    let finalTransactionMeta = this.getTransaction(transactionId);
 
     /* istanbul ignore if */
     if (!finalTransactionMeta) {
@@ -3877,7 +3886,7 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    this.#updateTransactionInternal(
+    finalTransactionMeta = this.#updateTransactionInternal(
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
@@ -3888,7 +3897,36 @@ export class TransactionController extends BaseController<
       },
     );
 
-    log('Updated simulation data', transactionId, simulationData);
+    log('Calling afterSimulate hook', finalTransactionMeta);
+
+    if (ethQuery) {
+      const result = await this.#beforeSign({
+        transactionMeta: finalTransactionMeta,
+      });
+
+      if (result.updateTransaction) {
+        log('Updating transaction with afterSimulate data');
+
+        finalTransactionMeta = this.#updateTransactionInternal(
+          { transactionId },
+          result.updateTransaction,
+        );
+
+        const { estimatedGas } = await estimateGas(
+          { ...finalTransactionMeta.txParams, gas: undefined },
+          ethQuery,
+        );
+
+        finalTransactionMeta = this.#updateTransactionInternal(
+          { transactionId },
+          (txMeta) => {
+            txMeta.txParams.gas = estimatedGas;
+          },
+        );
+      }
+    }
+
+    log('Updated simulation data', transactionId, finalTransactionMeta);
   }
 
   #onGasFeePollerTransactionUpdate({

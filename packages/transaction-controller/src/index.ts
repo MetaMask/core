@@ -33,6 +33,7 @@ export type {
   Authorization,
   AuthorizationList,
   BatchTransactionParams,
+  BeforeSignHook,
   DappSuggestedGasFees,
   DefaultGasEstimates,
   FeeMarketEIP1559Values,
