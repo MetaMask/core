@@ -78,4 +78,8 @@ export { calcLatestSrcBalance } from './utils/balance';
 
 export { fetchBridgeTokens } from './utils/fetch';
 
-export * from './utils/caip-formatters';
+export {
+  formatChainIdToCaip,
+  formatChainIdToHex,
+  formatAddressToCaipReference,
+} from './utils/caip-formatters';

@@ -5,7 +5,7 @@ import {
   formatChainIdToCaip,
   formatChainIdToDec,
   formatChainIdToHex,
-  formatAddressToString,
+  formatAddressToCaipReference,
   formatChainIdToHexOrCaip,
 } from './caip-formatters';
 import { ChainId } from '../types';
@@ -72,31 +72,35 @@ describe('CAIP Formatters', () => {
     });
   });
 
-  describe('formatAddressToString', () => {
+  describe('formatAddressToCaipReference', () => {
     it('should checksum hex addresses', () => {
       expect(
-        formatAddressToString('0x1234567890123456789012345678901234567890'),
+        formatAddressToCaipReference(
+          '0x1234567890123456789012345678901234567890',
+        ),
       ).toBe('0x1234567890123456789012345678901234567890');
     });
 
     it('should return zero address for native token addresses', () => {
-      expect(formatAddressToString(AddressZero)).toStrictEqual(AddressZero);
-      expect(formatAddressToString('')).toStrictEqual(AddressZero);
+      expect(formatAddressToCaipReference(AddressZero)).toStrictEqual(
+        AddressZero,
+      );
+      expect(formatAddressToCaipReference('')).toStrictEqual(AddressZero);
       expect(
-        formatAddressToString(`${SolScope.Mainnet}/slip44:501`),
+        formatAddressToCaipReference(`${SolScope.Mainnet}/slip44:501`),
       ).toStrictEqual(AddressZero);
     });
 
     it('should extract address from CAIP format', () => {
       expect(
-        formatAddressToString(
+        formatAddressToCaipReference(
           'eip155:1:0x1234567890123456789012345678901234567890',
         ),
       ).toBe('0x1234567890123456789012345678901234567890');
     });
 
     it('should throw error for invalid address', () => {
-      expect(() => formatAddressToString('test:')).toThrow('Invalid address');
+      expect(() => formatAddressToCaipReference('test:')).toThrow('Invalid address');
     });
   });
 

@@ -94,7 +94,7 @@ export const formatChainIdToHex = (
  * @param address - The address to convert
  * @returns The converted address
  */
-export const formatAddressToString = (address: string) => {
+export const formatAddressToCaipReference = (address: string) => {
   if (isStrictHexString(address)) {
     return getAddress(address);
   }

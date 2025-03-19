@@ -2,7 +2,7 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
 
 import {
-  formatAddressToString,
+  formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToDec,
 } from './caip-formatters';
@@ -136,12 +136,12 @@ export async function fetchBridgeQuotes(
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
   // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
-    walletAddress: formatAddressToString(request.walletAddress),
-    destWalletAddress: formatAddressToString(destWalletAddress),
+    walletAddress: formatAddressToCaipReference(request.walletAddress),
+    destWalletAddress: formatAddressToCaipReference(destWalletAddress),
     srcChainId: formatChainIdToDec(request.srcChainId),
     destChainId: formatChainIdToDec(request.destChainId),
-    srcTokenAddress: formatAddressToString(request.srcTokenAddress),
-    destTokenAddress: formatAddressToString(request.destTokenAddress),
+    srcTokenAddress: formatAddressToCaipReference(request.srcTokenAddress),
+    destTokenAddress: formatAddressToCaipReference(request.destTokenAddress),
     srcTokenAmount: request.srcTokenAmount,
     insufficientBal: Boolean(request.insufficientBal),
     resetApproval: Boolean(request.resetApproval),

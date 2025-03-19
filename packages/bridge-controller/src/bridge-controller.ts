@@ -39,7 +39,7 @@ import {
   sumHexes,
 } from './utils/bridge';
 import {
-  formatAddressToString,
+  formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
@@ -235,20 +235,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const walletAddress = this.#getMultichainSelectedAccount()?.address;
     const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
     const provider = this.#getSelectedNetworkClient()?.provider;
-    const srcTokenAddressWithoutPrefix = formatAddressToString(
+    const normalizedSrcTokenAddress = formatAddressToCaipReference(
       quoteRequest.srcTokenAddress,
     );
 
     return (
       provider &&
       walletAddress &&
-      srcTokenAddressWithoutPrefix &&
+      normalizedSrcTokenAddress &&
       quoteRequest.srcTokenAmount &&
       srcChainIdInHex &&
       (await hasSufficientBalance(
         provider,
         walletAddress,
-        srcTokenAddressWithoutPrefix,
+        normalizedSrcTokenAddress,
         quoteRequest.srcTokenAmount,
         srcChainIdInHex,
       ))
