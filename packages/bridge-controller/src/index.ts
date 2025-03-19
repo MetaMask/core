@@ -77,6 +77,7 @@ export {
   isNativeAddress,
   isSolanaChainId,
   getNativeAssetForChainId,
+  getDefaultBridgeControllerState,
 } from './utils/bridge';
 
 export { isValidQuoteRequest } from './utils/quote';
