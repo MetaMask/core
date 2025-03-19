@@ -4,6 +4,7 @@ import {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/controllers';
 
 // Unique name for the controller
 const controllerName = 'AppMetadataController';
@@ -107,7 +108,7 @@ const controllerMetadata = {
     persist: true,
     anonymous: true,
   },
-};
+} satisfies StateMetadata<AppMetadataControllerState>;
 
 /**
  * The AppMetadata controller stores metadata about the current extension instance,
