@@ -13,6 +13,8 @@ import {
   ChainId,
   NetworksTicker,
   NetworkNickname,
+  BUILT_IN_CUSTOM_NETWORKS_RPC,
+  BUILT_IN_NETWORKS,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
@@ -628,7 +630,8 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  return Object.values(InfuraNetworkType).reduce<
+  // First add the Infura networks
+  const networkConfigs = Object.values(InfuraNetworkType).reduce<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
     const chainId = ChainId[infuraNetworkType];
@@ -655,6 +658,33 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
 
     return { ...obj, [chainId]: networkConfiguration };
   }, {});
+
+  // Then add MegaETH-testnet as a built-in custom network
+  const megaEthNetworkType = 'megaeth-testnet';
+  const megaEthChainId = ChainId[megaEthNetworkType];
+  const megaEthClientId = `custom-${uuidV4()}`;
+  const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[megaEthNetworkType];
+
+  const megaEthNetworkConfiguration: NetworkConfiguration = {
+    blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+    chainId: megaEthChainId,
+    defaultRpcEndpointIndex: 0,
+    defaultBlockExplorerUrlIndex: 0,
+    name: NetworkNickname[megaEthNetworkType],
+    nativeCurrency: ticker,
+    rpcEndpoints: [
+      {
+        failoverUrls: [],
+        networkClientId: megaEthClientId,
+        type: RpcEndpointType.Custom,
+        url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
+      },
+    ],
+  };
+
+  networkConfigs[megaEthChainId] = megaEthNetworkConfiguration;
+
+  return networkConfigs;
 }
 
 /**
