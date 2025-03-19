@@ -1,5 +1,6 @@
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
+import { isValidSignature } from './signature';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
@@ -8,11 +9,20 @@ export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
 export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_EIP_7702]: {
     /**
-     * All contract addresses that support EIP-7702 batch transactions.
+     * All contracts that support EIP-7702 batch transactions.
      * Keyed by chain ID.
-     * First address in each array is the contract that standard EOAs will be upgraded to.
+     * First entry in each array is the contract that standard EOAs will be upgraded to.
      */
-    contractAddresses: Record<Hex, Hex[]>;
+    contracts: Record<
+      Hex,
+      {
+        /** Address of the smart contract. */
+        address: Hex;
+
+        /** Signature to verify the contract is authentic. */
+        signature: Hex;
+      }[]
+    >;
 
     /** Chains enabled for EIP-7702 batch transactions. */
     supportedChains: Hex[];
@@ -39,19 +49,30 @@ export function getEIP7702SupportedChains(
  *
  * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
+ * @param publicKey - The public key used to validate the contract authenticity.
  * @returns The supported contract addresses.
  */
 export function getEIP7702ContractAddresses(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
+  publicKey: Hex,
 ): Hex[] {
   const featureFlags = getFeatureFlags(messenger);
 
-  return (
-    featureFlags?.[FEATURE_FLAG_EIP_7702]?.contractAddresses?.[
+  const contracts =
+    featureFlags?.[FEATURE_FLAG_EIP_7702]?.contracts?.[
       chainId.toLowerCase() as Hex
-    ] ?? []
-  );
+    ] ?? [];
+
+  return contracts
+    .filter((contract) =>
+      isValidSignature(
+        [contract.address, chainId],
+        contract.signature,
+        publicKey,
+      ),
+    )
+    .map((contract) => contract.address);
 }
 
 /**
@@ -59,13 +80,15 @@ export function getEIP7702ContractAddresses(
  *
  * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
+ * @param publicKey - The public key used to validate the contract authenticity.
  * @returns The upgrade contract address.
  */
 export function getEIP7702UpgradeContractAddress(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
+  publicKey: Hex,
 ): Hex | undefined {
-  return getEIP7702ContractAddresses(chainId, messenger)?.[0];
+  return getEIP7702ContractAddresses(chainId, messenger, publicKey)?.[0];
 }
 
 /**
