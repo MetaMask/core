@@ -1486,8 +1486,11 @@ export type TransactionBatchResult = {
   batchId: Hex;
 };
 
-export type BeforeSignHook = (request: {
+export type AfterSimulateHook = (request: {
   transactionMeta: TransactionMeta;
-}) => Promise<{
-  updateTransaction?: (transactionMeta: TransactionMeta) => void;
-}>;
+}) => Promise<
+  | {
+      updateTransaction?: (transactionMeta: TransactionMeta) => void;
+    }
+  | undefined
+>;

@@ -98,7 +98,7 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   BatchTransactionParams,
-  BeforeSignHook,
+  AfterSimulateHook,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -351,6 +351,8 @@ export type TransactionControllerOptions = {
       signedTx: TypedTransaction,
     ) => boolean;
 
+    afterSimulate?: AfterSimulateHook;
+
     /**
      * Additional logic to execute before checking pending transactions.
      * Return false to prevent the broadcast of the transaction.
@@ -364,8 +366,6 @@ export type TransactionControllerOptions = {
      * Return false to prevent the broadcast of the transaction.
      */
     beforePublish?: (transactionMeta: TransactionMeta) => boolean;
-
-    beforeSign?: BeforeSignHook;
 
     /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
@@ -709,7 +709,7 @@ export class TransactionController extends BaseController<
 
   private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
-  readonly #beforeSign: BeforeSignHook;
+  readonly #afterSimulate: AfterSimulateHook;
 
   private readonly publish: (
     transactionMeta: TransactionMeta,
@@ -855,12 +855,13 @@ export class TransactionController extends BaseController<
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.afterSign = hooks?.afterSign ?? (() => true);
+    this.#afterSimulate =
+      hooks?.afterSimulate ?? (() => Promise.resolve(undefined));
     this.beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
       (() => true);
     this.beforePublish = hooks?.beforePublish ?? (() => true);
-    this.#beforeSign = hooks?.beforeSign ?? (() => Promise.resolve({}));
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
     this.publish =
@@ -3897,14 +3898,14 @@ export class TransactionController extends BaseController<
       },
     );
 
-    log('Calling afterSimulate hook', finalTransactionMeta);
-
     if (ethQuery) {
-      const result = await this.#beforeSign({
+      log('Calling afterSimulate hook', finalTransactionMeta);
+
+      const result = await this.#afterSimulate({
         transactionMeta: finalTransactionMeta,
       });
 
-      if (result.updateTransaction) {
+      if (result?.updateTransaction) {
         log('Updating transaction with afterSimulate data');
 
         finalTransactionMeta = this.#updateTransactionInternal(
@@ -3916,6 +3917,8 @@ export class TransactionController extends BaseController<
           { ...finalTransactionMeta.txParams, gas: undefined },
           ethQuery,
         );
+
+        log('Updating gas following afterSimulate hook', estimatedGas);
 
         finalTransactionMeta = this.#updateTransactionInternal(
           { transactionId },

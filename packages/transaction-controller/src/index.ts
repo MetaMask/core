@@ -30,10 +30,10 @@ export {
   TransactionController,
 } from './TransactionController';
 export type {
+  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransactionParams,
-  BeforeSignHook,
   DappSuggestedGasFees,
   DefaultGasEstimates,
   FeeMarketEIP1559Values,
