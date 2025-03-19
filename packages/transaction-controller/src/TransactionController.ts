@@ -2086,6 +2086,8 @@ export class TransactionController extends BaseController<
    * Update a custodial transaction.
    *
    * @param request - The custodial transaction update request.
+   *
+   * @returns The updated transaction metadata.
    */
   updateCustodialTransaction(request: UpdateCustodialTransactionRequest) {
     const {
