@@ -20,14 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for automatic failover when Infura is unavailable ([#5630](https://github.com/MetaMask/core/pull/5630))
   - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverUrls`.
   - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
-- Add messenger action `NetworkController:rpcEndpointUnavailable` for responding to when a RPC endpoint becomes unavailable (see above) ([#5492](https://github.com/MetaMask/core/pull/5492)
+- Add messenger action `NetworkController:rpcEndpointUnavailable` for responding to when a RPC endpoint becomes unavailable (see above) ([#5492](https://github.com/MetaMask/core/pull/5492), [#5501](https://github.com/MetaMask/core/pull/5501))
   - Also add associated type `NetworkControllerRpcEndpointUnavailableEvent`.
-- Add messenger action `NetworkController:rpcEndpointDegraded` for responding to when a RPC endpoint becomes degraded ([#5492](https://github.com/MetaMask/core/pull/5492)
+- Add messenger action `NetworkController:rpcEndpointDegraded` for responding to when a RPC endpoint becomes degraded ([#5492](https://github.com/MetaMask/core/pull/5492))
   - Also add associated type `NetworkControllerRpcEndpointDegradedEvent`.
-- Add messenger action `NetworkController:rpcEndpointRequestRetried` for responding to when a RPC endpoint is retried following a retriable error ([#5492](https://github.com/MetaMask/core/pull/5492)
+- Add messenger action `NetworkController:rpcEndpointRequestRetried` for responding to when a RPC endpoint is retried following a retriable error ([#5492](https://github.com/MetaMask/core/pull/5492))
   - Also add associated type `NetworkControllerRpcEndpointRequestRetriedEvent`.
   - This is mainly useful for tests when mocking timers.
-- Export `RpcServiceRequestable` type, which was previously named `AbstractRpcService` [#5492](https://github.com/MetaMask/core/pull/5492)
+- Export `RpcServiceRequestable` type, which was previously named `AbstractRpcService` ([#5492](https://github.com/MetaMask/core/pull/5492))
+- Export `isConnectionError` utility function ([#5501](https://github.com/MetaMask/core/pull/5501))
 
 ### Changed
 
@@ -37,9 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - At minimum you will need to pass `fetch` and `btoa`.
   - The `NetworkControllerOptions` also reflects this change.
 - **BREAKING:** Add required property `failoverUrls` to `RpcEndpoint` ([#5630](https://github.com/MetaMask/core/pull/5630))
-  - The `NetworkControllerState` and the `state` option to `NetworkController` also reflects this change
+  - The `NetworkControllerState` and the `state` option to `NetworkController` also reflect this change
 - **BREAKING:** Add required property `failoverRpcUrls` to `NetworkClientConfiguration` ([#5630](https://github.com/MetaMask/core/pull/5630))
-  - The `configuration` property in the `AutoManagedNetworkClient` and `NetworkClient` types also reflects this change
+  - The `configuration` property in the `AutoManagedNetworkClient` and `NetworkClient` types also reflect this change
 - **BREAKING:** The `AbstractRpcService` type now has a non-optional `endpointUrl` property ([#5492](https://github.com/MetaMask/core/pull/5492))
   - The old version of `AbstractRpcService` is now called `RpcServiceRequestable`
 - Synchronize retry logic and error handling behavior between Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
