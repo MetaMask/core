@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2]
+
 ### Fixed
 
-- `@metamask/snaps-controllers` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464)))
+- Filters out non-mainnet Solana transactions from the transactions update events ([#5497](https://github.com/MetaMask/core/pull/5497))
+- `@metamask/snaps-controllers` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464))
 
 ## [0.7.1]
 
@@ -92,7 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.7.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.7.2...HEAD
+[0.7.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.7.1...@metamask/multichain-transactions-controller@0.7.2
 [0.7.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.7.0...@metamask/multichain-transactions-controller@0.7.1
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.6.0...@metamask/multichain-transactions-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.5.0...@metamask/multichain-transactions-controller@0.6.0
