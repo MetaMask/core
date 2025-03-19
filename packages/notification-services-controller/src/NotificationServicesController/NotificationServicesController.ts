@@ -189,19 +189,13 @@ export type NotificationServicesControllerDeleteNotificationsById = {
   handler: NotificationServicesController['deleteNotificationsById'];
 };
 
-export type NotificationServicesControllerGetNotificationAccounts = {
-  type: `${typeof controllerName}:getNotificationAccounts`;
-  handler: () => Promise<string[]>;
-};
-
 // Messenger Actions
 export type Actions =
   | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
   | NotificationServicesControllerGetNotificationsByType
-  | NotificationServicesControllerDeleteNotificationsById
-  | NotificationServicesControllerGetNotificationAccounts;
+  | NotificationServicesControllerDeleteNotificationsById;
 
 // Allowed Actions
 export type AllowedActions =
@@ -463,7 +457,7 @@ export default class NotificationServicesController extends BaseController<
 
       // Update accounts seen
       this.update((state) => {
-        state.subscriptionAccountsSeen = [...prevAccountsSet, ...accountsAdded];
+        state.subscriptionAccountsSeen = [...currentAccountsSet];
       });
 
       return {
@@ -583,11 +577,6 @@ export default class NotificationServicesController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:deleteNotificationsById`,
       this.deleteNotificationsById.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:getNotificationAccounts`,
-      () => this.#accounts.getNotificationAccounts(),
     );
   }
 

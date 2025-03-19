@@ -184,9 +184,9 @@ describe('metamask-notifications - constructor()', () => {
       expect(mockDelete).toHaveBeenCalled();
     });
 
-    // If the address is added back to the list, because it is seen we won't update
+    // If the address is added back to the list, we will perform an update
     await act([ADDRESS_1, ADDRESS_2], () => {
-      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
     });
   });
