@@ -64,6 +64,34 @@ describe('utils', () => {
         defaultBlockExplorerUrlIndex: 0,
       });
     });
+    it('updates the network configuration for a single non-EVM network with undefined name', () => {
+      const network: NetworkConfiguration = {
+        chainId: '0x1',
+        // @ts-expect-error - set as undefined for test case
+        name: undefined,
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+        rpcEndpoints: [
+          {
+            url: 'https://mainnet.infura.io/',
+            failoverUrls: [],
+            networkClientId: 'random-id',
+            // @ts-expect-error - network-controller does not export RpcEndpointType
+            type: 'custom',
+          },
+        ],
+        defaultRpcEndpointIndex: 0,
+      };
+      expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
+        chainId: 'eip155:1',
+        isEvm: true,
+        name: 'https://mainnet.infura.io/',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    });
   });
 
   describe('toMultichainNetworkConfigurationsByChainId', () => {
