@@ -56,8 +56,6 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
         );
         break;
       default:
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
         throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);
     }
 
