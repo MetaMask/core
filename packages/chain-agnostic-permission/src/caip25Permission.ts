@@ -174,15 +174,8 @@ export const caip25CaveatBuilder = ({
         !hasProperty(caveat.value, 'requiredScopes') ||
         !hasProperty(caveat.value, 'optionalScopes') ||
         !hasProperty(caveat.value, 'isMultichainOrigin') ||
-        typeof caveat.value.isMultichainOrigin !== 'boolean'
-      ) {
-        throw new Error(
-          `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
-        );
-      }
-
-      if (
         !hasProperty(caveat.value, 'sessionProperties') ||
+        typeof caveat.value.isMultichainOrigin !== 'boolean' ||
         typeof caveat.value.sessionProperties !== 'object' ||
         caveat.value.sessionProperties === null
       ) {
