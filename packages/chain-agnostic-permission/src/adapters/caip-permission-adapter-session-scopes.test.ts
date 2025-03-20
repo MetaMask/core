@@ -221,6 +221,7 @@ describe('CAIP-25 session scopes adapters', () => {
 
       expect(result).toStrictEqual(['wallet:eip155:0xdeadbeef']);
     });
+
     it('returns an empty array if the scope does not exist', () => {
       const result = getPermittedAccountsForScopes(
         { requiredScopes: {}, optionalScopes: {} },
@@ -228,6 +229,7 @@ describe('CAIP-25 session scopes adapters', () => {
       );
       expect(result).toStrictEqual([]);
     });
+
     it('returns an empty array if the scope does not have any accounts', () => {
       const result = getPermittedAccountsForScopes(
         {

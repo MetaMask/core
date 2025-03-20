@@ -129,7 +129,7 @@ export const getSessionScopes = (
 };
 
 /**
- * Get the permitted accounts for a given scope.
+ * Get the permitted accounts for the given scopes.
  *
  * @param caip25CaveatValue - The CAIP-25 CaveatValue to get the permitted accounts for
  * @param scopes - The scopes to get the permitted accounts for

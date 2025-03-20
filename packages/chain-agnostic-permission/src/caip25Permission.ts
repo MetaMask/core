@@ -16,6 +16,7 @@ import {
   hasProperty,
   KnownCaipNamespace,
   parseCaipAccountId,
+  isObject,
   type Hex,
   type NonEmptyArray,
 } from '@metamask/utils';
@@ -176,8 +177,7 @@ export const caip25CaveatBuilder = ({
         !hasProperty(caveat.value, 'isMultichainOrigin') ||
         !hasProperty(caveat.value, 'sessionProperties') ||
         typeof caveat.value.isMultichainOrigin !== 'boolean' ||
-        typeof caveat.value.sessionProperties !== 'object' ||
-        caveat.value.sessionProperties === null
+        !isObject(caveat.value.sessionProperties)
       ) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
@@ -187,11 +187,11 @@ export const caip25CaveatBuilder = ({
       const { requiredScopes, optionalScopes, sessionProperties } =
         caveat.value;
 
-      const unknownSessionProperties = Object.keys(sessionProperties).filter(
-        (key) => !isSupportedSessionProperty(key),
-      );
+      const allSessionPropertiesSupported = Object.keys(
+        sessionProperties,
+      ).every((sessionProperty) => isSupportedSessionProperty(sessionProperty));
 
-      if (unknownSessionProperties.length > 0) {
+      if (!allSessionPropertiesSupported) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received unknown session property(s) for caveat of type "${Caip25CaveatType}".`,
         );
