@@ -85,7 +85,7 @@ export async function estimateGas({
   txParams: TransactionParams;
 }) {
   const request = { ...txParams };
-  const { data, value } = request;
+  const { authorizationList, data, from, value, to } = request;
 
   const { gasLimit: blockGasLimit, number: blockNumber } =
     await getLatestBlock(ethQuery);
@@ -99,6 +99,11 @@ export async function estimateGas({
   request.data = data ? add0x(data) : data;
   request.value = value || '0x0';
 
+  request.authorizationList = normalizeAuthorizationList(
+    request.authorizationList,
+    chainId,
+  );
+
   delete request.gasPrice;
   delete request.maxFeePerGas;
   delete request.maxPriorityFeePerGas;
@@ -106,12 +111,20 @@ export async function estimateGas({
   let estimatedGas = fallback;
   let simulationFails: TransactionMeta['simulationFails'];
 
+  const isUpgradeWithDataToSelf =
+    txParams.type === TransactionEnvelopeType.setCode &&
+    authorizationList?.length &&
+    data &&
+    data !== '0x' &&
+    from?.toLowerCase() === to?.toLowerCase();
+
   try {
-    if (
-      txParams.type === TransactionEnvelopeType.setCode &&
-      isSimulationEnabled
-    ) {
-      estimatedGas = await estimateGasType4(txParams, ethQuery, chainId);
+    if (isSimulationEnabled && isUpgradeWithDataToSelf) {
+      estimatedGas = await estimateGasUpgradeWithDataToSelf(
+        request,
+        ethQuery,
+        chainId,
+      );
     } else {
       estimatedGas = await query(ethQuery, 'estimateGas', [request]);
     }
@@ -289,33 +302,21 @@ async function getLatestBlock(
  * @param chainId - The chain ID of the transaction.
  * @returns The estimated gas.
  */
-async function estimateGasType4(
+async function estimateGasUpgradeWithDataToSelf(
   txParams: TransactionParams,
   ethQuery: EthQuery,
-  chainId?: Hex,
+  chainId: Hex,
 ) {
-  const delegationAddress = txParams.authorizationList?.[0].address as Hex;
-
-  const authorizationList = txParams.authorizationList?.map(
-    (authorization) => ({
-      ...authorization,
-      chainId,
-      nonce: '0x1' as const,
-      r: DUMMY_AUTHORIZATION_SIGNATURE,
-      s: DUMMY_AUTHORIZATION_SIGNATURE,
-      yParity: '0x1' as const,
-    }),
-  );
-
   const upgradeGas = await query(ethQuery, 'estimateGas', [
     {
       ...txParams,
-      authorizationList,
       data: '0x',
     },
   ]);
 
-  log('Upgrade gas', upgradeGas);
+  log('Upgrade only gas', upgradeGas);
+
+  const delegationAddress = txParams.authorizationList?.[0].address as Hex;
 
   const executeGas = await simulateGas({
     chainId: chainId as Hex,
@@ -377,4 +378,25 @@ async function simulateGas({
   }
 
   return gasUsed;
+}
+
+/**
+ * Populate the authorization list with dummy values.
+ *
+ * @param authorizationList - The authorization list to prepare.
+ * @param chainId - The chain ID to use.
+ * @returns The authorization list with dummy values.
+ */
+function normalizeAuthorizationList(
+  authorizationList: TransactionParams['authorizationList'],
+  chainId: Hex,
+) {
+  return authorizationList?.map((authorization) => ({
+    ...authorization,
+    chainId: authorization.chainId ?? chainId,
+    nonce: authorization.nonce ?? '0x1',
+    r: authorization.r ?? DUMMY_AUTHORIZATION_SIGNATURE,
+    s: authorization.s ?? DUMMY_AUTHORIZATION_SIGNATURE,
+    yParity: authorization.yParity ?? '0x1',
+  }));
 }
