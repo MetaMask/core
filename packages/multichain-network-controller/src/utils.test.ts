@@ -7,6 +7,7 @@ import {
 import { type NetworkConfiguration } from '@metamask/network-controller';
 
 import {
+  isEvmCaipChainId,
   toEvmCaipChainId,
   convertCaipToHexChainId,
   getChainIdForNonEvmAddress,
@@ -133,6 +134,14 @@ describe('utils', () => {
       expect(() => convertCaipToHexChainId(SolScope.Mainnet)).toThrow(
         'Unsupported CAIP chain ID namespace: solana. Only eip155 is supported.',
       );
+    });
+  });
+
+  describe('isEvmCaipChainId', () => {
+    it('returns true for EVM chain IDs', () => {
+      expect(isEvmCaipChainId(EthScope.Mainnet)).toBe(true);
+      expect(isEvmCaipChainId(SolScope.Mainnet)).toBe(false);
+      expect(isEvmCaipChainId(BtcScope.Mainnet)).toBe(false);
     });
   });
 });
