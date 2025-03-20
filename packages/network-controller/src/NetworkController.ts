@@ -263,7 +263,7 @@ export type NetworkControllerGetSelectedNetworkClientAction = {
 export type NetworkControllerGetSelectedChainIdAction = {
   type: 'NetworkController:getSelectedChainId';
   handler: NetworkController['getSelectedChainId'];
-}
+};
 
 export type NetworkControllerGetEIP1559CompatibilityAction = {
   type: `NetworkController:getEIP1559Compatibility`;

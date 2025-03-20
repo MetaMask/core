@@ -18,6 +18,17 @@ import type {
 } from './types';
 
 /**
+ * Checks if the chain ID is EVM.
+ *
+ * @param chainId - The account type to check.
+ * @returns Whether the network is EVM.
+ */
+export function isEvmCaipChainId(chainId: CaipChainId): boolean {
+  const { namespace } = parseCaipChainId(chainId);
+  return namespace === KnownCaipNamespace.Eip155;
+}
+
+/**
  * Returns the chain id of the non-EVM network based on the account address.
  *
  * @param address - The address to check.
@@ -85,7 +96,8 @@ export const toMultichainNetworkConfiguration = (
   return {
     chainId: toEvmCaipChainId(network.chainId),
     isEvm: true,
-    name: network.name,
+    name:
+      network.name || network.rpcEndpoints[network.defaultRpcEndpointIndex].url,
     nativeCurrency: network.nativeCurrency,
     blockExplorerUrls: network.blockExplorerUrls,
     defaultBlockExplorerUrlIndex: network.defaultBlockExplorerUrlIndex || 0,

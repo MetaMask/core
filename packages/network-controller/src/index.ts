@@ -19,6 +19,7 @@ export type {
   NetworkControllerGetSelectedNetworkClientAction,
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetSelectedChainIdAction,
   NetworkControllerSetProviderTypeAction,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerAddNetworkAction,

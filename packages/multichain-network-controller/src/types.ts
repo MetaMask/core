@@ -9,6 +9,9 @@ import type {
   NetworkStatus,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetStateAction,
+  NetworkControllerRemoveNetworkAction,
+  NetworkControllerGetSelectedChainIdAction,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
 import { type CaipAssetType } from '@metamask/utils';
@@ -151,7 +154,10 @@ export type MultichainNetworkControllerEvents =
  */
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction;
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerRemoveNetworkAction
+  | NetworkControllerGetSelectedChainIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 // Re-define event here to avoid circular dependency with AccountsController
 export type AccountsControllerSelectedAccountChangeEvent = {
