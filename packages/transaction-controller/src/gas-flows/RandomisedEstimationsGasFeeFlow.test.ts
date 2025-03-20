@@ -143,8 +143,6 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
     });
   });
 
-  // ... existing code ...
-
   describe('getGasFees', () => {
     it('randomises fee market estimates for chain IDs in the feature flag config', async () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
