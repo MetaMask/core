@@ -88,7 +88,7 @@ class MockedNetwork {
 
   #nockScope: nock.Scope;
 
-  #rpcUrl: string;
+  readonly #rpcUrl: string;
 
   /**
    * Makes a new MockedNetwork.
