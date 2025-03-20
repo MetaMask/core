@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [55.0.1]
 
-### Uncategorized
+### Added
 
-- fix: fix allNftsContract in state ([#5508](https://github.com/MetaMask/core/pull/5508))
+- Add an optional chainId argument to `addNftContract` function in NftController ([#5508](https://github.com/MetaMask/core/pull/5508))
 
 ## [55.0.0]
 
