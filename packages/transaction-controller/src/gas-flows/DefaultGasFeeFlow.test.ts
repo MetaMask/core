@@ -8,6 +8,7 @@ import type {
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+import type { TransactionControllerFeatureFlags } from '../utils/feature-flags';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
@@ -49,6 +50,8 @@ const LEGACY_ESTIMATES_MOCK: LegacyGasPriceEstimate = {
   medium: '3',
   high: '5',
 };
+
+const FEATURE_FLAGS_MOCK = {} as TransactionControllerFeatureFlags;
 
 const FEE_MARKET_RESPONSE_MOCK = {
   gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
@@ -112,6 +115,7 @@ describe('DefaultGasFeeFlow', () => {
 
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
+        featureFlags: FEATURE_FLAGS_MOCK,
         gasFeeControllerData: FEE_MARKET_RESPONSE_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
       });
@@ -126,6 +130,7 @@ describe('DefaultGasFeeFlow', () => {
 
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
+        featureFlags: FEATURE_FLAGS_MOCK,
         gasFeeControllerData: LEGACY_RESPONSE_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
       });
@@ -140,6 +145,7 @@ describe('DefaultGasFeeFlow', () => {
 
       const response = await defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
+        featureFlags: FEATURE_FLAGS_MOCK,
         gasFeeControllerData: GAS_PRICE_RESPONSE_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
       });
@@ -154,6 +160,7 @@ describe('DefaultGasFeeFlow', () => {
 
       const response = defaultGasFeeFlow.getGasFees({
         ethQuery: ETH_QUERY_MOCK,
+        featureFlags: FEATURE_FLAGS_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
         } as GasFeeState,

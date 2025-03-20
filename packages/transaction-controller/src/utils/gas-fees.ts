@@ -12,6 +12,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
+import type { TransactionControllerFeatureFlags } from './feature-flags';
 import { getGasFeeFlow } from './gas-flow';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 import { projectLogger } from '../logger';
@@ -27,6 +28,7 @@ import { GasFeeEstimateType, UserFeeLevel } from '../types';
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
+  featureFlags: TransactionControllerFeatureFlags;
   gasFeeFlows: GasFeeFlow[];
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
@@ -326,8 +328,14 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
 async function getSuggestedGasFees(
   request: UpdateGasFeesRequest,
 ): Promise<SuggestedGasFees> {
-  const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
-    request;
+  const {
+    eip1559,
+    ethQuery,
+    featureFlags,
+    gasFeeFlows,
+    getGasFeeEstimates,
+    txMeta,
+  } = request;
 
   const { networkClientId } = txMeta;
 
@@ -340,13 +348,18 @@ async function getSuggestedGasFees(
     return {};
   }
 
-  const gasFeeFlow = getGasFeeFlow(txMeta, gasFeeFlows) as GasFeeFlow;
+  const gasFeeFlow = getGasFeeFlow(
+    txMeta,
+    gasFeeFlows,
+    featureFlags,
+  ) as GasFeeFlow;
 
   try {
     const gasFeeControllerData = await getGasFeeEstimates({ networkClientId });
 
     const response = await gasFeeFlow.getGasFees({
       ethQuery,
+      featureFlags,
       gasFeeControllerData,
       transactionMeta: txMeta,
     });

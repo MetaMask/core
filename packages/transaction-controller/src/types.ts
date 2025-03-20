@@ -6,6 +6,8 @@ import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
+import type { TransactionControllerFeatureFlags } from './utils/feature-flags';
+
 /**
  * Given a record, ensures that each property matches the `Json` type.
  */
@@ -1189,6 +1191,9 @@ export type GasFeeFlowRequest = {
   /** An EthQuery instance to enable queries to the associated RPC provider. */
   ethQuery: EthQuery;
 
+  /** The feature flags for the transaction controller. */
+  featureFlags: TransactionControllerFeatureFlags;
+
   /** Gas fee controller data matching the chain ID of the transaction. */
   gasFeeControllerData: GasFeeState;
 
@@ -1210,7 +1215,10 @@ export type GasFeeFlow = {
    * @param transactionMeta - The transaction metadata.
    * @returns Whether the gas fee flow supports the transaction.
    */
-  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  matchesTransaction(
+    transactionMeta: TransactionMeta,
+    featureFlags: TransactionControllerFeatureFlags,
+  ): boolean;
 
   /**
    * Get gas fee estimates for a specific transaction.

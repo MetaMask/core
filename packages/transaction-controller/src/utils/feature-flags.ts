@@ -6,6 +6,8 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 
 export const FEATURE_FLAG_TRANSACTIONS = 'confirmations-transactions';
 export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
+export const FEATURE_FLAG_RANDOMISE_GAS_FEES =
+  'confirmations-randomise-gas-fees';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 
@@ -34,6 +36,15 @@ export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_TRANSACTIONS]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+  };
+
+  [FEATURE_FLAG_RANDOMISE_GAS_FEES]?: {
+    /**
+     * Config for randomizing gas fees.
+     * Keyed by chain ID.
+     * Value is the number of digits to randomise.
+     */
+    config?: Record<Hex, number>;
   };
 };
 
@@ -122,7 +133,7 @@ export function getBatchSizeLimit(
  * @param messenger - The messenger instance.
  * @returns The feature flags.
  */
-function getFeatureFlags(
+export function getFeatureFlags(
   messenger: TransactionControllerMessenger,
 ): TransactionControllerFeatureFlags {
   const featureFlags = messenger.call(
