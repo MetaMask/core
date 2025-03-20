@@ -22,14 +22,14 @@ import type {
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
 import type { TransactionControllerFeatureFlags } from '../utils/feature-flags';
 import { FEATURE_FLAG_RANDOMISE_GAS_FEES } from '../utils/feature-flags';
-import { gweiDecimalToWeiHex } from '../utils/gas-fees';
+import { gweiDecimalToWeiDecimal } from '../utils/gas-fees';
 
 const log = createModuleLogger(
   projectLogger,
   'randomised-estimation-gas-fee-flow',
 );
 
-const PRESERVE_NUMBER_OF_DIGITS = 1;
+const PRESERVE_NUMBER_OF_DIGITS = 2;
 const DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE = 4;
 
 /**
@@ -137,11 +137,11 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     lastNDigits: number,
   ): FeeMarketGasFeeEstimateForLevel {
     return {
-      maxFeePerGas: randomiseDecimalValueAndConvertToHex(
+      maxFeePerGas: randomiseDecimalGWEIAndConvertToHex(
         gasFeeEstimates[level].suggestedMaxFeePerGas,
         lastNDigits,
       ),
-      maxPriorityFeePerGas: randomiseDecimalValueAndConvertToHex(
+      maxPriorityFeePerGas: randomiseDecimalGWEIAndConvertToHex(
         gasFeeEstimates[level].suggestedMaxPriorityFeePerGas,
         lastNDigits,
       ),
@@ -175,7 +175,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     level: GasFeeEstimateLevel,
     lastNDigits: number,
   ): Hex {
-    return randomiseDecimalValueAndConvertToHex(
+    return randomiseDecimalGWEIAndConvertToHex(
       gasFeeEstimates[level],
       lastNDigits,
     );
@@ -187,7 +187,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
   ): GasPriceGasFeeEstimates {
     return {
       type: GasFeeEstimateType.GasPrice,
-      gasPrice: randomiseDecimalValueAndConvertToHex(
+      gasPrice: randomiseDecimalGWEIAndConvertToHex(
         gasFeeEstimates.gasPrice,
         lastNDigits,
       ),
@@ -214,42 +214,39 @@ function getRandomisedGasFeeConfig(
  * Randomises the least significant digits of a decimal gas fee value and converts it to a hexadecimal Wei value.
  *
  * This function preserves the more significant digits while randomizing only the least significant ones,
- * ensuring that fees remain close to the original estimation while providing fingerprinting protection.
+ * ensuring that fees remain close to the original estimation while providing randomisation.
+ * The randomisation is performed in Wei units for more precision.
  *
  * @param gweiDecimalValue - The original gas fee value in Gwei (decimal)
  * @param [lastNumberOfDigitsToRandomise] - The number of least significant digits to randomise
  * @returns The randomised value converted to Wei in hexadecimal format
  *
  * @example
- * // Randomise last 3 digits of "200000"
- * randomiseDecimalValueAndConvertToHex("200000", 3)
- * // Decimal output range: 200000 to 200999
+ * // Randomise last 3 digits of "5" Gwei (5000000000 Wei)
+ * randomiseDecimalGWEIAndConvertToHex("5", 3)
+ * // Decimal output range: 5000000000 to 5000000999 Wei
+ * // Hex output range: 0x12a05f200 to 0x12a05f3e7
  *
  * @example
- * // Randomise last 5 digits of "200000"
- * randomiseDecimalValueAndConvertToHex("200000", 5)
- * // Decimal output range: 200000 to 299999
+ * // Randomise last 6 digits of "10.5" Gwei (10500000000 Wei)
+ * randomiseDecimalGWEIAndConvertToHex("10.5", 6)
+ * // Decimal output range: 10500000000 to 10500999999 Wei
+ * // Hex output range: 0x27312d600 to 0x27313f9cf
  *
  * @example
- * // Randomise last 6 digits of "200000"
- * randomiseDecimalValueAndConvertToHex("200000", 6)
- * // Decimal output range: 200000 to 299999
- *
- * @example
- * // Randomise last 8 digits of "200000"
- * randomiseDecimalValueAndConvertToHex("200000", 8)
- * // Decimal output range: 200000 to 299999
+ * // Randomise last 9 digits of "42" Gwei (42000000000 Wei)
+ * randomiseDecimalGWEIAndConvertToHex("42", 9)
+ * // Decimal output range: 42000000000 to 42999999999 Wei
+ * // Hex output range: 0x9c7652400 to 0x9fffff9ff
  */
-function randomiseDecimalValueAndConvertToHex(
+function randomiseDecimalGWEIAndConvertToHex(
   gweiDecimalValue: string | number,
   lastNumberOfDigitsToRandomise = DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE,
 ): Hex {
-  const decimalValue =
-    typeof gweiDecimalValue === 'string'
-      ? gweiDecimalValue
-      : gweiDecimalValue.toString();
+  // First convert GWEI to WEI decimal
+  const weiDecimalValue = gweiDecimalToWeiDecimal(gweiDecimalValue);
 
-  const decimalLength = decimalValue.length;
+  const decimalLength = weiDecimalValue.length;
 
   // Determine how many digits to randomise while preserving the PRESERVE_NUMBER_OF_DIGITS
   const effectiveDigitsToRandomise = Math.min(
@@ -260,14 +257,15 @@ function randomiseDecimalValueAndConvertToHex(
   const multiplier = 10 ** effectiveDigitsToRandomise;
 
   // Remove last digits - this keeps the first (decimalLength - effectiveDigitsToRandomise) digits intact
-  const basePart = Math.floor(Number(decimalValue) / multiplier) * multiplier;
+  const basePart =
+    Math.floor(Number(weiDecimalValue) / multiplier) * multiplier;
 
   // Generate random digits
   const randomDigits = Math.floor(Math.random() * multiplier);
 
   // Combine base and random parts
-  const randomisedDecimal = basePart + randomDigits;
+  const randomisedWeiDecimal = basePart + randomDigits;
 
-  // Convert to gwei to hex
-  return gweiDecimalToWeiHex(randomisedDecimal.toString());
+  // Convert wei decimal to hex
+  return `0x${randomisedWeiDecimal.toString(16)}` as Hex;
 }

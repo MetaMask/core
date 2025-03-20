@@ -115,6 +115,27 @@ export function gweiDecimalToWeiHex(value: string) {
 }
 
 /**
+ * Converts a value from Gwei decimal representation to Wei decimal representation
+ *
+ * @param gweiDecimal - The value in Gwei as a string or number
+ * @returns The value in Wei as a string
+ *
+ * @example
+ * // Convert 1.5 Gwei to Wei
+ * gweiDecimalToWeiDecimal("1.5")
+ * // Returns "1500000000"
+ */
+export function gweiDecimalToWeiDecimal(gweiDecimal: string | number): string {
+  const gwei =
+    typeof gweiDecimal === 'string' ? gweiDecimal : gweiDecimal.toString();
+
+  // 1 Gwei = 10^9 Wei
+  const weiDecimal = Number(gwei) * 1_000_000_000;
+
+  return weiDecimal.toString();
+}
+
+/**
  * Determine the maxFeePerGas value for the transaction.
  *
  * @param request - The request object.
