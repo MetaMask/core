@@ -28,6 +28,14 @@ export const getDefaultBridgeControllerState = (): BridgeControllerState => {
   return DEFAULT_BRIDGE_CONTROLLER_STATE;
 };
 
+/**
+ * Returns the native assetType for a given chainId and native currency symbol
+ * Note that the return value is used as the assetId although it is a CaipAssetType
+ *
+ * @param chainId - The chainId to get the native assetType for
+ * @param nativeCurrencySymbol - The native currency symbol for the given chainId
+ * @returns The native assetType for the given chainId
+ */
 const getNativeAssetCaipAssetType = (
   chainId: CaipChainId,
   nativeCurrencySymbol: SupportedSwapsNativeCurrencySymbols,
