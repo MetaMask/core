@@ -2694,7 +2694,6 @@ __metadata:
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^51.0.0"
     "@metamask/utils": "npm:^11.2.0"
-    "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -2708,6 +2707,7 @@ __metadata:
   peerDependencies:
     "@metamask/accounts-controller": ^27.0.0
     "@metamask/network-controller": ^23.0.0
+    "@metamask/snaps-controllers": ^9.19.0
     "@metamask/transaction-controller": ^51.0.0
   languageName: unknown
   linkType: soft
