@@ -3,6 +3,7 @@
 
 import type { Messenger } from '@metamask/base-controller';
 import {
+  BUILT_IN_CUSTOM_NETWORKS_RPC,
   ChainId,
   InfuraNetworkType,
   isInfuraNetworkType,
@@ -423,7 +424,7 @@ describe('NetworkController', () => {
                 "rpcEndpoints": Array [
                   Object {
                     "failoverUrls": Array [],
-                    "networkClientId": "custom-UUID-16",
+                    "networkClientId": "megaeth-testnet",
                     "type": "custom",
                     "url": "https://carrot.megaeth.com/rpc",
                   },
@@ -1150,7 +1151,7 @@ describe('NetworkController', () => {
 
   describe('getNetworkClientRegistry', () => {
     describe('if no network configurations were specified at initialization', () => {
-      it('returns network clients for Infura RPC endpoints, keyed by network client ID', async () => {
+      it('returns network clients for default RPC endpoints, keyed by network client ID', async () => {
         const infuraProjectId = 'some-infura-project-id';
 
         await withController(
@@ -1235,6 +1236,18 @@ describe('NetworkController', () => {
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
                   network: InfuraNetworkType.sepolia,
+                },
+                provider: expect.anything(),
+                destroy: expect.any(Function),
+              },
+              'megaeth-testnet': {
+                blockTracker: expect.anything(),
+                configuration: {
+                  type: NetworkClientType.Custom,
+                  failoverRpcUrls: [],
+                  chainId: '0x18c6',
+                  ticker: 'MegaETH',
+                  rpcUrl: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
