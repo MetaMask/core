@@ -508,7 +508,42 @@ describe('gas', () => {
       ]);
     });
 
-    describe('with type 4 transaction', () => {
+    it('normalizes authorization list in estimate request', async () => {
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        txParams: {
+          ...TRANSACTION_META_MOCK.txParams,
+          authorizationList: AUTHORIZATION_LIST_MOCK,
+          value: undefined,
+        },
+      });
+
+      expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
+        {
+          ...TRANSACTION_META_MOCK.txParams,
+          authorizationList: [
+            {
+              ...AUTHORIZATION_LIST_MOCK[0],
+              chainId: CHAIN_ID_MOCK,
+              nonce: '0x1',
+              r: DUMMY_AUTHORIZATION_SIGNATURE,
+              s: DUMMY_AUTHORIZATION_SIGNATURE,
+              yParity: '0x1',
+            },
+          ],
+          value: '0x0',
+        },
+      ]);
+    });
+
+    describe('with type 4 transaction and data to self', () => {
       it('returns combination of provider estimate and simulation', async () => {
         mockQuery({
           getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
@@ -530,6 +565,7 @@ describe('gas', () => {
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
             type: TransactionEnvelopeType.setCode,
           },
         });
@@ -561,7 +597,17 @@ describe('gas', () => {
           isSimulationEnabled: true,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
-            authorizationList: AUTHORIZATION_LIST_MOCK,
+            authorizationList: [
+              {
+                ...AUTHORIZATION_LIST_MOCK[0],
+                chainId: CHAIN_ID_MOCK,
+                nonce: '0x1',
+                r: DUMMY_AUTHORIZATION_SIGNATURE,
+                s: DUMMY_AUTHORIZATION_SIGNATURE,
+                yParity: '0x1',
+              },
+            ],
+            to: TRANSACTION_META_MOCK.txParams.from,
             type: TransactionEnvelopeType.setCode,
           },
         });
@@ -580,6 +626,7 @@ describe('gas', () => {
               },
             ],
             data: '0x',
+            to: TRANSACTION_META_MOCK.txParams.from,
             type: TransactionEnvelopeType.setCode,
           },
         ]);
@@ -606,12 +653,18 @@ describe('gas', () => {
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
             type: TransactionEnvelopeType.setCode,
           },
         });
 
         expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
-          transactions: [TRANSACTION_META_MOCK.txParams],
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK.txParams,
+              to: TRANSACTION_META_MOCK.txParams.from,
+            },
+          ],
           overrides: {
             [TRANSACTION_META_MOCK.txParams.from]: {
               code:
@@ -635,6 +688,7 @@ describe('gas', () => {
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
             type: TransactionEnvelopeType.setCode,
           },
         });
@@ -667,6 +721,7 @@ describe('gas', () => {
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: AUTHORIZATION_LIST_MOCK,
+            to: TRANSACTION_META_MOCK.txParams.from,
             type: TransactionEnvelopeType.setCode,
           },
         });
