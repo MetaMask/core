@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: fix allNftsContract in state ([#5508](https://github.com/MetaMask/core/pull/5508))
+
 ## [55.0.0]
 
 ### Changed
