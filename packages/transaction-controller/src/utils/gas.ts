@@ -6,11 +6,17 @@ import {
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
-import { add0x, createModuleLogger } from '@metamask/utils';
+import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
 
+import { DELEGATION_PREFIX } from './eip7702';
+import { simulateTransactions } from './simulation-api';
 import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
-import type { TransactionMeta, TransactionParams } from '../types';
+import {
+  TransactionEnvelopeType,
+  type TransactionMeta,
+  type TransactionParams,
+} from '../types';
 
 export type UpdateGasRequest = {
   ethQuery: EthQuery;
@@ -25,6 +31,10 @@ export const FIXED_GAS = '0x5208';
 export const DEFAULT_GAS_MULTIPLIER = 1.5;
 export const GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 export const MAX_GAS_BLOCK_PERCENT = 90;
+export const INTRINSIC_GAS = 21000;
+
+export const DUMMY_AUTHORIZATION_SIGNATURE =
+  '0x1111111111111111111111111111111111111111111111111111111111111111';
 
 /**
  * Populate the gas properties of the provided transaction meta.
@@ -56,14 +66,24 @@ export async function updateGas(request: UpdateGasRequest) {
  * Estimate the gas for the provided transaction parameters.
  * If the gas estimate fails, the fallback value is returned.
  *
- * @param txParams - The transaction parameters.
- * @param ethQuery - The EthQuery instance to interact with the network.
+ * @param options - The options object.
+ * @param options.chainId - The chain ID of the transaction.
+ * @param options.ethQuery - The EthQuery instance to interact with the network.
+ * @param options.isSimulationEnabled - Whether the simulation is enabled.
+ * @param options.txParams - The transaction parameters.
  * @returns The estimated gas and related info.
  */
-export async function estimateGas(
-  txParams: TransactionParams,
-  ethQuery: EthQuery,
-) {
+export async function estimateGas({
+  chainId,
+  ethQuery,
+  isSimulationEnabled,
+  txParams,
+}: {
+  chainId: Hex;
+  ethQuery: EthQuery;
+  isSimulationEnabled: boolean;
+  txParams: TransactionParams;
+}) {
   const request = { ...txParams };
   const { data, value } = request;
 
@@ -87,7 +107,14 @@ export async function estimateGas(
   let simulationFails: TransactionMeta['simulationFails'];
 
   try {
-    estimatedGas = await query(ethQuery, 'estimateGas', [request]);
+    if (
+      txParams.type === TransactionEnvelopeType.setCode &&
+      isSimulationEnabled
+    ) {
+      estimatedGas = await estimateGasType4(txParams, ethQuery, chainId);
+    } else {
+      estimatedGas = await query(ethQuery, 'estimateGas', [request]);
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     simulationFails = {
@@ -171,10 +198,12 @@ async function getGas(
     return [FIXED_GAS, undefined, FIXED_GAS];
   }
 
-  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
-    txMeta.txParams,
-    request.ethQuery,
-  );
+  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
+    chainId: request.chainId,
+    ethQuery: request.ethQuery,
+    isSimulationEnabled: false,
+    txParams: txMeta.txParams,
+  });
 
   if (isCustomNetwork || simulationFails) {
     log(
@@ -250,4 +279,102 @@ async function getLatestBlock(
   ethQuery: EthQuery,
 ): Promise<{ gasLimit: string; number: string }> {
   return await query(ethQuery, 'getBlockByNumber', ['latest', false]);
+}
+
+/**
+ * Estimate the gas for a type 4 transaction.
+ *
+ * @param txParams - The transaction parameters.
+ * @param ethQuery - The EthQuery instance to interact with the network.
+ * @param chainId - The chain ID of the transaction.
+ * @returns The estimated gas.
+ */
+async function estimateGasType4(
+  txParams: TransactionParams,
+  ethQuery: EthQuery,
+  chainId?: Hex,
+) {
+  const delegationAddress = txParams.authorizationList?.[0].address as Hex;
+
+  const authorizationList = txParams.authorizationList?.map(
+    (authorization) => ({
+      ...authorization,
+      chainId,
+      nonce: '0x1' as const,
+      r: DUMMY_AUTHORIZATION_SIGNATURE,
+      s: DUMMY_AUTHORIZATION_SIGNATURE,
+      yParity: '0x1' as const,
+    }),
+  );
+
+  const upgradeGas = await query(ethQuery, 'estimateGas', [
+    {
+      ...txParams,
+      authorizationList,
+      data: '0x',
+    },
+  ]);
+
+  log('Upgrade gas', upgradeGas);
+
+  const executeGas = await simulateGas({
+    chainId: chainId as Hex,
+    delegationAddress,
+    transaction: txParams,
+  });
+
+  log('Execute gas', executeGas);
+
+  const total = BNToHex(
+    hexToBN(upgradeGas).add(hexToBN(executeGas)).subn(INTRINSIC_GAS),
+  );
+
+  log('Total type 4 gas', total);
+
+  return total;
+}
+
+/**
+ * Simulate the required gas using the simulation API.
+ *
+ * @param options - The options object.
+ * @param options.chainId - The chain ID of the transaction.
+ * @param options.delegationAddress - The delegation address of the sender to mock.
+ * @param options.transaction - The transaction parameters.
+ * @returns The simulated gas.
+ */
+async function simulateGas({
+  chainId,
+  delegationAddress,
+  transaction,
+}: {
+  chainId: Hex;
+  delegationAddress?: Hex;
+  transaction: TransactionParams;
+}): Promise<Hex> {
+  const response = await simulateTransactions(chainId, {
+    transactions: [
+      {
+        to: transaction.to as Hex,
+        from: transaction.from as Hex,
+        data: transaction.data as Hex,
+        value: transaction.value as Hex,
+      },
+    ],
+    overrides: {
+      [transaction.from as string]: {
+        code:
+          delegationAddress &&
+          ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
+      },
+    },
+  });
+
+  const gasUsed = response?.transactions?.[0].gasUsed;
+
+  if (!gasUsed) {
+    throw new Error('No simulated gas returned');
+  }
+
+  return gasUsed;
 }
