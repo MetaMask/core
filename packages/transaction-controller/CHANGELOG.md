@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Remove chainIds argument from startIncomingTransactionPolling, stopIncomingTransactionPolling, updateIncomingTransactions functions. ([#4358](https://github.com/MetaMask/MetaMask-planning/issues/4358))
+- **BREAKING:** Remove `chainIds` argument from incoming transaction methods ([#4358](https://github.com/MetaMask/MetaMask-planning/issues/4358))
+  - `startIncomingTransactionPolling`
+  - `stopIncomingTransactionPolling`
+  - `updateIncomingTransactions` 
 
 ## [51.0.0]
 
