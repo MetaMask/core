@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The `NetworkController:rpcEndpointDegraded` messenger event now has a new `chainId` property in its data, which is the ID of the chain that the endpoint represents
+
 ## [23.0.0]
 
 ### Added

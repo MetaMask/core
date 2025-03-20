@@ -457,6 +457,7 @@ export type NetworkControllerRpcEndpointDegradedEvent = {
   type: 'NetworkController:rpcEndpointDegraded';
   payload: [
     {
+      chainId: Hex;
       endpointUrl: string;
     },
   ];
