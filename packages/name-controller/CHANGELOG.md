@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 319.0.0 ([#5439](https://github.com/MetaMask/core/pull/5439))
-- Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/core/pull/5437))
-- Release 319.0.0 ([#5437](https://github.com/MetaMask/core/pull/5437))
-- fix: typos in documentation files ([#5114](https://github.com/MetaMask/core/pull/5114))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-
 ## [8.0.3]
 
 ### Changed
