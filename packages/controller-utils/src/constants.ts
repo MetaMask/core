@@ -43,7 +43,7 @@ export const ASSET_TYPES = {
   UNKNOWN: 'UNKNOWN',
 };
 
-// TICKER SYMBOLS
+// TICKER SYMBOLS 
 export const TESTNET_TICKER_SYMBOLS = {
   GOERLI: 'GoerliETH',
   SEPOLIA: 'SepoliaETH',
