@@ -29,6 +29,9 @@ const log = createModuleLogger(
   'randomised-estimation-gas-fee-flow',
 );
 
+const PRESERVE_NUMBER_OF_DIGITS = 1;
+const DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE = 4;
+
 /**
  * Implementation of a gas fee flow that randomises the last digits of gas fee estimations
  */
@@ -239,7 +242,7 @@ function getRandomisedGasFeeConfig(
  */
 function randomiseDecimalValueAndConvertToHex(
   gweiDecimalValue: string | number,
-  lastNumberOfDigitsToRandomise = 6,
+  lastNumberOfDigitsToRandomise = DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE,
 ): Hex {
   const decimalValue =
     typeof gweiDecimalValue === 'string'
@@ -248,10 +251,10 @@ function randomiseDecimalValueAndConvertToHex(
 
   const decimalLength = decimalValue.length;
 
-  // Determine how many digits to randomise while preserving the first digit
+  // Determine how many digits to randomise while preserving the PRESERVE_NUMBER_OF_DIGITS
   const effectiveDigitsToRandomise = Math.min(
     lastNumberOfDigitsToRandomise,
-    decimalLength - 1,
+    decimalLength - PRESERVE_NUMBER_OF_DIGITS,
   );
 
   const multiplier = 10 ** effectiveDigitsToRandomise;
