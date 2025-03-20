@@ -88,6 +88,7 @@ class MockedNetwork {
 
   #nockScope: nock.Scope;
 
+  #rpcUrl: string;
   /**
    * Makes a new MockedNetwork.
    *
@@ -113,6 +114,7 @@ class MockedNetwork {
           `https://${networkClientConfiguration.network}.infura.io`
         : networkClientConfiguration.rpcUrl;
     this.#nockScope = nock(rpcUrl);
+    this.#rpcUrl = rpcUrl;
   }
 
   /**
@@ -136,10 +138,14 @@ class MockedNetwork {
     // property, assume that the `body` contains it
     const { method, params = [], ...rest } = requestMock.request;
 
+    // RPC endpoints may end with a non-empty path segment, such as '/path'.
+    // Therefore, we handle Infura and custom RPCs differently:
+    // - For Infura, we expect the request path pattern to be '/v3/:projectId'.
+    // - For custom RPCs, we expect the request path pattern to match the exact path of the RPC URL.
     const url =
       this.#networkClientConfiguration.type === NetworkClientType.Infura
         ? `/v3/${this.#networkClientConfiguration.infuraProjectId}`
-        : '/';
+        : new RegExp(`^${new URL(this.#rpcUrl).pathname}$`);
 
     let nockInterceptor = this.#nockScope.post(url, {
       id: /\d*/u,
