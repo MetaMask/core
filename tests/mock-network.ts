@@ -89,6 +89,7 @@ class MockedNetwork {
   #nockScope: nock.Scope;
 
   #rpcUrl: string;
+
   /**
    * Makes a new MockedNetwork.
    *
@@ -145,7 +146,7 @@ class MockedNetwork {
     const url =
       this.#networkClientConfiguration.type === NetworkClientType.Infura
         ? `/v3/${this.#networkClientConfiguration.infuraProjectId}`
-        : new RegExp(`^${new URL(this.#rpcUrl).pathname}$`);
+        : new RegExp(`^${new URL(this.#rpcUrl).pathname}$`, 'u');
 
     let nockInterceptor = this.#nockScope.post(url, {
       id: /\d*/u,
