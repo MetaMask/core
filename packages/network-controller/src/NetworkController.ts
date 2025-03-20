@@ -15,6 +15,7 @@ import {
   NetworkNickname,
   BUILT_IN_CUSTOM_NETWORKS_RPC,
   BUILT_IN_NETWORKS,
+  BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
@@ -630,8 +631,22 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  // First add the Infura networks
-  const networkConfigs = Object.values(InfuraNetworkType).reduce<
+  return {
+    ...getDefaultInfuraNetworkConfigurationsByChainId(),
+    ...getDefaultCustomNetworkConfigurationsByChainId(),
+  };
+}
+
+/**
+ * Constructs a `networkConfigurationsByChainId` object for all default Infura networks.
+ *
+ * @returns The `networkConfigurationsByChainId` object of all Infura networks.
+ */
+function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
+  Hex,
+  NetworkConfiguration
+> {
+  return Object.values(InfuraNetworkType).reduce<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
     const chainId = ChainId[infuraNetworkType];
@@ -658,33 +673,37 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
 
     return { ...obj, [chainId]: networkConfiguration };
   }, {});
+}
 
-  // Then add MegaETH-testnet as a built-in custom network
-  const megaEthNetworkType = 'megaeth-testnet';
-  const megaEthChainId = ChainId[megaEthNetworkType];
-  const megaEthClientId = `custom-${uuidV4()}`;
-  const { ticker, rpcPrefs } = BUILT_IN_NETWORKS[megaEthNetworkType];
-
-  const megaEthNetworkConfiguration: NetworkConfiguration = {
-    blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
-    chainId: megaEthChainId,
-    defaultRpcEndpointIndex: 0,
-    defaultBlockExplorerUrlIndex: 0,
-    name: NetworkNickname[megaEthNetworkType],
-    nativeCurrency: ticker,
-    rpcEndpoints: [
-      {
-        failoverUrls: [],
-        networkClientId: megaEthClientId,
-        type: RpcEndpointType.Custom,
-        url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
-      },
-    ],
+/**
+ * Constructs a `networkConfigurationsByChainId` object for all default custom networks.
+ *
+ * @returns The `networkConfigurationsByChainId` object of all custom networks.
+ */
+function getDefaultCustomNetworkConfigurationsByChainId(): Record<
+  Hex,
+  NetworkConfiguration
+> {
+  const { ticker, rpcPrefs } =
+    BUILT_IN_NETWORKS[BuiltInNetworkName.MegaETHTestnet];
+  return {
+    [ChainId[BuiltInNetworkName.MegaETHTestnet]]: {
+      blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+      chainId: ChainId[BuiltInNetworkName.MegaETHTestnet],
+      defaultRpcEndpointIndex: 0,
+      defaultBlockExplorerUrlIndex: 0,
+      name: NetworkNickname[BuiltInNetworkName.MegaETHTestnet],
+      nativeCurrency: ticker,
+      rpcEndpoints: [
+        {
+          failoverUrls: [],
+          networkClientId: BuiltInNetworkName.MegaETHTestnet,
+          type: RpcEndpointType.Custom,
+          url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
+        },
+      ],
+    },
   };
-
-  networkConfigs[megaEthChainId] = megaEthNetworkConfiguration;
-
-  return networkConfigs;
 }
 
 /**
