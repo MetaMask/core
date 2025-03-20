@@ -106,7 +106,7 @@ describe('util', () => {
   });
 
   describe('gweiDecToWEIBN', () => {
-    it('should convert a whole number to WEI', () => {
+    it('should converts a whole number to WEI', () => {
       expect(util.gweiDecToWEIBN(1).toNumber()).toBe(1000000000);
       expect(util.gweiDecToWEIBN(123).toNumber()).toBe(123000000000);
       expect(util.gweiDecToWEIBN(101).toNumber()).toBe(101000000000);
