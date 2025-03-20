@@ -139,6 +139,13 @@ export class MultichainNetworkController extends BaseController<
     return await this.#setActiveEvmNetwork(id);
   }
 
+  /**
+   * Removes an EVM network from the list of networks.
+   * This method re-directs the request to the network-controller.
+   *
+   * @param chainId - The chain ID of the network to remove.
+   * @returns - A promise that resolves when the network is removed.
+   */
   async #removeEvmNetwork(chainId: CaipChainId): Promise<void> {
     const hexChainId = convertCaipToHexChainId(chainId);
     const selectedChainId = this.messagingSystem.call(
@@ -167,7 +174,6 @@ export class MultichainNetworkController extends BaseController<
 
   /**
    * Removes a network from the list of networks.
-   * This method re-directs the request to the network-controller.
    * It only supports EVM networks.
    *
    * @param chainId - The chain ID of the network to remove.
