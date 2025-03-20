@@ -243,9 +243,7 @@ function randomiseDecimalGWEIAndConvertToHex(
   gweiDecimalValue: string | number,
   lastNumberOfDigitsToRandomise = DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE,
 ): Hex {
-  // First convert GWEI to WEI decimal
   const weiDecimalValue = gweiDecimalToWeiDecimal(gweiDecimalValue);
-
   const decimalLength = weiDecimalValue.length;
 
   // Determine how many digits to randomise while preserving the PRESERVE_NUMBER_OF_DIGITS
