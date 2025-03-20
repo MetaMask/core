@@ -218,7 +218,7 @@ function getRandomisedGasFeeConfig(
  * The randomisation is performed in Wei units for more precision.
  *
  * @param gweiDecimalValue - The original gas fee value in Gwei (decimal)
- * @param [lastNumberOfDigitsToRandomise] - The number of least significant digits to randomise
+ * @param [numberOfDigitsToRandomizeAtTheEnd] - The number of least significant digits to randomise
  * @returns The randomised value converted to Wei in hexadecimal format
  *
  * @example
@@ -234,35 +234,50 @@ function getRandomisedGasFeeConfig(
  * // Hex output range: 0x27312d600 to 0x27313f9cf
  *
  * @example
+ * // Randomise last 3 digits of value with existing decimals (5000500123 Wei)
+ * randomiseDecimalGWEIAndConvertToHex("5.000500123", 3)
+ * // Base part: 5000500000 Wei
+ * // Original ending digits: 123
+ * // Random ending digits: 123-999
+ * // Decimal output range: 5000500123 to 5000500999 Wei
+ * // Hex output range: 0x12a05f247b to 0x12a05f3e7
+ *
+ * @example
  * // Randomise last 9 digits of "42" Gwei (42000000000 Wei)
  * randomiseDecimalGWEIAndConvertToHex("42", 9)
  * // Decimal output range: 42000000000 to 42999999999 Wei
  * // Hex output range: 0x9c7652400 to 0x9fffff9ff
  */
-function randomiseDecimalGWEIAndConvertToHex(
+export function randomiseDecimalGWEIAndConvertToHex(
   gweiDecimalValue: string | number,
-  lastNumberOfDigitsToRandomise = DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE,
+  numberOfDigitsToRandomizeAtTheEnd = DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE,
 ): Hex {
   const weiDecimalValue = gweiDecimalToWeiDecimal(gweiDecimalValue);
   const decimalLength = weiDecimalValue.length;
 
   // Determine how many digits to randomise while preserving the PRESERVE_NUMBER_OF_DIGITS
   const effectiveDigitsToRandomise = Math.min(
-    lastNumberOfDigitsToRandomise,
+    numberOfDigitsToRandomizeAtTheEnd,
     decimalLength - PRESERVE_NUMBER_OF_DIGITS,
   );
 
   const multiplier = 10 ** effectiveDigitsToRandomise;
 
-  // Remove last digits - this keeps the first (decimalLength - effectiveDigitsToRandomise) digits intact
+  // Keep the original value up to the digits we want to preserve
   const basePart =
     Math.floor(Number(weiDecimalValue) / multiplier) * multiplier;
 
-  // Generate random digits
-  const randomDigits = Math.floor(Math.random() * multiplier);
+  // Get the original ending digits
+  const originalEndingDigits = Number(weiDecimalValue) % multiplier;
+
+  // Generate random digits, but always greater than or equal to original ending digits
+  // This ensures we only randomize within the specified number of digits
+  const randomEndingDigits =
+    originalEndingDigits +
+    Math.floor(Math.random() * (multiplier - originalEndingDigits));
 
   // Combine base and random parts
-  const randomisedWeiDecimal = basePart + randomDigits;
+  const randomisedWeiDecimal = basePart + randomEndingDigits;
 
   // Convert wei decimal to hex
   return `0x${randomisedWeiDecimal.toString(16)}` as Hex;

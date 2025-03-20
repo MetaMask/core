@@ -4,7 +4,10 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import { RandomisedEstimationsGasFeeFlow } from './RandomisedEstimationsGasFeeFlow';
+import {
+  RandomisedEstimationsGasFeeFlow,
+  randomiseDecimalGWEIAndConvertToHex,
+} from './RandomisedEstimationsGasFeeFlow';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
@@ -360,5 +363,117 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       expect(result.estimates).toStrictEqual(DEFAULT_GAS_PRICE_RESPONSE);
       spy.mockRestore();
     });
+  });
+});
+
+describe('randomiseDecimalGWEIAndConvertToHex', () => {
+  beforeEach(() => {
+    jest.spyOn(global.Math, 'random').mockReturnValue(0.5);
+  });
+
+  afterEach(() => {
+    jest.spyOn(global.Math, 'random').mockRestore();
+  });
+
+  it('randomizes the last digits while preserving the significant digits', () => {
+    const result = randomiseDecimalGWEIAndConvertToHex('5', 3);
+
+    const resultWei = parseInt(result.slice(2), 16);
+    const resultGwei = resultWei / 1e9;
+
+    // With Math.random = 0.5, we expect the last 3 digits to be around 500
+    // The expected value should be 5.0000005 (not 5.0005)
+    expect(resultGwei).toBeCloseTo(5.0000005, 6);
+
+    // The base part should be exactly 5.000 Gwei
+    const basePart = (Math.floor(resultWei / 1000) * 1000) / 1e9;
+    expect(basePart).toEqual(5);
+  });
+
+  it('ensures randomized value is never below original value', () => {
+    // Test with Math.random = 0 (lowest possible random value)
+    jest.spyOn(global.Math, 'random').mockReturnValue(0);
+
+    // Test with a value that has non-zero ending digits
+    const result = randomiseDecimalGWEIAndConvertToHex('5.000500123', 3);
+    const resultWei = parseInt(result.slice(2), 16);
+
+    // Original value in Wei
+    const originalWei = 5000500123;
+
+    // With Math.random = 0, result should exactly equal original value
+    expect(resultWei).toBe(originalWei);
+  });
+
+  it('randomizes up to but not exceeding the specified number of digits', () => {
+    // Set Math.random to return almost 1
+    jest.spyOn(global.Math, 'random').mockReturnValue(0.999);
+
+    const result = randomiseDecimalGWEIAndConvertToHex('5', 3);
+    const resultWei = parseInt(result.slice(2), 16);
+
+    const baseWei = 5 * 1e9;
+
+    // With 3 digits and Math.random almost 1, we expect the last 3 digits to be close to 999
+    expect(resultWei).toBeGreaterThanOrEqual(baseWei);
+    expect(resultWei).toBeLessThanOrEqual(baseWei + 999);
+    expect(resultWei).toBeCloseTo(baseWei + 999, -1);
+  });
+
+  it('handles values with more digits than requested to randomize', () => {
+    const result = randomiseDecimalGWEIAndConvertToHex('1.23456789', 2);
+    const resultWei = parseInt(result.slice(2), 16);
+
+    // Base should be 1.234567 Gwei in Wei
+    const basePart = Math.floor(resultWei / 100) * 100;
+    expect(basePart).toBe(1234567800);
+
+    // Original ending digits: 89
+    const originalEndingDigits = 89;
+
+    // Randomized part should be in range [89-99]
+    const randomizedPart = resultWei - basePart;
+    expect(randomizedPart).toBeGreaterThanOrEqual(originalEndingDigits);
+    expect(randomizedPart).toBeLessThanOrEqual(99);
+  });
+
+  it('respects the PRESERVE_NUMBER_OF_DIGITS constant', () => {
+    const result = randomiseDecimalGWEIAndConvertToHex('0.00001', 4);
+    const resultWei = parseInt(result.slice(2), 16);
+
+    // Original value is 10000 Wei
+    // With PRESERVE_NUMBER_OF_DIGITS = 2, we can randomize at most 3 digits
+    // Base should be 10000 - (10000 % 1000) = 10000
+    const basePart = Math.floor(resultWei / 1000) * 1000;
+    expect(basePart).toBe(10000);
+
+    // Result should stay within allowed range
+    expect(resultWei).toBeGreaterThanOrEqual(10000);
+    expect(resultWei).toBeLessThanOrEqual(10999);
+  });
+
+  it('handles edge case with zero', () => {
+    // For "0" input, the result should still be 0
+    // This is because 0 has no "ending digits" to randomize
+    // The implementation will still start from 0 and only randomize upward
+
+    const result = randomiseDecimalGWEIAndConvertToHex('0', 3);
+    const resultWei = parseInt(result.slice(2), 16);
+
+    expect(resultWei).toBeGreaterThanOrEqual(0);
+
+    if (resultWei === 0) {
+      // If it returns 0, that's valid
+      expect(resultWei).toBe(0);
+    } else {
+      // If it returns a randomized value, it should be in the expected range
+      expect(resultWei).toBeLessThanOrEqual(999);
+    }
+  });
+
+  it('handles different number formats correctly', () => {
+    const resultFromNumber = randomiseDecimalGWEIAndConvertToHex(5, 3);
+    const resultFromString = randomiseDecimalGWEIAndConvertToHex('5', 3);
+    expect(resultFromNumber).toEqual(resultFromString);
   });
 });
