@@ -127,7 +127,7 @@ export function gweiDecimalToWeiHex(value: string) {
  */
 export function gweiDecimalToWeiDecimal(gweiDecimal: string | number): string {
   const gwei =
-    typeof gweiDecimal === 'string' ? gweiDecimal : gweiDecimal.toString();
+    typeof gweiDecimal === 'string' ? gweiDecimal : String(gweiDecimal);
 
   const weiDecimal = Number(gwei) * 1e9;
 
