@@ -74,7 +74,7 @@ export const toEvmCaipChainId = (chainId: Hex): CaipChainId =>
  */
 export function convertCaipToHexChainId(id: CaipChainId): Hex {
   const { namespace, reference } = parseCaipChainId(id);
-  if (namespace === KnownCaipNamespace.Eip155) {
+  if ((namespace as KnownCaipNamespace) === KnownCaipNamespace.Eip155) {
     return add0x(parseInt(reference, 10).toString(16));
   }
 
