@@ -1043,7 +1043,7 @@ export class NftController extends BaseController<
     try {
       const checksumHexAddress = toChecksumHexAddress(tokenAddress);
       const { allNftContracts } = this.state;
-      // TODO: revisit this with Solana support and instead of passing chainId, make sure chainId is is read from nftMetadata when nftMetadata is available
+      // TODO: revisit this with Solana support and instead of passing chainId, make sure chainId is read from nftMetadata when nftMetadata is available
       const chainId =
         chainIdHex || this.#getCorrectChainId({ networkClientId });
 
@@ -1526,7 +1526,7 @@ export class NftController extends BaseController<
 
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
-    // TODO: revisit this with Solana support and instead of passing chainId, make sure chainId is is read from nftMetadata
+    // TODO: revisit this with Solana support and instead of passing chainId, make sure chainId is read from nftMetadata
     const chainIdToAddTo =
       chainId || this.#getCorrectChainId({ networkClientId });
 
