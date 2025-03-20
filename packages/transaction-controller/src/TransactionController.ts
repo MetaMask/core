@@ -667,8 +667,6 @@ export class TransactionController extends BaseController<
     chainId?: string,
   ) => NonceTrackerTransaction[];
 
-  readonly #incomingTransactionChainIds: Set<Hex> = new Set();
-
   readonly #incomingTransactionHelper: IncomingTransactionHelper;
 
   private readonly layer1GasFeeFlows: Layer1GasFeeFlow[];
@@ -935,7 +933,6 @@ export class TransactionController extends BaseController<
 
     this.#incomingTransactionHelper = new IncomingTransactionHelper({
       getCache: () => this.state.lastFetchedBlockNumbers,
-      getChainIds: () => [...this.#incomingTransactionChainIds],
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
@@ -1261,33 +1258,15 @@ export class TransactionController extends BaseController<
     };
   }
 
-  startIncomingTransactionPolling(chainIds: Hex[]) {
-    chainIds.forEach((chainId) =>
-      this.#incomingTransactionChainIds.add(chainId),
-    );
-
+  startIncomingTransactionPolling() {
     this.#incomingTransactionHelper.start();
   }
 
-  stopIncomingTransactionPolling(chainIds?: Hex[]) {
-    chainIds?.forEach((chainId) =>
-      this.#incomingTransactionChainIds.delete(chainId),
-    );
-
-    if (!chainIds) {
-      this.#incomingTransactionChainIds.clear();
-    }
-
-    if (this.#incomingTransactionChainIds.size === 0) {
-      this.#incomingTransactionHelper.stop();
-    }
+  stopIncomingTransactionPolling() {
+    this.#incomingTransactionHelper.stop();
   }
 
-  async updateIncomingTransactions(chainIds: Hex[]) {
-    chainIds.forEach((chainId) =>
-      this.#incomingTransactionChainIds.add(chainId),
-    );
-
+  async updateIncomingTransactions() {
     await this.#incomingTransactionHelper.update();
   }
 
