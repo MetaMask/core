@@ -155,5 +155,5 @@ export const getPermittedAccountsForScopes = (
       scopeAccounts.push(...optionalScope.accounts);
     }
   });
-  return scopeAccounts;
+  return [...new Set(scopeAccounts)];
 };

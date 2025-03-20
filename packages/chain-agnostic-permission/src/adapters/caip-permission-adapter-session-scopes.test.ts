@@ -245,4 +245,18 @@ describe('CAIP-25 session scopes adapters', () => {
       expect(result).toStrictEqual([]);
     });
   });
+  it('returns an array of permitted accounts for multiple scopes and deduplicates accounts', () => {
+    const result = getPermittedAccountsForScopes(
+      {
+        requiredScopes: {
+          'wallet:eip155': { accounts: ['wallet:eip155:0xdeadbeef'] },
+        },
+        optionalScopes: {
+          'wallet:eip155': { accounts: ['wallet:eip155:0xdeadbeef'] },
+        },
+      },
+      ['wallet:eip155'],
+    );
+    expect(result).toStrictEqual(['wallet:eip155:0xdeadbeef']);
+  });
 });
