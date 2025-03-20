@@ -196,6 +196,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
  * Returns the randomised gas fee config from the feature flags
  *
  * @param featureFlags - All feature flags
+ * @returns The randomised gas fee config
  */
 function getRandomisedGasFeeConfig(
   featureFlags: TransactionControllerFeatureFlags,
