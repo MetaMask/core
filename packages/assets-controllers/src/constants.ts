@@ -3,3 +3,5 @@ export enum Source {
   Dapp = 'dapp',
   Detected = 'detected',
 }
+
+export const MAX_SYMBOL_LENGTH = 100;
