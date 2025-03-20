@@ -466,6 +466,6 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
   it('handles different number formats correctly', () => {
     const resultFromNumber = randomiseDecimalGWEIAndConvertToHex(5, 3);
     const resultFromString = randomiseDecimalGWEIAndConvertToHex('5', 3);
-    expect(resultFromNumber).toEqual(resultFromString);
+    expect(resultFromNumber).toStrictEqual(resultFromString);
   });
 });
