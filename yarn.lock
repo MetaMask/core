@@ -2686,7 +2686,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^4.1.8"
     "@metamask/keyring-api": "npm:^17.2.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/multichain-network-controller": "npm:^0.3.0"
+    "@metamask/multichain-network-controller": "npm:^0.2.0"
     "@metamask/network-controller": "npm:^23.0.0"
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/snaps-controllers": "npm:^9.19.0"
@@ -3653,7 +3653,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/multichain-network-controller@npm:^0.3.0, @metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
+"@metamask/multichain-network-controller@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/multichain-network-controller@npm:0.2.0"
+  dependencies:
+    "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/keyring-api": "npm:^17.2.0"
+    "@metamask/utils": "npm:^11.2.0"
+    "@solana/addresses": "npm:^2.0.0"
+  peerDependencies:
+    "@metamask/accounts-controller": ^26.0.0
+    "@metamask/network-controller": ^22.0.0
+  checksum: 10/ea393effef16371221dc3189438f1b16fe0d3185fb338472758586d87f01d6d79b9723de349afd2912f383a3f1cde3bb48282cdc340002f819673db7220d60eb
+  languageName: node
+  linkType: hard
+
+"@metamask/multichain-network-controller@workspace:packages/multichain-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/multichain-network-controller@workspace:packages/multichain-network-controller"
   dependencies:
