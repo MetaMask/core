@@ -3,6 +3,7 @@ import type { Hex } from '@metamask/utils';
 
 import { GasFeePoller, updateTransactionGasFees } from './GasFeePoller';
 import { flushPromises } from '../../../../tests/helpers';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GasFeeFlowResponse, Layer1GasFeeFlow } from '../types';
 import {
   GasFeeEstimateLevel,
@@ -14,8 +15,13 @@ import {
   type GasFeeEstimates,
   type TransactionMeta,
 } from '../types';
+import {
+  getFeatureFlags,
+  type TransactionControllerFeatureFlags,
+} from '../utils/feature-flags';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
+jest.mock('../utils/feature-flags');
 jest.mock('../utils/layer1-gas-fee-flow', () => ({
   getTransactionLayer1GasFee: jest.fn(),
 }));
@@ -77,10 +83,16 @@ describe('GasFeePoller', () => {
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
   const getGasFeeControllerEstimatesMock = jest.fn();
   const findNetworkClientIdByChainIdMock = jest.fn();
+  const messengerMock = jest.fn() as unknown as TransactionControllerMessenger;
+  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
 
   beforeEach(() => {
     jest.clearAllTimers();
     jest.clearAllMocks();
+
+    getFeatureFlagsMock.mockReturnValue(
+      {} as unknown as TransactionControllerFeatureFlags,
+    );
 
     gasFeeFlowMock = createGasFeeFlowMock();
     gasFeeFlowMock.matchesTransaction.mockReturnValue(true);
@@ -97,6 +109,7 @@ describe('GasFeePoller', () => {
       getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
       getTransactions: getTransactionsMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
+      messenger: messengerMock,
       onStateChange: (listener: () => void) => {
         triggerOnStateChange = listener;
       },
@@ -125,6 +138,13 @@ describe('GasFeePoller', () => {
       });
 
       it('calls gas fee flow', async () => {
+        const mockFeatureFlags = {
+          test: {
+            config: {},
+          },
+        } as unknown as TransactionControllerFeatureFlags;
+
+        getFeatureFlagsMock.mockReturnValue(mockFeatureFlags);
         getGasFeeControllerEstimatesMock.mockResolvedValue({});
 
         new GasFeePoller(constructorOptions);
@@ -135,6 +155,7 @@ describe('GasFeePoller', () => {
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           ethQuery: expect.any(Object),
+          featureFlags: mockFeatureFlags,
           gasFeeControllerData: {},
           transactionMeta: TRANSACTION_META_MOCK,
         });

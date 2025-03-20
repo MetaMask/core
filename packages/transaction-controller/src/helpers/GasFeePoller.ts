@@ -11,6 +11,7 @@ import { createModuleLogger } from '@metamask/utils';
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   GasFeeEstimates,
   GasFeeFlow,
@@ -27,6 +28,7 @@ import {
   TransactionStatus,
   TransactionEnvelopeType,
 } from '../types';
+import { getFeatureFlags } from '../utils/feature-flags';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
@@ -56,6 +58,8 @@ export class GasFeePoller {
 
   readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
+  readonly #messenger: TransactionControllerMessenger;
+
   #timeout: ReturnType<typeof setTimeout> | undefined;
 
   #running = false;
@@ -70,6 +74,7 @@ export class GasFeePoller {
    * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
+   * @param options.messenger - The TransactionControllerMessenger instance.
    * @param options.onStateChange - Callback to register a listener for controller state changes.
    */
   constructor({
@@ -79,6 +84,7 @@ export class GasFeePoller {
     getProvider,
     getTransactions,
     layer1GasFeeFlows,
+    messenger,
     onStateChange,
   }: {
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
@@ -89,6 +95,7 @@ export class GasFeePoller {
     getProvider: (networkClientId: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
+    messenger: TransactionControllerMessenger;
     onStateChange: (listener: () => void) => void;
   }) {
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
@@ -97,6 +104,7 @@ export class GasFeePoller {
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
     this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
+    this.#messenger = messenger;
 
     onStateChange(() => {
       const unapprovedTransactions = this.#getUnapprovedTransactions();
@@ -206,8 +214,13 @@ export class GasFeePoller {
   > {
     const { networkClientId } = transactionMeta;
 
+    const featureFlags = getFeatureFlags(this.#messenger);
     const ethQuery = new EthQuery(this.#getProvider(networkClientId));
-    const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
+    const gasFeeFlow = getGasFeeFlow(
+      transactionMeta,
+      this.#gasFeeFlows,
+      featureFlags,
+    );
 
     if (gasFeeFlow) {
       log(
@@ -219,6 +232,7 @@ export class GasFeePoller {
 
     const request: GasFeeFlowRequest = {
       ethQuery,
+      featureFlags,
       gasFeeControllerData,
       transactionMeta,
     };
