@@ -387,7 +387,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
 
     // The base part should be exactly 5.000 Gwei
     const basePart = (Math.floor(resultWei / 1000) * 1000) / 1e9;
-    expect(basePart).toEqual(5);
+    expect(basePart).toBe(5);
   });
 
   it('ensures randomized value is never below original value', () => {
@@ -456,19 +456,11 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
     // For "0" input, the result should still be 0
     // This is because 0 has no "ending digits" to randomize
     // The implementation will still start from 0 and only randomize upward
-
     const result = randomiseDecimalGWEIAndConvertToHex('0', 3);
     const resultWei = parseInt(result.slice(2), 16);
 
     expect(resultWei).toBeGreaterThanOrEqual(0);
-
-    if (resultWei === 0) {
-      // If it returns 0, that's valid
-      expect(resultWei).toBe(0);
-    } else {
-      // If it returns a randomized value, it should be in the expected range
-      expect(resultWei).toBeLessThanOrEqual(999);
-    }
+    expect(resultWei).toBeLessThanOrEqual(999);
   });
 
   it('handles different number formats correctly', () => {
