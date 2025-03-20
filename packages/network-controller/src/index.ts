@@ -1,13 +1,6 @@
 export type { AutoManagedNetworkClient } from './create-auto-managed-network-client';
 export type {
   Block,
-  NetworkMetadata,
-  NetworkConfiguration,
-  BuiltInNetworkClientId,
-  CustomNetworkClientId,
-  NetworkClientId,
-  NetworksMetadata,
-  NetworkState,
   BlockTrackerProxy,
   ProviderProxy,
   AddNetworkFields,
@@ -41,10 +34,20 @@ export {
   selectAvailableNetworkClientIds,
   knownKeysOf,
   NetworkController,
-  RpcEndpointType,
 } from './NetworkController';
 export * from './constants';
-export type { BlockTracker, Provider } from './types';
+export { RpcEndpointType } from './types';
+export type {
+  BlockTracker,
+  Provider,
+  NetworkMetadata,
+  NetworkConfiguration,
+  BuiltInNetworkClientId,
+  CustomNetworkClientId,
+  NetworkClientId,
+  NetworksMetadata,
+  NetworkState,
+} from './types';
 export type {
   NetworkClientConfiguration,
   InfuraNetworkClientConfiguration,

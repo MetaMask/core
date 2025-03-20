@@ -36,12 +36,21 @@ import type {
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
 import { NetworkClientType } from './types';
-import type {
-  BlockTracker,
-  Provider,
-  CustomNetworkClientConfiguration,
-  InfuraNetworkClientConfiguration,
-  NetworkClientConfiguration,
+import {
+  RpcEndpointType,
+  type BlockTracker,
+  type Provider,
+  type CustomNetworkClientConfiguration,
+  type InfuraNetworkClientConfiguration,
+  type NetworkClientConfiguration,
+  type CustomRpcEndpoint,
+  type InfuraRpcEndpoint,
+  type NetworkConfiguration,
+  type BuiltInNetworkClientId,
+  type CustomNetworkClientId,
+  type NetworkClientId,
+  type RpcEndpoint,
+  type NetworkState,
 } from './types';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
@@ -51,163 +60,6 @@ const INFURA_URL_REGEX =
 
 export type Block = {
   baseFeePerGas?: string;
-};
-
-/**
- * Information about a network not held by any other part of state.
- */
-export type NetworkMetadata = {
-  /**
-   * EIPs supported by the network.
-   */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  EIPS: {
-    [eipNumber: number]: boolean;
-  };
-  /**
-   * Indicates the availability of the network
-   */
-  status: NetworkStatus;
-};
-
-/**
- * The type of an RPC endpoint.
- *
- * @see {@link CustomRpcEndpoint}
- * @see {@link InfuraRpcEndpoint}
- */
-export enum RpcEndpointType {
-  Custom = 'custom',
-  Infura = 'infura',
-}
-
-/**
- * An Infura RPC endpoint is a reference to a specific network that Infura
- * supports as well as an Infura account we own that we allow users to make use
- * of for free. We need to disambiguate these endpoints from custom RPC
- * endpoints, because while the types for these kinds of object both have the
- * same interface, the URL for an Infura endpoint contains the Infura project
- * ID, and we don't want this to be present in state. We therefore hide it by
- * representing it in the URL as `{infuraProjectId}`, which we replace this when
- * create network clients. But we need to know somehow that we only need to do
- * this replacement for Infura endpoints and not custom endpoints — hence the
- * separate type.
- */
-export type InfuraRpcEndpoint = {
-  /**
-   * The optional user-facing nickname of the endpoint.
-   */
-  name?: string;
-  /**
-   * The identifier for the network client that has been created for this RPC
-   * endpoint. This is also used to uniquely identify the RPC endpoint in a
-   * set of RPC endpoints as well: once assigned, it is used to determine
-   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
-   */
-  networkClientId: BuiltInNetworkClientId;
-  /**
-   * The type of this endpoint, always "default".
-   */
-  type: RpcEndpointType.Infura;
-  /**
-   * The URL of the endpoint. Expected to be a template with the string
-   * `{infuraProjectId}`, which will get replaced with the Infura project ID
-   * when the network client is created.
-   */
-  url: `https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`;
-};
-
-/**
- * A custom RPC endpoint is a reference to a user-defined server which fronts an
- * EVM chain. It may refer to an Infura network, but only by coincidence.
- */
-export type CustomRpcEndpoint = {
-  /**
-   * The optional user-facing nickname of the endpoint.
-   */
-  name?: string;
-  /**
-   * The identifier for the network client that has been created for this RPC
-   * endpoint. This is also used to uniquely identify the RPC endpoint in a
-   * set of RPC endpoints as well: once assigned, it is used to determine
-   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
-   */
-  networkClientId: CustomNetworkClientId;
-  /**
-   * The type of this endpoint, always "custom".
-   */
-  type: RpcEndpointType.Custom;
-  /**
-   * The URL of the endpoint.
-   */
-  url: string;
-};
-
-/**
- * An RPC endpoint is a reference to a server which fronts an EVM chain. There
- * are two varieties of RPC endpoints: Infura and custom.
- *
- * @see {@link CustomRpcEndpoint}
- * @see {@link InfuraRpcEndpoint}
- */
-export type RpcEndpoint = InfuraRpcEndpoint | CustomRpcEndpoint;
-
-/**
- * From a user perspective, a network configuration holds information about a
- * network that a user can select through the client. A "network" in this sense
- * can explicitly refer to an EVM chain that the user explicitly adds or doesn't
- * need to add (because it comes shipped with the client). The properties here
- * therefore directly map to fields that a user sees and can edit for a network
- * within the client.
- *
- * Internally, a network configuration represents a single conceptual EVM chain,
- * which is represented tangibly via multiple RPC endpoints. A "network" is then
- * something for which a network client object is created automatically or
- * created on demand when it is added to the client.
- */
-export type NetworkConfiguration = {
-  /**
-   * A set of URLs that allows the user to view activity that has occurred on
-   * the chain.
-   */
-  blockExplorerUrls: string[];
-  /**
-   * The ID of the chain. Represented in hexadecimal format with a leading "0x"
-   * instead of decimal format so that when viewed out of context it can be
-   * unambiguously interpreted.
-   */
-  chainId: Hex;
-  /**
-   * A reference to a URL that the client will use by default to allow the user
-   * to view activity that has occurred on the chain. This index must refer to
-   * an item in `blockExplorerUrls`.
-   */
-  defaultBlockExplorerUrlIndex?: number;
-  /**
-   * A reference to an RPC endpoint that all requests will use by default in order to
-   * interact with the chain. This index must refer to an item in
-   * `rpcEndpoints`.
-   */
-  defaultRpcEndpointIndex: number;
-  /**
-   * The user-facing nickname assigned to the chain.
-   */
-  name: string;
-  /**
-   * The name of the currency to use for the chain.
-   */
-  nativeCurrency: string;
-  /**
-   * The collection of possible RPC endpoints that the client can use to
-   * interact with the chain.
-   */
-  rpcEndpoints: RpcEndpoint[];
-  /**
-   * Profile Sync - Network Sync field.
-   * Allows comparison of local network state with state to sync.
-   */
-  lastUpdatedAt?: number;
 };
 
 /**
@@ -294,50 +146,6 @@ export function knownKeysOf<K extends PropertyKey>(
 function isErrorWithCode(error: unknown): error is { code: string | number } {
   return typeof error === 'object' && error !== null && 'code' in error;
 }
-
-/**
- * The string that uniquely identifies an Infura network client.
- */
-export type BuiltInNetworkClientId = InfuraNetworkType;
-
-/**
- * The string that uniquely identifies a custom network client.
- */
-export type CustomNetworkClientId = string;
-
-/**
- * The string that uniquely identifies a network client.
- */
-export type NetworkClientId = BuiltInNetworkClientId | CustomNetworkClientId;
-
-/**
- * Extra information about each network, such as whether it is accessible or
- * blocked and whether it supports EIP-1559, keyed by network client ID.
- */
-export type NetworksMetadata = Record<NetworkClientId, NetworkMetadata>;
-
-/**
- * The state that NetworkController stores.
- */
-export type NetworkState = {
-  /**
-   * The ID of the network client that the proxies returned by
-   * `getSelectedNetworkClient` currently point to.
-   */
-  selectedNetworkClientId: NetworkClientId;
-  /**
-   * The registry of networks and corresponding RPC endpoints that the
-   * controller can use to make requests for various chains.
-   *
-   * @see {@link NetworkConfiguration}
-   */
-  networkConfigurationsByChainId: Record<Hex, NetworkConfiguration>;
-  /**
-   * Extra information about each network, such as whether it is accessible or
-   * blocked and whether it supports EIP-1559, keyed by network client ID.
-   */
-  networksMetadata: NetworksMetadata;
-};
 
 const controllerName = 'NetworkController';
 
@@ -452,6 +260,11 @@ export type NetworkControllerGetSelectedNetworkClientAction = {
   handler: NetworkController['getSelectedNetworkClient'];
 };
 
+export type NetworkControllerGetSelectedChainIdAction = {
+  type: 'NetworkController:getSelectedChainId';
+  handler: NetworkController['getSelectedChainId'];
+}
+
 export type NetworkControllerGetEIP1559CompatibilityAction = {
   type: `NetworkController:getEIP1559Compatibility`;
   handler: NetworkController['getEIP1559Compatibility'];
@@ -508,6 +321,7 @@ export type NetworkControllerActions =
   | NetworkControllerGetEthQueryAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetSelectedNetworkClientAction
+  | NetworkControllerGetSelectedChainIdAction
   | NetworkControllerGetEIP1559CompatibilityAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerSetActiveNetworkAction
@@ -974,8 +788,6 @@ export class NetworkController extends BaseController<
       );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEthQuery`,
       () => {
         return this.#ethQuery;
@@ -983,78 +795,61 @@ export class NetworkController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEIP1559Compatibility`,
       this.getEIP1559Compatibility.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setActiveNetwork`,
       this.setActiveNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setProviderType`,
       this.setProviderType.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:findNetworkClientIdByChainId`,
       this.findNetworkClientIdByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkConfigurationByChainId`,
       this.getNetworkConfigurationByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkConfigurationByNetworkClientId`,
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSelectedNetworkClient`,
       this.getSelectedNetworkClient.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:getSelectedChainId`,
+      this.getSelectedChainId.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${this.name}:addNetwork`,
       this.addNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:removeNetwork`,
       this.removeNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      // ESLint is mistaken here; `name` is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:updateNetwork`,
       this.updateNetwork.bind(this),
     );
@@ -1062,6 +857,7 @@ export class NetworkController extends BaseController<
 
   /**
    * Accesses the provider and block tracker for the currently selected network.
+   *
    * @returns The proxy and block tracker proxies.
    * @deprecated This method has been replaced by `getSelectedNetworkClient` (which has a more easily used return type) and will be removed in a future release.
    */
@@ -1095,6 +891,13 @@ export class NetworkController extends BaseController<
       };
     }
     return undefined;
+  }
+
+  getSelectedChainId(): Hex | undefined {
+    const networkConfiguration = this.getNetworkConfigurationByNetworkClientId(
+      this.state.selectedNetworkClientId,
+    );
+    return networkConfiguration?.chainId;
   }
 
   /**
@@ -1239,9 +1042,8 @@ export class NetworkController extends BaseController<
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
-        networkClientId,
-      );
+      updatedIsEIP1559Compatible =
+        await this.#determineEIP1559Compatibility(networkClientId);
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
       debugLog('NetworkController: lookupNetworkByClientId: ', error);
