@@ -335,7 +335,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       expect(DefaultGasFeeFlow.prototype.getGasFees).toHaveBeenCalledWith(
         request,
       );
-      expect(result.estimates).toEqual(DEFAULT_FEE_MARKET_RESPONSE);
+      expect(result.estimates).toStrictEqual(DEFAULT_FEE_MARKET_RESPONSE);
     });
 
     it('should throw an error for unsupported gas estimate types', async () => {
@@ -359,7 +359,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       expect(DefaultGasFeeFlow.prototype.getGasFees).toHaveBeenCalledWith(
         request,
       );
-      expect(result.estimates).toEqual(DEFAULT_GAS_PRICE_RESPONSE);
+      expect(result.estimates).toStrictEqual(DEFAULT_GAS_PRICE_RESPONSE);
       spy.mockRestore();
     });
   });

@@ -8,7 +8,6 @@ import type {
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import type { TransactionControllerFeatureFlags } from '../utils/feature-flags';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
@@ -16,6 +15,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateType, TransactionStatus } from '../types';
+import type { TransactionControllerFeatureFlags } from '../utils/feature-flags';
 
 const ETH_QUERY_MOCK = {} as EthQuery;
 
