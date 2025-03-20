@@ -147,4 +147,59 @@ describe('Bridge utils', () => {
       expect(isSolanaChainId('0x0')).toBe(false);
     });
   });
+
+  describe('getNativeAssetForChainId', () => {
+    it('should return native asset for hex chainId', () => {
+      const result = getNativeAssetForChainId('0x1');
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x1'],
+        chainId: 1,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('should return native asset for decimal chainId', () => {
+      const result = getNativeAssetForChainId(137);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x89'],
+        chainId: 137,
+        assetId: 'eip155:137/slip44:966',
+      });
+    });
+
+    it('should return native asset for CAIP chainId', () => {
+      const result = getNativeAssetForChainId('eip155:1');
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x1'],
+        chainId: 1,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('should return native asset for Solana chainId', () => {
+      const result = getNativeAssetForChainId(SolScope.Mainnet);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[SolScope.Mainnet],
+        chainId: 1151111081099710,
+        assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      });
+    });
+
+    it('should throw error for unsupported chainId', () => {
+      expect(() => getNativeAssetForChainId('999999')).toThrow(
+        'No XChain Swaps native asset found for chainId: 999999',
+      );
+    });
+
+    it('should handle different chainId formats for the same chain', () => {
+      const hexResult = getNativeAssetForChainId('0x89');
+      const decimalResult = getNativeAssetForChainId(137);
+      const stringifiedDecimalResult = getNativeAssetForChainId('137');
+      const caipResult = getNativeAssetForChainId('eip155:137');
+
+      expect(hexResult).toStrictEqual(decimalResult);
+      expect(decimalResult).toStrictEqual(caipResult);
+      expect(decimalResult).toStrictEqual(stringifiedDecimalResult);
+    });
+  });
 });

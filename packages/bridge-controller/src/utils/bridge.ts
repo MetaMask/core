@@ -48,6 +48,7 @@ const getNativeAssetCaipAssetType = (
  *
  * @param chainId - The chainId to get the default token for
  * @returns The native asset for the given chainId
+ * @throws If no native asset is defined for the given chainId
  */
 export const getNativeAssetForChainId = (
   chainId: string | number | Hex | CaipChainId,
@@ -55,15 +56,22 @@ export const getNativeAssetForChainId = (
   const chainIdInCaip = formatChainIdToCaip(chainId);
   const nativeToken =
     SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      formatChainIdToHex(
+      formatChainIdToCaip(
         chainId,
       ) as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
     ] ??
     SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      formatChainIdToCaip(
+      formatChainIdToHex(
         chainId,
       ) as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
     ];
+
+  if (!nativeToken) {
+    throw new Error(
+      `No XChain Swaps native asset found for chainId: ${chainId}`,
+    );
+  }
+
   return {
     ...nativeToken,
     chainId: formatChainIdToDec(chainId),
