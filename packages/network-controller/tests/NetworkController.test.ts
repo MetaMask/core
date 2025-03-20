@@ -3,7 +3,6 @@
 
 import type { Messenger } from '@metamask/base-controller';
 import {
-  BUILT_IN_CUSTOM_NETWORKS_RPC,
   ChainId,
   InfuraNetworkType,
   isInfuraNetworkType,
@@ -1247,7 +1246,7 @@ describe('NetworkController', () => {
                   failoverRpcUrls: [],
                   chainId: '0x18c6',
                   ticker: 'MegaETH',
-                  rpcUrl: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
+                  rpcUrl: 'https://carrot.megaeth.com/rpc',
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
