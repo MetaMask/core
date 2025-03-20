@@ -2,7 +2,7 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { isCaipChainId } from '@metamask/utils';
+import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
@@ -17,6 +17,8 @@ import {
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
+  convertCaipToHexChainId,
+  isEvmCaipChainId,
 } from './utils';
 
 /**
@@ -135,6 +137,52 @@ export class MultichainNetworkController extends BaseController<
     }
 
     return await this.#setActiveEvmNetwork(id);
+  }
+
+  /**
+   * Removes an EVM network from the list of networks.
+   * This method re-directs the request to the network-controller.
+   *
+   * @param chainId - The chain ID of the network to remove.
+   * @returns - A promise that resolves when the network is removed.
+   */
+  async #removeEvmNetwork(chainId: CaipChainId): Promise<void> {
+    const hexChainId = convertCaipToHexChainId(chainId);
+    const selectedChainId = this.messagingSystem.call(
+      'NetworkController:getSelectedChainId',
+    );
+
+    if (this.state.isEvmSelected && selectedChainId === hexChainId) {
+      throw new Error('Cannot remove the currently selected network');
+    }
+
+    if (!this.state.isEvmSelected && selectedChainId === hexChainId) {
+      const ethereumMainnetHexChainId = '0x1';
+      const clientId = this.messagingSystem.call(
+        'NetworkController:findNetworkClientIdByChainId',
+        ethereumMainnetHexChainId,
+      );
+
+      await this.messagingSystem.call(
+        'NetworkController:setActiveNetwork',
+        clientId,
+      );
+    }
+
+    this.messagingSystem.call('NetworkController:removeNetwork', hexChainId);
+  }
+
+  /**
+   * Removes a network from the list of networks.
+   * It only supports EVM networks.
+   *
+   * @param chainId - The chain ID of the network to remove.
+   * @returns - A promise that resolves when the network is removed.
+   */
+  async removeNetwork(chainId: CaipChainId): Promise<void> {
+    if (isEvmCaipChainId(chainId)) {
+      await this.#removeEvmNetwork(chainId);
+    }
   }
 
   /**

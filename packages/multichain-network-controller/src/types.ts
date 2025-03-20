@@ -9,6 +9,9 @@ import type {
   NetworkStatus,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetStateAction,
+  NetworkControllerRemoveNetworkAction,
+  NetworkControllerGetSelectedChainIdAction,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
 import { type CaipAssetType } from '@metamask/utils';
@@ -20,7 +23,7 @@ export type MultichainNetworkMetadata = {
   status: NetworkStatus;
 };
 
-export type SupportedCaipChainId = SolScope.Mainnet | BtcScope.Mainnet;
+export type SupportedCaipChainId = BtcScope.Mainnet | SolScope.Mainnet;
 
 export type CommonNetworkConfiguration = {
   /**
@@ -146,7 +149,10 @@ export type MultichainNetworkControllerEvents =
  */
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction;
+  | NetworkControllerSetActiveNetworkAction
+  | NetworkControllerRemoveNetworkAction
+  | NetworkControllerGetSelectedChainIdAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction;
 
 // Re-define event here to avoid circular dependency with AccountsController
 export type AccountsControllerSelectedAccountChangeEvent = {

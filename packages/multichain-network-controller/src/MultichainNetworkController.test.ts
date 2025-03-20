@@ -12,6 +12,9 @@ import {
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
+  NetworkControllerGetSelectedChainIdAction,
+  NetworkControllerRemoveNetworkAction,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
@@ -32,12 +35,18 @@ import { createMockInternalAccount } from '../tests/utils';
  * @param args.options - The constructor options for the controller.
  * @param args.getNetworkState - Mock for NetworkController:getState action.
  * @param args.setActiveNetwork - Mock for NetworkController:setActiveNetwork action.
+ * @param args.removeNetwork - Mock for NetworkController:removeNetwork action.
+ * @param args.getSelectedChainId - Mock for NetworkController:getSelectedChainId action.
+ * @param args.findNetworkClientIdByChainId - Mock for NetworkController:findNetworkClientIdByChainId action.
  * @returns A collection of test controllers and mocks.
  */
 function setupController({
   options = {},
   getNetworkState,
   setActiveNetwork,
+  removeNetwork,
+  getSelectedChainId,
+  findNetworkClientIdByChainId,
 }: {
   options?: Partial<
     ConstructorParameters<typeof MultichainNetworkController>[0]
@@ -49,6 +58,18 @@ function setupController({
   setActiveNetwork?: jest.Mock<
     ReturnType<NetworkControllerSetActiveNetworkAction['handler']>,
     Parameters<NetworkControllerSetActiveNetworkAction['handler']>
+  >;
+  removeNetwork?: jest.Mock<
+    ReturnType<NetworkControllerRemoveNetworkAction['handler']>,
+    Parameters<NetworkControllerRemoveNetworkAction['handler']>
+  >;
+  getSelectedChainId?: jest.Mock<
+    ReturnType<NetworkControllerGetSelectedChainIdAction['handler']>,
+    Parameters<NetworkControllerGetSelectedChainIdAction['handler']>
+  >;
+  findNetworkClientIdByChainId?: jest.Mock<
+    ReturnType<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>,
+    Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
   >;
 } = {}) {
   const messenger = new Messenger<
@@ -81,6 +102,41 @@ function setupController({
     mockSetActiveNetwork,
   );
 
+  const mockRemoveNetwork =
+    removeNetwork ??
+    jest.fn<
+      ReturnType<NetworkControllerRemoveNetworkAction['handler']>,
+      Parameters<NetworkControllerRemoveNetworkAction['handler']>
+    >();
+  messenger.registerActionHandler(
+    'NetworkController:removeNetwork',
+    mockRemoveNetwork,
+  );
+
+  const mockGetSelectedChainId =
+    getSelectedChainId ??
+    jest.fn<
+      ReturnType<NetworkControllerGetSelectedChainIdAction['handler']>,
+      Parameters<NetworkControllerGetSelectedChainIdAction['handler']>
+    >();
+  messenger.registerActionHandler(
+    'NetworkController:getSelectedChainId',
+    mockGetSelectedChainId,
+  );
+
+  const mockFindNetworkClientIdByChainId =
+    findNetworkClientIdByChainId ??
+    jest.fn<
+      ReturnType<
+        NetworkControllerFindNetworkClientIdByChainIdAction['handler']
+      >,
+      Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
+    >();
+  messenger.registerActionHandler(
+    'NetworkController:findNetworkClientIdByChainId',
+    mockFindNetworkClientIdByChainId,
+  );
+
   const controllerMessenger = messenger.getRestricted<
     typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
     AllowedActions['type'],
@@ -90,6 +146,9 @@ function setupController({
     allowedActions: [
       'NetworkController:setActiveNetwork',
       'NetworkController:getState',
+      'NetworkController:removeNetwork',
+      'NetworkController:getSelectedChainId',
+      'NetworkController:findNetworkClientIdByChainId',
     ],
     allowedEvents: ['AccountsController:selectedAccountChange'],
   });
@@ -127,6 +186,9 @@ function setupController({
     controller,
     mockGetNetworkState,
     mockSetActiveNetwork,
+    mockRemoveNetwork,
+    mockGetSelectedChainId,
+    mockFindNetworkClientIdByChainId,
     publishSpy,
     triggerSelectedAccountChange,
   };
@@ -134,7 +196,7 @@ function setupController({
 
 describe('MultichainNetworkController', () => {
   describe('constructor', () => {
-    it('should set default state', () => {
+    it('sets default state', () => {
       const { controller } = setupController({
         options: { state: getDefaultMultichainNetworkControllerState() },
       });
@@ -145,7 +207,7 @@ describe('MultichainNetworkController', () => {
   });
 
   describe('setActiveNetwork', () => {
-    it('should set non-EVM network when same non-EVM chain ID is active', async () => {
+    it('sets a non-EVM network when same non-EVM chain ID is active', async () => {
       // By default, Solana is selected but is NOT active (aka EVM network is active)
       const { controller, publishSpy } = setupController();
 
@@ -167,7 +229,7 @@ describe('MultichainNetworkController', () => {
       );
     });
 
-    it('should throw error when unsupported non-EVM chainId is provided', async () => {
+    it('throws an error when unsupported non-EVM chainId is provided', async () => {
       const { controller } = setupController();
       const unsupportedChainId = 'eip155:1' as CaipChainId;
 
@@ -176,7 +238,7 @@ describe('MultichainNetworkController', () => {
       ).rejects.toThrow(`Unsupported Caip chain ID: ${unsupportedChainId}`);
     });
 
-    it('should do nothing when same non-EVM chain ID is set and active', async () => {
+    it('does nothing when same non-EVM chain ID is set and active', async () => {
       // By default, Solana is selected and active
       const { controller, publishSpy } = setupController({
         options: { state: { isEvmSelected: false } },
@@ -195,7 +257,7 @@ describe('MultichainNetworkController', () => {
       expect(publishSpy).not.toHaveBeenCalled();
     });
 
-    it('should set non-EVM network when different non-EVM chain ID is active', async () => {
+    it('sets a non-EVM network when different non-EVM chain ID is active', async () => {
       // By default, Solana is selected but is NOT active (aka EVM network is active)
       const { controller, publishSpy } = setupController({
         options: { state: { isEvmSelected: false } },
@@ -219,7 +281,7 @@ describe('MultichainNetworkController', () => {
       );
     });
 
-    it('should set EVM network and call NetworkController:setActiveNetwork when same EVM network is selected', async () => {
+    it('sets an EVM network and call NetworkController:setActiveNetwork when same EVM network is selected', async () => {
       const selectedNetworkClientId = InfuraNetworkType.mainnet;
 
       const { controller, mockSetActiveNetwork, publishSpy } = setupController({
@@ -247,7 +309,7 @@ describe('MultichainNetworkController', () => {
       expect(mockSetActiveNetwork).not.toHaveBeenCalled();
     });
 
-    it('should set EVM network and call NetworkController:setActiveNetwork when different EVM network is selected', async () => {
+    it('sets an EVM network and call NetworkController:setActiveNetwork when different EVM network is selected', async () => {
       const { controller, mockSetActiveNetwork, publishSpy } = setupController({
         getNetworkState: jest.fn().mockImplementation(() => ({
           selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -270,7 +332,7 @@ describe('MultichainNetworkController', () => {
       expect(mockSetActiveNetwork).toHaveBeenCalledWith(evmNetworkClientId);
     });
 
-    it('should not do anything when same EVM network is set and active', async () => {
+    it('does nothing when same EVM network is set and active', async () => {
       const { controller, publishSpy } = setupController({
         getNetworkState: jest.fn().mockImplementation(() => ({
           selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -306,7 +368,7 @@ describe('MultichainNetworkController', () => {
       expect(controller.state.isEvmSelected).toBe(true);
     });
 
-    it('should switch to EVM network if non-EVM network is previously active', async () => {
+    it('switches to EVM network if non-EVM network is previously active', async () => {
       // By default, Solana is selected and active
       const { controller, triggerSelectedAccountChange } = setupController({
         options: { state: { isEvmSelected: false } },
@@ -377,6 +439,89 @@ describe('MultichainNetworkController', () => {
         BtcScope.Mainnet,
       );
       expect(controller.state.isEvmSelected).toBe(false);
+    });
+  });
+
+  describe('removeEvmNetwork', () => {
+    it('switches the EVM selected network to Ethereum Mainnet and deletes previous EVM network if the current selected network is non-EVM', async () => {
+      const {
+        controller,
+        mockSetActiveNetwork,
+        mockRemoveNetwork,
+        mockFindNetworkClientIdByChainId,
+      } = setupController({
+        options: { state: { isEvmSelected: false } },
+        getSelectedChainId: jest.fn().mockImplementation(() => '0x2'),
+        findNetworkClientIdByChainId: jest
+          .fn()
+          .mockImplementation(() => 'linea'),
+      });
+
+      await controller.removeNetwork('eip155:2');
+      expect(mockFindNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
+      expect(mockSetActiveNetwork).toHaveBeenCalledWith('linea');
+      expect(mockRemoveNetwork).toHaveBeenCalledWith('0x2');
+    });
+
+    it('removes an EVM network when isEvmSelected is false and the removed network is not selected', async () => {
+      const {
+        controller,
+        mockRemoveNetwork,
+        mockSetActiveNetwork,
+        mockGetSelectedChainId,
+        mockFindNetworkClientIdByChainId,
+      } = setupController({
+        options: { state: { isEvmSelected: false } },
+        getSelectedChainId: jest.fn().mockImplementation(() => '0x2'),
+      });
+
+      await controller.removeNetwork('eip155:3');
+      expect(mockGetSelectedChainId).toHaveBeenCalled();
+      expect(mockFindNetworkClientIdByChainId).not.toHaveBeenCalled();
+      expect(mockSetActiveNetwork).not.toHaveBeenCalled();
+      expect(mockRemoveNetwork).toHaveBeenCalledWith('0x3');
+    });
+
+    it('removes an EVM network when isEvmSelected is true and the removed network is not selected', async () => {
+      const {
+        controller,
+        mockRemoveNetwork,
+        mockSetActiveNetwork,
+        mockGetSelectedChainId,
+        mockFindNetworkClientIdByChainId,
+      } = setupController({
+        options: { state: { isEvmSelected: false } },
+        getSelectedChainId: jest.fn().mockImplementation(() => '0x2'),
+      });
+
+      await controller.removeNetwork('eip155:3');
+      expect(mockGetSelectedChainId).toHaveBeenCalled();
+      expect(mockFindNetworkClientIdByChainId).not.toHaveBeenCalled();
+      expect(mockSetActiveNetwork).not.toHaveBeenCalled();
+      expect(mockRemoveNetwork).toHaveBeenCalledWith('0x3');
+    });
+
+    it('throws an error when trying to remove the currently selected network', async () => {
+      const { controller } = setupController({
+        options: { state: { isEvmSelected: true } },
+        getSelectedChainId: jest.fn().mockImplementation(() => '0x2'),
+      });
+
+      await expect(controller.removeNetwork('eip155:2')).rejects.toThrow(
+        'Cannot remove the currently selected network',
+      );
+    });
+
+    it('does nothing when trying to remove a non-EVM network', async () => {
+      const { controller, mockRemoveNetwork, mockGetSelectedChainId } =
+        setupController({
+          options: { state: { isEvmSelected: false } },
+        });
+
+      await controller.removeNetwork(BtcScope.Mainnet);
+
+      expect(mockGetSelectedChainId).not.toHaveBeenCalled();
+      expect(mockRemoveNetwork).not.toHaveBeenCalled();
     });
   });
 });
