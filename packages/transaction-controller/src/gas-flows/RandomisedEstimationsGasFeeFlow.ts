@@ -220,33 +220,6 @@ function getRandomisedGasFeeConfig(
  * @param gweiDecimalValue - The original gas fee value in Gwei (decimal)
  * @param [numberOfDigitsToRandomizeAtTheEnd] - The number of least significant digits to randomise
  * @returns The randomised value converted to Wei in hexadecimal format
- *
- * @example
- * // Randomise last 3 digits of "5" Gwei (5000000000 Wei)
- * randomiseDecimalGWEIAndConvertToHex("5", 3)
- * // Decimal output range: 5000000000 to 5000000999 Wei
- * // Hex output range: 0x12a05f200 to 0x12a05f3e7
- *
- * @example
- * // Randomise last 6 digits of "10.5" Gwei (10500000000 Wei)
- * randomiseDecimalGWEIAndConvertToHex("10.5", 6)
- * // Decimal output range: 10500000000 to 10500999999 Wei
- * // Hex output range: 0x27312d600 to 0x27313f9cf
- *
- * @example
- * // Randomise last 3 digits of value with existing decimals (5000500123 Wei)
- * randomiseDecimalGWEIAndConvertToHex("5.000500123", 3)
- * // Base part: 5000500000 Wei
- * // Original ending digits: 123
- * // Random ending digits: 123-999
- * // Decimal output range: 5000500123 to 5000500999 Wei
- * // Hex output range: 0x12a05f247b to 0x12a05f3e7
- *
- * @example
- * // Randomise last 9 digits of "42" Gwei (42000000000 Wei)
- * randomiseDecimalGWEIAndConvertToHex("42", 9)
- * // Decimal output range: 42000000000 to 42999999999 Wei
- * // Hex output range: 0x9c7652400 to 0x9fffff9ff
  */
 export function randomiseDecimalGWEIAndConvertToHex(
   gweiDecimalValue: string | number,
