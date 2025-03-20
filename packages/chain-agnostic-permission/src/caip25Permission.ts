@@ -204,7 +204,7 @@ export const caip25CaveatBuilder = ({
         try {
           findNetworkClientIdByChainId(chainId);
           return true;
-        } catch (err) {
+        } catch {
           return false;
         }
       };
@@ -260,7 +260,6 @@ export const caip25CaveatBuilder = ({
         rightValue.optionalScopes,
       );
 
-      // Merge the sessionProperties
       const mergedSessionProperties = {
         ...leftValue.sessionProperties,
         ...rightValue.sessionProperties,
