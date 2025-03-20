@@ -1385,6 +1385,79 @@ describe('NftController', () => {
   });
 
   describe('addNft', () => {
+    it('should add the nft contract to the correct chain in state when source is detected', async () => {
+      const { nftController, changeNetwork } = setupController({
+        options: {
+          chainId: ChainId.mainnet,
+        },
+        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
+      });
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+
+      await nftController.addNft('0x01', '1', {
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+          collection: {
+            tokenCount: '0',
+            image: 'url',
+          },
+        },
+        chainId: ChainId.mainnet,
+        source: Source.Detected,
+      });
+
+      expect(
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][
+          ChainId.mainnet
+        ][0],
+      ).toStrictEqual({
+        address: '0x01',
+        logo: 'url',
+        name: 'Name',
+        schemaName: 'standard',
+        totalSupply: '0',
+      });
+    });
+
+    it('should add the nft contract to the correct chain in state when source is custom', async () => {
+      const { nftController, changeNetwork } = setupController({
+        options: {
+          chainId: ChainId.mainnet,
+        },
+        getERC721AssetName: jest.fn().mockResolvedValue('Name'),
+      });
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+
+      await nftController.addNft('0x01', '1', {
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+          collection: {
+            tokenCount: '0',
+            image: 'url',
+          },
+        },
+        source: Source.Custom,
+      });
+      expect(
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][
+          ChainId.sepolia
+        ][0],
+      ).toStrictEqual({
+        address: '0x01',
+        logo: 'url',
+        name: 'Name',
+        schemaName: 'standard',
+        totalSupply: '0',
+      });
+    });
     it('should add NFT and NFT contract', async () => {
       const { nftController } = setupController({
         options: {
