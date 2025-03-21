@@ -6649,4 +6649,59 @@ describe('TransactionController', () => {
       );
     });
   });
+
+  describe('updateSelectedGasFeeToken', () => {
+    it('updates selected gas fee token in state', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+              },
+            ],
+          },
+        },
+      });
+
+      controller.updateSelectedGasFeeToken(
+        TRANSACTION_META_MOCK.id,
+        GAS_FEE_TOKEN_MOCK.tokenAddress,
+      );
+
+      expect(controller.state.transactions[0].selectedGasFeeToken).toBe(
+        GAS_FEE_TOKEN_MOCK.tokenAddress,
+      );
+    });
+
+    it('throws if transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.updateSelectedGasFeeToken(
+          TRANSACTION_META_MOCK.id,
+          GAS_FEE_TOKEN_MOCK.tokenAddress,
+        ),
+      ).toThrow(
+        `Cannot update transaction as ID not found - ${TRANSACTION_META_MOCK.id}`,
+      );
+    });
+
+    it('throws if no matching gas fee token', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, gasFeeTokens: [GAS_FEE_TOKEN_MOCK] },
+            ],
+          },
+        },
+      });
+
+      expect(() =>
+        controller.updateSelectedGasFeeToken(TRANSACTION_META_MOCK.id, '0x123'),
+      ).toThrow('No matching gas fee token found');
+    });
+  });
 });

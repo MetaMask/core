@@ -2510,8 +2510,25 @@ export class TransactionController extends BaseController<
     );
   }
 
-  updateGasFeeToken(transactionId: string, contractAddress: Hex) {
+  /**
+   * Update the selected gas fee token for a transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param contractAddress - The contract address of the selected gas fee token.
+   */
+  updateSelectedGasFeeToken(transactionId: string, contractAddress: Hex) {
     this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      const hasMatchingGasFeeToken = transactionMeta.gasFeeTokens?.some(
+        (token) =>
+          token.tokenAddress.toLowerCase() === contractAddress.toLowerCase(),
+      );
+
+      if (!hasMatchingGasFeeToken) {
+        throw new Error(
+          `No matching gas fee token found with address - ${contractAddress}`,
+        );
+      }
+
       transactionMeta.selectedGasFeeToken = contractAddress;
     });
   }
