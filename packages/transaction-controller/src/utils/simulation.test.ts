@@ -274,9 +274,9 @@ describe('Simulation Utils', () => {
             createNativeBalanceResponse(previousBalance, newBalance),
           );
 
-          const simulationData = await getSimulationData(REQUEST_MOCK);
+          const result = await getSimulationData(REQUEST_MOCK);
 
-          expect(simulationData).toStrictEqual({
+          expect(result.simulationData).toStrictEqual({
             nativeBalanceChange: {
               difference: DIFFERENCE_MOCK,
               isDecrease,
@@ -293,9 +293,9 @@ describe('Simulation Utils', () => {
           createNativeBalanceResponse(BALANCE_1_MOCK, BALANCE_1_MOCK),
         );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [],
         });
@@ -403,12 +403,12 @@ describe('Simulation Utils', () => {
               createBalanceOfResponse(previousBalances, newBalances),
             );
 
-          const simulationData = await getSimulationData({
+          const result = await getSimulationData({
             chainId: '0x1',
             from,
           });
 
-          expect(simulationData).toStrictEqual({
+          expect(result.simulationData).toStrictEqual({
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -453,9 +453,9 @@ describe('Simulation Utils', () => {
             ),
           );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -509,9 +509,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_2_MOCK], [BALANCE_1_MOCK]),
           );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -553,9 +553,9 @@ describe('Simulation Utils', () => {
             ),
           );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -614,7 +614,7 @@ describe('Simulation Utils', () => {
             ),
           );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(2);
 
@@ -648,7 +648,7 @@ describe('Simulation Utils', () => {
             ],
           },
         );
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -684,9 +684,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_2_MOCK]),
           );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [],
         });
@@ -708,9 +708,9 @@ describe('Simulation Utils', () => {
           createEventResponseMock([createLogMock(CONTRACT_ADDRESS_1_MOCK)]),
         );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [],
         });
@@ -729,9 +729,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_1_MOCK]),
           );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [],
         });
@@ -746,9 +746,9 @@ describe('Simulation Utils', () => {
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_2_MOCK]),
           );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -797,9 +797,9 @@ describe('Simulation Utils', () => {
             ],
           });
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           nativeBalanceChange: undefined,
           tokenBalanceChanges: [
             {
@@ -823,7 +823,9 @@ describe('Simulation Utils', () => {
           message: ERROR_MESSAGE_MOCK,
         });
 
-        expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.simulationData).toStrictEqual({
           error: {
             code: ERROR_CODE_MOCK,
             message: ERROR_MESSAGE_MOCK,
@@ -837,7 +839,9 @@ describe('Simulation Utils', () => {
           code: ERROR_CODE_MOCK,
         });
 
-        expect(await getSimulationData(REQUEST_MOCK)).toStrictEqual({
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.simulationData).toStrictEqual({
           error: {
             code: ERROR_CODE_MOCK,
             message: undefined,
@@ -855,9 +859,9 @@ describe('Simulation Utils', () => {
           )
           .mockResolvedValueOnce(createBalanceOfResponse([], []));
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           error: {
             code: SimulationErrorCode.InvalidResponse,
             message: new SimulationInvalidResponseError().message,
@@ -876,9 +880,9 @@ describe('Simulation Utils', () => {
           ],
         });
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           error: {
             code: SimulationErrorCode.Reverted,
             message: new SimulationRevertedError().message,
@@ -897,9 +901,9 @@ describe('Simulation Utils', () => {
           ],
         });
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           error: {
             code: undefined,
             message: 'test 1 2 3',
@@ -914,15 +918,167 @@ describe('Simulation Utils', () => {
           message: 'test insufficient funds for gas test',
         });
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+        const result = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
+        expect(result.simulationData).toStrictEqual({
           error: {
             code: SimulationErrorCode.Reverted,
             message: new SimulationRevertedError().message,
           },
           tokenBalanceChanges: [],
         });
+      });
+    });
+
+    describe('returns gas fee tokens', () => {
+      it('using token fee data', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              fees: [
+                {
+                  gas: '0x1',
+                  maxFeePerGas: '0x2',
+                  maxPriorityFeePerGas: '0x3',
+                  tokenFees: [
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_1_MOCK,
+                        decimals: 3,
+                        symbol: 'TEST1',
+                      },
+                      balanceNeededToken: '0x4',
+                      currentBalanceToken: '0x5',
+                      feeRecipient: '0x6',
+                      rateWei: '0x7',
+                    },
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_2_MOCK,
+                        decimals: 4,
+                        symbol: 'TEST2',
+                      },
+                      balanceNeededToken: '0x8',
+                      currentBalanceToken: '0x9',
+                      feeRecipient: '0xa',
+                      rateWei: '0xb',
+                    },
+                  ],
+                },
+              ],
+              return: '0x',
+            },
+          ],
+        });
+
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.gasFeeTokens).toStrictEqual([
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            gas: '0x1',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: CONTRACT_ADDRESS_1_MOCK,
+          },
+          {
+            amount: '0x8',
+            balance: '0x9',
+            decimals: 4,
+            gas: '0x1',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0xb',
+            recipient: '0xa',
+            symbol: 'TEST2',
+            tokenAddress: CONTRACT_ADDRESS_2_MOCK,
+          },
+        ]);
+      });
+
+      it('using first fee level', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              fees: [
+                {
+                  gas: '0x1',
+                  maxFeePerGas: '0x2',
+                  maxPriorityFeePerGas: '0x3',
+                  tokenFees: [
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_1_MOCK,
+                        decimals: 3,
+                        symbol: 'TEST1',
+                      },
+                      balanceNeededToken: '0x4',
+                      currentBalanceToken: '0x5',
+                      feeRecipient: '0x6',
+                      rateWei: '0x7',
+                    },
+                  ],
+                },
+                {
+                  gas: '0x8',
+                  maxFeePerGas: '0x9',
+                  maxPriorityFeePerGas: '0xa',
+                  tokenFees: [
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_2_MOCK,
+                        decimals: 4,
+                        symbol: 'TEST2',
+                      },
+                      balanceNeededToken: '0xb',
+                      currentBalanceToken: '0xc',
+                      feeRecipient: '0xd',
+                      rateWei: '0xe',
+                    },
+                  ],
+                },
+              ],
+              return: '0x',
+            },
+          ],
+        });
+
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.gasFeeTokens).toStrictEqual([
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            gas: '0x1',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: CONTRACT_ADDRESS_1_MOCK,
+          },
+        ]);
+      });
+
+      it('as empty if missing data', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              fees: [],
+              return: '0x',
+            },
+          ],
+        });
+
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.gasFeeTokens).toStrictEqual([]);
       });
     });
   });

@@ -59,6 +59,11 @@ export type SimulationRequest = {
   };
 
   /**
+   * Whether to include available token fees.
+   */
+  suggestFees?: object;
+
+  /**
    * Whether to include call traces in the response.
    * Defaults to false.
    */
@@ -111,16 +116,57 @@ export type SimulationResponseStateDiff = {
   };
 };
 
+export type SmulationResponseTokenFee = {
+  /** Token data independent of current transaction. */
+  token: {
+    /** Address of the token contract. */
+    address: Hex;
+
+    /** Decimals of the token. */
+    decimals: number;
+
+    /** Symbol of the token. */
+    symbol: string;
+  };
+
+  /** Amount of tokens needed to pay for gas. */
+  balanceNeededToken: Hex;
+
+  /** Current token balance of sender. */
+  currentBalanceToken: Hex;
+
+  /** Account address that token should be transferred to. */
+  feeRecipient: Hex;
+
+  /** Conversation rate of 1 token to native WEI. */
+  rateWei: Hex;
+};
+
 /** Response from the simulation API for a single transaction. */
 export type SimulationResponseTransaction = {
+  /** Hierarchy of call data including nested calls and logs. */
+  callTrace?: SimulationResponseCallTrace;
+
   /** An error message indicating the transaction could not be simulated. */
   error?: string;
 
+  /** Recommended gas fees for the transaction. */
+  fees?: {
+    /** Gas limit for the fee level. */
+    gas: Hex;
+
+    /** Maximum fee per gas for the fee level. */
+    maxFeePerGas: Hex;
+
+    /** Maximum priority fee per gas for the fee level. */
+    maxPriorityFeePerGas: Hex;
+
+    /** Token fee data for the fee level. */
+    tokenFees: SmulationResponseTokenFee[];
+  }[];
+
   /** Return value of the transaction, such as the balance if calling balanceOf. */
   return: Hex;
-
-  /** Hierarchy of call data including nested calls and logs. */
-  callTrace?: SimulationResponseCallTrace;
 
   /** Changes to the blockchain state. */
   stateDiff?: {

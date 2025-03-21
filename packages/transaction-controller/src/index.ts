@@ -39,6 +39,7 @@ export type {
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
   GasFeeEstimates,
+  GasFeeToken,
   GasPriceGasFeeEstimates,
   GasPriceValue,
   InferTransactionTypeResult,
