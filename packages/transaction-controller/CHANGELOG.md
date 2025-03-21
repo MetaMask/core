@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [52.0.0]
+
 ### Changed
 
 - **BREAKING:** Remove `chainIds` argument from incoming transaction methods ([#5436](https://github.com/MetaMask/core/pull/5436))
@@ -1395,7 +1397,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@51.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...HEAD
+[52.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@51.0.0...@metamask/transaction-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@50.0.0...@metamask/transaction-controller@51.0.0
 [50.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...@metamask/transaction-controller@50.0.0
 [49.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@48.2.0...@metamask/transaction-controller@49.0.0
