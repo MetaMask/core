@@ -59,6 +59,11 @@ export type SimulationRequest = {
   };
 
   /**
+   * Whether to include available token fees.
+   */
+  suggestFees?: object;
+
+  /**
    * Whether to include call traces in the response.
    * Defaults to false.
    */
@@ -111,16 +116,40 @@ export type SimulationResponseStateDiff = {
   };
 };
 
+export type SmulationResponseTokenFee = {
+  token: {
+    address: Hex;
+
+    decimals: number;
+
+    symbol: string;
+  };
+
+  balanceNeededToken: Hex;
+
+  currentBalanceToken: Hex;
+
+  feeRecipient: Hex;
+
+  rateWei: Hex;
+};
+
 /** Response from the simulation API for a single transaction. */
 export type SimulationResponseTransaction = {
+  /** Hierarchy of call data including nested calls and logs. */
+  callTrace?: SimulationResponseCallTrace;
+
   /** An error message indicating the transaction could not be simulated. */
   error?: string;
 
+  fees?: [
+    {
+      tokenFees: SmulationResponseTokenFee[];
+    },
+  ];
+
   /** Return value of the transaction, such as the balance if calling balanceOf. */
   return: Hex;
-
-  /** Hierarchy of call data including nested calls and logs. */
-  callTrace?: SimulationResponseCallTrace;
 
   /** Changes to the blockchain state. */
   stateDiff?: {

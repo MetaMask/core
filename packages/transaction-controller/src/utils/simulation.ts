@@ -27,6 +27,7 @@ import type {
   SimulationData,
   SimulationTokenBalanceChange,
   SimulationToken,
+  GasFeeToken,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 
@@ -113,7 +114,10 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 export async function getSimulationData(
   request: GetSimulationDataRequest,
   options: GetSimulationDataOptions = {},
-): Promise<SimulationData> {
+): Promise<{
+  gasFeeTokens: GasFeeToken[];
+  simulationData: SimulationData;
+}> {
   const { chainId, from, to, value, data } = request;
   const { blockTime } = options;
 
@@ -131,6 +135,7 @@ export async function getSimulationData(
           value,
         },
       ],
+      suggestFees: {},
       withCallTrace: true,
       withLogs: true,
       ...(blockTime && {
@@ -157,9 +162,16 @@ export async function getSimulationData(
       options,
     );
 
-    return {
+    const simulationData = {
       nativeBalanceChange,
       tokenBalanceChanges,
+    };
+
+    const gasFeeTokens = getGasFeeTokens(response);
+
+    return {
+      gasFeeTokens,
+      simulationData,
     };
   } catch (error) {
     log('Failed to get simulation data', error, request);
@@ -177,10 +189,13 @@ export async function getSimulationData(
     const { code, message } = simulationError;
 
     return {
-      tokenBalanceChanges: [],
-      error: {
-        code,
-        message,
+      gasFeeTokens: [],
+      simulationData: {
+        tokenBalanceChanges: [],
+        error: {
+          code,
+          message,
+        },
       },
     };
   }
@@ -685,4 +700,24 @@ function getContractInterfaces(): Map<SupportedToken, Interface> {
       return [tokenType, contractInterface];
     }),
   );
+}
+
+/**
+ * Extract gas fee tokens from a simulation response.
+ *
+ * @param response - The simulation response.
+ * @returns An array of gas fee tokens.
+ */
+function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
+  const tokenFees = response.transactions?.[0]?.fees?.[0]?.tokenFees ?? [];
+
+  return tokenFees.map((fee) => ({
+    amount: fee.balanceNeededToken,
+    balance: fee.currentBalanceToken,
+    decimals: fee.token.decimals,
+    rateWei: fee.rateWei,
+    recipient: fee.feeRecipient,
+    symbol: fee.token.symbol,
+    tokenAddress: fee.token.address,
+  }));
 }
