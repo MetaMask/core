@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Re-export `ConstantBackoff` and `ExponentialBackoff` from `cockatiel` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - These can be used to customize service policies
+- Add optional `backoff` option to `createServicePolicy` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - This is mainly useful in tests to force the backoff strategy to be constant rather than exponential
+
 ## [11.6.0]
 
 ### Changed

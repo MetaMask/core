@@ -112,6 +112,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
             accounts: [],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -151,6 +152,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
             accounts: [],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
     });
@@ -163,6 +165,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -174,6 +177,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
       expect(input).not.toStrictEqual(result);
