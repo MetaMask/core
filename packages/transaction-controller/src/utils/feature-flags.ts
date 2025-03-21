@@ -6,8 +6,6 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 
 export const FEATURE_FLAG_TRANSACTIONS = 'confirmations_transactions';
 export const FEATURE_FLAG_EIP_7702 = 'confirmations_eip_7702';
-export const FEATURE_FLAG_RANDOMISE_GAS_FEES =
-  'confirmations-randomise-gas-fees';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
@@ -65,15 +63,9 @@ export type TransactionControllerFeatureFlags = {
       /** Default `intervalMs` in case no chain-specific parameter is set. */
       defaultIntervalMs?: number;
     };
-  };
 
-  [FEATURE_FLAG_RANDOMISE_GAS_FEES]?: {
-    /**
-     * Config for randomizing gas fees.
-     * Keyed by chain ID.
-     * Value is the number of digits to randomise.
-     */
-    config?: Record<Hex, number>;
+    /** Randomised gas fee digits. */
+    randomisedGasFeeDigits?: Record<Hex, number>;
   };
 };
 
@@ -186,12 +178,31 @@ export function getAcceleratedPollingParams(
 }
 
 /**
+ * Retrieves the number of digits to randomise for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The number of digits to randomise.
+ */
+export function getRandomisedGasFeeDigits(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const randomisedGasFeeDigits =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.randomisedGasFeeDigits ?? {};
+
+  return randomisedGasFeeDigits[chainId];
+}
+
+/**
  * Retrieves the relevant feature flags from the remote feature flag controller.
  *
  * @param messenger - The messenger instance.
  * @returns The feature flags.
  */
-export function getFeatureFlags(
+function getFeatureFlags(
   messenger: TransactionControllerMessenger,
 ): TransactionControllerFeatureFlags {
   const featureFlags = messenger.call(

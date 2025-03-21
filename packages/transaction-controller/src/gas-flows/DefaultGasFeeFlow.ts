@@ -28,7 +28,7 @@ const log = createModuleLogger(projectLogger, 'default-gas-fee-flow');
  * The standard implementation of a gas fee flow that obtains gas fee estimates using only the GasFeeController.
  */
 export class DefaultGasFeeFlow implements GasFeeFlow {
-  matchesTransaction(_transactionMeta: TransactionMeta): boolean {
+  matchesTransaction(): boolean {
     return true;
   }
 

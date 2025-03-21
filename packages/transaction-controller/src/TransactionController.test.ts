@@ -2014,7 +2014,7 @@ describe('TransactionController', () => {
     });
 
     it('updates gas fee properties', async () => {
-      const { controller } = setupController({
+      const { controller, messenger } = setupController({
         options: {
           getCurrentNetworkEIP1559Compatibility: async () => true,
           getCurrentAccountEIP1559Compatibility: async () => true,
@@ -2035,7 +2035,6 @@ describe('TransactionController', () => {
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
         ethQuery: expect.any(Object),
-        featureFlags: expect.any(Object),
         gasFeeFlows: [
           randomisedEstimationsGasFeeFlowMock,
           lineaGasFeeFlowMock,
@@ -2043,6 +2042,7 @@ describe('TransactionController', () => {
         ],
         getGasFeeEstimates: expect.any(Function),
         getSavedGasFees: expect.any(Function),
+        messenger: expect.any(Object),
         txMeta: expect.any(Object),
       });
     });

@@ -15,10 +15,6 @@ import {
   type GasFeeEstimates,
   type TransactionMeta,
 } from '../types';
-import {
-  getFeatureFlags,
-  type TransactionControllerFeatureFlags,
-} from '../utils/feature-flags';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
 jest.mock('../utils/feature-flags');
@@ -84,15 +80,10 @@ describe('GasFeePoller', () => {
   const getGasFeeControllerEstimatesMock = jest.fn();
   const findNetworkClientIdByChainIdMock = jest.fn();
   const messengerMock = jest.fn() as unknown as TransactionControllerMessenger;
-  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
 
   beforeEach(() => {
     jest.clearAllTimers();
     jest.clearAllMocks();
-
-    getFeatureFlagsMock.mockReturnValue(
-      {} as unknown as TransactionControllerFeatureFlags,
-    );
 
     gasFeeFlowMock = createGasFeeFlowMock();
     gasFeeFlowMock.matchesTransaction.mockReturnValue(true);
@@ -138,13 +129,6 @@ describe('GasFeePoller', () => {
       });
 
       it('calls gas fee flow', async () => {
-        const mockFeatureFlags = {
-          test: {
-            config: {},
-          },
-        } as unknown as TransactionControllerFeatureFlags;
-
-        getFeatureFlagsMock.mockReturnValue(mockFeatureFlags);
         getGasFeeControllerEstimatesMock.mockResolvedValue({});
 
         new GasFeePoller(constructorOptions);
@@ -155,8 +139,8 @@ describe('GasFeePoller', () => {
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           ethQuery: expect.any(Object),
-          featureFlags: mockFeatureFlags,
           gasFeeControllerData: {},
+          messenger: expect.any(Function),
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
@@ -171,6 +155,7 @@ describe('GasFeePoller', () => {
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
           provider: expect.any(Object),
           layer1GasFeeFlows: layer1GasFeeFlowsMock,
+          messenger: expect.any(Function),
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
