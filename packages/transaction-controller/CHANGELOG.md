@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix gas estimation for type 4 transactions ([#5519](https://github.com/MetaMask/core/pull/5519))
+
 ## [52.0.0]
 
 ### Changed
