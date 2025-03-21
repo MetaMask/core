@@ -41,6 +41,10 @@
 /packages/bridge-controller                @MetaMask/swaps-engineers
 /packages/bridge-status-controller        @MetaMask/swaps-engineers
 
+## Platform Team
+
+/packages/app-metadata-controller @MetaMask/mobile-platform
+
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 

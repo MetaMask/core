@@ -3,6 +3,7 @@
     { "path": "./packages/accounts-controller/tsconfig.build.json" },
     { "path": "./packages/address-book-controller/tsconfig.build.json" },
     { "path": "./packages/announcement-controller/tsconfig.build.json" },
+    { "path": "./packages/app-metadata-controller/tsconfig.build.json" },
     { "path": "./packages/approval-controller/tsconfig.build.json" },
     { "path": "./packages/assets-controllers/tsconfig.build.json" },
     { "path": "./packages/base-controller/tsconfig.build.json" },
