@@ -10,6 +10,7 @@ export {
 export {
   getInternalScopesObject,
   getSessionScopes,
+  getPermittedAccountsForScopes,
 } from './adapters/caip-permission-adapter-session-scopes';
 
 export type { Caip25Authorization } from './scope/authorization';

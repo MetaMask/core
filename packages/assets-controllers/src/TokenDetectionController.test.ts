@@ -1157,6 +1157,7 @@ describe('TokenDetectionController', () => {
                 '0xe704',
                 '0xe705',
                 '0xe708',
+                '0x18c6',
               ],
               selectedAddress: secondSelectedAccount.address,
             });
