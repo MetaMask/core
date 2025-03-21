@@ -83,6 +83,7 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
+import type { GetSimulationDataResult } from './utils/simulation';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -441,7 +442,7 @@ const TRANSACTION_META_2_MOCK = {
   },
 } as TransactionMeta;
 
-const SIMULATION_DATA_MOCK: Awaited<ReturnType<typeof getSimulationData>> = {
+const SIMULATION_DATA_RESULT_MOCK: GetSimulationDataResult = {
   gasFeeTokens: [],
   simulationData: {
     nativeBalanceChange: {
@@ -1982,7 +1983,7 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_RESULT_MOCK);
 
         const { controller } = setupController();
 
@@ -2013,12 +2014,12 @@ describe('TransactionController', () => {
         );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
-          SIMULATION_DATA_MOCK.simulationData,
+          SIMULATION_DATA_RESULT_MOCK.simulationData,
         );
       });
 
       it('with error if simulation disabled', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_RESULT_MOCK);
 
         const { controller } = setupController({
           options: { isSimulationEnabled: () => false },
@@ -2045,7 +2046,7 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_RESULT_MOCK);
 
         const { controller } = setupController();
 
