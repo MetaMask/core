@@ -23,16 +23,6 @@ type MakeJsonCompatible<T> = T extends Json
  */
 type JsonCompatibleOperation = MakeJsonCompatible<Operation>;
 
-export type GasFeeToken = {
-  amount: Hex;
-  balance: Hex;
-  decimals: number;
-  rateWei: Hex;
-  recipient: Hex;
-  symbol: string;
-  tokenAddress: Hex;
-};
-
 /**
  * Information about a single transaction such as status and block number.
  */
@@ -194,6 +184,7 @@ export type TransactionMeta = {
    */
   firstRetryBlockNumber?: string;
 
+  /** Available tokens that can be used to pay for gas. */
   gasFeeTokens?: GasFeeToken[];
 
   /**
@@ -359,6 +350,10 @@ export type TransactionMeta = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   securityProviderResponse?: Record<string, any>;
 
+  /**
+   * The token address of the selected gas fee token.
+   * Corresponds to the `gasFeeTokens` property.
+   */
   selectedGasFeeToken?: Hex;
 
   /**
@@ -1637,4 +1632,34 @@ export type ValidateSecurityRequest = {
 
   /** Optional EIP-7702 delegation to mock for the transaction sender. */
   delegationMock?: Hex;
+};
+
+/** Data required to pay for transaction gas using an ERC-20 token. */
+export type GasFeeToken = {
+  /** Amount needed for the gas fee. */
+  amount: Hex;
+
+  /** Current token balance of the sender. */
+  balance: Hex;
+
+  /** Decimals of the token. */
+  decimals: number;
+
+  /** The corresponding gas limit this token fee would equal. */
+  gas: Hex;
+
+  /** The corresponding maxFeePerGas this token fee would equal. */
+  maxFeePerGas: Hex;
+
+  /** Conversion rate of 1 token to native WEI. */
+  rateWei: Hex;
+
+  /** Account address to send the token to. */
+  recipient: Hex;
+
+  /** Symbol of the token. */
+  symbol: string;
+
+  /** Address of the token contract. */
+  tokenAddress: Hex;
 };

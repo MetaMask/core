@@ -711,15 +711,21 @@ function getContractInterfaces(): Map<SupportedToken, Interface> {
  * @returns An array of gas fee tokens.
  */
 function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
-  const tokenFees = response.transactions?.[0]?.fees?.[0]?.tokenFees ?? [];
+  const feeLevel = response.transactions[0]
+    .fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
 
-  return tokenFees.map((fee) => ({
-    amount: fee.balanceNeededToken,
-    balance: fee.currentBalanceToken,
-    decimals: fee.token.decimals,
-    rateWei: fee.rateWei,
-    recipient: fee.feeRecipient,
-    symbol: fee.token.symbol,
-    tokenAddress: fee.token.address,
+  const tokenFees = feeLevel?.tokenFees ?? [];
+
+  return tokenFees.map((tokenFee) => ({
+    amount: tokenFee.balanceNeededToken,
+    balance: tokenFee.currentBalanceToken,
+    decimals: tokenFee.token.decimals,
+    gas: feeLevel.gas,
+    maxFeePerGas: feeLevel.maxFeePerGas,
+    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
+    rateWei: tokenFee.rateWei,
+    recipient: tokenFee.feeRecipient,
+    symbol: tokenFee.token.symbol,
+    tokenAddress: tokenFee.token.address,
   }));
 }

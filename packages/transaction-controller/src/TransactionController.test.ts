@@ -1993,7 +1993,9 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_RESULT_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
 
         const { controller } = setupController();
 
@@ -2029,7 +2031,9 @@ describe('TransactionController', () => {
       });
 
       it('with error if simulation disabled', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_RESULT_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
 
         const { controller } = setupController({
           options: { isSimulationEnabled: () => false },
@@ -2056,7 +2060,9 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_RESULT_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
 
         const { controller } = setupController();
 

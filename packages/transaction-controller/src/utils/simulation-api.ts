@@ -120,20 +120,28 @@ export type SimulationResponseStateDiff = {
 };
 
 export type SmulationResponseTokenFee = {
+  /** Token data independent of current transaction. */
   token: {
+    /** Address of the token contract. */
     address: Hex;
 
+    /** Decimals of the token. */
     decimals: number;
 
+    /** Symbol of the token. */
     symbol: string;
   };
 
+  /** Amount of tokens needed to pay for gas. */
   balanceNeededToken: Hex;
 
+  /** Current token balance of sender. */
   currentBalanceToken: Hex;
 
+  /** Account address that token should be transferred to. */
   feeRecipient: Hex;
 
+  /** Conversation rate of 1 token to native WEI. */
   rateWei: Hex;
 };
 
@@ -147,6 +155,16 @@ export type SimulationResponseTransaction = {
 
   fees?: [
     {
+      /** Gas limit for the fee level. */
+      gas: Hex;
+
+      /** Maximum fee per gas for the fee level. */
+      maxFeePerGas: Hex;
+
+      /** Maximum priority fee per gas for the fee level. */
+      maxPriorityFeePerGas: Hex;
+
+      /** Token fee data for the fee level. */
       tokenFees: SmulationResponseTokenFee[];
     },
   ];
