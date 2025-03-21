@@ -4,6 +4,7 @@ import type EthQuery from '@metamask/eth-query';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './LineaGasFeeFlow';
 import { CHAIN_IDS } from '../constants';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
   GasFeeFlowRequest,
@@ -82,7 +83,12 @@ describe('LineaGasFeeFlow', () => {
         chainId,
       };
 
-      expect(flow.matchesTransaction(transaction)).toBe(true);
+      expect(
+        flow.matchesTransaction({
+          transactionMeta: transaction,
+          messenger: {} as TransactionControllerMessenger,
+        }),
+      ).toBe(true);
     });
   });
 

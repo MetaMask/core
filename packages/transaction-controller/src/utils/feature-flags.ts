@@ -34,6 +34,9 @@ export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_TRANSACTIONS]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+
+    /** Randomised gas fee digits. */
+    randomisedGasFeeDigits?: Record<Hex, number>;
   };
 };
 
@@ -114,6 +117,25 @@ export function getBatchSizeLimit(
     featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.batchSizeLimit ??
     DEFAULT_BATCH_SIZE_LIMIT
   );
+}
+
+/**
+ * Retrieves the number of digits to randomise for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The number of digits to randomise.
+ */
+export function getRandomisedGasFeeDigits(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const randomisedGasFeeDigits =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.randomisedGasFeeDigits ?? {};
+
+  return randomisedGasFeeDigits[chainId];
 }
 
 /**

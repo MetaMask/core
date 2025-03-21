@@ -61,6 +61,7 @@ import {
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
+import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
@@ -898,6 +899,7 @@ export class TransactionController extends BaseController<
       getProvider: (networkClientId) => this.#getProvider({ networkClientId }),
       getTransactions: () => this.state.transactions,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      messenger: this.messagingSystem,
       onStateChange: (listener) => {
         this.messagingSystem.subscribe(
           'TransactionController:stateChange',
@@ -1940,6 +1942,7 @@ export class TransactionController extends BaseController<
 
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      messenger: this.messagingSystem,
       provider,
       transactionMeta: updatedTransaction,
     });
@@ -2249,6 +2252,7 @@ export class TransactionController extends BaseController<
     const gasFeeFlow = getGasFeeFlow(
       transactionMeta,
       this.gasFeeFlows,
+      this.messagingSystem,
     ) as GasFeeFlow;
 
     const ethQuery = new EthQuery(provider);
@@ -2260,6 +2264,7 @@ export class TransactionController extends BaseController<
     return gasFeeFlow.getGasFees({
       ethQuery,
       gasFeeControllerData,
+      messenger: this.messagingSystem,
       transactionMeta,
     });
   }
@@ -2289,6 +2294,7 @@ export class TransactionController extends BaseController<
 
     return await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      messenger: this.messagingSystem,
       provider,
       transactionMeta: {
         txParams: transactionParams,
@@ -2483,6 +2489,7 @@ export class TransactionController extends BaseController<
           gasFeeFlows: this.gasFeeFlows,
           getGasFeeEstimates: this.getGasFeeEstimates,
           getSavedGasFees: this.getSavedGasFees.bind(this),
+          messenger: this.messagingSystem,
           txMeta: transactionMeta,
         }),
     );
@@ -2492,6 +2499,7 @@ export class TransactionController extends BaseController<
       async () =>
         await updateTransactionLayer1GasFee({
           layer1GasFeeFlows: this.layer1GasFeeFlows,
+          messenger: this.messagingSystem,
           provider,
           transactionMeta,
         }),
@@ -3621,7 +3629,11 @@ export class TransactionController extends BaseController<
       return [new TestGasFeeFlow()];
     }
 
-    return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
+    return [
+      new RandomisedEstimationsGasFeeFlow(),
+      new LineaGasFeeFlow(),
+      new DefaultGasFeeFlow(),
+    ];
   }
 
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {

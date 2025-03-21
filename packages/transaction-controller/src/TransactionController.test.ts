@@ -39,6 +39,7 @@ import { getAccountAddressRelationship } from './api/accounts-api';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
@@ -108,6 +109,7 @@ const TRANSACTION_HASH_MOCK = '0x123456';
 jest.mock('@metamask/eth-query');
 jest.mock('./api/accounts-api');
 jest.mock('./gas-flows/DefaultGasFeeFlow');
+jest.mock('./gas-flows/RandomisedEstimationsGasFeeFlow');
 jest.mock('./gas-flows/LineaGasFeeFlow');
 jest.mock('./gas-flows/TestGasFeeFlow');
 jest.mock('./helpers/GasFeePoller');
@@ -490,6 +492,9 @@ describe('TransactionController', () => {
   );
   const defaultGasFeeFlowClassMock = jest.mocked(DefaultGasFeeFlow);
   const lineaGasFeeFlowClassMock = jest.mocked(LineaGasFeeFlow);
+  const randomisedEstimationsGasFeeFlowClassMock = jest.mocked(
+    RandomisedEstimationsGasFeeFlow,
+  );
   const testGasFeeFlowClassMock = jest.mocked(TestGasFeeFlow);
   const gasFeePollerClassMock = jest.mocked(GasFeePoller);
   const getSimulationDataMock = jest.mocked(getSimulationData);
@@ -512,6 +517,7 @@ describe('TransactionController', () => {
   let multichainTrackingHelperMock: jest.Mocked<MultichainTrackingHelper>;
   let defaultGasFeeFlowMock: jest.Mocked<DefaultGasFeeFlow>;
   let lineaGasFeeFlowMock: jest.Mocked<LineaGasFeeFlow>;
+  let randomisedEstimationsGasFeeFlowMock: jest.Mocked<RandomisedEstimationsGasFeeFlow>;
   let testGasFeeFlowMock: jest.Mocked<TestGasFeeFlow>;
   let gasFeePollerMock: jest.Mocked<GasFeePoller>;
   let methodDataHelperMock: jest.Mocked<MethodDataHelper>;
@@ -895,6 +901,13 @@ describe('TransactionController', () => {
       return lineaGasFeeFlowMock;
     });
 
+    randomisedEstimationsGasFeeFlowClassMock.mockImplementation(() => {
+      randomisedEstimationsGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<RandomisedEstimationsGasFeeFlow>;
+      return randomisedEstimationsGasFeeFlowMock;
+    });
+
     testGasFeeFlowClassMock.mockImplementation(() => {
       testGasFeeFlowMock = {
         matchesTransaction: () => false,
@@ -947,7 +960,11 @@ describe('TransactionController', () => {
       expect(gasFeePollerClassMock).toHaveBeenCalledTimes(1);
       expect(gasFeePollerClassMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gasFeeFlows: [lineaGasFeeFlowMock, defaultGasFeeFlowMock],
+          gasFeeFlows: [
+            randomisedEstimationsGasFeeFlowMock,
+            lineaGasFeeFlowMock,
+            defaultGasFeeFlowMock,
+          ],
         }),
       );
     });
@@ -1951,9 +1968,14 @@ describe('TransactionController', () => {
       expect(updateGasFeesMock).toHaveBeenCalledWith({
         eip1559: true,
         ethQuery: expect.any(Object),
-        gasFeeFlows: [lineaGasFeeFlowMock, defaultGasFeeFlowMock],
+        gasFeeFlows: [
+          randomisedEstimationsGasFeeFlowMock,
+          lineaGasFeeFlowMock,
+          defaultGasFeeFlowMock,
+        ],
         getGasFeeEstimates: expect.any(Function),
         getSavedGasFees: expect.any(Function),
+        messenger: expect.any(Object),
         txMeta: expect.any(Object),
       });
     });

@@ -1,6 +1,7 @@
 import type { GasFeeEstimates as GasFeeControllerEstimates } from '@metamask/gas-fee-controller';
 
 import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
   GasFeeFlow,
@@ -94,7 +95,11 @@ describe('gas-flow', () => {
       gasFeeFlow2.matchesTransaction.mockReturnValue(false);
 
       expect(
-        getGasFeeFlow(TRANSACTION_META_MOCK, [gasFeeFlow1, gasFeeFlow2]),
+        getGasFeeFlow(
+          TRANSACTION_META_MOCK,
+          [gasFeeFlow1, gasFeeFlow2],
+          {} as TransactionControllerMessenger,
+        ),
       ).toBeUndefined();
     });
 
@@ -106,7 +111,11 @@ describe('gas-flow', () => {
       gasFeeFlow2.matchesTransaction.mockReturnValue(true);
 
       expect(
-        getGasFeeFlow(TRANSACTION_META_MOCK, [gasFeeFlow1, gasFeeFlow2]),
+        getGasFeeFlow(
+          TRANSACTION_META_MOCK,
+          [gasFeeFlow1, gasFeeFlow2],
+          {} as TransactionControllerMessenger,
+        ),
       ).toBe(gasFeeFlow2);
     });
   });
