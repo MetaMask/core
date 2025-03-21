@@ -101,6 +101,7 @@ export function createNetworkClient({
   });
   rpcService.onDegraded(({ endpointUrl }) => {
     messenger.publish('NetworkController:rpcEndpointDegraded', {
+      chainId: configuration.chainId,
       endpointUrl,
     });
   });
