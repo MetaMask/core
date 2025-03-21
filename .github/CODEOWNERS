@@ -140,3 +140,5 @@
 /packages/remote-feature-flag-controller/CHANGELOG.md @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
 /packages/bridge-status-controller/package.json         @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
 /packages/bridge-status-controller/CHANGELOG.md         @MetaMask/swaps-engineers @MetaMask/wallet-framework-engineers
+/packages/accounts-controller/package.json        @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
+/packages/accounts-controller/CHANGELOG.md        @MetaMask/mobile-platform @MetaMask/wallet-framework-engineers
