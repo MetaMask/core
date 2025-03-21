@@ -45,7 +45,6 @@ export const calcLatestSrcBalance = async (
   }
   return undefined;
 };
-// TODO add to changelog
 
 export const hasSufficientBalance = async (
   providerRpcUrl: string,

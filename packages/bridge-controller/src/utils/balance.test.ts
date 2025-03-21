@@ -19,7 +19,8 @@ jest.mock('@ethersproject/providers', () => {
   };
 });
 
-const providerRpcUrl = 'https://mainnet.infura.io/v3/1234567890';
+const providerRpcUrl = 'https://provider.rpc.url/v3/1234567890';
+
 describe('balance', () => {
   beforeEach(() => {
     jest.clearAllMocks();

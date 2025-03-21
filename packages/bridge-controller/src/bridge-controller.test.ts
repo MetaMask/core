@@ -272,6 +272,7 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
+      configuration: { rpcUrl: 'https://provider.rpc.url/v3/1234567890' },
       selectedNetworkClientId: 'selectedNetworkClientId',
     } as never);
 
@@ -428,6 +429,7 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
+      configuration: { rpcUrl: 'https://provider.rpc.url/v3/1234567890' },
       selectedNetworkClientId: 'selectedNetworkClientId',
     } as never);
 
@@ -583,6 +585,7 @@ describe('BridgeController', function () {
         }
         return {
           provider: jest.fn() as never,
+          configuration: { rpcUrl: 'https://provider.rpc.url/v3/1234567890' },
           selectedNetworkClientId: 'selectedNetworkClientId',
         } as never;
       },
@@ -660,6 +663,7 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
+      configuration: { rpcUrl: 'https://provider.rpc.url/v3/1234567890' },
     } as never);
 
     await bridgeController.updateBridgeQuoteRequestParams({
@@ -778,6 +782,7 @@ describe('BridgeController', function () {
       messengerMock.call.mockReturnValue({
         address: '0x123',
         provider: jest.fn(),
+        configuration: { rpcUrl: 'https://provider.rpc.url/v3/1234567890' },
         selectedNetworkClientId: 'selectedNetworkClientId',
       } as never);
       getLayer1GasFeeMock.mockResolvedValue('0x25F63418AA4');
@@ -883,6 +888,7 @@ describe('BridgeController', function () {
     messengerMock.call.mockReturnValue({
       address: '0x123',
       provider: jest.fn(),
+      configuration: { rpcUrl: 'https://provider.rpc.url/v3/1234567890' },
     } as never);
 
     jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
