@@ -62,3 +62,4 @@ export {
   Caip25CaveatMutators,
   generateCaip25Caveat,
 } from './caip25Permission';
+export { KnownSessionProperties } from './scope/constants';
