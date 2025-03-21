@@ -1274,10 +1274,11 @@ export type Layer1GasFeeFlowResponse = {
 export type Layer1GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
-   *
-   * @param transactionMeta - The transaction metadata.
-   * @param messenger - The messenger instance.
-   * @returns Whether the layer1 gas fee flow supports the transaction.
+   * 
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
+   * @returns Whether the gas fee flow supports the transaction.
    */
   matchesTransaction({
     transactionMeta,

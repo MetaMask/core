@@ -43,7 +43,7 @@ export async function updateTransactionLayer1GasFee(
  *
  * @param transactionMeta - The transaction to get the layer 1 gas fee flow for.
  * @param layer1GasFeeFlows - The layer 1 gas fee flows to search.
- * @param messenger
+ * @param messenger - The messenger instance.
  * @returns The layer 1 gas fee flow for the transaction, or undefined if none match.
  */
 function getLayer1GasFeeFlow(
