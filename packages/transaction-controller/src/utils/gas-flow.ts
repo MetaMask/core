@@ -7,7 +7,6 @@ import type {
 } from '@metamask/gas-fee-controller';
 import { type GasFeeState } from '@metamask/gas-fee-controller';
 
-import type { TransactionControllerFeatureFlags } from './feature-flags';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
@@ -38,8 +37,7 @@ type MergeGasFeeEstimatesRequest = {
  *
  * @param transactionMeta - The transaction metadata to find a gas fee flow for.
  * @param gasFeeFlows - The gas fee flows to search.
- * @param featureFlags - All feature flags
- * @param messenger
+ * @param messenger - The messenger instance.
  * @returns The first gas fee flow that matches the transaction, or undefined if none match.
  */
 export function getGasFeeFlow(

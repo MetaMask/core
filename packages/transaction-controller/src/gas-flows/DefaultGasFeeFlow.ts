@@ -17,7 +17,6 @@ import type {
   GasFeeFlowResponse,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
-  TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
 import { gweiDecimalToWeiHex } from '../utils/gas-fees';
