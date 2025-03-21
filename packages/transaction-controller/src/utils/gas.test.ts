@@ -57,6 +57,7 @@ const UPDATE_GAS_REQUEST_MOCK = {
   txMeta: TRANSACTION_META_MOCK,
   chainId: '0x0',
   isCustomNetwork: false,
+  isSimulationEnabled: false,
   ethQuery: ETH_QUERY_MOCK,
 } as UpdateGasRequest;
 

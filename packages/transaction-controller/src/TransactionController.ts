@@ -3966,6 +3966,7 @@ export class TransactionController extends BaseController<
       chainId,
       ethQuery,
       isCustomNetwork,
+      isSimulationEnabled: this.#isSimulationEnabled(),
       txMeta: transactionMeta,
     });
   }
