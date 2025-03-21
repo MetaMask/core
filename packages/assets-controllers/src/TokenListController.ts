@@ -303,7 +303,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       const cachedTokens = await safelyExecute(() =>
         this.#fetchFromCache(chainId),
       );
-      if (cachedTokens) {
+      if (cachedTokens && Object.keys(cachedTokens).length > 0) {
         // Use non-expired cached tokens
         tokenList = { ...cachedTokens };
       } else {
