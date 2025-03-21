@@ -134,39 +134,39 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
   });
 
   describe('getGasFees', () => {
-    it('randomises fee market estimates for chain IDs in the feature flag config', async () => {
-      const flow = new RandomisedEstimationsGasFeeFlow();
+    it.each(Object.values(GasFeeEstimateLevel))(
+      'randomises fee market estimates for %s level',
+      async (level) => {
+        const flow = new RandomisedEstimationsGasFeeFlow();
 
-      const request = {
-        ethQuery: ETH_QUERY_MOCK,
-        transactionMeta: TRANSACTION_META_MOCK,
-        gasFeeControllerData: {
-          gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
-          gasFeeEstimates: {
-            low: {
-              suggestedMaxFeePerGas: '100000',
-              suggestedMaxPriorityFeePerGas: '100000',
+        const request = {
+          ethQuery: ETH_QUERY_MOCK,
+          transactionMeta: TRANSACTION_META_MOCK,
+          gasFeeControllerData: {
+            gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
+            gasFeeEstimates: {
+              low: {
+                suggestedMaxFeePerGas: '100000',
+                suggestedMaxPriorityFeePerGas: '100000',
+              },
+              medium: {
+                suggestedMaxFeePerGas: '200000',
+                suggestedMaxPriorityFeePerGas: '200000',
+              },
+              high: {
+                suggestedMaxFeePerGas: '300000',
+                suggestedMaxPriorityFeePerGas: '300000',
+              },
             },
-            medium: {
-              suggestedMaxFeePerGas: '200000',
-              suggestedMaxPriorityFeePerGas: '200000',
-            },
-            high: {
-              suggestedMaxFeePerGas: '300000',
-              suggestedMaxPriorityFeePerGas: '300000',
-            },
-          },
-          estimatedGasFeeTimeBounds: {},
-        } as GasFeeState,
-        messenger: {} as TransactionControllerMessenger,
-      };
+            estimatedGasFeeTimeBounds: {},
+          } as GasFeeState,
+          messenger: {} as TransactionControllerMessenger,
+        };
 
-      const result = await flow.getGasFees(request);
+        const result = await flow.getGasFees(request);
 
-      expect(result.estimates.type).toBe(GasFeeEstimateType.FeeMarket);
+        expect(result.estimates.type).toBe(GasFeeEstimateType.FeeMarket);
 
-      // For all levels, verify that randomization occurred but stayed within expected range
-      for (const level of Object.values(GasFeeEstimateLevel)) {
         const estimates = request.gasFeeControllerData
           .gasFeeEstimates as Record<
           GasFeeEstimateLevel,
@@ -207,33 +207,33 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         expect(actualPriorityValue).toBeLessThanOrEqual(
           originalPriorityValue + 999999,
         );
-      }
-    });
+      },
+    );
 
-    it('randomises legacy estimates with specified digits', async () => {
-      const flow = new RandomisedEstimationsGasFeeFlow();
+    it.each(Object.values(GasFeeEstimateLevel))(
+      'randomises legacy estimates for %s level',
+      async (level) => {
+        const flow = new RandomisedEstimationsGasFeeFlow();
 
-      const request = {
-        ethQuery: ETH_QUERY_MOCK,
-        transactionMeta: TRANSACTION_META_MOCK,
-        gasFeeControllerData: {
-          gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
-          gasFeeEstimates: {
-            low: '100000',
-            medium: '200000',
-            high: '300000',
-          },
-        } as GasFeeState,
-        messenger: {} as TransactionControllerMessenger,
-      };
+        const request = {
+          ethQuery: ETH_QUERY_MOCK,
+          transactionMeta: TRANSACTION_META_MOCK,
+          gasFeeControllerData: {
+            gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
+            gasFeeEstimates: {
+              low: '100000',
+              medium: '200000',
+              high: '300000',
+            },
+          } as GasFeeState,
+          messenger: {} as TransactionControllerMessenger,
+        };
 
-      const result = await flow.getGasFees(request);
+        const result = await flow.getGasFees(request);
 
-      // Verify result type
-      expect(result.estimates.type).toBe(GasFeeEstimateType.Legacy);
+        // Verify result type
+        expect(result.estimates.type).toBe(GasFeeEstimateType.Legacy);
 
-      // For all levels, verify that randomization occurred but stayed within expected range
-      for (const level of Object.values(GasFeeEstimateLevel)) {
         const gasHex = (result.estimates as LegacyGasFeeEstimates)[level];
         const estimates = request.gasFeeControllerData
           .gasFeeEstimates as Record<GasFeeEstimateLevel, string>;
@@ -246,8 +246,8 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         expect(actualValue).not.toBe(originalValue);
         expect(actualValue).toBeGreaterThanOrEqual(originalValue);
         expect(actualValue).toBeLessThanOrEqual(originalValue + 999999);
-      }
-    });
+      },
+    );
 
     it('randomises eth_gasPrice estimates', async () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
