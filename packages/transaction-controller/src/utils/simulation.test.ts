@@ -929,5 +929,157 @@ describe('Simulation Utils', () => {
         });
       });
     });
+
+    describe('returns gas fee tokens', () => {
+      it('using token fee data', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              fees: [
+                {
+                  gas: '0x1',
+                  maxFeePerGas: '0x2',
+                  maxPriorityFeePerGas: '0x3',
+                  tokenFees: [
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_1_MOCK,
+                        decimals: 3,
+                        symbol: 'TEST1',
+                      },
+                      balanceNeededToken: '0x4',
+                      currentBalanceToken: '0x5',
+                      feeRecipient: '0x6',
+                      rateWei: '0x7',
+                    },
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_2_MOCK,
+                        decimals: 4,
+                        symbol: 'TEST2',
+                      },
+                      balanceNeededToken: '0x8',
+                      currentBalanceToken: '0x9',
+                      feeRecipient: '0xa',
+                      rateWei: '0xb',
+                    },
+                  ],
+                },
+              ],
+              return: '0x',
+            },
+          ],
+        });
+
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.gasFeeTokens).toStrictEqual([
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            gas: '0x1',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: CONTRACT_ADDRESS_1_MOCK,
+          },
+          {
+            amount: '0x8',
+            balance: '0x9',
+            decimals: 4,
+            gas: '0x1',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0xb',
+            recipient: '0xa',
+            symbol: 'TEST2',
+            tokenAddress: CONTRACT_ADDRESS_2_MOCK,
+          },
+        ]);
+      });
+
+      it('using first fee level', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              fees: [
+                {
+                  gas: '0x1',
+                  maxFeePerGas: '0x2',
+                  maxPriorityFeePerGas: '0x3',
+                  tokenFees: [
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_1_MOCK,
+                        decimals: 3,
+                        symbol: 'TEST1',
+                      },
+                      balanceNeededToken: '0x4',
+                      currentBalanceToken: '0x5',
+                      feeRecipient: '0x6',
+                      rateWei: '0x7',
+                    },
+                  ],
+                },
+                {
+                  gas: '0x8',
+                  maxFeePerGas: '0x9',
+                  maxPriorityFeePerGas: '0xa',
+                  tokenFees: [
+                    {
+                      token: {
+                        address: CONTRACT_ADDRESS_2_MOCK,
+                        decimals: 4,
+                        symbol: 'TEST2',
+                      },
+                      balanceNeededToken: '0xb',
+                      currentBalanceToken: '0xc',
+                      feeRecipient: '0xd',
+                      rateWei: '0xe',
+                    },
+                  ],
+                },
+              ],
+              return: '0x',
+            },
+          ],
+        });
+
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.gasFeeTokens).toStrictEqual([
+          {
+            amount: '0x4',
+            balance: '0x5',
+            decimals: 3,
+            gas: '0x1',
+            maxFeePerGas: '0x2',
+            maxPriorityFeePerGas: '0x3',
+            rateWei: '0x7',
+            recipient: '0x6',
+            symbol: 'TEST1',
+            tokenAddress: CONTRACT_ADDRESS_1_MOCK,
+          },
+        ]);
+      });
+
+      it('as empty if missing data', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              fees: [],
+              return: '0x',
+            },
+          ],
+        });
+
+        const result = await getSimulationData(REQUEST_MOCK);
+
+        expect(result.gasFeeTokens).toStrictEqual([]);
+      });
+    });
   });
 });

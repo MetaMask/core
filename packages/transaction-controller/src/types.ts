@@ -1507,6 +1507,9 @@ export type GasFeeToken = {
   /** The corresponding maxFeePerGas this token fee would equal. */
   maxFeePerGas: Hex;
 
+  /** The corresponding maxPriorityFeePerGas this token fee would equal. */
+  maxPriorityFeePerGas: Hex;
+
   /** Conversion rate of 1 token to native WEI. */
   rateWei: Hex;
 
