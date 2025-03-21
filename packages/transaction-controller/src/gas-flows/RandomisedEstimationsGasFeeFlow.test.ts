@@ -190,7 +190,6 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         // For 6 digits randomization in FEATURE_FLAGS_MOCK for '0x1'
         expect(actualValue).toBeLessThanOrEqual(originalValue + 999999);
 
-        // Same approach for maxPriorityFeePerGas
         const maxPriorityFeeHex = (
           result.estimates as FeeMarketGasFeeEstimates
         )[level].maxPriorityFeePerGas;
