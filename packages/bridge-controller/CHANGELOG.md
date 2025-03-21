@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.0]
 
-### Uncategorized
-
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ### Added
 
 - BREAKING: Bump dependency @metamask/keyring-api to ^17.2.0 ([#5486](https://github.com/MetaMask/core/pull/5486))
