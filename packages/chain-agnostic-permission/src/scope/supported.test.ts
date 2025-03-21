@@ -1,6 +1,7 @@
 import {
   KnownNotifications,
   KnownRpcMethods,
+  KnownSessionProperties,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from './constants';
@@ -9,6 +10,7 @@ import {
   isSupportedMethod,
   isSupportedNotification,
   isSupportedScopeString,
+  isSupportedSessionProperty,
 } from './supported';
 
 describe('Scope Support', () => {
@@ -488,6 +490,20 @@ describe('Scope Support', () => {
           getNonEvmAccountAddresses,
         }),
       ).toBe(true);
+    });
+  });
+
+  describe('isSupportedSessionProperty', () => {
+    it('returns true for the session property', () => {
+      expect(
+        isSupportedSessionProperty(
+          KnownSessionProperties.SolanaAccountChangedNotifications,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false for the session property', () => {
+      expect(isSupportedSessionProperty('foo')).toBe(false);
     });
   });
 });
