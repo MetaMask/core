@@ -8,6 +8,7 @@ import {
   RandomisedEstimationsGasFeeFlow,
   randomiseDecimalGWEIAndConvertToHex,
 } from './RandomisedEstimationsGasFeeFlow';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
   GasPriceGasFeeEstimates,
@@ -19,10 +20,10 @@ import {
   GasFeeEstimateType,
   TransactionStatus,
 } from '../types';
-import type { TransactionControllerFeatureFlags } from '../utils/feature-flags';
-import { FEATURE_FLAG_RANDOMISE_GAS_FEES } from '../utils/feature-flags';
+import { getRandomisedGasFeeDigits } from '../utils/feature-flags';
 
 jest.mock('./DefaultGasFeeFlow');
+jest.mock('../utils/feature-flags');
 
 // Mock Math.random to return predictable values
 const originalRandom = global.Math.random;
@@ -36,15 +37,6 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
   time: 0,
   txParams: {
     from: '0x123',
-  },
-};
-
-const FEATURE_FLAGS_MOCK: TransactionControllerFeatureFlags = {
-  [FEATURE_FLAG_RANDOMISE_GAS_FEES]: {
-    config: {
-      '0x1': 6,
-      '0x5': 4,
-    },
   },
 };
 
@@ -79,6 +71,8 @@ const DEFAULT_GAS_PRICE_RESPONSE: GasPriceGasFeeEstimates = {
 };
 
 describe('RandomisedEstimationsGasFeeFlow', () => {
+  const getRandomisedGasFeeDigitsMock = jest.mocked(getRandomisedGasFeeDigits);
+
   beforeEach(() => {
     jest.resetAllMocks();
     jest
@@ -96,6 +90,8 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         }
         return { estimates: DEFAULT_GAS_PRICE_RESPONSE };
       });
+
+    getRandomisedGasFeeDigitsMock.mockReturnValue(6);
   });
 
   afterEach(() => {
@@ -111,25 +107,16 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         chainId: '0x1',
       } as TransactionMeta;
 
-      expect(flow.matchesTransaction(transaction, FEATURE_FLAGS_MOCK)).toBe(
-        true,
-      );
+      expect(
+        flow.matchesTransaction({
+          transactionMeta: transaction,
+          messenger: {} as TransactionControllerMessenger,
+        }),
+      ).toBe(true);
     });
 
     it('returns false if chainId is not in the randomisation config', () => {
-      const flow = new RandomisedEstimationsGasFeeFlow();
-
-      const transaction = {
-        ...TRANSACTION_META_MOCK,
-        chainId: '0x89', // Not in config
-      } as TransactionMeta;
-
-      expect(flow.matchesTransaction(transaction, FEATURE_FLAGS_MOCK)).toBe(
-        false,
-      );
-    });
-
-    it('returns false if feature flag is not exists', () => {
+      getRandomisedGasFeeDigitsMock.mockReturnValue(undefined);
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       const transaction = {
@@ -138,10 +125,10 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       } as TransactionMeta;
 
       expect(
-        flow.matchesTransaction(
-          transaction,
-          undefined as unknown as TransactionControllerFeatureFlags,
-        ),
+        flow.matchesTransaction({
+          transactionMeta: transaction,
+          messenger: {} as TransactionControllerMessenger,
+        }),
       ).toBe(false);
     });
   });
@@ -152,7 +139,6 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
 
       const request = {
         ethQuery: ETH_QUERY_MOCK,
-        featureFlags: FEATURE_FLAGS_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
@@ -172,6 +158,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
           },
           estimatedGasFeeTimeBounds: {},
         } as GasFeeState,
+        messenger: {} as TransactionControllerMessenger,
       };
 
       const result = await flow.getGasFees(request);
@@ -228,12 +215,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
 
       const request = {
         ethQuery: ETH_QUERY_MOCK,
-        featureFlags: FEATURE_FLAGS_MOCK,
-        // Using 0x5 with 4 digits randomization
-        transactionMeta: {
-          ...TRANSACTION_META_MOCK,
-          chainId: '0x5',
-        } as TransactionMeta,
+        transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
           gasFeeEstimates: {
@@ -242,6 +224,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
             high: '300000',
           },
         } as GasFeeState,
+        messenger: {} as TransactionControllerMessenger,
       };
 
       const result = await flow.getGasFees(request);
@@ -262,8 +245,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         // Verify value is within expected range
         expect(actualValue).not.toBe(originalValue);
         expect(actualValue).toBeGreaterThanOrEqual(originalValue);
-        // For 4 digits randomization (defined in FEATURE_FLAGS_MOCK for '0x5')
-        expect(actualValue).toBeLessThanOrEqual(originalValue + 9999);
+        expect(actualValue).toBeLessThanOrEqual(originalValue + 999999);
       }
     });
 
@@ -272,7 +254,6 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
 
       const request = {
         ethQuery: ETH_QUERY_MOCK,
-        featureFlags: FEATURE_FLAGS_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
@@ -280,6 +261,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
             gasPrice: '200000',
           },
         } as GasFeeState,
+        messenger: {} as TransactionControllerMessenger,
       };
 
       const result = await flow.getGasFees(request);
@@ -294,7 +276,6 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       // Verify gas price is within expected range
       expect(actualValue).not.toBe(originalValue);
       expect(actualValue).toBeGreaterThanOrEqual(originalValue);
-      // For 6 digits randomization (defined in FEATURE_FLAGS_MOCK for '0x1')
       expect(actualValue).toBeLessThanOrEqual(originalValue + 999999);
     });
 
@@ -308,7 +289,6 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
 
       const request = {
         ethQuery: ETH_QUERY_MOCK,
-        featureFlags: FEATURE_FLAGS_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
@@ -328,6 +308,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
           },
           estimatedGasFeeTimeBounds: {},
         } as GasFeeState,
+        messenger: {} as TransactionControllerMessenger,
       };
 
       const result = await flow.getGasFees(request);
@@ -344,12 +325,12 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
 
       const request = {
         ethQuery: ETH_QUERY_MOCK,
-        featureFlags: FEATURE_FLAGS_MOCK,
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: 'UNSUPPORTED_TYPE',
           gasFeeEstimates: {},
         } as unknown as GasFeeState,
+        messenger: {} as TransactionControllerMessenger,
       };
 
       // Capture the error in a spy so we can verify default flow was called

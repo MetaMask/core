@@ -1,7 +1,7 @@
 import type { GasFeeEstimates as GasFeeControllerEstimates } from '@metamask/gas-fee-controller';
 
-import type { TransactionControllerFeatureFlags } from './feature-flags';
 import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimates,
   GasFeeFlow,
@@ -87,12 +87,6 @@ function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
 
 describe('gas-flow', () => {
   describe('getGasFeeFlow', () => {
-    const featureFlags = {
-      test: {
-        config: {},
-      },
-    } as unknown as TransactionControllerFeatureFlags;
-
     it('returns undefined if no gas fee flow matches transaction', () => {
       const gasFeeFlow1 = createGasFeeFlowMock();
       const gasFeeFlow2 = createGasFeeFlowMock();
@@ -104,7 +98,7 @@ describe('gas-flow', () => {
         getGasFeeFlow(
           TRANSACTION_META_MOCK,
           [gasFeeFlow1, gasFeeFlow2],
-          featureFlags,
+          {} as TransactionControllerMessenger,
         ),
       ).toBeUndefined();
     });
@@ -120,7 +114,7 @@ describe('gas-flow', () => {
         getGasFeeFlow(
           TRANSACTION_META_MOCK,
           [gasFeeFlow1, gasFeeFlow2],
-          featureFlags,
+          {} as TransactionControllerMessenger,
         ),
       ).toBe(gasFeeFlow2);
     });

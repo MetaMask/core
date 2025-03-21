@@ -2,6 +2,7 @@ import { type Hex } from '@metamask/utils';
 
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 
 const SCROLL_CHAIN_IDS: Hex[] = [CHAIN_IDS.SCROLL, CHAIN_IDS.SCROLL_SEPOLIA];
@@ -18,7 +19,12 @@ export class ScrollLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
     super(SCROLL_GAS_PRICE_ORACLE_ADDRESS, true);
   }
 
-  matchesTransaction(transactionMeta: TransactionMeta): boolean {
+  matchesTransaction({
+    transactionMeta,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean {
     return SCROLL_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 }

@@ -5,6 +5,7 @@ import type BN from 'bn.js';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   GasFeeEstimates,
   GasFeeFlow,
@@ -49,7 +50,12 @@ const PRIORITY_FEE_MULTIPLIERS = {
  * - Static multipliers to increase the base and priority fees.
  */
 export class LineaGasFeeFlow implements GasFeeFlow {
-  matchesTransaction(transactionMeta: TransactionMeta): boolean {
+  matchesTransaction({
+    transactionMeta,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean {
     return LINEA_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 

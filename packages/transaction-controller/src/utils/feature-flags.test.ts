@@ -10,6 +10,7 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
+  getRandomisedGasFeeDigits,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -282,6 +283,47 @@ describe('Feature Flags Utils', () => {
     it('returns default value if undefined', () => {
       mockFeatureFlags({});
       expect(getBatchSizeLimit(controllerMessenger)).toBe(10);
+    });
+  });
+
+  describe('getRandomisedGasFeeDigits', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          randomisedGasFeeDigits: {
+            [CHAIN_ID_MOCK]: 3,
+            [CHAIN_ID_2_MOCK]: 2,
+          },
+        },
+      });
+
+      expect(
+        getRandomisedGasFeeDigits(CHAIN_ID_MOCK, controllerMessenger),
+      ).toBe(3);
+      expect(
+        getRandomisedGasFeeDigits(CHAIN_ID_2_MOCK, controllerMessenger),
+      ).toBe(2);
+    });
+
+    it('returns undefined if no randomised gas fee digits for chain', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          randomisedGasFeeDigits: {
+            [CHAIN_ID_2_MOCK]: 2,
+          },
+        },
+      });
+
+      expect(
+        getRandomisedGasFeeDigits(CHAIN_ID_MOCK, controllerMessenger),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined if feature flag not configured', () => {
+      mockFeatureFlags({});
+      expect(
+        getRandomisedGasFeeDigits(CHAIN_ID_MOCK, controllerMessenger),
+      ).toBeUndefined();
     });
   });
 });

@@ -8,6 +8,7 @@ import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
@@ -20,8 +21,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import type { TransactionControllerFeatureFlags } from '../utils/feature-flags';
-import { FEATURE_FLAG_RANDOMISE_GAS_FEES } from '../utils/feature-flags';
+import { getRandomisedGasFeeDigits } from '../utils/feature-flags';
 import { gweiDecimalToWeiDecimal } from '../utils/gas-fees';
 
 const log = createModuleLogger(
@@ -30,23 +30,26 @@ const log = createModuleLogger(
 );
 
 const PRESERVE_NUMBER_OF_DIGITS = 2;
-const DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE = 4;
 
 /**
  * Implementation of a gas fee flow that randomises the last digits of gas fee estimations
  */
 export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
-  matchesTransaction(
-    transactionMeta: TransactionMeta,
-    featureFlags: TransactionControllerFeatureFlags,
-  ): boolean {
+  matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean {
     const { chainId } = transactionMeta;
 
-    const randomiseGasFeesConfig = getRandomisedGasFeeConfig(featureFlags);
+    const randomisedGasFeeDigits = getRandomisedGasFeeDigits(
+      chainId,
+      messenger,
+    );
 
-    const enabledChainIds = Object.keys(randomiseGasFeesConfig);
-
-    return enabledChainIds.includes(chainId);
+    return randomisedGasFeeDigits !== undefined;
   }
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
@@ -67,11 +70,13 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
   async #getRandomisedGasFees(
     request: GasFeeFlowRequest,
   ): Promise<GasFeeFlowResponse> {
-    const { featureFlags, gasFeeControllerData, transactionMeta } = request;
+    const { messenger, gasFeeControllerData, transactionMeta } = request;
     const { gasEstimateType, gasFeeEstimates } = gasFeeControllerData;
 
-    const randomiseGasFeesConfig = getRandomisedGasFeeConfig(featureFlags);
-    const lastNDigits = randomiseGasFeesConfig[transactionMeta.chainId];
+    const randomisedGasFeeDigits = getRandomisedGasFeeDigits(
+      transactionMeta.chainId,
+      messenger,
+    ) as number;
 
     let response: GasFeeEstimates;
 
@@ -80,7 +85,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
         log('Using fee market estimates', gasFeeEstimates);
         response = this.#randomiseFeeMarketEstimates(
           gasFeeEstimates,
-          lastNDigits,
+          randomisedGasFeeDigits,
         );
         log('Randomised fee market estimates', response);
         break;
@@ -88,7 +93,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
         log('Using legacy estimates', gasFeeEstimates);
         response = this.#randomiseLegacyEstimates(
           gasFeeEstimates as LegacyGasPriceEstimate,
-          lastNDigits,
+          randomisedGasFeeDigits,
         );
         log('Randomised legacy estimates', response);
         break;
@@ -96,7 +101,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
         log('Using eth_gasPrice estimates', gasFeeEstimates);
         response = this.#getRandomisedGasPriceEstimate(
           gasFeeEstimates as EthGasPriceEstimate,
-          lastNDigits,
+          randomisedGasFeeDigits,
         );
         log('Randomised eth_gasPrice estimates', response);
         break;
@@ -196,18 +201,15 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
 }
 
 /**
- * Returns the randomised gas fee config from the feature flags
+ * Generates a random number with the specified number of digits that is greater than or equal to the given minimum value.
  *
- * @param featureFlags - All feature flags
- * @returns The randomised gas fee config
+ * @param digitCount - The number of digits the random number should have
+ * @param minValue - The minimum value the random number should have
+ * @returns A random number with the specified number of digits
  */
-function getRandomisedGasFeeConfig(
-  featureFlags: TransactionControllerFeatureFlags,
-): Record<Hex, number> {
-  const randomiseGasFeesConfig =
-    featureFlags?.[FEATURE_FLAG_RANDOMISE_GAS_FEES]?.config ?? {};
-
-  return randomiseGasFeesConfig;
+function generateRandomDigits(digitCount: number, minValue: number): number {
+  const multiplier = 10 ** digitCount;
+  return minValue + Math.floor(Math.random() * (multiplier - minValue));
 }
 
 /**
@@ -223,7 +225,7 @@ function getRandomisedGasFeeConfig(
  */
 export function randomiseDecimalGWEIAndConvertToHex(
   gweiDecimalValue: string | number,
-  numberOfDigitsToRandomizeAtTheEnd = DEFAULT_NUMBER_OF_DIGITS_TO_RANDOMISE,
+  numberOfDigitsToRandomizeAtTheEnd: number,
 ): Hex {
   const weiDecimalValue = gweiDecimalToWeiDecimal(gweiDecimalValue);
   const decimalLength = weiDecimalValue.length;
@@ -234,24 +236,29 @@ export function randomiseDecimalGWEIAndConvertToHex(
     decimalLength - PRESERVE_NUMBER_OF_DIGITS,
   );
 
-  const multiplier = 10 ** effectiveDigitsToRandomise;
+  // Handle the case when the value is 0 or too small
+  if (Number(weiDecimalValue) === 0 || effectiveDigitsToRandomise <= 0) {
+    return `0x${Number(weiDecimalValue).toString(16)}` as Hex;
+  }
 
-  // Keep the original value up to the digits we want to preserve
-  const basePart =
-    Math.floor(Number(weiDecimalValue) / multiplier) * multiplier;
+  // Use string manipulation to get the base part (significant digits)
+  const significantDigitsCount = decimalLength - effectiveDigitsToRandomise;
+  const significantDigits = weiDecimalValue.slice(0, significantDigitsCount);
 
-  // Get the original ending digits
-  const originalEndingDigits = Number(weiDecimalValue) % multiplier;
+  // Get the original ending digits using string manipulation
+  const endingDigits = weiDecimalValue.slice(-effectiveDigitsToRandomise);
+  const originalEndingDigits = Number(endingDigits);
 
-  // Generate random digits, but always greater than or equal to original ending digits
-  // This ensures we only randomize within the specified number of digits
-  const randomEndingDigits =
-    originalEndingDigits +
-    Math.floor(Math.random() * (multiplier - originalEndingDigits));
+  // Generate random digits that are greater than or equal to the original ending digits
+  const randomEndingDigits = generateRandomDigits(
+    effectiveDigitsToRandomise,
+    originalEndingDigits,
+  );
 
-  // Combine base and random parts
-  const randomisedWeiDecimal = basePart + randomEndingDigits;
+  const basePart = BigInt(
+    significantDigits + '0'.repeat(effectiveDigitsToRandomise),
+  );
+  const randomisedWeiDecimal = basePart + BigInt(randomEndingDigits);
 
-  // Convert wei decimal to hex
   return `0x${randomisedWeiDecimal.toString(16)}` as Hex;
 }

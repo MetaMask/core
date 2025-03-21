@@ -19,7 +19,6 @@ import type {
   Layer1GasFeeFlow,
 } from '../types';
 import { TransactionStatus, type TransactionMeta } from '../types';
-import { getFeatureFlags } from '../utils/feature-flags';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
@@ -205,12 +204,11 @@ export class GasFeePoller {
   > {
     const { networkClientId } = transactionMeta;
 
-    const featureFlags = getFeatureFlags(this.#messenger);
     const ethQuery = new EthQuery(this.#getProvider(networkClientId));
     const gasFeeFlow = getGasFeeFlow(
       transactionMeta,
       this.#gasFeeFlows,
-      featureFlags,
+      this.#messenger,
     );
 
     if (gasFeeFlow) {
@@ -223,8 +221,8 @@ export class GasFeePoller {
 
     const request: GasFeeFlowRequest = {
       ethQuery,
-      featureFlags,
       gasFeeControllerData,
+      messenger: this.#messenger,
       transactionMeta,
     };
 
@@ -259,6 +257,7 @@ export class GasFeePoller {
 
     const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
+      messenger: this.#messenger,
       provider,
       transactionMeta,
     });

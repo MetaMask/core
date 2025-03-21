@@ -2,6 +2,7 @@ import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import {
   TransactionStatus,
   type Layer1GasFeeFlow,
@@ -41,6 +42,7 @@ describe('updateTransactionLayer1GasFee', () => {
   let layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]>;
   let providerMock: Provider;
   let transactionMetaMock: TransactionMeta;
+  let messengerMock: TransactionControllerMessenger;
 
   beforeEach(() => {
     layer1GasFeeFlowsMock = [
@@ -66,11 +68,14 @@ describe('updateTransactionLayer1GasFee', () => {
         from: '0x123',
       },
     };
+
+    messengerMock = {} as TransactionControllerMessenger;
   });
 
   it('updates given transaction layer1GasFee property', async () => {
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
+      messenger: messengerMock,
       provider: providerMock,
       transactionMeta: transactionMetaMock,
     });
@@ -101,6 +106,7 @@ describe('updateTransactionLayer1GasFee', () => {
 
       await updateTransactionLayer1GasFee({
         layer1GasFeeFlows: layer1GasFeeFlowsMock,
+        messenger: messengerMock,
         provider: providerMock,
         transactionMeta: transactionMetaMock,
       });
@@ -121,6 +127,7 @@ describe('updateTransactionLayer1GasFee', () => {
 
       await updateTransactionLayer1GasFee({
         layer1GasFeeFlows: layer1GasFeeFlowsMock,
+        messenger: messengerMock,
         provider: providerMock,
         transactionMeta: transactionMetaMock,
       });

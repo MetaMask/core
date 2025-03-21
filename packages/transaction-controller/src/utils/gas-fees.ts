@@ -16,6 +16,7 @@ import type { TransactionControllerFeatureFlags } from './feature-flags';
 import { getGasFeeFlow } from './gas-flow';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   SavedGasFees,
   TransactionParams,
@@ -28,12 +29,12 @@ import { GasFeeEstimateType, UserFeeLevel } from '../types';
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
   ethQuery: EthQuery;
-  featureFlags: TransactionControllerFeatureFlags;
   gasFeeFlows: GasFeeFlow[];
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
   getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
 
@@ -351,9 +352,9 @@ async function getSuggestedGasFees(
   const {
     eip1559,
     ethQuery,
-    featureFlags,
     gasFeeFlows,
     getGasFeeEstimates,
+    messenger,
     txMeta,
   } = request;
 
@@ -371,7 +372,7 @@ async function getSuggestedGasFees(
   const gasFeeFlow = getGasFeeFlow(
     txMeta,
     gasFeeFlows,
-    featureFlags,
+    messenger,
   ) as GasFeeFlow;
 
   try {
@@ -379,8 +380,8 @@ async function getSuggestedGasFees(
 
     const response = await gasFeeFlow.getGasFees({
       ethQuery,
-      featureFlags,
       gasFeeControllerData,
+      messenger,
       transactionMeta: txMeta,
     });
 
