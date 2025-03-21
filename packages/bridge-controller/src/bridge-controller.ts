@@ -41,7 +41,6 @@ import {
 import {
   formatAddressToCaipReference,
   formatChainIdToCaip,
-  formatChainIdToHex,
 } from './utils/caip-formatters';
 import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
 import { isValidQuoteRequest } from './utils/quote';
@@ -233,24 +232,22 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     quoteRequest: GenericQuoteRequest,
   ) => {
     const walletAddress = this.#getMultichainSelectedAccount()?.address;
-    const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-    const provider = this.#getSelectedNetworkClient()?.provider;
+    const providerRpcUrl =
+      this.#getSelectedNetworkClient()?.configuration.rpcUrl;
     const normalizedSrcTokenAddress = formatAddressToCaipReference(
       quoteRequest.srcTokenAddress,
     );
 
     return (
-      provider &&
+      providerRpcUrl &&
       walletAddress &&
       normalizedSrcTokenAddress &&
       quoteRequest.srcTokenAmount &&
-      srcChainIdInHex &&
       (await hasSufficientBalance(
-        provider,
+        providerRpcUrl,
         walletAddress,
         normalizedSrcTokenAddress,
         quoteRequest.srcTokenAmount,
-        srcChainIdInHex,
       ))
     );
   };

@@ -1,19 +1,16 @@
 import { getAddress } from '@ethersproject/address';
-import type { BigNumber } from '@ethersproject/bignumber';
+import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
+import { JsonRpcProvider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { Provider } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
 
 import { isNativeAddress } from './bridge';
 
-export const fetchTokenBalance = async (
+const fetchTokenBalance = async (
   address: string,
   userAddress: string,
-  provider: Provider,
+  ethersProvider: JsonRpcProvider,
 ): Promise<BigNumber | undefined> => {
-  const ethersProvider = new Web3Provider(provider);
   const tokenContract = new Contract(address, abiERC20, ethersProvider);
   const tokenBalancePromise =
     typeof tokenContract?.balanceOf === 'function'
@@ -22,35 +19,47 @@ export const fetchTokenBalance = async (
   return await tokenBalancePromise;
 };
 
+/**
+ * Calculates the latest balance of a token for a given address.
+ *
+ * @param providerRpcUrl - The RPC URL of the provider.
+ * @param selectedAddress - The address to calculate the balance for.
+ * @param tokenAddress - The address of the token to calculate the balance for.
+ * @returns The stringified balance of the token for the given address.
+ */
 export const calcLatestSrcBalance = async (
-  provider: Provider,
+  providerRpcUrl: string,
   selectedAddress: string,
   tokenAddress: string,
-  chainId: Hex,
-): Promise<BigNumber | undefined> => {
-  if (tokenAddress && chainId) {
+): Promise<string | undefined> => {
+  const provider = new JsonRpcProvider(providerRpcUrl);
+  if (tokenAddress) {
     if (isNativeAddress(tokenAddress)) {
-      const ethersProvider = new Web3Provider(provider);
-      return await ethersProvider.getBalance(getAddress(selectedAddress));
+      return (
+        await provider.getBalance(getAddress(selectedAddress))
+      ).toString();
     }
-    return await fetchTokenBalance(tokenAddress, selectedAddress, provider);
+    return (
+      await fetchTokenBalance(tokenAddress, selectedAddress, provider)
+    )?.toString();
   }
   return undefined;
 };
+// TODO add to changelog
 
 export const hasSufficientBalance = async (
-  provider: Provider,
+  providerRpcUrl: string,
   selectedAddress: string,
   tokenAddress: string,
   fromTokenAmount: string,
-  chainId: Hex,
 ) => {
   const srcTokenBalance = await calcLatestSrcBalance(
-    provider,
+    providerRpcUrl,
     selectedAddress,
     tokenAddress,
-    chainId,
   );
 
-  return srcTokenBalance ? srcTokenBalance.gte(fromTokenAmount) : false;
+  return srcTokenBalance
+    ? BigNumber.from(srcTokenBalance).gte(fromTokenAmount)
+    : false;
 };
