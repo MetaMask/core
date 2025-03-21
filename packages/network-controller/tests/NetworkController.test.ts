@@ -411,24 +411,6 @@ describe('NetworkController', () => {
                   },
                 ],
               },
-              "0x18c6": Object {
-                "blockExplorerUrls": Array [
-                  "https://megaexplorer.xyz",
-                ],
-                "chainId": "0x18c6",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Mega Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": Array [
-                  Object {
-                    "failoverUrls": Array [],
-                    "networkClientId": "megaeth-testnet",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
               "0x5": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0x5",
@@ -841,9 +823,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -929,9 +909,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.initializeProvider();
@@ -1150,7 +1128,7 @@ describe('NetworkController', () => {
 
   describe('getNetworkClientRegistry', () => {
     describe('if no network configurations were specified at initialization', () => {
-      it('returns network clients for default RPC endpoints, keyed by network client ID', async () => {
+      it('returns network clients for Infura RPC endpoints, keyed by network client ID', async () => {
         const infuraProjectId = 'some-infura-project-id';
 
         await withController(
@@ -1235,18 +1213,6 @@ describe('NetworkController', () => {
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
                   network: InfuraNetworkType.sepolia,
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-              },
-              'megaeth-testnet': {
-                blockTracker: expect.anything(),
-                configuration: {
-                  type: NetworkClientType.Custom,
-                  failoverRpcUrls: [],
-                  chainId: '0x18c6',
-                  ticker: 'MegaETH',
-                  rpcUrl: 'https://carrot.megaeth.com/rpc',
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
@@ -1429,9 +1395,7 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -1523,9 +1487,7 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -1614,9 +1576,7 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -1825,9 +1785,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -1922,9 +1880,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -2018,9 +1974,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -5700,9 +5654,7 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[1];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(
-                            configuration,
-                          )}`,
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
                         );
                       },
                     );
@@ -5809,9 +5761,7 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[1];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(
-                            configuration,
-                          )}`,
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
                         );
                       },
                     );
@@ -5942,9 +5892,7 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[2];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(
-                            configuration,
-                          )}`,
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
                         );
                       },
                     );
@@ -6071,9 +6019,7 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[2];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(
-                            configuration,
-                          )}`,
+                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
                         );
                       },
                     );
@@ -6169,9 +6115,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -6480,9 +6424,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -6583,9 +6525,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -7558,9 +7498,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -7667,9 +7605,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -7799,9 +7735,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[2];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -7928,9 +7862,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[2];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -8101,9 +8033,7 @@ describe('NetworkController', () => {
                     return buildFakeClient();
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -8189,9 +8119,7 @@ describe('NetworkController', () => {
                     return buildFakeClient();
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -8264,9 +8192,7 @@ describe('NetworkController', () => {
                     return buildFakeClient();
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -8362,9 +8288,7 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -8467,9 +8391,7 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -9066,9 +8988,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -9153,9 +9073,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -9263,9 +9181,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -9377,9 +9293,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -9468,9 +9382,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -9561,9 +9473,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -9748,9 +9658,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -9847,9 +9755,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -9971,9 +9877,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -10092,9 +9996,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -10192,9 +10094,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -10285,9 +10185,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -10471,9 +10369,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -10577,9 +10473,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -10697,9 +10591,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -10822,9 +10714,7 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(
-                        configuration,
-                      )}`,
+                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
                     );
                   },
                 );
@@ -10928,9 +10818,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -11023,9 +10911,7 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(
-                          configuration,
-                        )}`,
+                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
                       );
                     },
                   );
@@ -11211,9 +11097,7 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
 
@@ -11294,9 +11178,7 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             const existingNetworkClient1 = controller.getNetworkClientById(
@@ -11395,9 +11277,7 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
 
@@ -11509,9 +11389,7 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
 
@@ -11600,9 +11478,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -11692,9 +11568,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -12489,9 +12363,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -12555,9 +12427,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -12638,9 +12508,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -12696,9 +12564,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -12763,9 +12629,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -12842,9 +12706,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -12924,9 +12786,7 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(
-                      configuration,
-                    )}`,
+                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
                   );
                 },
               );
@@ -13080,9 +12940,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13144,9 +13002,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13231,9 +13087,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13288,9 +13142,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13344,9 +13196,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13417,9 +13267,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13493,9 +13341,7 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(
-                  configuration,
-                )}`,
+                `Unknown network client configuration ${JSON.stringify(configuration)}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13955,9 +13801,7 @@ function refreshNetworkTests({
             return fakeNetworkClients[1];
           }
           throw new Error(
-            `Unknown network client configuration ${JSON.stringify(
-              configuration,
-            )}`,
+            `Unknown network client configuration ${JSON.stringify(configuration)}`,
           );
         });
         await controller.initializeProvider();
