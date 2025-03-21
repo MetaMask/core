@@ -167,6 +167,10 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
       const nativeCurrenciesToFetch = nativeCurrencies.reduce(
         (acc, nativeCurrency) => {
+          if (!nativeCurrency) {
+            return acc;
+          }
+
           acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
             ? FALL_BACK_VS_CURRENCY
             : nativeCurrency;
