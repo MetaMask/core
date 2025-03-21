@@ -153,21 +153,20 @@ export type SimulationResponseTransaction = {
   /** An error message indicating the transaction could not be simulated. */
   error?: string;
 
-  fees?: [
-    {
-      /** Gas limit for the fee level. */
-      gas: Hex;
+  /** Recommended gas fees for the transaction. */
+  fees?: {
+    /** Gas limit for the fee level. */
+    gas: Hex;
 
-      /** Maximum fee per gas for the fee level. */
-      maxFeePerGas: Hex;
+    /** Maximum fee per gas for the fee level. */
+    maxFeePerGas: Hex;
 
-      /** Maximum priority fee per gas for the fee level. */
-      maxPriorityFeePerGas: Hex;
+    /** Maximum priority fee per gas for the fee level. */
+    maxPriorityFeePerGas: Hex;
 
-      /** Token fee data for the fee level. */
-      tokenFees: SmulationResponseTokenFee[];
-    },
-  ];
+    /** Token fee data for the fee level. */
+    tokenFees: SmulationResponseTokenFee[];
+  }[];
 
   /** The total gas used by the transaction. */
   gasUsed?: Hex;

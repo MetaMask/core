@@ -67,6 +67,7 @@ import type {
   SubmitHistoryEntry,
   InternalAccount,
   PublishHook,
+  GasFeeToken,
 } from './types';
 import {
   GasFeeEstimateType,
@@ -469,6 +470,19 @@ const SIMULATION_DATA_RESULT_MOCK: GetSimulationDataResult = {
       },
     ],
   },
+};
+
+const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
+  amount: '0x1',
+  balance: '0x2',
+  decimals: 18,
+  gas: '0x3',
+  maxFeePerGas: '0x4',
+  maxPriorityFeePerGas: '0x5',
+  rateWei: '0x6',
+  recipient: '0x7',
+  symbol: 'ETH',
+  tokenAddress: '0x8',
 };
 
 const GAS_FEE_ESTIMATES_MOCK: GasFeeFlowResponse = {
@@ -2076,6 +2090,57 @@ describe('TransactionController', () => {
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+    });
+
+    describe('updates gas fee tokens', () => {
+      it('by default', async () => {
+        getSimulationDataMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          simulationData: {
+            tokenBalanceChanges: [],
+          },
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          GAS_FEE_TOKEN_MOCK,
+        ]);
+      });
+
+      it('unless approval not required', async () => {
+        getSimulationDataMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          simulationData: {
+            tokenBalanceChanges: [],
+          },
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          { requireApproval: false, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].gasFeeTokens).toBeUndefined();
       });
     });
 

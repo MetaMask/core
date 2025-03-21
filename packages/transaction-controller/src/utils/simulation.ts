@@ -169,7 +169,13 @@ export async function getSimulationData(
       tokenBalanceChanges,
     };
 
-    const gasFeeTokens = getGasFeeTokens(response);
+    let gasFeeTokens: GasFeeToken[] = [];
+
+    try {
+      gasFeeTokens = getGasFeeTokens(response);
+    } catch (error) {
+      log('Failed to parse gas fee tokens', error, response);
+    }
 
     return {
       gasFeeTokens,
@@ -711,8 +717,8 @@ function getContractInterfaces(): Map<SupportedToken, Interface> {
  * @returns An array of gas fee tokens.
  */
 function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
-  const feeLevel = response.transactions[0]
-    .fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
+  const feeLevel = response.transactions?.[0]
+    ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
 
   const tokenFees = feeLevel?.tokenFees ?? [];
 
