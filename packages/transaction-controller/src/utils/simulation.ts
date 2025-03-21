@@ -49,6 +49,11 @@ export type GetSimulationDataRequest = {
   value?: Hex;
 };
 
+export type GetSimulationDataResult = {
+  gasFeeTokens: GasFeeToken[];
+  simulationData: SimulationData;
+};
+
 type ParsedEvent = {
   contractAddress: Hex;
   tokenStandard: SimulationTokenStandard;
@@ -114,10 +119,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 export async function getSimulationData(
   request: GetSimulationDataRequest,
   options: GetSimulationDataOptions = {},
-): Promise<{
-  gasFeeTokens: GasFeeToken[];
-  simulationData: SimulationData;
-}> {
+): Promise<GetSimulationDataResult> {
   const { chainId, from, to, value, data } = request;
   const { blockTime } = options;
 
