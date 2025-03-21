@@ -13,9 +13,6 @@ import {
   ChainId,
   NetworksTicker,
   NetworkNickname,
-  BUILT_IN_CUSTOM_NETWORKS_RPC,
-  BUILT_IN_NETWORKS,
-  BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
@@ -631,21 +628,6 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  return {
-    ...getDefaultInfuraNetworkConfigurationsByChainId(),
-    ...getDefaultCustomNetworkConfigurationsByChainId(),
-  };
-}
-
-/**
- * Constructs a `networkConfigurationsByChainId` object for all default Infura networks.
- *
- * @returns The `networkConfigurationsByChainId` object of all Infura networks.
- */
-function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
-  Hex,
-  NetworkConfiguration
-> {
   return Object.values(InfuraNetworkType).reduce<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
@@ -673,37 +655,6 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
 
     return { ...obj, [chainId]: networkConfiguration };
   }, {});
-}
-
-/**
- * Constructs a `networkConfigurationsByChainId` object for all default custom networks.
- *
- * @returns The `networkConfigurationsByChainId` object of all custom networks.
- */
-function getDefaultCustomNetworkConfigurationsByChainId(): Record<
-  Hex,
-  NetworkConfiguration
-> {
-  const { ticker, rpcPrefs } =
-    BUILT_IN_NETWORKS[BuiltInNetworkName.MegaETHTestnet];
-  return {
-    [ChainId[BuiltInNetworkName.MegaETHTestnet]]: {
-      blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
-      chainId: ChainId[BuiltInNetworkName.MegaETHTestnet],
-      defaultRpcEndpointIndex: 0,
-      defaultBlockExplorerUrlIndex: 0,
-      name: NetworkNickname[BuiltInNetworkName.MegaETHTestnet],
-      nativeCurrency: ticker,
-      rpcEndpoints: [
-        {
-          failoverUrls: [],
-          networkClientId: BuiltInNetworkName.MegaETHTestnet,
-          type: RpcEndpointType.Custom,
-          url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
-        },
-      ],
-    },
-  };
 }
 
 /**
