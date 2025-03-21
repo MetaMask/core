@@ -19,9 +19,10 @@ import {
 } from '../types';
 
 export type UpdateGasRequest = {
+  chainId: Hex;
   ethQuery: EthQuery;
   isCustomNetwork: boolean;
-  chainId: Hex;
+  isSimulationEnabled: boolean;
   txMeta: TransactionMeta;
 };
 
@@ -199,7 +200,7 @@ export function addGasBuffer(
 async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
-  const { isCustomNetwork, chainId, txMeta } = request;
+  const { chainId, isCustomNetwork, isSimulationEnabled, txMeta } = request;
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
@@ -214,7 +215,7 @@ async function getGas(
   const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
     chainId: request.chainId,
     ethQuery: request.ethQuery,
-    isSimulationEnabled: false,
+    isSimulationEnabled,
     txParams: txMeta.txParams,
   });
 

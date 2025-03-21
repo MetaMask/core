@@ -1924,9 +1924,10 @@ describe('TransactionController', () => {
 
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
-        ethQuery: expect.any(Object),
         chainId: CHAIN_ID_MOCK,
+        ethQuery: expect.any(Object),
         isCustomNetwork: false,
+        isSimulationEnabled: true,
         txMeta: expect.any(Object),
       });
     });
