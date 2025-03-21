@@ -80,33 +80,29 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
 
     let response: GasFeeEstimates;
 
-    switch (gasEstimateType) {
-      case GAS_ESTIMATE_TYPES.FEE_MARKET:
-        log('Using fee market estimates', gasFeeEstimates);
-        response = this.#randomiseFeeMarketEstimates(
-          gasFeeEstimates,
-          randomisedGasFeeDigits,
-        );
-        log('Randomised fee market estimates', response);
-        break;
-      case GAS_ESTIMATE_TYPES.LEGACY:
-        log('Using legacy estimates', gasFeeEstimates);
-        response = this.#randomiseLegacyEstimates(
-          gasFeeEstimates as LegacyGasPriceEstimate,
-          randomisedGasFeeDigits,
-        );
-        log('Randomised legacy estimates', response);
-        break;
-      case GAS_ESTIMATE_TYPES.ETH_GASPRICE:
-        log('Using eth_gasPrice estimates', gasFeeEstimates);
-        response = this.#getRandomisedGasPriceEstimate(
-          gasFeeEstimates as EthGasPriceEstimate,
-          randomisedGasFeeDigits,
-        );
-        log('Randomised eth_gasPrice estimates', response);
-        break;
-      default:
-        throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);
+    if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
+      log('Using fee market estimates', gasFeeEstimates);
+      response = this.#randomiseFeeMarketEstimates(
+        gasFeeEstimates,
+        randomisedGasFeeDigits,
+      );
+      log('Randomised fee market estimates', response);
+    } else if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
+      log('Using legacy estimates', gasFeeEstimates);
+      response = this.#randomiseLegacyEstimates(
+        gasFeeEstimates,
+        randomisedGasFeeDigits,
+      );
+      log('Randomised legacy estimates', response);
+    } else if (gasEstimateType === GAS_ESTIMATE_TYPES.ETH_GASPRICE) {
+      log('Using eth_gasPrice estimates', gasFeeEstimates);
+      response = this.#getRandomisedGasPriceEstimate(
+        gasFeeEstimates,
+        randomisedGasFeeDigits,
+      );
+      log('Randomised eth_gasPrice estimates', response);
+    } else {
+      throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);
     }
 
     return {
