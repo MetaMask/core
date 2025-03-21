@@ -384,7 +384,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@31.0.0...HEAD
-[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@30.0.0...@metamask/user-operation-controller@29.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@30.0.0...@metamask/user-operation-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@29.0.0...@metamask/user-operation-controller@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@28.0.0...@metamask/user-operation-controller@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@27.0.0...@metamask/user-operation-controller@28.0.0
