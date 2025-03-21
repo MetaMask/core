@@ -1233,8 +1233,9 @@ export type GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
    *
-   * @param transactionMeta - The transaction metadata.
-   * @param messenger - The messenger instance.
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
    * @returns Whether the gas fee flow supports the transaction.
    */
   matchesTransaction({

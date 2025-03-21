@@ -2014,7 +2014,7 @@ describe('TransactionController', () => {
     });
 
     it('updates gas fee properties', async () => {
-      const { controller, messenger } = setupController({
+      const { controller } = setupController({
         options: {
           getCurrentNetworkEIP1559Compatibility: async () => true,
           getCurrentAccountEIP1559Compatibility: async () => true,

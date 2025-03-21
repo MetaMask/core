@@ -12,7 +12,6 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
-import type { TransactionControllerFeatureFlags } from './feature-flags';
 import { getGasFeeFlow } from './gas-flow';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 import { projectLogger } from '../logger';

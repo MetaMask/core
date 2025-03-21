@@ -66,7 +66,7 @@ function getLayer1GasFeeFlow(
  * @param request.layer1GasFeeFlows - The layer 1 gas fee flows to search.
  * @param request.provider - The provider to use to get the layer 1 gas fee.
  * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
- * @param request.messenger
+ * @param request.messenger - The messenger instance.
  * @returns The layer 1 gas fee.
  */
 export async function getTransactionLayer1GasFee({
