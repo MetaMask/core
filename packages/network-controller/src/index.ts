@@ -24,6 +24,7 @@ export type {
   NetworkControllerGetEthQueryAction,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetSelectedNetworkClientAction,
+  NetworkControllerGetSelectedChainIdAction,
   NetworkControllerGetEIP1559CompatibilityAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerSetProviderTypeAction,
