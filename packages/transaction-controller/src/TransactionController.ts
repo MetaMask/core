@@ -100,6 +100,7 @@ import type {
   BatchTransactionParams,
   PublishHook,
   PublishBatchHook,
+  GasFeeToken,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -2509,6 +2510,12 @@ export class TransactionController extends BaseController<
     );
   }
 
+  updateGasFeeToken(transactionId: string, contractAddress: Hex) {
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      transactionMeta.selectedGasFeeToken = contractAddress;
+    });
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -3906,8 +3913,10 @@ export class TransactionController extends BaseController<
       tokenBalanceChanges: [],
     };
 
+    let gasFeeTokens: GasFeeToken[] = [];
+
     if (this.#isSimulationEnabled()) {
-      simulationData = await this.#trace(
+      const result = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
           getSimulationData(
@@ -3923,6 +3932,9 @@ export class TransactionController extends BaseController<
             },
           ),
       );
+
+      gasFeeTokens = result?.gasFeeTokens;
+      simulationData = result?.simulationData;
 
       if (
         blockTime &&
@@ -3956,6 +3968,7 @@ export class TransactionController extends BaseController<
         skipResimulateCheck: Boolean(blockTime),
       },
       (txMeta) => {
+        txMeta.gasFeeTokens = gasFeeTokens;
         txMeta.simulationData = simulationData;
       },
     );

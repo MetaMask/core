@@ -62,7 +62,6 @@ import type {
   TransactionParams,
   TransactionHistoryEntry,
   TransactionError,
-  SimulationData,
   GasFeeFlow,
   GasFeeFlowResponse,
   SubmitHistoryEntry,
@@ -448,24 +447,27 @@ const TRANSACTION_META_2_MOCK = {
   },
 } as TransactionMeta;
 
-const SIMULATION_DATA_MOCK: SimulationData = {
-  nativeBalanceChange: {
-    previousBalance: '0x0',
-    newBalance: '0x1',
-    difference: '0x1',
-    isDecrease: false,
-  },
-  tokenBalanceChanges: [
-    {
-      address: '0x123',
-      standard: SimulationTokenStandard.erc721,
-      id: '0x456',
-      previousBalance: '0x1',
-      newBalance: '0x3',
-      difference: '0x2',
+const SIMULATION_DATA_MOCK: Awaited<ReturnType<typeof getSimulationData>> = {
+  gasFeeTokens: [],
+  simulationData: {
+    nativeBalanceChange: {
+      previousBalance: '0x0',
+      newBalance: '0x1',
+      difference: '0x1',
       isDecrease: false,
     },
-  ],
+    tokenBalanceChanges: [
+      {
+        address: '0x123',
+        standard: SimulationTokenStandard.erc721,
+        id: '0x456',
+        previousBalance: '0x1',
+        newBalance: '0x3',
+        difference: '0x2',
+        isDecrease: false,
+      },
+    ],
+  },
 };
 
 const GAS_FEE_ESTIMATES_MOCK: GasFeeFlowResponse = {
@@ -2021,7 +2023,7 @@ describe('TransactionController', () => {
         );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
-          SIMULATION_DATA_MOCK,
+          SIMULATION_DATA_MOCK.simulationData,
         );
       });
 
