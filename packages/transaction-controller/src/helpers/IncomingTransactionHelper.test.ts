@@ -4,6 +4,7 @@ import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { flushPromises } from '../../../../tests/helpers';
 import {
   TransactionStatus,
+  TransactionType,
   type RemoteTransactionSource,
   type TransactionMeta,
 } from '../types';
@@ -395,6 +396,60 @@ describe('IncomingTransactionHelper', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith([TRANSACTION_MOCK_2]);
+    });
+
+    it('including transactions with same hash but different types', async () => {
+      const localTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+
+      const remoteTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.incoming,
+      };
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        getLocalTransactions: () => [localTransaction],
+        remoteTransactionSource: createRemoteTransactionSourceMock([
+          remoteTransaction,
+        ]),
+      });
+
+      const listener = jest.fn();
+      helper.hub.on('transactions', listener);
+      await helper.update();
+
+      expect(listener).toHaveBeenCalledWith([
+        remoteTransaction,
+        localTransaction,
+      ]);
+    });
+
+    it('excluding transactions with same hash and type', async () => {
+      const localTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+
+      const remoteTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        getLocalTransactions: () => [localTransaction],
+        remoteTransactionSource: createRemoteTransactionSourceMock([
+          remoteTransaction,
+        ]),
+      });
+
+      const listener = jest.fn();
+      helper.hub.on('transactions', listener);
+      await helper.update();
+
+      expect(listener).not.toHaveBeenCalled();
     });
   });
 });
