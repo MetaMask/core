@@ -4,8 +4,8 @@ import { isValidSignature } from './signature';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
-export const FEATURE_FLAG_TRANSACTIONS = 'confirmations-transactions';
-export const FEATURE_FLAG_EIP_7702 = 'confirmations-eip-7702';
+export const FEATURE_FLAG_TRANSACTIONS = 'confirmations_transactions';
+export const FEATURE_FLAG_EIP_7702 = 'confirmations_eip_7702';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 

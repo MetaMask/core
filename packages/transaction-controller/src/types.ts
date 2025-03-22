@@ -1480,3 +1480,12 @@ export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
   batchId: Hex;
 };
+
+export type AfterSimulateHook = (request: {
+  transactionMeta: TransactionMeta;
+}) => Promise<
+  | {
+      updateTransaction?: (transactionMeta: TransactionMeta) => void;
+    }
+  | undefined
+>;
