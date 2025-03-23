@@ -31,6 +31,7 @@ import type {
   PublishBatchHookTransaction,
   PublishHook,
   TransactionBatchRequest,
+  ValidateSecurityRequest,
 } from '../types';
 import {
   TransactionEnvelopeType,
@@ -95,8 +96,10 @@ export async function addTransactionBatch(
     from,
     networkClientId,
     requireApproval,
+    securityAlertId,
     transactions,
     useHook,
+    validateSecurity,
   } = userRequest;
 
   log('Adding', userRequest);
@@ -161,15 +164,40 @@ export async function addTransactionBatch(
     txParams.authorizationList = [{ address: upgradeContractAddress }];
   }
 
+  if (validateSecurity) {
+    const securityRequest: ValidateSecurityRequest = {
+      method: 'eth_sendTransaction',
+      params: [
+        {
+          ...txParams,
+          authorizationList: undefined,
+          type: TransactionEnvelopeType.feeMarket,
+        },
+      ],
+      delegationMock: txParams.authorizationList?.[0]?.address,
+    };
+
+    log('Security request', securityRequest);
+
+    validateSecurity(securityRequest, chainId).catch((error) => {
+      log('Security validation failed', error);
+    });
+  }
+
   log('Adding batch transaction', txParams, networkClientId);
 
   const batchId = batchIdOverride ?? generateBatchId();
+
+  const securityAlertResponse = securityAlertId
+    ? { securityAlertId }
+    : undefined;
 
   const { result } = await addTransaction(txParams, {
     batchId,
     nestedTransactions,
     networkClientId,
     requireApproval,
+    securityAlertResponse,
     type: TransactionType.batch,
   });
 

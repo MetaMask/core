@@ -52,6 +52,7 @@ const TRANSACTION_HASH_2_MOCK = '0x456';
 const TRANSACTION_SIGNATURE_MOCK = '0xabc';
 const TRANSACTION_SIGNATURE_2_MOCK = '0xdef';
 const ERROR_MESSAGE_MOCK = 'Test error';
+const SECURITY_ALERT_ID_MOCK = '123-456';
 
 const TRANSACTION_META_MOCK = {
   id: BATCH_ID_CUSTOM_MOCK,
@@ -61,7 +62,7 @@ const TRANSACTION_META_MOCK = {
     data: DATA_MOCK,
     value: VALUE_MOCK,
   },
-} as TransactionMeta;
+} as unknown as TransactionMeta;
 
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
@@ -100,11 +101,13 @@ describe('Batch Utils', () => {
       jest.resetAllMocks();
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
+      updateTransactionMock = jest.fn();
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
       });
-      updateTransactionMock = jest.fn();
+
+      getChainIdMock.mockReturnValue(CHAIN_ID_MOCK);
 
       request = {
         addTransaction: addTransactionMock,
@@ -406,6 +409,138 @@ describe('Batch Utils', () => {
       await expect(addTransactionBatch(request)).rejects.toThrow(
         'Validation Error',
       );
+    });
+
+    it('adds security alert ID to transaction', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      request.request.securityAlertId = SECURITY_ALERT_ID_MOCK;
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          securityAlertResponse: {
+            securityAlertId: SECURITY_ALERT_ID_MOCK,
+          },
+        }),
+      );
+    });
+
+    describe('validates security', () => {
+      it('using transaction params', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: true,
+        });
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+          to: TO_MOCK,
+          data: DATA_MOCK,
+          value: VALUE_MOCK,
+        });
+
+        const validateSecurityMock = jest.fn();
+        validateSecurityMock.mockResolvedValueOnce({});
+
+        request.request.validateSecurity = validateSecurityMock;
+
+        await addTransactionBatch(request);
+
+        expect(validateSecurityMock).toHaveBeenCalledTimes(1);
+        expect(validateSecurityMock).toHaveBeenCalledWith(
+          {
+            delegationMock: undefined,
+            method: 'eth_sendTransaction',
+            params: [
+              {
+                authorizationList: undefined,
+                data: DATA_MOCK,
+                from: FROM_MOCK,
+                to: TO_MOCK,
+                type: TransactionEnvelopeType.feeMarket,
+                value: VALUE_MOCK,
+              },
+            ],
+          },
+          CHAIN_ID_MOCK,
+        );
+      });
+
+      it('using delegation mock if not upgraded', async () => {
+        doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+        isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+          delegationAddress: undefined,
+          isSupported: false,
+        });
+
+        addTransactionMock.mockResolvedValueOnce({
+          transactionMeta: TRANSACTION_META_MOCK,
+          result: Promise.resolve(''),
+        });
+
+        generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+          to: TO_MOCK,
+          data: DATA_MOCK,
+          value: VALUE_MOCK,
+        });
+
+        getEIP7702UpgradeContractAddressMock.mockReturnValue(
+          CONTRACT_ADDRESS_MOCK,
+        );
+
+        const validateSecurityMock = jest.fn();
+        validateSecurityMock.mockResolvedValueOnce({});
+
+        request.request.validateSecurity = validateSecurityMock;
+
+        await addTransactionBatch(request);
+
+        expect(validateSecurityMock).toHaveBeenCalledTimes(1);
+        expect(validateSecurityMock).toHaveBeenCalledWith(
+          {
+            delegationMock: CONTRACT_ADDRESS_MOCK,
+            method: 'eth_sendTransaction',
+            params: [
+              {
+                authorizationList: undefined,
+                data: DATA_MOCK,
+                from: FROM_MOCK,
+                to: TO_MOCK,
+                type: TransactionEnvelopeType.feeMarket,
+                value: VALUE_MOCK,
+              },
+            ],
+          },
+          CHAIN_ID_MOCK,
+        );
+      });
     });
 
     describe('with publish batch hook', () => {
