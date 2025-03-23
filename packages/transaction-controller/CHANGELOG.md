@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support security validation of transaction batches ([#5526](https://github.com/MetaMask/core/pull/5526))
+  - Add `ValidateSecurityRequest` type.
+  - Add optional `securityAlertId` to `SecurityAlertResponse`.
+  - Add optional `securityAlertId` to `TransactionBatchRequest`.
+  - Add optional `validateSecurity` callback to `TransactionBatchRequest`.
 - Support publish batch hook ([#5401](https://github.com/MetaMask/core/pull/5401))
   - Add `hooks.publishBatch` option to constructor.
   - Add `updateBatchTransactions` method.

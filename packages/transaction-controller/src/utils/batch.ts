@@ -26,6 +26,7 @@ import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { projectLogger } from '../logger';
 import type {
   NestedTransactionMetadata,
+  SecurityAlertResponse,
   TransactionBatchSingleRequest,
   PublishBatchHook,
   PublishBatchHookTransaction,
@@ -189,7 +190,7 @@ export async function addTransactionBatch(
   const batchId = batchIdOverride ?? generateBatchId();
 
   const securityAlertResponse = securityAlertId
-    ? { securityAlertId }
+    ? ({ securityAlertId } as SecurityAlertResponse)
     : undefined;
 
   const { result } = await addTransaction(txParams, {

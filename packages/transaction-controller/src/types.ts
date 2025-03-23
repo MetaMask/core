@@ -1140,8 +1140,8 @@ export type TransactionError = {
 export type SecurityAlertResponse = {
   features?: string[];
   providerRequestsCount?: Record<string, number>;
-  reason?: string;
-  result_type?: string;
+  reason: string;
+  result_type: string;
   securityAlertId?: string;
 };
 
