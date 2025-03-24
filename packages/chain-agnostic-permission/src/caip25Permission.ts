@@ -494,7 +494,7 @@ function removeScope(
 * @param accountAddresses - The list of permitted eth addresses.
 * @param chainIds - The list of permitted eth chainIds.
 */
-export const caip25CaveatFactory = (
+export const generateCaip25Caveat = (
   caip25CaveatValue: Caip25CaveatValue,
   accountAddresses: CaipAccountId[],
   chainIds: CaipChainId[],
