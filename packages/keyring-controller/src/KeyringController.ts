@@ -677,7 +677,7 @@ export class KeyringController extends BaseController<
 
     this.#encryptor = encryptor;
     this.#keyrings = [];
-    this.#keyringsMetadata = state?.keyringsMetadata ?? [];
+    this.#keyringsMetadata = state?.keyringsMetadata?.slice() ?? [];
     this.#unsupportedKeyrings = [];
 
     // This option allows the controller to cache an exported key
