@@ -108,6 +108,7 @@ const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const TRANSACTION_HASH_MOCK = '0x123456';
 const DATA_MOCK = '0x12345678';
 const VALUE_MOCK = '0xabcd';
+const ORIGIN_MOCK = 'test.com';
 
 jest.mock('@metamask/eth-query');
 jest.mock('./api/accounts-api');
@@ -1615,6 +1616,7 @@ describe('TransactionController', () => {
         dappSuggestedGasFees: undefined,
         delegationAddress: undefined,
         deviceConfirmedOn: undefined,
+        disableGasBuffer: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
         nestedTransactions: undefined,
@@ -2688,7 +2690,7 @@ describe('TransactionController', () => {
     });
 
     describe('with batch ID', () => {
-      it('throws if duplicate', async () => {
+      it('throws if duplicate and external origin', async () => {
         const { controller } = setupController({
           options: {
             state: {
@@ -2711,11 +2713,12 @@ describe('TransactionController', () => {
           controller.addTransaction(txParams, {
             batchId: BATCH_ID_MOCK,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_MOCK,
           }),
         ).rejects.toThrow('Batch ID already exists');
       });
 
-      it('throws if duplicate with different case', async () => {
+      it('throws if duplicate with different case and external origin', async () => {
         const { controller } = setupController({
           options: {
             state: {
@@ -2738,8 +2741,34 @@ describe('TransactionController', () => {
           controller.addTransaction(txParams, {
             batchId: BATCH_ID_MOCK.toUpperCase() as Hex,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
+            origin: ORIGIN_MOCK,
           }),
         ).rejects.toThrow('Batch ID already exists');
+      });
+
+      it('does not throw if duplicate but internal origin', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK,
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        await controller.addTransaction(txParams, {
+          batchId: BATCH_ID_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        });
       });
     });
   });

@@ -437,6 +437,7 @@ describe('Batch Utils', () => {
           },
           {
             batchId: expect.any(String),
+            disableGasBuffer: true,
             networkClientId: NETWORK_CLIENT_ID_MOCK,
             publishHook: expect.any(Function),
             requireApproval: false,

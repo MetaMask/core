@@ -404,6 +404,7 @@ async function processTransactionWithHook(
     },
     {
       batchId,
+      disableGasBuffer: true,
       networkClientId,
       publishHook,
       requireApproval: false,

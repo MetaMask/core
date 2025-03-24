@@ -1053,6 +1053,7 @@ export class TransactionController extends BaseController<
    * @param options.actionId - Unique ID to prevent duplicate requests.
    * @param options.batchId - A custom ID for the batch this transaction belongs to.
    * @param options.deviceConfirmedOn - An enum to indicate what device confirmed the transaction.
+   * @param options.disableGasBuffer - Whether to disable the gas estimation buffer.
    * @param options.method - RPC method that requested the transaction.
    * @param options.nestedTransactions - Params for any nested transactions encoded in the data.
    * @param options.origin - The origin of the transaction request, such as a dApp hostname.
@@ -1074,6 +1075,7 @@ export class TransactionController extends BaseController<
       actionId?: string;
       batchId?: Hex;
       deviceConfirmedOn?: WalletDevice;
+      disableGasBuffer?: boolean;
       method?: string;
       nestedTransactions?: BatchTransactionParams[];
       networkClientId: NetworkClientId;
@@ -1096,6 +1098,7 @@ export class TransactionController extends BaseController<
       actionId,
       batchId,
       deviceConfirmedOn,
+      disableGasBuffer,
       method,
       nestedTransactions,
       networkClientId,
@@ -1158,7 +1161,7 @@ export class TransactionController extends BaseController<
         (tx) => tx.batchId?.toLowerCase() === batchId?.toLowerCase(),
       );
 
-    if (isDuplicateBatchId) {
+    if (isDuplicateBatchId && origin && origin !== ORIGIN_METAMASK) {
       throw rpcErrors.invalidInput('Batch ID already exists');
     }
 
@@ -1185,6 +1188,7 @@ export class TransactionController extends BaseController<
           dappSuggestedGasFees,
           delegationAddress,
           deviceConfirmedOn,
+          disableGasBuffer,
           id: random(),
           isFirstTimeInteraction: undefined,
           nestedTransactions,

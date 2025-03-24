@@ -147,6 +147,12 @@ export type TransactionMeta = {
   destinationTokenSymbol?: string;
 
   /**
+   * Whether to disable the buffer added to gas limit estimations.
+   * Defaults to adding the buffer.
+   */
+  disableGasBuffer?: boolean;
+
+  /**
    * Error that occurred during the transaction processing.
    */
   error?: TransactionError;
