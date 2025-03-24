@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support publish batch hook ([#5401](https://github.com/MetaMask/core/pull/5401))
   - Add `hooks.publishBatch` option to constructor.
+  - Add `updateBatchTransactions` method.
+  - Add `maxFeePerGas` and `maxPriorityFeePerGas` to `updateEditableParams` options.
   - Add types.
     - `PublishBatchHook`
     - `PublishBatchHookRequest`
