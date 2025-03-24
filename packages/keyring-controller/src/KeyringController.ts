@@ -620,13 +620,13 @@ export class KeyringController extends BaseController<
 
   readonly #keyringBuilders: { (): EthKeyring; type: string }[];
 
-  readonly #unsupportedKeyrings: SerializedKeyring[];
-
   readonly #encryptor: GenericEncryptor | ExportableKeyEncryptor;
 
   readonly #cacheEncryptionKey: boolean;
 
   #keyrings: EthKeyring[];
+
+  #unsupportedKeyrings: SerializedKeyring[];
 
   #keyringsMetadata: KeyringMetadata[];
 
@@ -2473,6 +2473,7 @@ export class KeyringController extends BaseController<
       await this.#destroyKeyring(keyring);
     }
     this.#keyrings = [];
+    this.#unsupportedKeyrings = [];
   }
 
   /**
