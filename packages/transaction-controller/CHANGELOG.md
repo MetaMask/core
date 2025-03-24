@@ -7,15 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Fix gas estimation for type 4 transactions ([#5519](https://github.com/MetaMask/core/pull/5519))
-
 ### Added
 
 - Add `enableTxParamsGasFeeUpdates` constructor option ([5394](https://github.com/MetaMask/core/pull/5394))
   - If not set it will default to `false`.
   - Automatically update gas fee properties in `txParams` when the `gasFeeEstimates` are updated via polling.
+
+### Fixed
+
+- Fix gas estimation for type 4 transactions ([#5519](https://github.com/MetaMask/core/pull/5519))
 
 ## [52.0.0]
 
