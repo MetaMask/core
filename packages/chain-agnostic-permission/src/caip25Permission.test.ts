@@ -1447,7 +1447,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
   });
 });
 
-describe.only('generateCaip25Caveat', () => {
+describe('generateCaip25Caveat', () => {
   it('should generate a CAIP-25 caveat', () => {
     const caveat = generateCaip25Caveat(
       {
