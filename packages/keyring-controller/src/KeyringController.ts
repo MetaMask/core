@@ -2601,6 +2601,11 @@ export class KeyringController extends BaseController<
 
     this.update((state) => {
       state.isUnlocked = true;
+      // If new keyringsMetadata was generated during the unlock operation,
+      // we'll have to update the state with the new array
+      if (this.#keyringsMetadata.length > state.keyringsMetadata.length) {
+        state.keyringsMetadata = this.#keyringsMetadata.slice();
+      }
     });
     this.messagingSystem.publish(`${name}:unlock`);
   }
