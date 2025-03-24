@@ -502,7 +502,7 @@ export const generateCaip25Caveat = (
   [Caip25EndowmentPermissionName]: {
     caveats: [{ type: string; value: Caip25CaveatValue }];
   };
-} {
+} => {
   const caveatValueWithChains = setPermittedChainIds(
     caip25CaveatValue,
     chainIds,
