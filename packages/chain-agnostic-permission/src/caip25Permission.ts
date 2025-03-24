@@ -21,7 +21,8 @@ import {
   type NonEmptyArray,
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
-
+import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
+import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
   isSupportedAccount,
@@ -35,8 +36,6 @@ import {
   type InternalScopeObject,
   type InternalScopesObject,
 } from './scope/types';
-import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
-import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
 
 /**
  * The CAIP-25 permission caveat value.
@@ -492,6 +491,7 @@ function removeScope(
  * @param caip25CaveatValue - The requested CAIP-25 caveat value to modify.
  * @param accountAddresses - The list of permitted eth addresses.
  * @param chainIds - The list of permitted eth chainIds.
+ * @returns The updated CAIP-25 caveat value with the permitted accounts and chainIds set.
  */
 export const generateCaip25Caveat = (
   caip25CaveatValue: Caip25CaveatValue,

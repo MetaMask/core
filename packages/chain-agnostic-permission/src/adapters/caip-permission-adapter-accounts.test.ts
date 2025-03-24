@@ -1,10 +1,10 @@
+import type { CaipAccountId } from '@metamask/utils';
 import {
   getEthAccounts,
   setEthAccounts,
   setPermittedAccounts,
 } from './caip-permission-adapter-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
-import type { CaipAccountId } from '@metamask/utils';
 
 describe('CAIP-25 eth_accounts adapters', () => {
   describe('getEthAccounts', () => {
@@ -317,14 +317,10 @@ describe('CAIP-25 eth_accounts adapters', () => {
       expect(result).toStrictEqual({
         requiredScopes: {
           'eip155:1': {
-            accounts: [
-              'eip155:1:0xabc',
-            ],
+            accounts: ['eip155:1:0xabc'],
           },
           'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ': {
-            accounts: [
-              'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:pubkey123',
-            ],
+            accounts: ['solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:pubkey123'],
           },
         },
         optionalScopes: {},

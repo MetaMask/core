@@ -140,9 +140,9 @@ export const setEthAccounts = (
   };
 };
 
-
 /**
  * Sets the permitted accounts for the given scopes object.
+ *
  * @param scopesObject - The scopes object to set the permitted accounts for.
  * @param accounts - The permitted accounts to add to the appropriate scopes.
  * @returns The updated scopes object with the permitted accounts set.
@@ -159,15 +159,12 @@ const setPermittedAccountsForScopesObject = (
 
     let caipAccounts: CaipAccountId[] = [];
     if (namespace && reference) {
-      caipAccounts = accounts.reduce<CaipAccountId[]>(
-        (acc, account) => {
-          if (account.startsWith(`${namespace}:${reference}`)) {
-            acc.push(account);
-          }
-          return acc;
-        },
-        [],
-      );
+      caipAccounts = accounts.reduce<CaipAccountId[]>((acc, account) => {
+        if (account.startsWith(`${namespace}:${reference}`)) {
+          acc.push(account);
+        }
+        return acc;
+      }, []);
     }
 
     updatedScopesObject[scopeString] = {
@@ -181,6 +178,7 @@ const setPermittedAccountsForScopesObject = (
 
 /**
  * Sets the permitted accounts for the given CAIP-25 caveat value.
+ *
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted accounts for.
  * @param accounts - The permitted accounts to add to the appropriate scopes.
  * @returns The updated CAIP-25 caveat value with the permitted accounts set.

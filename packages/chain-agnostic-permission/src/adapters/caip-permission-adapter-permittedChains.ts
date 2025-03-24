@@ -174,10 +174,10 @@ const filterChainScopesObjectByChainId = (
   return updatedScopesObject;
 };
 
-
 /**
  * Adds a chainID to the optional scopes if it is not already present
  * in either the pre-existing required or optional scopes.
+ *
  * @param caip25CaveatValue - The CAIP-25 caveat value to add the chainID to.
  * @param chainId - The chainID to add.
  * @returns The updated CAIP-25 caveat value with the added chainID.
@@ -206,6 +206,7 @@ export const addPermittedChainId = (
 
 /**
  * Sets the permitted CAIP-2 chainIDs for the required and optional scopes.
+ *
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted CAIP-2 chainIDs for.
  * @param chainIds - The CAIP-2 chainIDs to set as permitted.
  * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.

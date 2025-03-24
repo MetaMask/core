@@ -123,6 +123,7 @@ export type NonWalletKnownCaipNamespace = Exclude<
 
 /**
  * Checks if a scope string is either a 'wallet' scope or a 'wallet:*' scope.
+ *
  * @param scopeString - The scope string to check.
  * @returns True if the scope string is a wallet scope, false otherwise.
  */
