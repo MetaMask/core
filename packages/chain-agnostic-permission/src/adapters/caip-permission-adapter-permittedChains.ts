@@ -147,33 +147,33 @@ export const setPermittedEthChainIds = (
 };
 
 /**
- * Sets the permitted CAIP-2 chainIDs for the required and optional scopes.
- * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted CAIP-2 chainIDs for.
- * @param chainIds - The CAIP-2 chainIDs to set as permitted.
- * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.
+ * Filters the scopes object to only include:
+ * - Scopes without references (e.g. "wallet:")
+ * - CAIP-2 ChainId scopes for the given chainIDs
+ * @param scopesObject - The scopes object to filter.
+ * @param chainIds - The CAIP-2 chainIDs to filter for.
+ * @returns The filtered scopes object.
  */
-export const setPermittedChainIds = (
-  caip25CaveatValue: Caip25CaveatValue,
+const filterChainScopesObjectByChainId = (
+  scopesObject: InternalScopesObject,
   chainIds: CaipChainId[],
-): Caip25CaveatValue => {
-  let updatedCaveatValue: Caip25CaveatValue = {
-    ...caip25CaveatValue,
-    requiredScopes: filterChainScopesObjectByChainId(
-      caip25CaveatValue.requiredScopes,
-      chainIds,
-    ),
-    optionalScopes: filterChainScopesObjectByChainId(
-      caip25CaveatValue.optionalScopes,
-      chainIds,
-    ),
-  };
+): InternalScopesObject => {
+  const updatedScopesObject: InternalScopesObject = {};
 
-  chainIds.forEach((chainId) => {
-    updatedCaveatValue = addPermittedChainId(updatedCaveatValue, chainId);
+  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
+    // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = key as keyof typeof scopesObject;
+    // If its a wallet scope or a wallet:* scope we don't filter it
+    if (isWalletScope(scopeString)) {
+      updatedScopesObject[scopeString] = scopeObject;
+    } else if (chainIds.includes(scopeString)) {
+      updatedScopesObject[scopeString] = scopeObject;
+    }
   });
 
-  return updatedCaveatValue;
+  return updatedScopesObject;
 };
+
 
 /**
  * Adds a chainID to the optional scopes if it is not already present
@@ -205,29 +205,30 @@ export const addPermittedChainId = (
 };
 
 /**
- * Filters the scopes object to only include:
- * - Scopes without references (e.g. "wallet:")
- * - CAIP-2 ChainId scopes for the given chainIDs
- * @param scopesObject - The scopes object to filter.
- * @param chainIds - The CAIP-2 chainIDs to filter for.
- * @returns The filtered scopes object.
+ * Sets the permitted CAIP-2 chainIDs for the required and optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted CAIP-2 chainIDs for.
+ * @param chainIds - The CAIP-2 chainIDs to set as permitted.
+ * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.
  */
-const filterChainScopesObjectByChainId = (
-  scopesObject: InternalScopesObject,
+export const setPermittedChainIds = (
+  caip25CaveatValue: Caip25CaveatValue,
   chainIds: CaipChainId[],
-): InternalScopesObject => {
-  const updatedScopesObject: InternalScopesObject = {};
+): Caip25CaveatValue => {
+  let updatedCaveatValue: Caip25CaveatValue = {
+    ...caip25CaveatValue,
+    requiredScopes: filterChainScopesObjectByChainId(
+      caip25CaveatValue.requiredScopes,
+      chainIds,
+    ),
+    optionalScopes: filterChainScopesObjectByChainId(
+      caip25CaveatValue.optionalScopes,
+      chainIds,
+    ),
+  };
 
-  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
-    // Cast needed because index type is returned as `string` by `Object.entries`
-    const scopeString = key as keyof typeof scopesObject;
-    // If its a wallet scope or a wallet:* scope we don't filter it
-    if (isWalletScope(scopeString)) {
-      updatedScopesObject[scopeString] = scopeObject;
-    } else if (chainIds.includes(scopeString)) {
-      updatedScopesObject[scopeString] = scopeObject;
-    }
+  chainIds.forEach((chainId) => {
+    updatedCaveatValue = addPermittedChainId(updatedCaveatValue, chainId);
   });
 
-  return updatedScopesObject;
+  return updatedCaveatValue;
 };
