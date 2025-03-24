@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.1]
+
 ### Uncategorized
 
 - fix: handle missing keyring in notification listener ([#5514](https://github.com/MetaMask/core/pull/5514))
@@ -377,7 +379,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@5.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@5.0.1...HEAD
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@5.0.0...@metamask/notification-services-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@4.0.0...@metamask/notification-services-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@3.0.0...@metamask/notification-services-controller@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@2.0.0...@metamask/notification-services-controller@3.0.0
