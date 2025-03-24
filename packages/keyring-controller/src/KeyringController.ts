@@ -2490,15 +2490,18 @@ export class KeyringController extends BaseController<
     try {
       const { type, data } = serialized;
       const keyring = await this.#createKeyring(type, data);
-      this.#keyrings.push(keyring);
       // If metadata is missing, assume the data is from an installation before
       // we had keyring metadata.
       if (this.#keyringsMetadata.length < this.#keyrings.length) {
         console.log(`Adding missing metadata for '${type}' keyring`);
         this.#keyringsMetadata.push(getDefaultKeyringMetadata());
       }
+      // The keyring is added to the keyrings array only if it's successfully restored
+      // and the metadata is successfully added to the controller
+      this.#keyrings.push(keyring);
       return keyring;
-    } catch (_) {
+    } catch (error) {
+      console.error(error);
       this.#unsupportedKeyrings.push(serialized);
       return undefined;
     }
