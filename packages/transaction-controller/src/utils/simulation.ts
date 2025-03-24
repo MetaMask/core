@@ -131,13 +131,14 @@ export async function getSimulationData(
         {
           data,
           from,
-          maxFeePerGas: '0x0',
-          maxPriorityFeePerGas: '0x0',
           to,
           value,
         },
       ],
-      suggestFees: {},
+      suggestFees: {
+        withTransfer: true,
+        withFeeTransfer: true,
+      },
       withCallTrace: true,
       withLogs: true,
       ...(blockTime && {
