@@ -48,6 +48,7 @@ export type {
   PublishBatchHook,
   PublishBatchHookRequest,
   PublishBatchHookResult,
+  PublishBatchHookTransaction,
   PublishHook,
   PublishHookResult,
   SavedGasFees,
