@@ -2632,6 +2632,30 @@ describe('KeyringController', () => {
           );
         });
 
+        it('should unlock succesfully when the controller is instantiated with an existing `keyringsMetadata`', async () => {
+          await withController(
+            {
+              cacheEncryptionKey,
+              state: { keyringsMetadata: [], vault: 'my vault' },
+              skipVaultCreation: true,
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {
+                    accounts: ['0x123'],
+                  },
+                },
+              ]);
+
+              await controller.submitPassword(password);
+
+              expect(controller.state.keyringsMetadata).toHaveLength(1);
+            },
+          );
+        });
+
         !cacheEncryptionKey &&
           it('should throw error if password is of wrong type', async () => {
             await withController(
