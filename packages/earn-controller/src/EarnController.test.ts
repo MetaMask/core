@@ -98,10 +98,12 @@ const createMockInternalAccount = ({
   };
 };
 
-const mockAddress = '0x1234';
+const mockAccount1Address = '0x1234';
+
+const mockAccount2Address = '0xabc';
 
 const mockPooledStakes = {
-  account: mockAddress,
+  account: mockAccount1Address,
   lifetimeRewards: '100',
   assets: '1000',
   exitRequests: [],
@@ -210,7 +212,7 @@ const setupController = ({
   })),
 
   mockGetSelectedAccount = jest.fn(() => ({
-    address: mockAddress,
+    address: mockAccount1Address,
   })),
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
@@ -391,7 +393,7 @@ describe('EarnController', () => {
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        [mockAddress],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -399,14 +401,29 @@ describe('EarnController', () => {
 
     it('invalidates cache when refreshing state', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakingData(true);
+      await controller.refreshPooledStakingData({ resetCache: true });
 
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        [mockAddress],
+        [mockAccount1Address],
         1,
         true,
+      );
+    });
+
+    it('refreshes state using options.address', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakingData({
+        address: mockAccount2Address,
+      });
+
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        // First call occurs during setupController()
+        2,
+        [mockAccount2Address],
+        1,
+        false,
       );
     });
 
@@ -471,7 +488,7 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        [mockAddress],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -484,7 +501,7 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        [mockAddress],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -497,7 +514,7 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        [mockAddress],
+        [mockAccount1Address],
         1,
         true,
       );
@@ -510,7 +527,7 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        [mockAddress],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -518,12 +535,12 @@ describe('EarnController', () => {
 
     it('fetches using options.address override', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakes({ address: mockAddress });
+      await controller.refreshPooledStakes({ address: mockAccount2Address });
 
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        [mockAddress],
+        [mockAccount2Address],
         1,
         false,
       );
@@ -539,23 +556,25 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(
         mockedStakingApiService.getPooledStakingEligibility,
-      ).toHaveBeenNthCalledWith(2, [mockAddress]);
+      ).toHaveBeenNthCalledWith(2, [mockAccount1Address]);
     });
 
-    it('fetches staking eligibility using options.address', async () => {
+    it('fetches staking eligibility using options.address override', async () => {
       const { controller } = setupController();
-      await controller.refreshStakingEligibility({ address: mockAddress });
+      await controller.refreshStakingEligibility({
+        address: mockAccount2Address,
+      });
 
       // Assertion on second call since the first is part of controller setup.
       expect(
         mockedStakingApiService.getPooledStakingEligibility,
-      ).toHaveBeenNthCalledWith(2, [mockAddress]);
+      ).toHaveBeenNthCalledWith(2, [mockAccount2Address]);
     });
   });
 
   describe('subscription handlers', () => {
     const firstAccount = createMockInternalAccount({
-      address: mockAddress,
+      address: mockAccount1Address,
     });
 
     it('updates vault data when network changes', () => {

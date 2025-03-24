@@ -28,6 +28,7 @@ import {
 
 import type {
   RefreshPooledStakesOptions,
+  RefreshPooledStakingDataOptions,
   RefreshStakingEligibilityOptions,
 } from './types';
 
@@ -447,18 +448,23 @@ export class EarnController extends BaseController<
    * This method allows partial success, meaning some data may update while other requests fail.
    * All errors are collected and thrown as a single error message.
    *
-   * @param resetCache - Control whether the BE cache should be invalidated.
+   * @param options - Optional arguments
+   * @param [options.resetCache] - Control whether the BE cache should be invalidated (optional).
+   * @param [options.address] - The address to refresh pooled stakes for (optional).
    * @returns A promise that resolves when all possible data has been updated
    * @throws {Error} If any of the refresh operations fail, with concatenated error messages
    */
-  async refreshPooledStakingData(resetCache = false): Promise<void> {
+  async refreshPooledStakingData({
+    resetCache,
+    address,
+  }: RefreshPooledStakingDataOptions = {}): Promise<void> {
     const errors: Error[] = [];
 
     await Promise.all([
-      this.refreshPooledStakes({ resetCache }).catch((error) => {
+      this.refreshPooledStakes({ resetCache, address }).catch((error) => {
         errors.push(error);
       }),
-      this.refreshStakingEligibility().catch((error) => {
+      this.refreshStakingEligibility({ address }).catch((error) => {
         errors.push(error);
       }),
       this.refreshPooledStakingVaultMetadata().catch((error) => {
