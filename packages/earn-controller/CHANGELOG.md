@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: earn controller convert method args to options bags ([#5537](https://github.com/MetaMask/core/pull/5537))
+- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
+
 ## [0.9.0]
 
 ### Changed
