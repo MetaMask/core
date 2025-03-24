@@ -255,15 +255,14 @@ export class EarnController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       (account) => {
+        const address = account?.address;
         /**
          * TEMP: There's a race condition where the account state isn't updated immediately.
          * Until this has been fixed, we rely on the event payload for the latest account instead of #getCurrentAccount().
          * Issue: https://github.com/MetaMask/accounts-planning/issues/887
          */
-        this.refreshStakingEligibility({ address: account?.address }).catch(
-          console.error,
-        );
-        this.refreshPooledStakes().catch(console.error);
+        this.refreshStakingEligibility({ address }).catch(console.error);
+        this.refreshPooledStakes({ address }).catch(console.error);
       },
     );
   }

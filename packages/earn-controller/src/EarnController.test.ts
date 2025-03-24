@@ -573,59 +573,66 @@ describe('EarnController', () => {
   });
 
   describe('subscription handlers', () => {
-    const firstAccount = createMockInternalAccount({
-      address: mockAccount1Address,
+    const account = createMockInternalAccount({
+      address: mockAccount2Address,
     });
 
-    it('updates vault data when network changes', () => {
-      const { controller, messenger } = setupController();
+    describe('On network change', () => {
+      it('updates vault data when network changes', () => {
+        const { controller, messenger } = setupController();
 
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultMetadata')
-        .mockResolvedValue();
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
-        .mockResolvedValue();
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
-        .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultMetadata')
+          .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
+          .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
+          .mockResolvedValue();
 
-      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
-      messenger.publish(
-        'NetworkController:stateChange',
-        {
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: '2',
-        },
-        [],
-      );
+        messenger.publish(
+          'NetworkController:stateChange',
+          {
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '2',
+          },
+          [],
+        );
 
-      expect(
-        controller.refreshPooledStakingVaultMetadata,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        controller.refreshPooledStakingVaultDailyApys,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        controller.refreshPooledStakingVaultApyAverages,
-      ).toHaveBeenCalledTimes(1);
-      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultMetadata,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultDailyApys,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultApyAverages,
+        ).toHaveBeenCalledTimes(1);
+        expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+      });
     });
 
-    it('updates staking eligibility when selected account changes', () => {
-      const { controller, messenger } = setupController();
+    describe('On selected account change', () => {
+      // TEMP: Workaround for issue: https://github.com/MetaMask/accounts-planning/issues/887
+      it('uses event payload account address to update staking eligibility', () => {
+        const { controller, messenger } = setupController();
 
-      jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
-      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
-      messenger.publish(
-        'AccountsController:selectedAccountChange',
-        firstAccount,
-      );
+        messenger.publish('AccountsController:selectedAccountChange', account);
 
-      expect(controller.refreshStakingEligibility).toHaveBeenCalledTimes(1);
-      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+        expect(controller.refreshStakingEligibility).toHaveBeenNthCalledWith(
+          1,
+          { address: account.address },
+        );
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: account.address,
+        });
+      });
     });
   });
 });
