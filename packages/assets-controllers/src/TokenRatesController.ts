@@ -12,7 +12,6 @@ import {
   safelyExecute,
   toChecksumHexAddress,
   FALL_BACK_VS_CURRENCY,
-  toHex,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -406,7 +405,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   #getTokenAddresses(chainId: Hex): Hex[] {
     const getTokens = (allTokens: Record<Hex, { address: string }[]>) =>
       Object.values(allTokens ?? {}).flatMap((tokens) =>
-        tokens.map(({ address }) => toHex(toChecksumHexAddress(address))),
+        tokens.map(({ address }) => toChecksumHexAddress(address) as Hex),
       );
 
     const tokenAddresses = getTokens(this.#allTokens[chainId]);
