@@ -12,6 +12,7 @@ import {
   createCaip25Caveat,
   caip25CaveatBuilder,
   diffScopesForCaip25CaveatValue,
+  generateCaip25Caveat,
 } from './caip25Permission';
 import { KnownSessionProperties } from './scope/constants';
 import * as ScopeSupported from './scope/supported';
@@ -900,6 +901,24 @@ describe('caip25CaveatBuilder', () => {
     ).toBeUndefined();
   });
 
+  it('throws an error if both requiredScopes and optionalScopes are empty', () => {
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {},
+          optionalScopes: {},
+          sessionProperties: {},
+          isMultichainOrigin: true,
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received no scopes requested for caveat of type "${Caip25CaveatType}".`,
+      ),
+    );
+  });
+
   describe('permission merger', () => {
     describe('incremental request an existing scope (requiredScopes), and 2 whole new scopes (optionalScopes) with accounts', () => {
       it('should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts', () => {
@@ -1424,6 +1443,246 @@ describe('diffScopesForCaip25CaveatValue', () => {
       );
 
       expect(diff).toStrictEqual(expectedDiff);
+    });
+  });
+});
+
+describe.only('generateCaip25Caveat', () => {
+  it('should generate a CAIP-25 caveat', () => {
+    const caveat = generateCaip25Caveat(
+      {
+        requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0xdead'] } },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      },  
+      ['eip155:1:0xdead'],
+      ['eip155:1'],
+    );
+
+    expect(caveat).toStrictEqual({
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0xdead'] } },
+              optionalScopes: {},
+              sessionProperties: {},
+              isMultichainOrigin: false,
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should handle multiple accounts across different chains', () => {
+    const caveat = generateCaip25Caveat(
+      {
+        requiredScopes: { 
+          'eip155:1': { accounts: ['eip155:1:0xdead'] },
+          'eip155:5': { accounts: ['eip155:5:0xbeef'] }
+        },
+        optionalScopes: {
+          'eip155:10': { accounts: ['eip155:10:0xabc'] }
+        },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      },  
+      ['eip155:1:0x123', 'eip155:5:0x456', 'eip155:10:0x789'],
+      ['eip155:1', 'eip155:5', 'eip155:10'],
+    );
+
+    expect(caveat).toStrictEqual({
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: { 
+                'eip155:1': { accounts: ['eip155:1:0x123', 'eip155:1:0x456', 'eip155:1:0x789'] },
+                'eip155:5': { accounts: ['eip155:5:0x123', 'eip155:5:0x456', 'eip155:5:0x789'] }
+              },
+              optionalScopes: {
+                'eip155:10': { accounts: ['eip155:10:0x123', 'eip155:10:0x456', 'eip155:10:0x789'] }
+              },
+              sessionProperties: {},
+              isMultichainOrigin: false,
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should handle empty accounts list', () => {
+    const caveat = generateCaip25Caveat(
+      {
+        requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0xdead'] } },
+        optionalScopes: { 'eip155:5': { accounts: ['eip155:5:0xbeef'] } },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      },  
+      [],
+      ['eip155:1', 'eip155:5'],
+    );
+
+    expect(caveat).toStrictEqual({
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: { 'eip155:1': { accounts: [] } },
+              optionalScopes: { 'eip155:5': { accounts: [] } },
+              sessionProperties: {},
+              isMultichainOrigin: false,
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should handle wallet scopes correctly', () => {
+    const caveat = generateCaip25Caveat(
+      {
+        requiredScopes: {},
+        optionalScopes: { 
+          'wallet:eip155': { accounts: ['wallet:eip155:0xdead'] },
+          'wallet': { accounts: [] }
+        },
+        sessionProperties: {},
+        isMultichainOrigin: true,
+      },  
+      ['wallet:eip155:0x123'],
+      ['eip155:1', 'eip155:5'],
+    );
+
+    expect(caveat).toStrictEqual({
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: {},
+              optionalScopes: { 
+                'wallet:eip155': { accounts: ['wallet:eip155:0x123'] },
+                'wallet': { accounts: [] },
+                'eip155:1': { accounts: [] },
+                'eip155:5': { accounts: [] }
+              },
+              sessionProperties: {},
+              isMultichainOrigin: true,
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should preserve session properties', () => {
+    const sessionProperties = {
+      [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
+    };
+
+    const caveat = generateCaip25Caveat(
+      {
+        requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0xdead'] } },
+        optionalScopes: {},
+        sessionProperties,
+        isMultichainOrigin: true,
+      },  
+      ['eip155:1:0x123'],
+      ['eip155:1'],
+    );
+
+    expect(caveat).toStrictEqual({
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0x123'] } },
+              optionalScopes: {},
+              sessionProperties,
+              isMultichainOrigin: true,
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should handle non-EVM chains correctly', () => {
+    const caveat = generateCaip25Caveat(
+      {
+        requiredScopes: { 
+          'eip155:1': { accounts: ['eip155:1:0xdead'] },
+          'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ': { 
+            accounts: ['solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:oldPubkey'] 
+          }
+        },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: true,
+      },  
+      ['eip155:1:0x123', 'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:newPubkey'],
+      ['eip155:1', 'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ'],
+    );
+
+    expect(caveat).toStrictEqual({
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: { 
+                'eip155:1': { accounts: ['eip155:1:0x123'] },
+                'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ': { 
+                  accounts: ['solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:newPubkey'] 
+                }
+              },
+              optionalScopes: {},
+              sessionProperties: {},
+              isMultichainOrigin: true,
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('should add new chains to optionalScopes when they are not in requiredScopes', () => {
+    const caveat = generateCaip25Caveat(
+      {
+        requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0xdead'] } },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      },  
+      ['eip155:1:0x123', 'eip155:5:0x456'],
+      ['eip155:1', 'eip155:5', 'eip155:10'],
+    );
+
+    expect(caveat).toStrictEqual({
+      [Caip25EndowmentPermissionName]: {
+        caveats: [
+          {
+            type: Caip25CaveatType,
+            value: {
+              requiredScopes: { 'eip155:1': { accounts: ['eip155:1:0x123', 'eip155:1:0x456'] } },
+              optionalScopes: { 
+                'eip155:5': { accounts: ['eip155:5:0x123', 'eip155:5:0x456'] },
+                'eip155:10': { accounts: ['eip155:10:0x123', 'eip155:10:0x456'] }
+              },
+              sessionProperties: {},
+              isMultichainOrigin: false,
+            },
+          },
+        ],
+      },
     });
   });
 });

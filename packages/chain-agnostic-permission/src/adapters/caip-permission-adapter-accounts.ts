@@ -11,6 +11,7 @@ import { KnownWalletScopeString } from '../scope/constants';
 import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
+import { uniq } from 'lodash';
 
 /**
  * Checks if a scope string is either an EIP155 or wallet namespaced scope string.
@@ -160,8 +161,14 @@ const setPermittedAccountsForScopesObject = (
     let caipAccounts: CaipAccountId[] = [];
     if (namespace && reference) {
       caipAccounts = accounts.reduce<CaipAccountId[]>((acc, account) => {
-        if (account.startsWith(`${namespace}:${reference}`)) {
-          acc.push(account);
+        const {
+          chain: { namespace: accountNamespace },
+          address: accountAddress,
+        } = parseCaipAccountId(account);
+        // If the account namespace is the same as the scope namespace, add the account to the scope
+        // This will, for example, distribute all EIP155 accounts, regardless of reference, to all EIP155 scopes
+        if (namespace === accountNamespace) {
+          acc.push(`${namespace}:${reference}:${accountAddress}`);
         }
         return acc;
       }, []);
@@ -169,7 +176,7 @@ const setPermittedAccountsForScopesObject = (
 
     updatedScopesObject[scopeString] = {
       ...scopeObject,
-      accounts: caipAccounts,
+      accounts: uniq(caipAccounts),
     };
   });
 
@@ -199,3 +206,33 @@ export const setPermittedAccounts = (
     ),
   };
 };
+
+/**
+ * Gets the requested accounts from the given CAIP-25 caveat value.
+ *
+ * @param requestedCaip25CaveatValue - CAIP-25 request values.
+ * @returns Accounts available for requesting.
+ */
+export function getAllAccountsFromCaip25Caveat(
+  requestedCaip25CaveatValue: Caip25CaveatValue,
+) {
+  const requiredAccounts = Object.values(
+    requestedCaip25CaveatValue.requiredScopes,
+  )
+    .flatMap((scope) => scope.accounts)
+    .map((account) => ({
+      address: parseCaipAccountId(account).address,
+      chainId: parseCaipAccountId(account).chainId,
+    }));
+
+  const optionalAccounts = Object.values(
+    requestedCaip25CaveatValue.optionalScopes,
+  )
+    .flatMap((scope) => scope.accounts)
+    .map((account) => ({
+      address: parseCaipAccountId(account).address,
+      chainId: parseCaipAccountId(account).chainId,
+    }));
+
+  return [...requiredAccounts, ...optionalAccounts];
+}
