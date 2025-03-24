@@ -2656,6 +2656,36 @@ describe('KeyringController', () => {
           );
         });
 
+        it('should throw an error when the controller is instantiated with an existing `keyringsMetadata` with too many objects', async () => {
+          await withController(
+            {
+              cacheEncryptionKey,
+              state: {
+                keyringsMetadata: [
+                  { id: '123', name: '' },
+                  { id: '456', name: '' },
+                ],
+                vault: 'my vault',
+              },
+              skipVaultCreation: true,
+            },
+            async ({ controller, encryptor }) => {
+              jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce([
+                {
+                  type: KeyringTypes.hd,
+                  data: {
+                    accounts: ['0x123'],
+                  },
+                },
+              ]);
+
+              await expect(controller.submitPassword(password)).rejects.toThrow(
+                KeyringControllerError.KeyringMetadataLengthMismatch,
+              );
+            },
+          );
+        });
+
         !cacheEncryptionKey &&
           it('should throw error if password is of wrong type', async () => {
             await withController(
