@@ -2,12 +2,12 @@ import {
   isCaipNamespace,
   isCaipChainId,
   parseCaipChainId,
+  KnownCaipNamespace,
 } from '@metamask/utils';
 import type {
   CaipChainId,
   CaipReference,
   CaipAccountId,
-  KnownCaipNamespace,
   CaipNamespace,
   Json,
 } from '@metamask/utils';
@@ -120,3 +120,17 @@ export type NonWalletKnownCaipNamespace = Exclude<
   KnownCaipNamespace,
   KnownCaipNamespace.Wallet
 >;
+
+/**
+ * Checks if a scope string is either a 'wallet' scope or a 'wallet:*' scope.
+ * @param scopeString - The scope string to check.
+ * @returns True if the scope string is a wallet scope, false otherwise.
+ */
+export const isWalletScope = (
+  scopeString: string,
+): scopeString is
+  | KnownCaipNamespace.Wallet
+  | `${KnownCaipNamespace.Wallet}:${string}` => {
+  const { namespace } = parseScopeString(scopeString);
+  return namespace === KnownCaipNamespace.Wallet;
+};

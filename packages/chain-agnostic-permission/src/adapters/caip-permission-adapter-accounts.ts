@@ -139,3 +139,66 @@ export const setEthAccounts = (
     ),
   };
 };
+
+
+/**
+ * Sets the permitted accounts for the given scopes object.
+ * @param scopesObject - The scopes object to set the permitted accounts for.
+ * @param accounts - The permitted accounts to set.
+ * @returns The updated scopes object with the permitted accounts set.
+ */
+const setPermittedAccountsForScopesObject = (
+  scopesObject: InternalScopesObject,
+  accounts: CaipAccountId[],
+) => {
+  const updatedScopesObject: InternalScopesObject = {};
+  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
+    // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = key as keyof typeof scopesObject;
+    const { namespace, reference } = parseScopeString(scopeString);
+
+    let caipAccounts: CaipAccountId[] = [];
+    if (namespace && reference) {
+      /// need to check that the account
+      caipAccounts = accounts.reduce<CaipAccountId[]>(
+        (acc, account) => {
+          if (account.startsWith(`${namespace}:${reference}`)) {
+            acc.push(account);
+          }
+          return acc;
+        },
+        [],
+      );
+    }
+
+    updatedScopesObject[scopeString] = {
+      ...scopeObject,
+      accounts: caipAccounts,
+    };
+  });
+
+  return updatedScopesObject;
+};
+
+/**
+ * Sets the permitted accounts for the given CAIP-25 caveat value.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted accounts for.
+ * @param accounts - The permitted accounts to set.
+ * @returns The updated CAIP-25 caveat value with the permitted accounts set.
+ */
+export const setPermittedAccounts = (
+  caip25CaveatValue: Caip25CaveatValue,
+  accounts: CaipAccountId[],
+): Caip25CaveatValue => {
+  return {
+    ...caip25CaveatValue,
+    requiredScopes: setPermittedAccountsForScopesObject(
+      caip25CaveatValue.requiredScopes,
+      accounts,
+    ),
+    optionalScopes: setPermittedAccountsForScopesObject(
+      caip25CaveatValue.optionalScopes,
+      accounts,
+    ),
+  };
+};

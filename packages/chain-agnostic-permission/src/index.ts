@@ -1,7 +1,7 @@
 export {
   getEthAccounts,
   setEthAccounts,
-} from './adapters/caip-permission-adapter-eth-accounts';
+} from './adapters/caip-permission-adapter-accounts';
 export {
   getPermittedEthChainIds,
   addPermittedEthChainId,
