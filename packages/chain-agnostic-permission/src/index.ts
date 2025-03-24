@@ -1,11 +1,14 @@
 export {
   getEthAccounts,
   setEthAccounts,
+  setPermittedAccounts,
 } from './adapters/caip-permission-adapter-accounts';
 export {
   getPermittedEthChainIds,
   addPermittedEthChainId,
   setPermittedEthChainIds,
+  setPermittedChainIds,
+  addPermittedChainId,
 } from './adapters/caip-permission-adapter-permittedChains';
 export {
   getInternalScopesObject,
@@ -57,4 +60,5 @@ export {
   Caip25EndowmentPermissionName,
   caip25EndowmentBuilder,
   Caip25CaveatMutators,
+  generateCaip25Caveat,
 } from './caip25Permission';
