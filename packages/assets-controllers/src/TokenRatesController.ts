@@ -538,7 +538,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
     const tokenAddresses = this.#getTokenAddresses(chainId);
 
-    // Key also compromises token addresses, as we do want to re-fetch if there are new tokens discovered
+    // Key dependencies that will trigger a new request instead of aborting:
+    // - chainId - different chains require a new request
+    // - nativeCurrency - changing native currency requires fetching different rates
+    // - tokenAddress length - if we have detected any new tokens, we will need to make a new request for the rates
     const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
     if (updateKey in this.#inProcessExchangeRateUpdates) {
       // This prevents redundant updates
