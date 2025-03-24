@@ -1506,10 +1506,12 @@ export class TransactionController extends BaseController<
       networkClientId,
     });
 
-    const { estimatedGas, simulationFails } = await estimateGas(
-      transaction,
+    const { estimatedGas, simulationFails } = await estimateGas({
+      chainId: this.#getChainId(networkClientId),
       ethQuery,
-    );
+      isSimulationEnabled: this.#isSimulationEnabled(),
+      txParams: transaction,
+    });
 
     return { gas: estimatedGas, simulationFails };
   }
@@ -1531,10 +1533,12 @@ export class TransactionController extends BaseController<
       networkClientId,
     });
 
-    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
-      transaction,
+    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
+      chainId: this.#getChainId(networkClientId),
       ethQuery,
-    );
+      isSimulationEnabled: this.#isSimulationEnabled(),
+      txParams: transaction,
+    });
 
     const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
 
@@ -3983,6 +3987,7 @@ export class TransactionController extends BaseController<
       chainId,
       ethQuery,
       isCustomNetwork,
+      isSimulationEnabled: this.#isSimulationEnabled(),
       txMeta: transactionMeta,
     });
   }
