@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
-    "@metamask/bridge-controller": "^11.0.0",
+    "@metamask/bridge-controller": "^11.1.0",
     "@metamask/controller-utils": "^11.6.0",
     "@metamask/polling-controller": "^13.0.0",
     "@metamask/superstruct": "^3.1.0",
