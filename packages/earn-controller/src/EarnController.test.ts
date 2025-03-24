@@ -98,8 +98,10 @@ const createMockInternalAccount = ({
   };
 };
 
+const mockAddress = '0x1234';
+
 const mockPooledStakes = {
-  account: '0x1234',
+  account: mockAddress,
   lifetimeRewards: '100',
   assets: '1000',
   exitRequests: [],
@@ -208,7 +210,7 @@ const setupController = ({
   })),
 
   mockGetSelectedAccount = jest.fn(() => ({
-    address: '0x1234',
+    address: mockAddress,
   })),
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
@@ -389,7 +391,7 @@ describe('EarnController', () => {
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        ['0x1234'],
+        [mockAddress],
         1,
         false,
       );
@@ -402,7 +404,7 @@ describe('EarnController', () => {
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        ['0x1234'],
+        [mockAddress],
         1,
         true,
       );
@@ -464,12 +466,12 @@ describe('EarnController', () => {
   describe('refreshPooledStakes', () => {
     it('fetches without resetting cache when resetCache is false', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakes(false);
+      await controller.refreshPooledStakes({ resetCache: false });
 
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAddress],
         1,
         false,
       );
@@ -482,7 +484,7 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAddress],
         1,
         false,
       );
@@ -490,14 +492,40 @@ describe('EarnController', () => {
 
     it('fetches while resetting cache', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakes(true);
+      await controller.refreshPooledStakes({ resetCache: true });
 
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAddress],
         1,
         true,
+      );
+    });
+
+    it('fetches using active account (default)', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes();
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        [mockAddress],
+        1,
+        false,
+      );
+    });
+
+    it('fetches using options.address override', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes({ address: mockAddress });
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        [mockAddress],
+        1,
+        false,
       );
     });
   });
@@ -511,14 +539,11 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(
         mockedStakingApiService.getPooledStakingEligibility,
-      ).toHaveBeenNthCalledWith(2, ['0x1234']);
+      ).toHaveBeenNthCalledWith(2, [mockAddress]);
     });
 
     it('fetches staking eligibility using options.address', async () => {
       const { controller } = setupController();
-
-      const mockAddress = '0xabc';
-
       await controller.refreshStakingEligibility({ address: mockAddress });
 
       // Assertion on second call since the first is part of controller setup.
@@ -530,7 +555,7 @@ describe('EarnController', () => {
 
   describe('subscription handlers', () => {
     const firstAccount = createMockInternalAccount({
-      address: '0x1234',
+      address: mockAddress,
     });
 
     it('updates vault data when network changes', () => {

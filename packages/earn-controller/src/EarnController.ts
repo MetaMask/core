@@ -26,7 +26,10 @@ import {
   type VaultApyAverages,
 } from '@metamask/stake-sdk';
 
-import type { RefreshStakingEligibilityOptions } from './types';
+import type {
+  RefreshPooledStakesOptions,
+  RefreshStakingEligibilityOptions,
+} from './types';
 
 export const controllerName = 'EarnController';
 
@@ -326,12 +329,18 @@ export class EarnController extends BaseController<
    * Fetches updated stake information including lifetime rewards, assets, and exit requests
    * from the staking API service and updates the state.
    *
-   * @param resetCache - Control whether the BE cache should be invalidated.
+   * @param options - Optional arguments
+   * @param [options.resetCache] - Control whether the BE cache should be invalidated (optional).
+   * @param [options.address] - The address to refresh pooled stakes for (optional).
    * @returns A promise that resolves when the stakes data has been updated
    */
-  async refreshPooledStakes(resetCache = false): Promise<void> {
-    const currentAccount = this.#getCurrentAccount();
-    if (!currentAccount?.address) {
+  async refreshPooledStakes({
+    resetCache = false,
+    address,
+  }: RefreshPooledStakesOptions = {}): Promise<void> {
+    const addressToUse = address ?? this.#getCurrentAccount()?.address;
+
+    if (!addressToUse) {
       return;
     }
 
@@ -339,7 +348,7 @@ export class EarnController extends BaseController<
 
     const { accounts, exchangeRate } =
       await this.#stakingApiService.getPooledStakes(
-        [currentAccount.address],
+        [addressToUse],
         chainId,
         resetCache,
       );
@@ -446,7 +455,7 @@ export class EarnController extends BaseController<
     const errors: Error[] = [];
 
     await Promise.all([
-      this.refreshPooledStakes(resetCache).catch((error) => {
+      this.refreshPooledStakes({ resetCache }).catch((error) => {
         errors.push(error);
       }),
       this.refreshStakingEligibility().catch((error) => {
