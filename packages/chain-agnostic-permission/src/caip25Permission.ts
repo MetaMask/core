@@ -35,6 +35,8 @@ import {
   type InternalScopeObject,
   type InternalScopesObject,
 } from './scope/types';
+import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
+import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
 
 /**
  * The CAIP-25 permission caveat value.
@@ -481,5 +483,44 @@ function removeScope(
 
   return {
     operation: CaveatMutatorOperation.RevokePermission,
+  };
+}
+
+
+/**
+* Modifies the requested CAIP-25 permissions object after UI confirmation.
+*
+* @param caip25CaveatValue - The requested CAIP-25 caveat value to modify.
+* @param accountAddresses - The list of permitted eth addresses.
+* @param chainIds - The list of permitted eth chainIds.
+*/
+export const caip25CaveatFactory = (
+  caip25CaveatValue: Caip25CaveatValue,
+  accountAddresses: CaipAccountId[],
+  chainIds: CaipChainId[],
+): {
+  [Caip25EndowmentPermissionName]: {
+    caveats: [{ type: string; value: Caip25CaveatValue }];
+  };
+} {
+  const caveatValueWithChains = setPermittedChainIds(
+    caip25CaveatValue,
+    chainIds,
+  );
+
+  const caveatValueWithAccounts = setPermittedAccounts(
+    caveatValueWithChains,
+    accountAddresses,
+  );
+
+  return {
+    [Caip25EndowmentPermissionName]: {
+      caveats: [
+        {
+          type: Caip25CaveatType,
+          value: caveatValueWithAccounts,
+        },
+      ],
+    },
   };
 }
