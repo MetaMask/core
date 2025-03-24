@@ -425,6 +425,17 @@ describe('EIP-7702 Utils', () => {
         to: ADDRESS_MOCK,
       });
     });
+
+    it.each(['gas', 'maxFeePerGas', 'maxPriorityFeePerGas'])(
+      'throws if %s specified in transaction',
+      (prop) => {
+        expect(() =>
+          generateEIP7702BatchTransaction(ADDRESS_MOCK, [{ [prop]: '0x1234' }]),
+        ).toThrow(
+          `EIP-7702 batch transactions do not support gas parameters per call - ${prop}: 0x1234`,
+        );
+      },
+    );
   });
 
   describe('getDelegationAddress', () => {
