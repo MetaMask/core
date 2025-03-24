@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.10.0]
 
-### Uncategorized
+### Changed
 
-- feat: earn controller convert method args to options bags ([#5537](https://github.com/MetaMask/core/pull/5537))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
+- Updated: earn-controller refreshPooledStakingData, refreshPooledStakes, and refreshStakingEligibility methods to use options bag parameter. Updated `AccountsController:selectedAccountChange` subscription handler to pass `account?.address` from event payload into underlying methods ([#5537](https://github.com/MetaMask/core/pull/5537))
 
 ## [0.9.0]
 
