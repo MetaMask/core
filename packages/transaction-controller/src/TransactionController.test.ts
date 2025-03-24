@@ -46,6 +46,7 @@ import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { shouldResimulate } from './helpers/ResimulateHelper';
+import { ExtraTransactionsPublishHook } from './hooks/ExtraTransactionsPublishHook';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -66,6 +67,7 @@ import type {
   GasFeeFlowResponse,
   SubmitHistoryEntry,
   InternalAccount,
+  PublishHook,
 } from './types';
 import {
   GasFeeEstimateType,
@@ -104,6 +106,8 @@ type UnrestrictedMessenger = Messenger<
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const TRANSACTION_HASH_MOCK = '0x123456';
+const DATA_MOCK = '0x12345678';
+const VALUE_MOCK = '0xabcd';
 
 jest.mock('@metamask/eth-query');
 jest.mock('./api/accounts-api');
@@ -115,6 +119,7 @@ jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MethodDataHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
+jest.mock('./hooks/ExtraTransactionsPublishHook');
 jest.mock('./utils/batch');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
@@ -2217,6 +2222,63 @@ describe('TransactionController', () => {
             customNonceValue: '123',
           }),
         ]);
+      });
+
+      it('uses extra transactions publish hook if batch transactions in metadata', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const publishHook: jest.MockedFn<PublishHook> = jest.fn();
+
+        publishHook.mockResolvedValueOnce({
+          transactionHash: TRANSACTION_HASH_MOCK,
+        });
+
+        const extraTransactionsPublishHook = jest.mocked(
+          ExtraTransactionsPublishHook,
+        );
+
+        extraTransactionsPublishHook.mockReturnValue({
+          getHook: () => publishHook,
+        } as unknown as ExtraTransactionsPublishHook);
+
+        const { result, transactionMeta } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        controller.updateBatchTransactions({
+          transactionId: transactionMeta.id,
+          batchTransactions: [
+            { data: DATA_MOCK, to: ACCOUNT_2_MOCK, value: VALUE_MOCK },
+          ],
+        });
+
+        result.catch(() => {
+          // Intentionally empty
+        });
+
+        await flushPromises();
+
+        expect(ExtraTransactionsPublishHook).toHaveBeenCalledTimes(1);
+        expect(ExtraTransactionsPublishHook).toHaveBeenCalledWith({
+          addTransactionBatch: expect.any(Function),
+          transactions: [
+            { data: DATA_MOCK, to: ACCOUNT_2_MOCK, value: VALUE_MOCK },
+          ],
+        });
+
+        expect(publishHook).toHaveBeenCalledTimes(1);
       });
 
       describe('fails', () => {
@@ -5244,6 +5306,42 @@ describe('TransactionController', () => {
         }),
         expect.any(String),
       );
+    });
+
+    it('supports publish hook override per call', async () => {
+      const publishHookController = jest.fn();
+
+      const publishHookCall = jest.fn().mockResolvedValueOnce({
+        transactionHash: TRANSACTION_HASH_MOCK,
+      });
+
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            publish: publishHookController,
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      jest.spyOn(mockEthQuery, 'sendRawTransaction');
+
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        publishHook: publishHookCall,
+      });
+
+      await result;
+
+      expect(controller.state.transactions[0].hash).toBe(TRANSACTION_HASH_MOCK);
+
+      expect(publishHookCall).toHaveBeenCalledTimes(1);
+      expect(publishHookController).not.toHaveBeenCalled();
+      expect(mockEthQuery.sendRawTransaction).not.toHaveBeenCalled();
     });
   });
 
