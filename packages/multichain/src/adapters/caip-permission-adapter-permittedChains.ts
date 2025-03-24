@@ -1,5 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { hexToBigInt, KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -139,4 +139,105 @@ export const setPermittedEthChainIds = (
   });
 
   return updatedCaveatValue;
+};
+
+/**
+ * Sets the permitted CAIP-2 chainIDs for the required and optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted CAIP-2 chainIDs for.
+ * @param chainIds - The CAIP-2 chainIDs to set as permitted.
+ * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.
+ */
+export const setPermittedChainIds = (
+  caip25CaveatValue: Caip25CaveatValue,
+  chainIds: CaipChainId[],
+): Caip25CaveatValue => {
+  let updatedCaveatValue: Caip25CaveatValue = {
+    ...caip25CaveatValue,
+    requiredScopes: filterChainScopesObjectByChainId(
+      caip25CaveatValue.requiredScopes,
+      chainIds,
+    ),
+    optionalScopes: filterChainScopesObjectByChainId(
+      caip25CaveatValue.optionalScopes,
+      chainIds,
+    ),
+  };
+
+  chainIds.forEach((chainId) => {
+    updatedCaveatValue = addPermittedChainId(updatedCaveatValue, chainId);
+  });
+
+  return updatedCaveatValue;
+};
+
+/**
+ * Adds a chainID to the optional scopes if it is not already present
+ * in either the pre-existing required or optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to add the chainID to.
+ * @param chainId - The chainID to add.
+ * @returns The updated CAIP-25 caveat value with the added chainID.
+ */
+export const addPermittedChainId = (
+  caip25CaveatValue: Caip25CaveatValue,
+  chainId: CaipChainId,
+): Caip25CaveatValue => {
+  const scopeString = `wallet:${chainId}`;
+  if (
+    Object.keys(caip25CaveatValue.requiredScopes).includes(scopeString) ||
+    Object.keys(caip25CaveatValue.optionalScopes).includes(scopeString)
+  ) {
+    return caip25CaveatValue;
+  }
+
+  return {
+    ...caip25CaveatValue,
+    optionalScopes: {
+      ...caip25CaveatValue.optionalScopes,
+      [scopeString]: {
+        accounts: [],
+      },
+    },
+  };
+};
+
+/**
+ * Checks if a scope string is either a 'wallet' scope or a 'wallet:*' scope.
+ * @param scopeString - The scope string to check.
+ * @returns True if the scope string is a wallet scope, false otherwise.
+ */
+const isWalletScope = (
+  scopeString: string,
+): scopeString is
+  | KnownCaipNamespace.Wallet
+  | `${KnownCaipNamespace.Wallet}:${string}` => {
+  const { namespace } = parseScopeString(scopeString);
+  return namespace === KnownCaipNamespace.Wallet;
+};
+
+/**
+ * Filters the scopes object to only include:
+ * - Scopes without references (e.g. "wallet:")
+ * - CAIP-2 ChainId scopes for the given chainIDs
+ * @param scopesObject - The scopes object to filter.
+ * @param chainIds - The CAIP-2 chainIDs to filter for.
+ * @returns The filtered scopes object.
+ */
+export const filterChainScopesObjectByChainId = (
+  scopesObject: InternalScopesObject,
+  chainIds: CaipChainId[],
+): InternalScopesObject => {
+  const updatedScopesObject: InternalScopesObject = {};
+
+  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
+    // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = key as keyof typeof scopesObject;
+    // If its a wallet scope or a wallet:* scope we don't filter it
+    if (isWalletScope(scopeString)) {
+      updatedScopesObject[scopeString] = scopeObject;
+    } else if (chainIds.includes(scopeString)) {
+      updatedScopesObject[scopeString] = scopeObject;
+    }
+  });
+
+  return updatedScopesObject;
 };

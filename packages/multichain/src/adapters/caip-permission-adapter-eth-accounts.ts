@@ -132,3 +132,58 @@ export const setEthAccounts = (
     ),
   };
 };
+
+
+export const setPermittedAccountsForScopesObject = (
+  scopesObject: InternalScopesObject,
+  accounts: CaipAccountId[],
+) => {
+  const updatedScopesObject: InternalScopesObject = {};
+  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
+    // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = key as keyof typeof scopesObject;
+    const isWalletNamespace = scopeString === KnownCaipNamespace.Wallet;
+    const { namespace, reference } = parseScopeString(scopeString);
+    if (!isEip155ScopeString(scopeString) && !isWalletNamespace) {
+      updatedScopesObject[scopeString] = scopeObject;
+      return;
+    }
+
+    let caipAccounts: CaipAccountId[] = [];
+    if (namespace && reference) {
+      caipAccounts = accounts.map<CaipAccountId>(
+        (account) => `${namespace}:${reference}:${account}`,
+      );
+    }
+
+    updatedScopesObject[scopeString] = {
+      ...scopeObject,
+      accounts: caipAccounts,
+    };
+  });
+
+  return updatedScopesObject;
+};
+
+
+/**
+ * Sets the permitted accounts for the given CAIP-25 caveat value.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted accounts for.
+ * @param accounts - The permitted accounts to set.
+ * @returns The updated CAIP-25 caveat value with the permitted accounts set.
+ */
+export const setPermittedAccounts = (
+  caip25CaveatValue: Caip25CaveatValue,
+  accounts: CaipAccountId[],
+): Caip25CaveatValue => {
+  return {
+    ...caip25CaveatValue,
+    requiredScopes: setEthAccountsForScopesObject(
+      caip25CaveatValue.requiredScopes,
+      accounts,
+    ),
+    optionalScopes: setEthAccountsForScopesObject(
+      caip25CaveatValue.optionalScopes,
+      accounts,
+    ),
+  };
