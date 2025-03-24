@@ -1,5 +1,3 @@
-import { RestrictedMessenger } from './RestrictedMessenger';
-
 export type ActionHandler<
   Action extends ActionConstraint,
   ActionType = Action['type'],
@@ -101,35 +99,63 @@ export type NotNamespacedBy<
 export type NamespacedName<Namespace extends string = string> =
   `${Namespace}:${string}`;
 
-type NarrowToNamespace<Name, Namespace extends string> = Name extends {
-  type: `${Namespace}:${string}`;
-}
-  ? Name
-  : never;
-
-type NarrowToAllowed<Name, Allowed extends string> = Name extends {
-  type: Allowed;
-}
-  ? Name
-  : never;
+/**
+ * A messenger that actions and/or events can be delegated to.
+ *
+ * This is a minimal type interface to avoid complex incompatibilities resulting from generics.
+ */
+type DelegatedMessenger<
+  Action extends ActionConstraint,
+  Event extends EventConstraint,
+> = Pick<
+  Messenger<string, Action | ActionConstraint, Event | EventConstraint>,
+  | 'publishDelegated'
+  | 'registerDelegatedActionHandler'
+  | 'registerDelegatedInitialEventPayload'
+  | 'unregisterDelegatedActionHandler'
+>;
 
 /**
  * A message broker for "actions" and "events".
  *
  * The messenger allows registering functions as 'actions' that can be called elsewhere,
  * and it allows publishing and subscribing to events. Both actions and events are identified by
- * unique strings.
+ * unique strings prefixed by a namespace (which is delimited by a colon, e.g.
+ * `Namespace:actionName`).
  *
  * @template Action - A type union of all Action types.
  * @template Event - A type union of all Event types.
+ * @template Namespace - The namespace for the messenger.
  */
 export class Messenger<
+  Namespace extends string,
   Action extends ActionConstraint,
   Event extends EventConstraint,
 > {
-  readonly #actions = new Map<Action['type'], unknown>();
+  readonly #namespace: Namespace;
+
+  readonly #actions = new Map<Action['type'], Action['handler']>();
 
   readonly #events = new Map<Event['type'], EventSubscriptionMap<Event>>();
+
+  /**
+   * The set of messengers we've delegated events to, by event type.
+   */
+  readonly #subscriptionDelegationTargets = new Map<
+    Event['type'],
+    Map<
+      DelegatedMessenger<Action, Event>,
+      ExtractEventHandler<Event, Event['type']>
+    >
+  >();
+
+  /**
+   * The set of messengers we've delegated actions to, by action type.
+   */
+  readonly #actionDelegationTargets = new Map<
+    Action['type'],
+    Set<DelegatedMessenger<Action, Event>>
+  >();
 
   /**
    * A map of functions for getting the initial event payload.
@@ -150,6 +176,16 @@ export class Messenger<
   >();
 
   /**
+   * Construct a messenger.
+   *
+   * @param args - Constructor arguments
+   * @param args.namespace - The messenger namespace.
+   */
+  constructor({ namespace }: { namespace: Namespace }) {
+    this.#namespace = namespace;
+  }
+
+  /**
    * Register an action handler.
    *
    * This will make the registered function available to call via the `call` method.
@@ -160,7 +196,42 @@ export class Messenger<
    * @throws Will throw when a handler has been registered for this action type already.
    * @template ActionType - A type union of Action type strings.
    */
-  registerActionHandler<ActionType extends Action['type']>(
+  registerActionHandler<
+    ActionType extends Action['type'] & NamespacedName<Namespace>,
+  >(actionType: ActionType, handler: ActionHandler<Action, ActionType>) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(actionType)) {
+      throw new Error(
+        `Only allowed registering action handlers prefixed by '${
+          this.#namespace
+        }:'`,
+      );
+    }
+    this.#registerActionHandler(actionType, handler);
+  }
+
+  /**
+   * Register a delegated action handler.
+   *
+   * This will make the registered function available to call via the `call` method.
+   *
+   * @deprecated Do not call this directly, instead use the `delegate` method.
+   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @param handler - The action handler. This function gets called when the `call` method is
+   * invoked with the given action type.
+   * @throws Will throw when a handler has been registered for this action type already.
+   * @template ActionType - A type union of Action type strings.
+   */
+  registerDelegatedActionHandler<ActionType extends Action['type']>(
+    actionType: ActionType,
+    handler:
+      | ActionHandler<Action, ActionType>
+      | ActionHandler<ActionConstraint, ActionType>,
+  ) {
+    this.#registerActionHandler(actionType, handler);
+  }
+
+  #registerActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
     handler: ActionHandler<Action, ActionType>,
   ) {
@@ -200,10 +271,48 @@ export class Messenger<
    * @param actionType - The action type. This is a unique identifier for this action.
    * @template ActionType - A type union of Action type strings.
    */
-  unregisterActionHandler<ActionType extends Action['type']>(
+
+  unregisterActionHandler<
+    ActionType extends Action['type'] & NamespacedName<Namespace>,
+  >(actionType: ActionType) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(actionType)) {
+      throw new Error(
+        `Only allowed unregistering action handlers prefixed by '${
+          this.#namespace
+        }:'`,
+      );
+    }
+    this.#unregisterActionHandler(actionType);
+  }
+
+  /**
+   * Unregister a delegated action handler.
+   *
+   * This will prevent this action from being called.
+   *
+   * @deprecated Do not call this directly, instead use the `delegate` method.
+   * @param actionType - The action type. This is a unqiue identifier for this action.
+   * @template ActionType - A type union of Action type strings.
+   */
+  unregisterDelegatedActionHandler<ActionType extends Action['type']>(
+    actionType: ActionType,
+  ) {
+    this.#unregisterActionHandler(actionType);
+  }
+
+  #unregisterActionHandler<ActionType extends Action['type']>(
     actionType: ActionType,
   ) {
     this.#actions.delete(actionType);
+    const delegationTargets = this.#actionDelegationTargets.get(actionType);
+    if (!delegationTargets) {
+      return;
+    }
+    for (const messenger of delegationTargets) {
+      messenger.unregisterDelegatedActionHandler(actionType);
+    }
+    this.#actionDelegationTargets.delete(actionType);
   }
 
   /**
@@ -253,7 +362,49 @@ export class Messenger<
    * @param args.eventType - The event type to register a payload for.
    * @param args.getPayload - A function for retrieving the event payload.
    */
-  registerInitialEventPayload<EventType extends Event['type']>({
+  registerInitialEventPayload<
+    EventType extends Event['type'] & NamespacedName<Namespace>,
+  >({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(eventType)) {
+      throw new Error(
+        `Only allowed registering initial payloads for events prefixed by '${
+          this.#namespace
+        }:'`,
+      );
+    }
+    this.#registerInitialEventPayload({ eventType, getPayload });
+  }
+
+  /**
+   * Register a function for getting the initial payload for a delegated event.
+   *
+   * This is used for events that represent a state change, where the payload is the state.
+   * Registering a function for getting the payload allows event selectors to have a point of
+   * comparison the first time state changes.
+   *
+   * @deprecated Do not call this directly, instead use the `delegate` method.
+   * @param args - The arguments to this function
+   * @param args.eventType - The event type to register a payload for.
+   * @param args.getPayload - A function for retrieving the event payload.
+   */
+  registerDelegatedInitialEventPayload<EventType extends Event['type']>({
+    eventType,
+    getPayload,
+  }: {
+    eventType: EventType;
+    getPayload: () => ExtractEventPayload<Event, EventType>;
+  }) {
+    this.#registerInitialEventPayload({ eventType, getPayload });
+  }
+
+  #registerInitialEventPayload<EventType extends Event['type']>({
     eventType,
     getPayload,
   }: {
@@ -261,6 +412,14 @@ export class Messenger<
     getPayload: () => ExtractEventPayload<Event, EventType>;
   }) {
     this.#initialEventPayloadGetters.set(eventType, getPayload);
+    const delegationTargets =
+      this.#subscriptionDelegationTargets.get(eventType);
+    if (!delegationTargets) {
+      return;
+    }
+    for (const messenger of delegationTargets.keys()) {
+      messenger.registerDelegatedInitialEventPayload({ eventType, getPayload });
+    }
   }
 
   /**
@@ -277,6 +436,40 @@ export class Messenger<
    * @template EventType - A type union of Event type strings.
    */
   publish<EventType extends Event['type']>(
+    eventType: EventType & NamespacedName<Namespace>,
+    ...payload: ExtractEventPayload<Event, EventType>
+  ) {
+    /* istanbul ignore if */ // Branch unreachable with valid types
+    if (!this.#isInCurrentNamespace(eventType)) {
+      throw new Error(
+        `Only allowed publishing events prefixed by '${this.#namespace}:'`,
+      );
+    }
+    this.#publish(eventType, ...payload);
+  }
+
+  /**
+   * Publish a delegated event.
+   *
+   * Publishes the given payload to all subscribers of the given event type.
+   *
+   * Note that this method should never throw directly. Any errors from
+   * subscribers are captured and re-thrown in a timeout handler.
+   *
+   * @deprecated Do not call this directly, instead use the `delegate` method.
+   * @param eventType - The event type. This is a unique identifier for this event.
+   * @param payload - The event payload. The type of the parameters for each event handler must
+   * match the type of this payload.
+   * @template EventType - A type union of Event type strings.
+   */
+  publishDelegated<EventType extends Event['type']>(
+    eventType: EventType,
+    ...payload: ExtractEventPayload<Event, EventType>
+  ) {
+    this.#publish(eventType, ...payload);
+  }
+
+  #publish<EventType extends Event['type']>(
     eventType: EventType,
     ...payload: ExtractEventPayload<Event, EventType>
   ) {
@@ -419,62 +612,141 @@ export class Messenger<
   }
 
   /**
-   * Get a restricted messenger
+   * Delegate actions and/or events to another messenger.
    *
-   * Returns a wrapper around the messenger instance that restricts access to actions and events.
-   * The provided allowlists grant the ability to call the listed actions and subscribe to the
-   * listed events. The "name" provided grants ownership of any actions and events under that
-   * namespace. Ownership allows registering actions and publishing events, as well as
-   * unregistering actions and clearing event subscriptions.
-   *
-   * @param options - Messenger options.
-   * @param options.name - The name of the thing this messenger will be handed to (e.g. the
-   * controller name). This grants "ownership" of actions and events under this namespace to the
-   * restricted messenger returned.
-   * @param options.allowedActions - The list of actions that this restricted messenger should be
-   * allowed to call.
-   * @param options.allowedEvents - The list of events that this restricted messenger should be
-   * allowed to subscribe to.
-   * @template Namespace - The namespace for this messenger. Typically this is the name of the
-   * module that this messenger has been created for. The authority to publish events and register
-   * actions under this namespace is granted to this restricted messenger instance.
-   * @template AllowedAction - A type union of the 'type' string for any allowed actions.
-   * This must not include internal actions that are in the messenger's namespace.
-   * @template AllowedEvent - A type union of the 'type' string for any allowed events.
-   * This must not include internal events that are in the messenger's namespace.
-   * @returns The restricted messenger.
+   * @param args - Arguments.
+   * @param args.actions - The action types to delegate.
+   * @param args.events - The event types to delegate.
+   * @param args.messenger - The messenger to delegate to.
    */
-  getRestricted<
-    Namespace extends string,
-    AllowedAction extends NotNamespacedBy<Namespace, Action['type']> = never,
-    AllowedEvent extends NotNamespacedBy<Namespace, Event['type']> = never,
-  >({
-    name,
-    allowedActions,
-    allowedEvents,
+  delegate<DelegatedAction extends Action, DelegatedEvent extends Event>({
+    actions = [],
+    events = [],
+    messenger,
   }: {
-    name: Namespace;
-    allowedActions: NotNamespacedBy<
-      Namespace,
-      Extract<Action['type'], AllowedAction>
-    >[];
-    allowedEvents: NotNamespacedBy<
-      Namespace,
-      Extract<Event['type'], AllowedEvent>
-    >[];
-  }): RestrictedMessenger<
-    Namespace,
-    | NarrowToNamespace<Action, Namespace>
-    | NarrowToAllowed<Action, AllowedAction>,
-    NarrowToNamespace<Event, Namespace> | NarrowToAllowed<Event, AllowedEvent>,
-    AllowedAction,
-    AllowedEvent
-  > {
-    return new RestrictedMessenger({
-      messenger: this,
-      name,
-      allowedActions,
-      allowedEvents,
-    });
+    actions?: readonly DelegatedAction['type'][];
+    events?: readonly DelegatedEvent['type'][];
+    messenger: DelegatedMessenger<DelegatedAction, DelegatedEvent>;
+  }) {
+    for (const actionType of actions) {
+      const delegatedActionHandler = (
+        ...args: ExtractActionParameters<DelegatedAction, typeof actionType>
+      ) => {
+        // Cast to get more specific type, for this specific action
+        // The types get collapsed by `this.#actions`
+        const actionHandler = this.#actions.get(actionType) as
+          | ActionHandler<DelegatedAction, typeof actionType>
+          | undefined;
+        if (!actionHandler) {
+          throw new Error(
+            `Cannot call '${actionType}', action not registered.`,
+          );
+        }
+        return actionHandler(...args);
+      };
+      let delegationTargets = this.#actionDelegationTargets.get(actionType);
+      if (!delegationTargets) {
+        delegationTargets = new Set<DelegatedMessenger<Action, Event>>();
+        this.#actionDelegationTargets.set(actionType, delegationTargets);
+      }
+      delegationTargets.add(messenger);
+
+      messenger.registerDelegatedActionHandler(
+        actionType,
+        delegatedActionHandler,
+      );
+    }
+    for (const eventType of events) {
+      const untypedSubscriber = (
+        ...payload: ExtractEventPayload<DelegatedEvent, typeof eventType>
+      ) => {
+        messenger.publishDelegated(eventType, ...payload);
+      };
+      // Cast to get more specific subscriber type for this specific event.
+      // The types get collapsed here to the type union of all delegated
+      // events, rather than the single subscriber type corresponding to this
+      // event.
+      const subscriber = untypedSubscriber as ExtractEventHandler<
+        DelegatedEvent,
+        typeof eventType
+      >;
+      let delegatedEventSubscriptions =
+        this.#subscriptionDelegationTargets.get(eventType);
+      if (!delegatedEventSubscriptions) {
+        delegatedEventSubscriptions = new Map();
+        this.#subscriptionDelegationTargets.set(
+          eventType,
+          delegatedEventSubscriptions,
+        );
+      }
+      delegatedEventSubscriptions.set(messenger, subscriber);
+      const getPayload = this.#initialEventPayloadGetters.get(eventType);
+      if (getPayload) {
+        messenger.registerDelegatedInitialEventPayload({
+          eventType,
+          getPayload,
+        });
+      }
+      this.subscribe(eventType, subscriber);
+    }
+  }
+
+  /**
+   * Revoke delegated actions and/or events from another messenger.
+   *
+   * @param args - Arguments.
+   * @param args.actions - The action types to revoke.
+   * @param args.events - The event types to revoke.
+   * @param args.messenger - The messenger these actions/events were delegated to.
+   */
+  revoke<DelegatedAction extends Action, DelegatedEvent extends Event>({
+    actions = [],
+    events = [],
+    messenger,
+  }: {
+    actions?: readonly DelegatedAction['type'][];
+    events?: readonly DelegatedEvent['type'][];
+    messenger: DelegatedMessenger<DelegatedAction, DelegatedEvent>;
+  }) {
+    for (const actionType of actions) {
+      const delegationTargets = this.#actionDelegationTargets.get(actionType);
+      if (!delegationTargets || !delegationTargets.has(messenger)) {
+        // Nothing to revoke
+        continue;
+      }
+      messenger.unregisterDelegatedActionHandler(actionType);
+      delegationTargets.delete(messenger);
+      if (delegationTargets.size === 0) {
+        this.#actionDelegationTargets.delete(actionType);
+      }
+    }
+    for (const eventType of events) {
+      const delegationTargets =
+        this.#subscriptionDelegationTargets.get(eventType);
+      if (!delegationTargets) {
+        // Nothing to revoke
+        continue;
+      }
+      const delegatedSubscriber = delegationTargets.get(messenger);
+      if (!delegatedSubscriber) {
+        // Nothing to revoke
+        continue;
+      }
+      this.unsubscribe(eventType, delegatedSubscriber);
+      delegationTargets.delete(messenger);
+      if (delegationTargets.size === 0) {
+        this.#subscriptionDelegationTargets.delete(eventType);
+      }
+    }
+  }
+
+  /**
+   * Determine whether the given name is within the current namespace.
+   *
+   * @param name - The name to check
+   * @returns Whether the name is within the current namespace
+   */
+  #isInCurrentNamespace(name: string): name is NamespacedName<Namespace> {
+    return name.startsWith(`${this.#namespace}:`);
   }
 }
