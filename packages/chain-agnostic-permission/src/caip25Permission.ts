@@ -486,14 +486,13 @@ function removeScope(
   };
 }
 
-
 /**
-* Modifies the requested CAIP-25 permissions object after UI confirmation.
-*
-* @param caip25CaveatValue - The requested CAIP-25 caveat value to modify.
-* @param accountAddresses - The list of permitted eth addresses.
-* @param chainIds - The list of permitted eth chainIds.
-*/
+ * Modifies the requested CAIP-25 permissions object after UI confirmation.
+ *
+ * @param caip25CaveatValue - The requested CAIP-25 caveat value to modify.
+ * @param accountAddresses - The list of permitted eth addresses.
+ * @param chainIds - The list of permitted eth chainIds.
+ */
 export const generateCaip25Caveat = (
   caip25CaveatValue: Caip25CaveatValue,
   accountAddresses: CaipAccountId[],
@@ -523,4 +522,4 @@ export const generateCaip25Caveat = (
       ],
     },
   };
-}
+};
