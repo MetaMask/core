@@ -502,6 +502,32 @@ describe('EarnController', () => {
     });
   });
 
+  describe('refreshStakingEligibility', () => {
+    it('fetches staking eligibility using active account (default)', async () => {
+      const { controller } = setupController();
+
+      await controller.refreshStakingEligibility();
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(
+        mockedStakingApiService.getPooledStakingEligibility,
+      ).toHaveBeenNthCalledWith(2, ['0x1234']);
+    });
+
+    it('fetches staking eligibility using options.address', async () => {
+      const { controller } = setupController();
+
+      const mockAddress = '0xabc';
+
+      await controller.refreshStakingEligibility({ address: mockAddress });
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(
+        mockedStakingApiService.getPooledStakingEligibility,
+      ).toHaveBeenNthCalledWith(2, [mockAddress]);
+    });
+  });
+
   describe('subscription handlers', () => {
     const firstAccount = createMockInternalAccount({
       address: '0x1234',

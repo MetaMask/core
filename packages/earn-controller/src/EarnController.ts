@@ -26,6 +26,8 @@ import {
   type VaultApyAverages,
 } from '@metamask/stake-sdk';
 
+import type { RefreshStakingEligibilityOptions } from './types';
+
 export const controllerName = 'EarnController';
 
 export type PooledStakingState = {
@@ -248,8 +250,15 @@ export class EarnController extends BaseController<
     // Listen for account changes
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      () => {
-        this.refreshStakingEligibility().catch(console.error);
+      (account) => {
+        /**
+         * TEMP: There's a race condition where the account state isn't updated immediately.
+         * Until this has been fixed, we rely on the event payload for the latest account instead of #getCurrentAccount().
+         * Issue: https://github.com/MetaMask/accounts-planning/issues/887
+         */
+        this.refreshStakingEligibility({ address: account?.address }).catch(
+          console.error,
+        );
         this.refreshPooledStakes().catch(console.error);
       },
     );
@@ -345,17 +354,22 @@ export class EarnController extends BaseController<
    * Refreshes the staking eligibility status for the current account.
    * Updates the eligibility status in the controller state based on the location and address blocklist for compliance.
    *
+   * @param options - Optional arguments
+   * @param [options.address] - Address to refresh staking eligibility for (optional).
    * @returns A promise that resolves when the eligibility status has been updated
    */
-  async refreshStakingEligibility(): Promise<void> {
-    const currentAccount = this.#getCurrentAccount();
-    if (!currentAccount?.address) {
+  async refreshStakingEligibility({
+    address,
+  }: RefreshStakingEligibilityOptions = {}): Promise<void> {
+    const addressToCheck = address ?? this.#getCurrentAccount()?.address;
+
+    if (!addressToCheck) {
       return;
     }
 
     const { eligible: isEligible } =
       await this.#stakingApiService.getPooledStakingEligibility([
-        currentAccount.address,
+        addressToCheck,
       ]);
 
     this.update((state) => {
