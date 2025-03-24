@@ -1,10 +1,13 @@
 import { Contract } from '@ethersproject/contracts';
+import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 
 import {
   getEthUsdtResetData,
+  getNativeAssetForChainId,
   isEthUsdt,
+  isSolanaChainId,
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
   sumHexes,
@@ -89,10 +92,7 @@ describe('Bridge utils', () => {
   describe('isSwapsDefaultTokenAddress', () => {
     it('returns true for default token address of given chain', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
-      const defaultToken =
-        SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-          chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-        ];
+      const defaultToken = getNativeAssetForChainId(chainId);
 
       expect(isSwapsDefaultTokenAddress(defaultToken.address, chainId)).toBe(
         true,
@@ -114,10 +114,7 @@ describe('Bridge utils', () => {
   describe('isSwapsDefaultTokenSymbol', () => {
     it('returns true for default token symbol of given chain', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
-      const defaultToken =
-        SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-          chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-        ];
+      const defaultToken = getNativeAssetForChainId(chainId);
 
       expect(isSwapsDefaultTokenSymbol(defaultToken.symbol, chainId)).toBe(
         true,
@@ -133,6 +130,76 @@ describe('Bridge utils', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
       expect(isSwapsDefaultTokenSymbol('', chainId)).toBe(false);
       expect(isSwapsDefaultTokenSymbol('ETH', '' as Hex)).toBe(false);
+    });
+  });
+
+  describe('isSolanaChainId', () => {
+    it('returns true for ChainId.SOLANA', () => {
+      expect(isSolanaChainId(1151111081099710)).toBe(true);
+    });
+
+    it('returns true for SolScope.Mainnet', () => {
+      expect(isSolanaChainId(SolScope.Mainnet)).toBe(true);
+    });
+
+    it('returns false for other chainIds', () => {
+      expect(isSolanaChainId(1)).toBe(false);
+      expect(isSolanaChainId('0x0')).toBe(false);
+    });
+  });
+
+  describe('getNativeAssetForChainId', () => {
+    it('should return native asset for hex chainId', () => {
+      const result = getNativeAssetForChainId('0x1');
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x1'],
+        chainId: 1,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('should return native asset for decimal chainId', () => {
+      const result = getNativeAssetForChainId(137);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x89'],
+        chainId: 137,
+        assetId: 'eip155:137/slip44:966',
+      });
+    });
+
+    it('should return native asset for CAIP chainId', () => {
+      const result = getNativeAssetForChainId('eip155:1');
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x1'],
+        chainId: 1,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('should return native asset for Solana chainId', () => {
+      const result = getNativeAssetForChainId(SolScope.Mainnet);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[SolScope.Mainnet],
+        chainId: 1151111081099710,
+        assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      });
+    });
+
+    it('should throw error for unsupported chainId', () => {
+      expect(() => getNativeAssetForChainId('999999')).toThrow(
+        'No XChain Swaps native asset found for chainId: 999999',
+      );
+    });
+
+    it('should handle different chainId formats for the same chain', () => {
+      const hexResult = getNativeAssetForChainId('0x89');
+      const decimalResult = getNativeAssetForChainId(137);
+      const stringifiedDecimalResult = getNativeAssetForChainId('137');
+      const caipResult = getNativeAssetForChainId('eip155:137');
+
+      expect(hexResult).toStrictEqual(decimalResult);
+      expect(decimalResult).toStrictEqual(caipResult);
+      expect(decimalResult).toStrictEqual(stringifiedDecimalResult);
     });
   });
 });

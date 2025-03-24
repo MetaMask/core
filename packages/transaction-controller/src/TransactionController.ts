@@ -64,7 +64,7 @@ import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
-import { GasFeePoller } from './helpers/GasFeePoller';
+import { GasFeePoller, updateTransactionGasFees } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MethodDataHelper } from './helpers/MethodDataHelper';
@@ -283,6 +283,9 @@ export type TransactionControllerOptions = {
 
   /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
+
+  /** Whether to enable gas fee updates. */
+  enableTxParamsGasFeeUpdates?: boolean;
 
   /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
@@ -647,6 +650,8 @@ export class TransactionController extends BaseController<
 
   private readonly isSendFlowHistoryDisabled: boolean;
 
+  private readonly isTxParamsGasFeeUpdatesEnabled: boolean;
+
   private readonly approvingTransactionIds: Set<string> = new Set();
 
   readonly #methodDataHelper: MethodDataHelper;
@@ -677,8 +682,6 @@ export class TransactionController extends BaseController<
     address: string,
     chainId?: string,
   ) => NonceTrackerTransaction[];
-
-  readonly #incomingTransactionChainIds: Set<Hex> = new Set();
 
   readonly #incomingTransactionHelper: IncomingTransactionHelper;
 
@@ -802,6 +805,7 @@ export class TransactionController extends BaseController<
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
+      enableTxParamsGasFeeUpdates,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getExternalPendingTransactions,
@@ -836,6 +840,7 @@ export class TransactionController extends BaseController<
     });
 
     this.messagingSystem = messenger;
+    this.isTxParamsGasFeeUpdatesEnabled = enableTxParamsGasFeeUpdates ?? false;
     this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -947,7 +952,6 @@ export class TransactionController extends BaseController<
 
     this.#incomingTransactionHelper = new IncomingTransactionHelper({
       getCache: () => this.state.lastFetchedBlockNumbers,
-      getChainIds: () => [...this.#incomingTransactionChainIds],
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLocalTransactions: () => this.state.transactions,
       includeTokenTransfers:
@@ -1274,33 +1278,15 @@ export class TransactionController extends BaseController<
     };
   }
 
-  startIncomingTransactionPolling(chainIds: Hex[]) {
-    chainIds.forEach((chainId) =>
-      this.#incomingTransactionChainIds.add(chainId),
-    );
-
+  startIncomingTransactionPolling() {
     this.#incomingTransactionHelper.start();
   }
 
-  stopIncomingTransactionPolling(chainIds?: Hex[]) {
-    chainIds?.forEach((chainId) =>
-      this.#incomingTransactionChainIds.delete(chainId),
-    );
-
-    if (!chainIds) {
-      this.#incomingTransactionChainIds.clear();
-    }
-
-    if (this.#incomingTransactionChainIds.size === 0) {
-      this.#incomingTransactionHelper.stop();
-    }
+  stopIncomingTransactionPolling() {
+    this.#incomingTransactionHelper.stop();
   }
 
-  async updateIncomingTransactions(chainIds: Hex[]) {
-    chainIds.forEach((chainId) =>
-      this.#incomingTransactionChainIds.add(chainId),
-    );
-
+  async updateIncomingTransactions() {
     await this.#incomingTransactionHelper.update();
   }
 
@@ -1519,10 +1505,12 @@ export class TransactionController extends BaseController<
       networkClientId,
     });
 
-    const { estimatedGas, simulationFails } = await estimateGas(
-      transaction,
+    const { estimatedGas, simulationFails } = await estimateGas({
+      chainId: this.#getChainId(networkClientId),
       ethQuery,
-    );
+      isSimulationEnabled: this.#isSimulationEnabled(),
+      txParams: transaction,
+    });
 
     return { gas: estimatedGas, simulationFails };
   }
@@ -1544,10 +1532,12 @@ export class TransactionController extends BaseController<
       networkClientId,
     });
 
-    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
-      transaction,
+    const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
+      chainId: this.#getChainId(networkClientId),
       ethQuery,
-    );
+      isSimulationEnabled: this.#isSimulationEnabled(),
+      txParams: transaction,
+    });
 
     const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
 
@@ -3936,17 +3926,15 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        if (gasFeeEstimates) {
-          txMeta.gasFeeEstimates = gasFeeEstimates;
-        }
-
-        if (gasFeeEstimatesLoaded !== undefined) {
-          txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
-        }
-
-        if (layer1GasFee) {
-          txMeta.layer1GasFee = layer1GasFee;
-        }
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        updateTransactionGasFees({
+          txMeta,
+          gasFeeEstimates,
+          gasFeeEstimatesLoaded,
+          getEIP1559Compatibility: this.getEIP1559Compatibility.bind(this),
+          isTxParamsGasFeeUpdatesEnabled: this.isTxParamsGasFeeUpdatesEnabled,
+          layer1GasFee,
+        });
       },
     );
   }
@@ -4014,6 +4002,7 @@ export class TransactionController extends BaseController<
       chainId,
       ethQuery,
       isCustomNetwork,
+      isSimulationEnabled: this.#isSimulationEnabled(),
       txMeta: transactionMeta,
     });
   }

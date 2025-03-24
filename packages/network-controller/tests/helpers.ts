@@ -1,3 +1,4 @@
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -26,6 +27,9 @@ import type {
   AddNetworkFields,
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
+  NetworkControllerActions,
+  NetworkControllerEvents,
+  NetworkControllerMessenger,
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
@@ -34,6 +38,37 @@ import type {
   InfuraNetworkClientConfiguration,
 } from '../src/types';
 import { NetworkClientType } from '../src/types';
+
+export type RootMessenger = Messenger<
+  NetworkControllerActions,
+  NetworkControllerEvents
+>;
+
+/**
+ * Build a root messenger that includes all events used by the network
+ * controller.
+ *
+ * @returns The messenger.
+ */
+export function buildRootMessenger(): RootMessenger {
+  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
+}
+
+/**
+ * Build a restricted messenger for the network controller.
+ *
+ * @param messenger - A messenger.
+ * @returns The network controller restricted messenger.
+ */
+export function buildNetworkControllerMessenger(
+  messenger = buildRootMessenger(),
+): NetworkControllerMessenger {
+  return messenger.getRestricted({
+    name: 'NetworkController',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+}
 
 /**
  * Builds an object that satisfies the NetworkClient shape, but using a fake

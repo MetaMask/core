@@ -13,6 +13,7 @@ import {
   caip25CaveatBuilder,
   diffScopesForCaip25CaveatValue,
 } from './caip25Permission';
+import { KnownSessionProperties } from './scope/constants';
 import * as ScopeSupported from './scope/supported';
 
 jest.mock('./scope/supported', () => ({
@@ -51,6 +52,7 @@ describe('caip25EndowmentBuilder', () => {
         createCaip25Caveat({
           requiredScopes: {},
           optionalScopes: {},
+          sessionProperties: {},
           isMultichainOrigin: true,
         }),
       ).toStrictEqual({
@@ -58,6 +60,7 @@ describe('caip25EndowmentBuilder', () => {
         value: {
           requiredScopes: {},
           optionalScopes: {},
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -331,6 +334,7 @@ describe('caip25EndowmentBuilder', () => {
               accounts: ['eip155:1:0x1'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
@@ -350,6 +354,7 @@ describe('caip25EndowmentBuilder', () => {
               accounts: ['wallet:eip155:0x1', 'wallet:eip155:0x2'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
@@ -365,6 +370,7 @@ describe('caip25EndowmentBuilder', () => {
                 accounts: ['wallet:eip155:0x2'],
               },
             },
+            sessionProperties: {},
             isMultichainOrigin: true,
           },
         });
@@ -378,6 +384,7 @@ describe('caip25EndowmentBuilder', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x1');
@@ -398,6 +405,7 @@ describe('caip25EndowmentBuilder', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         };
         const result = removeAccount(caveatValue, '0x3');
@@ -493,6 +501,7 @@ describe('caip25CaveatBuilder', () => {
         value: {
           missingRequiredScopes: {},
           optionalScopes: {},
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -507,7 +516,7 @@ describe('caip25CaveatBuilder', () => {
         type: Caip25CaveatType,
         value: {
           requiredScopes: {},
-          missingOptionalScopes: {},
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -523,12 +532,48 @@ describe('caip25CaveatBuilder', () => {
         value: {
           requiredScopes: {},
           optionalScopes: {},
+          sessionProperties: {},
           isMultichainOrigin: 'NotABoolean',
         },
       });
     }).toThrow(
       new Error(
         `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
+      ),
+    );
+
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {},
+          optionalScopes: {},
+          isMultichainOrigin: true,
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
+      ),
+    );
+  });
+
+  it('throws an error if there are unknown session properties', () => {
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {},
+          optionalScopes: {},
+          sessionProperties: {
+            unknownProperty: 'unknownValue',
+          },
+          isMultichainOrigin: true,
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received unknown session property(s) for caveat of type "${Caip25CaveatType}".`,
       ),
     );
   });
@@ -556,6 +601,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -606,6 +652,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -652,6 +699,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -688,6 +736,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -722,6 +771,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: ['bip122:12a765e31ffd4059bada1e25190f6e98:456'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -768,6 +818,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: ['bip122:12a765e31ffd4059bada1e25190f6e98:456'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -807,6 +858,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: ['eip155:5:0xbeef'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       });
@@ -841,6 +893,7 @@ describe('caip25CaveatBuilder', () => {
               accounts: ['bip122:12a765e31ffd4059bada1e25190f6e98:456'],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: true,
         },
       }),
@@ -857,6 +910,7 @@ describe('caip25CaveatBuilder', () => {
             },
           },
           optionalScopes: {},
+          sessionProperties: {},
           isMultichainOrigin: false,
         };
 
@@ -877,6 +931,7 @@ describe('caip25CaveatBuilder', () => {
               ],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: false,
         };
 
@@ -897,6 +952,7 @@ describe('caip25CaveatBuilder', () => {
               ],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: false,
         };
         const expectedDiff: Caip25CaveatValue = {
@@ -914,6 +970,7 @@ describe('caip25CaveatBuilder', () => {
               ],
             },
           },
+          sessionProperties: {},
           isMultichainOrigin: false,
         };
         const [newValue, diff] = merger(initLeftValue, rightValue);
@@ -922,6 +979,64 @@ describe('caip25CaveatBuilder', () => {
           expect.objectContaining(expectedMergedValue),
         );
         expect(diff).toStrictEqual(expect.objectContaining(expectedDiff));
+      });
+    });
+    describe('incremental request an existing scope with session properties', () => {
+      it('should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts and merged session properties', () => {
+        const initLeftValue: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          sessionProperties: {
+            [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
+          },
+          isMultichainOrigin: true,
+        };
+
+        const rightValue: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: [
+                'eip155:1:0xbadd',
+                'eip155:1:0xbeef',
+                'eip155:1:0xdead',
+              ],
+            },
+          },
+          sessionProperties: {
+            [KnownSessionProperties.SolanaAccountChangedNotifications]: false,
+            otherProperty: 'otherValue',
+          },
+          isMultichainOrigin: true,
+        };
+
+        const expectedMergedValue: Caip25CaveatValue = {
+          requiredScopes: {},
+          optionalScopes: {
+            'eip155:1': {
+              accounts: [
+                'eip155:1:0xdead',
+                'eip155:1:0xbadd',
+                'eip155:1:0xbeef',
+              ],
+            },
+          },
+          sessionProperties: {
+            [KnownSessionProperties.SolanaAccountChangedNotifications]: false,
+            otherProperty: 'otherValue',
+          },
+          isMultichainOrigin: true,
+        };
+
+        const [newValue] = merger(initLeftValue, rightValue);
+
+        expect(newValue).toStrictEqual(
+          expect.objectContaining(expectedMergedValue),
+        );
       });
     });
   });
@@ -937,6 +1052,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -947,6 +1063,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -958,6 +1075,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         requiredScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(
@@ -979,6 +1097,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -992,6 +1111,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1003,6 +1123,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         requiredScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(
@@ -1024,6 +1145,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1037,6 +1159,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1048,6 +1171,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         requiredScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(
@@ -1069,6 +1193,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1082,6 +1207,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         requiredScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1096,6 +1222,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         requiredScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(
@@ -1117,6 +1244,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1127,6 +1255,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1138,6 +1267,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         optionalScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(
@@ -1159,6 +1289,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1172,6 +1303,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1183,6 +1315,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         optionalScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(
@@ -1204,6 +1337,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1217,6 +1351,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1228,6 +1363,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         optionalScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(
@@ -1249,6 +1385,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1262,6 +1399,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -1276,6 +1414,7 @@ describe('diffScopesForCaip25CaveatValue', () => {
         },
         isMultichainOrigin: false,
         optionalScopes: {},
+        sessionProperties: {},
       };
 
       const diff = diffScopesForCaip25CaveatValue(

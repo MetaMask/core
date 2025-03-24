@@ -410,16 +410,18 @@ export default class NotificationServicesController extends BaseController<
     isNotificationAccountsSetup: false,
 
     getNotificationAccounts: async () => {
-      const mainHDWalletAccounts = (await this.messagingSystem.call(
-        'KeyringController:withKeyring',
-        {
-          type: KeyringTypes.hd,
-          index: 0,
-        },
-        async ({ keyring }): Promise<string[]> => {
-          return await keyring.getAccounts();
-        },
-      )) as string[];
+      const mainHDWalletAccounts = (await this.messagingSystem
+        .call(
+          'KeyringController:withKeyring',
+          {
+            type: KeyringTypes.hd,
+            index: 0,
+          },
+          async ({ keyring }): Promise<string[]> => {
+            return await keyring.getAccounts();
+          },
+        )
+        .catch(() => null)) as string[] | null;
 
       return mainHDWalletAccounts;
     },
@@ -433,6 +435,15 @@ export default class NotificationServicesController extends BaseController<
       // Get previous and current account sets
       const nonChecksumAccounts =
         await this.#accounts.getNotificationAccounts();
+
+      if (!nonChecksumAccounts) {
+        return {
+          accountsAdded: [],
+          accountsRemoved: [],
+          accounts: [],
+        };
+      }
+
       const accounts = nonChecksumAccounts
         .map((a) => toChecksumHexAddress(a))
         .filter((a) => isValidHexAddress(a));
@@ -545,7 +556,9 @@ export default class NotificationServicesController extends BaseController<
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
+  }
 
+  init() {
     this.#keyringController.setupLockedStateSubscriptions(async () => {
       await this.#accounts.initialize();
       await this.#pushNotifications.initializePushNotifications();

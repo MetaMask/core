@@ -1169,10 +1169,12 @@ describe('TransactionController', () => {
       );
 
       expect(estimateGasMock).toHaveBeenCalledTimes(1);
-      expect(estimateGasMock).toHaveBeenCalledWith(
-        transactionParamsMock,
-        expect.anything(),
-      );
+      expect(estimateGasMock).toHaveBeenCalledWith({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: expect.anything(),
+        isSimulationEnabled: true,
+        txParams: transactionParamsMock,
+      });
 
       expect(addGasBufferMock).toHaveBeenCalledTimes(1);
       expect(addGasBufferMock).toHaveBeenCalledWith(
@@ -1923,9 +1925,10 @@ describe('TransactionController', () => {
 
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
-        ethQuery: expect.any(Object),
         chainId: CHAIN_ID_MOCK,
+        ethQuery: expect.any(Object),
         isCustomNetwork: false,
+        isSimulationEnabled: true,
         txMeta: expect.any(Object),
       });
     });

@@ -1,5 +1,7 @@
 import type { NetworkClient } from './create-network-client';
 import { createNetworkClient } from './create-network-client';
+import type { NetworkControllerMessenger } from './NetworkController';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -62,22 +64,23 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * @param args - The arguments.
  * @param args.networkClientConfiguration - The configuration object that will be
  * used to instantiate the network client when it is needed.
- * @param args.fetch - A function that can be used to make an HTTP request,
- * compatible with the Fetch API.
- * @param args.btoa - A function that can be used to convert a binary string
- * into base-64.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.messenger - The network controller messenger.
  * @returns The auto-managed network client.
  */
 export function createAutoManagedNetworkClient<
   Configuration extends NetworkClientConfiguration,
 >({
   networkClientConfiguration,
-  fetch: givenFetch,
-  btoa: givenBtoa,
+  getRpcServiceOptions,
+  messenger,
 }: {
   networkClientConfiguration: Configuration;
-  fetch: typeof fetch;
-  btoa: typeof btoa;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  messenger: NetworkControllerMessenger;
 }): AutoManagedNetworkClient<Configuration> {
   let networkClient: NetworkClient | undefined;
 
@@ -91,8 +94,8 @@ export function createAutoManagedNetworkClient<
 
       networkClient ??= createNetworkClient({
         configuration: networkClientConfiguration,
-        fetch: givenFetch,
-        btoa: givenBtoa,
+        getRpcServiceOptions,
+        messenger,
       });
       if (networkClient === undefined) {
         throw new Error(
@@ -132,8 +135,8 @@ export function createAutoManagedNetworkClient<
       }
       networkClient ??= createNetworkClient({
         configuration: networkClientConfiguration,
-        fetch: givenFetch,
-        btoa: givenBtoa,
+        getRpcServiceOptions,
+        messenger,
       });
       const { provider } = networkClient;
       return propertyName in provider;
@@ -152,8 +155,8 @@ export function createAutoManagedNetworkClient<
 
         networkClient ??= createNetworkClient({
           configuration: networkClientConfiguration,
-          fetch: givenFetch,
-          btoa: givenBtoa,
+          getRpcServiceOptions,
+          messenger,
         });
         if (networkClient === undefined) {
           throw new Error(
@@ -193,8 +196,8 @@ export function createAutoManagedNetworkClient<
         }
         networkClient ??= createNetworkClient({
           configuration: networkClientConfiguration,
-          fetch: givenFetch,
-          btoa: givenBtoa,
+          getRpcServiceOptions,
+          messenger,
         });
         const { blockTracker } = networkClient;
         return propertyName in blockTracker;
