@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: handle missing keyring in notification listener ([#5514](https://github.com/MetaMask/core/pull/5514))
+
 ## [5.0.0]
 
 ### Changed
