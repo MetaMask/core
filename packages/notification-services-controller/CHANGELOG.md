@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.0.1]
 
-### Uncategorized
+### Fixed
 
-- fix: handle missing keyring in notification listener ([#5514](https://github.com/MetaMask/core/pull/5514))
+- fix: add guard if `KeyringController:withKeyring` fails when called in `NotificationServicesController` ([#5514](https://github.com/MetaMask/core/pull/5514))
 
 ## [5.0.0]
 
