@@ -57,6 +57,11 @@ export class ExtraTransactionsPublishHook {
     const to = txParams.to as Hex | undefined;
     const data = txParams.data as Hex | undefined;
     const value = txParams.value as Hex | undefined;
+    const gas = txParams.gas as Hex | undefined;
+    const maxFeePerGas = txParams.maxFeePerGas as Hex | undefined;
+    const maxPriorityFeePerGas = txParams.maxPriorityFeePerGas as
+      | Hex
+      | undefined;
     const signedTransaction = signedTx as Hex;
     const resultPromise = createDeferredPromise<PublishHookResult>();
 
@@ -66,6 +71,9 @@ export class ExtraTransactionsPublishHook {
 
     const firstParams: BatchTransactionParams = {
       data,
+      gas,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
       to,
       value,
     };

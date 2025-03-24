@@ -1431,6 +1431,24 @@ export type BatchTransactionParams = {
   /** Data used to invoke a function on the target smart contract or EOA. */
   data?: Hex;
 
+  /**
+   * Maximum number of units of gas to use for the transaction.
+   * Not supported in EIP-7702 batches.
+   */
+  gas?: Hex;
+
+  /**
+   * Maximum amount per gas to pay for the transaction, including the priority fee.
+   * Not supported in EIP-7702 batches.
+   */
+  maxFeePerGas?: Hex;
+
+  /**
+   * Maximum amount per gas to give to validator as incentive.
+   * Not supported in EIP-7702 batches.
+   */
+  maxPriorityFeePerGas?: Hex;
+
   /** Address of the target contract or EOA. */
   to?: Hex;
 

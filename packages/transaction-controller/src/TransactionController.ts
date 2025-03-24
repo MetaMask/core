@@ -1899,9 +1899,11 @@ export class TransactionController extends BaseController<
    * @param txId - The ID of the transaction to update.
    * @param params - The editable parameters to update.
    * @param params.data - Data to pass with the transaction.
+   * @param params.from - Address to send the transaction from.
    * @param params.gas - Maximum number of units of gas to use for the transaction.
    * @param params.gasPrice - Price per gas for legacy transactions.
-   * @param params.from - Address to send the transaction from.
+   * @param params.maxFeePerGas - Maximum amount per gas to pay for the transaction, including the priority fee.
+   * @param params.maxPriorityFeePerGas - Maximum amount per gas to give to validator as incentive.
    * @param params.to - Address to send the transaction to.
    * @param params.value - Value associated with the transaction.
    * @returns The updated transaction metadata.
@@ -1910,21 +1912,26 @@ export class TransactionController extends BaseController<
     txId: string,
     {
       data,
+      from,
       gas,
       gasPrice,
-      from,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
       to,
       value,
     }: {
       data?: string;
+      from?: string;
       gas?: string;
       gasPrice?: string;
-      from?: string;
+      maxFeePerGas?: string;
+      maxPriorityFeePerGas?: string;
       to?: string;
       value?: string;
     },
   ) {
     const transactionMeta = this.getTransaction(txId);
+
     if (!transactionMeta) {
       throw new Error(
         `Cannot update editable params as no transaction metadata found`,
@@ -1941,6 +1948,8 @@ export class TransactionController extends BaseController<
         value,
         gas,
         gasPrice,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
       },
     } as Partial<TransactionMeta>;
 

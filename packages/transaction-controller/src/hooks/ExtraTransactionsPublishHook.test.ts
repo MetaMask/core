@@ -10,12 +10,18 @@ const TRANSACTION_HASH_MOCK = '0xeee';
 
 const BATCH_TRANSACTION_PARAMS_MOCK: BatchTransactionParams = {
   data: '0x123',
+  gas: '0xab1',
+  maxFeePerGas: '0xab2',
+  maxPriorityFeePerGas: '0xab3',
   to: '0x456',
   value: '0x789',
 };
 
 const BATCH_TRANSACTION_PARAMS_2_MOCK: BatchTransactionParams = {
   data: '0x321',
+  gas: '0xab4',
+  maxFeePerGas: '0xab5',
+  maxPriorityFeePerGas: '0xab6',
   to: '0x654',
   value: '0x987',
 };
@@ -24,8 +30,11 @@ const TRANSACTION_META_MOCK = {
   id: '123-456',
   networkClientId: 'testNetworkClientId',
   txParams: {
-    from: '0xaab',
     data: '0xabc',
+    from: '0xaab',
+    gas: '0xab7',
+    maxFeePerGas: '0xab8',
+    maxPriorityFeePerGas: '0xab9',
     to: '0xdef',
     value: '0xfed',
   },
@@ -64,6 +73,10 @@ describe('ExtraTransactionsPublishHook', () => {
           },
           params: {
             data: TRANSACTION_META_MOCK.txParams.data,
+            gas: TRANSACTION_META_MOCK.txParams.gas,
+            maxFeePerGas: TRANSACTION_META_MOCK.txParams.maxFeePerGas,
+            maxPriorityFeePerGas:
+              TRANSACTION_META_MOCK.txParams.maxPriorityFeePerGas,
             to: TRANSACTION_META_MOCK.txParams.to,
             value: TRANSACTION_META_MOCK.txParams.value,
           },

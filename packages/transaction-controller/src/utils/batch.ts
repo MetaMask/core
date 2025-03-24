@@ -376,16 +376,6 @@ async function processTransactionWithHook(
     const { id, onPublish, signedTransaction } = existingTransaction;
     const transactionMeta = getTransaction(id);
 
-    const data = params.data as Hex | undefined;
-    const to = params.to as Hex | undefined;
-    const value = params.value as Hex | undefined;
-
-    const existingParams: BatchTransactionParams = {
-      data,
-      to,
-      value,
-    };
-
     updateTransaction({ transactionId: id }, (_transactionMeta) => {
       _transactionMeta.batchId = batchId;
     });
@@ -398,12 +388,12 @@ async function processTransactionWithHook(
 
     log('Processed existing transaction with hook', {
       id,
-      params: existingParams,
+      params,
     });
 
     return {
       id,
-      params: existingParams,
+      params,
     };
   }
 
@@ -422,11 +412,17 @@ async function processTransactionWithHook(
 
   const { id, txParams } = transactionMeta;
   const data = txParams.data as Hex | undefined;
+  const gas = txParams.gas as Hex | undefined;
+  const maxFeePerGas = txParams.maxFeePerGas as Hex | undefined;
+  const maxPriorityFeePerGas = txParams.maxPriorityFeePerGas as Hex | undefined;
   const to = txParams.to as Hex | undefined;
   const value = txParams.value as Hex | undefined;
 
   const newParams: BatchTransactionParams = {
     data,
+    gas,
+    maxFeePerGas,
+    maxPriorityFeePerGas,
     to,
     value,
   };
