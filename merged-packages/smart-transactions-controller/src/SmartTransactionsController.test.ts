@@ -722,6 +722,105 @@ describe('SmartTransactionsController', () => {
         expect(submittedSmartTransaction.deviceModel).toBe('ledger');
       });
     });
+
+    it('submits a batch of signed transactions', async () => {
+      await withController(async ({ controller }) => {
+        const signedTransaction1 = createSignedTransaction();
+        const signedTransaction2 = createSignedTransaction();
+        const submitTransactionsApiResponse =
+          createSubmitTransactionsApiResponse(); // It has uuid.
+        nock(API_BASE_URL)
+          .post(
+            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+          )
+          .reply(200, submitTransactionsApiResponse);
+
+        const txParams = createTxParams();
+        const result = await controller.submitSignedTransactions({
+          signedTransactions: [signedTransaction1, signedTransaction2],
+          txParams,
+        });
+
+        // Check response has both txHash and txHashes
+        expect(result.uuid).toBe('dP23W7c2kt4FK9TmXOkz1UM2F20');
+        expect(result.txHash).toBeDefined();
+        expect(result.txHashes).toBeDefined();
+        expect(result.txHashes?.length).toBe(2);
+
+        // Check smart transaction has correct properties
+        const submittedSmartTransaction =
+          controller.state.smartTransactionsState.smartTransactions[
+            ChainId.mainnet
+          ][0];
+        expect(submittedSmartTransaction.uuid).toBe(
+          'dP23W7c2kt4FK9TmXOkz1UM2F20',
+        );
+        expect(submittedSmartTransaction.txHashes).toBeDefined();
+        expect(submittedSmartTransaction.txHashes?.length).toBe(2);
+        expect(submittedSmartTransaction.txHash).toBe(result.txHashes[0]);
+      });
+    });
+
+    it('works with optional signedCanceledTransactions', async () => {
+      await withController(async ({ controller }) => {
+        const signedTransaction = createSignedTransaction();
+        const submitTransactionsApiResponse =
+          createSubmitTransactionsApiResponse();
+
+        // Verify that the request body has empty rawCancelTxs array when signedCanceledTransactions is omitted
+        let requestBody: any;
+        nock(API_BASE_URL)
+          .post(
+            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            (body) => {
+              requestBody = body;
+              return true;
+            },
+          )
+          .reply(200, submitTransactionsApiResponse);
+
+        await controller.submitSignedTransactions({
+          signedTransactions: [signedTransaction],
+          txParams: createTxParams(),
+          // No signedCanceledTransactions provided
+        });
+
+        // Verify the request was made with an empty rawCancelTxs array
+        expect(requestBody).toBeDefined();
+        expect(requestBody.rawCancelTxs).toStrictEqual([]);
+      });
+    });
+
+    it('works without txParams', async () => {
+      await withController(async ({ controller }) => {
+        const signedTransaction = createSignedTransaction();
+        const submitTransactionsApiResponse =
+          createSubmitTransactionsApiResponse();
+
+        nock(API_BASE_URL)
+          .post(
+            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+          )
+          .reply(200, submitTransactionsApiResponse);
+
+        // This should not throw an error when txParams is missing
+        const result = await controller.submitSignedTransactions({
+          signedTransactions: [signedTransaction],
+          // No txParams provided
+        });
+
+        expect(result.uuid).toBe('dP23W7c2kt4FK9TmXOkz1UM2F20');
+
+        // The transaction should still be created in state
+        const submittedSmartTransaction =
+          controller.state.smartTransactionsState.smartTransactions[
+            ChainId.mainnet
+          ][0];
+        expect(submittedSmartTransaction.uuid).toBe(
+          'dP23W7c2kt4FK9TmXOkz1UM2F20',
+        );
+      });
+    });
   });
 
   describe('fetchSmartTransactionsStatus', () => {

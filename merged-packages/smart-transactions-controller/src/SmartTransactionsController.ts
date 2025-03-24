@@ -916,11 +916,11 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     transactionMeta,
     txParams,
     signedTransactions,
-    signedCanceledTransactions,
+    signedCanceledTransactions = [],
     networkClientId,
   }: {
     signedTransactions: SignedTransaction[];
-    signedCanceledTransactions: SignedCanceledTransaction[];
+    signedCanceledTransactions?: SignedCanceledTransaction[];
     transactionMeta?: TransactionMeta;
     txParams?: TransactionParams;
     networkClientId?: NetworkClientId;
@@ -948,10 +948,12 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     const time = Date.now();
     let preTxBalance;
     try {
-      const preTxBalanceBN = await query(ethQuery, 'getBalance', [
-        txParams?.from,
-      ]);
-      preTxBalance = new BigNumber(preTxBalanceBN).toString(16);
+      if (txParams?.from) {
+        const preTxBalanceBN = await query(ethQuery, 'getBalance', [
+          txParams.from,
+        ]);
+        preTxBalance = new BigNumber(preTxBalanceBN).toString(16);
+      }
     } catch (error) {
       console.error('provider error', error);
     }
@@ -970,9 +972,12 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       nonceDetails = nonceLock.nonceDetails;
       txParams.nonce ??= nonce;
     }
+
+    const txHashes = signedTransactions.map((tx) => getTxHash(tx));
     const submitTransactionResponse = {
       ...data,
-      txHash: getTxHash(signedTransactions[0]),
+      txHash: txHashes[0], // For backward compatibility
+      txHashes,
     };
 
     try {
@@ -990,6 +995,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           type: transactionMeta?.type ?? 'swap',
           transactionId: transactionMeta?.id,
           networkClientId: selectedNetworkClientId,
+          txHashes, // Add support for multiple transaction hashes
         },
         { chainId, ethQuery },
       );
