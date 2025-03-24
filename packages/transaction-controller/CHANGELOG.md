@@ -107,6 +107,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `TransactionBatchRequest`
     - `TransactionBatchResult`
   - Add dependency on `@metamask/remote-feature-flag-controller:^1.4.0`.
+  - Add `enableTxParamsGasFeeUpdates` constructor option ([5394](https://github.com/MetaMask/core/pull/5394))
+    - If not set it will default to `false`.
+    - Automatically update gas fee properties in `txParams` when the `gasFeeEstimates` are updated via polling.
 
 ### Changed
 
