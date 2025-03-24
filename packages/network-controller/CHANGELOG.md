@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.1.0]
+
+### Added
+
+- The `NetworkController:rpcEndpointDegraded` messenger event now has a new `chainId` property in its data, which is the ID of the chain that the endpoint represents ([#5517](https://github.com/MetaMask/core/pull/5517))
+
 ## [23.0.0]
 
 ### Added
@@ -781,7 +787,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.0.0...@metamask/network-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.1...@metamask/network-controller@23.0.0
 [22.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.0...@metamask/network-controller@22.2.1
 [22.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.1...@metamask/network-controller@22.2.0

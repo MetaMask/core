@@ -47,12 +47,15 @@ export type SimulationRequest = {
   };
 
   /**
-   * Overrides to the state of the blockchain, keyed by smart contract address.
+   * Overrides to the state of the blockchain, keyed by address.
    */
   overrides?: {
     [address: Hex]: {
-      /** Overrides to the storage slots for a smart contract account. */
-      stateDiff: {
+      /** Override the code for an address. */
+      code?: Hex;
+
+      /** Overrides to the storage slots for an address. */
+      stateDiff?: {
         [slot: Hex]: Hex;
       };
     };
@@ -113,14 +116,17 @@ export type SimulationResponseStateDiff = {
 
 /** Response from the simulation API for a single transaction. */
 export type SimulationResponseTransaction = {
+  /** Hierarchy of call data including nested calls and logs. */
+  callTrace?: SimulationResponseCallTrace;
+
   /** An error message indicating the transaction could not be simulated. */
   error?: string;
 
+  /** The total gas used by the transaction. */
+  gasUsed?: Hex;
+
   /** Return value of the transaction, such as the balance if calling balanceOf. */
   return: Hex;
-
-  /** Hierarchy of call data including nested calls and logs. */
-  callTrace?: SimulationResponseCallTrace;
 
   /** Changes to the blockchain state. */
   stateDiff?: {

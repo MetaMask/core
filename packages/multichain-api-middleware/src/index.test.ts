@@ -10,6 +10,7 @@ describe('@metamask/multichain-api-middleware', () => {
         "multichainMethodCallValidatorMiddleware",
         "MultichainMiddlewareManager",
         "MultichainSubscriptionManager",
+        "MultichainApiNotifications",
       ]
     `);
   });
