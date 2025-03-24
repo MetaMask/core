@@ -9,14 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.1.0]
 
-### Uncategorized
-
-- feat: add multichain support to bridge-controller ([#5486](https://github.com/MetaMask/core/pull/5486))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ### Changed
 
-- Bump `@metamask/bridge-controller` dependency to `^11.0.0` ([#5525](https://github.com/MetaMask/core/pull/5525))
+- Bump `@metamask/transaction-controller` peer dependency to `^52.1.0` ([#5533](https://github.com/MetaMask/core/pull/5533))
 
 ## [10.0.0]
 

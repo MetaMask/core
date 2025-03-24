@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` peer dependency to `^52.1.0` ([#5533](https://github.com/MetaMask/core/pull/5533))
+
 ## [11.0.0]
 
 ### Added
