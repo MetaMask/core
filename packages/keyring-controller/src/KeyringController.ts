@@ -2493,7 +2493,7 @@ export class KeyringController extends BaseController<
       const keyring = await this.#createKeyring(type, data);
       // If metadata is missing, assume the data is from an installation before
       // we had keyring metadata.
-      if (this.#keyringsMetadata.length < this.#keyrings.length) {
+      if (this.#keyringsMetadata.length <= this.#keyrings.length) {
         console.log(`Adding missing metadata for '${type}' keyring`);
         this.#keyringsMetadata.push(getDefaultKeyringMetadata());
       }
