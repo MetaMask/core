@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0]
+
 ### Uncategorized
 
 - feat: earn controller convert method args to options bags ([#5537](https://github.com/MetaMask/core/pull/5537))
@@ -74,7 +76,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.10.0...HEAD
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.9.0...@metamask/earn-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.8.0...@metamask/earn-controller@0.9.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.7.0...@metamask/earn-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@0.6.0...@metamask/earn-controller@0.7.0
