@@ -1,3 +1,5 @@
+import { cloneDeep, isEqual } from 'lodash';
+
 import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   PermissionSpecificationBuilder,
@@ -20,7 +22,7 @@ import {
   type Hex,
   type NonEmptyArray,
 } from '@metamask/utils';
-import { cloneDeep, isEqual } from 'lodash';
+
 import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
 import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
 import { assertIsInternalScopesObject } from './scope/assert';
@@ -185,8 +187,9 @@ export const caip25CaveatBuilder = ({
         );
       }
 
+      
       const { requiredScopes, optionalScopes, sessionProperties } =
-        caveat.value;
+      caveat.value;
 
       const allSessionPropertiesSupported = Object.keys(
         sessionProperties,
@@ -200,6 +203,16 @@ export const caip25CaveatBuilder = ({
 
       assertIsInternalScopesObject(requiredScopes);
       assertIsInternalScopesObject(optionalScopes);
+
+
+      if (
+        Object.keys(requiredScopes).length === 0 &&
+        Object.keys(optionalScopes).length === 0
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received no scopes requested for caveat of type "${Caip25CaveatType}".`,
+        );
+      } 
 
       const isEvmChainIdSupported = (chainId: Hex) => {
         try {

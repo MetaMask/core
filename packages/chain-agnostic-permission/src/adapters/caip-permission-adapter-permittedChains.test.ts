@@ -457,8 +457,7 @@ describe('CAIP-25 permittedChains adapters', () => {
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
             },
           },
-          optionalScopes: {
-          },
+          optionalScopes: {},
           sessionProperties: {},
           isMultichainOrigin: false,
         },

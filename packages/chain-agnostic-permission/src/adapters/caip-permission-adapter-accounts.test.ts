@@ -1,10 +1,10 @@
 import type { CaipAccountId } from '@metamask/utils';
+import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   getEthAccounts,
   setEthAccounts,
   setPermittedAccounts,
 } from './caip-permission-adapter-accounts';
-import type { Caip25CaveatValue } from '../caip25Permission';
 
 describe('CAIP-25 eth_accounts adapters', () => {
   describe('getEthAccounts', () => {

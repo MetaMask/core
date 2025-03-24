@@ -150,6 +150,7 @@ export const setPermittedEthChainIds = (
  * Filters the scopes object to only include:
  * - Scopes without references (e.g. "wallet:")
  * - CAIP-2 ChainId scopes for the given chainIDs
+ *
  * @param scopesObject - The scopes object to filter.
  * @param chainIds - The CAIP-2 chainIDs to filter for.
  * @returns The filtered scopes object.
