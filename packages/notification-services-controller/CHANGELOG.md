@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- fix: add guard if `KeyringController:withKeyring` fails when called in `NotificationServicesController` ([#5514](https://github.com/MetaMask/core/pull/5514))
+- add guard if `KeyringController:withKeyring` fails when called in `NotificationServicesController` ([#5514](https://github.com/MetaMask/core/pull/5514))
 
 ## [5.0.0]
 
