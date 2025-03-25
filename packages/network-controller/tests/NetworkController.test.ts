@@ -497,15 +497,15 @@ describe('NetworkController', () => {
 
     it('initializes the state with the specified default networks from the option `defaultNetworks` if provided', async () => {
       await withController(
-        { 
-          defaultNetworks: [ 
-            ChainId[BuiltInNetworkName.Mainnet], 
+        {
+          defaultNetworks: [
+            ChainId[BuiltInNetworkName.Mainnet],
             ChainId[BuiltInNetworkName.LineaMainnet],
-            ChainId[BuiltInNetworkName.MegaETHTestnet]
-          ]
+            ChainId[BuiltInNetworkName.MegaETHTestnet],
+          ],
         },
         ({ controller }) => {
-        expect(controller.state).toMatchInlineSnapshot(`
+          expect(controller.state).toMatchInlineSnapshot(`
           Object {
             "networkConfigurationsByChainId": Object {
               "0x1": Object {
@@ -561,7 +561,8 @@ describe('NetworkController', () => {
             "selectedNetworkClientId": "mainnet",
           }
         `);
-      });
+        },
+      );
     });
 
     it('merges the given state into the default state', async () => {
