@@ -83,7 +83,7 @@ describe('utils', () => {
       },
     },
     destChain: {
-      chainId: '42161',
+      chainId: 42161,
       txHash:
         '0x3a494e672717f9b1f2b64a48a19985842d82d0747400fccebebc7a4e99c8eaab',
       amount: '4926701727965948',
@@ -116,8 +116,6 @@ describe('utils', () => {
         mockFetch,
         BRIDGE_PROD_API_BASE_URL,
       );
-
-      console.log('olha o reseult', result);
 
       // Verify the fetch was called with correct parameters
       expect(mockFetch).toHaveBeenCalledWith(

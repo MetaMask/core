@@ -23,7 +23,7 @@ const BridgeTxStatusResponses = {
       },
     },
     destChain: {
-      chainId: '10',
+      chainId: 10,
     },
   },
   STATUS_PENDING_VALID_MISSING_FIELDS: {
@@ -102,7 +102,7 @@ const BridgeTxStatusResponses = {
       },
     },
     destChain: {
-      chainId: '42161',
+      chainId: 42161,
       txHash:
         '0x3a494e672717f9b1f2b64a48a19985842d82d0747400fccebebc7a4e99c8eaab',
       amount: '4926701727965948',
@@ -139,7 +139,7 @@ const BridgeTxStatusResponses = {
       },
     },
     destChain: {
-      chainId: '42161',
+      chainId: 42161,
       txHash:
         '0x3a494e672717f9b1f2b64a48a19985842d82d0747400fccebebc7a4e99c8eaab',
       amount: '4926701727965948',

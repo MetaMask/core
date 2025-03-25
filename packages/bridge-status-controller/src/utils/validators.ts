@@ -36,7 +36,7 @@ export const validateStatusResponse = (
   });
 
   const DestChainStatusSchema = type({
-    chainId: string(),
+    chainId: number(),
     txHash: optional(string()),
     amount: optional(string()),
     token: optional(TokenSchema),
