@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support security validation of transaction batches ([#5526](https://github.com/MetaMask/core/pull/5526))
+  - Add `ValidateSecurityRequest` type.
+  - Add optional `securityAlertId` to `SecurityAlertResponse`.
+  - Add optional `securityAlertId` to `TransactionBatchRequest`.
+  - Add optional `validateSecurity` callback to `TransactionBatchRequest`.
+- Support publish batch hook ([#5401](https://github.com/MetaMask/core/pull/5401))
+  - Add `hooks.publishBatch` option to constructor.
+  - Add `updateBatchTransactions` method.
+  - Add `maxFeePerGas` and `maxPriorityFeePerGas` to `updateEditableParams` options.
+  - Add types.
+    - `PublishBatchHook`
+    - `PublishBatchHookRequest`
+    - `PublishBatchHookResult`
+    - `PublishBatchHookTransaction`
+    - `PublishHook`
+    - `PublishHookResult`
+  - Add optional properties to `TransactionMeta`.
+    - `batchTransactions`
+    - `disableGasBuffer`
+  - Add optional properties to `BatchTransactionParams`.
+    - `gas`
+    - `maxFeePerGas`
+    - `maxPriorityFeePerGas`
+  - Add optional `existingTransaction` property to `TransactionBatchSingleRequest`.
+  - Add optional `useHook` property to `TransactionBatchRequest`.
+
+## [52.1.0]
+
+### Added
+
 - Add `enableTxParamsGasFeeUpdates` constructor option ([5394](https://github.com/MetaMask/core/pull/5394))
   - If not set it will default to `false`.
   - Automatically update gas fee properties in `txParams` when the `gasFeeEstimates` are updated via polling.
@@ -1407,7 +1437,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.1.0...HEAD
+[52.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...@metamask/transaction-controller@52.1.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@51.0.0...@metamask/transaction-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@50.0.0...@metamask/transaction-controller@51.0.0
 [50.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...@metamask/transaction-controller@50.0.0

@@ -45,6 +45,12 @@ export type {
   LegacyGasFeeEstimates,
   Log,
   NestedTransactionMetadata,
+  PublishBatchHook,
+  PublishBatchHookRequest,
+  PublishBatchHookResult,
+  PublishBatchHookTransaction,
+  PublishHook,
+  PublishHookResult,
   SavedGasFees,
   SecurityAlertResponse,
   SecurityProviderRequest,
@@ -62,6 +68,7 @@ export type {
   TransactionMeta,
   TransactionParams,
   TransactionReceipt,
+  ValidateSecurityRequest,
 } from './types';
 export {
   GasFeeEstimateLevel,
