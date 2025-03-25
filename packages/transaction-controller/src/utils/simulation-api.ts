@@ -125,7 +125,7 @@ export type SimulationResponseStateDiff = {
   };
 };
 
-export type SmulationResponseTokenFee = {
+export type SimulationResponseTokenFee = {
   /** Token data independent of current transaction. */
   token: {
     /** Address of the token contract. */
@@ -171,7 +171,7 @@ export type SimulationResponseTransaction = {
     maxPriorityFeePerGas: Hex;
 
     /** Token fee data for the fee level. */
-    tokenFees: SmulationResponseTokenFee[];
+    tokenFees: SimulationResponseTokenFee[];
   }[];
 
   /** The total gas used by the transaction. */
