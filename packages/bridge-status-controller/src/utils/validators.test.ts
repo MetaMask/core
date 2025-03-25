@@ -1,4 +1,4 @@
-import { validateResponse, availableValidators } from './validators';
+import { validateStatusResponse } from './validators';
 
 const BridgeTxStatusResponses = {
   STATUS_PENDING_VALID: {
@@ -24,7 +24,6 @@ const BridgeTxStatusResponses = {
     },
     destChain: {
       chainId: '10',
-      token: {},
     },
   },
   STATUS_PENDING_VALID_MISSING_FIELDS: {
@@ -123,11 +122,8 @@ const BridgeTxStatusResponses = {
   },
   STATUS_COMPLETE_VALID_MISSING_FIELDS: {
     status: 'COMPLETE',
-    bridge: 'across',
     srcChain: {
       chainId: 10,
-      txHash:
-        '0x9fdc426692aba1f81e145834602ed59ed331054e5b91a09a673cb12d4b4f6a33',
       amount: '4956250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
@@ -225,12 +221,12 @@ describe('validators', () => {
       },
       {
         input: BridgeTxStatusResponses.STATUS_PENDING_VALID_MISSING_FIELDS,
-        expected: true,
+        expected: false,
         description: 'valid pending bridge status missing fields',
       },
       {
         input: BridgeTxStatusResponses.STATUS_PENDING_VALID_MISSING_FIELDS_2,
-        expected: true,
+        expected: false,
         description: 'valid pending bridge status missing fields 2',
       },
       {
@@ -250,17 +246,17 @@ describe('validators', () => {
       },
       {
         input: BridgeTxStatusResponses.STATUS_COMPLETE_VALID_MISSING_FIELDS_2,
-        expected: true,
+        expected: false,
         description: 'complete bridge status with missing fields 2',
       },
       {
         input: BridgeTxStatusResponses.STATUS_COMPLETE_VALID_MISSING_FIELDS,
-        expected: true,
+        expected: false,
         description: 'complete bridge status with missing fields',
       },
       {
         input: BridgeTxStatusResponses.STATUS_FAILED_VALID,
-        expected: true,
+        expected: false,
         description: 'valid failed bridge status',
       },
       {
@@ -281,11 +277,7 @@ describe('validators', () => {
     ])(
       'should return $expected for $description',
       ({ input, expected }: { input: unknown; expected: boolean }) => {
-        const res = validackateResponse(
-          availableValidators,
-          input as null,
-          'dummyurl.com',
-        );
+        const res = validateStatusResponse(input);
         expect(res).toBe(expected);
       },
     );

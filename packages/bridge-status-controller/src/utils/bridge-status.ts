@@ -1,6 +1,6 @@
 import type { Quote } from '@metamask/bridge-controller';
 
-import { validateResponse, availableValidators } from './validators';
+import { validateStatusResponse } from './validators';
 import { BRIDGE_STATUS_BASE_URL } from '../constants';
 import type {
   StatusResponse,
@@ -54,13 +54,10 @@ export const fetchBridgeTxStatus = async (
   });
 
   // Validate
-  const isValid = validateResponse(
-    availableValidators,
-    rawTxStatus,
-    BRIDGE_STATUS_BASE_URL,
-  );
+  const isValid = validateStatusResponse(rawTxStatus);
+
   if (!isValid) {
-    throw new Error('Invalid response from bridge');
+    throw new Error(`Invalid response from bridge ${JSON.stringify(rawTxStatus)}`);
   }
 
   // Return

@@ -61,27 +61,44 @@ describe('utils', () => {
   };
 
   const mockValidResponse = {
-    status: 'PENDING',
+    status: 'COMPLETE',
+    isExpectedToken: true,
+    bridge: 'across',
     srcChain: {
-      chainId: 1,
-      txHash: '0x123',
-      amount: '991250000000000',
+      chainId: 10,
+      txHash:
+        '0x9fdc426692aba1f81e145834602ed59ed331054e5b91a09a673cb12d4b4f6a33',
+      amount: '4956250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
-        chainId: 1,
+        chainId: 10,
         symbol: 'ETH',
         decimals: 18,
         name: 'ETH',
         coinKey: 'ETH',
         logoURI:
           'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
-        priceUSD: '2518.47',
+        priceUSD: '2649.21',
         icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
       },
     },
     destChain: {
-      chainId: 137,
-      token: {},
+      chainId: '42161',
+      txHash:
+        '0x3a494e672717f9b1f2b64a48a19985842d82d0747400fccebebc7a4e99c8eaab',
+      amount: '4926701727965948',
+      token: {
+        address: '0x0000000000000000000000000000000000000000',
+        chainId: 42161,
+        symbol: 'ETH',
+        decimals: 18,
+        name: 'ETH',
+        coinKey: 'ETH',
+        logoURI:
+          'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+        priceUSD: '2648.72',
+        icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png',
+      },
     },
   };
 
@@ -99,6 +116,8 @@ describe('utils', () => {
         mockFetch,
         BRIDGE_PROD_API_BASE_URL,
       );
+
+      console.log('olha o reseult', result);
 
       // Verify the fetch was called with correct parameters
       expect(mockFetch).toHaveBeenCalledWith(
