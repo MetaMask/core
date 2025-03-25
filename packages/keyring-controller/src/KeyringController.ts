@@ -2155,6 +2155,10 @@ export class KeyringController extends BaseController<
     for (const serializedKeyring of serializedKeyrings) {
       await this.#restoreKeyring(serializedKeyring);
     }
+
+    if (this.#keyrings.length !== this.#keyringsMetadata.length) {
+      throw new Error(KeyringControllerError.KeyringMetadataLengthMismatch);
+    }
   }
 
   /**
@@ -2396,6 +2400,7 @@ export class KeyringController extends BaseController<
     }
     this.#keyrings.push(keyring);
     this.#keyringsMetadata.push(getDefaultKeyringMetadata());
+
 
     return keyring;
   }
@@ -2660,9 +2665,9 @@ export class KeyringController extends BaseController<
         return await callback({ releaseLock });
       } catch (e) {
         // Keyrings and password are restored to their previous state
-        await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
-        this.#password = currentPassword;
         this.#keyringsMetadata = currentKeyringsMetadata;
+        this.#password = currentPassword;
+        await this.#restoreSerializedKeyrings(currentSerializedKeyrings);
 
         throw e;
       }
