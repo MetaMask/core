@@ -62,6 +62,7 @@ export type {
   TransactionMeta,
   TransactionParams,
   TransactionReceipt,
+  ValidateSecurityRequest,
 } from './types';
 export {
   GasFeeEstimateLevel,
