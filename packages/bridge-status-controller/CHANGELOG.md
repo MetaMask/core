@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 344.0.0 ([#5547](https://github.com/MetaMask/core.git/pull/5547))
-- Release/341.0.0 ([#5533](https://github.com/MetaMask/core.git/pull/5533))
-- feat: add multichain support to bridge-controller ([#5486](https://github.com/MetaMask/core.git/pull/5486))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core.git/pull/5518))
-
 ### Changed
 
 - Bump `@metamask/bridge-controller` dependency to `^11.0.0` ([#5525](https://github.com/MetaMask/core/pull/5525))
@@ -94,14 +87,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@10.0.0...HEAD
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@9.0.0...@metamask/bridge-status-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@8.0.0...@metamask/bridge-status-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@7.0.0...@metamask/bridge-status-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@6.0.0...@metamask/bridge-status-controller@7.0.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@5.0.0...@metamask/bridge-status-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@4.0.0...@metamask/bridge-status-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@3.0.0...@metamask/bridge-status-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@2.0.0...@metamask/bridge-status-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/bridge-status-controller@1.0.0...@metamask/bridge-status-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/bridge-status-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@9.0.0...@metamask/bridge-status-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@8.0.0...@metamask/bridge-status-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@7.0.0...@metamask/bridge-status-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@6.0.0...@metamask/bridge-status-controller@7.0.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@5.0.0...@metamask/bridge-status-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@4.0.0...@metamask/bridge-status-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@3.0.0...@metamask/bridge-status-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@2.0.0...@metamask/bridge-status-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@1.0.0...@metamask/bridge-status-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/bridge-status-controller@1.0.0
