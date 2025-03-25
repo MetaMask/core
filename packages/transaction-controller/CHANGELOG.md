@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changes signature of `beforePublish` and `beforeCheckPendingTransaction` hook to return promises
 - `updateCustodialTransaction` now allows changing more properties, and is now triggered by an action
 
+## [52.1.0]
+
 ### Added
 
 - Add `enableTxParamsGasFeeUpdates` constructor option ([5394](https://github.com/MetaMask/core/pull/5394))
@@ -1413,7 +1415,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.1.0...HEAD
+[52.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...@metamask/transaction-controller@52.1.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@51.0.0...@metamask/transaction-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@50.0.0...@metamask/transaction-controller@51.0.0
 [50.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@49.0.0...@metamask/transaction-controller@50.0.0
