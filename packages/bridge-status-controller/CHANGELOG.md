@@ -12,9 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^50.0.0` ([#5496](https://github.com/MetaMask/core/pull/5496))
-- **BREAKING:** Refactor bridge controller validators to use superstruct ([#5540](https://github.com/MetaMask/core/pull/5540))
-- **BREAKING:** Change `BridgeStatusController` to fetch multichain address instead of EVM ([#5540](https://github.com/MetaMask/core/pull/5540))
-
+- Refactor validators to use superstruct ([#5540](https://github.com/MetaMask/core/pull/5540))
+- **BREAKING:** Change controller to fetch multichain address instead of EVM ([#5540](https://github.com/MetaMask/core/pull/5540))
+- **BREAKING:** Change validateStatusResponse return type ([#5540](https://github.com/MetaMask/core/pull/5540))
 
 ## [7.0.0]
 
