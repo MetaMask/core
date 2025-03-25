@@ -2401,7 +2401,6 @@ export class KeyringController extends BaseController<
     this.#keyrings.push(keyring);
     this.#keyringsMetadata.push(getDefaultKeyringMetadata());
 
-
     return keyring;
   }
 
