@@ -1,4 +1,4 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -310,7 +310,7 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction
   | TransactionControllerGetStateAction;
 
 /**
@@ -328,10 +328,3 @@ export type BridgeStatusControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-
-export type Validator<ExpectedResponse, DataToValidate> = {
-  property: keyof ExpectedResponse | string;
-  type: string;
-  validator: (value: DataToValidate) => boolean;
-};
-

@@ -176,7 +176,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       initialDestAssetBalance,
       targetContractAddress,
     } = startPollingForBridgeTxStatusArgs;
-    const { address: account } = this.#getSelectedAccount();
+
+    const accountAddress = this.#getMultichainSelectedAccountAddress();
 
     // Write all non-status fields to state so we can reference the quote in Activity list without the Bridge API
     // We know it's in progress but not the exact status yet
@@ -195,7 +196,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
       initialDestAssetBalance,
       targetContractAddress,
-      account,
+      account: accountAddress,
       status: {
         // We always have a PENDING status when we start polling for a tx, don't need the Bridge API for that
         // Also we know the bare minimum fields for status at this point in time
@@ -223,8 +224,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     await this.#fetchBridgeTxStatus(pollingInput);
   };
 
-  #getSelectedAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  // Returns an empty string if no account is selected, but this will never happen since
+  // the multichain selected account defaults to the EVM account
+  #getMultichainSelectedAccountAddress() {
+    return (
+      this.messagingSystem.call(
+        'AccountsController:getSelectedMultichainAccount',
+      )?.address ?? ''
+    );
   }
 
   readonly #fetchBridgeTxStatus = async ({
