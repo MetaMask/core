@@ -16,6 +16,7 @@ import type {
   CaipAssetType,
   AccountBalancesUpdatedEventPayload,
 } from '@metamask/keyring-api';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -94,7 +95,8 @@ export type MultichainBalancesControllerEvents =
 type AllowedActions =
   | HandleSnapRequest
   | AccountsControllerListMultichainAccountsAction
-  | MultichainAssetsControllerGetStateAction;
+  | MultichainAssetsControllerGetStateAction
+  | KeyringControllerGetStateAction;
 
 /**
  * Events that this controller is allowed to subscribe.
@@ -199,6 +201,14 @@ export class MultichainBalancesController extends BaseController<
     accountId: string,
     assets: CaipAssetType[],
   ): Promise<void> {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    if (!isUnlocked) {
+      return;
+    }
+
     try {
       const account = this.#getAccount(accountId);
 

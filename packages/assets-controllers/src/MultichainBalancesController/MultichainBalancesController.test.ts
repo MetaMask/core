@@ -114,7 +114,7 @@ type RootEvent = ExtractAvailableEvent<MultichainBalancesControllerMessenger>;
  * Constructs the unrestricted messenger. This can be used to call actions and
  * publish events within the tests for this controller.
  *
- * @returns The unrestricted messenger suited for PetNamesController.
+ * @returns The unrestricted messenger suited for MultichainBalancesController.
  */
 function getRootMessenger(): Messenger<RootAction, RootEvent> {
   return new Messenger<RootAction, RootEvent>();
@@ -135,6 +135,7 @@ function getRestrictedMessenger(
       'SnapController:handleRequest',
       'AccountsController:listMultichainAccounts',
       'MultichainAssetsController:getState',
+      'KeyringController:getState',
     ],
     allowedEvents: [
       'AccountsController:accountAdded',
@@ -184,6 +185,13 @@ const setupController = ({
     mockGetAssetsState,
   );
 
+  const mockGetKeyringState = jest.fn().mockReturnValue({
+    isUnlocked: true,
+  });
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    mockGetKeyringState,
+  );
   const controller = new MultichainBalancesController({
     messenger: multichainBalancesMessenger,
     state,
@@ -195,6 +203,7 @@ const setupController = ({
     mockSnapHandleRequest,
     mockListMultichainAccounts,
     mockGetAssetsState,
+    mockGetKeyringState,
   };
 };
 
@@ -225,6 +234,10 @@ describe('BalancesController', () => {
     messenger.registerActionHandler(
       'MultichainAssetsController:getState',
       jest.fn(),
+    );
+    messenger.registerActionHandler(
+      'KeyringController:getState',
+      jest.fn().mockReturnValue({ isUnlocked: true }),
     );
 
     const controller = new MultichainBalancesController({
@@ -422,6 +435,22 @@ describe('BalancesController', () => {
 
     await waitForAllPromises();
 
+    expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
+      mockBalanceResult,
+    );
+  });
+
+  it('resumes updating balances after unlocking KeyringController', async () => {
+    const { controller, mockGetKeyringState } = setupController();
+
+    mockGetKeyringState.mockReturnValue({ isUnlocked: false });
+
+    await controller.updateBalance(mockBtcAccount.id);
+    expect(controller.state.balances[mockBtcAccount.id]).toBeUndefined();
+
+    mockGetKeyringState.mockReturnValue({ isUnlocked: true });
+
+    await controller.updateBalance(mockBtcAccount.id);
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );

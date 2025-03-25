@@ -15,10 +15,13 @@ import {
   TransactionEnvelopeType,
   type TransactionControllerMessenger,
   type TransactionMeta,
+  determineTransactionType,
+  TransactionType,
 } from '..';
 
 jest.mock('./eip7702');
 jest.mock('./feature-flags');
+jest.mock('./transaction-type');
 
 jest.mock('./validation', () => ({
   ...jest.requireActual('./validation'),
@@ -36,18 +39,18 @@ const DATA_MOCK = '0xabcdef';
 const VALUE_MOCK = '0x1234';
 const MESSENGER_MOCK = {} as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
-const BATCH_ID_MOCK = 'testBatchId';
+const PUBLIC_KEY_MOCK = '0x112233';
+const BATCH_ID_CUSTOM_MOCK = '0x123456';
 const GET_ETH_QUERY_MOCK = jest.fn();
 const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
 
-const TRANSACTION_META_MOCK = {
-  id: BATCH_ID_MOCK,
-} as TransactionMeta;
+const TRANSACTION_META_MOCK = {} as TransactionMeta;
 
 describe('Batch Utils', () => {
   const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
   const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
   const validateBatchRequestMock = jest.mocked(validateBatchRequest);
+  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
 
   const isAccountUpgradedToEIP7702Mock = jest.mocked(
     isAccountUpgradedToEIP7702,
@@ -77,12 +80,17 @@ describe('Batch Utils', () => {
       addTransactionMock = jest.fn();
       getChainIdMock = jest.fn();
 
+      determineTransactionTypeMock.mockResolvedValue({
+        type: TransactionType.simpleSend,
+      });
+
       request = {
         addTransaction: addTransactionMock,
         getChainId: getChainIdMock,
         getEthQuery: GET_ETH_QUERY_MOCK,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
         request: {
           from: FROM_MOCK,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
@@ -105,6 +113,56 @@ describe('Batch Utils', () => {
           ],
         },
       };
+    });
+
+    it('returns generated batch ID', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      const result = await addTransactionBatch(request);
+
+      expect(result.batchId).toMatch(/^0x[0-9a-f]{32}$/u);
+    });
+
+    it('returns provided batch ID', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      request.request.batchId = BATCH_ID_CUSTOM_MOCK;
+
+      const result = await addTransactionBatch(request);
+
+      expect(result.batchId).toBe(BATCH_ID_CUSTOM_MOCK);
     });
 
     it('adds generated EIP-7702 transaction', async () => {
@@ -211,16 +269,61 @@ describe('Batch Utils', () => {
         expect.any(Object),
         expect.objectContaining({
           nestedTransactions: [
-            {
+            expect.objectContaining({
               to: TO_MOCK,
               data: DATA_MOCK,
               value: VALUE_MOCK,
-            },
-            {
+            }),
+            expect.objectContaining({
               to: TO_MOCK,
               data: DATA_MOCK,
               value: VALUE_MOCK,
-            },
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('determines transaction type for nested transactions', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
+        delegationAddress: undefined,
+        isSupported: true,
+      });
+
+      addTransactionMock.mockResolvedValueOnce({
+        transactionMeta: TRANSACTION_META_MOCK,
+        result: Promise.resolve(''),
+      });
+
+      generateEIP7702BatchTransactionMock.mockReturnValueOnce({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+        value: VALUE_MOCK,
+      });
+
+      determineTransactionTypeMock
+        .mockResolvedValueOnce({
+          type: TransactionType.tokenMethodSafeTransferFrom,
+        })
+        .mockResolvedValueOnce({
+          type: TransactionType.simpleSend,
+        });
+
+      await addTransactionBatch(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          nestedTransactions: [
+            expect.objectContaining({
+              type: TransactionType.tokenMethodSafeTransferFrom,
+            }),
+            expect.objectContaining({
+              type: TransactionType.simpleSend,
+            }),
           ],
         }),
       );
@@ -231,6 +334,16 @@ describe('Batch Utils', () => {
 
       await expect(addTransactionBatch(request)).rejects.toThrow(
         rpcErrors.internal('Chain does not support EIP-7702'),
+      );
+    });
+
+    it('throws if no public key', async () => {
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(true);
+
+      await expect(
+        addTransactionBatch({ ...request, publicKeyEIP7702: undefined }),
+      ).rejects.toThrow(
+        rpcErrors.internal('EIP-7702 public key not specified'),
       );
     });
 
@@ -293,6 +406,7 @@ describe('Batch Utils', () => {
         address: FROM_MOCK,
         getEthQuery: GET_ETH_QUERY_MOCK,
         messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
 
       expect(result).toStrictEqual([CHAIN_ID_MOCK, CHAIN_ID_2_MOCK]);
@@ -310,9 +424,23 @@ describe('Batch Utils', () => {
         address: FROM_MOCK,
         getEthQuery: GET_ETH_QUERY_MOCK,
         messenger: MESSENGER_MOCK,
+        publicKeyEIP7702: PUBLIC_KEY_MOCK,
       });
 
       expect(result).toStrictEqual([]);
+    });
+
+    it('throws if no public key', async () => {
+      await expect(
+        isAtomicBatchSupported({
+          address: FROM_MOCK,
+          getEthQuery: GET_ETH_QUERY_MOCK,
+          messenger: MESSENGER_MOCK,
+          publicKeyEIP7702: undefined,
+        }),
+      ).rejects.toThrow(
+        rpcErrors.internal('EIP-7702 public key not specified'),
+      );
     });
   });
 });

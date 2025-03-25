@@ -76,6 +76,7 @@ import {
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
+import { getDelegationAddress } from './utils/eip7702';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -119,13 +120,19 @@ jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
 jest.mock('./utils/layer1-gas-fee-flow');
+jest.mock('./utils/simulation');
+jest.mock('./utils/swaps');
+jest.mock('uuid');
+
 jest.mock('./helpers/ResimulateHelper', () => ({
   ...jest.requireActual('./helpers/ResimulateHelper'),
   shouldResimulate: jest.fn(),
 }));
-jest.mock('./utils/simulation');
-jest.mock('./utils/swaps');
-jest.mock('uuid');
+
+jest.mock('./utils/eip7702', () => ({
+  ...jest.requireActual('./utils/eip7702'),
+  getDelegationAddress: jest.fn(),
+}));
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -412,6 +419,7 @@ const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
 const CHAIN_ID_MOCK = MOCK_NETWORK.chainId;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
+const BATCH_ID_MOCK = '0xabcd12';
 
 const TRANSACTION_META_MOCK = {
   hash: '0x1',
@@ -495,6 +503,7 @@ describe('TransactionController', () => {
   );
   const addTransactionBatchMock = jest.mocked(addTransactionBatch);
   const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
+  const getDelegationAddressMock = jest.mocked(getDelegationAddress);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -640,11 +649,12 @@ describe('TransactionController', () => {
       unrestrictedMessenger.getRestricted({
         name: 'TransactionController',
         allowedActions: [
+          'AccountsController:getSelectedAccount',
+          'AccountsController:getState',
           'ApprovalController:addRequest',
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
-          'AccountsController:getSelectedAccount',
-          'AccountsController:getState',
+          'RemoteFeatureFlagController:getState',
         ],
         allowedEvents: [],
       });
@@ -658,6 +668,15 @@ describe('TransactionController', () => {
     unrestrictedMessenger.registerActionHandler(
       'AccountsController:getState',
       () => ({}) as never,
+    );
+
+    const remoteFeatureFlagControllerGetStateMock = jest.fn().mockReturnValue({
+      featureFlags: {},
+    });
+
+    unrestrictedMessenger.registerActionHandler(
+      'RemoteFeatureFlagController:getState',
+      remoteFeatureFlagControllerGetStateMock,
     );
 
     const controller = new TransactionController({
@@ -676,6 +695,12 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {} as any,
     );
+
+    getDelegationAddressMock.mockResolvedValue(undefined);
+
+    remoteFeatureFlagControllerGetStateMock.mockReturnValue({
+      remoteFeatureFlags: {},
+    });
 
     return {
       controller,
@@ -1143,10 +1168,12 @@ describe('TransactionController', () => {
       );
 
       expect(estimateGasMock).toHaveBeenCalledTimes(1);
-      expect(estimateGasMock).toHaveBeenCalledWith(
-        transactionParamsMock,
-        expect.anything(),
-      );
+      expect(estimateGasMock).toHaveBeenCalledWith({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: expect.anything(),
+        isSimulationEnabled: true,
+        txParams: transactionParamsMock,
+      });
 
       expect(addGasBufferMock).toHaveBeenCalledTimes(1);
       expect(addGasBufferMock).toHaveBeenCalledWith(
@@ -1578,8 +1605,10 @@ describe('TransactionController', () => {
 
       const expectedInitialSnapshot = {
         actionId: undefined,
+        batchId: undefined,
         chainId: expect.any(String),
         dappSuggestedGasFees: undefined,
+        delegationAddress: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
         isFirstTimeInteraction: undefined,
@@ -1895,9 +1924,10 @@ describe('TransactionController', () => {
 
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
-        ethQuery: expect.any(Object),
         chainId: CHAIN_ID_MOCK,
+        ethQuery: expect.any(Object),
         isCustomNetwork: false,
+        isSimulationEnabled: true,
         txMeta: expect.any(Object),
       });
     });
@@ -1929,6 +1959,26 @@ describe('TransactionController', () => {
         getSavedGasFees: expect.any(Function),
         txMeta: expect.any(Object),
       });
+    });
+
+    it('adds delegration address to metadata', async () => {
+      const { controller } = setupController();
+
+      getDelegationAddressMock.mockResolvedValueOnce(ACCOUNT_MOCK);
+
+      await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        },
+        {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        },
+      );
+
+      expect(controller.state.transactions[0].delegationAddress).toBe(
+        ACCOUNT_MOCK,
+      );
     });
 
     describe('updates simulation data', () => {
@@ -2385,6 +2435,57 @@ describe('TransactionController', () => {
           }),
         );
       });
+
+      it('publishes TransactionController:transactionRejected if error is method not supported', async () => {
+        const error = {
+          code: errorCodes.rpc.methodNotSupported,
+        };
+
+        const { controller, messenger } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'rejected',
+              error,
+            },
+          },
+        });
+
+        const rejectedEventListener = jest.fn();
+
+        messenger.subscribe(
+          'TransactionController:transactionRejected',
+          rejectedEventListener,
+        );
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        const finishedPromise = waitForTransactionFinished(messenger);
+
+        try {
+          await result;
+        } catch {
+          // Ignore user rejected error as it is expected
+        }
+        await finishedPromise;
+
+        expect(rejectedEventListener).toHaveBeenCalledTimes(1);
+        expect(rejectedEventListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              error,
+              status: 'rejected',
+            }),
+          }),
+        );
+      });
     });
 
     describe('checks from address origin', () => {
@@ -2521,6 +2622,62 @@ describe('TransactionController', () => {
           }),
         );
         expect(controller.state.submitHistory[99]).toBeUndefined();
+      });
+    });
+
+    describe('with batch ID', () => {
+      it('throws if duplicate', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK,
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        await expect(
+          controller.addTransaction(txParams, {
+            batchId: BATCH_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          }),
+        ).rejects.toThrow('Batch ID already exists');
+      });
+
+      it('throws if duplicate with different case', async () => {
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  batchId: BATCH_ID_MOCK.toLowerCase(),
+                } as unknown as TransactionMeta,
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        const txParams = {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_MOCK,
+        };
+
+        await expect(
+          controller.addTransaction(txParams, {
+            batchId: BATCH_ID_MOCK.toUpperCase() as Hex,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          }),
+        ).rejects.toThrow('Batch ID already exists');
       });
     });
   });
@@ -5923,13 +6080,9 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].status).toBe(
         TransactionStatus.failed,
       );
-      expect(
-        (
-          controller.state.transactions[0] as TransactionMeta & {
-            status: TransactionStatus.failed;
-          }
-        ).error.message,
-      ).toBe('Signing aborted by user');
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Signing aborted by user',
+      );
     });
   });
 
