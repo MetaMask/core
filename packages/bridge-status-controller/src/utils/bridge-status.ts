@@ -1,7 +1,6 @@
 import type { Quote } from '@metamask/bridge-controller';
 
 import { validateStatusResponse } from './validators';
-import { BRIDGE_STATUS_BASE_URL } from '../constants';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
