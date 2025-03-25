@@ -495,10 +495,10 @@ describe('NetworkController', () => {
       });
     });
 
-    it('initializes the state with the specified addtional networks from the option `addtionalDefaultNetworks` if provided', async () => {
+    it('initializes the state with the specified additional networks from the option `additionalDefaultNetworks` if provided', async () => {
       await withController(
         {
-          addtionalDefaultNetworks: [
+          additionalDefaultNetworks: [
             ChainId[BuiltInNetworkName.MegaETHTestnet],
           ],
         },
