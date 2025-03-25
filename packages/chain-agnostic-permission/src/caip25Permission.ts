@@ -200,6 +200,15 @@ export const caip25CaveatBuilder = ({
       assertIsInternalScopesObject(requiredScopes);
       assertIsInternalScopesObject(optionalScopes);
 
+      if (
+        Object.keys(requiredScopes).length === 0 &&
+        Object.keys(optionalScopes).length === 0
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received no scopes requested for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
+
       const isEvmChainIdSupported = (chainId: Hex) => {
         try {
           findNetworkClientIdByChainId(chainId);

@@ -900,6 +900,24 @@ describe('caip25CaveatBuilder', () => {
     ).toBeUndefined();
   });
 
+  it('throws an error if both requiredScopes and optionalScopes are empty', () => {
+    expect(() => {
+      validator({
+        type: Caip25CaveatType,
+        value: {
+          requiredScopes: {},
+          optionalScopes: {},
+          sessionProperties: {},
+          isMultichainOrigin: true,
+        },
+      });
+    }).toThrow(
+      new Error(
+        `${Caip25EndowmentPermissionName} error: Received no scopes requested for caveat of type "${Caip25CaveatType}".`,
+      ),
+    );
+  });
+
   describe('permission merger', () => {
     describe('incremental request an existing scope (requiredScopes), and 2 whole new scopes (optionalScopes) with accounts', () => {
       it('should return merged scope with previously existing chain and accounts, plus new requested chains with new accounts', () => {
