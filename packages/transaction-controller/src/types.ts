@@ -1138,10 +1138,11 @@ export type TransactionError = {
  * Type for security alert response from transaction validator.
  */
 export type SecurityAlertResponse = {
-  reason: string;
   features?: string[];
-  result_type: string;
   providerRequestsCount?: Record<string, number>;
+  reason: string;
+  result_type: string;
+  securityAlertId?: string;
 };
 
 /** Alternate priority levels for which values are provided in gas fee estimates. */
@@ -1513,6 +1514,9 @@ export type TransactionBatchRequest = {
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
 
+  /** Security alert ID to persist on the transaction. */
+  securityAlertId?: string;
+
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
 
@@ -1521,6 +1525,17 @@ export type TransactionBatchRequest = {
    * Defaults to false.
    */
   useHook?: boolean;
+
+  /**
+   * Callback to trigger security validation in the client.
+   *
+   * @param request - The JSON-RPC request to validate.
+   * @param chainId - The chain ID of the transaction batch.
+   */
+  validateSecurity?: (
+    request: ValidateSecurityRequest,
+    chainId: Hex,
+  ) => Promise<void>;
 };
 
 /**
@@ -1595,3 +1610,17 @@ export type PublishBatchHook = (
   /** Data required to call the hook. */
   request: PublishBatchHookRequest,
 ) => Promise<PublishBatchHookResult>;
+
+/**
+ * Request to validate security of a transaction in the client.
+ */
+export type ValidateSecurityRequest = {
+  /** JSON-RPC method to validate. */
+  method: string;
+
+  /** Parameters of the JSON-RPC method to validate. */
+  params: unknown[];
+
+  /** Optional EIP-7702 delegation to mock for the transaction sender. */
+  delegationMock?: Hex;
+};
