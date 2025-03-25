@@ -26,3 +26,10 @@ export enum NetworkStatus {
 }
 
 export const INFURA_BLOCKED_KEY = 'countryBlocked';
+
+/**
+ * Represents how long the NetworkController should wait for
+ * the network to respond for requests for the latest block
+ * before failing with an error.
+ */
+export const GET_LATEST_BLOCK_TIMEOUT = 10000;
