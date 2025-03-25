@@ -11,7 +11,6 @@ import { KnownWalletScopeString } from '../scope/constants';
 import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
-import { uniq } from 'lodash';
 
 /**
  * Checks if a scope string is either an EIP155 or wallet namespaced scope string.
@@ -208,35 +207,3 @@ export const setPermittedAccounts = (
     ),
   };
 };
-
-
-// TODO add this back in later
-// /**
-//  * Gets a list of unique accounts from the given CAIP-25 caveat value.
-//  *
-//  * @param requestedCaip25CaveatValue - CAIP-25 request values.
-//  * @returns Accounts available for requesting.
-//  */
-// export function getAllAccounts(
-//   requestedCaip25CaveatValue: Caip25CaveatValue,
-// ) {
-//   const requiredAccounts = Object.values(
-//     requestedCaip25CaveatValue.requiredScopes,
-//   )
-//     .flatMap((scope) => scope.accounts)
-//     .map((account) => ({
-//       address: parseCaipAccountId(account).address,
-//       chainId: parseCaipAccountId(account).chainId,
-//     }));
-
-//   const optionalAccounts = Object.values(
-//     requestedCaip25CaveatValue.optionalScopes,
-//   )
-//     .flatMap((scope) => scope.accounts)
-//     .map((account) => ({
-//       address: parseCaipAccountId(account).address,
-//       chainId: parseCaipAccountId(account).chainId,
-//     }));
-
-//   return [...requiredAccounts, ...optionalAccounts];
-// }
