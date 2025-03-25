@@ -30,6 +30,7 @@ export {
   TransactionController,
 } from './TransactionController';
 export type {
+  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransactionParams,
