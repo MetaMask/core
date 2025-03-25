@@ -87,7 +87,7 @@ export type EthPhishingResponse = {
 export type C2DomainBlocklistResponse = {
   recentlyAdded: string[];
   recentlyRemoved: string[];
-  lastFetchedAt: string;
+  lastFetchedAt: number;
 };
 
 /**
@@ -166,6 +166,18 @@ export type DataResultWrapper<T> = {
 export type Hotlist = HotlistDiff[];
 
 /**
+ * @type HotlistResponse
+ *
+ * Response structure for hotlist update requests.
+ * @property diffEntries - Array of hotlist diff entries.
+ * @property lastFetchedAt - Timestamp of the last fetch request.
+ */
+export interface HotlistResponse {
+  diffEntries: HotlistDiff[];
+  lastFetchedAt: number;
+}
+
+/**
  * Enum containing upstream data provider source list keys.
  * These are the keys denoting lists consumed by the upstream data provider.
  */
@@ -204,6 +216,7 @@ const metadata = {
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
   c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
+  hotlistLastSuccessTimestamp: { persist: true, anonymous: false },
 };
 
 /**
@@ -217,6 +230,7 @@ const getDefaultState = (): PhishingControllerState => {
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
+    hotlistLastSuccessTimestamp: 0,
   };
 };
 
@@ -233,6 +247,7 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
+  hotlistLastSuccessTimestamp: number;
 };
 
 /**
@@ -714,27 +729,43 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
-    const lastDiffTimestamp = Math.max(
-      ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
-    );
-    let hotlistResponse: DataResultWrapper<Hotlist> | null;
+    // const lastDiffTimestamp = Math.max(
+    //   ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
+    // );
+    let hotlistResponse: DataResultWrapper<HotlistResponse | HotlistDiff[]> | null;
 
     try {
-      hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
-        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+      hotlistResponse = await this.#queryConfig<DataResultWrapper<HotlistResponse | HotlistDiff[]>>(
+        `${METAMASK_HOTLIST_DIFF_URL}/${this.state.hotlistLastSuccessTimestamp}`,
       );
     } finally {
-      // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
-      // traffic after a network disruption.
+      // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with traffic after a network disruption.
       this.update((draftState) => {
         draftState.hotlistLastFetched = fetchTimeNow();
+        // For new format with lastFetchedAt property
+        if (hotlistResponse?.data && typeof hotlistResponse.data === 'object' && 'lastFetchedAt' in hotlistResponse.data) {
+          draftState.hotlistLastSuccessTimestamp = hotlistResponse.data.lastFetchedAt;
+        }
       });
     }
 
     if (!hotlistResponse?.data) {
       return;
     }
-    const hotlist = hotlistResponse.data;
+    
+    // Handle both old format (array) and new format (object with diffEntries)
+    let hotlist: HotlistDiff[];
+    if (Array.isArray(hotlistResponse.data)) {
+      // Old format - direct array
+      hotlist = hotlistResponse.data;
+    } else if ('diffEntries' in hotlistResponse.data && Array.isArray(hotlistResponse.data.diffEntries)) {
+      // New format - object with diffEntries property
+      hotlist = hotlistResponse.data.diffEntries;
+    } else {
+      // Unrecognized format
+      return;
+    }
+    
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,

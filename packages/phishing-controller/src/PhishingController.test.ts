@@ -339,21 +339,7 @@ describe('PhishingController', () => {
     it('should not have hotlist be out of date immediately after maybeUpdateState is called', async () => {
       nockScope = nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-        .reply(200, {
-          data: [
-            {
-              url: 'this-should-not-be-in-default-blocklist.com',
-              timestamp: 1,
-              isRemoval: true,
-              targetList: 'eth_phishing_detect_config.blocklist',
-            },
-            {
-              url: 'this-should-not-be-in-default-blocklist.com',
-              timestamp: 2,
-              targetList: 'eth_phishing_detect_config.blocklist',
-            },
-          ],
-        });
+        .reply(200, { data: { diffEntries: [], lastFetchedAt: 1 } });
       const clock = sinon.useFakeTimers(50);
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
@@ -365,7 +351,7 @@ describe('PhishingController', () => {
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
     it('should not have c2DomainBlocklist be out of date immediately after maybeUpdateState is called', async () => {
-      nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
@@ -904,13 +890,16 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, {
-        data: [
-          {
-            url: 'e4d600ab9141b7a9859511c77e63b9b3.com',
-            timestamp: 2,
-            targetList: 'eth_phishing_detect_config.blocklist',
-          },
-        ],
+        data: {
+          diffEntries: [
+            {
+              url: 'e4d600ab9141b7a9859511c77e63b9b3.com',
+              timestamp: 2,
+              targetList: 'eth_phishing_detect_config.blocklist',
+            },
+          ],
+          lastFetchedAt: 2
+        }
       });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
@@ -1607,13 +1596,16 @@ describe('PhishingController', () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(200, {
-          data: [
-            {
-              targetList: 'eth_phishing_detect_config.blocklist',
-              url: testBlockedDomain,
-              timestamp: 1,
-            },
-          ],
+          data: {
+            diffEntries: [
+              {
+                targetList: 'eth_phishing_detect_config.blocklist',
+                url: testBlockedDomain,
+                timestamp: 1,
+              },
+            ],
+            lastFetchedAt: 1
+          }
         });
 
       const controller = getPhishingController({
@@ -1680,7 +1672,12 @@ describe('PhishingController', () => {
     it('should handle empty hotlist and request blocklist responses gracefully', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
-        .reply(200, { data: [] });
+        .reply(200, {
+          data: {
+            diffEntries: [],
+            lastFetchedAt: 1
+          }
+        });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
         .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
