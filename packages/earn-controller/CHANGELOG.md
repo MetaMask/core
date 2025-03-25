@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated `EarnController` methods (`refreshPooledStakingData`, `refreshPooledStakes`, and `refreshStakingEligibility`) to use an options bag parameter ([#5537](https://github.com/MetaMask/core/pull/5537))
+- **BREAKING:** Updated `EarnController` methods (`refreshPooledStakingData`, `refreshPooledStakes`, and `refreshStakingEligibility`) to use an options bag parameter ([#5537](https://github.com/MetaMask/core/pull/5537))
 
 ## [0.9.0]
 
