@@ -3,6 +3,7 @@
 
 import type { Messenger } from '@metamask/base-controller';
 import {
+  BuiltInNetworkName,
   ChainId,
   InfuraNetworkType,
   isInfuraNetworkType,
@@ -411,24 +412,6 @@ describe('NetworkController', () => {
                   },
                 ],
               },
-              "0x18c6": Object {
-                "blockExplorerUrls": Array [
-                  "https://megaexplorer.xyz",
-                ],
-                "chainId": "0x18c6",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Mega Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": Array [
-                  Object {
-                    "failoverUrls": Array [],
-                    "networkClientId": "megaeth-testnet",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
               "0x5": Object {
                 "blockExplorerUrls": Array [],
                 "chainId": "0x5",
@@ -486,6 +469,75 @@ describe('NetworkController', () => {
                     "networkClientId": "linea-sepolia",
                     "type": "infura",
                     "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0xe708": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0xe708",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Linea",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "linea-mainnet",
+                    "type": "infura",
+                    "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+            },
+            "networksMetadata": Object {},
+            "selectedNetworkClientId": "mainnet",
+          }
+        `);
+      });
+    });
+
+    it('initializes the state with the specified default networks from the option `defaultNetworks` if provided', async () => {
+      await withController(
+        { 
+          defaultNetworks: [ 
+            ChainId[BuiltInNetworkName.Mainnet], 
+            ChainId[BuiltInNetworkName.LineaMainnet],
+            ChainId[BuiltInNetworkName.MegaETHTestnet]
+          ]
+        },
+        ({ controller }) => {
+        expect(controller.state).toMatchInlineSnapshot(`
+          Object {
+            "networkConfigurationsByChainId": Object {
+              "0x1": Object {
+                "blockExplorerUrls": Array [],
+                "chainId": "0x1",
+                "defaultRpcEndpointIndex": 0,
+                "name": "Ethereum Mainnet",
+                "nativeCurrency": "ETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "mainnet",
+                    "type": "infura",
+                    "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
+                  },
+                ],
+              },
+              "0x18c6": Object {
+                "blockExplorerUrls": Array [
+                  "https://megaexplorer.xyz",
+                ],
+                "chainId": "0x18c6",
+                "defaultBlockExplorerUrlIndex": 0,
+                "defaultRpcEndpointIndex": 0,
+                "name": "Mega Testnet",
+                "nativeCurrency": "MegaETH",
+                "rpcEndpoints": Array [
+                  Object {
+                    "failoverUrls": Array [],
+                    "networkClientId": "megaeth-testnet",
+                    "type": "custom",
+                    "url": "https://carrot.megaeth.com/rpc",
                   },
                 ],
               },
@@ -1235,18 +1287,6 @@ describe('NetworkController', () => {
                   chainId: '0xaa36a7',
                   ticker: 'SepoliaETH',
                   network: InfuraNetworkType.sepolia,
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-              },
-              'megaeth-testnet': {
-                blockTracker: expect.anything(),
-                configuration: {
-                  type: NetworkClientType.Custom,
-                  failoverRpcUrls: [],
-                  chainId: '0x18c6',
-                  ticker: 'MegaETH',
-                  rpcUrl: 'https://carrot.megaeth.com/rpc',
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
