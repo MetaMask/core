@@ -554,7 +554,7 @@ describe('CurrencyRateController', () => {
       state: { currentCurrency: 'xyz' },
     });
 
-    const nativeCurrencies = ['ETH', undefined, ''] as string[];
+    const nativeCurrencies = ['ETH', undefined, ''];
 
     await controller.updateExchangeRate(nativeCurrencies);
 

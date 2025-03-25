@@ -157,7 +157,9 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    *
    * @param nativeCurrencies - The native currency symbols to fetch exchange rates for.
    */
-  async updateExchangeRate(nativeCurrencies: string[]): Promise<void> {
+  async updateExchangeRate(
+    nativeCurrencies: (string | undefined)[],
+  ): Promise<void> {
     const releaseLock = await this.mutex.acquire();
     try {
       const { currentCurrency } = this.state;
