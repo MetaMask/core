@@ -729,7 +729,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.1...HEAD
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.0...@metamask/keyring-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@20.0.0...@metamask/keyring-controller@21.0.0
-[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.1...@metamask/keyring-controller@20.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.2...@metamask/keyring-controller@20.0.0
 [19.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.1...@metamask/keyring-controller@19.2.2
 [19.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.0...@metamask/keyring-controller@19.2.1
 [19.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.1.0...@metamask/keyring-controller@19.2.0
