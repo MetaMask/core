@@ -774,7 +774,6 @@ describe('SelectedNetworkController', () => {
       });
     });
 
-    // TODO - improve these tests by using a full NetworkController and doing more robust behavioral testing
     describe('when the domain is a snap (starts with "npm:" or "local:")', () => {
       it('returns a proxied globally selected networkClient and does not create a new proxy in the domainProxyMap', () => {
         const { controller, domainProxyMap, messenger } = setup({
@@ -809,6 +808,57 @@ describe('SelectedNetworkController', () => {
           'Selected network not initialized',
         );
       });
+
+      it('consistently uses the globally selected network when the network changes', () => {
+        const {
+          controller,
+          messenger,
+          mockNetworkControllerGetState,
+          mockGetSelectedNetworkClient
+        } = setup({
+          state: {
+            domains: {},
+          },
+          useRequestQueuePreference: true,
+        });
+
+        const snapDomain = 'npm:@metamask/bip32-example-snap';
+        const initialNetworkClient = {
+          provider: { request: jest.fn().mockReturnValue('initial-network') },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+
+        // Set up initial network client
+        mockGetSelectedNetworkClient.mockReturnValue(initialNetworkClient);
+
+        // Get the provider for the snap domain
+        const initialResult = controller.getProviderAndBlockTracker(snapDomain);
+
+        // Simulate a network change
+        const newNetworkClient = {
+          provider: { request: jest.fn().mockReturnValue('new-network') },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+        mockGetSelectedNetworkClient.mockReturnValue(newNetworkClient);
+        mockNetworkControllerGetState.mockReturnValue({ selectedNetworkClientId: 'optimism' });
+
+        // Publish network change
+        messenger.publish(
+          'NetworkController:stateChange',
+          { selectedNetworkClientId: 'optimism' },
+          [{ op: 'replace', path: ['selectedNetworkClientId'], value: 'optimism' }]
+        );
+
+        // Get the provider again
+        const newResult = controller.getProviderAndBlockTracker(snapDomain);
+
+        // The snap should always get the latest selected network
+        expect(newResult).toBeDefined();
+        expect(mockGetSelectedNetworkClient).toHaveBeenCalledTimes(2);
+
+        // Since snap domains don't cache the proxy, we should get a new one each time
+        expect(initialResult).not.toBe(newResult);
+      });
     });
 
     describe('when the domain is a "metamask"', () => {
@@ -842,6 +892,62 @@ describe('SelectedNetworkController', () => {
         expect(() =>
           controller.getProviderAndBlockTracker(METAMASK_DOMAIN),
         ).toThrow('Selected network not initialized');
+      });
+
+      it('always follows the globally selected network through network changes', () => {
+        const {
+          controller,
+          messenger,
+          mockNetworkControllerGetState,
+          mockGetSelectedNetworkClient
+        } = setup({
+          state: {
+            domains: {},
+          },
+          useRequestQueuePreference: true,
+        });
+
+        // Set up initial network client with a mock implementation
+        const initialRequest = jest.fn().mockResolvedValue('initial-chain');
+        const initialNetworkClient = {
+          provider: { request: initialRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+        mockGetSelectedNetworkClient.mockReturnValue(initialNetworkClient);
+
+        // Get the provider for the metamask domain
+        const initialResult = controller.getProviderAndBlockTracker(METAMASK_DOMAIN);
+
+        // Simulate a request to verify which network client is used
+        initialResult.provider.request({ method: 'eth_chainId' });
+        expect(initialRequest).toHaveBeenCalledWith({ method: 'eth_chainId' });
+
+        // Simulate a network change
+        const newRequest = jest.fn().mockResolvedValue('new-chain');
+        const newNetworkClient = {
+          provider: { request: newRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+        mockGetSelectedNetworkClient.mockReturnValue(newNetworkClient);
+        mockNetworkControllerGetState.mockReturnValue({ selectedNetworkClientId: 'arbitrum' });
+
+        // Publish network change
+        messenger.publish(
+          'NetworkController:stateChange',
+          { selectedNetworkClientId: 'arbitrum' },
+          [{ op: 'replace', path: ['selectedNetworkClientId'], value: 'arbitrum' }]
+        );
+
+        // Get the provider again
+        const newResult = controller.getProviderAndBlockTracker(METAMASK_DOMAIN);
+
+        // Make another request to verify the new network client is used
+        newResult.provider.request({ method: 'eth_chainId' });
+        expect(newRequest).toHaveBeenCalledWith({ method: 'eth_chainId' });
+
+        // The metamask domain should always get the latest selected network
+        expect(newResult).toBeDefined();
+        expect(mockGetSelectedNetworkClient).toHaveBeenCalledTimes(2);
       });
     });
   });
@@ -984,7 +1090,6 @@ describe('SelectedNetworkController', () => {
   // should be targeted when the useRequestQueuePreference state is toggled on and off:
   // When toggled on, the networkClient for the globally selected networkClientId should be used - **not** the NetworkController's proxy of this networkClient.
   // When toggled off, the NetworkControllers proxy of the globally selected networkClient should be used
-  // TODO - improve these tests by using a full NetworkController and doing more robust behavioral testing
   describe('onPreferencesStateChange', () => {
     const mockProxyProvider = {
       setTarget: jest.fn(),
@@ -993,6 +1098,7 @@ describe('SelectedNetworkController', () => {
       setTarget: jest.fn(),
     } as unknown as BlockTrackerProxy;
 
+    // Basic existing tests
     describe('when toggled from off to on', () => {
       describe('when domains have permissions', () => {
         it('sets the target of the existing proxies to the non-proxied networkClient for the globally selected networkClientId', () => {
@@ -1122,6 +1228,185 @@ describe('SelectedNetworkController', () => {
         );
         expect(mockProxyProvider.setTarget).toHaveBeenCalledTimes(2);
         expect(mockProxyBlockTracker.setTarget).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    // More comprehensive behavioral testing
+    describe('behavioral testing with simulated network clients', () => {
+      it('correctly routes domain requests based on queue preferences', async () => {
+        // Create provider request mocks to track calls
+        const globalProxyRequest = jest.fn().mockResolvedValue('global-proxy-response');
+        const directNetworkRequest = jest.fn().mockResolvedValue('direct-network-response');
+        const domainSpecificRequest = jest.fn().mockResolvedValue('domain-specific-response');
+
+        // Setup mock network clients that return different values based on which is called
+        const mockGlobalProxyClient = {
+          provider: { request: globalProxyRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+
+        const mockDirectNetworkClient = {
+          provider: { request: directNetworkRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+
+        const mockDomainSpecificClient = {
+          provider: { request: domainSpecificRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+
+        // Create a test domain
+        const testDomain = 'example.com';
+
+        // Setup controller with mocked network clients
+        const {
+          controller,
+          triggerPreferencesStateChange,
+          mockGetSelectedNetworkClient,
+          mockGetNetworkClientById,
+          mockHasPermissions
+        } = setup({
+          state: {
+            domains: {
+              [testDomain]: 'domain-specific-network'
+            },
+          },
+          useRequestQueuePreference: true,
+        });
+
+        // Domain has permissions
+        mockHasPermissions.mockReturnValue(true);
+
+        // Setup the mock network clients to be returned
+        mockGetSelectedNetworkClient.mockReturnValue(mockGlobalProxyClient);
+        mockGetNetworkClientById.mockImplementation((networkClientId) => {
+          if (networkClientId === 'domain-specific-network') {
+            return mockDomainSpecificClient;
+          } else if (networkClientId === 'mainnet') {
+            return mockDirectNetworkClient;
+          }
+          return undefined;
+        });
+
+        // 1. With useRequestQueue = true: should use direct network client for domain-specific-network
+        const provider1 = controller.getProviderAndBlockTracker(testDomain).provider;
+        await provider1.request({ method: 'eth_call' });
+        expect(domainSpecificRequest).toHaveBeenCalledTimes(1);
+        expect(directNetworkRequest).not.toHaveBeenCalled();
+        expect(globalProxyRequest).not.toHaveBeenCalled();
+
+        // 2. Toggle useRequestQueue to false
+        triggerPreferencesStateChange({ useRequestQueue: false });
+
+        // Should now use the globally selected network (via proxy)
+        const provider2 = controller.getProviderAndBlockTracker(testDomain).provider;
+        await provider2.request({ method: 'eth_call' });
+        expect(domainSpecificRequest).toHaveBeenCalledTimes(1); // Still 1, no new calls
+        expect(directNetworkRequest).not.toHaveBeenCalled();
+        expect(globalProxyRequest).toHaveBeenCalledTimes(1);
+
+        // 3. Toggle back to useRequestQueue = true
+        triggerPreferencesStateChange({ useRequestQueue: true });
+
+        // Should return to using domain-specific network
+        const provider3 = controller.getProviderAndBlockTracker(testDomain).provider;
+        await provider3.request({ method: 'eth_call' });
+        expect(domainSpecificRequest).toHaveBeenCalledTimes(2);
+        expect(directNetworkRequest).not.toHaveBeenCalled();
+        expect(globalProxyRequest).toHaveBeenCalledTimes(1); // No change from before
+      });
+
+      it('correctly handles multiple domains with different network settings when preferences toggle', async () => {
+        // Create provider request mocks for different networks
+        const globalNetworkRequest = jest.fn().mockResolvedValue('global-response');
+        const domain1NetworkRequest = jest.fn().mockResolvedValue('domain1-response');
+        const domain2NetworkRequest = jest.fn().mockResolvedValue('domain2-response');
+
+        // Setup mock network clients
+        const mockGlobalClient = {
+          provider: { request: globalNetworkRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+
+        const mockDomain1Client = {
+          provider: { request: domain1NetworkRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+
+        const mockDomain2Client = {
+          provider: { request: domain2NetworkRequest },
+          blockTracker: { getLatestBlock: jest.fn() },
+        };
+
+        // Test domains
+        const domain1 = 'site1.com';
+        const domain2 = 'site2.com';
+
+        // Setup controller
+        const {
+          controller,
+          triggerPreferencesStateChange,
+          mockGetSelectedNetworkClient,
+          mockGetNetworkClientById,
+          mockHasPermissions
+        } = setup({
+          state: {
+            domains: {
+              [domain1]: 'network1',
+              [domain2]: 'network2'
+            },
+          },
+          useRequestQueuePreference: true,
+        });
+
+        // Domains have permissions
+        mockHasPermissions.mockReturnValue(true);
+
+        // Setup network client responses
+        mockGetSelectedNetworkClient.mockReturnValue(mockGlobalClient);
+        mockGetNetworkClientById.mockImplementation((networkClientId) => {
+          switch (networkClientId) {
+            case 'network1':
+              return mockDomain1Client;
+            case 'network2':
+              return mockDomain2Client;
+            default:
+              return undefined;
+          }
+        });
+
+        // 1. With useRequestQueue = true, each domain should use its specific network
+        const provider1 = controller.getProviderAndBlockTracker(domain1).provider;
+        const provider2 = controller.getProviderAndBlockTracker(domain2).provider;
+
+        await provider1.request({ method: 'eth_blockNumber' });
+        await provider2.request({ method: 'eth_blockNumber' });
+
+        expect(domain1NetworkRequest).toHaveBeenCalledTimes(1);
+        expect(domain2NetworkRequest).toHaveBeenCalledTimes(1);
+        expect(globalNetworkRequest).not.toHaveBeenCalled();
+
+        // 2. Toggle useRequestQueue off
+        triggerPreferencesStateChange({ useRequestQueue: false });
+
+        // Both domains should now use the global network
+        await provider1.request({ method: 'eth_blockNumber' });
+        await provider2.request({ method: 'eth_blockNumber' });
+
+        expect(domain1NetworkRequest).toHaveBeenCalledTimes(1); // No change
+        expect(domain2NetworkRequest).toHaveBeenCalledTimes(1); // No change
+        expect(globalNetworkRequest).toHaveBeenCalledTimes(2); // Both requests went to global
+
+        // 3. Toggle back to useRequestQueue = true
+        triggerPreferencesStateChange({ useRequestQueue: true });
+
+        // Back to domain-specific networks
+        await provider1.request({ method: 'eth_blockNumber' });
+        await provider2.request({ method: 'eth_blockNumber' });
+
+        expect(domain1NetworkRequest).toHaveBeenCalledTimes(2);
+        expect(domain2NetworkRequest).toHaveBeenCalledTimes(2);
+        expect(globalNetworkRequest).toHaveBeenCalledTimes(2); // No change
       });
     });
   });
