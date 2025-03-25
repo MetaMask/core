@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [52.2.0]
+
 ### Added
 
 - Add `gasFeeTokens` to `TransactionMeta` ([#5524](https://github.com/MetaMask/core/pull/5524))
@@ -1441,7 +1443,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.2.0...HEAD
+[52.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.1.0...@metamask/transaction-controller@52.2.0
 [52.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...@metamask/transaction-controller@52.1.0
 [52.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@51.0.0...@metamask/transaction-controller@52.0.0
 [51.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@50.0.0...@metamask/transaction-controller@51.0.0

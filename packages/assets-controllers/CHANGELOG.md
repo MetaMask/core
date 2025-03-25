@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 343.0.0 ([#5542](https://github.com/MetaMask/core/pull/5542))
-- fix: prevent undefined or empty currencies from being queried ([#5458](https://github.com/MetaMask/core/pull/5458))
-- fix: improve token rate response aborting ([#5531](https://github.com/MetaMask/core/pull/5531))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-- Revert "feat: add `MegaEth Testnet` as default network" ([#5520](https://github.com/MetaMask/core/pull/5520))
-- feat: add `MegaEth Testnet` as default network ([#5506](https://github.com/MetaMask/core/pull/5506))
-
 ## [55.0.1]
 
 ### Added
