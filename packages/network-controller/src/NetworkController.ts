@@ -621,40 +621,33 @@ export type NetworkControllerOptions = {
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
 
   /**
-   * An array of Hex Chain IDs representing the default networks to be included.
-   * If not provided, it defaults to the set of Infura networks.
+   * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
-  defaultNetworks?: ChainId[];
+  addtionalDefaultNetworks?: ChainId[];
 };
 
 /**
  * Constructs a value for the state property `networkConfigurationsByChainId`
  * which will be used if it has not been provided to the constructor.
  *
- * @param [defaultNetworks] - An array of Hex Chain IDs representing the default networks to be included.
+ * @param [addtionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default value for `networkConfigurationsByChainId`.
  */
 function getDefaultNetworkConfigurationsByChainId(
-  defaultNetworks?: ChainId[],
+  addtionalDefaultNetworks: ChainId[] = [],
 ): Record<Hex, NetworkConfiguration> {
   const infuraNetworks = getDefaultInfuraNetworkConfigurationsByChainId();
   const customNetworks = getDefaultCustomNetworkConfigurationsByChainId();
 
-  // If no default networks are provided, use the default Infura networks
-  if (!defaultNetworks || defaultNetworks.length === 0) {
-    return infuraNetworks;
-  }
-
-  return defaultNetworks.reduce<Record<Hex, NetworkConfiguration>>(
+  return addtionalDefaultNetworks.reduce<Record<Hex, NetworkConfiguration>>(
     (obj, chainId) => {
-      if (hasProperty(infuraNetworks, chainId)) {
-        obj[chainId] = infuraNetworks[chainId];
-      } else if (hasProperty(customNetworks, chainId)) {
+      if (hasProperty(customNetworks, chainId)) {
         obj[chainId] = customNetworks[chainId];
       }
       return obj;
     },
-    {},
+    // Always include the infura networks in the default networks
+    infuraNetworks,
   );
 }
 
@@ -731,15 +724,15 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
  * Constructs properties for the NetworkController state whose values will be
  * used if not provided to the constructor.
  *
- * @param [defaultNetworks] - An array of Hex Chain IDs representing the default networks to be included.
+ * @param [addtionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default NetworkController state.
  */
 export function getDefaultNetworkControllerState(
-  defaultNetworks?: ChainId[],
+  addtionalDefaultNetworks?: ChainId[],
 ): NetworkState {
   const networksMetadata = {};
   const networkConfigurationsByChainId =
-    getDefaultNetworkConfigurationsByChainId(defaultNetworks);
+    getDefaultNetworkConfigurationsByChainId(addtionalDefaultNetworks);
 
   return {
     selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -1087,10 +1080,10 @@ export class NetworkController extends BaseController<
       infuraProjectId,
       log,
       getRpcServiceOptions,
-      defaultNetworks,
+      addtionalDefaultNetworks,
     } = options;
     const initialState = {
-      ...getDefaultNetworkControllerState(defaultNetworks),
+      ...getDefaultNetworkControllerState(addtionalDefaultNetworks),
       ...state,
     };
     validateNetworkControllerState(initialState);
