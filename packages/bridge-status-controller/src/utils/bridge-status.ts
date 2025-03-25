@@ -56,11 +56,11 @@ export const fetchBridgeTxStatus = async (
   const isValid = validateStatusResponse(rawTxStatus);
 
   if (!isValid) {
-    throw new Error(`Invalid response from bridge ${JSON.stringify(rawTxStatus)}`);
+    throw new Error(`Invalid response from bridge.`);
   }
 
   // Return
-  return rawTxStatus as StatusResponse;
+  return rawTxStatus;
 };
 
 export const getStatusRequestWithSrcTxHash = (

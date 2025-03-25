@@ -5,7 +5,6 @@ import {
   type,
   is,
   optional,
-  enums,
 } from '@metamask/superstruct';
 
 import { type StatusResponse } from '../types';
