@@ -2516,14 +2516,17 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to update.
    * @param contractAddress - The contract address of the selected gas fee token.
    */
-  updateSelectedGasFeeToken(transactionId: string, contractAddress: Hex) {
+  updateSelectedGasFeeToken(
+    transactionId: string,
+    contractAddress: Hex | undefined,
+  ) {
     this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
       const hasMatchingGasFeeToken = transactionMeta.gasFeeTokens?.some(
         (token) =>
-          token.tokenAddress.toLowerCase() === contractAddress.toLowerCase(),
+          token.tokenAddress.toLowerCase() === contractAddress?.toLowerCase(),
       );
 
-      if (!hasMatchingGasFeeToken) {
+      if (contractAddress && !hasMatchingGasFeeToken) {
         throw new Error(
           `No matching gas fee token found with address - ${contractAddress}`,
         );
