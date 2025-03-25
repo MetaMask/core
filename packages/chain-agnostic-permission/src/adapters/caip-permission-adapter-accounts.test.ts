@@ -329,5 +329,43 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       });
     });
+
+    it('adds accounts for scopes with matching namespaces including for accounts where the fully chainId scope does not exist in the caveat', () => {
+      const input: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1'],
+          },
+        },
+        optionalScopes: {
+          'eip155:5': {
+            accounts: [],
+          },
+        },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = setPermittedAccounts(input, [
+        'eip155:1:0xabc',
+        'eip155:5:0xdef',
+        'eip155:137:0xghi',
+      ]);
+
+      expect(result).toStrictEqual({
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xabc', 'eip155:1:0xdef', 'eip155:1:0xghi'],
+          },
+        },
+        optionalScopes: {
+          'eip155:5': {
+            accounts: ['eip155:5:0xabc', 'eip155:5:0xdef', 'eip155:5:0xghi'],
+          },
+        },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      });
+    });
   });
 });

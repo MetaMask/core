@@ -141,7 +141,7 @@ export const setEthAccounts = (
 };
 
 /**
- * Sets the permitted accounts for the given scopes object.
+ * Sets the permitted accounts to scopes with matching namespaces in the given scopes object.
  *
  * @param scopesObject - The scopes object to set the permitted accounts for.
  * @param accounts - The permitted accounts to add to the appropriate scopes.
@@ -185,7 +185,7 @@ const setPermittedAccountsForScopesObject = (
 };
 
 /**
- * Sets the permitted accounts for the given CAIP-25 caveat value.
+ * Sets the permitted accounts to scopes with matching namespaces in the given CAIP-25 caveat value.
  *
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted accounts for.
  * @param accounts - The permitted accounts to add to the appropriate scopes.
