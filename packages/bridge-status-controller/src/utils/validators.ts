@@ -45,9 +45,11 @@ export const validateStatusResponse = (
 
   const RefuelStatusResponseSchema = type({
     status: string(),
-    txHash: optional(string()),
-    amount: optional(string()),
-    token: optional(TokenSchema),
+    bridge: optional(string()),
+    srcChain: SrcChainSchema,
+    destChain: DestChainStatusSchema,
+    isExpectedToken: optional(boolean()),
+    isUnrecognizedRouterAddress: optional(boolean()),
   });
 
   const StatusResponseSchema = type({
