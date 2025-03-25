@@ -11,6 +11,7 @@ import { cloneDeep, merge } from 'lodash';
 
 import { TransactionPoller } from './TransactionPoller';
 import { createModuleLogger, projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
@@ -107,6 +108,7 @@ export class PendingTransactionTracker {
     getGlobalLock,
     publishTransaction,
     hooks,
+    messenger,
   }: {
     blockTracker: BlockTracker;
     getChainId: () => string;
@@ -125,6 +127,7 @@ export class PendingTransactionTracker {
       ) => boolean;
       beforePublish?: (transactionMeta: TransactionMeta) => boolean;
     };
+    messenger: TransactionControllerMessenger;
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
@@ -138,7 +141,11 @@ export class PendingTransactionTracker {
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
-    this.#transactionPoller = new TransactionPoller(blockTracker);
+    this.#transactionPoller = new TransactionPoller(
+      blockTracker,
+      messenger,
+      getChainId(),
+    );
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);

@@ -3,10 +3,9 @@ import { createModuleLogger } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
-
-export const ACCELERATED_COUNT_MAX = 10;
-export const ACCELERATED_INTERVAL = 1000 * 3; // 3 Seconds
+import { getAcceleratedPollingParams } from '../utils/feature-flags';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
@@ -17,6 +16,10 @@ const log = createModuleLogger(projectLogger, 'transaction-poller');
  */
 export class TransactionPoller {
   #acceleratedCount = 0;
+
+  readonly #acceleratedCountMax: number;
+
+  readonly #acceleratedInterval: number;
 
   readonly #blockTracker: BlockTracker;
 
@@ -30,8 +33,20 @@ export class TransactionPoller {
 
   #timeout?: NodeJS.Timeout;
 
-  constructor(blockTracker: BlockTracker) {
+  constructor(
+    blockTracker: BlockTracker,
+    messenger: TransactionControllerMessenger,
+    chainId: string,
+  ) {
     this.#blockTracker = blockTracker;
+
+    const { countMax, intervalMs } = getAcceleratedPollingParams(
+      chainId as string,
+      messenger,
+    );
+
+    this.#acceleratedCountMax = countMax;
+    this.#acceleratedInterval = intervalMs;
   }
 
   /**
@@ -112,7 +127,7 @@ export class TransactionPoller {
       return;
     }
 
-    if (this.#acceleratedCount >= ACCELERATED_COUNT_MAX) {
+    if (this.#acceleratedCount >= this.#acceleratedCountMax) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#blockTrackerListener = (latestBlockNumber) =>
         this.#interval(false, latestBlockNumber);
@@ -130,7 +145,7 @@ export class TransactionPoller {
     this.#timeout = setTimeout(async () => {
       await this.#interval(true);
       this.#queue();
-    }, ACCELERATED_INTERVAL);
+    }, this.#acceleratedInterval);
   }
 
   async #interval(isAccelerated: boolean, latestBlockNumber?: string) {

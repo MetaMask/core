@@ -8,6 +8,8 @@ export const FEATURE_FLAG_TRANSACTIONS = 'confirmations_transactions';
 export const FEATURE_FLAG_EIP_7702 = 'confirmations_eip_7702';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
+const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
+const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
 
 export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_EIP_7702]?: {
@@ -34,6 +36,33 @@ export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_TRANSACTIONS]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+
+    acceleratedPolling?: {
+      /**
+       * Accelerated polling is used to speed up the polling process for
+       * transactions that are not yet confirmed.
+       */
+      perChainConfig?: {
+        /** Accelerated polling parameters on a per-chain basis. */
+
+        [chainId: string]: {
+          /**
+           * Maximum number of polling requests that can be made in a row, before
+           * the normal polling resumes.
+           */
+          countMax?: number;
+
+          /** Interval between polling requests in milliseconds. */
+          intervalMs?: number;
+        };
+      };
+
+      /** Default `countMax` in case no chain-specific parameter is set. */
+      defaultCountMax?: number;
+
+      /** Default `intervalMs` in case no chain-specific parameter is set. */
+      defaultIntervalMs?: number;
+    };
   };
 };
 
@@ -114,6 +143,35 @@ export function getBatchSizeLimit(
     featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.batchSizeLimit ??
     DEFAULT_BATCH_SIZE_LIMIT
   );
+}
+
+/**
+ * Retrieves the accelerated polling parameters for a given chain ID.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The accelerated polling parameters: `countMax` and `intervalMs`.
+ */
+export function getAcceleratedPollingParams(
+  chainId: string,
+  messenger: TransactionControllerMessenger,
+): { countMax: number; intervalMs: number } {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const acceleratedPollingParams =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.acceleratedPolling;
+
+  const countMax =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ||
+    acceleratedPollingParams?.defaultCountMax ||
+    DEFAULT_ACCELERATED_POLLING_COUNT_MAX;
+
+  const intervalMs =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ||
+    acceleratedPollingParams?.defaultIntervalMs ||
+    DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
+
+  return { countMax, intervalMs };
 }
 
 /**

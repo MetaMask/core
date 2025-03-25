@@ -3632,6 +3632,7 @@ export class TransactionController extends BaseController<
           this.beforeCheckPendingTransaction.bind(this),
         beforePublish: this.beforePublish.bind(this),
       },
+      messenger: this.messagingSystem,
     });
 
     this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);
