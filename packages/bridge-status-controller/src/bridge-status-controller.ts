@@ -1,18 +1,18 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import type { BridgeClientId } from '@metamask/bridge-controller';
+import { BRIDGE_PROD_API_BASE_URL } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
   BRIDGE_STATUS_CONTROLLER_NAME,
-  DEFAULT_BRIDGE_STATUS_STATE,
+  DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
 } from './constants';
 import { StatusTypes, type BridgeStatusControllerMessenger } from './types';
 import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
-  BridgeStatusState,
   FetchFunction,
 } from './types';
 import {
@@ -23,7 +23,7 @@ import {
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
   // basically match the behavior of TransactionController
-  bridgeStatusState: {
+  txHistory: {
     persist: true,
     anonymous: false,
   },
@@ -47,16 +47,24 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #fetchFn: FetchFunction;
 
+  readonly #config: {
+    customBridgeApiBaseUrl?: string;
+  };
+
   constructor({
     messenger,
     state,
     clientId,
     fetchFn,
+    config,
   }: {
     messenger: BridgeStatusControllerMessenger;
-    state?: { bridgeStatusState?: Partial<BridgeStatusState> };
+    state?: Partial<BridgeStatusControllerState>;
     clientId: BridgeClientId;
     fetchFn: FetchFunction;
+    config?: {
+      customBridgeApiBaseUrl?: string;
+    };
   }) {
     super({
       name: BRIDGE_STATUS_CONTROLLER_NAME,
@@ -64,16 +72,14 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       messenger,
       // Restore the persisted state
       state: {
+        ...DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
         ...state,
-        bridgeStatusState: {
-          ...DEFAULT_BRIDGE_STATUS_STATE,
-          ...state?.bridgeStatusState,
-        },
       },
     });
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
+    this.#config = config ?? {};
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -100,9 +106,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   resetState = () => {
     this.update((state) => {
-      state.bridgeStatusState = {
-        ...DEFAULT_BRIDGE_STATUS_STATE,
-      };
+      state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
     });
   };
 
@@ -116,9 +120,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Wipe all networks for this address
     if (ignoreNetwork) {
       this.update((state) => {
-        state.bridgeStatusState = {
-          ...DEFAULT_BRIDGE_STATUS_STATE,
-        };
+        state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
       });
     } else {
       const { selectedNetworkClientId } = this.messagingSystem.call(
@@ -136,8 +138,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #restartPollingForIncompleteHistoryItems = () => {
     // Check for historyItems that do not have a status of complete and restart polling
-    const { bridgeStatusState } = this.state;
-    const historyItems = Object.values(bridgeStatusState.txHistory);
+    const { txHistory } = this.state;
+    const historyItems = Object.values(txHistory);
     const incompleteHistoryItems = historyItems
       .filter(
         (historyItem) =>
@@ -207,7 +209,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     };
     this.update((state) => {
       // Use the txMeta.id as the key so we can reference the txMeta in TransactionController
-      state.bridgeStatusState.txHistory[bridgeTxMeta.id] = txHistoryItem;
+      state.txHistory[bridgeTxMeta.id] = txHistoryItem;
     });
 
     this.#pollingTokensByTxMetaId[bridgeTxMeta.id] = this.startPolling({
@@ -228,13 +230,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #fetchBridgeTxStatus = async ({
     bridgeTxMetaId,
   }: FetchBridgeTxStatusArgs) => {
-    const { bridgeStatusState } = this.state;
+    const { txHistory } = this.state;
 
     try {
       // We try here because we receive 500 errors from Bridge API if we try to fetch immediately after submitting the source tx
       // Oddly mostly happens on Optimism, never on Arbitrum. By the 2nd fetch, the Bridge API responds properly.
       // Also srcTxHash may not be available immediately for STX, so we don't want to fetch in those cases
-      const historyItem = bridgeStatusState.txHistory[bridgeTxMetaId];
+      const historyItem = txHistory[bridgeTxMetaId];
       const srcTxHash = this.#getSrcTxHash(bridgeTxMetaId);
       if (!srcTxHash) {
         return;
@@ -250,6 +252,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         statusRequest,
         this.#clientId,
         this.#fetchFn,
+        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
       );
       const newBridgeHistoryItem = {
         ...historyItem,
@@ -266,8 +269,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // we need to keep track of the account that this is associated with as well so that we don't show it in Activity list for other accounts
       // First stab at this will not stop polling when you are on a different account
       this.update((state) => {
-        state.bridgeStatusState.txHistory[bridgeTxMetaId] =
-          newBridgeHistoryItem;
+        state.txHistory[bridgeTxMetaId] = newBridgeHistoryItem;
       });
 
       const pollingToken = this.#pollingTokensByTxMetaId[bridgeTxMetaId];
@@ -298,11 +300,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #getSrcTxHash = (bridgeTxMetaId: string): string | undefined => {
-    const { bridgeStatusState } = this.state;
+    const { txHistory } = this.state;
     // Prefer the srcTxHash from bridgeStatusState so we don't have to l ook up in TransactionController
     // But it is possible to have bridgeHistoryItem in state without the srcTxHash yet when it is an STX
-    const srcTxHash =
-      bridgeStatusState.txHistory[bridgeTxMetaId].status.srcChain.txHash;
+    const srcTxHash = txHistory[bridgeTxMetaId].status.srcChain.txHash;
 
     if (srcTxHash) {
       return srcTxHash;
@@ -319,14 +320,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   readonly #updateSrcTxHash = (bridgeTxMetaId: string, srcTxHash: string) => {
-    const { bridgeStatusState } = this.state;
-    if (bridgeStatusState.txHistory[bridgeTxMetaId].status.srcChain.txHash) {
+    const { txHistory } = this.state;
+    if (txHistory[bridgeTxMetaId].status.srcChain.txHash) {
       return;
     }
 
     this.update((state) => {
-      state.bridgeStatusState.txHistory[bridgeTxMetaId].status.srcChain.txHash =
-        srcTxHash;
+      state.txHistory[bridgeTxMetaId].status.srcChain.txHash = srcTxHash;
     });
   };
 
@@ -336,19 +336,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     address: string,
     selectedChainId: Hex,
   ) => {
-    const sourceTxMetaIdsToDelete = Object.keys(
-      this.state.bridgeStatusState.txHistory,
-    ).filter((txMetaId) => {
-      const bridgeHistoryItem =
-        this.state.bridgeStatusState.txHistory[txMetaId];
+    const sourceTxMetaIdsToDelete = Object.keys(this.state.txHistory).filter(
+      (txMetaId) => {
+        const bridgeHistoryItem = this.state.txHistory[txMetaId];
 
-      const hexSourceChainId = numberToHex(bridgeHistoryItem.quote.srcChainId);
+        const hexSourceChainId = numberToHex(
+          bridgeHistoryItem.quote.srcChainId,
+        );
 
-      return (
-        bridgeHistoryItem.account === address &&
-        hexSourceChainId === selectedChainId
-      );
-    });
+        return (
+          bridgeHistoryItem.account === address &&
+          hexSourceChainId === selectedChainId
+        );
+      },
+    );
 
     sourceTxMetaIdsToDelete.forEach((sourceTxMetaId) => {
       const pollingToken = this.#pollingTokensByTxMetaId[sourceTxMetaId];
@@ -361,12 +362,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
 
     this.update((state) => {
-      state.bridgeStatusState.txHistory = sourceTxMetaIdsToDelete.reduce(
+      state.txHistory = sourceTxMetaIdsToDelete.reduce(
         (acc, sourceTxMetaId) => {
           delete acc[sourceTxMetaId];
           return acc;
         },
-        state.bridgeStatusState.txHistory,
+        state.txHistory,
       );
     });
   };

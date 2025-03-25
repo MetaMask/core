@@ -45,20 +45,24 @@ describe('Scope Assert', () => {
   });
 
   describe('assertScopeSupported', () => {
-    const isChainIdSupported = jest.fn();
+    const isEvmChainIdSupported = jest.fn();
+    const isNonEvmScopeSupported = jest.fn();
+    const getNonEvmSupportedMethods = jest.fn();
 
     describe('scopeString', () => {
       it('checks if the scopeString is supported', () => {
         try {
           assertScopeSupported('scopeString', validScopeObject, {
-            isChainIdSupported,
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+            getNonEvmSupportedMethods,
           });
         } catch (err) {
           // noop
         }
         expect(MockSupported.isSupportedScopeString).toHaveBeenCalledWith(
           'scopeString',
-          isChainIdSupported,
+          { isEvmChainIdSupported, isNonEvmScopeSupported },
         );
       });
 
@@ -66,7 +70,9 @@ describe('Scope Assert', () => {
         MockSupported.isSupportedScopeString.mockReturnValue(false);
         expect(() => {
           assertScopeSupported('scopeString', validScopeObject, {
-            isChainIdSupported,
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+            getNonEvmSupportedMethods,
           });
         }).toThrow(Caip25Errors.requestedChainsNotSupportedError());
       });
@@ -86,7 +92,9 @@ describe('Scope Assert', () => {
               methods: ['eth_chainId'],
             },
             {
-              isChainIdSupported,
+              isEvmChainIdSupported,
+              isNonEvmScopeSupported,
+              getNonEvmSupportedMethods,
             },
           );
         } catch (err) {
@@ -96,6 +104,9 @@ describe('Scope Assert', () => {
         expect(MockSupported.isSupportedMethod).toHaveBeenCalledWith(
           'scopeString',
           'eth_chainId',
+          {
+            getNonEvmSupportedMethods,
+          },
         );
       });
 
@@ -109,7 +120,9 @@ describe('Scope Assert', () => {
               methods: ['eth_chainId'],
             },
             {
-              isChainIdSupported,
+              isEvmChainIdSupported,
+              isNonEvmScopeSupported,
+              getNonEvmSupportedMethods,
             },
           );
         }).toThrow(Caip25Errors.requestedMethodsNotSupportedError());
@@ -125,7 +138,9 @@ describe('Scope Assert', () => {
               notifications: ['chainChanged'],
             },
             {
-              isChainIdSupported,
+              isEvmChainIdSupported,
+              isNonEvmScopeSupported,
+              getNonEvmSupportedMethods,
             },
           );
         } catch (err) {
@@ -149,7 +164,9 @@ describe('Scope Assert', () => {
               notifications: ['chainChanged'],
             },
             {
-              isChainIdSupported,
+              isEvmChainIdSupported,
+              isNonEvmScopeSupported,
+              getNonEvmSupportedMethods,
             },
           );
         }).toThrow(Caip25Errors.requestedNotificationsNotSupportedError());
@@ -168,7 +185,9 @@ describe('Scope Assert', () => {
               accounts: ['eip155:1:0xdeadbeef'],
             },
             {
-              isChainIdSupported,
+              isEvmChainIdSupported,
+              isNonEvmScopeSupported,
+              getNonEvmSupportedMethods,
             },
           ),
         ).toBeUndefined();
@@ -177,14 +196,18 @@ describe('Scope Assert', () => {
   });
 
   describe('assertScopesSupported', () => {
-    const isChainIdSupported = jest.fn();
+    const isEvmChainIdSupported = jest.fn();
+    const isNonEvmScopeSupported = jest.fn();
+    const getNonEvmSupportedMethods = jest.fn();
 
     it('does not throw an error if no scopes are defined', () => {
       expect(
         assertScopesSupported(
           {},
           {
-            isChainIdSupported,
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+            getNonEvmSupportedMethods,
           },
         ),
       ).toBeUndefined();
@@ -199,7 +222,9 @@ describe('Scope Assert', () => {
             'eip155:1': validScopeObject,
           },
           {
-            isChainIdSupported,
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+            getNonEvmSupportedMethods,
           },
         );
       }).toThrow(Caip25Errors.requestedChainsNotSupportedError());
@@ -215,7 +240,9 @@ describe('Scope Assert', () => {
             'eip155:2': validScopeObject,
           },
           {
-            isChainIdSupported,
+            isEvmChainIdSupported,
+            isNonEvmScopeSupported,
+            getNonEvmSupportedMethods,
           },
         ),
       ).toBeUndefined();

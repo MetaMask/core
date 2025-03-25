@@ -1,39 +1,89 @@
+import { AddressZero } from '@ethersproject/constants';
+import { Contract } from '@ethersproject/contracts';
+import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { Hex } from '@metamask/utils';
-import { Contract } from 'ethers';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
+import { isCaipChainId, isStrictHexString, type Hex } from '@metamask/utils';
 
 import {
+  formatChainIdToCaip,
+  formatChainIdToDec,
+  formatChainIdToHex,
+} from './caip-formatters';
+import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
-  BRIDGE_DEV_API_BASE_URL,
-  BRIDGE_PROD_API_BASE_URL,
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
-import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
-import type { BridgeControllerState } from '../types';
+import {
+  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+  SYMBOL_TO_SLIP44_MAP,
+  type SupportedSwapsNativeCurrencySymbols,
+} from '../constants/tokens';
+import type { BridgeAsset, BridgeControllerState } from '../types';
+import { ChainId } from '../types';
 
 export const getDefaultBridgeControllerState = (): BridgeControllerState => {
   return DEFAULT_BRIDGE_CONTROLLER_STATE;
 };
 
-export const getBridgeApiBaseUrl = () => {
-  if (process.env.BRIDGE_CUSTOM_API_BASE_URL) {
-    return process.env.BRIDGE_CUSTOM_API_BASE_URL;
-  }
-
-  if (process.env.BRIDGE_USE_DEV_APIS) {
-    return BRIDGE_DEV_API_BASE_URL;
-  }
-
-  return BRIDGE_PROD_API_BASE_URL;
+/**
+ * Returns the native assetType for a given chainId and native currency symbol
+ * Note that the return value is used as the assetId although it is a CaipAssetType
+ *
+ * @param chainId - The chainId to get the native assetType for
+ * @param nativeCurrencySymbol - The native currency symbol for the given chainId
+ * @returns The native assetType for the given chainId
+ */
+const getNativeAssetCaipAssetType = (
+  chainId: CaipChainId,
+  nativeCurrencySymbol: SupportedSwapsNativeCurrencySymbols,
+): CaipAssetType => {
+  return `${formatChainIdToCaip(chainId)}/${SYMBOL_TO_SLIP44_MAP[nativeCurrencySymbol]}`;
 };
+
+/**
+ * Returns the native swaps or bridge asset for a given chainId
+ *
+ * @param chainId - The chainId to get the default token for
+ * @returns The native asset for the given chainId
+ * @throws If no native asset is defined for the given chainId
+ */
+export const getNativeAssetForChainId = (
+  chainId: string | number | Hex | CaipChainId,
+): BridgeAsset => {
+  const chainIdInCaip = formatChainIdToCaip(chainId);
+  const nativeToken =
+    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
+      formatChainIdToCaip(
+        chainId,
+      ) as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+    ] ??
+    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
+      formatChainIdToHex(
+        chainId,
+      ) as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+    ];
+
+  if (!nativeToken) {
+    throw new Error(
+      `No XChain Swaps native asset found for chainId: ${chainId}`,
+    );
+  }
+
+  return {
+    ...nativeToken,
+    chainId: formatChainIdToDec(chainId),
+    assetId: getNativeAssetCaipAssetType(chainIdInCaip, nativeToken.symbol),
+  };
+};
+
 /**
  * A function to return the txParam data for setting allowance to 0 for USDT on Ethereum
  *
  * @returns The txParam data that will reset allowance to 0, combine it with the approval tx params received from Bridge API
  */
-
 export const getEthUsdtResetData = () => {
   const UsdtContractInterface = new Contract(ETH_USDT_ADDRESS, abiERC20)
     .interface;
@@ -57,6 +107,7 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
   const sum = hexStrings.reduce((acc, hex) => acc + BigInt(hex), BigInt(0));
   return `0x${sum.toString(16)}`;
 };
+
 /**
  * Checks whether the provided address is strictly equal to the address for
  * the default swaps token of the provided chain.
@@ -65,19 +116,17 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the address is the provided chain's default token address
  */
-
-export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
+export const isSwapsDefaultTokenAddress = (
+  address: string,
+  chainId: Hex | CaipChainId,
+) => {
   if (!address || !chainId) {
     return false;
   }
 
-  return (
-    address ===
-    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-    ]?.address
-  );
+  return address === getNativeAssetForChainId(chainId)?.address;
 };
+
 /**
  * Checks whether the provided symbol is strictly equal to the symbol for
  * the default swaps token of the provided chain.
@@ -86,16 +135,43 @@ export const isSwapsDefaultTokenAddress = (address: string, chainId: Hex) => {
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the symbol is the provided chain's default token symbol
  */
-
-export const isSwapsDefaultTokenSymbol = (symbol: string, chainId: Hex) => {
+export const isSwapsDefaultTokenSymbol = (
+  symbol: string,
+  chainId: Hex | CaipChainId,
+) => {
   if (!symbol || !chainId) {
     return false;
   }
 
-  return (
-    symbol ===
-    SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-    ]?.symbol
-  );
+  return symbol === getNativeAssetForChainId(chainId)?.symbol;
+};
+
+/**
+ * Checks whether the address is a native asset in any supported xchain swaps network
+ *
+ * @param address - The address to check
+ * @returns Whether the address is a native asset
+ */
+export const isNativeAddress = (address?: string | null) =>
+  address === AddressZero || // bridge and swap apis set the native asset address to zero
+  address === '' || // assets controllers set the native asset address to an empty string
+  !address ||
+  address.endsWith('11111111111111111111111111111111') || // token-api and bridge-api use this as the solana native assetId
+  [getNativeAssetForChainId(ChainId.SOLANA).assetId].some(
+    (assetId) => assetId.includes(address) && !isStrictHexString(address),
+  ); // solana native assetId used in the extension client
+
+/**
+ * Checks whether the chainId matches Solana in CaipChainId or number format
+ *
+ * @param chainId - The chainId to check
+ * @returns Whether the chainId is Solana
+ */
+export const isSolanaChainId = (
+  chainId: Hex | number | CaipChainId | string,
+) => {
+  if (isCaipChainId(chainId)) {
+    return chainId === SolScope.Mainnet.toString();
+  }
+  return chainId.toString() === ChainId.SOLANA.toString();
 };

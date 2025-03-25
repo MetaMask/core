@@ -15,9 +15,18 @@ import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
+  GasPriceGasFeeEstimates,
+  FeeMarketGasFeeEstimates,
   Layer1GasFeeFlow,
+  LegacyGasFeeEstimates,
+  TransactionMeta,
 } from '../types';
-import { TransactionStatus, type TransactionMeta } from '../types';
+import {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  TransactionStatus,
+  TransactionEnvelopeType,
+} from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
@@ -31,19 +40,21 @@ const INTERVAL_MILLISECONDS = 10000;
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
 
-  #findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
+  readonly #findNetworkClientIdByChainId: (
+    chainId: Hex,
+  ) => NetworkClientId | undefined;
 
-  #gasFeeFlows: GasFeeFlow[];
+  readonly #gasFeeFlows: GasFeeFlow[];
 
-  #getGasFeeControllerEstimates: (
+  readonly #getGasFeeControllerEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  #getProvider: (networkClientId: NetworkClientId) => Provider;
+  readonly #getProvider: (networkClientId: NetworkClientId) => Provider;
 
-  #getTransactions: () => TransactionMeta[];
+  readonly #getTransactions: () => TransactionMeta[];
 
-  #layer1GasFeeFlows: Layer1GasFeeFlow[];
+  readonly #layer1GasFeeFlows: Layer1GasFeeFlow[];
 
   #timeout: ReturnType<typeof setTimeout> | undefined;
 
@@ -51,6 +62,7 @@ export class GasFeePoller {
 
   /**
    * Constructs a new instance of the GasFeePoller.
+   *
    * @param options - The options for this instance.
    * @param options.findNetworkClientIdByChainId - Callback to find the network client ID by chain ID.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
@@ -291,5 +303,112 @@ export class GasFeePoller {
     );
 
     return new Map(await Promise.all(entryPromises));
+  }
+}
+
+/**
+ * Update the gas fees for a transaction.
+ *
+ * @param args - Argument bag.
+ * @param args.txMeta - The transaction meta.
+ * @param args.gasFeeEstimates - The gas fee estimates.
+ * @param args.gasFeeEstimatesLoaded - Whether the gas fee estimates are loaded.
+ * @param args.getEIP1559Compatibility - A function for verifying a network is EIP-1559 compatible.
+ * @param args.isTxParamsGasFeeUpdatesEnabled - Whether to update the gas fee properties in `txParams`.
+ * @param args.layer1GasFee - The layer 1 gas fee.
+ */
+export async function updateTransactionGasFees({
+  txMeta,
+  getEIP1559Compatibility,
+  gasFeeEstimates,
+  gasFeeEstimatesLoaded,
+  isTxParamsGasFeeUpdatesEnabled,
+  layer1GasFee,
+}: {
+  txMeta: TransactionMeta;
+  getEIP1559Compatibility: (
+    networkClientId: NetworkClientId,
+  ) => Promise<boolean>;
+  gasFeeEstimates?: GasFeeEstimates;
+  gasFeeEstimatesLoaded?: boolean;
+  isTxParamsGasFeeUpdatesEnabled: boolean;
+  layer1GasFee?: Hex;
+}): Promise<void> {
+  const userFeeLevel = txMeta.userFeeLevel as GasFeeEstimateLevel;
+  const isUsingGasFeeEstimateLevel =
+    Object.values(GasFeeEstimateLevel).includes(userFeeLevel);
+  const { type: gasEstimateType } = gasFeeEstimates ?? {};
+
+  if (isTxParamsGasFeeUpdatesEnabled && isUsingGasFeeEstimateLevel) {
+    const isEIP1559Compatible =
+      txMeta.txParams.type !== TransactionEnvelopeType.legacy &&
+      (await getEIP1559Compatibility(txMeta.networkClientId));
+
+    if (isEIP1559Compatible) {
+      // Handle EIP-1559 compatible transactions
+      if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+        const feeMarketGasFeeEstimates =
+          gasFeeEstimates as FeeMarketGasFeeEstimates;
+
+        txMeta.txParams.maxFeePerGas =
+          feeMarketGasFeeEstimates[userFeeLevel].maxFeePerGas;
+        txMeta.txParams.maxPriorityFeePerGas =
+          feeMarketGasFeeEstimates[userFeeLevel].maxPriorityFeePerGas;
+      }
+
+      if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+        const gasPriceGasFeeEstimates =
+          gasFeeEstimates as GasPriceGasFeeEstimates;
+
+        txMeta.txParams.maxFeePerGas = gasPriceGasFeeEstimates.gasPrice;
+        txMeta.txParams.maxPriorityFeePerGas = gasPriceGasFeeEstimates.gasPrice;
+      }
+
+      if (gasEstimateType === GasFeeEstimateType.Legacy) {
+        const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+        const gasPrice = legacyGasFeeEstimates[userFeeLevel];
+
+        txMeta.txParams.maxFeePerGas = gasPrice;
+        txMeta.txParams.maxPriorityFeePerGas = gasPrice;
+      }
+
+      // Remove gasPrice for EIP-1559 transactions
+      delete txMeta.txParams.gasPrice;
+    } else {
+      // Handle non-EIP-1559 transactions
+      if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
+        const feeMarketGasFeeEstimates =
+          gasFeeEstimates as FeeMarketGasFeeEstimates;
+        txMeta.txParams.gasPrice =
+          feeMarketGasFeeEstimates[userFeeLevel].maxFeePerGas;
+      }
+
+      if (gasEstimateType === GasFeeEstimateType.GasPrice) {
+        const gasPriceGasFeeEstimates =
+          gasFeeEstimates as GasPriceGasFeeEstimates;
+        txMeta.txParams.gasPrice = gasPriceGasFeeEstimates.gasPrice;
+      }
+
+      if (gasEstimateType === GasFeeEstimateType.Legacy) {
+        const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+        txMeta.txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
+      }
+
+      // Remove EIP-1559 specific parameters for legacy transactions
+      delete txMeta.txParams.maxFeePerGas;
+      delete txMeta.txParams.maxPriorityFeePerGas;
+    }
+  }
+
+  if (gasFeeEstimates) {
+    txMeta.gasFeeEstimates = gasFeeEstimates;
+  }
+
+  if (gasFeeEstimatesLoaded !== undefined) {
+    txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+  }
+
+  if (layer1GasFee) {
+    txMeta.layer1GasFee = layer1GasFee;
   }
 }

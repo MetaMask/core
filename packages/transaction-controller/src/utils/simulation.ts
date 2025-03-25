@@ -4,6 +4,14 @@ import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
+import { simulateTransactions } from './simulation-api';
+import type {
+  SimulationResponseLog,
+  SimulationRequestTransaction,
+  SimulationResponse,
+  SimulationResponseCallTrace,
+  SimulationResponseTransaction,
+} from './simulation-api';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
@@ -19,26 +27,15 @@ import type {
   SimulationData,
   SimulationTokenBalanceChange,
   SimulationToken,
+  GasFeeToken,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
-import { simulateTransactions } from './simulation-api';
-import type {
-  SimulationResponseLog,
-  SimulationRequestTransaction,
-  SimulationResponse,
-  SimulationResponseCallTrace,
-  SimulationResponseTransaction,
-} from './simulation-api';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
   ERC721 = 'erc721',
   ERC1155 = 'erc1155',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC20_WRAPPED = 'erc20Wrapped',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC721_LEGACY = 'erc721Legacy',
 }
 
@@ -50,6 +47,11 @@ export type GetSimulationDataRequest = {
   from: Hex;
   to?: Hex;
   value?: Hex;
+};
+
+export type GetSimulationDataResult = {
+  gasFeeTokens: GasFeeToken[];
+  simulationData: SimulationData;
 };
 
 type ParsedEvent = {
@@ -103,6 +105,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 
 /**
  * Generate simulation data for a transaction.
+ *
  * @param request - The transaction to simulate.
  * @param request.chainId - The chain ID of the transaction.
  * @param request.from - The sender of the transaction.
@@ -116,7 +119,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 export async function getSimulationData(
   request: GetSimulationDataRequest,
   options: GetSimulationDataOptions = {},
-): Promise<SimulationData> {
+): Promise<GetSimulationDataResult> {
   const { chainId, from, to, value, data } = request;
   const { blockTime } = options;
 
@@ -128,12 +131,14 @@ export async function getSimulationData(
         {
           data,
           from,
-          maxFeePerGas: '0x0',
-          maxPriorityFeePerGas: '0x0',
           to,
           value,
         },
       ],
+      suggestFees: {
+        withTransfer: true,
+        withFeeTransfer: true,
+      },
       withCallTrace: true,
       withLogs: true,
       ...(blockTime && {
@@ -160,9 +165,22 @@ export async function getSimulationData(
       options,
     );
 
-    return {
+    const simulationData = {
       nativeBalanceChange,
       tokenBalanceChanges,
+    };
+
+    let gasFeeTokens: GasFeeToken[] = [];
+
+    try {
+      gasFeeTokens = getGasFeeTokens(response);
+    } catch (error) {
+      log('Failed to parse gas fee tokens', error, response);
+    }
+
+    return {
+      gasFeeTokens,
+      simulationData,
     };
   } catch (error) {
     log('Failed to get simulation data', error, request);
@@ -180,10 +198,13 @@ export async function getSimulationData(
     const { code, message } = simulationError;
 
     return {
-      tokenBalanceChanges: [],
-      error: {
-        code,
-        message,
+      gasFeeTokens: [],
+      simulationData: {
+        tokenBalanceChanges: [],
+        error: {
+          code,
+          message,
+        },
       },
     };
   }
@@ -191,6 +212,7 @@ export async function getSimulationData(
 
 /**
  * Extract the native balance change from a simulation response.
+ *
  * @param userAddress - The user's account address.
  * @param response - The simulation response.
  * @returns The native balance change or undefined if unchanged.
@@ -219,6 +241,7 @@ function getNativeBalanceChange(
 
 /**
  * Extract events from a simulation response.
+ *
  * @param response - The simulation response.
  * @returns The parsed events.
  */
@@ -272,6 +295,7 @@ export function getEvents(response: SimulationResponse): ParsedEvent[] {
 
 /**
  * Normalize event arguments using ABI input definitions.
+ *
  * @param args - The raw event arguments.
  * @param abiInputs - The ABI input definitions.
  * @returns The normalized event arguments.
@@ -292,6 +316,7 @@ function normalizeEventArgs(
 
 /**
  * Normalize an event argument value.
+ *
  * @param value - The event argument value.
  * @returns The normalized event argument value.
  */
@@ -311,6 +336,7 @@ function normalizeEventArgValue(value: any): any {
 
 /**
  * Generate token balance changes from parsed events.
+ *
  * @param request - The transaction that was simulated.
  * @param events - The parsed events.
  * @param options - Additional options.
@@ -390,6 +416,7 @@ async function getTokenBalanceChanges(
 
 /**
  * Generate transactions to check token balances.
+ *
  * @param request - The transaction that was simulated.
  * @param events - The parsed events.
  * @returns A map of token balance transactions keyed by token.
@@ -461,6 +488,7 @@ function getTokenBalanceTransactions(
 
 /**
  * Check if an event needs to check the previous balance.
+ *
  * @param event - The parsed event.
  * @returns True if the prior balance check should be skipped.
  */
@@ -476,6 +504,7 @@ function skipPriorBalanceCheck(event: ParsedEvent): boolean {
 
 /**
  * Extract token IDs from a parsed event.
+ *
  * @param event - The parsed event.
  * @returns An array of token IDs.
  */
@@ -504,6 +533,7 @@ function getEventTokenIds(event: ParsedEvent): (Hex | undefined)[] {
 
 /**
  * Get the interface for a token standard.
+ *
  * @param tokenStandard - The token standard.
  * @returns The interface for the token standard.
  */
@@ -522,6 +552,7 @@ function getContractInterface(
 
 /**
  * Extract the value from a balance transaction response using the correct ABI.
+ *
  * @param from - The address to check the balance of.
  * @param token - The token to check the balance of.
  * @param response - The balance transaction response.
@@ -555,6 +586,7 @@ function getAmountFromBalanceTransactionResult(
 
 /**
  * Generate the balance transaction data for a token.
+ *
  * @param tokenStandard - The token standard.
  * @param from - The address to check the balance of.
  * @param tokenId - The token ID to check the balance of.
@@ -580,6 +612,7 @@ function getBalanceTransactionData(
 
 /**
  * Parse a raw event log using known ABIs.
+ *
  * @param eventLog - The raw event log.
  * @param interfaces - The contract interfaces.
  * @returns The parsed event log or undefined if it could not be parsed.
@@ -602,6 +635,8 @@ function parseLog(
         abi,
         standard,
       };
+      // Not used
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       continue;
     }
@@ -612,6 +647,7 @@ function parseLog(
 
 /**
  * Extract all logs from a call trace tree.
+ *
  * @param call - The root call trace.
  * @returns An array of logs.
  */
@@ -632,6 +668,7 @@ function extractLogs(
 
 /**
  * Generate balance change data from previous and new balances.
+ *
  * @param previousBalance - The previous balance.
  * @param newBalance - The new balance.
  * @returns The balance change data or undefined if unchanged.
@@ -659,6 +696,7 @@ function getSimulationBalanceChange(
 
 /**
  * Get the contract interfaces for all supported tokens.
+ *
  * @returns A map of supported tokens to their contract interfaces.
  */
 function getContractInterfaces(): Map<SupportedToken, Interface> {
@@ -671,4 +709,30 @@ function getContractInterfaces(): Map<SupportedToken, Interface> {
       return [tokenType, contractInterface];
     }),
   );
+}
+
+/**
+ * Extract gas fee tokens from a simulation response.
+ *
+ * @param response - The simulation response.
+ * @returns An array of gas fee tokens.
+ */
+function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
+  const feeLevel = response.transactions?.[0]
+    ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
+
+  const tokenFees = feeLevel?.tokenFees ?? [];
+
+  return tokenFees.map((tokenFee) => ({
+    amount: tokenFee.balanceNeededToken,
+    balance: tokenFee.currentBalanceToken,
+    decimals: tokenFee.token.decimals,
+    gas: feeLevel.gas,
+    maxFeePerGas: feeLevel.maxFeePerGas,
+    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
+    rateWei: tokenFee.rateWei,
+    recipient: tokenFee.feeRecipient,
+    symbol: tokenFee.token.symbol,
+    tokenAddress: tokenFee.token.address,
+  }));
 }

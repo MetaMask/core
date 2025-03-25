@@ -1,6 +1,6 @@
 {
   "name": "@metamask/preferences-controller",
-  "version": "15.0.2",
+  "version": "17.0.0",
   "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
@@ -48,11 +48,11 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
-    "@metamask/controller-utils": "^11.5.0"
+    "@metamask/controller-utils": "^11.6.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^19.2.1",
+    "@metamask/keyring-controller": "^21.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -63,7 +63,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^19.0.0"
+    "@metamask/keyring-controller": "^21.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

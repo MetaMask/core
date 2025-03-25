@@ -5,7 +5,7 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
 import { isEIP1559Transaction } from './utils';
-import type { Authorization } from '../types';
+import type { Authorization, TransactionBatchRequest } from '../types';
 import {
   TransactionEnvelopeType,
   TransactionType,
@@ -28,6 +28,7 @@ type GasFieldsToValidate =
  * Validates whether a transaction initiated by a specific 'from' address is permitted by the origin.
  *
  * @param options - Options bag.
+ * @param options.data - The data included in the transaction.
  * @param options.from - The address from which the transaction is initiated.
  * @param options.internalAccounts - The internal accounts added to the wallet.
  * @param options.origin - The origin or source of the transaction.
@@ -38,6 +39,7 @@ type GasFieldsToValidate =
  * @throws Throws an error if the transaction is not permitted.
  */
 export async function validateTransactionOrigin({
+  data,
   from,
   internalAccounts,
   origin,
@@ -46,6 +48,7 @@ export async function validateTransactionOrigin({
   txParams,
   type,
 }: {
+  data?: string;
   from: string;
   internalAccounts?: string[];
   origin?: string;
@@ -82,15 +85,18 @@ export async function validateTransactionOrigin({
     );
   }
 
+  const hasData = Boolean(data && data !== '0x');
+
   if (
     isExternal &&
+    hasData &&
     internalAccounts?.some(
       (account) => account.toLowerCase() === to?.toLowerCase(),
     ) &&
     type !== TransactionType.batch
   ) {
     throw rpcErrors.invalidParams(
-      'External transactions to internal accounts are not supported',
+      'External transactions to internal accounts cannot include data',
     );
   }
 }
@@ -244,6 +250,52 @@ function validateParamFrom(from: string) {
 export function validateParamTo(to?: string) {
   if (!to || typeof to !== 'string') {
     throw rpcErrors.invalidParams(`Invalid "to" address`);
+  }
+}
+
+/**
+ * Validates a transaction batch request.
+ *
+ * @param options - Options bag.
+ * @param options.internalAccounts - The internal accounts added to the wallet.
+ * @param options.request - The batch request object.
+ * @param options.sizeLimit - The maximum number of calls allowed in a batch request.
+ */
+export function validateBatchRequest({
+  internalAccounts,
+  request,
+  sizeLimit,
+}: {
+  internalAccounts: string[];
+  request: TransactionBatchRequest;
+  sizeLimit: number;
+}) {
+  const { origin } = request;
+  const isExternal = origin && origin !== ORIGIN_METAMASK;
+
+  const transactionTargetsNormalized = request.transactions.map((tx) =>
+    tx.params.to?.toLowerCase(),
+  );
+
+  const internalAccountsNormalized = internalAccounts.map((account) =>
+    account.toLowerCase(),
+  );
+
+  if (
+    isExternal &&
+    transactionTargetsNormalized.some((target) =>
+      internalAccountsNormalized.includes(target as string),
+    )
+  ) {
+    throw rpcErrors.invalidParams(
+      'Calls to internal accounts are not supported',
+    );
+  }
+
+  if (isExternal && request.transactions.length > sizeLimit) {
+    throw rpcErrors.invalidParams(
+      `Batch size cannot exceed ${sizeLimit}. got: ${request.transactions.length}`,
+    );
   }
 }
 

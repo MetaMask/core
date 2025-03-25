@@ -98,8 +98,12 @@ const createMockInternalAccount = ({
   };
 };
 
+const mockAccount1Address = '0x1234';
+
+const mockAccount2Address = '0xabc';
+
 const mockPooledStakes = {
-  account: '0x1234',
+  account: mockAccount1Address,
   lifetimeRewards: '100',
   assets: '1000',
   exitRequests: [],
@@ -208,7 +212,7 @@ const setupController = ({
   })),
 
   mockGetSelectedAccount = jest.fn(() => ({
-    address: '0x1234',
+    address: mockAccount1Address,
   })),
 }: {
   options?: Partial<ConstructorParameters<typeof EarnController>[0]>;
@@ -389,7 +393,7 @@ describe('EarnController', () => {
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -397,14 +401,29 @@ describe('EarnController', () => {
 
     it('invalidates cache when refreshing state', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakingData(true);
+      await controller.refreshPooledStakingData({ resetCache: true });
 
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         // First call occurs during setupController()
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         true,
+      );
+    });
+
+    it('refreshes state using options.address', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakingData({
+        address: mockAccount2Address,
+      });
+
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        // First call occurs during setupController()
+        2,
+        [mockAccount2Address],
+        1,
+        false,
       );
     });
 
@@ -464,12 +483,12 @@ describe('EarnController', () => {
   describe('refreshPooledStakes', () => {
     it('fetches without resetting cache when resetCache is false', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakes(false);
+      await controller.refreshPooledStakes({ resetCache: false });
 
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -482,7 +501,7 @@ describe('EarnController', () => {
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         false,
       );
@@ -490,72 +509,130 @@ describe('EarnController', () => {
 
     it('fetches while resetting cache', async () => {
       const { controller } = setupController();
-      await controller.refreshPooledStakes(true);
+      await controller.refreshPooledStakes({ resetCache: true });
 
       // Assertion on second call since the first is part of controller setup.
       expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
         2,
-        ['0x1234'],
+        [mockAccount1Address],
         1,
         true,
       );
     });
+
+    it('fetches using active account (default)', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes();
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        [mockAccount1Address],
+        1,
+        false,
+      );
+    });
+
+    it('fetches using options.address override', async () => {
+      const { controller } = setupController();
+      await controller.refreshPooledStakes({ address: mockAccount2Address });
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(mockedStakingApiService.getPooledStakes).toHaveBeenNthCalledWith(
+        2,
+        [mockAccount2Address],
+        1,
+        false,
+      );
+    });
+  });
+
+  describe('refreshStakingEligibility', () => {
+    it('fetches staking eligibility using active account (default)', async () => {
+      const { controller } = setupController();
+
+      await controller.refreshStakingEligibility();
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(
+        mockedStakingApiService.getPooledStakingEligibility,
+      ).toHaveBeenNthCalledWith(2, [mockAccount1Address]);
+    });
+
+    it('fetches staking eligibility using options.address override', async () => {
+      const { controller } = setupController();
+      await controller.refreshStakingEligibility({
+        address: mockAccount2Address,
+      });
+
+      // Assertion on second call since the first is part of controller setup.
+      expect(
+        mockedStakingApiService.getPooledStakingEligibility,
+      ).toHaveBeenNthCalledWith(2, [mockAccount2Address]);
+    });
   });
 
   describe('subscription handlers', () => {
-    const firstAccount = createMockInternalAccount({
-      address: '0x1234',
+    const account = createMockInternalAccount({
+      address: mockAccount2Address,
     });
 
-    it('updates vault data when network changes', () => {
-      const { controller, messenger } = setupController();
+    describe('On network change', () => {
+      it('updates vault data when network changes', () => {
+        const { controller, messenger } = setupController();
 
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultMetadata')
-        .mockResolvedValue();
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
-        .mockResolvedValue();
-      jest
-        .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
-        .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultMetadata')
+          .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultDailyApys')
+          .mockResolvedValue();
+        jest
+          .spyOn(controller, 'refreshPooledStakingVaultApyAverages')
+          .mockResolvedValue();
 
-      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
-      messenger.publish(
-        'NetworkController:stateChange',
-        {
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: '2',
-        },
-        [],
-      );
+        messenger.publish(
+          'NetworkController:stateChange',
+          {
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: '2',
+          },
+          [],
+        );
 
-      expect(
-        controller.refreshPooledStakingVaultMetadata,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        controller.refreshPooledStakingVaultDailyApys,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        controller.refreshPooledStakingVaultApyAverages,
-      ).toHaveBeenCalledTimes(1);
-      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultMetadata,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultDailyApys,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          controller.refreshPooledStakingVaultApyAverages,
+        ).toHaveBeenCalledTimes(1);
+        expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+      });
     });
 
-    it('updates staking eligibility when selected account changes', () => {
-      const { controller, messenger } = setupController();
+    describe('On selected account change', () => {
+      // TEMP: Workaround for issue: https://github.com/MetaMask/accounts-planning/issues/887
+      it('uses event payload account address to update staking eligibility', () => {
+        const { controller, messenger } = setupController();
 
-      jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
-      jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+        jest.spyOn(controller, 'refreshStakingEligibility').mockResolvedValue();
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
 
-      messenger.publish(
-        'AccountsController:selectedAccountChange',
-        firstAccount,
-      );
+        messenger.publish('AccountsController:selectedAccountChange', account);
 
-      expect(controller.refreshStakingEligibility).toHaveBeenCalledTimes(1);
-      expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(1);
+        expect(controller.refreshStakingEligibility).toHaveBeenNthCalledWith(
+          1,
+          { address: account.address },
+        );
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: account.address,
+        });
+      });
     });
   });
 });
