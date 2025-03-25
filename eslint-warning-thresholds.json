@@ -233,7 +233,7 @@
   },
   "packages/keyring-controller/src/KeyringController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 5,
-    "@typescript-eslint/no-unused-vars": 2
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
     "@typescript-eslint/prefer-readonly": 1

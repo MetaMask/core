@@ -48,6 +48,11 @@ export type TransactionMeta = {
   batchId?: Hex;
 
   /**
+   * Additional transactions that must also be submitted in a batch.
+   */
+  batchTransactions?: BatchTransactionParams[];
+
+  /**
    * Number of the block where the transaction has been included.
    */
   blockNumber?: string;
@@ -142,6 +147,12 @@ export type TransactionMeta = {
   destinationTokenSymbol?: string;
 
   /**
+   * Whether to disable the buffer added to gas limit estimations.
+   * Defaults to adding the buffer.
+   */
+  disableGasBuffer?: boolean;
+
+  /**
    * Error that occurred during the transaction processing.
    */
   error?: TransactionError;
@@ -172,6 +183,9 @@ export type TransactionMeta = {
    * The number of the latest block when the transaction submit was first retried.
    */
   firstRetryBlockNumber?: string;
+
+  /** Available tokens that can be used to pay for gas. */
+  gasFeeTokens?: GasFeeToken[];
 
   /**
    * Whether the transaction is active.
@@ -335,6 +349,12 @@ export type TransactionMeta = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   securityProviderResponse?: Record<string, any>;
+
+  /**
+   * The token address of the selected gas fee token.
+   * Corresponds to the `gasFeeTokens` property.
+   */
+  selectedGasFeeToken?: Hex;
 
   /**
    * An array of entries that describe the user's journey through the send flow.
@@ -1127,10 +1147,11 @@ export type TransactionError = {
  * Type for security alert response from transaction validator.
  */
 export type SecurityAlertResponse = {
-  reason: string;
   features?: string[];
-  result_type: string;
   providerRequestsCount?: Record<string, number>;
+  reason: string;
+  result_type: string;
+  securityAlertId?: string;
 };
 
 /** Alternate priority levels for which values are provided in gas fee estimates. */
@@ -1426,6 +1447,24 @@ export type BatchTransactionParams = {
   /** Data used to invoke a function on the target smart contract or EOA. */
   data?: Hex;
 
+  /**
+   * Maximum number of units of gas to use for the transaction.
+   * Not supported in EIP-7702 batches.
+   */
+  gas?: Hex;
+
+  /**
+   * Maximum amount per gas to pay for the transaction, including the priority fee.
+   * Not supported in EIP-7702 batches.
+   */
+  maxFeePerGas?: Hex;
+
+  /**
+   * Maximum amount per gas to give to validator as incentive.
+   * Not supported in EIP-7702 batches.
+   */
+  maxPriorityFeePerGas?: Hex;
+
   /** Address of the target contract or EOA. */
   to?: Hex;
 
@@ -1443,6 +1482,21 @@ export type NestedTransactionMetadata = BatchTransactionParams & {
  * Specification for a single transaction within a batch request.
  */
 export type TransactionBatchSingleRequest = {
+  /** Data if the transaction already exists. */
+  existingTransaction?: {
+    /** ID of the existing transaction. */
+    id: string;
+
+    /** Optional callback to be invoked once the transaction is published. */
+    onPublish?: (request: {
+      /** Hash of the transaction on the network. */
+      transactionHash?: string;
+    }) => void;
+
+    /** Signed transaction data. */
+    signedTransaction: Hex;
+  };
+
   /** Parameters of the single transaction. */
   params: BatchTransactionParams;
 
@@ -1469,8 +1523,28 @@ export type TransactionBatchRequest = {
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
 
+  /** Security alert ID to persist on the transaction. */
+  securityAlertId?: string;
+
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
+
+  /**
+   * Whether to use the publish batch hook to submit the batch.
+   * Defaults to false.
+   */
+  useHook?: boolean;
+
+  /**
+   * Callback to trigger security validation in the client.
+   *
+   * @param request - The JSON-RPC request to validate.
+   * @param chainId - The chain ID of the transaction batch.
+   */
+  validateSecurity?: (
+    request: ValidateSecurityRequest,
+    chainId: Hex,
+  ) => Promise<void>;
 };
 
 /**
@@ -1479,4 +1553,116 @@ export type TransactionBatchRequest = {
 export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
   batchId: Hex;
+};
+
+/**
+ * Data returned from custom logic to publish a transaction.
+ */
+export type PublishHookResult = {
+  /**
+   * The hash of the transaction on the network.
+   */
+  transactionHash?: string;
+};
+
+/**
+ * Custom logic to publish a transaction.
+ *
+ * @param transactionMeta - The metadata of the transaction to publish.
+ * @param signedTx - The signed transaction data to publish.
+ * @returns The result of the publish operation.
+ */
+export type PublishHook = (
+  transactionMeta: TransactionMeta,
+  signedTx: string,
+) => Promise<PublishHookResult>;
+
+/** Single transaction in a publish batch hook request. */
+export type PublishBatchHookTransaction = {
+  /** ID of the transaction. */
+  id?: string;
+
+  /** Parameters of the nested transaction. */
+  params: BatchTransactionParams;
+
+  /** Signed transaction data to publish. */
+  signedTx: Hex;
+};
+
+/**
+ * Data required to call a publish batch hook.
+ */
+export type PublishBatchHookRequest = {
+  /** Address of the account to submit the transaction batch. */
+  from: Hex;
+
+  /** ID of the network client associated with the transaction batch. */
+  networkClientId: string;
+
+  /** Nested transactions to be submitted as part of the batch. */
+  transactions: PublishBatchHookTransaction[];
+};
+
+/** Result of calling a publish batch hook. */
+export type PublishBatchHookResult =
+  | {
+      /** Result data for each transaction in the batch. */
+      results: {
+        /** Hash of the transaction on the network. */
+        transactionHash: Hex;
+      }[];
+    }
+  | undefined;
+
+/** Custom logic to publish a transaction batch. */
+export type PublishBatchHook = (
+  /** Data required to call the hook. */
+  request: PublishBatchHookRequest,
+) => Promise<PublishBatchHookResult>;
+
+/**
+ * Request to validate security of a transaction in the client.
+ */
+export type ValidateSecurityRequest = {
+  /** JSON-RPC method to validate. */
+  method: string;
+
+  /** Parameters of the JSON-RPC method to validate. */
+  params: unknown[];
+
+  /** Optional EIP-7702 delegation to mock for the transaction sender. */
+  delegationMock?: Hex;
+};
+
+/** Data required to pay for transaction gas using an ERC-20 token. */
+export type GasFeeToken = {
+  /** Amount needed for the gas fee. */
+  amount: Hex;
+
+  /** Current token balance of the sender. */
+  balance: Hex;
+
+  /** Decimals of the token. */
+  decimals: number;
+
+  /** The corresponding gas limit this token fee would equal. */
+  gas: Hex;
+
+  /** The corresponding maxFeePerGas this token fee would equal. */
+  maxFeePerGas: Hex;
+
+  /** The corresponding maxPriorityFeePerGas this token fee would equal. */
+  maxPriorityFeePerGas: Hex;
+
+  /** Conversion rate of 1 token to native WEI. */
+  rateWei: Hex;
+
+  /** Account address to send the token to. */
+  recipient: Hex;
+
+  /** Symbol of the token. */
+  symbol: string;
+
+  /** Address of the token contract. */
+  tokenAddress: Hex;
 };

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `gasFeeTokens` to `TransactionMeta` ([#5524](https://github.com/MetaMask/core/pull/5524))
+  - Add `GasFeeToken` type.
+  - Add `selectedGasFeeToken` to `TransactionMeta`.
+  - Add `updateSelectedGasFeeToken` method.
+- Support security validation of transaction batches ([#5526](https://github.com/MetaMask/core/pull/5526))
+  - Add `ValidateSecurityRequest` type.
+  - Add optional `securityAlertId` to `SecurityAlertResponse`.
+  - Add optional `securityAlertId` to `TransactionBatchRequest`.
+  - Add optional `validateSecurity` callback to `TransactionBatchRequest`.
+- Support publish batch hook ([#5401](https://github.com/MetaMask/core/pull/5401))
+  - Add `hooks.publishBatch` option to constructor.
+  - Add `updateBatchTransactions` method.
+  - Add `maxFeePerGas` and `maxPriorityFeePerGas` to `updateEditableParams` options.
+  - Add types.
+    - `PublishBatchHook`
+    - `PublishBatchHookRequest`
+    - `PublishBatchHookResult`
+    - `PublishBatchHookTransaction`
+    - `PublishHook`
+    - `PublishHookResult`
+  - Add optional properties to `TransactionMeta`.
+    - `batchTransactions`
+    - `disableGasBuffer`
+  - Add optional properties to `BatchTransactionParams`.
+    - `gas`
+    - `maxFeePerGas`
+    - `maxPriorityFeePerGas`
+  - Add optional `existingTransaction` property to `TransactionBatchSingleRequest`.
+  - Add optional `useHook` property to `TransactionBatchRequest`.
+
 ## [52.1.0]
 
 ### Added
@@ -41,7 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
-  - Add `delegationAddress` to `TransactionMetadata`.
+  - Add `delegationAddress` to `TransactionMeta`.
   - Add `NestedTransactionMetadata` type containing `BatchTransactionParams` and `type`.
   - Add optional `type` to `TransactionBatchSingleRequest`.
 - Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
@@ -52,8 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.1.0` ([#5481](https://github.com/MetaMask/core/pull/5481))
 - **BREAKING:** Add additional metadata for batch metrics ([#5488](https://github.com/MetaMask/core/pull/5488))
-  - Change `error` in `TransactionMetadata` to optional for all statuses.
-  - Change `nestedTransactions` in `TransactionMetadata` to array of `NestedTransactionMetadata`.
+  - Change `error` in `TransactionMeta` to optional for all statuses.
+  - Change `nestedTransactions` in `TransactionMeta` to array of `NestedTransactionMetadata`.
 - Throw if `addTransactionBatch` called with external origin and size limit exceeded ([#5489](https://github.com/MetaMask/core/pull/5489))
 - Verify EIP-7702 contract address using signatures ([#5472](https://github.com/MetaMask/core/pull/5472))
   - Use new `contracts` property from feature flags instead of `contractAddresses`.
