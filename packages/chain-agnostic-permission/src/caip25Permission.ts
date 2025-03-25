@@ -205,7 +205,7 @@ export const caip25CaveatBuilder = ({
         Object.keys(optionalScopes).length === 0
       ) {
         throw new Error(
-          `${Caip25EndowmentPermissionName} error: Received no scopes requested for caveat of type "${Caip25CaveatType}".`,
+          `${Caip25EndowmentPermissionName} error: Received no scopes for caveat of type "${Caip25CaveatType}".`,
         );
       }
 
