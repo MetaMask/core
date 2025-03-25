@@ -164,10 +164,7 @@ const filterChainScopesObjectByChainId = (
   Object.entries(scopesObject).forEach(([key, scopeObject]) => {
     // Cast needed because index type is returned as `string` by `Object.entries`
     const scopeString = key as keyof typeof scopesObject;
-    // If its a wallet scope or a wallet:* scope we don't filter it
-    if (isWalletScope(scopeString)) {
-      updatedScopesObject[scopeString] = scopeObject;
-    } else if (chainIds.includes(scopeString)) {
+    if (isWalletScope(scopeString) || chainIds.includes(scopeString)) {
       updatedScopesObject[scopeString] = scopeObject;
     }
   });

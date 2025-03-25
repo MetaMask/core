@@ -174,9 +174,11 @@ const setPermittedAccountsForScopesObject = (
       }, []);
     }
 
+    const uniqueCaipAccounts = getUniqueArrayItems(caipAccounts);
+
     updatedScopesObject[scopeString] = {
       ...scopeObject,
-      accounts: uniq(caipAccounts),
+      accounts: uniqueCaipAccounts,
     };
   });
 
@@ -207,32 +209,34 @@ export const setPermittedAccounts = (
   };
 };
 
-/**
- * Gets the requested accounts from the given CAIP-25 caveat value.
- *
- * @param requestedCaip25CaveatValue - CAIP-25 request values.
- * @returns Accounts available for requesting.
- */
-export function getAllAccountsFromCaip25Caveat(
-  requestedCaip25CaveatValue: Caip25CaveatValue,
-) {
-  const requiredAccounts = Object.values(
-    requestedCaip25CaveatValue.requiredScopes,
-  )
-    .flatMap((scope) => scope.accounts)
-    .map((account) => ({
-      address: parseCaipAccountId(account).address,
-      chainId: parseCaipAccountId(account).chainId,
-    }));
 
-  const optionalAccounts = Object.values(
-    requestedCaip25CaveatValue.optionalScopes,
-  )
-    .flatMap((scope) => scope.accounts)
-    .map((account) => ({
-      address: parseCaipAccountId(account).address,
-      chainId: parseCaipAccountId(account).chainId,
-    }));
+// TODO add this back in later
+// /**
+//  * Gets a list of unique accounts from the given CAIP-25 caveat value.
+//  *
+//  * @param requestedCaip25CaveatValue - CAIP-25 request values.
+//  * @returns Accounts available for requesting.
+//  */
+// export function getAllAccounts(
+//   requestedCaip25CaveatValue: Caip25CaveatValue,
+// ) {
+//   const requiredAccounts = Object.values(
+//     requestedCaip25CaveatValue.requiredScopes,
+//   )
+//     .flatMap((scope) => scope.accounts)
+//     .map((account) => ({
+//       address: parseCaipAccountId(account).address,
+//       chainId: parseCaipAccountId(account).chainId,
+//     }));
 
-  return [...requiredAccounts, ...optionalAccounts];
-}
+//   const optionalAccounts = Object.values(
+//     requestedCaip25CaveatValue.optionalScopes,
+//   )
+//     .flatMap((scope) => scope.accounts)
+//     .map((account) => ({
+//       address: parseCaipAccountId(account).address,
+//       chainId: parseCaipAccountId(account).chainId,
+//     }));
+
+//   return [...requiredAccounts, ...optionalAccounts];
+// }
