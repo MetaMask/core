@@ -59,7 +59,7 @@ export const validateStatusResponse = (
     status: string(),
     bridge: optional(string()),
     srcChain: SrcChainSchema,
-    destChain: DestChainStatusSchema,
+    destChain: optional(DestChainStatusSchema),
     isExpectedToken: optional(boolean()),
     isUnrecognizedRouterAddress: optional(boolean()),
     refuel: optional(RefuelStatusResponseSchema),
