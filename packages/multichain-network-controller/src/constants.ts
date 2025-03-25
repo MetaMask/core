@@ -1,5 +1,5 @@
 import { type StateMetadata } from '@metamask/base-controller';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { type CaipChainId, BtcScope, SolScope } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
 import type {
@@ -11,6 +11,11 @@ import type {
 
 export const BTC_NATIVE_ASSET = `${BtcScope.Mainnet}/slip44:0`;
 export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`;
+
+export const MULTICHAIN_NETWORK_IDS: CaipChainId[] = [
+  BtcScope.Mainnet,
+  SolScope.Mainnet,
+] as const;
 
 /**
  * Supported networks by the MultichainNetworkController
