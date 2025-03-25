@@ -5,9 +5,13 @@ import {
   type,
   is,
   optional,
+  union,
+  object,
 } from '@metamask/superstruct';
 
 import { type StatusResponse } from '../types';
+
+const EmptyObjectSchema = object({});
 
 export const validateStatusResponse = (
   data: unknown,
@@ -32,21 +36,21 @@ export const validateStatusResponse = (
     chainId: number(),
     txHash: string(),
     amount: optional(string()),
-    token: optional(TokenSchema),
+    token: optional(union([EmptyObjectSchema, TokenSchema])),
   });
 
   const DestChainStatusSchema = type({
     chainId: number(),
     txHash: optional(string()),
     amount: optional(string()),
-    token: optional(TokenSchema),
+    token: optional(union([EmptyObjectSchema, TokenSchema])),
   });
 
   const RefuelStatusResponseSchema = type({
     status: string(),
     bridge: optional(string()),
     srcChain: SrcChainSchema,
-    destChain: DestChainStatusSchema,
+    destChain: optional(DestChainStatusSchema),
     isExpectedToken: optional(boolean()),
     isUnrecognizedRouterAddress: optional(boolean()),
   });
