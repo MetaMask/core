@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- export `KnownSessionProperties` from chain-agnostic-permission package ([#5522](https://github.com/MetaMask/core.git/pull/5522))
+- throw error in caveat validator when caip25:endowment permission caveat when no scopes are requested ([#5548](https://github.com/MetaMask/core.git/pull/5548))
+- chore: add more chain agnostic utility functions for interfacing w/ caip25 permission ([#5536](https://github.com/MetaMask/core.git/pull/5536))
+
 ## [0.2.0]
 
 ### Added
@@ -28,6 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.2.0...HEAD
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.1.0...@metamask/chain-agnostic-permission@0.2.0
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chain-agnostic-permission@0.1.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/chain-agnostic-permission@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/chain-agnostic-permission@0.1.0...@metamask/chain-agnostic-permission@0.2.0
+[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/chain-agnostic-permission@0.1.0
