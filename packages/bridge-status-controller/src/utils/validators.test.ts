@@ -27,7 +27,6 @@ const BridgeTxStatusResponses = {
     },
   },
   STATUS_PENDING_VALID_MISSING_FIELDS: {
-    status: 'PENDING',
     srcChain: {
       chainId: 42161,
       txHash:
@@ -38,7 +37,6 @@ const BridgeTxStatusResponses = {
     status: 'PENDING',
     bridge: 'hop',
     srcChain: {
-      chainId: 42161,
       txHash:
         '0x5cbda572c686a5a57fe62735325e408f9164f77a4787df29ce13edef765adaa9',
       amount: '991250000000000',
@@ -256,7 +254,7 @@ describe('validators', () => {
       },
       {
         input: BridgeTxStatusResponses.STATUS_FAILED_VALID,
-        expected: false,
+        expected: true,
         description: 'valid failed bridge status',
       },
       {
