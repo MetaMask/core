@@ -100,6 +100,7 @@ import type {
   BatchTransactionParams,
   PublishHook,
   PublishBatchHook,
+  GasFeeToken,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -2509,6 +2510,32 @@ export class TransactionController extends BaseController<
     );
   }
 
+  /**
+   * Update the selected gas fee token for a transaction.
+   *
+   * @param transactionId - The ID of the transaction to update.
+   * @param contractAddress - The contract address of the selected gas fee token.
+   */
+  updateSelectedGasFeeToken(
+    transactionId: string,
+    contractAddress: Hex | undefined,
+  ) {
+    this.#updateTransactionInternal({ transactionId }, (transactionMeta) => {
+      const hasMatchingGasFeeToken = transactionMeta.gasFeeTokens?.some(
+        (token) =>
+          token.tokenAddress.toLowerCase() === contractAddress?.toLowerCase(),
+      );
+
+      if (contractAddress && !hasMatchingGasFeeToken) {
+        throw new Error(
+          `No matching gas fee token found with address - ${contractAddress}`,
+        );
+      }
+
+      transactionMeta.selectedGasFeeToken = contractAddress;
+    });
+  }
+
   private addMetadata(transactionMeta: TransactionMeta) {
     validateTxParams(transactionMeta.txParams);
     this.update((state) => {
@@ -3906,8 +3933,10 @@ export class TransactionController extends BaseController<
       tokenBalanceChanges: [],
     };
 
+    let gasFeeTokens: GasFeeToken[] = [];
+
     if (this.#isSimulationEnabled()) {
-      simulationData = await this.#trace(
+      const result = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
           getSimulationData(
@@ -3923,6 +3952,9 @@ export class TransactionController extends BaseController<
             },
           ),
       );
+
+      gasFeeTokens = result?.gasFeeTokens;
+      simulationData = result?.simulationData;
 
       if (
         blockTime &&
@@ -3956,6 +3988,7 @@ export class TransactionController extends BaseController<
         skipResimulateCheck: Boolean(blockTime),
       },
       (txMeta) => {
+        txMeta.gasFeeTokens = gasFeeTokens;
         txMeta.simulationData = simulationData;
       },
     );

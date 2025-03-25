@@ -62,12 +62,12 @@ import type {
   TransactionParams,
   TransactionHistoryEntry,
   TransactionError,
-  SimulationData,
   GasFeeFlow,
   GasFeeFlowResponse,
   SubmitHistoryEntry,
   InternalAccount,
   PublishHook,
+  GasFeeToken,
 } from './types';
 import {
   GasFeeEstimateType,
@@ -86,6 +86,7 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
+import type { GetSimulationDataResult } from './utils/simulation';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -448,24 +449,40 @@ const TRANSACTION_META_2_MOCK = {
   },
 } as TransactionMeta;
 
-const SIMULATION_DATA_MOCK: SimulationData = {
-  nativeBalanceChange: {
-    previousBalance: '0x0',
-    newBalance: '0x1',
-    difference: '0x1',
-    isDecrease: false,
-  },
-  tokenBalanceChanges: [
-    {
-      address: '0x123',
-      standard: SimulationTokenStandard.erc721,
-      id: '0x456',
-      previousBalance: '0x1',
-      newBalance: '0x3',
-      difference: '0x2',
+const SIMULATION_DATA_RESULT_MOCK: GetSimulationDataResult = {
+  gasFeeTokens: [],
+  simulationData: {
+    nativeBalanceChange: {
+      previousBalance: '0x0',
+      newBalance: '0x1',
+      difference: '0x1',
       isDecrease: false,
     },
-  ],
+    tokenBalanceChanges: [
+      {
+        address: '0x123',
+        standard: SimulationTokenStandard.erc721,
+        id: '0x456',
+        previousBalance: '0x1',
+        newBalance: '0x3',
+        difference: '0x2',
+        isDecrease: false,
+      },
+    ],
+  },
+};
+
+const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
+  amount: '0x1',
+  balance: '0x2',
+  decimals: 18,
+  gas: '0x3',
+  maxFeePerGas: '0x4',
+  maxPriorityFeePerGas: '0x5',
+  rateWei: '0x6',
+  recipient: '0x7',
+  symbol: 'ETH',
+  tokenAddress: '0x8',
 };
 
 const GAS_FEE_ESTIMATES_MOCK: GasFeeFlowResponse = {
@@ -1990,7 +2007,9 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
 
         const { controller } = setupController();
 
@@ -2021,12 +2040,14 @@ describe('TransactionController', () => {
         );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
-          SIMULATION_DATA_MOCK,
+          SIMULATION_DATA_RESULT_MOCK.simulationData,
         );
       });
 
       it('with error if simulation disabled', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
 
         const { controller } = setupController({
           options: { isSimulationEnabled: () => false },
@@ -2053,7 +2074,9 @@ describe('TransactionController', () => {
       });
 
       it('unless approval not required', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
 
         const { controller } = setupController();
 
@@ -2067,6 +2090,57 @@ describe('TransactionController', () => {
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+    });
+
+    describe('updates gas fee tokens', () => {
+      it('by default', async () => {
+        getSimulationDataMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          simulationData: {
+            tokenBalanceChanges: [],
+          },
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          GAS_FEE_TOKEN_MOCK,
+        ]);
+      });
+
+      it('unless approval not required', async () => {
+        getSimulationDataMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          simulationData: {
+            tokenBalanceChanges: [],
+          },
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          { requireApproval: false, networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+        expect(controller.state.transactions[0].gasFeeTokens).toBeUndefined();
       });
     });
 
@@ -6573,6 +6647,61 @@ describe('TransactionController', () => {
       ).rejects.toThrow(
         'Cannot update transaction as ID not found - invalidId',
       );
+    });
+  });
+
+  describe('updateSelectedGasFeeToken', () => {
+    it('updates selected gas fee token in state', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+              },
+            ],
+          },
+        },
+      });
+
+      controller.updateSelectedGasFeeToken(
+        TRANSACTION_META_MOCK.id,
+        GAS_FEE_TOKEN_MOCK.tokenAddress,
+      );
+
+      expect(controller.state.transactions[0].selectedGasFeeToken).toBe(
+        GAS_FEE_TOKEN_MOCK.tokenAddress,
+      );
+    });
+
+    it('throws if transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.updateSelectedGasFeeToken(
+          TRANSACTION_META_MOCK.id,
+          GAS_FEE_TOKEN_MOCK.tokenAddress,
+        ),
+      ).toThrow(
+        `Cannot update transaction as ID not found - ${TRANSACTION_META_MOCK.id}`,
+      );
+    });
+
+    it('throws if no matching gas fee token', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              { ...TRANSACTION_META_MOCK, gasFeeTokens: [GAS_FEE_TOKEN_MOCK] },
+            ],
+          },
+        },
+      });
+
+      expect(() =>
+        controller.updateSelectedGasFeeToken(TRANSACTION_META_MOCK.id, '0x123'),
+      ).toThrow('No matching gas fee token found');
     });
   });
 });
