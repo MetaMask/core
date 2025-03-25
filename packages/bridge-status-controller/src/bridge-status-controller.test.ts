@@ -372,7 +372,7 @@ const getMessengerMock = ({
 } = {}) =>
   ({
     call: jest.fn((method: string) => {
-      if (method === 'AccountsController:getSelectedAccount') {
+      if (method === 'AccountsController:getSelectedMultichainAccount') {
         return { address: account };
       } else if (method === 'NetworkController:findNetworkClientIdByChainId') {
         return 'networkClientId';
@@ -447,6 +447,7 @@ describe('BridgeStatusController', () => {
       });
       expect(bridgeStatusController.state).toStrictEqual(EMPTY_INIT_STATE);
     });
+
     it('rehydrates the tx history state', async () => {
       // Setup
       const bridgeStatusController = new BridgeStatusController({
@@ -466,6 +467,7 @@ describe('BridgeStatusController', () => {
       // Assertion
       expect(bridgeStatusController.state.txHistory).toMatchSnapshot();
     });
+
     it('restarts polling for history items that are not complete', async () => {
       // Setup
       jest.useFakeTimers();
@@ -567,7 +569,7 @@ describe('BridgeStatusController', () => {
 
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -725,7 +727,7 @@ describe('BridgeStatusController', () => {
 
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -807,18 +809,18 @@ describe('BridgeStatusController', () => {
       // Setup
       jest.useFakeTimers();
 
-      let getSelectedAccountCalledTimes = 0;
+      let getSelectedMultichainAccountCalledTimes = 0;
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             let account;
 
-            if (getSelectedAccountCalledTimes === 0) {
+            if (getSelectedMultichainAccountCalledTimes === 0) {
               account = '0xaccount1';
             } else {
               account = '0xaccount2';
             }
-            getSelectedAccountCalledTimes += 1;
+            getSelectedMultichainAccountCalledTimes += 1;
             return { address: account };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -900,7 +902,7 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -996,7 +998,7 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
