@@ -328,3 +328,10 @@ export type BridgeStatusControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+export type Validator<ExpectedResponse, DataToValidate> = {
+  property: keyof ExpectedResponse | string;
+  type: string;
+  validator: (value: DataToValidate) => boolean;
+};
+
