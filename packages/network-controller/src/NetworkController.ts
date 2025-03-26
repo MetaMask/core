@@ -35,6 +35,7 @@ import type {
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import { projectLogger, createModuleLogger } from './logger';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -96,6 +97,10 @@ export enum RpcEndpointType {
  */
 export type InfuraRpcEndpoint = {
   /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: string[];
+  /**
    * The optional user-facing nickname of the endpoint.
    */
   name?: string;
@@ -123,6 +128,10 @@ export type InfuraRpcEndpoint = {
  * EVM chain. It may refer to an Infura network, but only by coincidence.
  */
 export type CustomRpcEndpoint = {
+  /**
+   * Alternate RPC endpoints to use when this endpoint is down.
+   */
+  failoverUrls: string[];
   /**
    * The optional user-facing nickname of the endpoint.
    */
@@ -423,6 +432,51 @@ export type NetworkControllerNetworkRemovedEvent = {
   payload: [networkConfiguration: NetworkConfiguration];
 };
 
+/**
+ * `rpcEndpointUnavailable` is published after an attempt to make a request to
+ * an RPC endpoint fails too many times in a row (because of a connection error
+ * or an unusable response).
+ */
+export type NetworkControllerRpcEndpointUnavailableEvent = {
+  type: 'NetworkController:rpcEndpointUnavailable';
+  payload: [
+    {
+      chainId: Hex;
+      endpointUrl: string;
+      failoverEndpointUrl?: string;
+      error: unknown;
+    },
+  ];
+};
+
+/**
+ * `rpcEndpointDegraded` is published after a request to an RPC endpoint
+ * responds successfully but takes too long.
+ */
+export type NetworkControllerRpcEndpointDegradedEvent = {
+  type: 'NetworkController:rpcEndpointDegraded';
+  payload: [
+    {
+      chainId: Hex;
+      endpointUrl: string;
+    },
+  ];
+};
+
+/**
+ * `rpcEndpointRequestRetried` is published after a request to an RPC endpoint
+ * is retried following a connection error or an unusable response.
+ */
+export type NetworkControllerRpcEndpointRequestRetriedEvent = {
+  type: 'NetworkController:rpcEndpointRequestRetried';
+  payload: [
+    {
+      endpointUrl: string;
+      attempt: number;
+    },
+  ];
+};
+
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkWillChangeEvent
@@ -430,7 +484,10 @@ export type NetworkControllerEvents =
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent
   | NetworkControllerNetworkAddedEvent
-  | NetworkControllerNetworkRemovedEvent;
+  | NetworkControllerNetworkRemovedEvent
+  | NetworkControllerRpcEndpointUnavailableEvent
+  | NetworkControllerRpcEndpointDegradedEvent
+  | NetworkControllerRpcEndpointRequestRetriedEvent;
 
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -526,20 +583,39 @@ export type NetworkControllerMessenger = RestrictedMessenger<
   never
 >;
 
+/**
+ * Options for the NetworkController constructor.
+ */
 export type NetworkControllerOptions = {
+  /**
+   * The messenger suited for this controller.
+   */
   messenger: NetworkControllerMessenger;
+  /**
+   * The API key for Infura, used to make requests to Infura.
+   */
   infuraProjectId: string;
+  /**
+   * The desired state with which to initialize this controller.
+   * Missing properties will be filled in with defaults. For instance, if not
+   * specified, `networkConfigurationsByChainId` will default to a basic set of
+   * network configurations (see {@link InfuraNetworkType} for the list).
+   */
   state?: Partial<NetworkState>;
+  /**
+   * A `loglevel` logger object.
+   */
   log?: Logger;
   /**
-   * A function that can be used to make an HTTP request, compatible with the
-   * Fetch API.
+   * A function that can be used to customize the options passed to a
+   * RPC service constructed for an RPC endpoint. The object that the function
+   * should return is the same as {@link RpcServiceOptions}, except that
+   * `failoverService` and `endpointUrl` are not accepted (as they are filled in
+   * automatically).
    */
-  fetch: typeof fetch;
-  /**
-   * A function that can be used to convert a binary string into base-64.
-   */
-  btoa: typeof btoa;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
 };
 
 /**
@@ -569,6 +645,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
+          failoverUrls: [],
           networkClientId: infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,
@@ -918,23 +995,21 @@ export class NetworkController extends BaseController<
 
   #log: Logger | undefined;
 
-  readonly #fetch: typeof fetch;
-
-  readonly #btoa: typeof btoa;
+  readonly #getRpcServiceOptions: NetworkControllerOptions['getRpcServiceOptions'];
 
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
   >;
 
-  constructor({
-    messenger,
-    state,
-    infuraProjectId,
-    log,
-    fetch: givenFetch,
-    btoa: givenBtoa,
-  }: NetworkControllerOptions) {
+  /**
+   * Constructs a NetworkController.
+   *
+   * @param options - The options; see {@link NetworkControllerOptions}.
+   */
+  constructor(options: NetworkControllerOptions) {
+    const { messenger, state, infuraProjectId, log, getRpcServiceOptions } =
+      options;
     const initialState = { ...getDefaultNetworkControllerState(), ...state };
     validateNetworkControllerState(initialState);
     if (!infuraProjectId || typeof infuraProjectId !== 'string') {
@@ -963,8 +1038,7 @@ export class NetworkController extends BaseController<
 
     this.#infuraProjectId = infuraProjectId;
     this.#log = log;
-    this.#fetch = givenFetch;
-    this.#btoa = givenBtoa;
+    this.#getRpcServiceOptions = getRpcServiceOptions;
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
@@ -1239,9 +1313,8 @@ export class NetworkController extends BaseController<
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
-        networkClientId,
-      );
+      updatedIsEIP1559Compatible =
+        await this.#determineEIP1559Compatibility(networkClientId);
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
       debugLog('NetworkController: lookupNetworkByClientId: ', error);
@@ -2100,20 +2173,27 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Searches for a network configuration ID with the given ChainID and returns it.
+   * Searches for the default RPC endpoint configured for the given chain and
+   * returns its network client ID. This can then be passed to
+   * {@link getNetworkClientById} to retrieve the network client.
    *
-   * @param chainId - ChainId to search for
-   * @returns networkClientId of the network configuration with the given chainId
+   * @param chainId - Chain ID to search for.
+   * @returns The ID of the network client created for the chain's default RPC
+   * endpoint.
    */
   findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
-    const networkClients = this.getNetworkClientRegistry();
-    const networkClientEntry = Object.entries(networkClients).find(
-      ([_, networkClient]) => networkClient.configuration.chainId === chainId,
-    );
-    if (networkClientEntry === undefined) {
-      throw new Error("Couldn't find networkClientId for chainId");
+    const networkConfiguration =
+      this.state.networkConfigurationsByChainId[chainId];
+
+    if (!networkConfiguration) {
+      throw new Error(`Invalid chain ID "${chainId}"`);
     }
-    return networkClientEntry[0];
+
+    const { networkClientId } =
+      networkConfiguration.rpcEndpoints[
+        networkConfiguration.defaultRpcEndpointIndex
+      ];
+    return networkClientId;
   }
 
   /**
@@ -2446,11 +2526,12 @@ export class NetworkController extends BaseController<
             type: NetworkClientType.Infura,
             chainId: networkFields.chainId,
             network: addedRpcEndpoint.networkClientId,
+            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
-          fetch: this.#fetch,
-          btoa: this.#btoa,
+          getRpcServiceOptions: this.#getRpcServiceOptions,
+          messenger: this.messagingSystem,
         });
       } else {
         autoManagedNetworkClientRegistry[NetworkClientType.Custom][
@@ -2459,11 +2540,12 @@ export class NetworkController extends BaseController<
           networkClientConfiguration: {
             type: NetworkClientType.Custom,
             chainId: networkFields.chainId,
+            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
             rpcUrl: addedRpcEndpoint.url,
             ticker: networkFields.nativeCurrency,
           },
-          fetch: this.#fetch,
-          btoa: this.#btoa,
+          getRpcServiceOptions: this.#getRpcServiceOptions,
+          messenger: this.messagingSystem,
         });
       }
     }
@@ -2617,12 +2699,13 @@ export class NetworkController extends BaseController<
               networkClientConfiguration: {
                 type: NetworkClientType.Infura,
                 network: infuraNetworkName,
+                failoverRpcUrls: rpcEndpoint.failoverUrls,
                 infuraProjectId: this.#infuraProjectId,
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,
               },
-              fetch: this.#fetch,
-              btoa: this.#btoa,
+              getRpcServiceOptions: this.#getRpcServiceOptions,
+              messenger: this.messagingSystem,
             }),
           ] as const;
         }
@@ -2632,11 +2715,12 @@ export class NetworkController extends BaseController<
             networkClientConfiguration: {
               type: NetworkClientType.Custom,
               chainId: networkConfiguration.chainId,
+              failoverRpcUrls: rpcEndpoint.failoverUrls,
               rpcUrl: rpcEndpoint.url,
               ticker: networkConfiguration.nativeCurrency,
             },
-            fetch: this.#fetch,
-            btoa: this.#btoa,
+            getRpcServiceOptions: this.#getRpcServiceOptions,
+            messenger: this.messagingSystem,
           }),
         ] as const;
       });

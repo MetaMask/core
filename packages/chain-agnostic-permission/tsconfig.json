@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "resolveJsonModule": true,
+    "rootDir": "../.."
+  },
+  "references": [
+    { "path": "../controller-utils" },
+    { "path": "../network-controller" },
+    { "path": "../permission-controller" }
+  ],
+  "include": ["../../types", "./src"]
+}

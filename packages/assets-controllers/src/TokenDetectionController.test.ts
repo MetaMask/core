@@ -1070,6 +1070,7 @@ describe('TokenDetectionController', () => {
                       networkClientId: 'mainnet',
                       type: RpcEndpointType.Infura,
                       url: 'https://mainnet.infura.io/v3/{infuraProjectId}',
+                      failoverUrls: [],
                     },
                   ],
                   blockExplorerUrls: [],

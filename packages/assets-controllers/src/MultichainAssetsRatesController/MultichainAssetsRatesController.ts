@@ -38,19 +38,19 @@ import type {
 } from '../MultichainAssetsController';
 
 /**
- * The name of the MultiChainAssetsRatesController.
+ * The name of the MultichainAssetsRatesController.
  */
-const controllerName = 'MultiChainAssetsRatesController';
+const controllerName = 'MultichainAssetsRatesController';
 
 /**
- * State used by the MultiChainAssetsRatesController to cache token conversion rates.
+ * State used by the MultichainAssetsRatesController to cache token conversion rates.
  */
 export type MultichainAssetsRatesControllerState = {
   conversionRates: Record<CaipAssetType, AssetConversion>;
 };
 
 /**
- * Returns the state of the MultiChainAssetsRatesController.
+ * Returns the state of the MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerGetStateAction =
   ControllerGetStateAction<
@@ -63,7 +63,7 @@ export type MultichainAssetsRatesControllerGetStateAction =
  */
 export type MultichainAssetsRatesControllerUpdateRatesAction = {
   type: `${typeof controllerName}:updateAssetsRates`;
-  handler: MultiChainAssetsRatesController['updateAssetsRates'];
+  handler: MultichainAssetsRatesController['updateAssetsRates'];
 };
 
 /**
@@ -79,7 +79,7 @@ export function getDefaultMultichainAssetsRatesControllerState(): MultichainAsse
 }
 
 /**
- * Event emitted when the state of the MultiChainAssetsRatesController changes.
+ * Event emitted when the state of the MultichainAssetsRatesController changes.
  */
 export type MultichainAssetsRatesControllerStateChange =
   ControllerStateChangeEvent<
@@ -88,14 +88,14 @@ export type MultichainAssetsRatesControllerStateChange =
   >;
 
 /**
- * Actions exposed by the MultiChainAssetsRatesController.
+ * Actions exposed by the MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerActions =
   | MultichainAssetsRatesControllerGetStateAction
   | MultichainAssetsRatesControllerUpdateRatesAction;
 
 /**
- * Events emitted by MultiChainAssetsRatesController.
+ * Events emitted by MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerEvents =
   MultichainAssetsRatesControllerStateChange;
@@ -119,7 +119,7 @@ export type AllowedEvents =
   | MultichainAssetsControllerStateChangeEvent;
 
 /**
- * Messenger type for the MultiChainAssetsRatesController.
+ * Messenger type for the MultichainAssetsRatesController.
  */
 export type MultichainAssetsRatesControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -130,9 +130,9 @@ export type MultichainAssetsRatesControllerMessenger = RestrictedMessenger<
 >;
 
 /**
- * The input for starting polling in MultiChainAssetsRatesController.
+ * The input for starting polling in MultichainAssetsRatesController.
  */
-export type MultiChainAssetsRatesPollingInput = {
+export type MultichainAssetsRatesPollingInput = {
   accountId: string;
 };
 
@@ -145,7 +145,7 @@ const metadata = {
  *
  * This controller polls for token conversion rates and updates its state.
  */
-export class MultiChainAssetsRatesController extends StaticIntervalPollingController<MultiChainAssetsRatesPollingInput>()<
+export class MultichainAssetsRatesController extends StaticIntervalPollingController<MultichainAssetsRatesPollingInput>()<
   typeof controllerName,
   MultichainAssetsRatesControllerState,
   MultichainAssetsRatesControllerMessenger
@@ -159,7 +159,7 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
   #isUnlocked = true;
 
   /**
-   * Creates an instance of MultiChainAssetsRatesController.
+   * Creates an instance of MultichainAssetsRatesController.
    *
    * @param options - Constructor options.
    * @param options.interval - The polling interval in milliseconds.
@@ -213,8 +213,8 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
 
     this.messagingSystem.subscribe(
       'MultichainAssetsController:stateChange',
-      async (multiChainAssetsState: MultichainAssetsControllerState) => {
-        this.#accountsAssets = multiChainAssetsState.accountsAssets;
+      async (multichainAssetsState: MultichainAssetsControllerState) => {
+        this.#accountsAssets = multichainAssetsState.accountsAssets;
         await this.updateAssetsRates();
       },
     );
@@ -287,6 +287,10 @@ export class MultiChainAssetsRatesController extends StaticIntervalPollingContro
 
       for (const account of accounts) {
         const assets = this.#getAssetsForAccount(account.id);
+
+        if (assets?.length === 0) {
+          continue;
+        }
 
         // Build the conversions array
         const conversions = this.#buildConversions(assets);

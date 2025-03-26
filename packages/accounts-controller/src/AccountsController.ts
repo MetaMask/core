@@ -19,13 +19,13 @@ import {
 } from '@metamask/keyring-api';
 import {
   type KeyringControllerState,
-  type KeyringControllerGetKeyringForAccountAction,
   type KeyringControllerGetKeyringsByTypeAction,
-  type KeyringControllerGetAccountsAction,
   type KeyringControllerStateChangeEvent,
+  type KeyringControllerGetStateAction,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { isScopeEqualToAny } from '@metamask/keyring-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SnapControllerState,
@@ -33,13 +33,7 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import {
-  type Keyring,
-  type Json,
-  type CaipChainId,
-  isCaipChainId,
-  parseCaipChainId,
-} from '@metamask/utils';
+import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
@@ -120,9 +114,8 @@ export type AccountsControllerUpdateAccountMetadataAction = {
 };
 
 export type AllowedActions =
-  | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetAccountsAction;
+  | KeyringControllerGetStateAction;
 
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
@@ -323,7 +316,7 @@ export class AccountsController extends BaseController<
     }
 
     return accounts.filter((account) =>
-      this.#isAccountCompatibleWithChain(account, chainId),
+      isScopeEqualToAny(chainId, account.scopes),
     );
   }
 
@@ -394,14 +387,7 @@ export class AccountsController extends BaseController<
       return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
     }
 
-    if (!isCaipChainId(chainId)) {
-      throw new Error(`Invalid CAIP-2 chain ID: ${chainId as string}`);
-    }
-
-    const accounts = Object.values(this.state.internalAccounts.accounts).filter(
-      (account) => this.#isAccountCompatibleWithChain(account, chainId),
-    );
-
+    const accounts = this.listMultichainAccounts(chainId);
     return this.#getLastSelectedAccount(accounts);
   }
 
@@ -653,54 +639,52 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves to an array of InternalAccount objects.
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
-    const addresses = await this.messagingSystem.call(
-      'KeyringController:getAccounts',
-    );
     const internalAccounts: InternalAccount[] = [];
-    for (const address of addresses) {
-      const keyring = await this.messagingSystem.call(
-        'KeyringController:getKeyringForAccount',
-        address,
-      );
-
-      const keyringType = (keyring as Keyring<Json>).type;
+    const { keyrings } = await this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    for (const keyring of keyrings) {
+      const keyringType = keyring.type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
         // We only consider "normal accounts" here, so keep looping
         continue;
       }
 
-      const id = getUUIDFromAddressOfNormalAccount(address);
+      for (const address of keyring.accounts) {
+        const id = getUUIDFromAddressOfNormalAccount(address);
 
-      const nameLastUpdatedAt = this.#populateExistingMetadata(
-        id,
-        'nameLastUpdatedAt',
-      );
+        const nameLastUpdatedAt = this.#populateExistingMetadata(
+          id,
+          'nameLastUpdatedAt',
+        );
 
-      internalAccounts.push({
-        id,
-        address,
-        options: {},
-        methods: [
-          EthMethod.PersonalSign,
-          EthMethod.Sign,
-          EthMethod.SignTransaction,
-          EthMethod.SignTypedDataV1,
-          EthMethod.SignTypedDataV3,
-          EthMethod.SignTypedDataV4,
-        ],
-        scopes: [EthScope.Eoa],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: this.#populateExistingMetadata(id, 'name') ?? '',
-          ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
-          importTime:
-            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
-          keyring: {
-            type: (keyring as Keyring<Json>).type,
+        internalAccounts.push({
+          id,
+          address,
+          options: {},
+          methods: [
+            EthMethod.PersonalSign,
+            EthMethod.Sign,
+            EthMethod.SignTransaction,
+            EthMethod.SignTypedDataV1,
+            EthMethod.SignTypedDataV3,
+            EthMethod.SignTypedDataV4,
+          ],
+          scopes: [EthScope.Eoa],
+          type: EthAccountType.Eoa,
+          metadata: {
+            name: this.#populateExistingMetadata(id, 'name') ?? '',
+            ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
+            importTime:
+              this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+            lastSelected:
+              this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
+            keyring: {
+              type: keyringType,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     return internalAccounts;
@@ -1001,22 +985,6 @@ export class AccountsController extends BaseController<
     );
 
     return `${keyringName} ${index}`;
-  }
-
-  /**
-   * Checks if an account is compatible with a given chain namespace.
-   *
-   * @param account - The account to check compatibility for.
-   * @param chainId - The CAIP2 to check compatibility with.
-   * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
-   */
-  #isAccountCompatibleWithChain(
-    account: InternalAccount,
-    chainId: CaipChainId,
-  ): boolean {
-    // TODO: Change this logic to not use account's type
-    // Because we currently only use type, we can only use namespace for now.
-    return account.type.startsWith(parseCaipChainId(chainId).namespace);
   }
 
   /**

@@ -15,6 +15,7 @@ import {
   type Transaction,
   type AccountTransactionsUpdatedEventPayload,
 } from '@metamask/keyring-api';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -110,6 +111,7 @@ export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
  */
 export type AllowedActions =
   | HandleSnapRequest
+  | KeyringControllerGetStateAction
   | AccountsControllerListMultichainAccountsAction;
 
 /**
@@ -244,6 +246,14 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
+    const { isUnlocked } = this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+
+    if (!isUnlocked) {
+      return;
+    }
+
     try {
       const account = this.#listAccounts().find(
         (accountItem) => accountItem.id === accountId,
@@ -256,20 +266,7 @@ export class MultichainTransactionsController extends BaseController<
           { limit: 10 },
         );
 
-        // Filter only Solana transactions to ensure they're on mainnet.
-        // All other chain transactions are included as-is.
-        // TODO: Maybe we should not do any filtering here? Or maybe have it
-        // being configurable somehow?
-        const transactions = response.data.filter((tx) => {
-          const chain = tx.chain as MultichainNetwork;
-          const { namespace } = parseCaipChainId(chain);
-          // Enum comparison is safe here as we control both enum values
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
-          if (namespace === KnownCaipNamespace.Solana) {
-            return chain === MultichainNetwork.Solana;
-          }
-          return true;
-        });
+        const transactions = this.#filterTransactions(response.data);
 
         this.update((state: Draft<MultichainTransactionsControllerState>) => {
           const entry: TransactionStateEntry = {
@@ -287,6 +284,27 @@ export class MultichainTransactionsController extends BaseController<
         error,
       );
     }
+  }
+
+  /**
+   * Filters transactions to only include mainnet Solana transactions for Solana chains.
+   * Non-Solana chain transactions are kept as is.
+   *
+   * @param transactions - Array of transactions to filter
+   * @returns Filtered transactions array
+   */
+  #filterTransactions(transactions: Transaction[]): Transaction[] {
+    return transactions.filter((tx) => {
+      const chain = tx.chain as MultichainNetwork;
+      const { namespace } = parseCaipChainId(chain);
+
+      // Enum comparison is safe here as we control both enum values
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      if (namespace === KnownCaipNamespace.Solana) {
+        return chain === MultichainNetwork.Solana;
+      }
+      return true;
+    });
   }
 
   /**
@@ -337,13 +355,50 @@ export class MultichainTransactionsController extends BaseController<
   #handleOnAccountTransactionsUpdated(
     transactionsUpdate: AccountTransactionsUpdatedEventPayload,
   ): void {
-    this.update((state: Draft<MultichainTransactionsControllerState>) => {
-      Object.entries(transactionsUpdate.transactions).forEach(
+    const updatedTransactions: Record<string, Transaction[]> = {};
+
+    if (!transactionsUpdate?.transactions) {
+      return;
+    }
+
+    Object.entries(transactionsUpdate.transactions).forEach(
+      ([accountId, newTransactions]) => {
+        // Account might not have any transactions yet, so use `[]` in that case.
+        const oldTransactions =
+          this.state.nonEvmTransactions[accountId]?.transactions ?? [];
+
+        const filteredNewTransactions =
+          this.#filterTransactions(newTransactions);
+
+        // Uses a `Map` to deduplicate transactions by ID, ensuring we keep the latest version
+        // of each transaction while preserving older transactions and transactions from other accounts.
+        // Transactions are sorted by timestamp (newest first).
+        const transactions = new Map();
+
+        oldTransactions.forEach((tx) => {
+          transactions.set(tx.id, tx);
+        });
+
+        filteredNewTransactions.forEach((tx) => {
+          transactions.set(tx.id, tx);
+        });
+
+        // Sorted by timestamp (newest first). If the timestamp is not provided, those
+        // transactions will be put in the end of this list.
+        updatedTransactions[accountId] = Array.from(transactions.values()).sort(
+          (a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0),
+        );
+      },
+    );
+
+    this.update((state) => {
+      Object.entries(updatedTransactions).forEach(
         ([accountId, transactions]) => {
-          if (accountId in state.nonEvmTransactions) {
-            state.nonEvmTransactions[accountId].transactions = transactions;
-            state.nonEvmTransactions[accountId].lastUpdated = Date.now();
-          }
+          state.nonEvmTransactions[accountId] = {
+            ...state.nonEvmTransactions[accountId],
+            transactions,
+            lastUpdated: Date.now(),
+          };
         },
       );
     });

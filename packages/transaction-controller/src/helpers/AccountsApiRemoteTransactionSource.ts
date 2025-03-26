@@ -80,27 +80,15 @@ export class AccountsApiRemoteTransactionSource
   async #getTransactions(request: RemoteTransactionSourceRequest) {
     log('Getting transactions', request);
 
-    const { address, cache, chainIds: requestedChainIds } = request;
+    const { address, cache } = request;
 
-    const chainIds = requestedChainIds.filter((chainId) =>
-      SUPPORTED_CHAIN_IDS.includes(chainId),
-    );
-
-    const unsupportedChainIds = requestedChainIds.filter(
-      (chainId) => !chainIds.includes(chainId),
-    );
-
-    if (unsupportedChainIds.length) {
-      log('Ignoring unsupported chain IDs', unsupportedChainIds);
-    }
-
-    const cursor = this.#getCacheCursor(cache, chainIds, address);
+    const cursor = this.#getCacheCursor(cache, SUPPORTED_CHAIN_IDS, address);
 
     if (cursor) {
       log('Using cached cursor', cursor);
     }
 
-    return await this.#queryTransactions(request, chainIds, cursor);
+    return await this.#queryTransactions(request, SUPPORTED_CHAIN_IDS, cursor);
   }
 
   async #queryTransactions(

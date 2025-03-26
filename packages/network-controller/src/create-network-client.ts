@@ -25,7 +25,9 @@ import {
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
 
-import { RpcService } from './rpc-service/rpc-service';
+import type { NetworkControllerMessenger } from './NetworkController';
+import type { RpcServiceOptions } from './rpc-service/rpc-service';
+import { RpcServiceChain } from './rpc-service/rpc-service-chain';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -51,33 +53,64 @@ export type NetworkClient = {
  *
  * @param args - The arguments.
  * @param args.configuration - The network configuration.
- * @param args.fetch - A function that can be used to make an HTTP request,
- * compatible with the Fetch API.
- * @param args.btoa - A function that can be used to convert a binary string
- * into base-64.
+ * @param args.getRpcServiceOptions - Factory for constructing RPC service
+ * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
+ * @param args.messenger - The network controller messenger.
+ * See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @returns The network client.
  */
 export function createNetworkClient({
   configuration,
-  fetch: givenFetch,
-  btoa: givenBtoa,
+  getRpcServiceOptions,
+  messenger,
 }: {
   configuration: NetworkClientConfiguration;
-  fetch: typeof fetch;
-  btoa: typeof btoa;
+  getRpcServiceOptions: (
+    rpcEndpointUrl: string,
+  ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+  messenger: NetworkControllerMessenger;
 }): NetworkClient {
-  const rpcService =
+  const primaryEndpointUrl =
     configuration.type === NetworkClientType.Infura
-      ? new RpcService({
-          fetch: givenFetch,
-          btoa: givenBtoa,
-          endpointUrl: `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`,
-        })
-      : new RpcService({
-          fetch: givenFetch,
-          btoa: givenBtoa,
-          endpointUrl: configuration.rpcUrl,
-        });
+      ? `https://${configuration.network}.infura.io/v3/${configuration.infuraProjectId}`
+      : configuration.rpcUrl;
+  const availableEndpointUrls = [
+    primaryEndpointUrl,
+    ...configuration.failoverRpcUrls,
+  ];
+  const rpcService = new RpcServiceChain(
+    availableEndpointUrls.map((endpointUrl) => ({
+      ...getRpcServiceOptions(endpointUrl),
+      endpointUrl,
+    })),
+  );
+  rpcService.onBreak(({ endpointUrl, failoverEndpointUrl, ...rest }) => {
+    let error: unknown;
+    if ('error' in rest) {
+      error = rest.error;
+    } else if ('value' in rest) {
+      error = rest.value;
+    }
+
+    messenger.publish('NetworkController:rpcEndpointUnavailable', {
+      chainId: configuration.chainId,
+      endpointUrl,
+      failoverEndpointUrl,
+      error,
+    });
+  });
+  rpcService.onDegraded(({ endpointUrl }) => {
+    messenger.publish('NetworkController:rpcEndpointDegraded', {
+      chainId: configuration.chainId,
+      endpointUrl,
+    });
+  });
+  rpcService.onRetry(({ endpointUrl, attempt }) => {
+    messenger.publish('NetworkController:rpcEndpointRequestRetried', {
+      endpointUrl,
+      attempt,
+    });
+  });
 
   const rpcApiMiddleware =
     configuration.type === NetworkClientType.Infura

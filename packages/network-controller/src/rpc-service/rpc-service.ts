@@ -1,4 +1,7 @@
-import type { ServicePolicy } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from '@metamask/controller-utils';
 import {
   CircuitState,
   createServicePolicy,
@@ -16,6 +19,56 @@ import deepmerge from 'deepmerge';
 
 import type { AbstractRpcService } from './abstract-rpc-service';
 import type { AddToCockatielEventData, FetchOptions } from './shared';
+
+/**
+ * Options for the RpcService constructor.
+ */
+export type RpcServiceOptions = {
+  /**
+   * A function that can be used to convert a binary string into a
+   * base64-encoded ASCII string. Used to encode authorization credentials.
+   */
+  btoa: typeof btoa;
+  /**
+   * The URL of the RPC endpoint to hit.
+   */
+  endpointUrl: URL | string;
+  /**
+   * An RPC service that represents a failover endpoint which will be invoked
+   * while the circuit for _this_ service is open.
+   */
+  failoverService?: AbstractRpcService;
+  /**
+   * A function that can be used to make an HTTP request. If your JavaScript
+   * environment supports `fetch` natively, you'll probably want to pass that;
+   * otherwise you can pass an equivalent (such as `fetch` via `node-fetch`).
+   */
+  fetch: typeof fetch;
+  /**
+   * A common set of options that will be used to make every request. Can be
+   * overridden on the request level (e.g. to add headers).
+   */
+  fetchOptions?: FetchOptions;
+  /**
+   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` is
+   * not accepted, as it is overwritten. See {@link createServicePolicy}.
+   */
+  policyOptions?: Omit<CreateServicePolicyOptions, 'retryFilterPolicy'>;
+};
+
+/**
+ * The maximum number of times that a failing service should be re-run before
+ * giving up.
+ */
+export const DEFAULT_MAX_RETRIES = 4;
+
+/**
+ * The maximum number of times that the service is allowed to fail before
+ * pausing further retries. This is set to a value such that if given a
+ * service that continually fails, the policy needs to be executed 3 times
+ * before further retries are paused.
+ */
+export const DEFAULT_MAX_CONSECUTIVE_FAILURES = (1 + DEFAULT_MAX_RETRIES) * 3;
 
 /**
  * The list of error messages that represent a failure to connect to the network.
@@ -83,7 +136,7 @@ export const CONNECTION_ERRORS = [
  * @returns True if the error indicates that the network cannot be connected to,
  * and false otherwise.
  */
-export default function isConnectionError(error: unknown) {
+export function isConnectionError(error: unknown) {
   if (!(typeof error === 'object' && error !== null && 'message' in error)) {
     return false;
   }
@@ -144,7 +197,7 @@ export class RpcService implements AbstractRpcService {
   /**
    * The URL of the RPC endpoint.
    */
-  readonly #endpointUrl: URL;
+  readonly endpointUrl: URL;
 
   /**
    * A common set of options that the request options will extend.
@@ -155,7 +208,7 @@ export class RpcService implements AbstractRpcService {
    * An RPC service that represents a failover endpoint which will be invoked
    * while the circuit for _this_ service is open.
    */
-  readonly #failoverService: AbstractRpcService | undefined;
+  readonly #failoverService: RpcServiceOptions['failoverService'];
 
   /**
    * The policy that wraps the request.
@@ -165,46 +218,31 @@ export class RpcService implements AbstractRpcService {
   /**
    * Constructs a new RpcService object.
    *
-   * @param args - The arguments.
-   * @param args.fetch - A function that can be used to make an HTTP request.
-   * If your JavaScript environment supports `fetch` natively, you'll probably
-   * want to pass that; otherwise you can pass an equivalent (such as `fetch`
-   * via `node-fetch`).
-   * @param args.btoa - A function that can be used to convert a binary string
-   * into base-64. Used to encode authorization credentials.
-   * @param args.endpointUrl - The URL of the RPC endpoint.
-   * @param args.fetchOptions - A common set of options that will be used to
-   * make every request. Can be overridden on the request level (e.g. to add
-   * headers).
-   * @param args.failoverService - An RPC service that represents a failover
-   * endpoint which will be invoked while the circuit for _this_ service is
-   * open.
+   * @param options - The options. See {@link RpcServiceOptions}.
    */
-  constructor({
-    fetch: givenFetch,
-    btoa: givenBtoa,
-    endpointUrl,
-    fetchOptions = {},
-    failoverService,
-  }: {
-    fetch: typeof fetch;
-    btoa: typeof btoa;
-    endpointUrl: URL | string;
-    fetchOptions?: FetchOptions;
-    failoverService?: AbstractRpcService;
-  }) {
+  constructor(options: RpcServiceOptions) {
+    const {
+      btoa: givenBtoa,
+      endpointUrl,
+      failoverService,
+      fetch: givenFetch,
+      fetchOptions = {},
+      policyOptions = {},
+    } = options;
+
     this.#fetch = givenFetch;
-    this.#endpointUrl = getNormalizedEndpointUrl(endpointUrl);
+    this.endpointUrl = getNormalizedEndpointUrl(endpointUrl);
     this.#fetchOptions = this.#getDefaultFetchOptions(
-      this.#endpointUrl,
+      this.endpointUrl,
       fetchOptions,
       givenBtoa,
     );
     this.#failoverService = failoverService;
 
     const policy = createServicePolicy({
-      maxRetries: 4,
-      maxConsecutiveFailures: 15,
+      maxRetries: DEFAULT_MAX_RETRIES,
+      maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
+      ...policyOptions,
       retryFilterPolicy: handleWhen((error) => {
         return (
           // Ignore errors where the request failed to establish
@@ -235,7 +273,7 @@ export class RpcService implements AbstractRpcService {
     >,
   ) {
     return this.#policy.onRetry((data) => {
-      listener({ ...data, endpointUrl: this.#endpointUrl.toString() });
+      listener({ ...data, endpointUrl: this.endpointUrl.toString() });
     });
   }
 
@@ -250,11 +288,17 @@ export class RpcService implements AbstractRpcService {
   onBreak(
     listener: AddToCockatielEventData<
       Parameters<ServicePolicy['onBreak']>[0],
-      { endpointUrl: string }
+      { endpointUrl: string; failoverEndpointUrl?: string }
     >,
   ) {
     return this.#policy.onBreak((data) => {
-      listener({ ...data, endpointUrl: this.#endpointUrl.toString() });
+      listener({
+        ...data,
+        endpointUrl: this.endpointUrl.toString(),
+        failoverEndpointUrl: this.#failoverService
+          ? this.#failoverService.endpointUrl.toString()
+          : undefined,
+      });
     });
   }
 
@@ -273,7 +317,7 @@ export class RpcService implements AbstractRpcService {
     >,
   ) {
     return this.#policy.onDegraded(() => {
-      listener({ endpointUrl: this.#endpointUrl.toString() });
+      listener({ endpointUrl: this.endpointUrl.toString() });
     });
   }
 
@@ -437,7 +481,7 @@ export class RpcService implements AbstractRpcService {
     fetchOptions: FetchOptions,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
     return await this.#policy.execute(async () => {
-      const response = await this.#fetch(this.#endpointUrl, fetchOptions);
+      const response = await this.#fetch(this.endpointUrl, fetchOptions);
 
       if (response.status === 405) {
         throw rpcErrors.methodNotFound();

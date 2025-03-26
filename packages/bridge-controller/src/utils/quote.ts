@@ -1,14 +1,24 @@
-import type { QuoteRequest } from '../types';
+import type { GenericQuoteRequest } from '../types';
 
 export const isValidQuoteRequest = (
-  partialRequest: Partial<QuoteRequest>,
+  partialRequest: Partial<GenericQuoteRequest>,
   requireAmount = true,
-): partialRequest is QuoteRequest => {
-  const stringFields = ['srcTokenAddress', 'destTokenAddress'];
+): partialRequest is GenericQuoteRequest => {
+  const stringFields = [
+    'srcTokenAddress',
+    'destTokenAddress',
+    'srcChainId',
+    'destChainId',
+    'walletAddress',
+  ];
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
   }
-  const numberFields = ['srcChainId', 'destChainId', 'slippage'];
+  const numberFields = [];
+  // if slippage is defined, require it to be a number
+  if (partialRequest.slippage !== undefined) {
+    numberFields.push('slippage');
+  }
 
   return (
     stringFields.every(

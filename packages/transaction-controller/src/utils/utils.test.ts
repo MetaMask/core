@@ -1,11 +1,11 @@
 import { BN } from 'bn.js';
 
+import * as util from './utils';
 import type {
   FeeMarketEIP1559Values,
   GasPriceValue,
   TransactionParams,
 } from '../types';
-import * as util from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -76,6 +76,21 @@ describe('utils', () => {
           data: '123',
         }),
       ).toStrictEqual(expect.objectContaining({ data: '0x0123' }));
+    });
+
+    it('ensures gas is set to gasLimit if gas is not specified', () => {
+      expect(
+        util.normalizeTransactionParams({
+          ...TRANSACTION_PARAMS_MOCK,
+          gasLimit: '123',
+          gas: undefined,
+        }),
+      ).toStrictEqual(
+        expect.objectContaining({
+          gasLimit: '0x123',
+          gas: '0x123',
+        }),
+      );
     });
   });
 

@@ -1,5 +1,6 @@
+import { AddressZero } from '@ethersproject/constants';
+import { SolScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
-import { ZeroAddress } from 'ethers';
 
 import { CHAIN_IDS } from './chains';
 import type { BridgeControllerState } from '../types';
@@ -16,7 +17,8 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.ARBITRUM,
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
-];
+  SolScope.Mainnet,
+] as const;
 
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
 
@@ -41,25 +43,27 @@ export const REFRESH_INTERVAL_MS = 30 * 1000;
 export const DEFAULT_MAX_REFRESH_COUNT = 5;
 
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
+
+export const DEFAULT_FEATURE_FLAG_CONFIG = {
+  refreshRate: REFRESH_INTERVAL_MS,
+  maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
+  support: false,
+  chains: {},
+};
+
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   bridgeFeatureFlags: {
-    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-      refreshRate: REFRESH_INTERVAL_MS,
-      maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
-      support: false,
-      chains: {},
-    },
+    [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
+    [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
   },
   quoteRequest: {
-    walletAddress: undefined,
-    srcTokenAddress: ZeroAddress,
-    slippage: BRIDGE_DEFAULT_SLIPPAGE,
+    srcTokenAddress: AddressZero,
   },
-  quotesInitialLoadTime: undefined,
+  quotesInitialLoadTime: null,
   quotes: [],
-  quotesLastFetched: undefined,
-  quotesLoadingStatus: undefined,
-  quoteFetchError: undefined,
+  quotesLastFetched: null,
+  quotesLoadingStatus: null,
+  quoteFetchError: null,
   quotesRefreshCount: 0,
 };
 
