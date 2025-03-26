@@ -175,6 +175,10 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.call('NetworkController:removeNetwork', hexChainId);
   }
 
+  #removeNonEvmNetwork(_chainId: CaipChainId): void {
+    throw new Error('Removal of non-EVM networks is not supported yet');
+  }
+
   /**
    * Removes a network from the list of networks.
    * It only supports EVM networks.
@@ -186,6 +190,8 @@ export class MultichainNetworkController extends BaseController<
     if (isEvmCaipChainId(chainId)) {
       await this.#removeEvmNetwork(chainId);
     }
+
+    this.#removeNonEvmNetwork(chainId);
   }
 
   /**
