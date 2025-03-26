@@ -1181,7 +1181,7 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Accesses the chain ID from the selected network client
+   * Accesses the chain ID from the selected network client.
    *
    * @returns The chain ID of the selected network client in hex format or undefined if there is no network client.
    */

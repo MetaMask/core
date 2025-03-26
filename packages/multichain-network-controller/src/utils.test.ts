@@ -64,6 +64,7 @@ describe('utils', () => {
         defaultBlockExplorerUrlIndex: 0,
       });
     });
+    
     it('updates the network configuration for a single non-EVM network with undefined name', () => {
       const network: NetworkConfiguration = {
         chainId: '0x1',

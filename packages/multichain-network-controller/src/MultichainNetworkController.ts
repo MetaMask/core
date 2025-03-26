@@ -152,12 +152,15 @@ export class MultichainNetworkController extends BaseController<
       'NetworkController:getSelectedChainId',
     );
 
-    if (this.state.isEvmSelected && selectedChainId === hexChainId) {
-      throw new Error('Cannot remove the currently selected network');
-    }
+    if (selectedChainId === hexChainId) {
+      // We prevent removing the currently selected network.
+      if (this.state.isEvmSelected) {
+        throw new Error('Cannot remove the currently selected network');
+      }
 
-    if (!this.state.isEvmSelected && selectedChainId === hexChainId) {
-      const ethereumMainnetHexChainId = '0x1';
+      // If a non-EVM network is selected, we can delete the currently EVM selected network, but
+      // we automatically switch to EVM mainnet.
+      const ethereumMainnetHexChainId = '0x1'; // TODO: Should probably be a constant.
       const clientId = this.messagingSystem.call(
         'NetworkController:findNetworkClientIdByChainId',
         ethereumMainnetHexChainId,

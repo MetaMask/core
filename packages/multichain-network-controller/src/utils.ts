@@ -25,7 +25,7 @@ import type {
  */
 export function isEvmCaipChainId(chainId: CaipChainId): boolean {
   const { namespace } = parseCaipChainId(chainId);
-  return (namespace as KnownCaipNamespace) === KnownCaipNamespace.Eip155;
+  return namespace === (KnownCaipNamespace.Eip155 as string);
 }
 
 /**
