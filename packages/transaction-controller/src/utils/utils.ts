@@ -215,6 +215,13 @@ export function getPercentageChange(originalValue: BN, newValue: BN): number {
   return difference.muln(100).div(originalValuePrecision).abs().toNumber();
 }
 
+/**
+ * Calculate the absolute percentage change between two values.
+ *
+ * @param txParams - The transaction parameters to set the envelope type for.
+ * @param isEIP1559Compatible - Indicates if the current network supports EIP-1559.
+ * @returns Modifies transaction parameters with the envelope type set.
+ */
 export function setEnvelopeType(
   txParams: TransactionParams,
   isEIP1559Compatible: boolean,
