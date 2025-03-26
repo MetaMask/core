@@ -464,7 +464,7 @@ describe('AccountsController', () => {
       expect(listMultichainAccountsSpy).toHaveBeenCalled();
     });
 
-    it('not update state when only keyring is unlocked without any keyrings', async () => {
+    it('does not update state when only keyring is unlocked without any keyrings', async () => {
       const messenger = buildMessenger();
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -652,7 +652,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('handle the event when a Snap deleted the account before the it was added', async () => {
+      it('handles the event when a Snap deleted the account before it was added', async () => {
         mockUUIDWithNormalAccounts([mockAccount]);
 
         const messenger = buildMessenger();
@@ -719,6 +719,69 @@ describe('AccountsController', () => {
           setLastSelectedAsAny(mockAccount4),
         ]);
       });
+
+      it('handles the event when a Snap keyring has been deleted', async () => {
+        mockUUIDWithNormalAccounts([mockAccount]);
+
+        const messenger = buildMessenger();
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          // The Snap keyring will be treated as undefined
+          mockGetKeyringByType.mockReturnValue([]),
+        );
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address],
+            },
+            {
+              type: KeyringTypes.snap,
+              // Since the Snap keyring will be mocked as "unavailable", this account won't be added
+              // to the state (like if the Snap did remove it right before the keyring controller
+              // state change got triggered).
+              accounts: [mockAccount3.address],
+            },
+          ],
+          keyringsMetadata: [
+            {
+              id: 'mock-id',
+              name: 'mock-name',
+            },
+            {
+              id: 'mock-id2',
+              name: 'mock-name2',
+            },
+          ],
+        };
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listMultichainAccounts();
+
+        expect(accounts).toStrictEqual([
+          setLastSelectedAsAny(mockAccount),
+        ]);
+      });
+
 
       it('increment the default account number when adding an account', async () => {
         const messenger = buildMessenger();
@@ -994,7 +1057,9 @@ describe('AccountsController', () => {
 
         // First call is 'KeyringController:stateChange'
         expect(messengerSpy).toHaveBeenNthCalledWith(
-          2,
+          // 1. KeyringController:stateChange
+          // 2. AccountsController:stateChange
+          3,
           'AccountsController:accountAdded',
           setLastSelectedAsAny(mockAccount2),
         );
@@ -1298,7 +1363,9 @@ describe('AccountsController', () => {
 
         // First call is 'KeyringController:stateChange'
         expect(messengerSpy).toHaveBeenNthCalledWith(
-          2,
+          // 1. KeyringController:stateChange
+          // 2. AccountsController:stateChange
+          3,
           'AccountsController:accountRemoved',
           mockAccount3.id,
         );
@@ -1453,6 +1520,9 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it('handles Snap keyring not available', () => {
+    });
   });
 
   describe('onSnapKeyringEvents', () => {
