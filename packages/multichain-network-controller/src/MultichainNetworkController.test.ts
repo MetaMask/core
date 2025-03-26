@@ -454,12 +454,12 @@ describe('MultichainNetworkController', () => {
         getSelectedChainId: jest.fn().mockImplementation(() => '0x2'),
         findNetworkClientIdByChainId: jest
           .fn()
-          .mockImplementation(() => 'linea'),
+          .mockImplementation(() => 'ethereum'),
       });
 
       await controller.removeNetwork('eip155:2');
       expect(mockFindNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
-      expect(mockSetActiveNetwork).toHaveBeenCalledWith('linea');
+      expect(mockSetActiveNetwork).toHaveBeenCalledWith('ethereum');
       expect(mockRemoveNetwork).toHaveBeenCalledWith('0x2');
     });
 
