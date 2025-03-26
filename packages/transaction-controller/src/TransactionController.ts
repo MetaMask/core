@@ -46,7 +46,7 @@ import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, hexToNumber } from '@metamask/utils';
+import { add0x, hexToNumber, remove0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
@@ -107,6 +107,7 @@ import {
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import {
+  DELEGATION_PREFIX,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
@@ -3839,6 +3840,12 @@ export class TransactionController extends BaseController<
     };
 
     if (this.#isSimulationEnabled()) {
+      const authorizationAddress = txParams?.authorizationList?.[0]?.address;
+
+      const senderCode =
+        authorizationAddress &&
+        ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
+
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
@@ -3852,6 +3859,7 @@ export class TransactionController extends BaseController<
             },
             {
               blockTime,
+              senderCode,
             },
           ),
       );

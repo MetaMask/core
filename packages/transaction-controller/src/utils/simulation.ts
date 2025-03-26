@@ -58,6 +58,7 @@ type ParsedEvent = {
 
 type GetSimulationDataOptions = {
   blockTime?: number;
+  senderCode?: Hex;
 };
 
 const log = createModuleLogger(projectLogger, 'simulation');
@@ -115,7 +116,7 @@ export async function getSimulationData(
   options: GetSimulationDataOptions = {},
 ): Promise<SimulationData> {
   const { chainId, from, to, value, data } = request;
-  const { blockTime } = options;
+  const { blockTime, senderCode } = options;
 
   log('Getting simulation data', request);
 
@@ -136,6 +137,13 @@ export async function getSimulationData(
       ...(blockTime && {
         blockOverrides: {
           time: toHex(blockTime),
+        },
+      }),
+      ...(senderCode && {
+        overrides: {
+          [from]: {
+            code: senderCode,
+          },
         },
       }),
     });
@@ -324,7 +332,8 @@ async function getTokenBalanceChanges(
   events: ParsedEvent[],
   options: GetSimulationDataOptions,
 ): Promise<SimulationTokenBalanceChange[]> {
-  const { blockTime } = options;
+  const { from } = request;
+  const { blockTime, senderCode } = options;
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
   log('Generated balance transactions', [...balanceTxs.after.values()]);
@@ -344,6 +353,13 @@ async function getTokenBalanceChanges(
     ...(blockTime && {
       blockOverrides: {
         time: toHex(blockTime),
+      },
+    }),
+    ...(senderCode && {
+      overrides: {
+        [from]: {
+          code: senderCode,
+        },
       },
     }),
   });
