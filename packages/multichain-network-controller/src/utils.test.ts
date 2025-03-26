@@ -9,7 +9,7 @@ import { type NetworkConfiguration } from '@metamask/network-controller';
 import {
   isEvmCaipChainId,
   toEvmCaipChainId,
-  convertCaipToHexChainId,
+  convertEvmCaipToHexChainId,
   getChainIdForNonEvmAddress,
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,
@@ -64,7 +64,7 @@ describe('utils', () => {
         defaultBlockExplorerUrlIndex: 0,
       });
     });
-    
+
     it('updates the network configuration for a single non-EVM network with undefined name', () => {
       const network: NetworkConfiguration = {
         chainId: '0x1',
@@ -140,7 +140,7 @@ describe('utils', () => {
     });
   });
 
-  describe('toEvmCaipChainId', () => {
+  describe('convertEvmCaipToHexChainId', () => {
     it('converts a hex chain ID to a CAIP chain ID', () => {
       expect(toEvmCaipChainId('0x1')).toBe('eip155:1');
       expect(toEvmCaipChainId('0xe708')).toBe('eip155:59144');
@@ -150,17 +150,17 @@ describe('utils', () => {
 
   describe('convertCaipToHexChainId', () => {
     it('converts a CAIP chain ID to a hex chain ID', () => {
-      expect(convertCaipToHexChainId(EthScope.Mainnet)).toBe('0x1');
-      expect(convertCaipToHexChainId('eip155:56')).toBe('0x38');
-      expect(convertCaipToHexChainId('eip155:80094')).toBe('0x138de');
-      expect(convertCaipToHexChainId('eip155:8453')).toBe('0x2105');
+      expect(convertEvmCaipToHexChainId(EthScope.Mainnet)).toBe('0x1');
+      expect(convertEvmCaipToHexChainId('eip155:56')).toBe('0x38');
+      expect(convertEvmCaipToHexChainId('eip155:80094')).toBe('0x138de');
+      expect(convertEvmCaipToHexChainId('eip155:8453')).toBe('0x2105');
     });
 
     it('throws an error given a CAIP chain ID with an unsupported namespace', () => {
-      expect(() => convertCaipToHexChainId(BtcScope.Mainnet)).toThrow(
+      expect(() => convertEvmCaipToHexChainId(BtcScope.Mainnet)).toThrow(
         'Unsupported CAIP chain ID namespace: bip122. Only eip155 is supported.',
       );
-      expect(() => convertCaipToHexChainId(SolScope.Mainnet)).toThrow(
+      expect(() => convertEvmCaipToHexChainId(SolScope.Mainnet)).toThrow(
         'Unsupported CAIP chain ID namespace: solana. Only eip155 is supported.',
       );
     });

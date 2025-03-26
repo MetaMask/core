@@ -69,12 +69,12 @@ export const toEvmCaipChainId = (chainId: Hex): CaipChainId =>
 /**
  * Convert an eip155 CAIP chain ID to a hex chain ID.
  *
- * @param id - The CAIP chain ID to convert.
+ * @param chainId - The CAIP chain ID to convert.
  * @returns The hex chain ID.
  */
-export function convertCaipToHexChainId(id: CaipChainId): Hex {
-  const { namespace, reference } = parseCaipChainId(id);
-  if ((namespace as KnownCaipNamespace) === KnownCaipNamespace.Eip155) {
+export function convertEvmCaipToHexChainId(chainId: CaipChainId): Hex {
+  const { namespace, reference } = parseCaipChainId(chainId);
+  if (namespace === (KnownCaipNamespace.Eip155 as string)) {
     return add0x(parseInt(reference, 10).toString(16));
   }
 
@@ -93,14 +93,22 @@ export function convertCaipToHexChainId(id: CaipChainId): Hex {
 export const toMultichainNetworkConfiguration = (
   network: NetworkConfiguration,
 ): MultichainNetworkConfiguration => {
+  const {
+    chainId,
+    name,
+    rpcEndpoints,
+    defaultRpcEndpointIndex,
+    nativeCurrency,
+    blockExplorerUrls,
+    defaultBlockExplorerUrlIndex,
+  } = network;
   return {
-    chainId: toEvmCaipChainId(network.chainId),
+    chainId: toEvmCaipChainId(chainId),
     isEvm: true,
-    name:
-      network.name || network.rpcEndpoints[network.defaultRpcEndpointIndex].url,
-    nativeCurrency: network.nativeCurrency,
-    blockExplorerUrls: network.blockExplorerUrls,
-    defaultBlockExplorerUrlIndex: network.defaultBlockExplorerUrlIndex || 0,
+    name: name || rpcEndpoints[defaultRpcEndpointIndex].url,
+    nativeCurrency,
+    blockExplorerUrls,
+    defaultBlockExplorerUrlIndex: defaultBlockExplorerUrlIndex || 0,
   };
 };
 
