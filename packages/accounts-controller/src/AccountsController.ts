@@ -533,9 +533,8 @@ export class AccountsController extends BaseController<
       {} as Record<string, InternalAccount>,
     );
 
-    const lastSelectedAccount = this.#getLastSelectedAccount(
-      Object.values(accounts),
-    );
+    const { selectedAccount: previouslySelectedAccount } =
+      this.state.internalAccounts;
 
     this.update((state) => {
       state.internalAccounts.accounts = accounts;
@@ -548,7 +547,8 @@ export class AccountsController extends BaseController<
       );
     });
 
-    if (this.state.internalAccounts.selectedAccount) {
+    const { selectedAccount } = this.state.internalAccounts;
+    if (selectedAccount && selectedAccount !== previouslySelectedAccount) {
       this.#publishAccountChangeEvent(this.getSelectedAccount());
     }
   }
