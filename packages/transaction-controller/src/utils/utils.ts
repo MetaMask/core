@@ -216,11 +216,11 @@ export function getPercentageChange(originalValue: BN, newValue: BN): number {
 }
 
 /**
- * Calculate the absolute percentage change between two values.
+ * Sets the envelope type for the given transaction parameters based on the
+ * current network's EIP-1559 compatibility and the transaction parameters.
  *
  * @param txParams - The transaction parameters to set the envelope type for.
  * @param isEIP1559Compatible - Indicates if the current network supports EIP-1559.
- * @returns Modifies transaction parameters with the envelope type set.
  */
 export function setEnvelopeType(
   txParams: TransactionParams,
