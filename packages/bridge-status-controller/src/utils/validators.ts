@@ -7,9 +7,10 @@ import {
   optional,
   union,
   object,
+  enums,
 } from '@metamask/superstruct';
 
-import { type StatusResponse } from '../types';
+import { BridgeId, type StatusResponse } from '../types';
 
 const EmptyObjectSchema = object({});
 
@@ -59,9 +60,9 @@ export const validateStatusResponse = (
 
   const StatusResponseSchema = type({
     status: string(),
-    bridge: optional(string()),
     srcChain: SrcChainSchema,
     destChain: optional(DestChainStatusSchema),
+    bridge: optional(enums(Object.values(BridgeId))),
     isExpectedToken: optional(boolean()),
     isUnrecognizedRouterAddress: optional(boolean()),
     refuel: optional(RefuelStatusResponseSchema),
