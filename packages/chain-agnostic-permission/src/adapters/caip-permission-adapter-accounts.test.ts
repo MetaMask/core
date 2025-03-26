@@ -1,7 +1,10 @@
+import type { CaipAccountId } from '@metamask/utils';
+
 import {
   getEthAccounts,
   setEthAccounts,
-} from './caip-permission-adapter-eth-accounts';
+  setPermittedAccounts,
+} from './caip-permission-adapter-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
 
 describe('CAIP-25 eth_accounts adapters', () => {
@@ -112,6 +115,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
             accounts: [],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -151,6 +155,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
             accounts: [],
           },
         },
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
     });
@@ -163,6 +168,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       };
 
@@ -174,9 +180,192 @@ describe('CAIP-25 eth_accounts adapters', () => {
           },
         },
         optionalScopes: {},
+        sessionProperties: {},
         isMultichainOrigin: false,
       });
       expect(input).not.toStrictEqual(result);
+    });
+  });
+
+  describe('setPermittedAccounts', () => {
+    it('returns a CAIP-25 caveat value with all scopeObject.accounts set to accounts provided', () => {
+      const input: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
+          },
+          'bip122:000000000019d6689c085ae165831e93': {
+            accounts: ['bip122:000000000019d6689c085ae165831e93:abc123'],
+          },
+        },
+        optionalScopes: {
+          'eip155:5': {
+            accounts: ['eip155:5:0x3'],
+          },
+          wallet: {
+            accounts: [],
+          },
+        },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const permittedAccounts: CaipAccountId[] = [
+        'eip155:1:0xabc',
+        'eip155:5:0xabc',
+        'bip122:000000000019d6689c085ae165831e93:xyz789',
+      ];
+
+      const result = setPermittedAccounts(input, permittedAccounts);
+
+      expect(result).toStrictEqual({
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xabc'],
+          },
+          'bip122:000000000019d6689c085ae165831e93': {
+            accounts: ['bip122:000000000019d6689c085ae165831e93:xyz789'],
+          },
+        },
+        optionalScopes: {
+          'eip155:5': {
+            accounts: ['eip155:5:0xabc'],
+          },
+          wallet: {
+            accounts: [],
+          },
+        },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      });
+    });
+
+    it('does not modify the input CAIP-25 caveat value object', () => {
+      const input: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1'],
+          },
+        },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = setPermittedAccounts(input, [
+        'eip155:1:0xabc',
+      ] as CaipAccountId[]);
+
+      expect(input).toStrictEqual({
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1'],
+          },
+        },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      });
+      expect(input).not.toStrictEqual(result);
+    });
+
+    it('handles empty accounts array', () => {
+      const input: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1'],
+          },
+        },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = setPermittedAccounts(input, []);
+
+      expect(result).toStrictEqual({
+        requiredScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+        },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      });
+    });
+
+    it('handles different CAIP namespaces in the accounts array', () => {
+      const input: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+          'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ': {
+            accounts: [],
+          },
+        },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = setPermittedAccounts(input, [
+        'eip155:1:0xabc',
+        'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:pubkey123',
+      ]);
+
+      expect(result).toStrictEqual({
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xabc'],
+          },
+          'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ': {
+            accounts: ['solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:pubkey123'],
+          },
+        },
+        optionalScopes: {},
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      });
+    });
+
+    it('adds accounts for scopes with matching namespaces including for accounts where the fully chainId scope does not exist in the caveat', () => {
+      const input: Caip25CaveatValue = {
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0x1'],
+          },
+        },
+        optionalScopes: {
+          'eip155:5': {
+            accounts: [],
+          },
+        },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      };
+
+      const result = setPermittedAccounts(input, [
+        'eip155:1:0xabc',
+        'eip155:5:0xdef',
+        'eip155:137:0xghi',
+      ]);
+
+      expect(result).toStrictEqual({
+        requiredScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xabc', 'eip155:1:0xdef', 'eip155:1:0xghi'],
+          },
+        },
+        optionalScopes: {
+          'eip155:5': {
+            accounts: ['eip155:5:0xabc', 'eip155:5:0xdef', 'eip155:5:0xghi'],
+          },
+        },
+        sessionProperties: {},
+        isMultichainOrigin: false,
+      });
     });
   });
 });

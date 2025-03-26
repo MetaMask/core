@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "3.0.0",
+  "version": "5.0.1",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -122,8 +122,8 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^21.0.0",
-    "@metamask/profile-sync-controller": "^10.1.0",
+    "@metamask/keyring-controller": "^21.0.1",
+    "@metamask/profile-sync-controller": "^11.0.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "contentful": "^10.15.0",
@@ -138,7 +138,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^21.0.0",
-    "@metamask/profile-sync-controller": "^10.0.0"
+    "@metamask/profile-sync-controller": "^11.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
