@@ -78,7 +78,7 @@ import {
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
-import { getDelegationAddress } from './utils/eip7702';
+import { DELEGATION_PREFIX, getDelegationAddress } from './utils/eip7702';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -2090,6 +2090,35 @@ describe('TransactionController', () => {
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+
+      it('with sender code if type 4', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            authorizationList: [
+              {
+                address: ACCOUNT_2_MOCK,
+              },
+            ],
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledWith(expect.any(Object), {
+          senderCode: DELEGATION_PREFIX + ACCOUNT_2_MOCK.slice(2),
+        });
       });
     });
 
