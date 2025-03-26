@@ -512,16 +512,14 @@ describe('MultichainNetworkController', () => {
       );
     });
 
-    it('does nothing when trying to remove a non-EVM network', async () => {
-      const { controller, mockRemoveNetwork, mockGetSelectedChainId } =
-        setupController({
-          options: { state: { isEvmSelected: false } },
-        });
+    it('throws when trying to remove a non-EVM network', async () => {
+      const { controller } = setupController({
+        options: { state: { isEvmSelected: false } },
+      });
 
-      await controller.removeNetwork(BtcScope.Mainnet);
-
-      expect(mockGetSelectedChainId).not.toHaveBeenCalled();
-      expect(mockRemoveNetwork).not.toHaveBeenCalled();
+      await expect(controller.removeNetwork(BtcScope.Mainnet)).rejects.toThrow(
+        'Removal of non-EVM networks is not supported',
+      );
     });
   });
 });

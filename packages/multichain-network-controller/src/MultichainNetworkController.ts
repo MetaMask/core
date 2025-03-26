@@ -17,7 +17,7 @@ import {
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
-  convertCaipToHexChainId,
+  convertEvmCaipToHexChainId,
   isEvmCaipChainId,
 } from './utils';
 
@@ -147,7 +147,7 @@ export class MultichainNetworkController extends BaseController<
    * @returns - A promise that resolves when the network is removed.
    */
   async #removeEvmNetwork(chainId: CaipChainId): Promise<void> {
-    const hexChainId = convertCaipToHexChainId(chainId);
+    const hexChainId = convertEvmCaipToHexChainId(chainId);
     const selectedChainId = this.messagingSystem.call(
       'NetworkController:getSelectedChainId',
     );
@@ -176,7 +176,7 @@ export class MultichainNetworkController extends BaseController<
   }
 
   #removeNonEvmNetwork(_chainId: CaipChainId): void {
-    throw new Error('Removal of non-EVM networks is not supported yet');
+    throw new Error('Removal of non-EVM networks is not supported');
   }
 
   /**
@@ -189,6 +189,7 @@ export class MultichainNetworkController extends BaseController<
   async removeNetwork(chainId: CaipChainId): Promise<void> {
     if (isEvmCaipChainId(chainId)) {
       await this.#removeEvmNetwork(chainId);
+      return;
     }
 
     this.#removeNonEvmNetwork(chainId);
