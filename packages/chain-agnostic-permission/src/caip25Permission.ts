@@ -22,6 +22,8 @@ import {
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
+import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
+import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
   isSupportedAccount,
@@ -199,6 +201,15 @@ export const caip25CaveatBuilder = ({
 
       assertIsInternalScopesObject(requiredScopes);
       assertIsInternalScopesObject(optionalScopes);
+
+      if (
+        Object.keys(requiredScopes).length === 0 &&
+        Object.keys(optionalScopes).length === 0
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received no scopes for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
 
       const isEvmChainIdSupported = (chainId: Hex) => {
         try {
@@ -483,3 +494,42 @@ function removeScope(
     operation: CaveatMutatorOperation.RevokePermission,
   };
 }
+
+/**
+ * Modifies the requested CAIP-25 permissions object after UI confirmation.
+ *
+ * @param caip25CaveatValue - The requested CAIP-25 caveat value to modify.
+ * @param accountAddresses - The list of permitted eth addresses.
+ * @param chainIds - The list of permitted eth chainIds.
+ * @returns The updated CAIP-25 caveat value with the permitted accounts and chainIds set.
+ */
+export const generateCaip25Caveat = (
+  caip25CaveatValue: Caip25CaveatValue,
+  accountAddresses: CaipAccountId[],
+  chainIds: CaipChainId[],
+): {
+  [Caip25EndowmentPermissionName]: {
+    caveats: [{ type: string; value: Caip25CaveatValue }];
+  };
+} => {
+  const caveatValueWithChains = setPermittedChainIds(
+    caip25CaveatValue,
+    chainIds,
+  );
+
+  const caveatValueWithAccounts = setPermittedAccounts(
+    caveatValueWithChains,
+    accountAddresses,
+  );
+
+  return {
+    [Caip25EndowmentPermissionName]: {
+      caveats: [
+        {
+          type: Caip25CaveatType,
+          value: caveatValueWithAccounts,
+        },
+      ],
+    },
+  };
+};

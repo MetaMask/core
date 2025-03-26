@@ -277,6 +277,22 @@ describe('gas', () => {
         );
       });
 
+      it('to exact estimate if buffer disabled', async () => {
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasResponse: toHex(GAS_MOCK),
+        });
+
+        updateGasRequest.txMeta.disableGasBuffer = true;
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.txParams.gas).toBe(toHex(GAS_MOCK));
+        expect(updateGasRequest.txMeta.originalGasEstimate).toBe(
+          updateGasRequest.txMeta.txParams.gas,
+        );
+      });
+
       describe('to fixed value', () => {
         it('if not custom network and to parameter and no data and no code', async () => {
           updateGasRequest.isCustomNetwork = false;

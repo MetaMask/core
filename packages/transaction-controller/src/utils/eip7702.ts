@@ -22,6 +22,12 @@ export const DELEGATION_PREFIX = '0xef0100';
 export const BATCH_FUNCTION_NAME = 'execute';
 export const CALLS_SIGNATURE = '(address,uint256,bytes)[]';
 
+const UNSUPPORTED_PARAMS = [
+  'gas',
+  'maxFeePerGas',
+  'maxPriorityFeePerGas',
+] as const;
+
 const log = createModuleLogger(projectLogger, 'eip-7702');
 
 /**
@@ -119,6 +125,20 @@ export function generateEIP7702BatchTransaction(
 
   const calls = transactions.map((transaction) => {
     const { data, to, value } = transaction;
+
+    const unsupported = UNSUPPORTED_PARAMS.filter(
+      (param) => transaction[param] !== undefined,
+    );
+
+    if (unsupported.length) {
+      const errorData = unsupported
+        .map((param) => `${param}: ${transaction[param]}`)
+        .join(', ');
+
+      throw new Error(
+        `EIP-7702 batch transactions do not support gas parameters per call - ${errorData}`,
+      );
+    }
 
     return [
       to ?? '0x0000000000000000000000000000000000000000',
