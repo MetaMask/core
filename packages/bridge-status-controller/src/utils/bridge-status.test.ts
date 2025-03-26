@@ -32,6 +32,7 @@ describe('utils', () => {
         name: 'Ether',
         decimals: 18,
         icon: undefined,
+        assetId: 'eip155:1/erc20:0x123',
       },
       srcTokenAmount: '',
       destAsset: {
@@ -41,6 +42,7 @@ describe('utils', () => {
         name: 'USD Coin',
         decimals: 6,
         icon: undefined,
+        assetId: 'eip155:137/erc20:0x456',
       },
       destTokenAmount: '',
       feeData: {
@@ -53,6 +55,7 @@ describe('utils', () => {
             name: 'Ether',
             decimals: 18,
             icon: 'eth.jpeg',
+            assetId: 'eip155:1/erc20:0x123',
           },
         },
       },

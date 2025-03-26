@@ -131,6 +131,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
   srcTokenAmount: '991250000000000',
   srcAsset: {
     address: '0x0000000000000000000000000000000000000000',
+    assetId: `eip155:${srcChainId}/slip44:60`,
     chainId: srcChainId,
     symbol: 'ETH',
     decimals: 18,
@@ -145,6 +146,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
   destTokenAmount: '990654755978612',
   destAsset: {
     address: '0x0000000000000000000000000000000000000000',
+    assetId: `eip155:${destChainId}/slip44:60`,
     chainId: destChainId,
     symbol: 'ETH',
     decimals: 18,
@@ -160,6 +162,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       amount: '8750000000000',
       asset: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${srcChainId}/slip44:60`,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -186,6 +189,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       },
       srcAsset: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${srcChainId}/slip44:60`,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -198,6 +202,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       },
       destAsset: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${destChainId}/slip44:60`,
         chainId: destChainId,
         symbol: 'ETH',
         decimals: 18,

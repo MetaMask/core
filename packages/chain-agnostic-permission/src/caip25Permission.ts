@@ -16,13 +16,20 @@ import {
   hasProperty,
   KnownCaipNamespace,
   parseCaipAccountId,
+  isObject,
   type Hex,
   type NonEmptyArray,
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
+import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
+import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
-import { isSupportedAccount, isSupportedScopeString } from './scope/supported';
+import {
+  isSupportedAccount,
+  isSupportedScopeString,
+  isSupportedSessionProperty,
+} from './scope/supported';
 import { mergeInternalScopes } from './scope/transform';
 import {
   parseScopeString,
@@ -39,7 +46,7 @@ import {
 export type Caip25CaveatValue = {
   requiredScopes: InternalScopesObject;
   optionalScopes: InternalScopesObject;
-  sessionProperties?: Record<string, Json>;
+  sessionProperties: Record<string, Json>;
   isMultichainOrigin: boolean;
 };
 
@@ -170,17 +177,39 @@ export const caip25CaveatBuilder = ({
         !hasProperty(caveat.value, 'requiredScopes') ||
         !hasProperty(caveat.value, 'optionalScopes') ||
         !hasProperty(caveat.value, 'isMultichainOrigin') ||
-        typeof caveat.value.isMultichainOrigin !== 'boolean'
+        !hasProperty(caveat.value, 'sessionProperties') ||
+        typeof caveat.value.isMultichainOrigin !== 'boolean' ||
+        !isObject(caveat.value.sessionProperties)
       ) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
         );
       }
 
-      const { requiredScopes, optionalScopes } = caveat.value;
+      const { requiredScopes, optionalScopes, sessionProperties } =
+        caveat.value;
+
+      const allSessionPropertiesSupported = Object.keys(
+        sessionProperties,
+      ).every((sessionProperty) => isSupportedSessionProperty(sessionProperty));
+
+      if (!allSessionPropertiesSupported) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received unknown session property(s) for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
 
       assertIsInternalScopesObject(requiredScopes);
       assertIsInternalScopesObject(optionalScopes);
+
+      if (
+        Object.keys(requiredScopes).length === 0 &&
+        Object.keys(optionalScopes).length === 0
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received no scopes for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
 
       const isEvmChainIdSupported = (chainId: Hex) => {
         try {
@@ -242,9 +271,15 @@ export const caip25CaveatBuilder = ({
         rightValue.optionalScopes,
       );
 
+      const mergedSessionProperties = {
+        ...leftValue.sessionProperties,
+        ...rightValue.sessionProperties,
+      };
+
       const mergedValue: Caip25CaveatValue = {
         requiredScopes: mergedRequiredScopes,
         optionalScopes: mergedOptionalScopes,
+        sessionProperties: mergedSessionProperties,
         isMultichainOrigin: leftValue.isMultichainOrigin,
       };
 
@@ -459,3 +494,42 @@ function removeScope(
     operation: CaveatMutatorOperation.RevokePermission,
   };
 }
+
+/**
+ * Modifies the requested CAIP-25 permissions object after UI confirmation.
+ *
+ * @param caip25CaveatValue - The requested CAIP-25 caveat value to modify.
+ * @param accountAddresses - The list of permitted eth addresses.
+ * @param chainIds - The list of permitted eth chainIds.
+ * @returns The updated CAIP-25 caveat value with the permitted accounts and chainIds set.
+ */
+export const generateCaip25Caveat = (
+  caip25CaveatValue: Caip25CaveatValue,
+  accountAddresses: CaipAccountId[],
+  chainIds: CaipChainId[],
+): {
+  [Caip25EndowmentPermissionName]: {
+    caveats: [{ type: string; value: Caip25CaveatValue }];
+  };
+} => {
+  const caveatValueWithChains = setPermittedChainIds(
+    caip25CaveatValue,
+    chainIds,
+  );
+
+  const caveatValueWithAccounts = setPermittedAccounts(
+    caveatValueWithChains,
+    accountAddresses,
+  );
+
+  return {
+    [Caip25EndowmentPermissionName]: {
+      caveats: [
+        {
+          type: Caip25CaveatType,
+          value: caveatValueWithAccounts,
+        },
+      ],
+    },
+  };
+};

@@ -11,13 +11,11 @@ import {
   optional,
   enums,
   define,
-  intersection,
-  size,
+  union,
 } from '@metamask/superstruct';
 import { isStrictHexString } from '@metamask/utils';
 
-import type { SwapsTokenObject } from '../constants/tokens';
-import type { FeatureFlagResponse, QuoteResponse } from '../types';
+import type { BridgeAsset, FeatureFlagResponse, QuoteResponse } from '../types';
 import { ActionTypes, BridgeFlag, FeeType } from '../types';
 
 const HexAddressSchema = define('HexAddress', (v: unknown) =>
@@ -35,10 +33,17 @@ const TruthyDigitStringSchema = define(
     truthyString(v as string) && Boolean((v as string).match(/^\d+$/u)),
 );
 
-const SwapsTokenObjectSchema = type({
+const ChainIdSchema = number();
+
+const BridgeAssetSchema = type({
+  chainId: ChainIdSchema,
+  address: string(),
+  assetId: string(),
+  symbol: string(),
+  name: string(),
   decimals: number(),
-  address: intersection([string(), HexAddressSchema]),
-  symbol: size(string(), 1, 12),
+  icon: optional(string()),
+  iconUrl: optional(string()),
 });
 
 export const validateFeatureFlagsResponse = (
@@ -47,6 +52,8 @@ export const validateFeatureFlagsResponse = (
   const ChainConfigurationSchema = type({
     isActiveSrc: boolean(),
     isActiveDest: boolean(),
+    refreshRate: optional(number()),
+    topAssets: optional(array(string())),
   });
 
   const ConfigSchema = type({
@@ -67,22 +74,11 @@ export const validateFeatureFlagsResponse = (
 
 export const validateSwapsTokenObject = (
   data: unknown,
-): data is SwapsTokenObject => {
-  return is(data, SwapsTokenObjectSchema);
+): data is BridgeAsset => {
+  return is(data, BridgeAssetSchema);
 };
 
 export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
-  const ChainIdSchema = number();
-
-  const BridgeAssetSchema = type({
-    chainId: ChainIdSchema,
-    address: string(),
-    symbol: string(),
-    name: string(),
-    decimals: number(),
-    icon: optional(string()),
-  });
-
   const FeeDataSchema = type({
     amount: TruthyDigitStringSchema,
     asset: BridgeAssetSchema,
@@ -110,10 +106,10 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
   const QuoteSchema = type({
     requestId: string(),
     srcChainId: ChainIdSchema,
-    srcAsset: SwapsTokenObjectSchema,
+    srcAsset: BridgeAssetSchema,
     srcTokenAmount: string(),
     destChainId: ChainIdSchema,
-    destAsset: SwapsTokenObjectSchema,
+    destAsset: BridgeAssetSchema,
     destTokenAmount: string(),
     feeData: record(enums(Object.values(FeeType)), FeeDataSchema),
     bridgeId: string(),
@@ -134,7 +130,7 @@ export const validateQuoteResponse = (data: unknown): data is QuoteResponse => {
   const QuoteResponseSchema = type({
     quote: QuoteSchema,
     approval: optional(TxDataSchema),
-    trade: TxDataSchema,
+    trade: union([TxDataSchema, string()]),
     estimatedProcessingTimeInSeconds: number(),
   });
 
