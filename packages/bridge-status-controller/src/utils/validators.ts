@@ -20,8 +20,10 @@ export const validateStatusResponse = (
     return false;
   }
 
+  const ChainIdSchema = union([number(), string()]);
+
   const TokenSchema = type({
-    chainId: optional(number()),
+    chainId: optional(ChainIdSchema),
     address: optional(string()),
     symbol: optional(string()),
     name: optional(string()),
@@ -33,14 +35,14 @@ export const validateStatusResponse = (
   });
 
   const SrcChainSchema = type({
-    chainId: number(),
+    chainId: ChainIdSchema,
     txHash: string(),
     amount: optional(string()),
     token: optional(union([EmptyObjectSchema, TokenSchema])),
   });
 
   const DestChainStatusSchema = type({
-    chainId: number(),
+    chainId: ChainIdSchema,
     txHash: optional(string()),
     amount: optional(string()),
     token: optional(union([EmptyObjectSchema, TokenSchema])),
