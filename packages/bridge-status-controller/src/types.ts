@@ -1,4 +1,4 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -310,7 +310,7 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction
   | TransactionControllerGetStateAction;
 
 /**
