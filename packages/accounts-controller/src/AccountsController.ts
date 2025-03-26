@@ -767,12 +767,8 @@ export class AccountsController extends BaseController<
     for (const keyring of keyrings) {
       const patch = patchOf(keyring.type);
 
-      // Lower-case all addresses to use them with the `previous` map.
-      const keyringAddresses = keyring.accounts.map((address) =>
-        address.toLowerCase(),
-      );
-
       for (const accountAddress of keyring.accounts) {
+        // Lower-case address to use it in the `previous` map.
         const address = accountAddress.toLowerCase();
         const account = patch.previous[address];
 

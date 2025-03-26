@@ -777,11 +777,8 @@ describe('AccountsController', () => {
 
         const accounts = accountsController.listMultichainAccounts();
 
-        expect(accounts).toStrictEqual([
-          setLastSelectedAsAny(mockAccount),
-        ]);
+        expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount)]);
       });
-
 
       it('increment the default account number when adding an account', async () => {
         const messenger = buildMessenger();
@@ -1520,9 +1517,6 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
-
-    it('handles Snap keyring not available', () => {
-    });
   });
 
   describe('onSnapKeyringEvents', () => {
