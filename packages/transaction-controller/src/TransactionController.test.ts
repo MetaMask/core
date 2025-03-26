@@ -1503,7 +1503,7 @@ describe('TransactionController', () => {
       [TransactionEnvelopeType.accessList, { accessList: [] }],
       [TransactionEnvelopeType.setCode, { authorizationList: [] }],
     ])(
-      'sets txParams.type to %s if not defined',
+      'sets txParams.type to %s if not defined in given txParams',
       async (
         type: TransactionEnvelopeType,
         extraTxParamsToSet: Partial<TransactionParams> = {},
