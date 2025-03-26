@@ -3623,6 +3623,7 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId,
         }),
+      messenger: this.messagingSystem,
       publishTransaction: (_ethQuery, transactionMeta) =>
         this.publishTransaction(_ethQuery, transactionMeta, {
           skipSubmitHistory: true,
@@ -3632,7 +3633,6 @@ export class TransactionController extends BaseController<
           this.beforeCheckPendingTransaction.bind(this),
         beforePublish: this.beforePublish.bind(this),
       },
-      messenger: this.messagingSystem,
     });
 
     this.#addPendingTransactionTrackerListeners(pendingTransactionTracker);

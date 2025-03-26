@@ -1,5 +1,5 @@
 import type { BlockTracker } from '@metamask/network-controller';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';
@@ -17,11 +17,11 @@ const log = createModuleLogger(projectLogger, 'transaction-poller');
 export class TransactionPoller {
   #acceleratedCount = 0;
 
-  readonly #acceleratedCountMax: number;
-
-  readonly #acceleratedInterval: number;
-
   readonly #blockTracker: BlockTracker;
+
+  readonly #chainId: Hex;
+
+  readonly #messenger: TransactionControllerMessenger;
 
   #blockTrackerListener?: (latestBlockNumber: string) => void;
 
@@ -33,20 +33,18 @@ export class TransactionPoller {
 
   #timeout?: NodeJS.Timeout;
 
-  constructor(
-    blockTracker: BlockTracker,
-    messenger: TransactionControllerMessenger,
-    chainId: string,
-  ) {
+  constructor({
+    blockTracker,
+    chainId,
+    messenger,
+  }: {
+    blockTracker: BlockTracker;
+    chainId: Hex;
+    messenger: TransactionControllerMessenger;
+  }) {
     this.#blockTracker = blockTracker;
-
-    const { countMax, intervalMs } = getAcceleratedPollingParams(
-      chainId as string,
-      messenger,
-    );
-
-    this.#acceleratedCountMax = countMax;
-    this.#acceleratedInterval = intervalMs;
+    this.#chainId = chainId;
+    this.#messenger = messenger;
   }
 
   /**
@@ -127,7 +125,12 @@ export class TransactionPoller {
       return;
     }
 
-    if (this.#acceleratedCount >= this.#acceleratedCountMax) {
+    const { countMax, intervalMs } = getAcceleratedPollingParams(
+      this.#chainId,
+      this.#messenger,
+    );
+
+    if (this.#acceleratedCount >= countMax) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#blockTrackerListener = (latestBlockNumber) =>
         this.#interval(false, latestBlockNumber);
@@ -145,7 +148,7 @@ export class TransactionPoller {
     this.#timeout = setTimeout(async () => {
       await this.#interval(true);
       this.#queue();
-    }, this.#acceleratedInterval);
+    }, intervalMs);
   }
 
   async #interval(isAccelerated: boolean, latestBlockNumber?: string) {

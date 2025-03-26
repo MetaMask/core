@@ -45,7 +45,7 @@ export type TransactionControllerFeatureFlags = {
       perChainConfig?: {
         /** Accelerated polling parameters on a per-chain basis. */
 
-        [chainId: string]: {
+        [chainId: Hex]: {
           /**
            * Maximum number of polling requests that can be made in a row, before
            * the normal polling resumes.
@@ -153,7 +153,7 @@ export function getBatchSizeLimit(
  * @returns The accelerated polling parameters: `countMax` and `intervalMs`.
  */
 export function getAcceleratedPollingParams(
-  chainId: string,
+  chainId: Hex,
   messenger: TransactionControllerMessenger,
 ): { countMax: number; intervalMs: number } {
   const featureFlags = getFeatureFlags(messenger);

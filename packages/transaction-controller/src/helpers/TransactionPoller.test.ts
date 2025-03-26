@@ -50,11 +50,11 @@ describe('TransactionPoller', () => {
 
   describe('Accelerated Polling', () => {
     it('invokes listener after timeout', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       const listener = jest.fn();
       poller.start(listener);
@@ -68,11 +68,11 @@ describe('TransactionPoller', () => {
     });
 
     it('stops creating timeouts after max reached', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       const listener = jest.fn();
       poller.start(listener);
@@ -86,11 +86,11 @@ describe('TransactionPoller', () => {
     });
 
     it('invokes listener with latest block number from block tracker', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       BLOCK_TRACKER_MOCK.getLatestBlock.mockResolvedValue(BLOCK_NUMBER_MOCK);
 
@@ -104,11 +104,11 @@ describe('TransactionPoller', () => {
     });
 
     it('does not create timeout if stopped while listener being invoked', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       const listener = jest.fn();
       listener.mockImplementation(() => poller.stop());
@@ -124,11 +124,11 @@ describe('TransactionPoller', () => {
 
   describe('Block Tracker Polling', () => {
     it('invokes listener on block tracker update after accelerated limit reached', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       const listener = jest.fn();
       poller.start(listener);
@@ -148,11 +148,11 @@ describe('TransactionPoller', () => {
     });
 
     it('invokes listener with latest block number from event', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       const listener = jest.fn();
       poller.start(listener);
@@ -171,11 +171,11 @@ describe('TransactionPoller', () => {
 
   describe('start', () => {
     it('does nothing if already started', () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       poller.start(jest.fn());
       poller.start(jest.fn());
@@ -186,11 +186,11 @@ describe('TransactionPoller', () => {
 
   describe('stop', () => {
     it('removes timeout', () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       const listener = jest.fn();
       poller.start(listener);
@@ -201,11 +201,11 @@ describe('TransactionPoller', () => {
     });
 
     it('removes block tracker listener', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       const listener = jest.fn();
       poller.start(listener);
@@ -222,11 +222,11 @@ describe('TransactionPoller', () => {
     });
 
     it('does nothing if not started', async () => {
-      const poller = new TransactionPoller(
-        BLOCK_TRACKER_MOCK,
-        MESSENGER_MOCK,
-        CHAIN_ID_MOCK,
-      );
+      const poller = new TransactionPoller({
+        blockTracker: BLOCK_TRACKER_MOCK,
+        messenger: MESSENGER_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       poller.stop();
 
@@ -249,11 +249,11 @@ describe('TransactionPoller', () => {
     ])(
       'resets accelerated count if transaction IDs %s',
       async (_title, newPendingTransactions) => {
-        const poller = new TransactionPoller(
-          BLOCK_TRACKER_MOCK,
-          MESSENGER_MOCK,
-          CHAIN_ID_MOCK,
-        );
+        const poller = new TransactionPoller({
+          blockTracker: BLOCK_TRACKER_MOCK,
+          messenger: MESSENGER_MOCK,
+          chainId: CHAIN_ID_MOCK,
+        });
 
         poller.setPendingTransactions([
           createTransactionMetaMock('1'),
@@ -294,11 +294,11 @@ describe('TransactionPoller', () => {
     ])(
       'resets to accelerated polling if transaction IDs added',
       async (_title, newPendingTransactions) => {
-        const poller = new TransactionPoller(
-          BLOCK_TRACKER_MOCK,
-          MESSENGER_MOCK,
-          CHAIN_ID_MOCK,
-        );
+        const poller = new TransactionPoller({
+          blockTracker: BLOCK_TRACKER_MOCK,
+          messenger: MESSENGER_MOCK,
+          chainId: CHAIN_ID_MOCK,
+        });
 
         poller.setPendingTransactions([
           createTransactionMetaMock('1'),
