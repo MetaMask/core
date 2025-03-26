@@ -460,23 +460,24 @@ export class AccountsController extends BaseController<
       throw new Error('Account name already exists');
     }
 
+    const internalAccount = {
+      ...account,
+      metadata: { ...account.metadata, ...metadata },
+    };
+
     this.update((currentState) => {
-      const internalAccount = {
-        ...account,
-        metadata: { ...account.metadata, ...metadata },
-      };
       // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
       // See: https://github.com/MetaMask/utils/issues/168
       // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
       currentState.internalAccounts.accounts[accountId] = internalAccount;
-
-      if (metadata.name) {
-        this.messagingSystem.publish(
-          'AccountsController:accountRenamed',
-          internalAccount,
-        );
-      }
     });
+
+    if (metadata.name) {
+      this.messagingSystem.publish(
+        'AccountsController:accountRenamed',
+        internalAccount,
+      );
+    }
   }
 
   /**
