@@ -537,6 +537,10 @@ export class AccountsController extends BaseController<
       {} as Record<string, InternalAccount>,
     );
 
+    const lastSelectedAccount = this.#getLastSelectedAccount(
+      Object.values(accounts),
+    );
+
     this.update((currentState) => {
       currentState.internalAccounts.accounts = accounts;
 
@@ -545,23 +549,22 @@ export class AccountsController extends BaseController<
           currentState.internalAccounts.selectedAccount
         ]
       ) {
-        const lastSelectedAccount = this.#getLastSelectedAccount(
-          Object.values(accounts),
-        );
-
         if (lastSelectedAccount) {
           currentState.internalAccounts.selectedAccount =
             lastSelectedAccount.id;
           currentState.internalAccounts.accounts[
             lastSelectedAccount.id
           ].metadata.lastSelected = this.#getLastSelectedIndex();
-          this.#publishAccountChangeEvent(lastSelectedAccount);
         } else {
           // It will be undefined if there are no accounts
           currentState.internalAccounts.selectedAccount = '';
         }
       }
     });
+
+    if (lastSelectedAccount) {
+      this.#publishAccountChangeEvent(lastSelectedAccount);
+    }
   }
 
   /**
