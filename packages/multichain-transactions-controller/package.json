@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-transactions-controller",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "This package is responsible for getting transactions from our Bitcoin and Solana snaps",
   "keywords": [
     "MetaMask",
@@ -51,7 +51,7 @@
     "@metamask/keyring-api": "^17.2.0",
     "@metamask/keyring-internal-api": "^6.0.0",
     "@metamask/keyring-snap-client": "^4.0.1",
-    "@metamask/polling-controller": "^12.0.3",
+    "@metamask/polling-controller": "^13.0.0",
     "@metamask/snaps-sdk": "^6.17.1",
     "@metamask/snaps-utils": "^8.10.0",
     "@metamask/utils": "^11.2.0",
@@ -60,9 +60,9 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^26.1.0",
+    "@metamask/accounts-controller": "^27.0.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^21.0.0",
+    "@metamask/keyring-controller": "^21.0.1",
     "@metamask/snaps-controllers": "^9.19.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -73,7 +73,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^26.0.0",
+    "@metamask/accounts-controller": "^27.0.0",
     "@metamask/snaps-controllers": "^9.19.0"
   },
   "engines": {

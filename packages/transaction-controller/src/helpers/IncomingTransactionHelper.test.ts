@@ -39,7 +39,6 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
     };
   },
   getCache: () => CACHE_MOCK,
-  getChainIds: () => [CHAIN_ID_MOCK],
   getLocalTransactions: () => [],
   remoteTransactionSource: {} as RemoteTransactionSource,
   trimTransactions: (transactions) => transactions,
@@ -155,7 +154,6 @@ describe('IncomingTransactionHelper', () => {
       expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
         cache: CACHE_MOCK,
-        chainIds: [CHAIN_ID_MOCK],
         includeTokenTransfers: true,
         queryEntireHistory: true,
         updateCache: expect.any(Function),
@@ -249,20 +247,6 @@ describe('IncomingTransactionHelper', () => {
             .fn()
             .mockReturnValueOnce(true)
             .mockReturnValueOnce(false),
-        });
-
-        const { incomingTransactionsListener } = await runInterval(helper);
-
-        expect(incomingTransactionsListener).not.toHaveBeenCalled();
-      });
-
-      it('does not if current network is not supported by remote transaction source', async () => {
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource: createRemoteTransactionSourceMock(
-            [TRANSACTION_MOCK],
-            { chainIds: ['0x123'] },
-          ),
         });
 
         const { incomingTransactionsListener } = await runInterval(helper);
@@ -373,19 +357,6 @@ describe('IncomingTransactionHelper', () => {
         ...CONTROLLER_ARGS_MOCK,
         isEnabled: () => false,
         remoteTransactionSource: createRemoteTransactionSourceMock([]),
-      });
-
-      helper.start();
-
-      expect(jest.getTimerCount()).toBe(0);
-    });
-
-    it('does nothing if network not supported by remote transaction source', async () => {
-      const helper = new IncomingTransactionHelper({
-        ...CONTROLLER_ARGS_MOCK,
-        remoteTransactionSource: createRemoteTransactionSourceMock([], {
-          chainIds: ['0x123'],
-        }),
       });
 
       helper.start();

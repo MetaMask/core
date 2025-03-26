@@ -537,4 +537,39 @@ describe('CurrencyRateController', () => {
 
     controller.destroy();
   });
+
+  it('skips updating empty or undefined native currencies', async () => {
+    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
+    nock(cryptoCompareHost)
+      .get('/data/pricemulti?fsyms=ETH&tsyms=xyz') // fsyms query only includes non-empty native currencies
+      .reply(200, {
+        ETH: { XYZ: 1000 },
+      })
+      .persist();
+
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({
+      messenger,
+      state: { currentCurrency: 'xyz' },
+    });
+
+    const nativeCurrencies = ['ETH', undefined, ''];
+
+    await controller.updateExchangeRate(nativeCurrencies);
+
+    const conversionDate = getStubbedDate() / 1000;
+    expect(controller.state).toStrictEqual({
+      currentCurrency: 'xyz',
+      currencyRates: {
+        ETH: {
+          conversionDate,
+          conversionRate: 1000,
+          usdConversionRate: null,
+        },
+      },
+    });
+
+    controller.destroy();
+  });
 });

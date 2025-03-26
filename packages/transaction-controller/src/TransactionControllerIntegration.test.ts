@@ -43,6 +43,7 @@ import {
   buildCustomNetworkClientConfiguration,
   buildUpdateNetworkCustomRpcEndpointFields,
 } from '../../network-controller/tests/helpers';
+import type { RemoteFeatureFlagControllerGetStateAction } from '../../remote-feature-flag-controller/src';
 import {
   buildEthGasPriceRequestMock,
   buildEthBlockNumberRequestMock,
@@ -65,12 +66,13 @@ jest.mock('uuid', () => {
 });
 
 type UnrestrictedMessenger = Messenger<
-  | NetworkControllerActions
+  | AccountsControllerActions
   | ApprovalControllerActions
+  | NetworkControllerActions
   | TransactionControllerActions
-  | AccountsControllerActions,
-  | NetworkControllerEvents
+  | RemoteFeatureFlagControllerGetStateAction,
   | ApprovalControllerEvents
+  | NetworkControllerEvents
   | TransactionControllerEvents
 >;
 
@@ -164,8 +166,10 @@ const setupController = async (
       allowedEvents: [],
     }),
     infuraProjectId,
-    fetch,
-    btoa,
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
+    }),
   });
   await networkController.initializeProvider();
   const { provider, blockTracker } =
@@ -186,11 +190,12 @@ const setupController = async (
   const messenger = unrestrictedMessenger.getRestricted({
     name: 'TransactionController',
     allowedActions: [
+      'AccountsController:getSelectedAccount',
+      'AccountsController:getState',
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
       'NetworkController:findNetworkClientIdByChainId',
-      'AccountsController:getSelectedAccount',
-      'AccountsController:getState',
+      'RemoteFeatureFlagController:getState',
     ],
     allowedEvents: ['NetworkController:stateChange'],
   });
@@ -207,6 +212,11 @@ const setupController = async (
   unrestrictedMessenger.registerActionHandler(
     'AccountsController:getState',
     () => ({}) as never,
+  );
+
+  unrestrictedMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({ cacheTimestamp: 0, remoteFeatureFlags: {} }),
   );
 
   const options: TransactionControllerOptions = {
@@ -399,6 +409,7 @@ describe('TransactionController Integration', () => {
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
           ],
@@ -427,6 +438,7 @@ describe('TransactionController Integration', () => {
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x2'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -468,6 +480,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -516,6 +529,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -536,6 +550,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -604,6 +619,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -656,6 +672,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -731,6 +748,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -817,6 +835,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -846,6 +865,7 @@ describe('TransactionController Integration', () => {
             buildEthBlockNumberRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
@@ -938,6 +958,7 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
@@ -1016,6 +1037,7 @@ describe('TransactionController Integration', () => {
         buildEthBlockNumberRequestMock('0x1'),
         buildEthBlockNumberRequestMock('0x1'),
         buildEthGetBlockByNumberRequestMock('0x1'),
+        buildEthGetCodeRequestMock(ACCOUNT_MOCK),
         buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
         buildEthGasPriceRequestMock(),
       ],
@@ -1028,6 +1050,7 @@ describe('TransactionController Integration', () => {
         buildEthBlockNumberRequestMock('0x1'),
         buildEthBlockNumberRequestMock('0x1'),
         buildEthGetBlockByNumberRequestMock('0x1'),
+        buildEthGetCodeRequestMock(ACCOUNT_MOCK),
         buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
         buildEthGasPriceRequestMock(),
       ],
