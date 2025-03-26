@@ -201,6 +201,7 @@ async function getGas(
   request: UpdateGasRequest,
 ): Promise<[string, TransactionMeta['simulationFails']?, string?]> {
   const { chainId, isCustomNetwork, isSimulationEnabled, txMeta } = request;
+  const { disableGasBuffer } = txMeta;
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
@@ -228,18 +229,18 @@ async function getGas(
     return [estimatedGas, simulationFails, estimatedGas];
   }
 
-  const bufferMultiplier =
-    GAS_BUFFER_CHAIN_OVERRIDES[
-      chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
-    ] ?? DEFAULT_GAS_MULTIPLIER;
+  let finalGas = estimatedGas;
 
-  const bufferedGas = addGasBuffer(
-    estimatedGas,
-    blockGasLimit,
-    bufferMultiplier,
-  );
+  if (!disableGasBuffer) {
+    const bufferMultiplier =
+      GAS_BUFFER_CHAIN_OVERRIDES[
+        chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
+      ] ?? DEFAULT_GAS_MULTIPLIER;
 
-  return [bufferedGas, simulationFails, estimatedGas];
+    finalGas = addGasBuffer(estimatedGas, blockGasLimit, bufferMultiplier);
+  }
+
+  return [finalGas, simulationFails, estimatedGas];
 }
 
 /**

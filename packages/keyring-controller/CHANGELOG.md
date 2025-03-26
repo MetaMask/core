@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [21.0.0]
+## [21.0.1]
+
+### Fixed
+
+- Fixed duplication of unsupported keyrings ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Enforce keyrings metadata alignment when unlocking existing vault ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Fixed frozen object mutation attempt when updating metadata ([#5535](https://github.com/MetaMask/core/pull/5535))
+
+## [21.0.0] [DEPRECATED]
 
 ### Changed
 
@@ -16,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/eth-hd-keyring` from `^11.0.0` to `^12.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 - **BREAKING:** Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
 
-## [20.0.0]
+## [20.0.0] [DEPRECATED]
 
 ### Changed
 
@@ -27,7 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/eth-hd-keyring` from `^10.0.0` to `^11.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
 - Bump `@metamask/eth-simple-keyring` from `^8.1.0` to `^9.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
 
-## [19.2.1]
+## [19.2.2]
+
+### Fixed
+
+- Fixed duplication of unsupported keyrings ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Enforce keyrings metadata alignment when unlocking existing vault ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Fixed frozen object mutation attempt when updating metadata ([#5535](https://github.com/MetaMask/core/pull/5535))
+
+## [19.2.1] [DEPRECATED]
 
 ### Changed
 
@@ -38,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ensure authorization contract address is provided ([#5353](https://github.com/MetaMask/core/pull/5353))
 
-## [19.2.0]
+## [19.2.0] [DEPRECATED]
 
 ### Added
 
@@ -710,9 +726,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.1...HEAD
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.0...@metamask/keyring-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@20.0.0...@metamask/keyring-controller@21.0.0
-[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.1...@metamask/keyring-controller@20.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.2...@metamask/keyring-controller@20.0.0
+[19.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.1...@metamask/keyring-controller@19.2.2
 [19.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.0...@metamask/keyring-controller@19.2.1
 [19.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.1.0...@metamask/keyring-controller@19.2.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.7...@metamask/keyring-controller@19.1.0
