@@ -146,6 +146,7 @@ import {
   validateIfTransactionUnapproved,
   normalizeTxError,
   normalizeGasFeeValues,
+  setEnvelopeType,
 } from './utils/utils';
 import {
   validateParamTo,
@@ -1156,6 +1157,11 @@ export class TransactionController extends BaseController<
       await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
+
+    if (!txParams.type) {
+      // Determine transaction type based on transaction parameters and network compatibility
+      setEnvelopeType(txParams, isEIP1559Compatible);
+    }
 
     const isDuplicateBatchId =
       batchId?.length &&
