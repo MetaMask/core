@@ -243,7 +243,7 @@ export function buildNetworkConfiguration(
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         defaultRpcEndpointType === RpcEndpointType.Infura
-          ? buildInfuraRpcEndpoint(InfuraNetworkType['linea-goerli'])
+          ? buildInfuraRpcEndpoint(InfuraNetworkType.sepolia)
           : buildCustomRpcEndpoint({ url: 'https://test.endpoint' }),
       ],
     },

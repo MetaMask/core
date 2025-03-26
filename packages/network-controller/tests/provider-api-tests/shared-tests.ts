@@ -287,7 +287,7 @@ export function testsForProviderType(providerType: ProviderType) {
       describe('net_version', () => {
         const networkArgs = {
           providerType,
-          infuraNetwork: providerType === 'infura' ? 'goerli' : undefined,
+          infuraNetwork: providerType === 'infura' ? 'sepolia' : undefined,
         } as const;
         it('hits the RPC endpoint', async () => {
           await withMockedCommunications(networkArgs, async (comms) => {
