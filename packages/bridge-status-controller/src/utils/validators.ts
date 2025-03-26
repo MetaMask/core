@@ -36,7 +36,7 @@ export const validateStatusResponse = (
 
   const SrcChainSchema = type({
     chainId: ChainIdSchema,
-    txHash: string(),
+    txHash: optional(string()),
     amount: optional(string()),
     token: optional(union([EmptyObjectSchema, TokenSchema])),
   });

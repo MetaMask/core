@@ -121,7 +121,6 @@ const BridgeTxStatusResponses = {
   STATUS_COMPLETE_VALID_MISSING_FIELDS: {
     status: 'COMPLETE',
     srcChain: {
-      chainId: 10,
       amount: '4956250000000000',
       token: {
         address: '0x0000000000000000000000000000000000000000',
