@@ -44,13 +44,13 @@ import {
   type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
-} from '../authentication/AuthenticationController';
+} from '../authentication';
+import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 
 const controllerName = 'UserStorageController';
 

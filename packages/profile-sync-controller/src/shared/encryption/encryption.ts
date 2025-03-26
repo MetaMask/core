@@ -36,7 +36,7 @@ export type EncryptedPayload = {
   // data
   d: string;
 
-  // encryption options - scrypt
+  // key derivation options - scrypt
   o: {
     N: number;
     r: number;
