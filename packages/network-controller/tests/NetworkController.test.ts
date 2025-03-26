@@ -146,17 +146,22 @@ const FAKE_DATE_NOW_MS = 1732114339518;
 /**
  * A list of active InfuraNetworkType that are used in many tests
  */
-const INFURA_NEWORKS = [InfuraNetworkType['mainnet'], InfuraNetworkType['sepolia'], InfuraNetworkType['linea-mainnet'], InfuraNetworkType['linea-sepolia']];
+const INFURA_NEWORKS = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['linea-sepolia'],
+];
 
 /**
  * A object that contains the configuration for a network that begining used in many tests
  */
 const TESTNET = {
-  networkType : InfuraNetworkType.sepolia,
+  networkType: InfuraNetworkType.sepolia,
   chainId: ChainId.sepolia,
   name: 'Sepolia',
   nativeCurrency: 'SepoliaETH',
-}
+};
 
 describe('NetworkController', () => {
   let uuidCounter = 0;
@@ -620,7 +625,7 @@ describe('NetworkController', () => {
                 defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: TESTNET.name,
-                nativeCurrency:  TESTNET.nativeCurrency,
+                nativeCurrency: TESTNET.nativeCurrency,
                 rpcEndpoints: [
                   {
                     failoverUrls: ['https://failover.endpoint'],
@@ -1897,8 +1902,7 @@ describe('NetworkController', () => {
               await controller.lookupNetwork();
 
               expect(
-                controller.state.networksMetadata[TESTNET.networkType]
-                  .status,
+                controller.state.networksMetadata[TESTNET.networkType].status,
               ).toBe('unknown');
             },
           );
@@ -2363,9 +2367,14 @@ describe('NetworkController', () => {
         const fakeNetworkClient = buildFakeClient(fakeProvider);
         mockCreateNetworkClient().mockReturnValue(fakeNetworkClient);
 
-        await messenger.call('NetworkController:setProviderType', TESTNET.networkType);
+        await messenger.call(
+          'NetworkController:setProviderType',
+          TESTNET.networkType,
+        );
 
-        expect(controller.state.selectedNetworkClientId).toBe(TESTNET.networkType);
+        expect(controller.state.selectedNetworkClientId).toBe(
+          TESTNET.networkType,
+        );
       });
     });
   });
@@ -11203,9 +11212,7 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
-            const newRpcEndpoint = buildInfuraRpcEndpoint(
-              TESTNET.networkType,
-            );
+            const newRpcEndpoint = buildInfuraRpcEndpoint(TESTNET.networkType);
             await expect(() =>
               controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
@@ -13482,8 +13489,7 @@ describe('NetworkController', () => {
             });
             await controller.setActiveNetwork(TESTNET.networkType);
             expect(
-              controller.state.networksMetadata[TESTNET.networkType]
-                .status,
+              controller.state.networksMetadata[TESTNET.networkType].status,
             ).toBe('unavailable');
 
             await controller.rollbackToPreviousProvider();
@@ -13558,8 +13564,7 @@ describe('NetworkController', () => {
             });
             await controller.setActiveNetwork(TESTNET.networkType);
             expect(
-              controller.state.networksMetadata[TESTNET.networkType]
-                .EIPS[1559],
+              controller.state.networksMetadata[TESTNET.networkType].EIPS[1559],
             ).toBe(false);
 
             await controller.rollbackToPreviousProvider();

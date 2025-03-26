@@ -31,7 +31,11 @@ import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
-import { DEPRECATED_NETWORKS, INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import {
+  DEPRECATED_NETWORKS,
+  INFURA_BLOCKED_KEY,
+  NetworkStatus,
+} from './constants';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
