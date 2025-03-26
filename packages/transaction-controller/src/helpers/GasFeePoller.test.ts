@@ -80,6 +80,7 @@ describe('GasFeePoller', () => {
 
   beforeEach(() => {
     jest.clearAllTimers();
+    jest.clearAllMocks();
 
     gasFeeFlowMock = createGasFeeFlowMock();
     gasFeeFlowMock.matchesTransaction.mockReturnValue(true);
@@ -356,8 +357,6 @@ describe('updateTransactionGasFees', () => {
     gasPrice: '0x12345',
   };
 
-  const GET_EIP1559_COMPATIBILITY_MOCK = async () => true;
-
   it('updates gas fee estimates', async () => {
     const txMeta = {
       ...TRANSACTION_META_MOCK,
@@ -366,7 +365,6 @@ describe('updateTransactionGasFees', () => {
     await updateTransactionGasFees({
       txMeta,
       gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-      getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
       isTxParamsGasFeeUpdatesEnabled: true,
     });
 
@@ -381,7 +379,6 @@ describe('updateTransactionGasFees', () => {
     await updateTransactionGasFees({
       txMeta,
       gasFeeEstimatesLoaded: true,
-      getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
       isTxParamsGasFeeUpdatesEnabled: true,
     });
 
@@ -390,7 +387,6 @@ describe('updateTransactionGasFees', () => {
     await updateTransactionGasFees({
       txMeta,
       gasFeeEstimatesLoaded: false,
-      getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
       isTxParamsGasFeeUpdatesEnabled: true,
     });
 
@@ -406,7 +402,6 @@ describe('updateTransactionGasFees', () => {
     await updateTransactionGasFees({
       txMeta,
       layer1GasFee: layer1GasFeeMock,
-      getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
       isTxParamsGasFeeUpdatesEnabled: true,
     });
 
@@ -431,7 +426,6 @@ describe('updateTransactionGasFees', () => {
       await updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
         isTxParamsGasFeeUpdatesEnabled: false,
       });
 
@@ -468,7 +462,6 @@ describe('updateTransactionGasFees', () => {
       await updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
         isTxParamsGasFeeUpdatesEnabled: true,
       });
 
@@ -503,7 +496,6 @@ describe('updateTransactionGasFees', () => {
       await updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
         isTxParamsGasFeeUpdatesEnabled: true,
       });
 
@@ -526,7 +518,6 @@ describe('updateTransactionGasFees', () => {
         await updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
           isTxParamsGasFeeUpdatesEnabled: true,
         });
 
@@ -550,7 +541,6 @@ describe('updateTransactionGasFees', () => {
         await updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: GAS_PRICE_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
           isTxParamsGasFeeUpdatesEnabled: true,
         });
 
@@ -572,7 +562,6 @@ describe('updateTransactionGasFees', () => {
         await updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
           isTxParamsGasFeeUpdatesEnabled: true,
         });
 
@@ -587,8 +576,6 @@ describe('updateTransactionGasFees', () => {
     });
 
     describe('on non-EIP-1559 compatible chains', () => {
-      const getEIP1559CompatibilityMock = async () => false;
-
       it('with fee market gas fee estimates', async () => {
         const txMeta = {
           ...TRANSACTION_META_MOCK,
@@ -602,7 +589,6 @@ describe('updateTransactionGasFees', () => {
         await updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          getEIP1559Compatibility: getEIP1559CompatibilityMock,
           isTxParamsGasFeeUpdatesEnabled: true,
         });
 
@@ -627,7 +613,6 @@ describe('updateTransactionGasFees', () => {
         await updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: GAS_PRICE_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          getEIP1559Compatibility: getEIP1559CompatibilityMock,
           isTxParamsGasFeeUpdatesEnabled: true,
         });
 
@@ -651,7 +636,6 @@ describe('updateTransactionGasFees', () => {
         await updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          getEIP1559Compatibility: getEIP1559CompatibilityMock,
           isTxParamsGasFeeUpdatesEnabled: true,
         });
 
@@ -678,7 +662,6 @@ describe('updateTransactionGasFees', () => {
       await updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
         isTxParamsGasFeeUpdatesEnabled: true,
       });
 
@@ -708,7 +691,6 @@ describe('updateTransactionGasFees', () => {
       await updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        getEIP1559Compatibility: async () => false,
         isTxParamsGasFeeUpdatesEnabled: true,
       });
 
@@ -735,7 +717,6 @@ describe('updateTransactionGasFees', () => {
       await updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: undefined,
-        getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
         isTxParamsGasFeeUpdatesEnabled: true,
       });
 
@@ -752,7 +733,6 @@ describe('updateTransactionGasFees', () => {
         txMeta,
         gasFeeEstimates: undefined,
         gasFeeEstimatesLoaded: true,
-        getEIP1559Compatibility: GET_EIP1559_COMPATIBILITY_MOCK,
         isTxParamsGasFeeUpdatesEnabled: true,
       });
 
