@@ -1,5 +1,3 @@
-import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
-
 /**
  * Represents the availability state of the currently selected network.
  */
@@ -34,7 +32,4 @@ export const INFURA_BLOCKED_KEY = 'countryBlocked';
  * The network controller will exclude those the networks begin as default network,
  * without the need to remove the network from constant list of controller-utils.
  */
-export const DeprecatedNetworks = new Set<ChainId>([
-  ChainId[BuiltInNetworkName.Goerli],
-  ChainId[BuiltInNetworkName.LineaGoerli],
-]);
+export const DeprecatedNetworks = new Set<string>(['0xe704', '0x5']);
