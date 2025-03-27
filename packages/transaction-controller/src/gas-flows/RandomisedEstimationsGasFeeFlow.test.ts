@@ -212,8 +212,23 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
     );
 
     it.each(Object.values(GasFeeEstimateLevel))(
-      'does not randomise legacy estimates for %s level',
+      'does return default legacy estimates for %s level',
       async (level) => {
+        const defaultLegacyEstimates = {
+          type: GasFeeEstimateType.Legacy,
+          [GasFeeEstimateLevel.Low]: toHex(1e9),
+          [GasFeeEstimateLevel.Medium]: toHex(3e9),
+          [GasFeeEstimateLevel.High]: toHex(5e9),
+        } as LegacyGasFeeEstimates;
+
+        jest
+          .mocked(DefaultGasFeeFlow.prototype.getGasFees)
+          .mockImplementationOnce(async () => {
+            return {
+              estimates: defaultLegacyEstimates,
+            };
+          });
+
         const flow = new RandomisedEstimationsGasFeeFlow();
 
         const request = {
@@ -221,33 +236,33 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
           transactionMeta: TRANSACTION_META_MOCK,
           gasFeeControllerData: {
             gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
-            gasFeeEstimates: {
-              low: '100000',
-              medium: '200000',
-              high: '300000',
-            },
           } as GasFeeState,
           messenger: {} as TransactionControllerMessenger,
         };
 
         const result = await flow.getGasFees(request);
 
-        // Verify result type
         expect(result.estimates.type).toBe(GasFeeEstimateType.Legacy);
-
-        const gasHex = (result.estimates as LegacyGasFeeEstimates)[level];
-        const estimates = request.gasFeeControllerData
-          .gasFeeEstimates as Record<GasFeeEstimateLevel, string>;
-
-        // Verify that the gas price is not randomised
-        const originalValue = Number(estimates[level]);
-        const actualValue = parseInt(gasHex.slice(2), 16) / 1e9;
-
-        expect(actualValue).toBe(originalValue);
+        expect((result.estimates as LegacyGasFeeEstimates)[level]).toBe(
+          defaultLegacyEstimates[level],
+        );
       },
     );
 
-    it('does not randomise eth_gasPrice estimates', async () => {
+    it('does return default eth_gasPrice estimates', async () => {
+      const defaultGasPriceEstimates = {
+        type: GasFeeEstimateType.GasPrice,
+        gasPrice: toHex(200000),
+      } as GasPriceGasFeeEstimates;
+
+      jest
+        .mocked(DefaultGasFeeFlow.prototype.getGasFees)
+        .mockImplementationOnce(async () => {
+          return {
+            estimates: defaultGasPriceEstimates,
+          };
+        });
+
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       const request = {
@@ -255,24 +270,16 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         transactionMeta: TRANSACTION_META_MOCK,
         gasFeeControllerData: {
           gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-          gasFeeEstimates: {
-            gasPrice: '200000',
-          },
         } as GasFeeState,
         messenger: {} as TransactionControllerMessenger,
       };
 
       const result = await flow.getGasFees(request);
 
-      // Verify result type
       expect(result.estimates.type).toBe(GasFeeEstimateType.GasPrice);
-
-      const gasHex = (result.estimates as GasPriceGasFeeEstimates).gasPrice;
-      const originalValue = 200000;
-      const actualValue = parseInt(gasHex.slice(2), 16) / 1e9;
-
-      // Verify gas price is within expected range
-      expect(actualValue).toBe(originalValue);
+      expect((result.estimates as GasPriceGasFeeEstimates).gasPrice).toBe(
+        defaultGasPriceEstimates.gasPrice,
+      );
     });
 
     it('fall backs to default flow if randomization fails', async () => {

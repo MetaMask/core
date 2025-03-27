@@ -1,8 +1,4 @@
-import type {
-  LegacyGasPriceEstimate,
-  GasFeeEstimates as FeeMarketGasPriceEstimate,
-  EthGasPriceEstimate,
-} from '@metamask/gas-fee-controller';
+import type { GasFeeEstimates as FeeMarketGasPriceEstimate } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { add0x, createModuleLogger, type Hex } from '@metamask/utils';
 
@@ -12,12 +8,9 @@ import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
-  GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
-  GasPriceGasFeeEstimates,
-  LegacyGasFeeEstimates,
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
@@ -57,7 +50,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
     try {
-      return this.#getRandomisedGasFees(request);
+      return await this.#getRandomisedGasFees(request);
     } catch (error) {
       log('Using default flow as fallback due to error', error);
       return await this.#getDefaultGasFees(request);
@@ -70,7 +63,9 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     return new DefaultGasFeeFlow().getGasFees(request);
   }
 
-  #getRandomisedGasFees(request: GasFeeFlowRequest): GasFeeFlowResponse {
+  async #getRandomisedGasFees(
+    request: GasFeeFlowRequest,
+  ): Promise<GasFeeFlowResponse> {
     const { messenger, gasFeeControllerData, transactionMeta } = request;
     const { gasEstimateType, gasFeeEstimates } = gasFeeControllerData;
 
@@ -83,31 +78,25 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
       gasFeeRandomisation.preservedNumberOfDigits ??
       DEFAULT_PRESERVE_NUMBER_OF_DIGITS;
 
-    let response: GasFeeEstimates;
-
     if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
-      log('Using fee market estimates', gasFeeEstimates);
-      response = this.#getRandomisedFeeMarketEstimates(
-        gasFeeEstimates,
-        randomisedGasFeeDigits,
-        preservedNumberOfDigits,
+      log('Randomising fee market estimates', gasFeeEstimates);
+      const randomisedFeeMarketEstimates =
+        this.#getRandomisedFeeMarketEstimates(
+          gasFeeEstimates,
+          randomisedGasFeeDigits,
+          preservedNumberOfDigits,
+        );
+      log(
+        'Added randomised fee market estimates',
+        randomisedFeeMarketEstimates,
       );
-      log('Added randomised fee market estimates', response);
-    } else if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
-      log('Using legacy estimates', gasFeeEstimates);
-      response = this.#getLegacyEstimates(gasFeeEstimates);
-      log('Added legacy estimates', response);
-    } else if (gasEstimateType === GAS_ESTIMATE_TYPES.ETH_GASPRICE) {
-      log('Using eth_gasPrice estimates', gasFeeEstimates);
-      response = this.#getGasPriceEstimates(gasFeeEstimates);
-      log('Added eth_gasPrice estimates', response);
-    } else {
-      throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);
+
+      return {
+        estimates: randomisedFeeMarketEstimates,
+      };
     }
 
-    return {
-      estimates: response,
-    };
+    return await this.#getDefaultGasFees(request);
   }
 
   #getRandomisedFeeMarketEstimates(
@@ -150,39 +139,6 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
         lastNDigits,
         preservedNumberOfDigits,
       ),
-    };
-  }
-
-  #getLegacyEstimates(
-    gasFeeEstimates: LegacyGasPriceEstimate,
-  ): LegacyGasFeeEstimates {
-    const levels = Object.values(GasFeeEstimateLevel).reduce(
-      (result, level) => ({
-        ...result,
-        [level]: this.#getLegacyLevel(gasFeeEstimates, level),
-      }),
-      {} as Omit<LegacyGasFeeEstimates, 'type'>,
-    );
-
-    return {
-      type: GasFeeEstimateType.Legacy,
-      ...levels,
-    };
-  }
-
-  #getLegacyLevel(
-    gasFeeEstimates: LegacyGasPriceEstimate,
-    level: GasFeeEstimateLevel,
-  ): Hex {
-    return gweiDecimalToWeiHex(gasFeeEstimates[level]);
-  }
-
-  #getGasPriceEstimates(
-    gasFeeEstimates: EthGasPriceEstimate,
-  ): GasPriceGasFeeEstimates {
-    return {
-      type: GasFeeEstimateType.GasPrice,
-      gasPrice: gweiDecimalToWeiHex(gasFeeEstimates.gasPrice),
     };
   }
 }
