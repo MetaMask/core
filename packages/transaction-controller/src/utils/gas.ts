@@ -13,12 +13,12 @@ import { getGasEstimateFallback } from './feature-flags';
 import { simulateTransactions } from './simulation-api';
 import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import {
   TransactionEnvelopeType,
   type TransactionMeta,
   type TransactionParams,
 } from '../types';
-import type { TransactionControllerMessenger } from 'src';
 
 export type UpdateGasRequest = {
   chainId: Hex;
