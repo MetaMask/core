@@ -284,7 +284,7 @@ describe('TransactionController Integration', () => {
     it('should fail all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.goerli,
+          InfuraNetworkType['linea-sepolia'],
         ),
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
@@ -313,7 +313,7 @@ describe('TransactionController Integration', () => {
           transactions: [
             {
               actionId: undefined,
-              chainId: '0x5',
+              chainId: '0xe705',
               dappSuggestedGasFees: undefined,
               deviceConfirmedOn: undefined,
               id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
@@ -333,7 +333,7 @@ describe('TransactionController Integration', () => {
               userEditedGasLimit: false,
               verifiedOnBlockchain: false,
               type: TransactionType.simpleSend,
-              networkClientId: 'goerli',
+              networkClientId: 'linea-sepolia',
               simulationFails: undefined,
               originalGasEstimate: '0x5208',
               defaultGasEstimates: {
@@ -405,7 +405,7 @@ describe('TransactionController Integration', () => {
       it('should add a new unapproved transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -420,7 +420,7 @@ describe('TransactionController Integration', () => {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'sepolia' },
         );
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -432,7 +432,7 @@ describe('TransactionController Integration', () => {
       it('should be able to get to submitted state', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -444,11 +444,12 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
           ],
         });
+
         const { transactionController, approvalController } =
           await setupController();
         const { result, transactionMeta } =
@@ -457,7 +458,7 @@ describe('TransactionController Integration', () => {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
         await approvalController.accept(transactionMeta.id);
@@ -475,7 +476,7 @@ describe('TransactionController Integration', () => {
       it('should be able to get to confirmed state', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -486,7 +487,7 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -502,7 +503,7 @@ describe('TransactionController Integration', () => {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
         await approvalController.accept(transactionMeta.id);
@@ -524,7 +525,7 @@ describe('TransactionController Integration', () => {
       it('should be able to send and confirm transactions on different chains', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType['linea-sepolia'],
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -535,7 +536,7 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e482e7050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -571,7 +572,7 @@ describe('TransactionController Integration', () => {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'linea-sepolia' },
         );
         const secondTransaction = await transactionController.addTransaction(
           {
@@ -607,14 +608,14 @@ describe('TransactionController Integration', () => {
         );
         expect(
           transactionController.state.transactions[1].networkClientId,
-        ).toBe('goerli');
+        ).toBe('linea-sepolia');
         transactionController.destroy();
       });
 
       it('should be able to cancel a transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -625,7 +626,7 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a7010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -633,7 +634,7 @@ describe('TransactionController Integration', () => {
             buildEthGetBlockByHashRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x2',
             ),
             buildEthGetTransactionReceiptRequestMock('0x2', '0x1', '0x3'),
@@ -647,7 +648,7 @@ describe('TransactionController Integration', () => {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
         await approvalController.accept(transactionMeta.id);
@@ -667,7 +668,7 @@ describe('TransactionController Integration', () => {
       it('should be able to confirm a cancelled transaction and drop the original transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -678,12 +679,12 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
+              '0x02e583aa36a7010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
               '0x2',
             ),
             {
@@ -699,7 +700,7 @@ describe('TransactionController Integration', () => {
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
             buildEthGetBlockByHashRequestMock('0x2'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
           ],
@@ -712,7 +713,7 @@ describe('TransactionController Integration', () => {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
         await approvalController.accept(transactionMeta.id);
@@ -743,7 +744,7 @@ describe('TransactionController Integration', () => {
       it('should be able to get to speedup state and drop the original transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -754,7 +755,7 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e605018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e983aa36a7018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -763,7 +764,7 @@ describe('TransactionController Integration', () => {
               response: { result: null },
             },
             buildEthSendRawTransactionRequestMock(
-              '0x02e6050182044c82044c8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e983aa36a70182044c82044c8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x2',
             ),
             buildEthBlockNumberRequestMock('0x4'),
@@ -775,7 +776,7 @@ describe('TransactionController Integration', () => {
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
             buildEthGetBlockByHashRequestMock('0x2'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e605018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e983aa36a7018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
           ],
@@ -789,7 +790,7 @@ describe('TransactionController Integration', () => {
               to: ACCOUNT_2_MOCK,
               maxFeePerGas: '0x3e8',
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
         await approvalController.accept(transactionMeta.id);
@@ -827,11 +828,11 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
-        const goerliNetworkClientConfiguration =
-          buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli);
+        const sepoliaNetworkClientConfiguration =
+          buildInfuraNetworkClientConfiguration(InfuraNetworkType.sepolia);
 
         mockNetwork({
-          networkClientConfiguration: goerliNetworkClientConfiguration,
+          networkClientConfiguration: sepoliaNetworkClientConfiguration,
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
@@ -841,7 +842,7 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -859,7 +860,7 @@ describe('TransactionController Integration', () => {
         mockNetwork({
           networkClientConfiguration: buildCustomNetworkClientConfiguration({
             rpcUrl: 'https://mock.rpc.url',
-            ticker: goerliNetworkClientConfiguration.ticker,
+            ticker: sepoliaNetworkClientConfiguration.ticker,
           }),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -871,7 +872,7 @@ describe('TransactionController Integration', () => {
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+              '0x02e383aa36a70201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -889,29 +890,31 @@ describe('TransactionController Integration', () => {
           await setupController({
             getPermittedAccounts: async () => [ACCOUNT_MOCK],
           });
-        const existingGoerliNetworkConfiguration =
-          networkController.getNetworkConfigurationByChainId(ChainId.goerli);
+        const existingSepoliaNetworkConfiguration =
+          networkController.getNetworkConfigurationByChainId(ChainId.sepolia);
         assert(
-          existingGoerliNetworkConfiguration,
-          'Could not find network configuration for Goerli',
+          existingSepoliaNetworkConfiguration,
+          'Could not find network configuration for Sepolia',
         );
-        const updatedGoerliNetworkConfiguration =
-          await networkController.updateNetwork(ChainId.goerli, {
-            ...existingGoerliNetworkConfiguration,
+        const updatedSepoliaNetworkConfiguration =
+          await networkController.updateNetwork(ChainId.sepolia, {
+            ...existingSepoliaNetworkConfiguration,
             rpcEndpoints: [
-              ...existingGoerliNetworkConfiguration.rpcEndpoints,
+              ...existingSepoliaNetworkConfiguration.rpcEndpoints,
               buildUpdateNetworkCustomRpcEndpointFields({
                 url: 'https://mock.rpc.url',
               }),
             ],
           });
-        const otherGoerliRpcEndpoint =
-          updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
-            return rpcEndpoint.url === 'https://mock.rpc.url';
-          });
+        const otherSepoliaRpcEndpoint =
+          updatedSepoliaNetworkConfiguration.rpcEndpoints.find(
+            (rpcEndpoint) => {
+              return rpcEndpoint.url === 'https://mock.rpc.url';
+            },
+          );
         assert(
-          otherGoerliRpcEndpoint,
-          'Could not find other Goerli RPC endpoint',
+          otherSepoliaRpcEndpoint,
+          'Could not find other Sepolia RPC endpoint',
         );
 
         const addTx1 = await transactionController.addTransaction(
@@ -919,7 +922,7 @@ describe('TransactionController Integration', () => {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'sepolia' },
         );
 
         const addTx2 = await transactionController.addTransaction(
@@ -928,7 +931,7 @@ describe('TransactionController Integration', () => {
             to: ACCOUNT_3_MOCK,
           },
           {
-            networkClientId: otherGoerliRpcEndpoint.networkClientId,
+            networkClientId: otherSepoliaRpcEndpoint.networkClientId,
           },
         );
 
@@ -953,7 +956,7 @@ describe('TransactionController Integration', () => {
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
@@ -966,14 +969,14 @@ describe('TransactionController Integration', () => {
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
             buildEthGetBlockByHashRequestMock('0x1'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e20502010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+              '0x02e583aa36a702010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
               '0x2',
             ),
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
@@ -992,7 +995,7 @@ describe('TransactionController Integration', () => {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'sepolia' },
         );
 
         await advanceTime({ clock, duration: 1 });
@@ -1003,7 +1006,7 @@ describe('TransactionController Integration', () => {
             to: ACCOUNT_3_MOCK,
           },
           {
-            networkClientId: 'goerli',
+            networkClientId: 'sepolia',
           },
         );
 
@@ -1031,7 +1034,7 @@ describe('TransactionController Integration', () => {
   it('should start tracking when a new network is added', async () => {
     mockNetwork({
       networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-        InfuraNetworkType.goerli,
+        InfuraNetworkType.sepolia,
       ),
       mocks: [
         buildEthBlockNumberRequestMock('0x1'),
@@ -1058,27 +1061,30 @@ describe('TransactionController Integration', () => {
     const { networkController, transactionController } =
       await setupController();
 
-    const existingGoerliNetworkConfiguration =
-      networkController.getNetworkConfigurationByChainId(ChainId.goerli);
+    const existingSepoliaNetworkConfiguration =
+      networkController.getNetworkConfigurationByChainId(ChainId.sepolia);
     assert(
-      existingGoerliNetworkConfiguration,
-      'Could not find network configuration for Goerli',
+      existingSepoliaNetworkConfiguration,
+      'Could not find network configuration for Sepolia',
     );
-    const updatedGoerliNetworkConfiguration =
-      await networkController.updateNetwork(ChainId.goerli, {
-        ...existingGoerliNetworkConfiguration,
+    const updatedSepoliaNetworkConfiguration =
+      await networkController.updateNetwork(ChainId.sepolia, {
+        ...existingSepoliaNetworkConfiguration,
         rpcEndpoints: [
-          ...existingGoerliNetworkConfiguration.rpcEndpoints,
+          ...existingSepoliaNetworkConfiguration.rpcEndpoints,
           buildUpdateNetworkCustomRpcEndpointFields({
             url: 'https://mock.rpc.url',
           }),
         ],
       });
-    const otherGoerliRpcEndpoint =
-      updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+    const otherSepoliaRpcEndpoint =
+      updatedSepoliaNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
         return rpcEndpoint.url === 'https://mock.rpc.url';
       });
-    assert(otherGoerliRpcEndpoint, 'Could not find other Goerli RPC endpoint');
+    assert(
+      otherSepoliaRpcEndpoint,
+      'Could not find other Sepolia RPC endpoint',
+    );
 
     await transactionController.addTransaction(
       {
@@ -1086,13 +1092,13 @@ describe('TransactionController Integration', () => {
         to: ACCOUNT_3_MOCK,
       },
       {
-        networkClientId: otherGoerliRpcEndpoint.networkClientId,
+        networkClientId: otherSepoliaRpcEndpoint.networkClientId,
       },
     );
 
     expect(transactionController.state.transactions[0]).toStrictEqual(
       expect.objectContaining({
-        networkClientId: otherGoerliRpcEndpoint.networkClientId,
+        networkClientId: otherSepoliaRpcEndpoint.networkClientId,
       }),
     );
     transactionController.destroy();
@@ -1148,8 +1154,8 @@ describe('TransactionController Integration', () => {
     it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
-          [NetworkType.goerli]: {
-            configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
+          [NetworkType.sepolia]: {
+            configuration: BUILT_IN_NETWORKS[NetworkType.sepolia],
           },
         };
       });
@@ -1267,7 +1273,7 @@ describe('TransactionController Integration', () => {
         await setupController();
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.goerli,
+          InfuraNetworkType.sepolia,
         ),
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
@@ -1277,7 +1283,7 @@ describe('TransactionController Integration', () => {
 
       mockNetwork({
         networkClientConfiguration: {
-          ...buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli),
+          ...buildInfuraNetworkClientConfiguration(InfuraNetworkType.sepolia),
           rpcUrl: 'https://mock.rpc.url',
           type: NetworkClientType.Custom,
         },
@@ -1287,34 +1293,34 @@ describe('TransactionController Integration', () => {
         ],
       });
 
-      const existingGoerliNetworkConfiguration =
-        networkController.getNetworkConfigurationByChainId(ChainId.goerli);
+      const existingSepoliaNetworkConfiguration =
+        networkController.getNetworkConfigurationByChainId(ChainId.sepolia);
       assert(
-        existingGoerliNetworkConfiguration,
-        'Could not find network configuration for Goerli',
+        existingSepoliaNetworkConfiguration,
+        'Could not find network configuration for Sepolia',
       );
-      const updatedGoerliNetworkConfiguration =
-        await networkController.updateNetwork(ChainId.goerli, {
-          ...existingGoerliNetworkConfiguration,
+      const updatedSepoliaNetworkConfiguration =
+        await networkController.updateNetwork(ChainId.sepolia, {
+          ...existingSepoliaNetworkConfiguration,
           rpcEndpoints: [
-            ...existingGoerliNetworkConfiguration.rpcEndpoints,
+            ...existingSepoliaNetworkConfiguration.rpcEndpoints,
             buildUpdateNetworkCustomRpcEndpointFields({
               url: 'https://mock.rpc.url',
             }),
           ],
         });
-      const otherGoerliRpcEndpoint =
-        updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+      const otherSepoliaRpcEndpoint =
+        updatedSepoliaNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
           return rpcEndpoint.url === 'https://mock.rpc.url';
         });
       assert(
-        otherGoerliRpcEndpoint,
-        'Could not find other Goerli RPC endpoint',
+        otherSepoliaRpcEndpoint,
+        'Could not find other Sepolia RPC endpoint',
       );
 
       const firstNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
-        'goerli',
+        'sepolia',
       );
       await advanceTime({ clock, duration: 1 });
 
@@ -1324,7 +1330,7 @@ describe('TransactionController Integration', () => {
 
       const secondNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
-        otherGoerliRpcEndpoint.networkClientId,
+        otherSepoliaRpcEndpoint.networkClientId,
       );
       const delay = () =>
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -1359,7 +1365,7 @@ describe('TransactionController Integration', () => {
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.goerli,
+          InfuraNetworkType['linea-sepolia'],
         ),
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
@@ -1379,7 +1385,7 @@ describe('TransactionController Integration', () => {
 
       const firstNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
-        'goerli',
+        'linea-sepolia',
       );
       await advanceTime({ clock, duration: 1 });
 
