@@ -353,7 +353,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
   });
 
   it('randomizes the last digits while preserving the significant digits', () => {
-    const result = randomiseDecimalGWEIAndConvertToHex('5', 3);
+    const result = randomiseDecimalGWEIAndConvertToHex('5', 3, 2);
 
     const resultWei = parseInt(result.slice(2), 16);
     const resultGwei = resultWei / 1e9;
@@ -372,7 +372,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
     jest.spyOn(global.Math, 'random').mockReturnValue(0);
 
     // Test with a value that has non-zero ending digits
-    const result = randomiseDecimalGWEIAndConvertToHex('5.000500123', 3);
+    const result = randomiseDecimalGWEIAndConvertToHex('5.000500123', 3, 2);
     const resultWei = parseInt(result.slice(2), 16);
 
     // Original value in Wei
@@ -386,7 +386,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
     // Set Math.random to return almost 1
     jest.spyOn(global.Math, 'random').mockReturnValue(0.999);
 
-    const result = randomiseDecimalGWEIAndConvertToHex('5', 3);
+    const result = randomiseDecimalGWEIAndConvertToHex('5', 3, 2);
     const resultWei = parseInt(result.slice(2), 16);
 
     const baseWei = 5 * 1e9;
@@ -398,7 +398,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
   });
 
   it('handles values with more digits than requested to randomize', () => {
-    const result = randomiseDecimalGWEIAndConvertToHex('1.23456789', 2);
+    const result = randomiseDecimalGWEIAndConvertToHex('1.23456789', 2, 2);
     const resultWei = parseInt(result.slice(2), 16);
 
     // Base should be 1.234567 Gwei in Wei
@@ -415,7 +415,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
   });
 
   it('respects the PRESERVE_NUMBER_OF_DIGITS constant', () => {
-    const result = randomiseDecimalGWEIAndConvertToHex('0.00001', 4);
+    const result = randomiseDecimalGWEIAndConvertToHex('0.00001', 4, 2);
     const resultWei = parseInt(result.slice(2), 16);
 
     // Original value is 10000 Wei
@@ -433,7 +433,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
     // For "0" input, the result should still be 0
     // This is because 0 has no "ending digits" to randomize
     // The implementation will still start from 0 and only randomize upward
-    const result = randomiseDecimalGWEIAndConvertToHex('0', 3);
+    const result = randomiseDecimalGWEIAndConvertToHex('0', 3, 2);
     const resultWei = parseInt(result.slice(2), 16);
 
     expect(resultWei).toBeGreaterThanOrEqual(0);
@@ -441,8 +441,8 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
   });
 
   it('handles different number formats correctly', () => {
-    const resultFromNumber = randomiseDecimalGWEIAndConvertToHex(5, 3);
-    const resultFromString = randomiseDecimalGWEIAndConvertToHex('5', 3);
+    const resultFromNumber = randomiseDecimalGWEIAndConvertToHex(5, 3, 2);
+    const resultFromString = randomiseDecimalGWEIAndConvertToHex('5', 3, 2);
     expect(resultFromNumber).toStrictEqual(resultFromString);
   });
 });

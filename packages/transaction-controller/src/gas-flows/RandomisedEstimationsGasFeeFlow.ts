@@ -79,7 +79,9 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     const randomisedGasFeeDigits =
       gasFeeRandomisation.randomisedGasFeeDigits[transactionMeta.chainId];
 
-    const preservedNumberOfDigits = gasFeeRandomisation.preservedNumberOfDigits;
+    const preservedNumberOfDigits =
+      gasFeeRandomisation.preservedNumberOfDigits ??
+      DEFAULT_PRESERVE_NUMBER_OF_DIGITS;
 
     let response: GasFeeEstimates;
 
@@ -111,7 +113,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
   #getRandomisedFeeMarketEstimates(
     gasFeeEstimates: FeeMarketGasPriceEstimate,
     lastNDigits: number,
-    preservedNumberOfDigits?: number,
+    preservedNumberOfDigits: number,
   ): FeeMarketGasFeeEstimates {
     const levels = Object.values(GasFeeEstimateLevel).reduce(
       (result, level) => ({
@@ -136,7 +138,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     gasFeeEstimates: FeeMarketGasPriceEstimate,
     level: GasFeeEstimateLevel,
     lastNDigits: number,
-    preservedNumberOfDigits?: number,
+    preservedNumberOfDigits: number,
   ): FeeMarketGasFeeEstimateForLevel {
     return {
       maxFeePerGas: gweiDecimalToWeiHex(
@@ -212,18 +214,15 @@ function generateRandomDigits(digitCount: number, minValue: number): number {
 export function randomiseDecimalGWEIAndConvertToHex(
   gweiDecimalValue: string | number,
   numberOfDigitsToRandomizeAtTheEnd: number,
-  preservedNumberOfDigits?: number,
+  preservedNumberOfDigits: number,
 ): Hex {
   const weiDecimalValue = gweiDecimalToWeiDecimal(gweiDecimalValue);
   const decimalLength = weiDecimalValue.length;
 
-  const preservedDigits =
-    preservedNumberOfDigits ?? DEFAULT_PRESERVE_NUMBER_OF_DIGITS;
-
   // Determine how many digits to randomise while preserving the PRESERVE_NUMBER_OF_DIGITS
   const effectiveDigitsToRandomise = Math.min(
     numberOfDigitsToRandomizeAtTheEnd,
-    decimalLength - preservedDigits,
+    decimalLength - preservedNumberOfDigits,
   );
 
   // Handle the case when the value is 0 or too small
