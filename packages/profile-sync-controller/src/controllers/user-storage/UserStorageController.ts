@@ -308,7 +308,7 @@ export default class UserStorageController extends BaseController<
 
   readonly #config?: ControllerConfig;
 
-  #isUnlocked = false;
+  #isKeyringControllerUnlocked = false;
 
   #storageKeyCache: Record<`metamask:${string}`, string> = {};
 
@@ -317,14 +317,14 @@ export default class UserStorageController extends BaseController<
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
       );
-      this.#isUnlocked = isUnlocked;
+      this.#isKeyringControllerUnlocked = isUnlocked;
 
       this.messagingSystem.subscribe('KeyringController:unlock', () => {
-        this.#isUnlocked = true;
+        this.#isKeyringControllerUnlocked = true;
       });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
-        this.#isUnlocked = false;
+        this.#isKeyringControllerUnlocked = false;
       });
     },
   };
@@ -473,6 +473,53 @@ export default class UserStorageController extends BaseController<
     );
   }
 
+  #isLocked = false;
+
+  readonly #pendingOperations: (() => Promise<unknown> | unknown)[] = [];
+
+  /**
+   * Locks the controller, preventing operations that are subsequently called with `executeWithLockHandling` from executing.
+   * These operations will be queued until the controller is unlocked.
+   */
+  lock() {
+    this.#isLocked = true;
+  }
+
+  /**
+   * Unlocks the controller and executes all pending operations that were queued using the `executeWithLockHandling` method while the controller was locked.
+   * This method will also clear the pending operations queue.
+   * If any of the operations fail, the error will be propagated to the caller. The following operations will not be executed and the queue will be cleared.
+   */
+  async unlock() {
+    try {
+      for (const operation of this.#pendingOperations) {
+        await operation();
+      }
+    } finally {
+      this.#pendingOperations.length = 0;
+      this.#isLocked = false;
+    }
+  }
+
+  /**
+   * Executes or enqueues an operation based on the lock state of the controller.
+   * If the controller is locked, the operation will be added to the pending operations queue.
+   * If the controller is not locked, the operation will be executed immediately.
+   *
+   * @param operation - The operation to execute. This should be a function that returns a promise.
+   * @returns The result of the operation.
+   */
+  async executeWithLockHandling<T>(
+    operation: () => Promise<T>,
+  ): Promise<T | void> {
+    if (this.#isLocked) {
+      this.#pendingOperations.push(operation);
+      return;
+    }
+
+    await operation();
+  }
+
   /**
    * Allows retrieval of stored data. Data stored is string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
@@ -619,7 +666,7 @@ export default class UserStorageController extends BaseController<
       return this.#_snapSignMessageCache[message];
     }
 
-    if (!this.#isUnlocked) {
+    if (!this.#isKeyringControllerUnlocked) {
       throw new Error(
         '#snapSignMessage - unable to call snap, wallet is locked',
       );
@@ -713,30 +760,32 @@ export default class UserStorageController extends BaseController<
    * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
    * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
    */
-  async syncInternalAccountsWithUserStorage(): Promise<void> {
-    const profileId = await this.#auth.getProfileId();
+  async syncInternalAccountsWithUserStorage() {
+    await this.executeWithLockHandling(async () => {
+      const profileId = await this.#auth.getProfileId();
 
-    await syncInternalAccountsWithUserStorage(
-      {
-        isAccountSyncingEnabled: this.#env.isAccountSyncingEnabled,
-        maxNumberOfAccountsToAdd:
-          this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
-        onAccountAdded: () =>
-          this.#config?.accountSyncing?.onAccountAdded?.(profileId),
-        onAccountNameUpdated: () =>
-          this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
-        onAccountSyncErroneousSituation: (situationMessage, sentryContext) =>
-          this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
-            profileId,
-            situationMessage,
-            sentryContext,
-          ),
-      },
-      {
-        getMessenger: () => this.messagingSystem,
-        getUserStorageControllerInstance: () => this,
-      },
-    );
+      await syncInternalAccountsWithUserStorage(
+        {
+          isAccountSyncingEnabled: this.#env.isAccountSyncingEnabled,
+          maxNumberOfAccountsToAdd:
+            this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
+          onAccountAdded: () =>
+            this.#config?.accountSyncing?.onAccountAdded?.(profileId),
+          onAccountNameUpdated: () =>
+            this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId),
+          onAccountSyncErroneousSituation: (situationMessage, sentryContext) =>
+            this.#config?.accountSyncing?.onAccountSyncErroneousSituation?.(
+              profileId,
+              situationMessage,
+              sentryContext,
+            ),
+        },
+        {
+          getMessenger: () => this.messagingSystem,
+          getUserStorageControllerInstance: () => this,
+        },
+      );
+    });
   }
 
   /**
@@ -744,40 +793,43 @@ export default class UserStorageController extends BaseController<
    *
    * @param internalAccount - The internal account to save
    */
-  async saveInternalAccountToUserStorage(
-    internalAccount: InternalAccount,
-  ): Promise<void> {
-    await saveInternalAccountToUserStorage(
-      internalAccount,
-      { isAccountSyncingEnabled: this.#env.isAccountSyncingEnabled },
-      {
-        getMessenger: () => this.messagingSystem,
-        getUserStorageControllerInstance: () => this,
-      },
-    );
+  async saveInternalAccountToUserStorage(internalAccount: InternalAccount) {
+    await this.executeWithLockHandling(async () => {
+      await saveInternalAccountToUserStorage(
+        internalAccount,
+        { isAccountSyncingEnabled: this.#env.isAccountSyncingEnabled },
+        {
+          getMessenger: () => this.messagingSystem,
+          getUserStorageControllerInstance: () => this,
+        },
+      );
+    });
   }
 
   async syncNetworks() {
-    if (!this.#env.isNetworkSyncingEnabled) {
-      return;
-    }
+    await this.executeWithLockHandling(async () => {
+      if (!this.#env.isNetworkSyncingEnabled) {
+        return;
+      }
 
-    const profileId = await this.#auth.getProfileId();
+      const profileId = await this.#auth.getProfileId();
 
-    await performMainNetworkSync({
-      messenger: this.messagingSystem,
-      getUserStorageControllerInstance: () => this,
-      maxNetworksToAdd: this.#config?.networkSyncing?.maxNumberOfNetworksToAdd,
-      onNetworkAdded: (cId) =>
-        this.#config?.networkSyncing?.onNetworkAdded?.(profileId, cId),
-      onNetworkUpdated: (cId) =>
-        this.#config?.networkSyncing?.onNetworkUpdated?.(profileId, cId),
-      onNetworkRemoved: (cId) =>
-        this.#config?.networkSyncing?.onNetworkRemoved?.(profileId, cId),
-    });
+      await performMainNetworkSync({
+        messenger: this.messagingSystem,
+        getUserStorageControllerInstance: () => this,
+        maxNetworksToAdd:
+          this.#config?.networkSyncing?.maxNumberOfNetworksToAdd,
+        onNetworkAdded: (cId) =>
+          this.#config?.networkSyncing?.onNetworkAdded?.(profileId, cId),
+        onNetworkUpdated: (cId) =>
+          this.#config?.networkSyncing?.onNetworkUpdated?.(profileId, cId),
+        onNetworkRemoved: (cId) =>
+          this.#config?.networkSyncing?.onNetworkRemoved?.(profileId, cId),
+      });
 
-    this.update((s) => {
-      s.hasNetworkSyncingSyncedAtLeastOnce = true;
+      this.update((s) => {
+        s.hasNetworkSyncingSyncedAtLeastOnce = true;
+      });
     });
   }
 }

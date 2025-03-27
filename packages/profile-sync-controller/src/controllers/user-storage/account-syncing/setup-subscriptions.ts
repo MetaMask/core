@@ -16,7 +16,7 @@ export function setupAccountSyncingSubscriptions(
 
   getMessenger().subscribe(
     'AccountsController:accountAdded',
-
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (account) => {
       if (
         !canPerformAccountSyncing(config, options) ||
@@ -32,7 +32,7 @@ export function setupAccountSyncingSubscriptions(
 
   getMessenger().subscribe(
     'AccountsController:accountRenamed',
-
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (account) => {
       if (
         !canPerformAccountSyncing(config, options) ||
