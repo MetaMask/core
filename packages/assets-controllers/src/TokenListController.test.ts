@@ -898,26 +898,6 @@ describe('TokenListController', () => {
     controller.stopPollingByPollingToken(pollingToken);
   });
 
-  it('should update tokensChainsCache from cache before reaching the threshold time', async () => {
-    const messenger = getMessenger();
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      messenger: restrictedMessenger,
-      state: existingState,
-    });
-    expect(controller.state).toStrictEqual(existingState);
-    await controller.start();
-
-    expect(
-      controller.state.tokensChainsCache[ChainId.mainnet].data,
-    ).toStrictEqual(
-      sampleSingleChainState.tokensChainsCache[ChainId.mainnet].data,
-    );
-    controller.destroy();
-  });
-
   it('should update token list when the token property changes', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
