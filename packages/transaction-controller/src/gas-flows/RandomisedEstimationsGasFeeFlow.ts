@@ -21,10 +21,7 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import {
-  getPreserveNumberOfDigitsForRandomisedGasFee,
-  getRandomisedGasFeeDigits,
-} from '../utils/feature-flags';
+import { getGasFeeRandomisation } from '../utils/feature-flags';
 import {
   gweiDecimalToWeiDecimal,
   gweiDecimalToWeiHex,
@@ -50,10 +47,10 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
   }): boolean {
     const { chainId } = transactionMeta;
 
-    const randomisedGasFeeDigits = getRandomisedGasFeeDigits(
-      chainId,
-      messenger,
-    );
+    const gasFeeRandomisation = getGasFeeRandomisation(messenger);
+
+    const randomisedGasFeeDigits =
+      gasFeeRandomisation.randomisedGasFeeDigits[chainId];
 
     return randomisedGasFeeDigits !== undefined;
   }
@@ -77,13 +74,12 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     const { messenger, gasFeeControllerData, transactionMeta } = request;
     const { gasEstimateType, gasFeeEstimates } = gasFeeControllerData;
 
-    const randomisedGasFeeDigits = getRandomisedGasFeeDigits(
-      transactionMeta.chainId,
-      messenger,
-    ) as number;
+    const gasFeeRandomisation = getGasFeeRandomisation(messenger);
 
-    const preservedNumberOfDigits =
-      getPreserveNumberOfDigitsForRandomisedGasFee(messenger);
+    const randomisedGasFeeDigits =
+      gasFeeRandomisation.randomisedGasFeeDigits[transactionMeta.chainId];
+
+    const preservedNumberOfDigits = gasFeeRandomisation.preservedNumberOfDigits;
 
     let response: GasFeeEstimates;
 

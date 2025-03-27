@@ -20,10 +20,7 @@ import {
   GasFeeEstimateType,
   TransactionStatus,
 } from '../types';
-import {
-  getPreserveNumberOfDigitsForRandomisedGasFee,
-  getRandomisedGasFeeDigits,
-} from '../utils/feature-flags';
+import { getGasFeeRandomisation } from '../utils/feature-flags';
 
 jest.mock('./DefaultGasFeeFlow');
 jest.mock('../utils/feature-flags');
@@ -74,10 +71,7 @@ const DEFAULT_GAS_PRICE_RESPONSE: GasPriceGasFeeEstimates = {
 };
 
 describe('RandomisedEstimationsGasFeeFlow', () => {
-  const getRandomisedGasFeeDigitsMock = jest.mocked(getRandomisedGasFeeDigits);
-  const getPreserveNumberOfDigitsForRandomisedGasFeeMock = jest.mocked(
-    getPreserveNumberOfDigitsForRandomisedGasFee,
-  );
+  const getGasFeeRandomisationMock = jest.mocked(getGasFeeRandomisation);
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -97,8 +91,12 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         return { estimates: DEFAULT_GAS_PRICE_RESPONSE };
       });
 
-    getRandomisedGasFeeDigitsMock.mockReturnValue(6);
-    getPreserveNumberOfDigitsForRandomisedGasFeeMock.mockReturnValue(2);
+    getGasFeeRandomisationMock.mockReturnValue({
+      randomisedGasFeeDigits: {
+        '0x1': 6,
+      },
+      preservedNumberOfDigits: 2,
+    });
   });
 
   afterEach(() => {
@@ -123,7 +121,10 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
     });
 
     it('returns false if chainId is not in the randomisation config', () => {
-      getRandomisedGasFeeDigitsMock.mockReturnValue(undefined);
+      getGasFeeRandomisationMock.mockReturnValue({
+        randomisedGasFeeDigits: {},
+        preservedNumberOfDigits: undefined,
+      });
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       const transaction = {

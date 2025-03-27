@@ -64,11 +64,13 @@ export type TransactionControllerFeatureFlags = {
       defaultIntervalMs?: number;
     };
 
-    /** Randomised gas fee digits. */
-    randomisedGasFeeDigits?: Record<Hex, number>;
+    gasFeeRandomisation?: {
+      /** Randomised gas fee digits per chainId. */
+      randomisedGasFeeDigits?: Record<Hex, number>;
 
-    /** Number of digits to preserve for randomised gas fee digits. */
-    preservedNumberOfDigits?: number;
+      /** Number of digits to preserve for randomised gas fee digits. */
+      preservedNumberOfDigits?: number;
+    };
   };
 };
 
@@ -181,39 +183,26 @@ export function getAcceleratedPollingParams(
 }
 
 /**
- * Retrieves the number of digits to randomise for a given chain ID.
- *
- * @param chainId - The chain ID.
- * @param messenger - The controller messenger instance.
- * @returns The number of digits to randomise.
- */
-export function getRandomisedGasFeeDigits(
-  chainId: Hex,
-  messenger: TransactionControllerMessenger,
-): number | undefined {
-  const featureFlags = getFeatureFlags(messenger);
-
-  const randomisedGasFeeDigits =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.randomisedGasFeeDigits ?? {};
-
-  return randomisedGasFeeDigits[chainId];
-}
-
-/**
- * Retrieves the number of digits to preserve for randomised gas fee digits.
+ * Retrieves the gas fee randomisation parameters.
  *
  * @param messenger - The controller messenger instance.
- * @returns The number of digits to preserve.
+ * @returns The gas fee randomisation parameters.
  */
-export function getPreserveNumberOfDigitsForRandomisedGasFee(
+export function getGasFeeRandomisation(
   messenger: TransactionControllerMessenger,
-): number | undefined {
+): {
+  randomisedGasFeeDigits: Record<Hex, number>;
+  preservedNumberOfDigits: number | undefined;
+} {
   const featureFlags = getFeatureFlags(messenger);
 
-  const preservedNumberOfDigits =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.preservedNumberOfDigits;
+  const gasFeeRandomisation =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasFeeRandomisation || {};
 
-  return preservedNumberOfDigits;
+  return {
+    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
+    preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
+  };
 }
 
 /**

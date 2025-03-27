@@ -11,8 +11,7 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
-  getPreserveNumberOfDigitsForRandomisedGasFee,
-  getRandomisedGasFeeDigits,
+  getGasFeeRandomisation,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -431,65 +430,51 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getRandomisedGasFeeDigits', () => {
-    it('returns value from remote feature flag controller', () => {
+  describe('getGasFeeRandomisation', () => {
+    it('returns empty objects if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {},
+        preservedNumberOfDigits: undefined,
+      });
+    });
+
+    it('returns values from feature flags when set', () => {
       mockFeatureFlags({
         [FEATURE_FLAG_TRANSACTIONS]: {
-          randomisedGasFeeDigits: {
-            [CHAIN_ID_MOCK]: 3,
-            [CHAIN_ID_2_MOCK]: 2,
+          gasFeeRandomisation: {
+            randomisedGasFeeDigits: {
+              [CHAIN_ID_MOCK]: 3,
+              [CHAIN_ID_2_MOCK]: 5,
+            },
+            preservedNumberOfDigits: 2,
           },
         },
       });
 
-      expect(
-        getRandomisedGasFeeDigits(CHAIN_ID_MOCK, controllerMessenger),
-      ).toBe(3);
-      expect(
-        getRandomisedGasFeeDigits(CHAIN_ID_2_MOCK, controllerMessenger),
-      ).toBe(2);
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {
+          [CHAIN_ID_MOCK]: 3,
+          [CHAIN_ID_2_MOCK]: 5,
+        },
+        preservedNumberOfDigits: 2,
+      });
     });
 
-    it('returns undefined if no randomised gas fee digits for chain', () => {
+    it('returns empty randomisedGasFeeDigits if not set in feature flags', () => {
       mockFeatureFlags({
         [FEATURE_FLAG_TRANSACTIONS]: {
-          randomisedGasFeeDigits: {
-            [CHAIN_ID_2_MOCK]: 2,
+          gasFeeRandomisation: {
+            preservedNumberOfDigits: 2,
           },
         },
       });
 
-      expect(
-        getRandomisedGasFeeDigits(CHAIN_ID_MOCK, controllerMessenger),
-      ).toBeUndefined();
-    });
-
-    it('returns undefined if feature flag not configured', () => {
-      mockFeatureFlags({});
-      expect(
-        getRandomisedGasFeeDigits(CHAIN_ID_MOCK, controllerMessenger),
-      ).toBeUndefined();
-    });
-  });
-
-  describe('getPreserveNumberOfDigitsForRandomisedGasFee', () => {
-    it('returns value from remote feature flag controller', () => {
-      mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
-          preservedNumberOfDigits: 5,
-        },
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {},
+        preservedNumberOfDigits: 2,
       });
-
-      expect(
-        getPreserveNumberOfDigitsForRandomisedGasFee(controllerMessenger),
-      ).toBe(5);
-    });
-
-    it('returns undefined if feature flag not configured', () => {
-      mockFeatureFlags({});
-      expect(
-        getPreserveNumberOfDigitsForRandomisedGasFee(controllerMessenger),
-      ).toBeUndefined();
     });
   });
 });
