@@ -529,21 +529,6 @@ describe('NetworkController', () => {
                     },
                   ],
                 },
-                "0x5": Object {
-                  "blockExplorerUrls": Array [],
-                  "chainId": "0x5",
-                  "defaultRpcEndpointIndex": 0,
-                  "name": "Goerli",
-                  "nativeCurrency": "GoerliETH",
-                  "rpcEndpoints": Array [
-                    Object {
-                      "failoverUrls": Array [],
-                      "networkClientId": "goerli",
-                      "type": "infura",
-                      "url": "https://goerli.infura.io/v3/{infuraProjectId}",
-                    },
-                  ],
-                },
                 "0xaa36a7": Object {
                   "blockExplorerUrls": Array [],
                   "chainId": "0xaa36a7",
@@ -556,21 +541,6 @@ describe('NetworkController', () => {
                       "networkClientId": "sepolia",
                       "type": "infura",
                       "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
-                    },
-                  ],
-                },
-                "0xe704": Object {
-                  "blockExplorerUrls": Array [],
-                  "chainId": "0xe704",
-                  "defaultRpcEndpointIndex": 0,
-                  "name": "Linea Goerli",
-                  "nativeCurrency": "LineaETH",
-                  "rpcEndpoints": Array [
-                    Object {
-                      "failoverUrls": Array [],
-                      "networkClientId": "linea-goerli",
-                      "type": "infura",
-                      "url": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
                     },
                   ],
                 },
