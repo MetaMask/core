@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `RpcEndpoint` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking
+- Update `NetworkClientConfiguration` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking
+
 ## [23.1.0]
 
 ### Added
