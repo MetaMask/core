@@ -2521,6 +2521,95 @@ describe('TokenRatesController', () => {
           },
         );
       });
+
+      it('will update rates twice if detected tokens increased during second call', async () => {
+        const tokenAddresses = [
+          '0x0000000000000000000000000000000000000001',
+          '0x0000000000000000000000000000000000000002',
+        ];
+        const fetchTokenPricesMock = jest.fn().mockResolvedValue({
+          [tokenAddresses[0]]: {
+            currency: 'ETH',
+            tokenAddress: tokenAddresses[0],
+            value: 0.001,
+          },
+          [tokenAddresses[1]]: {
+            currency: 'ETH',
+            tokenAddress: tokenAddresses[1],
+            value: 0.002,
+          },
+        });
+        const tokenPricesService = buildMockTokenPricesService({
+          fetchTokenPrices: fetchTokenPricesMock,
+        });
+        await withController(
+          { options: { tokenPricesService } },
+          async ({
+            controller,
+            triggerTokensStateChange,
+            triggerNetworkStateChange,
+          }) => {
+            const request1Payload = [
+              {
+                address: tokenAddresses[0],
+                decimals: 18,
+                symbol: 'TST1',
+                aggregators: [],
+              },
+            ];
+            const request2Payload = [
+              {
+                address: tokenAddresses[0],
+                decimals: 18,
+                symbol: 'TST1',
+                aggregators: [],
+              },
+              {
+                address: tokenAddresses[1],
+                decimals: 18,
+                symbol: 'TST2',
+                aggregators: [],
+              },
+            ];
+            const updateExchangeRates = async (
+              tokens: typeof request1Payload | typeof request2Payload,
+            ) =>
+              await callUpdateExchangeRatesMethod({
+                allTokens: {
+                  [toHex(1)]: {
+                    [defaultSelectedAddress]: tokens,
+                  },
+                },
+                chainId: ChainId.mainnet,
+                selectedNetworkClientId: InfuraNetworkType.mainnet,
+                controller,
+                triggerTokensStateChange,
+                triggerNetworkStateChange,
+                method,
+                nativeCurrency: 'ETH',
+              });
+
+            await Promise.all([
+              updateExchangeRates(request1Payload),
+              updateExchangeRates(request2Payload),
+            ]);
+
+            expect(fetchTokenPricesMock).toHaveBeenCalledTimes(2);
+            expect(fetchTokenPricesMock).toHaveBeenNthCalledWith(
+              1,
+              expect.objectContaining({
+                tokenAddresses: [tokenAddresses[0]],
+              }),
+            );
+            expect(fetchTokenPricesMock).toHaveBeenNthCalledWith(
+              2,
+              expect.objectContaining({
+                tokenAddresses: [tokenAddresses[0], tokenAddresses[1]],
+              }),
+            );
+          },
+        );
+      });
     });
   });
 

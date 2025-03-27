@@ -6,9 +6,12 @@ describe('@metamask/chain-agnostic-permission', () => {
       Array [
         "getEthAccounts",
         "setEthAccounts",
+        "setPermittedAccounts",
         "getPermittedEthChainIds",
         "addPermittedEthChainId",
         "setPermittedEthChainIds",
+        "setPermittedChainIds",
+        "addPermittedChainId",
         "getInternalScopesObject",
         "getSessionScopes",
         "getPermittedAccountsForScopes",
@@ -34,6 +37,8 @@ describe('@metamask/chain-agnostic-permission', () => {
         "Caip25EndowmentPermissionName",
         "caip25EndowmentBuilder",
         "Caip25CaveatMutators",
+        "generateCaip25Caveat",
+        "KnownSessionProperties",
       ]
     `);
   });

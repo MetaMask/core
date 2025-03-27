@@ -168,7 +168,7 @@ describe('nonce', () => {
       const result = getAndFormatTransactionsForNonceTracker(
         '0x2',
         fromAddress,
-        TransactionStatus.confirmed,
+        [TransactionStatus.confirmed],
         inputTransactions,
       );
 
