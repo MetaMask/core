@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
+    "@metamask/controller-utils": "^11.6.0",
     "@metamask/keyring-api": "^17.2.0",
     "@metamask/utils": "^11.2.0",
     "@solana/addresses": "^2.0.0"

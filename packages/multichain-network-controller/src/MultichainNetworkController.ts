@@ -8,11 +8,14 @@ import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from './constants';
+import { fetchNetworkActivityByAccounts } from './multichain-active-networks';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
   type MultichainNetworkControllerMessenger,
   type SupportedCaipChainId,
+  type ActiveNetworksByAddress,
+  type ActiveNetworksResponse,
 } from './types';
 import {
   checkIfSupportedCaipChainId,
@@ -138,6 +141,36 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
+   * Returns the active networks for the available EVM addresses (non-EVM networks will be supported in the future).
+   * Fetches the data from the API and caches it in state.
+   *
+   * @returns A promise that resolves to the active networks for the available addresses
+   * @throws Error if the API request fails
+   * @throws Error if the response format is invalid
+   */
+  async getNetworksWithActivityByAccounts(): Promise<ActiveNetworksByAddress> {
+    try {
+      // TODO: Get actual account IDs from AccountsController
+      // For now, return mock data for testing from initial state
+      return this.state.networksWithActivity;
+
+      // TODO: Implement actual fetching logic:
+      // const response = await fetchNetworkActivityByAccounts(accountIds);
+      // const formattedNetworks = formatActiveNetworksResponse(response);
+      // this.update((state) => {
+      //   state.networksWithActivity = formattedNetworks;
+      // });
+      // return formattedNetworks;
+    } catch (error) {
+      throw new Error(
+        `Failed to fetch active networks: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  /**
    * Handles switching between EVM and non-EVM networks when an account is changed
    *
    * @param account - The account that was changed
@@ -201,6 +234,10 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'MultichainNetworkController:setActiveNetwork',
       this.setActiveNetwork.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'MultichainNetworkController:getNetworksWithActivityByAccounts',
+      this.getNetworksWithActivityByAccounts.bind(this),
     );
   }
 }

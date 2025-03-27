@@ -1,4 +1,5 @@
 import { type StateMetadata } from '@metamask/base-controller';
+import { ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
@@ -58,6 +59,13 @@ export const getDefaultMultichainNetworkControllerState =
       AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
     selectedMultichainNetworkChainId: SolScope.Mainnet,
     isEvmSelected: true,
+    // Mock data for testing
+    networksWithActivity: {
+      '0x0000000000000000000000000000000000000000': {
+        namespace: 'mainnet',
+        activeChains: [ChainId.mainnet],
+      },
+    },
   });
 
 /**
@@ -71,4 +79,10 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
   multichainNetworkConfigurationsByChainId: { persist: true, anonymous: true },
   selectedMultichainNetworkChainId: { persist: true, anonymous: true },
   isEvmSelected: { persist: true, anonymous: true },
+  networksWithActivity: { persist: true, anonymous: true },
 } satisfies StateMetadata<MultichainNetworkControllerState>;
+
+/**
+ * The domain for multichain accounts API.
+ */
+export const MULTICHAIN_ACCOUNTS_DOMAIN = 'https://accounts.api.cx.metamask.io';
