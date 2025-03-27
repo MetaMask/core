@@ -4,7 +4,7 @@ import type {
   EthGasPriceEstimate,
 } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { add0x, createModuleLogger, type Hex } from '@metamask/utils';
 
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
@@ -21,15 +21,21 @@ import type {
   TransactionMeta,
 } from '../types';
 import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
-import { getRandomisedGasFeeDigits } from '../utils/feature-flags';
-import { gweiDecimalToWeiDecimal } from '../utils/gas-fees';
+import {
+  getPreserveNumberOfDigitsForRandomisedGasFee,
+  getRandomisedGasFeeDigits,
+} from '../utils/feature-flags';
+import {
+  gweiDecimalToWeiDecimal,
+  gweiDecimalToWeiHex,
+} from '../utils/gas-fees';
 
 const log = createModuleLogger(
   projectLogger,
   'randomised-estimation-gas-fee-flow',
 );
 
-const PRESERVE_NUMBER_OF_DIGITS = 2;
+const DEFAULT_PRESERVE_NUMBER_OF_DIGITS = 2;
 
 /**
  * Implementation of a gas fee flow that randomises the last digits of gas fee estimations
@@ -54,7 +60,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
 
   async getGasFees(request: GasFeeFlowRequest): Promise<GasFeeFlowResponse> {
     try {
-      return await this.#getRandomisedGasFees(request);
+      return this.#getRandomisedGasFees(request);
     } catch (error) {
       log('Using default flow as fallback due to error', error);
       return await this.#getDefaultGasFees(request);
@@ -67,9 +73,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     return new DefaultGasFeeFlow().getGasFees(request);
   }
 
-  async #getRandomisedGasFees(
-    request: GasFeeFlowRequest,
-  ): Promise<GasFeeFlowResponse> {
+  #getRandomisedGasFees(request: GasFeeFlowRequest): GasFeeFlowResponse {
     const { messenger, gasFeeControllerData, transactionMeta } = request;
     const { gasEstimateType, gasFeeEstimates } = gasFeeControllerData;
 
@@ -78,29 +82,27 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
       messenger,
     ) as number;
 
+    const preservedNumberOfDigits =
+      getPreserveNumberOfDigitsForRandomisedGasFee(messenger);
+
     let response: GasFeeEstimates;
 
     if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
       log('Using fee market estimates', gasFeeEstimates);
-      response = this.#randomiseFeeMarketEstimates(
+      response = this.#getRandomisedFeeMarketEstimates(
         gasFeeEstimates,
         randomisedGasFeeDigits,
+        preservedNumberOfDigits,
       );
-      log('Randomised fee market estimates', response);
+      log('Added randomised fee market estimates', response);
     } else if (gasEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
       log('Using legacy estimates', gasFeeEstimates);
-      response = this.#randomiseLegacyEstimates(
-        gasFeeEstimates,
-        randomisedGasFeeDigits,
-      );
-      log('Randomised legacy estimates', response);
+      response = this.#getLegacyEstimates(gasFeeEstimates);
+      log('Added legacy estimates', response);
     } else if (gasEstimateType === GAS_ESTIMATE_TYPES.ETH_GASPRICE) {
       log('Using eth_gasPrice estimates', gasFeeEstimates);
-      response = this.#getRandomisedGasPriceEstimate(
-        gasFeeEstimates,
-        randomisedGasFeeDigits,
-      );
-      log('Randomised eth_gasPrice estimates', response);
+      response = this.#getGasPriceEstimates(gasFeeEstimates);
+      log('Added eth_gasPrice estimates', response);
     } else {
       throw new Error(`Unsupported gas estimate type: ${gasEstimateType}`);
     }
@@ -110,9 +112,10 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     };
   }
 
-  #randomiseFeeMarketEstimates(
+  #getRandomisedFeeMarketEstimates(
     gasFeeEstimates: FeeMarketGasPriceEstimate,
     lastNDigits: number,
+    preservedNumberOfDigits?: number,
   ): FeeMarketGasFeeEstimates {
     const levels = Object.values(GasFeeEstimateLevel).reduce(
       (result, level) => ({
@@ -121,6 +124,7 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
           gasFeeEstimates,
           level,
           lastNDigits,
+          preservedNumberOfDigits,
         ),
       }),
       {} as Omit<FeeMarketGasFeeEstimates, 'type'>,
@@ -136,31 +140,28 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     gasFeeEstimates: FeeMarketGasPriceEstimate,
     level: GasFeeEstimateLevel,
     lastNDigits: number,
+    preservedNumberOfDigits?: number,
   ): FeeMarketGasFeeEstimateForLevel {
     return {
-      maxFeePerGas: randomiseDecimalGWEIAndConvertToHex(
+      maxFeePerGas: gweiDecimalToWeiHex(
         gasFeeEstimates[level].suggestedMaxFeePerGas,
-        lastNDigits,
       ),
+      // Only priority fee is randomised
       maxPriorityFeePerGas: randomiseDecimalGWEIAndConvertToHex(
         gasFeeEstimates[level].suggestedMaxPriorityFeePerGas,
         lastNDigits,
+        preservedNumberOfDigits,
       ),
     };
   }
 
-  #randomiseLegacyEstimates(
+  #getLegacyEstimates(
     gasFeeEstimates: LegacyGasPriceEstimate,
-    lastNDigits: number,
   ): LegacyGasFeeEstimates {
     const levels = Object.values(GasFeeEstimateLevel).reduce(
       (result, level) => ({
         ...result,
-        [level]: this.#getRandomisedLegacyLevel(
-          gasFeeEstimates,
-          level,
-          lastNDigits,
-        ),
+        [level]: this.#getLegacyLevel(gasFeeEstimates, level),
       }),
       {} as Omit<LegacyGasFeeEstimates, 'type'>,
     );
@@ -171,27 +172,19 @@ export class RandomisedEstimationsGasFeeFlow implements GasFeeFlow {
     };
   }
 
-  #getRandomisedLegacyLevel(
+  #getLegacyLevel(
     gasFeeEstimates: LegacyGasPriceEstimate,
     level: GasFeeEstimateLevel,
-    lastNDigits: number,
   ): Hex {
-    return randomiseDecimalGWEIAndConvertToHex(
-      gasFeeEstimates[level],
-      lastNDigits,
-    );
+    return gweiDecimalToWeiHex(gasFeeEstimates[level]);
   }
 
-  #getRandomisedGasPriceEstimate(
+  #getGasPriceEstimates(
     gasFeeEstimates: EthGasPriceEstimate,
-    lastNDigits: number,
   ): GasPriceGasFeeEstimates {
     return {
       type: GasFeeEstimateType.GasPrice,
-      gasPrice: randomiseDecimalGWEIAndConvertToHex(
-        gasFeeEstimates.gasPrice,
-        lastNDigits,
-      ),
+      gasPrice: gweiDecimalToWeiHex(gasFeeEstimates.gasPrice),
     };
   }
 }
@@ -216,20 +209,25 @@ function generateRandomDigits(digitCount: number, minValue: number): number {
  * The randomisation is performed in Wei units for more precision.
  *
  * @param gweiDecimalValue - The original gas fee value in Gwei (decimal)
- * @param [numberOfDigitsToRandomizeAtTheEnd] - The number of least significant digits to randomise
+ * @param numberOfDigitsToRandomizeAtTheEnd - The number of least significant digits to randomise
+ * @param preservedNumberOfDigits - The number of most significant digits to preserve
  * @returns The randomised value converted to Wei in hexadecimal format
  */
 export function randomiseDecimalGWEIAndConvertToHex(
   gweiDecimalValue: string | number,
   numberOfDigitsToRandomizeAtTheEnd: number,
+  preservedNumberOfDigits?: number,
 ): Hex {
   const weiDecimalValue = gweiDecimalToWeiDecimal(gweiDecimalValue);
   const decimalLength = weiDecimalValue.length;
 
+  const preservedDigits =
+    preservedNumberOfDigits ?? DEFAULT_PRESERVE_NUMBER_OF_DIGITS;
+
   // Determine how many digits to randomise while preserving the PRESERVE_NUMBER_OF_DIGITS
   const effectiveDigitsToRandomise = Math.min(
     numberOfDigitsToRandomizeAtTheEnd,
-    decimalLength - PRESERVE_NUMBER_OF_DIGITS,
+    decimalLength - preservedDigits,
   );
 
   // Handle the case when the value is 0 or too small
@@ -256,5 +254,7 @@ export function randomiseDecimalGWEIAndConvertToHex(
   );
   const randomisedWeiDecimal = basePart + BigInt(randomEndingDigits);
 
-  return `0x${randomisedWeiDecimal.toString(16)}` as Hex;
+  const hexRandomisedWei = `0x${randomisedWeiDecimal.toString(16)}`;
+
+  return add0x(hexRandomisedWei);
 }

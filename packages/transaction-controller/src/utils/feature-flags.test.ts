@@ -11,6 +11,7 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
+  getPreserveNumberOfDigitsForRandomisedGasFee,
   getRandomisedGasFeeDigits,
 } from './feature-flags';
 import { isValidSignature } from './signature';
@@ -467,6 +468,27 @@ describe('Feature Flags Utils', () => {
       mockFeatureFlags({});
       expect(
         getRandomisedGasFeeDigits(CHAIN_ID_MOCK, controllerMessenger),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('getPreserveNumberOfDigitsForRandomisedGasFee', () => {
+    it('returns value from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          preservedNumberOfDigits: 5,
+        },
+      });
+
+      expect(
+        getPreserveNumberOfDigitsForRandomisedGasFee(controllerMessenger),
+      ).toBe(5);
+    });
+
+    it('returns undefined if feature flag not configured', () => {
+      mockFeatureFlags({});
+      expect(
+        getPreserveNumberOfDigitsForRandomisedGasFee(controllerMessenger),
       ).toBeUndefined();
     });
   });

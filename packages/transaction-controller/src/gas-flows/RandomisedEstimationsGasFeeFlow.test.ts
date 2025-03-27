@@ -20,7 +20,10 @@ import {
   GasFeeEstimateType,
   TransactionStatus,
 } from '../types';
-import { getRandomisedGasFeeDigits } from '../utils/feature-flags';
+import {
+  getPreserveNumberOfDigitsForRandomisedGasFee,
+  getRandomisedGasFeeDigits,
+} from '../utils/feature-flags';
 
 jest.mock('./DefaultGasFeeFlow');
 jest.mock('../utils/feature-flags');
@@ -72,6 +75,9 @@ const DEFAULT_GAS_PRICE_RESPONSE: GasPriceGasFeeEstimates = {
 
 describe('RandomisedEstimationsGasFeeFlow', () => {
   const getRandomisedGasFeeDigitsMock = jest.mocked(getRandomisedGasFeeDigits);
+  const getPreserveNumberOfDigitsForRandomisedGasFeeMock = jest.mocked(
+    getPreserveNumberOfDigitsForRandomisedGasFee,
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -92,6 +98,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       });
 
     getRandomisedGasFeeDigitsMock.mockReturnValue(6);
+    getPreserveNumberOfDigitsForRandomisedGasFeeMock.mockReturnValue(2);
   });
 
   afterEach(() => {
@@ -135,7 +142,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
 
   describe('getGasFees', () => {
     it.each(Object.values(GasFeeEstimateLevel))(
-      'randomises fee market estimates for %s level',
+      'randomises only priority fee for fee market estimates for %s level',
       async (level) => {
         const flow = new RandomisedEstimationsGasFeeFlow();
 
@@ -179,16 +186,10 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         const maxFeeHex = (result.estimates as FeeMarketGasFeeEstimates)[level]
           .maxFeePerGas;
 
-        // Get the actual value for comparison only
+        // Verify that the maxFeePerGas is not randomised
         const originalValue = Number(estimates[level].suggestedMaxFeePerGas);
         const actualValue = parseInt(maxFeeHex.slice(2), 16) / 1e9;
-
-        // Just verify the value changed and is within range
-        expect(actualValue).not.toBe(originalValue);
-        expect(actualValue).toBeGreaterThanOrEqual(originalValue);
-
-        // For 6 digits randomization in FEATURE_FLAGS_MOCK for '0x1'
-        expect(actualValue).toBeLessThanOrEqual(originalValue + 999999);
+        expect(actualValue).toBe(originalValue);
 
         const maxPriorityFeeHex = (
           result.estimates as FeeMarketGasFeeEstimates
@@ -210,7 +211,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
     );
 
     it.each(Object.values(GasFeeEstimateLevel))(
-      'randomises legacy estimates for %s level',
+      'does not randomise legacy estimates for %s level',
       async (level) => {
         const flow = new RandomisedEstimationsGasFeeFlow();
 
@@ -237,18 +238,15 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         const estimates = request.gasFeeControllerData
           .gasFeeEstimates as Record<GasFeeEstimateLevel, string>;
 
-        // Convert hex to decimal for easier comparison
+        // Verify that the gas price is not randomised
         const originalValue = Number(estimates[level]);
         const actualValue = parseInt(gasHex.slice(2), 16) / 1e9;
 
-        // Verify value is within expected range
-        expect(actualValue).not.toBe(originalValue);
-        expect(actualValue).toBeGreaterThanOrEqual(originalValue);
-        expect(actualValue).toBeLessThanOrEqual(originalValue + 999999);
+        expect(actualValue).toBe(originalValue);
       },
     );
 
-    it('randomises eth_gasPrice estimates', async () => {
+    it('does not randomise eth_gasPrice estimates', async () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       const request = {
@@ -273,12 +271,10 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       const actualValue = parseInt(gasHex.slice(2), 16) / 1e9;
 
       // Verify gas price is within expected range
-      expect(actualValue).not.toBe(originalValue);
-      expect(actualValue).toBeGreaterThanOrEqual(originalValue);
-      expect(actualValue).toBeLessThanOrEqual(originalValue + 999999);
+      expect(actualValue).toBe(originalValue);
     });
 
-    it('should fall back to default flow if randomization fails', async () => {
+    it('fall backs to default flow if randomization fails', async () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       // Mock Math.random to throw an error
@@ -319,7 +315,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       expect(result.estimates).toStrictEqual(DEFAULT_FEE_MARKET_RESPONSE);
     });
 
-    it('should throw an error for unsupported gas estimate types', async () => {
+    it('throws an error for unsupported gas estimate types', async () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       const request = {

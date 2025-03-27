@@ -66,6 +66,9 @@ export type TransactionControllerFeatureFlags = {
 
     /** Randomised gas fee digits. */
     randomisedGasFeeDigits?: Record<Hex, number>;
+
+    /** Number of digits to preserve for randomised gas fee digits. */
+    preservedNumberOfDigits?: number;
   };
 };
 
@@ -194,6 +197,23 @@ export function getRandomisedGasFeeDigits(
     featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.randomisedGasFeeDigits ?? {};
 
   return randomisedGasFeeDigits[chainId];
+}
+
+/**
+ * Retrieves the number of digits to preserve for randomised gas fee digits.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The number of digits to preserve.
+ */
+export function getPreserveNumberOfDigitsForRandomisedGasFee(
+  messenger: TransactionControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const preservedNumberOfDigits =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.preservedNumberOfDigits;
+
+  return preservedNumberOfDigits;
 }
 
 /**
