@@ -46,7 +46,7 @@ import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, hexToNumber } from '@metamask/utils';
+import { add0x, hexToNumber, remove0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
@@ -110,6 +110,7 @@ import {
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import {
+  DELEGATION_PREFIX,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
@@ -145,6 +146,7 @@ import {
   validateIfTransactionUnapproved,
   normalizeTxError,
   normalizeGasFeeValues,
+  setEnvelopeType,
 } from './utils/utils';
 import {
   validateParamTo,
@@ -1155,6 +1157,11 @@ export class TransactionController extends BaseController<
       await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
+
+    if (!txParams.type) {
+      // Determine transaction type based on transaction parameters and network compatibility
+      setEnvelopeType(txParams, isEIP1559Compatible);
+    }
 
     const isDuplicateBatchId =
       batchId?.length &&
@@ -3938,6 +3945,12 @@ export class TransactionController extends BaseController<
     let gasFeeTokens: GasFeeToken[] = [];
 
     if (this.#isSimulationEnabled()) {
+      const authorizationAddress = txParams?.authorizationList?.[0]?.address;
+
+      const senderCode =
+        authorizationAddress &&
+        ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
+
       const result = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
@@ -3951,6 +3964,7 @@ export class TransactionController extends BaseController<
             },
             {
               blockTime,
+              senderCode,
             },
           ),
       );
@@ -4012,12 +4026,10 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates,
           gasFeeEstimatesLoaded,
-          getEIP1559Compatibility: this.getEIP1559Compatibility.bind(this),
           isTxParamsGasFeeUpdatesEnabled: this.isTxParamsGasFeeUpdatesEnabled,
           layer1GasFee,
         });

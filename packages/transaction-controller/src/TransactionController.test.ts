@@ -73,12 +73,13 @@ import {
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
+  TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
   WalletDevice,
 } from './types';
 import { addTransactionBatch } from './utils/batch';
-import { getDelegationAddress } from './utils/eip7702';
+import { DELEGATION_PREFIX, getDelegationAddress } from './utils/eip7702';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -1487,6 +1488,41 @@ describe('TransactionController', () => {
       );
     });
 
+    it.each([
+      [TransactionEnvelopeType.legacy],
+      [
+        TransactionEnvelopeType.feeMarket,
+        {
+          maxFeePerGas: '0x1',
+          maxPriorityFeePerGas: '0x1',
+        },
+        {
+          getCurrentNetworkEIP1559Compatibility: async () => true,
+          getCurrentAccountEIP1559Compatibility: async () => true,
+        },
+      ],
+      [TransactionEnvelopeType.accessList, { accessList: [] }],
+      [TransactionEnvelopeType.setCode, { authorizationList: [] }],
+    ])(
+      'sets txParams.type to %s if not defined in given txParams',
+      async (
+        type: TransactionEnvelopeType,
+        extraTxParamsToSet: Partial<TransactionParams> = {},
+        options: Partial<
+          ConstructorParameters<typeof TransactionController>[0]
+        > = {},
+      ) => {
+        const { controller } = setupController({ options });
+
+        await controller.addTransaction(
+          { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK, ...extraTxParamsToSet },
+          { networkClientId: NETWORK_CLIENT_ID_MOCK },
+        );
+
+        expect(controller.state.transactions[0].txParams.type).toBe(type);
+      },
+    );
+
     it('does not check account address relationship if a transaction with the same from, to, and chainId exists', async () => {
       const { controller } = setupController({
         options: {
@@ -1678,14 +1714,17 @@ describe('TransactionController', () => {
         ).toBeUndefined();
       });
 
-      it.each<[keyof DappSuggestedGasFees]>([
-        ['gasPrice'],
-        ['maxFeePerGas'],
-        ['maxPriorityFeePerGas'],
-        ['gas'],
+      it.each<[keyof DappSuggestedGasFees, TransactionEnvelopeType]>([
+        ['gasPrice', TransactionEnvelopeType.legacy],
+        ['maxFeePerGas', TransactionEnvelopeType.feeMarket],
+        ['maxPriorityFeePerGas', TransactionEnvelopeType.feeMarket],
+        ['gas', TransactionEnvelopeType.feeMarket],
       ])(
         'if %s is defined',
-        async (gasPropName: keyof DappSuggestedGasFees) => {
+        async (
+          gasPropName: keyof DappSuggestedGasFees,
+          type: TransactionEnvelopeType,
+        ) => {
           const { controller } = setupController();
           const mockDappOrigin = 'MockDappOrigin';
           const mockGasValue = '0x1';
@@ -1693,6 +1732,7 @@ describe('TransactionController', () => {
             {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_MOCK,
+              type,
               [gasPropName]: mockGasValue,
             },
             {
@@ -2092,6 +2132,35 @@ describe('TransactionController', () => {
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
         expect(controller.state.transactions[0].simulationData).toBeUndefined();
+      });
+
+      it('with sender code if type 4', async () => {
+        getSimulationDataMock.mockResolvedValueOnce(
+          SIMULATION_DATA_RESULT_MOCK,
+        );
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            authorizationList: [
+              {
+                address: ACCOUNT_2_MOCK,
+              },
+            ],
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledWith(expect.any(Object), {
+          senderCode: DELEGATION_PREFIX + ACCOUNT_2_MOCK.slice(2),
+        });
       });
     });
 
@@ -2712,6 +2781,7 @@ describe('TransactionController', () => {
               from: ACCOUNT_MOCK,
               nonce: '0xc',
               to: ACCOUNT_MOCK,
+              type: TransactionEnvelopeType.legacy,
               value: '0x0',
             },
           },
@@ -3316,6 +3386,7 @@ describe('TransactionController', () => {
             gasPrice: '0x105',
             nonce: '0xc',
             to: ACCOUNT_MOCK,
+            type: TransactionEnvelopeType.legacy,
             value: '0x0',
           },
         },
@@ -3775,6 +3846,7 @@ describe('TransactionController', () => {
             gasPrice: '0x105',
             nonce: '0xc',
             to: ACCOUNT_MOCK,
+            type: TransactionEnvelopeType.legacy,
             value: '0x0',
           },
         },
