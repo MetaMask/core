@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix simulation of type-4 transactions ([#5552](https://github.com/MetaMask/core/pull/5552))
+
 ## [52.2.0]
 
 ### Added
