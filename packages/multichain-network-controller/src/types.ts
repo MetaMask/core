@@ -11,7 +11,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { type CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -28,7 +28,8 @@ export type CommonNetworkConfiguration = {
    */
   isEvm: boolean;
   /**
-   * The chain ID of the network.
+   * The chain ID of the network.fcvfc
+   * 0≈*
    */
   chainId: CaipChainId;
   /**
@@ -94,6 +95,10 @@ export type MultichainNetworkControllerState = {
    * Whether EVM or non-EVM network is selected
    */
   isEvmSelected: boolean;
+  /**
+   * The active networks for the available EVM addresses (non-EVM networks will be supported in the future).
+   */
+  networksWithActivity: ActiveNetworksByAddress;
 };
 
 /**
@@ -114,6 +119,15 @@ export type MultichainNetworkControllerSetActiveNetworkAction = {
   handler: SetActiveNetworkMethod;
 };
 
+export type GetNetworksWithActivityByAccountsMethod =
+  () => Promise<ActiveNetworksByAddress>;
+
+export type MultichainNetworkControllerGetNetworksWithActivityByAccountsAction =
+  {
+    type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:getNetworksWithActivityByAccounts`;
+    handler: GetNetworksWithActivityByAccountsMethod;
+  };
+
 /**
  * Event emitted when the state of the {@link MultichainNetworkController} changes.
  */
@@ -132,7 +146,8 @@ export type MultichainNetworkControllerNetworkDidChangeEvent = {
  */
 export type MultichainNetworkControllerActions =
   | MultichainNetworkControllerGetStateAction
-  | MultichainNetworkControllerSetActiveNetworkAction;
+  | MultichainNetworkControllerSetActiveNetworkAction
+  | MultichainNetworkControllerGetNetworksWithActivityByAccountsAction;
 
 /**
  * Events emitted by {@link MultichainNetworkController}.
@@ -177,3 +192,20 @@ export type MultichainNetworkControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+/**
+ * The response from the active networks endpoint.
+ */
+export type ActiveNetworksResponse = {
+  activeNetworks: string[];
+};
+
+/**
+ * The active networks for the currently selected account.
+ */
+export type ActiveNetworksByAddress = {
+  [address: Hex]: {
+    namespace: string;
+    activeChains: string[];
+  };
+};
