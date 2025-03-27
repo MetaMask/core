@@ -145,7 +145,7 @@ export class PendingTransactionTracker {
       chainId: getChainId(),
       messenger,
     });
-    
+
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */

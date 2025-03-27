@@ -1545,6 +1545,7 @@ export type TransactionBatchResult = {
   batchId: Hex;
 };
 
+/**
  * Request parameters for updating a custodial transaction.
  *
  * @param transactionId - The ID of the transaction to update.
@@ -1574,7 +1575,7 @@ export type UpdateCustodialTransactionRequest = {
 };
 
 /**
-  * Data returned from custom logic to publish a transaction.
+ * Data returned from custom logic to publish a transaction.
  */
 export type PublishHookResult = {
   /**
