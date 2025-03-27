@@ -46,6 +46,7 @@ import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
+  AdditionalDefaultNetwork,
 } from './types';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
@@ -623,7 +624,7 @@ export type NetworkControllerOptions = {
   /**
    * An array of Hex Chain IDs representing the additional networks to be included as default.
    */
-  additionalDefaultNetworks?: ChainId[];
+  additionalDefaultNetworks?: AdditionalDefaultNetwork[];
 };
 
 /**
@@ -634,7 +635,7 @@ export type NetworkControllerOptions = {
  * @returns The default value for `networkConfigurationsByChainId`.
  */
 function getDefaultNetworkConfigurationsByChainId(
-  additionalDefaultNetworks: ChainId[] = [],
+  additionalDefaultNetworks: AdditionalDefaultNetwork[] = [],
 ): Record<Hex, NetworkConfiguration> {
   const infuraNetworks = getDefaultInfuraNetworkConfigurationsByChainId();
   const customNetworks = getDefaultCustomNetworkConfigurationsByChainId();
@@ -728,7 +729,7 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
  * @returns The default NetworkController state.
  */
 export function getDefaultNetworkControllerState(
-  additionalDefaultNetworks?: ChainId[],
+  additionalDefaultNetworks?: AdditionalDefaultNetwork[],
 ): NetworkState {
   const networksMetadata = {};
   const networkConfigurationsByChainId =
