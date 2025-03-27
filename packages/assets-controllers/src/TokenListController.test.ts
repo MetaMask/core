@@ -590,7 +590,7 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should update tokenList state when network updates are passed via onNetworkStateChange callback', async () => {
+  it('should update tokensChainsCache state when network updates are passed via onNetworkStateChange callback', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
@@ -629,11 +629,6 @@ describe('TokenListController', () => {
       providerConfig: {},
     });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
-
-    console.log(
-      'controller.state.tokensChainsCache ......',
-      JSON.stringify(controller.state.tokensChainsCache),
-    );
 
     expect(controller.state.tokensChainsCache).toStrictEqual({
       '0x1': {
@@ -840,7 +835,7 @@ describe('TokenListController', () => {
     tokenListMock.restore();
   });
 
-  it('should update token list from api', async () => {
+  it('should update tokensChainsCache from api', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
@@ -903,7 +898,7 @@ describe('TokenListController', () => {
     controller.stopPollingByPollingToken(pollingToken);
   });
 
-  it('should update token list from cache before reaching the threshold time', async () => {
+  it('should update tokensChainsCache from cache before reaching the threshold time', async () => {
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
@@ -978,7 +973,7 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should update token list when the chainId change', async () => {
+  it('should update tokensChainsCache when the chainId change', async () => {
     nock(tokenService.TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)

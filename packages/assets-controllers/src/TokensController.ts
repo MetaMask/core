@@ -79,9 +79,6 @@ type SuggestedAssetMeta = {
  * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
- * @deprecated tokens - Use allTokens instead
- * @deprecated ignoredTokens - Use allIgnoredTokens instead
- * @deprecated detectedTokens - Use allDetectedTokens instead
  */
 export type TokensControllerState = {
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
@@ -289,7 +286,6 @@ export class TokensController extends BaseController<
     this.#abortController.abort();
     this.#abortController = new AbortController();
     this.#chainId = chainId;
-    // No need to update `tokens`, `ignoredTokens`, or `detectedTokens`.
   }
 
   /**
@@ -322,7 +318,6 @@ export class TokensController extends BaseController<
    */
   #onSelectedAccountChange(selectedAccount: InternalAccount) {
     this.#selectedAccountId = selectedAccount.id;
-    // No need to update `tokens`, `ignoredTokens`, or `detectedTokens`.
   }
 
   /**
