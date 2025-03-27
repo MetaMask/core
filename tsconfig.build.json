@@ -9,9 +9,11 @@
     { "path": "./packages/bridge-controller/tsconfig.build.json" },
     { "path": "./packages/bridge-status-controller/tsconfig.build.json" },
     { "path": "./packages/build-utils/tsconfig.build.json" },
+    { "path": "./packages/chain-agnostic-permission/tsconfig.build.json" },
     { "path": "./packages/composable-controller/tsconfig.build.json" },
     { "path": "./packages/controller-utils/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
+    { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
     { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
     { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
@@ -20,10 +22,12 @@
     { "path": "./packages/keyring-controller/tsconfig.build.json" },
     { "path": "./packages/logging-controller/tsconfig.build.json" },
     { "path": "./packages/message-manager/tsconfig.build.json" },
+    { "path": "./packages/multichain-network-controller/tsconfig.build.json" },
     {
       "path": "./packages/multichain-transactions-controller/tsconfig.build.json"
     },
     { "path": "./packages/multichain/tsconfig.build.json" },
+    { "path": "./packages/multichain-api-middleware/tsconfig.build.json" },
     { "path": "./packages/name-controller/tsconfig.build.json" },
     { "path": "./packages/network-controller/tsconfig.build.json" },
     {
@@ -38,14 +42,14 @@
     { "path": "./packages/queued-request-controller/tsconfig.build.json" },
     { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
     { "path": "./packages/remote-feature-flag-controller/tsconfig.build.json" },
+    { "path": "./packages/sample-controllers/tsconfig.build.json" },
     { "path": "./packages/selected-network-controller/tsconfig.build.json" },
     { "path": "./packages/signature-controller/tsconfig.build.json" },
     {
       "path": "./packages/token-search-discovery-controller/tsconfig.build.json"
     },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" },
-    { "path": "./packages/multichain-network-controller/tsconfig.build.json" }
+    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
   ],
   "files": [],
   "include": []

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
+### Fixed
+
+- `@metamask/network-controller` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464)))
+
+## [26.1.0]
+
+### Changed
+
+- Simplify account iteration logic ([#5445](https://github.com/MetaMask/core/pull/5445))
+
 ## [26.0.0]
 
 ### Changed
@@ -489,7 +505,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@26.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@26.1.0...@metamask/accounts-controller@27.0.0
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@26.0.0...@metamask/accounts-controller@26.1.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@25.0.0...@metamask/accounts-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.1.0...@metamask/accounts-controller@25.0.0
 [24.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@24.0.1...@metamask/accounts-controller@24.1.0

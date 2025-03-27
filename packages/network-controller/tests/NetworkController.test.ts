@@ -1,8 +1,9 @@
 // A lot of the tests in this file have conditionals.
 /* eslint-disable jest/no-conditional-in-test */
 
-import { Messenger } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/base-controller';
 import {
+  BuiltInNetworkName,
   ChainId,
   InfuraNetworkType,
   isInfuraNetworkType,
@@ -30,6 +31,8 @@ import {
   buildInfuraNetworkConfiguration,
   buildInfuraRpcEndpoint,
   buildNetworkConfiguration,
+  buildNetworkControllerMessenger,
+  buildRootMessenger,
   buildUpdateNetworkCustomRpcEndpointFields,
 } from './helpers';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -47,6 +50,7 @@ import type {
   NetworkConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
+  NetworkControllerMessenger,
   NetworkControllerOptions,
   NetworkControllerStateChangeEvent,
   NetworkState,
@@ -158,7 +162,7 @@ describe('NetworkController', () => {
 
   describe('constructor', () => {
     it('throws given an empty networkConfigurationsByChainId collection', () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
@@ -168,8 +172,10 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {},
             },
             infuraProjectId: 'infura-project-id',
-            fetch,
-            btoa,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
           }),
       ).toThrow(
         'NetworkController state is invalid: `networkConfigurationsByChainId` cannot be empty',
@@ -177,7 +183,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if the key under which a network configuration is filed does not match the chain ID of that network configuration', () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
@@ -192,8 +198,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            fetch,
-            btoa,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
           }),
       ).toThrow(
         "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' is filed under '0x1337' which does not match its `chainId` of '0x1338'",
@@ -201,7 +209,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if a network configuration has a defaultBlockExplorerUrlIndex that does not refer to an entry in blockExplorerUrls', () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
@@ -223,8 +231,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            fetch,
-            btoa,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
           }),
       ).toThrow(
         "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' has a `defaultBlockExplorerUrlIndex` that does not refer to an entry in `blockExplorerUrls`",
@@ -232,7 +242,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if a network configuration has a non-empty blockExplorerUrls but an absent defaultBlockExplorerUrlIndex', () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
@@ -253,8 +263,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            fetch,
-            btoa,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
           }),
       ).toThrow(
         "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' has a `defaultBlockExplorerUrlIndex` that does not refer to an entry in `blockExplorerUrls`",
@@ -262,7 +274,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if a network configuration has an invalid defaultRpcEndpointIndex', () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
@@ -283,8 +295,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            fetch,
-            btoa,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
           }),
       ).toThrow(
         "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' has a `defaultRpcEndpointIndex` that does not refer to an entry in `rpcEndpoints`",
@@ -292,7 +306,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if more than one RPC endpoint across network configurations has the same networkClientId', () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
@@ -323,8 +337,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            fetch,
-            btoa,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
           }),
       ).toThrow(
         'NetworkController state has invalid `networkConfigurationsByChainId`: Every RPC endpoint across all network configurations must have a unique `networkClientId`',
@@ -332,7 +348,7 @@ describe('NetworkController', () => {
     });
 
     it('throws if selectedNetworkClientId does not match the networkClientId of an RPC endpoint in networkConfigurationsByChainId', () => {
-      const messenger = buildMessenger();
+      const messenger = buildRootMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
         () =>
@@ -347,8 +363,10 @@ describe('NetworkController', () => {
               },
             },
             infuraProjectId: 'infura-project-id',
-            fetch,
-            btoa,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
           }),
       ).toThrow(
         "NetworkController state is invalid: `selectedNetworkClientId` 'nonexistent' does not refer to an RPC endpoint within a network configuration",
@@ -360,7 +378,7 @@ describe('NetworkController', () => {
       it(`throws given an invalid Infura ID of "${inspect(
         invalidProjectId,
       )}"`, () => {
-        const messenger = buildMessenger();
+        const messenger = buildRootMessenger();
         const restrictedMessenger = buildNetworkControllerMessenger(messenger);
         expect(
           () =>
@@ -475,6 +493,134 @@ describe('NetworkController', () => {
           }
         `);
       });
+    });
+
+    it('initializes the state with the specified additional networks from the option `additionalDefaultNetworks` if provided', async () => {
+      await withController(
+        {
+          additionalDefaultNetworks: [
+            ChainId[BuiltInNetworkName.MegaETHTestnet],
+          ],
+        },
+        ({ controller }) => {
+          expect(controller.state).toMatchInlineSnapshot(`
+            Object {
+              "networkConfigurationsByChainId": Object {
+                "0x1": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x1",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Ethereum Mainnet",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "mainnet",
+                      "type": "infura",
+                      "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x18c6": Object {
+                  "blockExplorerUrls": Array [
+                    "https://megaexplorer.xyz",
+                  ],
+                  "chainId": "0x18c6",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Mega Testnet",
+                  "nativeCurrency": "MegaETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "megaeth-testnet",
+                      "type": "custom",
+                      "url": "https://carrot.megaeth.com/rpc",
+                    },
+                  ],
+                },
+                "0x5": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0x5",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Goerli",
+                  "nativeCurrency": "GoerliETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "goerli",
+                      "type": "infura",
+                      "url": "https://goerli.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xaa36a7": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xaa36a7",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Sepolia",
+                  "nativeCurrency": "SepoliaETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "sepolia",
+                      "type": "infura",
+                      "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe704": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xe704",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea Goerli",
+                  "nativeCurrency": "LineaETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "linea-goerli",
+                      "type": "infura",
+                      "url": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe705": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xe705",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea Sepolia",
+                  "nativeCurrency": "LineaETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "linea-sepolia",
+                      "type": "infura",
+                      "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe708": Object {
+                  "blockExplorerUrls": Array [],
+                  "chainId": "0xe708",
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": Array [
+                    Object {
+                      "failoverUrls": Array [],
+                      "networkClientId": "linea-mainnet",
+                      "type": "infura",
+                      "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+              },
+              "networksMetadata": Object {},
+              "selectedNetworkClientId": "mainnet",
+            }
+          `);
+        },
+      );
     });
 
     it('merges the given state into the default state', async () => {
@@ -806,7 +952,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -892,7 +1040,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.initializeProvider();
@@ -1111,7 +1261,7 @@ describe('NetworkController', () => {
 
   describe('getNetworkClientRegistry', () => {
     describe('if no network configurations were specified at initialization', () => {
-      it('returns network clients for Infura RPC endpoints, keyed by network client ID', async () => {
+      it('returns network clients for default RPC endpoints, keyed by network client ID', async () => {
         const infuraProjectId = 'some-infura-project-id';
 
         await withController(
@@ -1378,7 +1528,9 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -1470,7 +1622,9 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -1559,7 +1713,9 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -1768,7 +1924,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -1863,7 +2021,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -1957,7 +2117,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -3505,6 +3667,19 @@ describe('NetworkController', () => {
             'createAutoManagedNetworkClient',
           );
           const infuraProjectId = 'some-infura-project-id';
+          const getRpcServiceOptions = () => ({
+            btoa,
+            fetch,
+            fetchOptions: {
+              headers: {
+                'X-Foo': 'Bar',
+              },
+            },
+            policyOptions: {
+              maxRetries: 2,
+              maxConsecutiveFailures: 10,
+            },
+          });
 
           await withController(
             {
@@ -3523,8 +3698,9 @@ describe('NetworkController', () => {
                   },
                 }),
               infuraProjectId,
+              getRpcServiceOptions,
             },
-            ({ controller }) => {
+            ({ controller, networkControllerMessenger }) => {
               const defaultRpcEndpoint: InfuraRpcEndpoint = {
                 failoverUrls: ['https://first.failover.endpoint'],
                 name: infuraNetworkNickname,
@@ -3570,8 +3746,8 @@ describe('NetworkController', () => {
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Infura,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -3584,8 +3760,8 @@ describe('NetworkController', () => {
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -3598,8 +3774,8 @@ describe('NetworkController', () => {
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 },
               );
               const networkConfigurationsByNetworkClientId =
@@ -4925,6 +5101,20 @@ describe('NetworkController', () => {
                   }),
                 ],
               });
+            const infuraProjectId = 'some-infura-project-id';
+            const getRpcServiceOptions = () => ({
+              btoa,
+              fetch,
+              fetchOptions: {
+                headers: {
+                  'X-Foo': 'Bar',
+                },
+              },
+              policyOptions: {
+                maxRetries: 2,
+                maxConsecutiveFailures: 10,
+              },
+            });
 
             await withController(
               {
@@ -4944,9 +5134,10 @@ describe('NetworkController', () => {
                   },
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
-                infuraProjectId: 'some-infura-project-id',
+                infuraProjectId,
+                getRpcServiceOptions,
               },
-              async ({ controller }) => {
+              async ({ controller, networkControllerMessenger }) => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
                   failoverUrls: ['https://failover.endpoint'],
                   networkClientId: infuraNetworkType,
@@ -4971,13 +5162,13 @@ describe('NetworkController', () => {
                   networkClientConfiguration: {
                     chainId: infuraChainId,
                     failoverRpcUrls: ['https://failover.endpoint'],
-                    infuraProjectId: 'some-infura-project-id',
+                    infuraProjectId,
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Infura,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -4989,7 +5180,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   chainId: infuraChainId,
                   failoverRpcUrls: ['https://failover.endpoint'],
-                  infuraProjectId: 'some-infura-project-id',
+                  infuraProjectId,
                   network: infuraNetworkType,
                   ticker: infuraNativeTokenName,
                   type: NetworkClientType.Infura,
@@ -5138,6 +5329,19 @@ describe('NetworkController', () => {
             const infuraRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType);
+            const getRpcServiceOptions = () => ({
+              btoa,
+              fetch,
+              fetchOptions: {
+                headers: {
+                  'X-Foo': 'Bar',
+                },
+              },
+              policyOptions: {
+                maxRetries: 2,
+                maxConsecutiveFailures: 10,
+              },
+            });
 
             await withController(
               {
@@ -5158,8 +5362,9 @@ describe('NetworkController', () => {
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
                 infuraProjectId: 'some-infura-project-id',
+                getRpcServiceOptions,
               },
-              async ({ controller }) => {
+              async ({ controller, networkControllerMessenger }) => {
                 const [rpcEndpoint1, rpcEndpoint2] = [
                   buildUpdateNetworkCustomRpcEndpointFields({
                     failoverUrls: ['https://first.failover.endpoint'],
@@ -5189,8 +5394,8 @@ describe('NetworkController', () => {
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -5202,8 +5407,8 @@ describe('NetworkController', () => {
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -5594,7 +5799,9 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[1];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                          `Unknown network client configuration ${JSON.stringify(
+                            configuration,
+                          )}`,
                         );
                       },
                     );
@@ -5701,7 +5908,9 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[1];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                          `Unknown network client configuration ${JSON.stringify(
+                            configuration,
+                          )}`,
                         );
                       },
                     );
@@ -5832,7 +6041,9 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[2];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                          `Unknown network client configuration ${JSON.stringify(
+                            configuration,
+                          )}`,
                         );
                       },
                     );
@@ -5959,7 +6170,9 @@ describe('NetworkController', () => {
                           return fakeNetworkClients[2];
                         }
                         throw new Error(
-                          `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                          `Unknown network client configuration ${JSON.stringify(
+                            configuration,
+                          )}`,
                         );
                       },
                     );
@@ -6055,7 +6268,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -6099,6 +6314,19 @@ describe('NetworkController', () => {
               buildInfuraNetworkConfiguration(infuraNetworkType, {
                 rpcEndpoints: [customRpcEndpoint],
               });
+            const getRpcServiceOptions = () => ({
+              btoa,
+              fetch,
+              fetchOptions: {
+                headers: {
+                  'X-Foo': 'Bar',
+                },
+              },
+              policyOptions: {
+                maxRetries: 2,
+                maxConsecutiveFailures: 10,
+              },
+            });
 
             await withController(
               {
@@ -6118,8 +6346,9 @@ describe('NetworkController', () => {
                   },
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
+                getRpcServiceOptions,
               },
-              async ({ controller }) => {
+              async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockReturnValue(buildFakeClient());
 
                 await controller.updateNetwork(infuraChainId, {
@@ -6143,8 +6372,8 @@ describe('NetworkController', () => {
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
                 const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
@@ -6350,7 +6579,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -6451,7 +6682,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -6939,6 +7172,19 @@ describe('NetworkController', () => {
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [rpcEndpoint1],
           });
+          const getRpcServiceOptions = () => ({
+            btoa,
+            fetch,
+            fetchOptions: {
+              headers: {
+                'X-Foo': 'Bar',
+              },
+            },
+            policyOptions: {
+              maxRetries: 2,
+              maxConsecutiveFailures: 10,
+            },
+          });
 
           await withController(
             {
@@ -6958,8 +7204,9 @@ describe('NetworkController', () => {
                 },
                 selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
+              getRpcServiceOptions,
             },
-            async ({ controller }) => {
+            async ({ controller, networkControllerMessenger }) => {
               await controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
                 defaultRpcEndpointIndex: 0,
@@ -6988,8 +7235,8 @@ describe('NetworkController', () => {
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -7002,8 +7249,8 @@ describe('NetworkController', () => {
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 },
               );
 
@@ -7410,7 +7657,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -7517,7 +7766,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -7647,7 +7898,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[2];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -7774,7 +8027,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[2];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -7901,6 +8156,19 @@ describe('NetworkController', () => {
               }),
             ],
           });
+          const getRpcServiceOptions = () => ({
+            btoa,
+            fetch,
+            fetchOptions: {
+              headers: {
+                'X-Foo': 'Bar',
+              },
+            },
+            policyOptions: {
+              maxRetries: 2,
+              maxConsecutiveFailures: 10,
+            },
+          });
 
           await withController(
             {
@@ -7920,8 +8188,9 @@ describe('NetworkController', () => {
                 },
                 selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
+              getRpcServiceOptions,
             },
-            async ({ controller }) => {
+            async ({ controller, networkControllerMessenger }) => {
               createNetworkClientMock.mockImplementation(
                 ({ configuration }) => {
                   if (
@@ -7931,7 +8200,9 @@ describe('NetworkController', () => {
                     return buildFakeClient();
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -7956,8 +8227,8 @@ describe('NetworkController', () => {
                   ticker: 'TOKEN',
                   type: NetworkClientType.Custom,
                 },
-                fetch,
-                btoa,
+                getRpcServiceOptions,
+                messenger: networkControllerMessenger,
               });
               expect(
                 getNetworkConfigurationsByNetworkClientId(
@@ -8017,7 +8288,9 @@ describe('NetworkController', () => {
                     return buildFakeClient();
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -8090,7 +8363,9 @@ describe('NetworkController', () => {
                     return buildFakeClient();
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -8186,7 +8461,9 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -8289,7 +8566,9 @@ describe('NetworkController', () => {
                       return fakeNetworkClients[1];
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -8886,7 +9165,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -8971,7 +9252,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -9035,6 +9318,19 @@ describe('NetworkController', () => {
                 }),
               ],
             });
+            const getRpcServiceOptions = () => ({
+              btoa,
+              fetch,
+              fetchOptions: {
+                headers: {
+                  'X-Foo': 'Bar',
+                },
+              },
+              policyOptions: {
+                maxRetries: 2,
+                maxConsecutiveFailures: 10,
+              },
+            });
 
             await withController(
               {
@@ -9054,8 +9350,9 @@ describe('NetworkController', () => {
                   },
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
+                getRpcServiceOptions,
               },
-              async ({ controller }) => {
+              async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
                   ({ configuration }) => {
                     if (
@@ -9065,7 +9362,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -9085,8 +9384,8 @@ describe('NetworkController', () => {
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -9098,8 +9397,8 @@ describe('NetworkController', () => {
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -9177,7 +9476,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -9266,7 +9567,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -9357,7 +9660,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -9542,7 +9847,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -9639,7 +9946,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -9717,6 +10026,19 @@ describe('NetworkController', () => {
                   customRpcEndpoint2,
                 ],
               });
+            const getRpcServiceOptions = () => ({
+              btoa,
+              fetch,
+              fetchOptions: {
+                headers: {
+                  'X-Foo': 'Bar',
+                },
+              },
+              policyOptions: {
+                maxRetries: 2,
+                maxConsecutiveFailures: 10,
+              },
+            });
 
             await withController(
               {
@@ -9736,8 +10058,9 @@ describe('NetworkController', () => {
                   },
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
+                getRpcServiceOptions,
               },
-              async ({ controller }) => {
+              async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
                   ({ configuration }) => {
                     if (
@@ -9747,7 +10070,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -9772,8 +10097,8 @@ describe('NetworkController', () => {
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
                   networkClientConfiguration: {
@@ -9783,8 +10108,8 @@ describe('NetworkController', () => {
                     ticker: 'TOKEN',
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
 
                 expect(
@@ -9866,7 +10191,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -9964,7 +10291,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -10055,7 +10384,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -10239,7 +10570,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -10343,7 +10676,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -10392,12 +10727,10 @@ describe('NetworkController', () => {
             uuidV4Mock
               .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC')
               .mockReturnValueOnce('DDDD-DDDD-DDDD-DDDD');
-
             const createAutoManagedNetworkClientSpy = jest.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
-
             const [defaultRpcEndpoint, customRpcEndpoint1, customRpcEndpoint2] =
               [
                 buildInfuraRpcEndpoint(infuraNetworkType),
@@ -10421,6 +10754,19 @@ describe('NetworkController', () => {
                   customRpcEndpoint2,
                 ],
               });
+            const getRpcServiceOptions = () => ({
+              btoa,
+              fetch,
+              fetchOptions: {
+                headers: {
+                  'X-Foo': 'Bar',
+                },
+              },
+              policyOptions: {
+                maxRetries: 2,
+                maxConsecutiveFailures: 10,
+              },
+            });
 
             await withController(
               {
@@ -10441,15 +10787,18 @@ describe('NetworkController', () => {
                   selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
                 infuraProjectId: 'some-infura-project-id',
+                getRpcServiceOptions,
               },
-              async ({ controller }) => {
+              async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
                   ({ configuration }) => {
                     if (configuration.chainId === anotherInfuraChainId) {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -10476,8 +10825,8 @@ describe('NetworkController', () => {
                     ticker: anotherInfuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -10489,8 +10838,8 @@ describe('NetworkController', () => {
                     ticker: anotherInfuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
-                  fetch,
-                  btoa,
+                  getRpcServiceOptions,
+                  messenger: networkControllerMessenger,
                 });
 
                 const networkConfigurationsByChainId =
@@ -10572,7 +10921,9 @@ describe('NetworkController', () => {
                       return buildFakeClient();
                     }
                     throw new Error(
-                      `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                      `Unknown network client configuration ${JSON.stringify(
+                        configuration,
+                      )}`,
                     );
                   },
                 );
@@ -10676,7 +11027,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -10769,7 +11122,9 @@ describe('NetworkController', () => {
                         return fakeNetworkClients[1];
                       }
                       throw new Error(
-                        `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                        `Unknown network client configuration ${JSON.stringify(
+                          configuration,
+                        )}`,
                       );
                     },
                   );
@@ -10955,7 +11310,9 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
 
@@ -11036,7 +11393,9 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             const existingNetworkClient1 = controller.getNetworkClientById(
@@ -11070,12 +11429,10 @@ describe('NetworkController', () => {
         uuidV4Mock
           .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC')
           .mockReturnValueOnce('DDDD-DDDD-DDDD-DDDD');
-
         const createAutoManagedNetworkClientSpy = jest.spyOn(
           createAutoManagedNetworkClientModule,
           'createAutoManagedNetworkClient',
         );
-
         const networkConfigurationToUpdate = buildNetworkConfiguration({
           chainId: '0x1337',
           nativeCurrency: 'TOKEN',
@@ -11093,6 +11450,19 @@ describe('NetworkController', () => {
               url: 'https://test.endpoint/2',
             }),
           ],
+        });
+        const getRpcServiceOptions = () => ({
+          btoa,
+          fetch,
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
+            },
+          },
+          policyOptions: {
+            maxRetries: 2,
+            maxConsecutiveFailures: 10,
+          },
         });
 
         await withController(
@@ -11113,8 +11483,9 @@ describe('NetworkController', () => {
               },
               selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
             },
+            getRpcServiceOptions,
           },
-          async ({ controller }) => {
+          async ({ controller, networkControllerMessenger }) => {
             createNetworkClientMock.mockImplementation(({ configuration }) => {
               if (
                 configuration.type === NetworkClientType.Custom &&
@@ -11123,7 +11494,9 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
 
@@ -11142,8 +11515,8 @@ describe('NetworkController', () => {
                   ticker: 'TOKEN',
                   type: NetworkClientType.Custom,
                 },
-                fetch,
-                btoa,
+                getRpcServiceOptions,
+                messenger: networkControllerMessenger,
               },
             );
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -11156,8 +11529,8 @@ describe('NetworkController', () => {
                   ticker: 'TOKEN',
                   type: NetworkClientType.Custom,
                 },
-                fetch,
-                btoa,
+                getRpcServiceOptions,
+                messenger: networkControllerMessenger,
               },
             );
 
@@ -11235,7 +11608,9 @@ describe('NetworkController', () => {
                 return buildFakeClient();
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
 
@@ -11324,7 +11699,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -11414,7 +11791,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12209,7 +12588,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12273,7 +12654,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12354,7 +12737,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12410,7 +12795,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12475,7 +12862,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12552,7 +12941,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12632,7 +13023,9 @@ describe('NetworkController', () => {
                     return fakeNetworkClients[1];
                   }
                   throw new Error(
-                    `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                    `Unknown network client configuration ${JSON.stringify(
+                      configuration,
+                    )}`,
                   );
                 },
               );
@@ -12786,7 +13179,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -12848,7 +13243,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -12933,7 +13330,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -12988,7 +13387,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13042,7 +13443,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13113,7 +13516,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13187,7 +13592,9 @@ describe('NetworkController', () => {
                 return fakeNetworkClients[1];
               }
               throw new Error(
-                `Unknown network client configuration ${JSON.stringify(configuration)}`,
+                `Unknown network client configuration ${JSON.stringify(
+                  configuration,
+                )}`,
               );
             });
             await controller.setActiveNetwork(InfuraNetworkType.goerli);
@@ -13504,11 +13911,11 @@ function refreshNetworkTests({
 
           await operation(controller);
 
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
-            configuration: expectedNetworkClientConfiguration,
-            fetch,
-            btoa,
-          });
+          expect(createNetworkClientMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              configuration: expectedNetworkClientConfiguration,
+            }),
+          );
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
           const chainIdResult = await provider.request({
@@ -13545,14 +13952,14 @@ function refreshNetworkTests({
 
           await operation(controller);
 
-          expect(createNetworkClientMock).toHaveBeenCalledWith({
-            configuration: {
-              ...expectedNetworkClientConfiguration,
-              infuraProjectId: 'infura-project-id',
-            },
-            fetch,
-            btoa,
-          });
+          expect(createNetworkClientMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              configuration: {
+                ...expectedNetworkClientConfiguration,
+                infuraProjectId: 'infura-project-id',
+              },
+            }),
+          );
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
           const chainIdResult = await provider.request({
@@ -13647,7 +14054,9 @@ function refreshNetworkTests({
             return fakeNetworkClients[1];
           }
           throw new Error(
-            `Unknown network client configuration ${JSON.stringify(configuration)}`,
+            `Unknown network client configuration ${JSON.stringify(
+              configuration,
+            )}`,
           );
         });
         await controller.initializeProvider();
@@ -14448,35 +14857,12 @@ function lookupNetworkTests({
   });
 }
 
-/**
- * Build a messenger that includes all events used by the network
- * controller.
- *
- * @returns The messenger.
- */
-function buildMessenger() {
-  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
-}
-
-/**
- * Build a restricted messenger for the network controller.
- *
- * @param messenger - A messenger.
- * @returns The network controller restricted messenger.
- */
-function buildNetworkControllerMessenger(messenger = buildMessenger()) {
-  return messenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: [],
-    allowedEvents: [],
-  });
-}
-
 type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
   controller: NetworkController;
   messenger: Messenger<NetworkControllerActions, NetworkControllerEvents>;
+  networkControllerMessenger: NetworkControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<NetworkControllerOptions>;
@@ -14499,17 +14885,19 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const messenger = buildMessenger();
-  const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+  const messenger = buildRootMessenger();
+  const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
-    messenger: restrictedMessenger,
+    messenger: networkControllerMessenger,
     infuraProjectId: 'infura-project-id',
-    fetch,
-    btoa,
+    getRpcServiceOptions: () => ({
+      fetch,
+      btoa,
+    }),
     ...rest,
   });
   try {
-    return await fn({ controller, messenger });
+    return await fn({ controller, messenger, networkControllerMessenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
