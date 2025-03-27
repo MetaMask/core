@@ -32,7 +32,7 @@ import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
 import {
-  DEPRECATED_NETWORKS,
+  DeprecatedNetworks,
   INFURA_BLOCKED_KEY,
   NetworkStatus,
 } from './constants';
@@ -677,7 +677,7 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
     const chainId = ChainId[infuraNetworkType];
 
     // Skip deprecated network as default network.
-    if (DEPRECATED_NETWORKS.has(chainId)) {
+    if (DeprecatedNetworks.has(chainId)) {
       return obj;
     }
 
