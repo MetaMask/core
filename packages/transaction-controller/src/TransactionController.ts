@@ -146,6 +146,7 @@ import {
   validateIfTransactionUnapproved,
   normalizeTxError,
   normalizeGasFeeValues,
+  setEnvelopeType,
 } from './utils/utils';
 import {
   validateParamTo,
@@ -1156,6 +1157,11 @@ export class TransactionController extends BaseController<
       await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
+
+    if (!txParams.type) {
+      // Determine transaction type based on transaction parameters and network compatibility
+      setEnvelopeType(txParams, isEIP1559Compatible);
+    }
 
     const isDuplicateBatchId =
       batchId?.length &&
@@ -3623,6 +3629,7 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId,
         }),
+      messenger: this.messagingSystem,
       publishTransaction: (_ethQuery, transactionMeta) =>
         this.publishTransaction(_ethQuery, transactionMeta, {
           skipSubmitHistory: true,
@@ -4018,12 +4025,10 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates,
           gasFeeEstimatesLoaded,
-          getEIP1559Compatibility: this.getEIP1559Compatibility.bind(this),
           isTxParamsGasFeeUpdatesEnabled: this.isTxParamsGasFeeUpdatesEnabled,
           layer1GasFee,
         });

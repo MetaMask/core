@@ -4,6 +4,7 @@ import type {
   BlockTracker,
   NetworkClientId,
 } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
@@ -11,6 +12,7 @@ import { cloneDeep, merge } from 'lodash';
 
 import { TransactionPoller } from './TransactionPoller';
 import { createModuleLogger, projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 
@@ -101,15 +103,16 @@ export class PendingTransactionTracker {
     blockTracker,
     getChainId,
     getEthQuery,
+    getGlobalLock,
     getNetworkClientId,
     getTransactions,
-    isResubmitEnabled,
-    getGlobalLock,
-    publishTransaction,
     hooks,
+    isResubmitEnabled,
+    messenger,
+    publishTransaction,
   }: {
     blockTracker: BlockTracker;
-    getChainId: () => string;
+    getChainId: () => Hex;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getNetworkClientId: () => string;
     getTransactions: () => TransactionMeta[];
@@ -125,6 +128,7 @@ export class PendingTransactionTracker {
       ) => boolean;
       beforePublish?: (transactionMeta: TransactionMeta) => boolean;
     };
+    messenger: TransactionControllerMessenger;
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
@@ -138,7 +142,11 @@ export class PendingTransactionTracker {
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
     this.#running = false;
-    this.#transactionPoller = new TransactionPoller(blockTracker);
+    this.#transactionPoller = new TransactionPoller({
+      blockTracker,
+      chainId: getChainId(),
+      messenger,
+    });
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
