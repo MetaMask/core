@@ -1514,6 +1514,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
       txParams: transaction,
+      messenger: this.messagingSystem,
     });
 
     return { gas: estimatedGas, simulationFails };
@@ -1541,6 +1542,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
       txParams: transaction,
+      messenger: this.messagingSystem,
     });
 
     const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
@@ -4088,6 +4090,7 @@ export class TransactionController extends BaseController<
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
       txMeta: transactionMeta,
+      messenger: this.messagingSystem,
     });
   }
 

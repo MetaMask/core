@@ -3,6 +3,7 @@ import type EthQuery from '@metamask/eth-query';
 import { remove0x, type Hex } from '@metamask/utils';
 
 import { DELEGATION_PREFIX } from './eip7702';
+import * as featureFlags from './feature-flags';
 import type { UpdateGasRequest } from './gas';
 import {
   addGasBuffer,
@@ -10,7 +11,6 @@ import {
   updateGas,
   FIXED_GAS,
   DEFAULT_GAS_MULTIPLIER,
-  GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT,
   MAX_GAS_BLOCK_PERCENT,
   INTRINSIC_GAS,
   DUMMY_AUTHORIZATION_SIGNATURE,
@@ -18,21 +18,48 @@ import {
 import type { SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
 import { CHAIN_IDS } from '../constants';
-import type { AuthorizationList } from '../types';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionEnvelopeType, type TransactionMeta } from '../types';
+import type { AuthorizationList } from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
   query: jest.fn(),
 }));
 
+jest.mock('./feature-flags', () => ({
+  ...jest.requireActual('./feature-flags'),
+  getGasEstimateFallback: jest.fn(),
+}));
+
 jest.mock('./simulation-api');
+
+const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
+const DEFAULT_IS_FIXED_GAS_MOCK = false;
+const CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK = 50;
+const CUSTOM_IS_FIXED_GAS_MOCK = true;
+const CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK = '0x5208' as Hex;
+const MESSENGER_MOCK = {
+  call: jest.fn().mockReturnValue({
+    remoteFeatureFlags: {},
+  }),
+} as unknown as jest.Mocked<TransactionControllerMessenger>;
+
+const GAS_ESTIMATE_FALLBACK_FIXED_MOCK = {
+  gasEstimateFallback: CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK,
+  isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
+};
+
+const GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK = {
+  gasEstimateFallback: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+  isFixedGas: DEFAULT_IS_FIXED_GAS_MOCK,
+};
 
 const GAS_MOCK = 100;
 const BLOCK_GAS_LIMIT_MOCK = 123456789;
 const BLOCK_NUMBER_MOCK = '0x5678';
 const ETH_QUERY_MOCK = {} as unknown as EthQuery;
-const FALLBACK_MULTIPLIER = GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT / 100;
+const FALLBACK_MULTIPLIER_35_PERCENT = 0.35;
 const MAX_GAS_MULTIPLIER = MAX_GAS_BLOCK_PERCENT / 100;
 const CHAIN_ID_MOCK = '0x123';
 const GAS_2_MOCK = 12345;
@@ -59,6 +86,7 @@ const UPDATE_GAS_REQUEST_MOCK = {
   isCustomNetwork: false,
   isSimulationEnabled: false,
   ethQuery: ETH_QUERY_MOCK,
+  messenger: MESSENGER_MOCK,
 } as UpdateGasRequest;
 
 /**
@@ -74,6 +102,7 @@ function toHex(value: number) {
 describe('gas', () => {
   const queryMock = jest.mocked(query);
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
+  const getFeatureFlagsMock = jest.mocked(featureFlags.getGasEstimateFallback);
 
   let updateGasRequest: UpdateGasRequest;
 
@@ -130,6 +159,7 @@ describe('gas', () => {
   beforeEach(() => {
     updateGasRequest = JSON.parse(JSON.stringify(UPDATE_GAS_REQUEST_MOCK));
     jest.resetAllMocks();
+    getFeatureFlagsMock.mockReturnValue(GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK);
   });
 
   describe('updateGas', () => {
@@ -333,7 +363,11 @@ describe('gas', () => {
     describe('on estimate query error', () => {
       it('sets gas to 35% of block gas limit', async () => {
         const fallbackGas = Math.floor(
-          BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER,
+          BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
+        );
+
+        getFeatureFlagsMock.mockReturnValue(
+          GAS_ESTIMATE_FALLBACK_MULTIPLIER_MOCK,
         );
 
         mockQuery({
@@ -385,6 +419,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
 
@@ -408,6 +443,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
 
@@ -427,7 +463,7 @@ describe('gas', () => {
 
     it('returns estimated gas as 35% of block gas limit on error', async () => {
       const fallbackGas = Math.floor(
-        BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER,
+        BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
       );
 
       mockQuery({
@@ -441,11 +477,34 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
         txParams: TRANSACTION_META_MOCK.txParams,
       });
 
       expect(result).toStrictEqual({
         estimatedGas: toHex(fallbackGas),
+        blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        simulationFails: expect.any(Object),
+      });
+    });
+
+    it('returns fixed estimated gas fallback from feature flags on error', async () => {
+      getFeatureFlagsMock.mockReturnValue(GAS_ESTIMATE_FALLBACK_FIXED_MOCK);
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        chainId: CHAIN_ID_MOCK,
+        ethQuery: ETH_QUERY_MOCK,
+        isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result).toStrictEqual({
+        estimatedGas: CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK,
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
       });
@@ -461,6 +520,7 @@ describe('gas', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: ETH_QUERY_MOCK,
         isSimulationEnabled: false,
+        messenger: MESSENGER_MOCK,
         txParams: {
           ...TRANSACTION_META_MOCK.txParams,
           gasPrice: '0x1',
@@ -491,6 +551,7 @@ describe('gas', () => {
           ...TRANSACTION_META_MOCK.txParams,
           data: '123',
         },
+        messenger: MESSENGER_MOCK,
       });
 
       expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
@@ -515,6 +576,7 @@ describe('gas', () => {
           ...TRANSACTION_META_MOCK.txParams,
           value: undefined,
         },
+        messenger: MESSENGER_MOCK,
       });
 
       expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
@@ -540,6 +602,7 @@ describe('gas', () => {
           authorizationList: AUTHORIZATION_LIST_MOCK,
           value: undefined,
         },
+        messenger: MESSENGER_MOCK,
       });
 
       expect(queryMock).toHaveBeenCalledWith(ETH_QUERY_MOCK, 'estimateGas', [
@@ -585,6 +648,7 @@ describe('gas', () => {
             to: TRANSACTION_META_MOCK.txParams.from,
             type: TransactionEnvelopeType.setCode,
           },
+          messenger: MESSENGER_MOCK,
         });
 
         expect(result).toStrictEqual({
@@ -612,6 +676,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: [
@@ -667,6 +732,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: AUTHORIZATION_LIST_MOCK,
@@ -702,6 +768,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: false,
+          messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: AUTHORIZATION_LIST_MOCK,
@@ -735,6 +802,7 @@ describe('gas', () => {
           chainId: CHAIN_ID_MOCK,
           ethQuery: ETH_QUERY_MOCK,
           isSimulationEnabled: true,
+          messenger: MESSENGER_MOCK,
           txParams: {
             ...TRANSACTION_META_MOCK.txParams,
             authorizationList: AUTHORIZATION_LIST_MOCK,

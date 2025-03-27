@@ -8,6 +8,22 @@ export const FEATURE_FLAG_TRANSACTIONS = 'confirmations_transactions';
 export const FEATURE_FLAG_EIP_7702 = 'confirmations_eip_7702';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
+const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
+
+type GasEstimateFallback = {
+  /**
+   * The fallback gas estimate for a transaction.
+   * This value is either a fixed hexadecimal number or a percentage multiplier.
+   */
+  value: number | Hex;
+
+  /**
+   * Indicates whether the gas estimate is a fixed hexadecimal number or a percentage multiplier.
+   * - `true`: The gas estimate is a fixed hexadecimal number.
+   * - `false`: The gas estimate is a percentage multiplier.
+   */
+  isFixedGas: boolean;
+};
 
 export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_EIP_7702]?: {
@@ -34,6 +50,17 @@ export type TransactionControllerFeatureFlags = {
   [FEATURE_FLAG_TRANSACTIONS]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+
+    /** Fallback gas estimation configurations per chain. */
+    gasEstimateFallbacks?: {
+      [chainId: Hex]: GasEstimateFallback;
+    };
+
+    /**
+     * Default gas estimate fallback.
+     * This value is used when no specific gas estimate fallback is found for a chain ID.
+     */
+    defaultGasEstimateFallback?: GasEstimateFallback;
   };
 };
 
@@ -114,6 +141,61 @@ export function getBatchSizeLimit(
     featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.batchSizeLimit ??
     DEFAULT_BATCH_SIZE_LIMIT
   );
+}
+
+/**
+ * Retrieves the gas estimate fallback for a given chain ID.
+ * Defaults to the default gas estimate fallback if not set.
+ *
+ * @param chainId - The chain ID.
+ * @param messenger - The controller messenger instance.
+ * @returns The gas estimate fallback.
+ */
+export function getGasEstimateFallback(
+  chainId: Hex,
+  messenger: TransactionControllerMessenger,
+): {
+  gasEstimateFallback: number | Hex;
+  isFixedGas: boolean;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const gasEstimateFallbackPerChain =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasEstimateFallbacks?.[chainId];
+
+  if (gasEstimateFallbackPerChain) {
+    return {
+      gasEstimateFallback: gasEstimateFallbackPerChain.value,
+      isFixedGas: gasEstimateFallbackPerChain.isFixedGas,
+    };
+  }
+
+  return getDefaultGasEstimateFallback(messenger);
+}
+
+/**
+ * Retrieves the default gas estimate fallback.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The default gas estimate fallback.
+ */
+export function getDefaultGasEstimateFallback(
+  messenger: TransactionControllerMessenger,
+): {
+  gasEstimateFallback: number | Hex;
+  isFixedGas: boolean;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const defaultGasEstimateFallback =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.defaultGasEstimateFallback;
+
+  return {
+    gasEstimateFallback:
+      defaultGasEstimateFallback?.value ??
+      DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT,
+    isFixedGas: defaultGasEstimateFallback?.isFixedGas ?? false,
+  };
 }
 
 /**
