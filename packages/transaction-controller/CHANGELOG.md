@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [52.3.0]
 
-### Uncategorized
+### Added
 
 - feat: Configure pending transaction polling intervals using remote feature flags ([#5549](https://github.com/MetaMask/core/pull/5549))
+
+### Changed
+
 - fix: Remove async operation from `updateTransactionGasFees` ([#5539](https://github.com/MetaMask/core/pull/5539))
 
 ### Fixed
