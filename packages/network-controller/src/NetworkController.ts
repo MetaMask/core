@@ -13,6 +13,9 @@ import {
   ChainId,
   NetworksTicker,
   NetworkNickname,
+  BUILT_IN_CUSTOM_NETWORKS_RPC,
+  BUILT_IN_NETWORKS,
+  BuiltInNetworkName,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import { errorCodes } from '@metamask/rpc-errors';
@@ -43,6 +46,7 @@ import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
   NetworkClientConfiguration,
+  AdditionalDefaultNetwork,
 } from './types';
 
 const debugLog = createModuleLogger(projectLogger, 'NetworkController');
@@ -622,15 +626,44 @@ export type NetworkControllerOptions = {
   getRpcServiceOptions: (
     rpcEndpointUrl: string,
   ) => Omit<RpcServiceOptions, 'failoverService' | 'endpointUrl'>;
+
+  /**
+   * An array of Hex Chain IDs representing the additional networks to be included as default.
+   */
+  additionalDefaultNetworks?: AdditionalDefaultNetwork[];
 };
 
 /**
  * Constructs a value for the state property `networkConfigurationsByChainId`
  * which will be used if it has not been provided to the constructor.
  *
+ * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default value for `networkConfigurationsByChainId`.
  */
-function getDefaultNetworkConfigurationsByChainId(): Record<
+function getDefaultNetworkConfigurationsByChainId(
+  additionalDefaultNetworks: AdditionalDefaultNetwork[] = [],
+): Record<Hex, NetworkConfiguration> {
+  const infuraNetworks = getDefaultInfuraNetworkConfigurationsByChainId();
+  const customNetworks = getDefaultCustomNetworkConfigurationsByChainId();
+
+  return additionalDefaultNetworks.reduce<Record<Hex, NetworkConfiguration>>(
+    (obj, chainId) => {
+      if (hasProperty(customNetworks, chainId)) {
+        obj[chainId] = customNetworks[chainId];
+      }
+      return obj;
+    },
+    // Always include the infura networks in the default networks
+    infuraNetworks,
+  );
+}
+
+/**
+ * Constructs a `networkConfigurationsByChainId` object for all default Infura networks.
+ *
+ * @returns The `networkConfigurationsByChainId` object of all Infura networks.
+ */
+function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
@@ -664,15 +697,49 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
 }
 
 /**
+ * Constructs a `networkConfigurationsByChainId` object for all default custom networks.
+ *
+ * @returns The `networkConfigurationsByChainId` object of all custom networks.
+ */
+function getDefaultCustomNetworkConfigurationsByChainId(): Record<
+  Hex,
+  NetworkConfiguration
+> {
+  const { ticker, rpcPrefs } =
+    BUILT_IN_NETWORKS[BuiltInNetworkName.MegaETHTestnet];
+  return {
+    [ChainId[BuiltInNetworkName.MegaETHTestnet]]: {
+      blockExplorerUrls: [rpcPrefs.blockExplorerUrl],
+      chainId: ChainId[BuiltInNetworkName.MegaETHTestnet],
+      defaultRpcEndpointIndex: 0,
+      defaultBlockExplorerUrlIndex: 0,
+      name: NetworkNickname[BuiltInNetworkName.MegaETHTestnet],
+      nativeCurrency: ticker,
+      rpcEndpoints: [
+        {
+          failoverUrls: [],
+          networkClientId: BuiltInNetworkName.MegaETHTestnet,
+          type: RpcEndpointType.Custom,
+          url: BUILT_IN_CUSTOM_NETWORKS_RPC.MEGAETH_TESTNET,
+        },
+      ],
+    },
+  };
+}
+
+/**
  * Constructs properties for the NetworkController state whose values will be
  * used if not provided to the constructor.
  *
+ * @param [additionalDefaultNetworks] - An array of Hex Chain IDs representing the additional networks to be included as default.
  * @returns The default NetworkController state.
  */
-export function getDefaultNetworkControllerState(): NetworkState {
+export function getDefaultNetworkControllerState(
+  additionalDefaultNetworks?: AdditionalDefaultNetwork[],
+): NetworkState {
   const networksMetadata = {};
   const networkConfigurationsByChainId =
-    getDefaultNetworkConfigurationsByChainId();
+    getDefaultNetworkConfigurationsByChainId(additionalDefaultNetworks);
 
   return {
     selectedNetworkClientId: InfuraNetworkType.mainnet,
@@ -1014,9 +1081,18 @@ export class NetworkController extends BaseController<
    * @param options - The options; see {@link NetworkControllerOptions}.
    */
   constructor(options: NetworkControllerOptions) {
-    const { messenger, state, infuraProjectId, log, getRpcServiceOptions } =
-      options;
-    const initialState = { ...getDefaultNetworkControllerState(), ...state };
+    const {
+      messenger,
+      state,
+      infuraProjectId,
+      log,
+      getRpcServiceOptions,
+      additionalDefaultNetworks,
+    } = options;
+    const initialState = {
+      ...getDefaultNetworkControllerState(additionalDefaultNetworks),
+      ...state,
+    };
     validateNetworkControllerState(initialState);
     if (!infuraProjectId || typeof infuraProjectId !== 'string') {
       throw new Error('Invalid Infura project ID');
