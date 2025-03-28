@@ -551,15 +551,5 @@ describe('Feature Flags Utils', () => {
         percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
       });
     });
-
-    // it('returns default fixed values', () => {
-    //   mockFeatureFlags({});
-    //   expect(
-    //     getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
-    //   ).toStrictEqual({
-    //     fixed: FIXED_GAS_MOCK,
-    //     percentage: GAS_ESTIMATE_FALLBACK_MOCK,
-    //   });
-    // });
   });
 });
