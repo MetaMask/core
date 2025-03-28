@@ -6,7 +6,6 @@
     "noEmit": true
   },
   "references": [
-    { "path": "./examples/example-controllers" },
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
     { "path": "./packages/announcement-controller" },
@@ -19,6 +18,7 @@
     { "path": "./packages/chain-agnostic-permission" },
     { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },
+    { "path": "./packages/delegation-controller" },
     { "path": "./packages/earn-controller" },
     { "path": "./packages/eip1193-permission-middleware" },
     { "path": "./packages/ens-controller" },
@@ -49,7 +49,7 @@
     { "path": "./packages/signature-controller" },
     { "path": "./packages/token-search-discovery-controller" },
     { "path": "./packages/transaction-controller" },
-    { "path": "./packages/user-operation-controller" }
+    { "path": "./packages/user-operation-controller" },
   ],
   "files": [],
   "include": ["./types"]
