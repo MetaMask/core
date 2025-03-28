@@ -6,6 +6,7 @@ import type { TransactionControllerFeatureFlags } from './feature-flags';
 import {
   FEATURE_FLAG_EIP_7702,
   FEATURE_FLAG_TRANSACTIONS,
+  getAcceleratedPollingParams,
   getBatchSizeLimit,
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
@@ -290,6 +291,149 @@ describe('Feature Flags Utils', () => {
     it('returns default value if undefined', () => {
       mockFeatureFlags({});
       expect(getBatchSizeLimit(controllerMessenger)).toBe(10);
+    });
+  });
+
+  describe('getAcceleratedPollingParams', () => {
+    it('returns default values if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 10,
+        intervalMs: 3000,
+      });
+    });
+
+    it('returns values from chain-specific config when available', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                countMax: 5,
+                intervalMs: 2000,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 5,
+        intervalMs: 2000,
+      });
+    });
+
+    it('returns default values from feature flag when no chain-specific config', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 15,
+        intervalMs: 4000,
+      });
+    });
+
+    it('uses chain-specific over default values', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                countMax: 5,
+                intervalMs: 2000,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 5,
+        intervalMs: 2000,
+      });
+    });
+
+    it('uses defaults if chain not found in perChainConfig', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+            perChainConfig: {
+              [CHAIN_ID_2_MOCK]: {
+                countMax: 5,
+                intervalMs: 2000,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 15,
+        intervalMs: 4000,
+      });
+    });
+
+    it('merges partial chain-specific config with defaults', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                // Only specify countMax, intervalMs should use default
+                countMax: 5,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 5,
+        intervalMs: 4000,
+      });
     });
   });
 
