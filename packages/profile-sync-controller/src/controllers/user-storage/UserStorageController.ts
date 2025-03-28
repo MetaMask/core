@@ -85,7 +85,7 @@ export const defaultState: UserStorageControllerState = {
   isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
   hasAccountSyncingSyncedAtLeastOnce: false,
-  isAccountSyncingReadyToBeDispatched: false,
+  isAccountSyncingReadyToBeDispatched: true,
   isAccountSyncingInProgress: false,
 };
 
@@ -103,7 +103,7 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: false,
   },
   isAccountSyncingReadyToBeDispatched: {
-    persist: true,
+    persist: false,
     anonymous: false,
   },
   isAccountSyncingInProgress: {
