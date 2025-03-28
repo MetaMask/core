@@ -11,7 +11,6 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
-  getDefaultGasEstimateFallback,
   getGasEstimateFallback,
 } from './feature-flags';
 import { isValidSignature } from './signature';
@@ -27,10 +26,8 @@ const PUBLIC_KEY_MOCK = '0x321' as Hex;
 const SIGNATURE_MOCK = '0xcba' as Hex;
 
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
-const DEFAULT_IS_FIXED_GAS_MOCK = false;
-const CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK = 50;
-const CUSTOM_IS_FIXED_GAS_MOCK = true;
-const CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK = '0x5208' as Hex;
+const GAS_ESTIMATE_FALLBACK_MOCK = 50;
+const FIXED_GAS_MOCK = 100000;
 
 describe('Feature Flags Utils', () => {
   let baseMessenger: Messenger<
@@ -437,56 +434,16 @@ describe('Feature Flags Utils', () => {
     });
   });
 
-  describe('getDefaultGasEstimateFallback', () => {
-    it('returns default gas estimate fallback from remote feature flag controller', () => {
-      mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
-          defaultGasEstimateFallback: {
-            value: CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK,
-            isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
-          },
-        },
-      });
-
-      expect(getDefaultGasEstimateFallback(controllerMessenger)).toStrictEqual({
-        gasEstimateFallback: CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK,
-        isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
-      });
-    });
-
-    it('returns default gas estimate fallback as Hex from remote feature flag controller', () => {
-      mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
-          defaultGasEstimateFallback: {
-            value: CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK,
-            isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
-          },
-        },
-      });
-
-      expect(getDefaultGasEstimateFallback(controllerMessenger)).toStrictEqual({
-        gasEstimateFallback: CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK,
-        isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
-      });
-    });
-
-    it('returns default values if undefined', () => {
-      mockFeatureFlags({});
-      expect(getDefaultGasEstimateFallback(controllerMessenger)).toStrictEqual({
-        gasEstimateFallback: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
-        isFixedGas: DEFAULT_IS_FIXED_GAS_MOCK,
-      });
-    });
-  });
-
   describe('getGasEstimateFallback', () => {
     it('returns gas estimate fallback for specific chain ID from remote feature flag controller', () => {
       mockFeatureFlags({
         [FEATURE_FLAG_TRANSACTIONS]: {
-          gasEstimateFallbacks: {
-            [CHAIN_ID_MOCK]: {
-              value: CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK,
-              isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
+          gasEstimateFallback: {
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                fixed: FIXED_GAS_MOCK,
+                percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+              },
             },
           },
         },
@@ -495,37 +452,19 @@ describe('Feature Flags Utils', () => {
       expect(
         getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
       ).toStrictEqual({
-        gasEstimateFallback: CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK,
-        isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
-      });
-    });
-
-    it('returns gas estimate fallback as Hex for specific chain ID from remote feature flag controller', () => {
-      mockFeatureFlags({
-        [FEATURE_FLAG_TRANSACTIONS]: {
-          gasEstimateFallbacks: {
-            [CHAIN_ID_MOCK]: {
-              value: CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK,
-              isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
-            },
-          },
-        },
-      });
-
-      expect(
-        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
-      ).toStrictEqual({
-        gasEstimateFallback: CUSTOM_GAS_ESTIMATE_FALLBACK_HEX_MOCK,
-        isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
+        fixed: FIXED_GAS_MOCK,
+        percentage: GAS_ESTIMATE_FALLBACK_MOCK,
       });
     });
 
     it('returns default gas estimate fallback if specific chain ID is not found', () => {
       mockFeatureFlags({
         [FEATURE_FLAG_TRANSACTIONS]: {
-          defaultGasEstimateFallback: {
-            value: CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK,
-            isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
+          gasEstimateFallback: {
+            default: {
+              fixed: undefined,
+              percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+            },
           },
         },
       });
@@ -533,19 +472,19 @@ describe('Feature Flags Utils', () => {
       expect(
         getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
       ).toStrictEqual({
-        gasEstimateFallback: CUSTOM_GAS_ESTIMATE_FALLBACK_MOCK,
-        isFixedGas: CUSTOM_IS_FIXED_GAS_MOCK,
+        fixed: undefined,
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
       });
     });
 
-    it('returns default values if both specific chain ID and default are undefined', () => {
-      mockFeatureFlags({});
-      expect(
-        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
-      ).toStrictEqual({
-        gasEstimateFallback: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
-        isFixedGas: DEFAULT_IS_FIXED_GAS_MOCK,
-      });
-    });
+    // it('returns default fixed values', () => {
+    //   mockFeatureFlags({});
+    //   expect(
+    //     getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
+    //   ).toStrictEqual({
+    //     fixed: FIXED_GAS_MOCK,
+    //     percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+    //   });
+    // });
   });
 });

@@ -14,17 +14,14 @@ const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 
 type GasEstimateFallback = {
   /**
-   * The fallback gas estimate for a transaction.
-   * This value is either a fixed hexadecimal number or a percentage multiplier.
+   * The fixed gas estimate fallback for a transaction.
    */
-  value: number | Hex;
+  fixed?: number;
 
   /**
-   * Indicates whether the gas estimate is a fixed hexadecimal number or a percentage multiplier.
-   * - `true`: The gas estimate is a fixed hexadecimal number.
-   * - `false`: The gas estimate is a percentage multiplier.
+   * The percentage multiplier gas estimate fallback for a transaction.
    */
-  isFixedGas: boolean;
+  percentage?: number;
 };
 
 export type TransactionControllerFeatureFlags = {
@@ -60,7 +57,6 @@ export type TransactionControllerFeatureFlags = {
        */
       perChainConfig?: {
         /** Accelerated polling parameters on a per-chain basis. */
-
         [chainId: Hex]: {
           /**
            * Maximum number of polling requests that can be made in a row, before
@@ -80,16 +76,19 @@ export type TransactionControllerFeatureFlags = {
       defaultIntervalMs?: number;
     };
 
-    /** Fallback gas estimation configurations per chain. */
-    gasEstimateFallbacks?: {
-      [chainId: Hex]: GasEstimateFallback;
-    };
+    /** Gas estimate fallback is used as a fallback in case of failure to obtain the gas estimate values. */
+    gasEstimateFallback?: {
+      /** Gas estimate fallback per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: GasEstimateFallback;
+      };
 
-    /**
-     * Default gas estimate fallback.
-     * This value is used when no specific gas estimate fallback is found for a chain ID.
-     */
-    defaultGasEstimateFallback?: GasEstimateFallback;
+      /**
+       * Default gas estimate fallback.
+       * This value is used when no specific gas estimate fallback is found for a chain ID.
+       */
+      default?: GasEstimateFallback;
+    };
   };
 };
 
@@ -213,47 +212,24 @@ export function getGasEstimateFallback(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
 ): {
-  gasEstimateFallback: number | Hex;
-  isFixedGas: boolean;
+  fixed?: number;
+  percentage: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
 
-  const gasEstimateFallbackPerChain =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasEstimateFallbacks?.[chainId];
+  const gasEstimateFallbackFlags =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasEstimateFallback;
 
-  if (gasEstimateFallbackPerChain) {
-    return {
-      gasEstimateFallback: gasEstimateFallbackPerChain.value,
-      isFixedGas: gasEstimateFallbackPerChain.isFixedGas,
-    };
-  }
+  const chainFlags = gasEstimateFallbackFlags?.perChainConfig?.[chainId];
 
-  return getDefaultGasEstimateFallback(messenger);
-}
+  const percentage =
+    chainFlags?.percentage ??
+    gasEstimateFallbackFlags?.default?.percentage ??
+    DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT;
 
-/**
- * Retrieves the default gas estimate fallback.
- *
- * @param messenger - The controller messenger instance.
- * @returns The default gas estimate fallback.
- */
-export function getDefaultGasEstimateFallback(
-  messenger: TransactionControllerMessenger,
-): {
-  gasEstimateFallback: number | Hex;
-  isFixedGas: boolean;
-} {
-  const featureFlags = getFeatureFlags(messenger);
+  const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
-  const defaultGasEstimateFallback =
-    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.defaultGasEstimateFallback;
-
-  return {
-    gasEstimateFallback:
-      defaultGasEstimateFallback?.value ??
-      DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT,
-    isFixedGas: defaultGasEstimateFallback?.isFixedGas ?? false,
-  };
+  return { fixed, percentage };
 }
 
 /**

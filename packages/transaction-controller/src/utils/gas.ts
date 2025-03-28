@@ -3,6 +3,7 @@ import {
   fractionBN,
   hexToBN,
   query,
+  toHex,
 } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
@@ -97,14 +98,13 @@ export async function estimateGas({
     await getLatestBlock(ethQuery);
 
   const blockGasLimitBN = hexToBN(blockGasLimit);
-  const { gasEstimateFallback, isFixedGas } = getGasEstimateFallback(
-    chainId,
-    messenger,
-  );
+  const { percentage, fixed } = getGasEstimateFallback(chainId, messenger);
 
-  const fallback = isFixedGas
-    ? (gasEstimateFallback as string)
-    : BNToHex(fractionBN(blockGasLimitBN, gasEstimateFallback, 100));
+  const fallback = fixed
+    ? toHex(fixed)
+    : BNToHex(fractionBN(blockGasLimitBN, percentage, 100));
+
+  log('Estimation fallback values', fallback);
 
   request.data = data ? add0x(data) : data;
   request.value = value || '0x0';

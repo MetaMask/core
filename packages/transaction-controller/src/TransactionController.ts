@@ -1520,8 +1520,8 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
-      txParams: transaction,
       messenger: this.messagingSystem,
+      txParams: transaction,
     });
 
     return { gas: estimatedGas, simulationFails };
@@ -1548,8 +1548,8 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
-      txParams: transaction,
       messenger: this.messagingSystem,
+      txParams: transaction,
     });
 
     const gas = addGasBuffer(estimatedGas, blockGasLimit, multiplier);
@@ -4102,8 +4102,8 @@ export class TransactionController extends BaseController<
       ethQuery,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
-      txMeta: transactionMeta,
       messenger: this.messagingSystem,
+      txMeta: transactionMeta,
     });
   }
 
