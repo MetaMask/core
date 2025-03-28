@@ -22,7 +22,7 @@ export enum NetworkClientType {
  */
 type CommonNetworkClientConfiguration = {
   chainId: Hex;
-  failoverRpcUrls: string[];
+  failoverRpcUrls?: string[];
   ticker: string;
 };
 

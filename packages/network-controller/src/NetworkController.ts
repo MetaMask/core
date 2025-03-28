@@ -103,7 +103,7 @@ export type InfuraRpcEndpoint = {
   /**
    * Alternate RPC endpoints to use when this endpoint is down.
    */
-  failoverUrls: string[];
+  failoverUrls?: string[];
   /**
    * The optional user-facing nickname of the endpoint.
    */
@@ -135,7 +135,7 @@ export type CustomRpcEndpoint = {
   /**
    * Alternate RPC endpoints to use when this endpoint is down.
    */
-  failoverUrls: string[];
+  failoverUrls?: string[];
   /**
    * The optional user-facing nickname of the endpoint.
    */
