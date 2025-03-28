@@ -27,9 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Support atomic batch transactions ([#5306](https://github.com/MetaMask/core/pull/5306))
   - Require `AccountsController:getState` action permission in messenger.
   - Require `RemoteFeatureFlagController:getState` action permission in messenger.
-- Removed coupling of "Update custodial transactions" and MMI by removing the `custodyId` property from `TransactionMeta`
-- Changes signature of `beforePublish` and `beforeCheckPendingTransaction` hook to return promises
-- `updateCustodialTransaction` now allows changing more properties, and is now triggered by an action
 
 ## [46.0.0]
 
