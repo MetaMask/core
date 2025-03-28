@@ -223,9 +223,6 @@ describe('TokenBalancesController', () => {
     messenger.publish(
       'TokensController:stateChange',
       {
-        tokens: [],
-        detectedTokens: [],
-        ignoredTokens: [],
         allDetectedTokens: {},
         allIgnoredTokens: {},
         allTokens: {
@@ -295,9 +292,6 @@ describe('TokenBalancesController', () => {
     messenger.publish(
       'TokensController:stateChange',
       {
-        tokens: [],
-        detectedTokens: [],
-        ignoredTokens: [],
         allDetectedTokens: {},
         allIgnoredTokens: {},
         allTokens: { [chainId]: {} },
