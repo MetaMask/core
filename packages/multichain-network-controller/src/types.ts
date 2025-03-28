@@ -1,3 +1,4 @@
+import type { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
@@ -11,7 +12,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkClientId,
 } from '@metamask/network-controller';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import { type CaipAssetType, type Hex } from '@metamask/utils';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -161,7 +162,8 @@ export type MultichainNetworkControllerEvents =
  */
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction;
+  | NetworkControllerSetActiveNetworkAction
+  | AccountsControllerListMultichainAccountsAction;
 
 // Re-define event here to avoid circular dependency with AccountsController
 export type AccountsControllerSelectedAccountChangeEvent = {
@@ -204,7 +206,7 @@ export type ActiveNetworksResponse = {
  * The active networks for the currently selected account.
  */
 export type ActiveNetworksByAddress = {
-  [address: Hex]: {
+  [address in Hex]: {
     namespace: string;
     activeChains: string[];
   };

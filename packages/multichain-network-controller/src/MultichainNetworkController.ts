@@ -2,24 +2,24 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { isCaipChainId } from '@metamask/utils';
+import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
 
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from './constants';
-import { fetchNetworkActivityByAccounts } from './multichain-active-networks';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
   type MultichainNetworkControllerMessenger,
   type SupportedCaipChainId,
   type ActiveNetworksByAddress,
-  type ActiveNetworksResponse,
 } from './types';
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
+  fetchNetworkActivityByAccounts,
+  formatNetworkActivityResponse,
 } from './utils';
 
 /**
@@ -121,6 +121,27 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
+   * Retrieves all multichain accounts from the AccountsController.
+   *
+   * @returns An array of internal accounts.
+   */
+  #listMultichainAccounts(): InternalAccount[] {
+    return this.messagingSystem.call(
+      'AccountsController:listMultichainAccounts',
+    );
+  }
+
+  /**
+   * Filters and returns non-EVM accounts that should have balances.
+   *
+   * @returns An array of non-EVM internal accounts.
+   */
+  #listEVMAccounts(): InternalAccount[] {
+    const accounts = this.#listMultichainAccounts();
+    return accounts.filter((account) => isEvmAccountType(account.type));
+  }
+
+  /**
    * Sets the active network.
    *
    * @param id - The non-EVM Caip chain ID or EVM client ID of the network to set active.
@@ -145,29 +166,25 @@ export class MultichainNetworkController extends BaseController<
    * Fetches the data from the API and caches it in state.
    *
    * @returns A promise that resolves to the active networks for the available addresses
-   * @throws Error if the API request fails
-   * @throws Error if the response format is invalid
    */
   async getNetworksWithActivityByAccounts(): Promise<ActiveNetworksByAddress> {
-    try {
-      // TODO: Get actual account IDs from AccountsController
-      // For now, return mock data for testing from initial state
+    const accounts = this.#listEVMAccounts();
+    if (!accounts || accounts.length === 0) {
       return this.state.networksWithActivity;
-
-      // TODO: Implement actual fetching logic:
-      // const response = await fetchNetworkActivityByAccounts(accountIds);
-      // const formattedNetworks = formatActiveNetworksResponse(response);
-      // this.update((state) => {
-      //   state.networksWithActivity = formattedNetworks;
-      // });
-      // return formattedNetworks;
-    } catch (error) {
-      throw new Error(
-        `Failed to fetch active networks: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
     }
+
+    const formattedEVMAccounts = accounts.map((account) => {
+      return `${KnownCaipNamespace.Eip155}:0:${account.address}`;
+    });
+    const activeNetworks =
+      await fetchNetworkActivityByAccounts(formattedEVMAccounts);
+    const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
+
+    this.update((state) => {
+      state.networksWithActivity = formattedNetworks;
+    });
+
+    return this.state.networksWithActivity;
   }
 
   /**

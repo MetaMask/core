@@ -1,5 +1,4 @@
 import { type StateMetadata } from '@metamask/base-controller';
-import { ChainId } from '@metamask/controller-utils';
 import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
@@ -59,13 +58,7 @@ export const getDefaultMultichainNetworkControllerState =
       AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
     selectedMultichainNetworkChainId: SolScope.Mainnet,
     isEvmSelected: true,
-    // Mock data for testing
-    networksWithActivity: {
-      '0x0000000000000000000000000000000000000000': {
-        namespace: 'mainnet',
-        activeChains: [ChainId.mainnet],
-      },
-    },
+    networksWithActivity: {},
   });
 
 /**

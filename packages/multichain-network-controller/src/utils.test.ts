@@ -1,13 +1,22 @@
+import { handleFetch } from '@metamask/controller-utils';
 import { BtcScope, SolScope, type CaipChainId } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
 
+import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
 import {
   toEvmCaipChainId,
   getChainIdForNonEvmAddress,
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
+  fetchNetworkActivityByAccounts,
+  formatNetworkActivityResponse,
 } from './utils';
+
+jest.mock('@metamask/controller-utils', () => ({
+  handleFetch: jest.fn(),
+}));
 
 describe('utils', () => {
   describe('getChainIdForNonEvmAddress', () => {
@@ -109,6 +118,228 @@ describe('utils', () => {
       expect(toEvmCaipChainId('0x1')).toBe('eip155:1');
       expect(toEvmCaipChainId('0xe708')).toBe('eip155:59144');
       expect(toEvmCaipChainId('0x539')).toBe('eip155:1337');
+    });
+  });
+
+  describe('fetchNetworkActivityByAccounts', () => {
+    const mockValidAccountId =
+      'eip155:1:0x1234567890123456789012345678901234567890';
+    const mockValidSolanaAccountId =
+      'solana:1:0x1234567890123456789012345678901234567890';
+    const mockInvalidAccountId = 'invalid:0:123';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should successfully fetch active networks for valid EVM account ID', async () => {
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      (handleFetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const expectedUrl = new URL(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks`,
+      );
+      expectedUrl.searchParams.append('accountIds', mockValidAccountId);
+
+      const result = await fetchNetworkActivityByAccounts([mockValidAccountId]);
+
+      const [calledUrl, calledOptions] = (handleFetch as jest.Mock).mock
+        .calls[0];
+      expect(new URL(calledUrl).toString()).toBe(expectedUrl.toString());
+      expect(calledOptions.method).toBe('GET');
+      expect(calledOptions.headers).toStrictEqual({
+        Accept: 'application/json',
+      });
+      expect(calledOptions.signal).toBeDefined();
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('should successfully fetch active networks for valid Solana account ID', async () => {
+      const mockResponse = {
+        activeNetworks: ['solana:1:0x1234567890123456789012345678901234567890'],
+      };
+
+      (handleFetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const result = await fetchNetworkActivityByAccounts([
+        mockValidSolanaAccountId,
+      ]);
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('should handle multiple account IDs correctly', async () => {
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      (handleFetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const expectedUrl = new URL(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks`,
+      );
+      expectedUrl.searchParams.append(
+        'accountIds',
+        `${mockValidAccountId},${mockValidSolanaAccountId}`,
+      );
+
+      const result = await fetchNetworkActivityByAccounts([
+        mockValidAccountId,
+        mockValidSolanaAccountId,
+      ]);
+
+      const [calledUrl, calledOptions] = (handleFetch as jest.Mock).mock
+        .calls[0];
+      expect(new URL(calledUrl).toString()).toBe(expectedUrl.toString());
+      expect(calledOptions.method).toBe('GET');
+      expect(calledOptions.headers).toStrictEqual({
+        Accept: 'application/json',
+      });
+      expect(calledOptions.signal).toBeDefined();
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('should throw error for empty account IDs array', async () => {
+      await expect(fetchNetworkActivityByAccounts([])).rejects.toThrow(
+        'At least one account ID is required',
+      );
+    });
+
+    it('should throw error for invalid account ID format', async () => {
+      await expect(
+        fetchNetworkActivityByAccounts([mockInvalidAccountId]),
+      ).rejects.toThrow(/Invalid CAIP-10 account IDs/u);
+    });
+
+    it('should throw error for invalid API response format', async () => {
+      (handleFetch as jest.Mock).mockResolvedValueOnce({
+        invalidKey: [],
+      });
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow('Invalid response format from active networks API');
+    });
+
+    it('should handle request timeout', async () => {
+      (handleFetch as jest.Mock).mockRejectedValueOnce(
+        Object.assign(new Error(), { name: 'AbortError' }),
+      );
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow('Request timeout: Failed to fetch active networks');
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Network failure');
+      (handleFetch as jest.Mock).mockRejectedValueOnce(networkError);
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow(networkError);
+    });
+
+    it('should handle non-Error objects in catch block', async () => {
+      (handleFetch as jest.Mock).mockRejectedValueOnce('String error');
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow('Failed to fetch active networks: String error');
+    });
+  });
+
+  describe('formatNetworkActivityResponse', () => {
+    it('should format EVM network responses correctly', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1', '137'],
+        },
+      });
+    });
+
+    it('should format non-EVM network responses correctly', () => {
+      const response = {
+        activeNetworks: ['solana:1:0x1234567890123456789012345678901234567890'],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Solana,
+          activeChains: [],
+        },
+      });
+    });
+
+    it('should handle mixed EVM and non-EVM networks', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+      });
+    });
+
+    it('should skip entries with invalid addresses', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:invalid-address',
+          'eip155:1:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+      });
+    });
+
+    it('should handle empty response', () => {
+      const response = {
+        activeNetworks: [],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({});
     });
   });
 });

@@ -4,6 +4,7 @@
     "baseUrl": "./"
   },
   "references": [
+    { "path": "../accounts-controller" },
     { "path": "../base-controller" },
     { "path": "../network-controller" },
     { "path": "../keyring-controller" }
