@@ -45,6 +45,28 @@ export type RootMessenger = Messenger<
 >;
 
 /**
+ * A list of active InfuraNetworkType that are used in many tests
+ *
+ * TODO: Base this off of InfuraNetworkType when Goerli is removed.
+ */
+export const INFURA_NETWORKS = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['linea-sepolia'],
+];
+
+/**
+ * A object that contains the configuration for a network that begining used in many tests
+ */
+export const TESTNET = {
+  networkType: InfuraNetworkType.sepolia,
+  chainId: ChainId.sepolia,
+  name: 'Sepolia',
+  nativeCurrency: 'SepoliaETH',
+};
+
+/**
  * Build a root messenger that includes all events used by the network
  * controller.
  *
@@ -243,7 +265,7 @@ export function buildNetworkConfiguration(
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         defaultRpcEndpointType === RpcEndpointType.Infura
-          ? buildInfuraRpcEndpoint(InfuraNetworkType['linea-goerli'])
+          ? buildInfuraRpcEndpoint(TESTNET.networkType)
           : buildCustomRpcEndpoint({ url: 'https://test.endpoint' }),
       ],
     },

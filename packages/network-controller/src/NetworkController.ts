@@ -31,7 +31,11 @@ import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
-import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import {
+  DEPRECATED_NETWORKS,
+  INFURA_BLOCKED_KEY,
+  NetworkStatus,
+} from './constants';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
@@ -671,6 +675,12 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
     const chainId = ChainId[infuraNetworkType];
+
+    // Skip deprecated network as default network.
+    if (DEPRECATED_NETWORKS.has(chainId)) {
+      return obj;
+    }
+
     const rpcEndpointUrl =
       // This ESLint rule mistakenly produces an error.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions

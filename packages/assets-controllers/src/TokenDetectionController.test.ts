@@ -129,8 +129,8 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
   [InfuraNetworkType.mainnet]: buildInfuraNetworkConfiguration(
     InfuraNetworkType.mainnet,
   ),
-  [InfuraNetworkType.goerli]: buildInfuraNetworkConfiguration(
-    InfuraNetworkType.goerli,
+  [InfuraNetworkType.sepolia]: buildInfuraNetworkConfiguration(
+    InfuraNetworkType.sepolia,
   ),
   polygon: {
     blockExplorerUrls: ['https://polygonscan.com/'],
@@ -361,12 +361,12 @@ describe('TokenDetectionController', () => {
         async ({ controller, mockNetworkState, mockGetNetworkClientById }) => {
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: NetworkType.goerli,
+            selectedNetworkClientId: NetworkType.sepolia,
           });
           mockGetNetworkClientById(
             () =>
               ({
-                configuration: { chainId: '0x5' },
+                configuration: { chainId: ChainId.sepolia },
               }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
           await controller.start();
@@ -1167,14 +1167,7 @@ describe('TokenDetectionController', () => {
             await advanceTime({ clock, duration: 1 });
 
             expect(mockTokens).toHaveBeenNthCalledWith(1, {
-              chainIds: [
-                '0x1',
-                '0x5',
-                '0xaa36a7',
-                '0xe704',
-                '0xe705',
-                '0xe708',
-              ],
+              chainIds: ['0x1', '0xaa36a7', '0xe705', '0xe708'],
               selectedAddress: secondSelectedAccount.address,
             });
           },
@@ -1667,7 +1660,7 @@ describe('TokenDetectionController', () => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
-                '0x5': {
+                [ChainId.sepolia]: {
                   timestamp: 0,
                   data: {
                     [sampleTokenA.address]: {
@@ -1686,7 +1679,7 @@ describe('TokenDetectionController', () => {
 
             triggerNetworkDidChange({
               ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'goerli',
+              selectedNetworkClientId: NetworkType.sepolia,
             });
             await advanceTime({ clock, duration: 1 });
 
@@ -2436,14 +2429,14 @@ describe('TokenDetectionController', () => {
           mockMultiChainAccountsService();
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: NetworkType.goerli,
+            selectedNetworkClientId: NetworkType.sepolia,
           });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            chainIds: ['0x5'],
+            chainIds: [ChainId.sepolia],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -2753,7 +2746,7 @@ describe('TokenDetectionController', () => {
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            chainIds: ['0x5'],
+            chainIds: [ChainId.sepolia],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
