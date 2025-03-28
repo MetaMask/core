@@ -1522,6 +1522,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txParams: transaction,
     });
 
@@ -1549,6 +1550,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txParams: transaction,
     });
 
@@ -4112,6 +4114,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txMeta: transactionMeta,
     });
   }

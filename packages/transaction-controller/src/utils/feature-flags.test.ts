@@ -12,6 +12,7 @@ import {
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
   getGasFeeRandomisation,
+  getGasEstimateFallback,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -24,6 +25,10 @@ const ADDRESS_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const PUBLIC_KEY_MOCK = '0x321' as Hex;
 const SIGNATURE_MOCK = '0xcba' as Hex;
+
+const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
+const GAS_ESTIMATE_FALLBACK_MOCK = 50;
+const FIXED_GAS_MOCK = 100000;
 
 describe('Feature Flags Utils', () => {
   let baseMessenger: Messenger<
@@ -500,6 +505,50 @@ describe('Feature Flags Utils', () => {
       expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
         randomisedGasFeeDigits: {},
         preservedNumberOfDigits: 2,
+      });
+    });
+  });
+
+  describe('getGasEstimateFallback', () => {
+    it('returns gas estimate fallback for specific chain ID from remote feature flag controller', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasEstimateFallback: {
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                fixed: FIXED_GAS_MOCK,
+                percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        fixed: FIXED_GAS_MOCK,
+        percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+      });
+    });
+
+    it('returns default gas estimate fallback if specific chain ID is not found', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasEstimateFallback: {
+            default: {
+              fixed: undefined,
+              percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        fixed: undefined,
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
       });
     });
   });
