@@ -192,6 +192,32 @@ describe('Feature Flags Utils', () => {
         ),
       ).toStrictEqual([ADDRESS_2_MOCK]);
     });
+
+    it('validates signature using padded chain ID', () => {
+      const chainId = '0x539' as const;
+
+      isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+      mockFeatureFlags({
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [chainId]: [{ address: ADDRESS_MOCK, signature: SIGNATURE_MOCK }],
+          },
+        },
+      });
+
+      getEIP7702ContractAddresses(
+        chainId,
+        controllerMessenger,
+        PUBLIC_KEY_MOCK,
+      );
+
+      expect(isValidSignatureMock).toHaveBeenCalledWith(
+        [ADDRESS_MOCK, `0x0539`],
+        SIGNATURE_MOCK,
+        PUBLIC_KEY_MOCK,
+      );
+    });
   });
 
   describe('getEIP7702UpgradeContractAddress', () => {
