@@ -337,21 +337,22 @@ export class AccountsController extends BaseController<
    * @returns The selected internal account.
    */
   getSelectedAccount(): InternalAccount {
+    const {
+      internalAccounts: { selectedAccount },
+    } = this.state;
+
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (this.state.internalAccounts.selectedAccount === '') {
+    if (selectedAccount === '') {
       return EMPTY_ACCOUNT;
     }
 
-    const selectedAccount = this.getAccountExpect(
-      this.state.internalAccounts.selectedAccount,
-    );
-    if (isEvmAccountType(selectedAccount.type)) {
-      return selectedAccount;
+    const account = this.getAccountExpect(selectedAccount);
+    if (isEvmAccountType(account.type)) {
+      return account;
     }
 
     const accounts = this.listAccounts();
-
     if (!accounts.length) {
       // ! Should never reach this.
       throw new Error('No EVM accounts');
@@ -373,14 +374,18 @@ export class AccountsController extends BaseController<
   getSelectedMultichainAccount(
     chainId?: CaipChainId,
   ): InternalAccount | undefined {
+    const {
+      internalAccounts: { selectedAccount },
+    } = this.state;
+
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (this.state.internalAccounts.selectedAccount === '') {
+    if (selectedAccount === '') {
       return EMPTY_ACCOUNT;
     }
 
     if (!chainId) {
-      return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+      return this.getAccountExpect(selectedAccount);
     }
 
     const accounts = this.listMultichainAccounts(chainId);
@@ -408,13 +413,12 @@ export class AccountsController extends BaseController<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccountExpect(accountId);
 
-    this.update((currentState) => {
-      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
-        Date.now();
-      currentState.internalAccounts.selectedAccount = account.id;
-    });
+    this.#update((state) => {
+      const { internalAccounts } = state;
 
-    this.#publishAccountChangeEvent(account);
+      internalAccounts.accounts[account.id].metadata.lastSelected = Date.now();
+      internalAccounts.selectedAccount = account.id;
+    });
   }
 
   /**
@@ -533,24 +537,9 @@ export class AccountsController extends BaseController<
       {} as Record<string, InternalAccount>,
     );
 
-    const { selectedAccount: previouslySelectedAccount } =
-      this.state.internalAccounts;
-
-    this.update((state) => {
+    this.#update((state) => {
       state.internalAccounts.accounts = accounts;
-
-      // Now check if the previously selected account has been deleted and pick a
-      // new one if neeed.
-      this.#reSelectAccountIfNeeded(
-        state,
-        state.internalAccounts.selectedAccount,
-      );
     });
-
-    const { selectedAccount } = this.state.internalAccounts;
-    if (selectedAccount && selectedAccount !== previouslySelectedAccount) {
-      this.#publishAccountChangeEvent(this.getSelectedAccount());
-    }
   }
 
   /**
@@ -799,18 +788,13 @@ export class AccountsController extends BaseController<
       }
     }
 
-    // The currently selected account might get deleted during the update, so keep track
-    // of it before doing any change.
-    const previouslySelectedAccount =
-      this.state.internalAccounts.selectedAccount;
-
     // Diff that we will use to publish events afterward.
     const diff = {
       removed: [] as string[],
       added: [] as InternalAccount[],
     };
 
-    this.update((state) => {
+    this.#update((state) => {
       const { internalAccounts } = state;
 
       for (const patch of [patches.snap, patches.normal]) {
@@ -857,10 +841,6 @@ export class AccountsController extends BaseController<
           }
         }
       }
-
-      // Now check if the previously selected account has been deleted and pick a
-      // new one if neeed.
-      this.#reSelectAccountIfNeeded(state, previouslySelectedAccount);
     });
 
     // Now publish events
@@ -877,33 +857,58 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Fixup the currently selected account (on a writable draft).
+   * Update the state and fixup the currently selected account.
    *
-   * @param state - The writable state draft.
-   * @param lastSelectedAccountId - The last selected account ID (prior to the update). If not defined, the last selected one will be selected.
+   * @param callback - Callback for updating state, passed a draft state object.
    */
-  #reSelectAccountIfNeeded(
-    state: WritableDraft<AccountsControllerState>,
-    lastSelectedAccountId: string,
-  ) {
-    const { internalAccounts } = state;
+  #update(callback: (state: WritableDraft<AccountsControllerState>) => void) {
+    // The currently selected account might get deleted during the update, so keep track
+    // of it before doing any change.
+    const previouslySelectedAccount =
+      this.state.internalAccounts.selectedAccount;
 
-    // If the account no longer exists (or none is selected), we need to re-select another one.
-    if (!internalAccounts.accounts[lastSelectedAccountId]) {
-      const accounts = Object.values(
-        internalAccounts.accounts,
-      ) as InternalAccount[];
+    this.update((state) => {
+      callback(state);
 
-      // Get the lastly selected account (according to the current accounts).
-      const lastSelectedAccount = this.#getLastSelectedAccount(accounts);
-      if (lastSelectedAccount) {
-        internalAccounts.selectedAccount = lastSelectedAccount.id;
-        internalAccounts.accounts[
-          lastSelectedAccount.id
-        ].metadata.lastSelected = this.#getLastSelectedIndex();
-      } else {
-        // It will be undefined if there are no accounts.
-        internalAccounts.selectedAccount = '';
+      // If the account no longer exists (or none is selected), we need to re-select another one.
+      const { internalAccounts } = state;
+      if (!internalAccounts.accounts[previouslySelectedAccount]) {
+        const accounts = Object.values(
+          internalAccounts.accounts,
+        ) as InternalAccount[];
+
+        // Get the lastly selected account (according to the current accounts).
+        const lastSelectedAccount = this.#getLastSelectedAccount(accounts);
+        if (lastSelectedAccount) {
+          internalAccounts.selectedAccount = lastSelectedAccount.id;
+          internalAccounts.accounts[
+            lastSelectedAccount.id
+          ].metadata.lastSelected = this.#getLastSelectedIndex();
+        } else {
+          // It will be undefined if there are no accounts.
+          internalAccounts.selectedAccount = '';
+        }
+      }
+    });
+
+    // Now, we compare the newly selected account, and we send event if different.
+    const { selectedAccount } = this.state.internalAccounts;
+    if (selectedAccount && selectedAccount !== previouslySelectedAccount) {
+      const account = this.getSelectedMultichainAccount();
+
+      // The account should always be defined at this point, since we have already checked for
+      // `selectedAccount` to be non-empty.
+      if (account) {
+        if (isEvmAccountType(account.type)) {
+          this.messagingSystem.publish(
+            'AccountsController:selectedEvmAccountChange',
+            account,
+          );
+        }
+        this.messagingSystem.publish(
+          'AccountsController:selectedAccountChange',
+          account,
+        );
       }
     }
   }
@@ -1068,19 +1073,6 @@ export class AccountsController extends BaseController<
     }
 
     return this.#generateInternalAccountForNonSnapAccount(address, type);
-  }
-
-  #publishAccountChangeEvent(account: InternalAccount) {
-    if (isEvmAccountType(account.type)) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedEvmAccountChange',
-        account,
-      );
-    }
-    this.messagingSystem.publish(
-      'AccountsController:selectedAccountChange',
-      account,
-    );
   }
 
   /**

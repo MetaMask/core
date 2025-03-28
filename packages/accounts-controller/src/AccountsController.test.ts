@@ -2229,6 +2229,10 @@ describe('AccountsController', () => {
         expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
       },
     );
+
+    it.todo(
+      'does not re-fire a accountChanged event if the account is still the same',
+    );
   });
 
   describe('loadBackup', () => {
@@ -2667,7 +2671,7 @@ describe('AccountsController', () => {
       ).toStrictEqual(mockAccount2.id);
     });
 
-    it('not emit setSelectedEvmAccountChange if the account is non-EVM', () => {
+    it('does not emit setSelectedEvmAccountChange if the account is non-EVM', () => {
       const mockNonEvmAccount = createMockInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
@@ -2699,17 +2703,18 @@ describe('AccountsController', () => {
       expect(
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockNonEvmAccount.id);
+      console.log(accountsController.state.internalAccounts.selectedAccount);
 
       expect(messengerSpy.mock.calls).toHaveLength(2); // state change and then selectedAccountChange
 
-      expect(messengerSpy).not.toHaveBeenCalledWith(
+      expect(messengerSpy).not.toHaveBeenLastCalledWith(
         'AccountsController:selectedEvmAccountChange',
         mockNonEvmAccount,
       );
 
-      expect(messengerSpy).toHaveBeenCalledWith(
+      expect(messengerSpy).toHaveBeenLastCalledWith(
         'AccountsController:selectedAccountChange',
-        mockNonEvmAccount,
+        setLastSelectedAsAny(mockNonEvmAccount),
       );
     });
   });
