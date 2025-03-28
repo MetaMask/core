@@ -1,6 +1,7 @@
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
@@ -75,7 +76,7 @@ export function getEIP7702ContractAddresses(
   return contracts
     .filter((contract) =>
       isValidSignature(
-        [contract.address, chainId],
+        [contract.address, padHexToEvenLength(chainId) as Hex],
         contract.signature,
         publicKey,
       ),
