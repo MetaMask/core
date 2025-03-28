@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed coupling of "Update custodial transactions" and MMI by removing the `custodyId` property from `TransactionMeta`
 - Changes signature of `beforePublish` and `beforeCheckPendingTransaction` hook to return promises
 - `updateCustodialTransaction` now allows changing more properties, and is now triggered by an action
+
 ### Added
 
 - Adds `RandomisedEstimationsGasFeeFlow` to gas fee flows in `TransactionController` ([#5511](https://github.com/MetaMask/core/pull/5511))
