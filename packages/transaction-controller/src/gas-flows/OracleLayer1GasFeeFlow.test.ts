@@ -54,7 +54,7 @@ function createMockTypedTransaction(serializedBuffer: Buffer) {
 }
 
 class MockOracleLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
-  matchesTransaction(_transactionMeta: TransactionMeta): boolean {
+  matchesTransaction(): boolean {
     return true;
   }
 }
