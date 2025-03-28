@@ -71,6 +71,73 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
   });
 });
 
+describe('user-storage/user-storage-controller - executeWithLockHandling', () => {
+  const arrangeMocks = async () => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: await mockEndpointGetUserStorage(),
+    };
+  };
+
+  it('performs operations when controller is unlocked', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    await controller.unlock();
+
+    const mockSyncInternalAccountsWithUserStorage = jest.spyOn(
+      AccountSyncControllerIntegrationModule,
+      'syncInternalAccountsWithUserStorage',
+    );
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(mockSyncInternalAccountsWithUserStorage).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not perform operations when controller is locked', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    const mockSyncInternalAccountsWithUserStorage = jest.spyOn(
+      AccountSyncControllerIntegrationModule,
+      'syncInternalAccountsWithUserStorage',
+    );
+
+    controller.lock();
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(mockSyncInternalAccountsWithUserStorage).not.toHaveBeenCalled();
+  });
+
+  it('performs pending operations when unlocking the controller', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+    });
+
+    const mockSyncInternalAccountsWithUserStorage = jest.spyOn(
+      AccountSyncControllerIntegrationModule,
+      'syncInternalAccountsWithUserStorage',
+    );
+
+    controller.lock();
+
+    await controller.syncInternalAccountsWithUserStorage();
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(mockSyncInternalAccountsWithUserStorage).not.toHaveBeenCalled();
+
+    await controller.unlock();
+    expect(mockSyncInternalAccountsWithUserStorage).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('user-storage/user-storage-controller - performGetStorage() tests', () => {
   const arrangeMocks = async () => {
     return {
@@ -685,14 +752,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       AccountSyncControllerIntegrationModule,
       'syncInternalAccountsWithUserStorage',
     );
-    const mockSaveInternalAccountToUserStorage = jest.spyOn(
-      AccountSyncControllerIntegrationModule,
-      'saveInternalAccountToUserStorage',
-    );
+
     return {
       messenger: messengerMocks.messenger,
       mockSyncInternalAccountsWithUserStorage,
-      mockSaveInternalAccountToUserStorage,
     };
   };
 
