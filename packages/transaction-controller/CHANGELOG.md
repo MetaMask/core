@@ -13,11 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Adds `RandomisedEstimationsGasFeeFlow` to gas fee flows in `TransactionController` ([#5511](https://github.com/MetaMask/core/pull/5511))
   - Added flow only will be activated if chainId is defined in feature flags.
-- feat: Configure pending transaction polling intervals using remote feature flags ([#5549](https://github.com/MetaMask/core/pull/5549))
+- Configure pending transaction polling intervals using remote feature flags ([#5549](https://github.com/MetaMask/core/pull/5549))
 
 ### Changed
 
-- fix: Remove async operation from `updateTransactionGasFees` ([#5539](https://github.com/MetaMask/core/pull/5539))
+- Remove async operation from `updateTransactionGasFees` ([#5539](https://github.com/MetaMask/core/pull/5539))
 
 ### Fixed
 
