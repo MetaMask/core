@@ -63,3 +63,4 @@ export {
   generateCaip25Caveat,
 } from './caip25Permission';
 export { KnownSessionProperties } from './scope/constants';
+export { Caip25Errors } from './scope/errors';
