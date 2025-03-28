@@ -733,7 +733,6 @@ export class AccountsController extends BaseController<
       return {
         previous: {} as Record<string, InternalAccount>,
         added: [] as {
-          account?: InternalAccount; // This one is optional, cause we cannot get the account before doing the state update.
           address: string;
           type: string;
         }[],
@@ -759,6 +758,7 @@ export class AccountsController extends BaseController<
     for (const account of this.listMultichainAccounts()) {
       const address = account.address.toLowerCase();
       const patch = patchOf(account.metadata.keyring.type);
+
       patch.previous[address] = account;
     }
 
@@ -804,12 +804,20 @@ export class AccountsController extends BaseController<
     const previouslySelectedAccount =
       this.state.internalAccounts.selectedAccount;
 
+    // Diff that we will use to publish events afterward.
+    const diff = {
+      removed: [] as string[],
+      added: [] as InternalAccount[],
+    };
+
     this.update((state) => {
       const { internalAccounts } = state;
 
       for (const patch of [patches.snap, patches.normal]) {
         for (const account of patch.removed) {
           delete internalAccounts.accounts[account.id];
+
+          diff.removed.push(account.id);
         }
 
         for (const added of patch.added) {
@@ -819,9 +827,6 @@ export class AccountsController extends BaseController<
           );
 
           if (account) {
-            // NOTE: We now save the account for later, to publish events.
-            added.account = account;
-
             // Re-compute the list of accounts everytime, so we can make sure new names
             // are also considered.
             const accounts = Object.values(
@@ -847,6 +852,8 @@ export class AccountsController extends BaseController<
                 lastSelected,
               },
             };
+
+            diff.added.push(internalAccounts.accounts[account.id]);
           }
         }
       }
@@ -857,28 +864,16 @@ export class AccountsController extends BaseController<
     });
 
     // Now publish events
-    const { accounts } = this.state.internalAccounts;
-    for (const patch of [patches.snap, patches.normal]) {
-      for (const account of patch.removed) {
-        this.messagingSystem.publish(
-          'AccountsController:accountRemoved',
-          account.id,
-        );
-      }
-
-      for (const { account } of patch.added) {
-        // Check if the account has really been added to the state.
-        if (account && accounts[account.id]) {
-          this.messagingSystem.publish(
-            'AccountsController:accountAdded',
-            accounts[account.id],
-          );
-        }
-      }
-
-      // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
-      // like `accountUpdated` (we would still need to check if anything really changed on the account).
+    for (const id of diff.removed) {
+      this.messagingSystem.publish('AccountsController:accountRemoved', id);
     }
+
+    for (const account of diff.added) {
+      this.messagingSystem.publish('AccountsController:accountAdded', account);
+    }
+
+    // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
+    // like `accountUpdated` (we would still need to check if anything really changed on the account).
   }
 
   /**
