@@ -746,7 +746,7 @@ export class AccountsController extends BaseController<
     };
 
     // Gets the patch object based on the keyring type (since Snap accounts and other accounts
-    // are hanlded differently).
+    // are handled differently).
     const patchOf = (type: string) => {
       if (type === KeyringTypes.snap) {
         return patches.snap;
