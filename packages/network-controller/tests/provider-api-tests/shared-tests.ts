@@ -4,6 +4,7 @@ import type { ProviderType } from './helpers';
 import { withMockedCommunications, withNetworkClient } from './helpers';
 import { testsForRpcMethodAssumingNoBlockParam } from './no-block-param';
 import { testsForRpcMethodNotHandledByMiddleware } from './not-handled-by-middleware';
+import { TESTNET } from '../helpers';
 
 /**
  * Constructs an error message that the Infura client would produce in the event
@@ -287,7 +288,8 @@ export function testsForProviderType(providerType: ProviderType) {
       describe('net_version', () => {
         const networkArgs = {
           providerType,
-          infuraNetwork: providerType === 'infura' ? 'sepolia' : undefined,
+          infuraNetwork:
+            providerType === 'infura' ? TESTNET.networkType : undefined,
         } as const;
         it('hits the RPC endpoint', async () => {
           await withMockedCommunications(networkArgs, async (comms) => {

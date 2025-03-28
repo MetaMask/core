@@ -32,4 +32,4 @@ export const INFURA_BLOCKED_KEY = 'countryBlocked';
  * The network controller will exclude those the networks begin as default network,
  * without the need to remove the network from constant list of controller-utils.
  */
-export const DeprecatedNetworks = new Set<string>(['0xe704', '0x5']);
+export const DEPRECATED_NETWORKS = new Set<string>(['0xe704', '0x5']);

@@ -34,6 +34,8 @@ import {
   buildNetworkControllerMessenger,
   buildRootMessenger,
   buildUpdateNetworkCustomRpcEndpointFields,
+  INFURA_NETWORKS,
+  TESTNET,
 } from './helpers';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
@@ -142,26 +144,6 @@ const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
  * We are mocking/faking `Date.now` calls for test consistency
  */
 const FAKE_DATE_NOW_MS = 1732114339518;
-
-/**
- * A list of active InfuraNetworkType that are used in many tests
- */
-const INFURA_NEWORKS = [
-  InfuraNetworkType.mainnet,
-  InfuraNetworkType.sepolia,
-  InfuraNetworkType['linea-mainnet'],
-  InfuraNetworkType['linea-sepolia'],
-];
-
-/**
- * A object that contains the configuration for a network that begining used in many tests
- */
-const TESTNET = {
-  networkType: InfuraNetworkType.sepolia,
-  chainId: ChainId.sepolia,
-  name: 'Sepolia',
-  nativeCurrency: 'SepoliaETH',
-};
 
 describe('NetworkController', () => {
   let uuidCounter = 0;
@@ -686,7 +668,7 @@ describe('NetworkController', () => {
   });
 
   describe('initializeProvider', () => {
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
       // False negative - this is a string.
@@ -846,7 +828,7 @@ describe('NetworkController', () => {
       });
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
 
@@ -1388,7 +1370,7 @@ describe('NetworkController', () => {
       });
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
       // False negative - this is a string.
@@ -2211,7 +2193,7 @@ describe('NetworkController', () => {
   });
 
   describe('setProviderType', () => {
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       // False negative - this is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given the Infura network "${infuraNetworkType}"`, () => {
@@ -2364,7 +2346,7 @@ describe('NetworkController', () => {
       });
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
       // False negative - this is a string.
@@ -2886,7 +2868,7 @@ describe('NetworkController', () => {
   });
 
   describe('resetConnection', () => {
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       // False negative - this is a string.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
@@ -3004,7 +2986,7 @@ describe('NetworkController', () => {
     // This is a string!
     // eslint-disable-next-line jest/valid-title
     describe(name, () => {
-      for (const infuraNetworkType of INFURA_NEWORKS) {
+      for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
         // False negative - this is a string.
@@ -3119,7 +3101,7 @@ describe('NetworkController', () => {
     // This is a string!
     // eslint-disable-next-line jest/valid-title
     describe(name, () => {
-      for (const infuraNetworkType of INFURA_NEWORKS) {
+      for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
         // False negative - this is a string.
@@ -3377,7 +3359,7 @@ describe('NetworkController', () => {
       });
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
@@ -3528,7 +3510,7 @@ describe('NetworkController', () => {
       });
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
@@ -3588,7 +3570,7 @@ describe('NetworkController', () => {
       );
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
@@ -4650,7 +4632,7 @@ describe('NetworkController', () => {
       );
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
       const infuraChainId = ChainId[infuraNetworkType];
 
@@ -5017,7 +4999,7 @@ describe('NetworkController', () => {
       );
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
       const infuraNativeTokenName = NetworksTicker[infuraNetworkType];
 
@@ -8947,7 +8929,7 @@ describe('NetworkController', () => {
       });
     });
 
-    const possibleInfuraNetworkTypes = INFURA_NEWORKS;
+    const possibleInfuraNetworkTypes = INFURA_NETWORKS;
     possibleInfuraNetworkTypes.forEach(
       (infuraNetworkType, infuraNetworkTypeIndex) => {
         const infuraNetworkNickname = NetworkNickname[infuraNetworkType];
@@ -11772,7 +11754,7 @@ describe('NetworkController', () => {
     });
 
     describe('if nothing is being changed', () => {
-      for (const infuraNetworkType of INFURA_NEWORKS) {
+      for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
 
         // This is a string.
@@ -12119,7 +12101,7 @@ describe('NetworkController', () => {
       );
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
       // This is a string.
@@ -12350,7 +12332,7 @@ describe('NetworkController', () => {
 
   describe('rollbackToPreviousProvider', () => {
     describe('when called not following any network switches', () => {
-      for (const infuraNetworkType of INFURA_NEWORKS) {
+      for (const infuraNetworkType of INFURA_NETWORKS) {
         // False negative - this is a string.
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`when the selected network client represents the Infura network "${infuraNetworkType}"`, () => {
@@ -12397,7 +12379,7 @@ describe('NetworkController', () => {
       });
     });
 
-    for (const infuraNetworkType of INFURA_NEWORKS) {
+    for (const infuraNetworkType of INFURA_NETWORKS) {
       const infuraChainId = ChainId[infuraNetworkType];
 
       // False negative - this is a string.
