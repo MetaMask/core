@@ -46,7 +46,7 @@ import { NonceTracker } from '@metamask/nonce-tracker';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { add0x, hexToNumber } from '@metamask/utils';
+import { add0x, hexToNumber, remove0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import { EventEmitter } from 'events';
@@ -60,6 +60,7 @@ import {
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
+import { RandomisedEstimationsGasFeeFlow } from './gas-flows/RandomisedEstimationsGasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
@@ -110,6 +111,7 @@ import {
 } from './types';
 import { addTransactionBatch, isAtomicBatchSupported } from './utils/batch';
 import {
+  DELEGATION_PREFIX,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
   signAuthorizationList,
@@ -145,6 +147,7 @@ import {
   validateIfTransactionUnapproved,
   normalizeTxError,
   normalizeGasFeeValues,
+  setEnvelopeType,
 } from './utils/utils';
 import {
   validateParamTo,
@@ -910,6 +913,7 @@ export class TransactionController extends BaseController<
       getProvider: (networkClientId) => this.#getProvider({ networkClientId }),
       getTransactions: () => this.state.transactions,
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      messenger: this.messagingSystem,
       onStateChange: (listener) => {
         this.messagingSystem.subscribe(
           'TransactionController:stateChange',
@@ -1155,6 +1159,11 @@ export class TransactionController extends BaseController<
       await this.getEIP1559Compatibility(networkClientId);
 
     validateTxParams(txParams, isEIP1559Compatible);
+
+    if (!txParams.type) {
+      // Determine transaction type based on transaction parameters and network compatibility
+      setEnvelopeType(txParams, isEIP1559Compatible);
+    }
 
     const isDuplicateBatchId =
       batchId?.length &&
@@ -1977,6 +1986,7 @@ export class TransactionController extends BaseController<
 
     await updateTransactionLayer1GasFee({
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      messenger: this.messagingSystem,
       provider,
       transactionMeta: updatedTransaction,
     });
@@ -2286,6 +2296,7 @@ export class TransactionController extends BaseController<
     const gasFeeFlow = getGasFeeFlow(
       transactionMeta,
       this.gasFeeFlows,
+      this.messagingSystem,
     ) as GasFeeFlow;
 
     const ethQuery = new EthQuery(provider);
@@ -2297,6 +2308,7 @@ export class TransactionController extends BaseController<
     return gasFeeFlow.getGasFees({
       ethQuery,
       gasFeeControllerData,
+      messenger: this.messagingSystem,
       transactionMeta,
     });
   }
@@ -2326,6 +2338,7 @@ export class TransactionController extends BaseController<
 
     return await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.layer1GasFeeFlows,
+      messenger: this.messagingSystem,
       provider,
       transactionMeta: {
         txParams: transactionParams,
@@ -2574,6 +2587,7 @@ export class TransactionController extends BaseController<
           gasFeeFlows: this.gasFeeFlows,
           getGasFeeEstimates: this.getGasFeeEstimates,
           getSavedGasFees: this.getSavedGasFees.bind(this),
+          messenger: this.messagingSystem,
           txMeta: transactionMeta,
         }),
     );
@@ -2583,6 +2597,7 @@ export class TransactionController extends BaseController<
       async () =>
         await updateTransactionLayer1GasFee({
           layer1GasFeeFlows: this.layer1GasFeeFlows,
+          messenger: this.messagingSystem,
           provider,
           transactionMeta,
         }),
@@ -3622,6 +3637,7 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId,
         }),
+      messenger: this.messagingSystem,
       publishTransaction: (_ethQuery, transactionMeta) =>
         this.publishTransaction(_ethQuery, transactionMeta, {
           skipSubmitHistory: true,
@@ -3741,7 +3757,11 @@ export class TransactionController extends BaseController<
       return [new TestGasFeeFlow()];
     }
 
-    return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
+    return [
+      new RandomisedEstimationsGasFeeFlow(),
+      new LineaGasFeeFlow(),
+      new DefaultGasFeeFlow(),
+    ];
   }
 
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
@@ -3936,6 +3956,12 @@ export class TransactionController extends BaseController<
     let gasFeeTokens: GasFeeToken[] = [];
 
     if (this.#isSimulationEnabled()) {
+      const authorizationAddress = txParams?.authorizationList?.[0]?.address;
+
+      const senderCode =
+        authorizationAddress &&
+        ((DELEGATION_PREFIX + remove0x(authorizationAddress)) as Hex);
+
       const result = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
@@ -3949,6 +3975,7 @@ export class TransactionController extends BaseController<
             },
             {
               blockTime,
+              senderCode,
             },
           ),
       );
@@ -4010,12 +4037,10 @@ export class TransactionController extends BaseController<
     this.#updateTransactionInternal(
       { transactionId, skipHistory: true },
       (txMeta) => {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates,
           gasFeeEstimatesLoaded,
-          getEIP1559Compatibility: this.getEIP1559Compatibility.bind(this),
           isTxParamsGasFeeUpdatesEnabled: this.isTxParamsGasFeeUpdatesEnabled,
           layer1GasFee,
         });

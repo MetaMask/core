@@ -6,6 +6,8 @@ import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
+import type { TransactionControllerMessenger } from './TransactionController';
+
 /**
  * Given a record, ensures that each property matches the `Json` type.
  */
@@ -1213,6 +1215,9 @@ export type GasFeeFlowRequest = {
   /** Gas fee controller data matching the chain ID of the transaction. */
   gasFeeControllerData: GasFeeState;
 
+  /** The messenger instance. */
+  messenger: TransactionControllerMessenger;
+
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
 };
@@ -1228,10 +1233,18 @@ export type GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
    *
-   * @param transactionMeta - The transaction metadata.
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
    * @returns Whether the gas fee flow supports the transaction.
    */
-  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   /**
    * Get gas fee estimates for a specific transaction.
@@ -1262,10 +1275,18 @@ export type Layer1GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
    *
-   * @param transactionMeta - The transaction metadata.
-   * @returns Whether the layer1 gas fee flow supports the transaction.
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
+   * @returns Whether the gas fee flow supports the transaction.
    */
-  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   /**
    * Get layer 1 gas fee estimates for a specific transaction.

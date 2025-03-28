@@ -1,4 +1,4 @@
-import type { AuthorizationList } from '@ethereumjs/common';
+import type { AccessList, AuthorizationList } from '@ethereumjs/common';
 import {
   add0x,
   getKnownPropertyNames,
@@ -7,7 +7,7 @@ import {
 import type { Json } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { TransactionStatus } from '../types';
+import { TransactionEnvelopeType, TransactionStatus } from '../types';
 import type {
   TransactionParams,
   TransactionMeta,
@@ -21,6 +21,7 @@ export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const NORMALIZERS: { [param in keyof TransactionParams]: any } = {
+  accessList: (accessList?: AccessList) => accessList,
   authorizationList: (authorizationList?: AuthorizationList) =>
     authorizationList,
   data: (data: string) => add0x(padHexToEvenLength(data)),
@@ -212,4 +213,26 @@ export function getPercentageChange(originalValue: BN, newValue: BN): number {
   }
 
   return difference.muln(100).div(originalValuePrecision).abs().toNumber();
+}
+
+/**
+ * Sets the envelope type for the given transaction parameters based on the
+ * current network's EIP-1559 compatibility and the transaction parameters.
+ *
+ * @param txParams - The transaction parameters to set the envelope type for.
+ * @param isEIP1559Compatible - Indicates if the current network supports EIP-1559.
+ */
+export function setEnvelopeType(
+  txParams: TransactionParams,
+  isEIP1559Compatible: boolean,
+) {
+  if (txParams.accessList) {
+    txParams.type = TransactionEnvelopeType.accessList;
+  } else if (txParams.authorizationList) {
+    txParams.type = TransactionEnvelopeType.setCode;
+  } else {
+    txParams.type = isEIP1559Compatible
+      ? TransactionEnvelopeType.feeMarket
+      : TransactionEnvelopeType.legacy;
+  }
 }
