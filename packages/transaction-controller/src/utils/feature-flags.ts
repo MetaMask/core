@@ -63,6 +63,14 @@ export type TransactionControllerFeatureFlags = {
       /** Default `intervalMs` in case no chain-specific parameter is set. */
       defaultIntervalMs?: number;
     };
+
+    gasFeeRandomisation?: {
+      /** Randomised gas fee digits per chainId. */
+      randomisedGasFeeDigits?: Record<Hex, number>;
+
+      /** Number of digits to preserve for randomised gas fee digits. */
+      preservedNumberOfDigits?: number;
+    };
   };
 };
 
@@ -172,6 +180,29 @@ export function getAcceleratedPollingParams(
     DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
 
   return { countMax, intervalMs };
+}
+
+/**
+ * Retrieves the gas fee randomisation parameters.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The gas fee randomisation parameters.
+ */
+export function getGasFeeRandomisation(
+  messenger: TransactionControllerMessenger,
+): {
+  randomisedGasFeeDigits: Record<Hex, number>;
+  preservedNumberOfDigits: number | undefined;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const gasFeeRandomisation =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasFeeRandomisation || {};
+
+  return {
+    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
+    preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
+  };
 }
 
 /**
