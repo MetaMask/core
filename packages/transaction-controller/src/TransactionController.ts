@@ -99,6 +99,7 @@ import type {
   TransactionBatchRequest,
   TransactionBatchResult,
   BatchTransactionParams,
+  UpdateCustodialTransactionRequest,
   PublishHook,
   PublishBatchHook,
   GasFeeToken,
@@ -256,9 +257,19 @@ export type TransactionControllerGetStateAction = ControllerGetStateAction<
 >;
 
 /**
+ * Represents the `TransactionController:updateCustodialTransaction` action.
+ */
+export type TransactionControllerUpdateCustodialTransactionAction = {
+  type: `${typeof controllerName}:updateCustodialTransaction`;
+  handler: TransactionController['updateCustodialTransaction'];
+};
+
+/**
  * The internal actions available to the TransactionController.
  */
-export type TransactionControllerActions = TransactionControllerGetStateAction;
+export type TransactionControllerActions =
+  | TransactionControllerGetStateAction
+  | TransactionControllerUpdateCustodialTransactionAction;
 
 /**
  * Configuration options for the PendingTransactionTracker
@@ -365,13 +376,13 @@ export type TransactionControllerOptions = {
      */
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
-    ) => boolean;
+    ) => Promise<boolean>;
 
     /**
      * Additional logic to execute before publishing a transaction.
      * Return false to prevent the broadcast of the transaction.
      */
-    beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+    beforePublish?: (transactionMeta: TransactionMeta) => Promise<boolean>;
 
     /** Returns additional arguments required to sign a transaction. */
     getAdditionalSignArguments?: (
@@ -712,9 +723,11 @@ export class TransactionController extends BaseController<
 
   private readonly beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
-  ) => boolean;
+  ) => Promise<boolean>;
 
-  private readonly beforePublish: (transactionMeta: TransactionMeta) => boolean;
+  private readonly beforePublish: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<boolean>;
 
   private readonly publish: (
     transactionMeta: TransactionMeta,
@@ -864,10 +877,9 @@ export class TransactionController extends BaseController<
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeCheckPendingTransaction =
-      hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
-      (() => true);
-    this.beforePublish = hooks?.beforePublish ?? (() => true);
+      hooks?.beforeCheckPendingTransaction ?? (() => Promise.resolve(true));
+    this.beforePublish = hooks?.beforePublish ?? (() => Promise.resolve(true));
     this.getAdditionalSignArguments =
       hooks?.getAdditionalSignArguments ?? (() => []);
     this.publish =
@@ -986,6 +998,7 @@ export class TransactionController extends BaseController<
 
     this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
+    this.#registerActionHandlers();
   }
 
   /**
@@ -1687,6 +1700,7 @@ export class TransactionController extends BaseController<
 
       // Intentional given potential duration of process.
       this.updatePostBalance(updatedTransactionMeta).catch((error) => {
+        /* istanbul ignore next */
         log('Error while updating post balance', error);
         throw error;
       });
@@ -2097,34 +2111,30 @@ export class TransactionController extends BaseController<
   /**
    * Update a custodial transaction.
    *
-   * @param transactionId - The ID of the transaction to update.
-   * @param options - The custodial transaction options to update.
-   * @param options.errorMessage - The error message to be assigned in case transaction status update to failed.
-   * @param options.hash - The new hash value to be assigned.
-   * @param options.status - The new status value to be assigned.
+   * @param request - The custodial transaction update request.
+   *
+   * @returns The updated transaction metadata.
    */
-  updateCustodialTransaction(
-    transactionId: string,
-    {
+  updateCustodialTransaction(request: UpdateCustodialTransactionRequest) {
+    const {
+      transactionId,
       errorMessage,
       hash,
       status,
-    }: {
-      errorMessage?: string;
-      hash?: string;
-      status?: TransactionStatus;
-    },
-  ) {
+      gasLimit,
+      gasPrice,
+      maxFeePerGas,
+      maxPriorityFeePerGas,
+      nonce,
+      type,
+    } = request;
+
     const transactionMeta = this.getTransaction(transactionId);
 
     if (!transactionMeta) {
       throw new Error(
         `Cannot update custodial transaction as no transaction metadata found`,
       );
-    }
-
-    if (!transactionMeta.custodyId) {
-      throw new Error('Transaction must be a custodian transaction');
     }
 
     if (
@@ -2139,7 +2149,6 @@ export class TransactionController extends BaseController<
         `Cannot update custodial transaction with status: ${status}`,
       );
     }
-
     const updatedTransactionMeta = merge(
       {},
       transactionMeta,
@@ -2154,12 +2163,33 @@ export class TransactionController extends BaseController<
       updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
     }
 
+    // Update txParams properties with a single pickBy operation
+    updatedTransactionMeta.txParams = merge(
+      {},
+      updatedTransactionMeta.txParams,
+      pickBy({
+        gasLimit,
+        gasPrice,
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+        nonce,
+        type,
+      }),
+    );
+
+    // Special case for type change to legacy
+    if (type === TransactionEnvelopeType.legacy) {
+      delete updatedTransactionMeta.txParams.maxFeePerGas;
+      delete updatedTransactionMeta.txParams.maxPriorityFeePerGas;
+    }
+
     this.updateTransaction(
       updatedTransactionMeta,
       `${controllerName}:updateCustodialTransaction - Custodial transaction updated`,
     );
 
     if (
+      status &&
       [TransactionStatus.submitted, TransactionStatus.failed].includes(
         status as TransactionStatus,
       )
@@ -2173,6 +2203,8 @@ export class TransactionController extends BaseController<
         updatedTransactionMeta,
       );
     }
+
+    return updatedTransactionMeta;
   }
 
   /**
@@ -2835,7 +2867,7 @@ export class TransactionController extends BaseController<
         () => this.signTransaction(transactionMeta),
       );
 
-      if (!this.beforePublish(transactionMeta)) {
+      if (!(await this.beforePublish(transactionMeta))) {
         log('Skipping publishing transaction based on hook');
         this.messagingSystem.publish(
           `${controllerName}:transactionPublishingSkipped`,
@@ -3645,7 +3677,6 @@ export class TransactionController extends BaseController<
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
-        beforePublish: this.beforePublish.bind(this),
       },
     });
 
@@ -4114,6 +4145,13 @@ export class TransactionController extends BaseController<
       isSimulationEnabled: this.#isSimulationEnabled(),
       txMeta: transactionMeta,
     });
+  }
+
+  #registerActionHandlers(): void {
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:updateCustodialTransaction`,
+      this.updateCustodialTransaction.bind(this),
+    );
   }
 
   #deleteTransaction(transactionId: string) {

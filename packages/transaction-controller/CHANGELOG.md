@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added flow only will be activated if chainId is defined in feature flags.
 - Configure pending transaction polling intervals using remote feature flags ([#5549](https://github.com/MetaMask/core/pull/5549))
 
+### Changed
+
+- Removed coupling of "Update custodial transactions" and MMI by removing the `custodyId` property from `TransactionMeta` ([#5555](https://github.com/MetaMask/core/pull/5555))
+- Changes signature of `beforePublish` and `beforeCheckPendingTransaction` hook to return promises ([#5555](https://github.com/MetaMask/core/pull/5555))
+- `updateCustodialTransaction` now allows changing more properties, and is now triggered by an action ([#5555](https://github.com/MetaMask/core/pull/5555))
+
 ### Fixed
 
 - Fix EIP-7702 contract signature validation on chains with odd-length hexadecimal ID ([#5563](https://github.com/MetaMask/core/pull/5563))
