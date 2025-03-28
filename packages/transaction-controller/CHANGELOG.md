@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adds `RandomisedEstimationsGasFeeFlow` to gas fee flows in `TransactionController` ([#5511](https://github.com/MetaMask/core/pull/5511))
+  - Added flow only will be activated if chainId is defined in feature flags.
+
 ### Fixed
 
+- Fix EIP-7702 contract signature validation on chains with odd-length hexadecimal ID ([#5563](https://github.com/MetaMask/core/pull/5563))
 - Fix simulation of type-4 transactions ([#5552](https://github.com/MetaMask/core/pull/5552))
 
 ## [52.2.0]

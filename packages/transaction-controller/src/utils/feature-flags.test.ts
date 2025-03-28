@@ -11,6 +11,7 @@ import {
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
+  getGasFeeRandomisation,
   getGasEstimateFallback,
 } from './feature-flags';
 import { isValidSignature } from './signature';
@@ -195,6 +196,32 @@ describe('Feature Flags Utils', () => {
           PUBLIC_KEY_MOCK,
         ),
       ).toStrictEqual([ADDRESS_2_MOCK]);
+    });
+
+    it('validates signature using padded chain ID', () => {
+      const chainId = '0x539' as const;
+
+      isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+      mockFeatureFlags({
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [chainId]: [{ address: ADDRESS_MOCK, signature: SIGNATURE_MOCK }],
+          },
+        },
+      });
+
+      getEIP7702ContractAddresses(
+        chainId,
+        controllerMessenger,
+        PUBLIC_KEY_MOCK,
+      );
+
+      expect(isValidSignatureMock).toHaveBeenCalledWith(
+        [ADDRESS_MOCK, `0x0539`],
+        SIGNATURE_MOCK,
+        PUBLIC_KEY_MOCK,
+      );
     });
   });
 
@@ -430,6 +457,54 @@ describe('Feature Flags Utils', () => {
       expect(params).toStrictEqual({
         countMax: 5,
         intervalMs: 4000,
+      });
+    });
+  });
+
+  describe('getGasFeeRandomisation', () => {
+    it('returns empty objects if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {},
+        preservedNumberOfDigits: undefined,
+      });
+    });
+
+    it('returns values from feature flags when set', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasFeeRandomisation: {
+            randomisedGasFeeDigits: {
+              [CHAIN_ID_MOCK]: 3,
+              [CHAIN_ID_2_MOCK]: 5,
+            },
+            preservedNumberOfDigits: 2,
+          },
+        },
+      });
+
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {
+          [CHAIN_ID_MOCK]: 3,
+          [CHAIN_ID_2_MOCK]: 5,
+        },
+        preservedNumberOfDigits: 2,
+      });
+    });
+
+    it('returns empty randomisedGasFeeDigits if not set in feature flags', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasFeeRandomisation: {
+            preservedNumberOfDigits: 2,
+          },
+        },
+      });
+
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {},
+        preservedNumberOfDigits: 2,
       });
     });
   });

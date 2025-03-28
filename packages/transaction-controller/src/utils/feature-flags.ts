@@ -1,6 +1,7 @@
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 
@@ -76,6 +77,14 @@ export type TransactionControllerFeatureFlags = {
       defaultIntervalMs?: number;
     };
 
+    gasFeeRandomisation?: {
+      /** Randomised gas fee digits per chainId. */
+      randomisedGasFeeDigits?: Record<Hex, number>;
+
+      /** Number of digits to preserve for randomised gas fee digits. */
+      preservedNumberOfDigits?: number;
+    };
+
     /** Gas estimate fallback is used as a fallback in case of failure to obtain the gas estimate values. */
     gasEstimateFallback?: {
       /** Gas estimate fallback per-chain basis. */
@@ -130,7 +139,7 @@ export function getEIP7702ContractAddresses(
   return contracts
     .filter((contract) =>
       isValidSignature(
-        [contract.address, chainId],
+        [contract.address, padHexToEvenLength(chainId) as Hex],
         contract.signature,
         publicKey,
       ),
@@ -198,6 +207,29 @@ export function getAcceleratedPollingParams(
     DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
 
   return { countMax, intervalMs };
+}
+
+/**
+ * Retrieves the gas fee randomisation parameters.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The gas fee randomisation parameters.
+ */
+export function getGasFeeRandomisation(
+  messenger: TransactionControllerMessenger,
+): {
+  randomisedGasFeeDigits: Record<Hex, number>;
+  preservedNumberOfDigits: number | undefined;
+} {
+  const featureFlags = getFeatureFlags(messenger);
+
+  const gasFeeRandomisation =
+    featureFlags?.[FEATURE_FLAG_TRANSACTIONS]?.gasFeeRandomisation || {};
+
+  return {
+    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
+    preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
+  };
 }
 
 /**
