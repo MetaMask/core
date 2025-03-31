@@ -1,4 +1,5 @@
 import {
+  type CaipAccountId,
   type CaipChainId,
   isCaipChainId,
   KnownCaipNamespace,
@@ -125,4 +126,34 @@ export const getSessionScopes = (
       getNonEvmSupportedMethods,
     }),
   );
+};
+
+/**
+ * Get the permitted accounts for the given scopes.
+ *
+ * @param caip25CaveatValue - The CAIP-25 CaveatValue to get the permitted accounts for
+ * @param scopes - The scopes to get the permitted accounts for
+ * @returns An array of permitted accounts
+ */
+export const getPermittedAccountsForScopes = (
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes'
+  >,
+  scopes: CaipChainId[],
+): CaipAccountId[] => {
+  const scopeAccounts: CaipAccountId[] = [];
+
+  scopes.forEach((scope) => {
+    const requiredScope = caip25CaveatValue.requiredScopes[scope];
+    const optionalScope = caip25CaveatValue.optionalScopes[scope];
+    if (requiredScope) {
+      scopeAccounts.push(...requiredScope.accounts);
+    }
+
+    if (optionalScope) {
+      scopeAccounts.push(...optionalScope.accounts);
+    }
+  });
+  return [...new Set(scopeAccounts)];
 };

@@ -27,6 +27,7 @@ import type {
   SimulationData,
   SimulationTokenBalanceChange,
   SimulationToken,
+  GasFeeToken,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 
@@ -48,6 +49,11 @@ export type GetSimulationDataRequest = {
   value?: Hex;
 };
 
+export type GetSimulationDataResult = {
+  gasFeeTokens: GasFeeToken[];
+  simulationData: SimulationData;
+};
+
 type ParsedEvent = {
   contractAddress: Hex;
   tokenStandard: SimulationTokenStandard;
@@ -58,6 +64,7 @@ type ParsedEvent = {
 
 type GetSimulationDataOptions = {
   blockTime?: number;
+  senderCode?: Hex;
 };
 
 const log = createModuleLogger(projectLogger, 'simulation');
@@ -113,9 +120,9 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
 export async function getSimulationData(
   request: GetSimulationDataRequest,
   options: GetSimulationDataOptions = {},
-): Promise<SimulationData> {
+): Promise<GetSimulationDataResult> {
   const { chainId, from, to, value, data } = request;
-  const { blockTime } = options;
+  const { blockTime, senderCode } = options;
 
   log('Getting simulation data', request);
 
@@ -125,17 +132,26 @@ export async function getSimulationData(
         {
           data,
           from,
-          maxFeePerGas: '0x0',
-          maxPriorityFeePerGas: '0x0',
           to,
           value,
         },
       ],
+      suggestFees: {
+        withTransfer: true,
+        withFeeTransfer: true,
+      },
       withCallTrace: true,
       withLogs: true,
       ...(blockTime && {
         blockOverrides: {
           time: toHex(blockTime),
+        },
+      }),
+      ...(senderCode && {
+        overrides: {
+          [from]: {
+            code: senderCode,
+          },
         },
       }),
     });
@@ -157,9 +173,22 @@ export async function getSimulationData(
       options,
     );
 
-    return {
+    const simulationData = {
       nativeBalanceChange,
       tokenBalanceChanges,
+    };
+
+    let gasFeeTokens: GasFeeToken[] = [];
+
+    try {
+      gasFeeTokens = getGasFeeTokens(response);
+    } catch (error) {
+      log('Failed to parse gas fee tokens', error, response);
+    }
+
+    return {
+      gasFeeTokens,
+      simulationData,
     };
   } catch (error) {
     log('Failed to get simulation data', error, request);
@@ -177,10 +206,13 @@ export async function getSimulationData(
     const { code, message } = simulationError;
 
     return {
-      tokenBalanceChanges: [],
-      error: {
-        code,
-        message,
+      gasFeeTokens: [],
+      simulationData: {
+        tokenBalanceChanges: [],
+        error: {
+          code,
+          message,
+        },
       },
     };
   }
@@ -324,7 +356,8 @@ async function getTokenBalanceChanges(
   events: ParsedEvent[],
   options: GetSimulationDataOptions,
 ): Promise<SimulationTokenBalanceChange[]> {
-  const { blockTime } = options;
+  const { from } = request;
+  const { blockTime, senderCode } = options;
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
   log('Generated balance transactions', [...balanceTxs.after.values()]);
@@ -344,6 +377,13 @@ async function getTokenBalanceChanges(
     ...(blockTime && {
       blockOverrides: {
         time: toHex(blockTime),
+      },
+    }),
+    ...(senderCode && {
+      overrides: {
+        [from]: {
+          code: senderCode,
+        },
       },
     }),
   });
@@ -685,4 +725,30 @@ function getContractInterfaces(): Map<SupportedToken, Interface> {
       return [tokenType, contractInterface];
     }),
   );
+}
+
+/**
+ * Extract gas fee tokens from a simulation response.
+ *
+ * @param response - The simulation response.
+ * @returns An array of gas fee tokens.
+ */
+function getGasFeeTokens(response: SimulationResponse): GasFeeToken[] {
+  const feeLevel = response.transactions?.[0]
+    ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
+
+  const tokenFees = feeLevel?.tokenFees ?? [];
+
+  return tokenFees.map((tokenFee) => ({
+    amount: tokenFee.balanceNeededToken,
+    balance: tokenFee.currentBalanceToken,
+    decimals: tokenFee.token.decimals,
+    gas: feeLevel.gas,
+    maxFeePerGas: feeLevel.maxFeePerGas,
+    maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
+    rateWei: tokenFee.rateWei,
+    recipient: tokenFee.feeRecipient,
+    symbol: tokenFee.token.symbol,
+    tokenAddress: tokenFee.token.address,
+  }));
 }

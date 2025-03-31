@@ -10,6 +10,7 @@ import {
   CaipReferenceRegexes,
   KnownNotifications,
   KnownRpcMethods,
+  KnownSessionProperties,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from './constants';
@@ -178,4 +179,16 @@ export const isSupportedNotification = (
   }
 
   return false;
+};
+
+/**
+ * Determines if a session property is supported by the wallet.
+ *
+ * @param property - The property to check.
+ * @returns A boolean indicating if the property is supported by the wallet.
+ */
+export const isSupportedSessionProperty = (property: string): boolean => {
+  return Object.values(KnownSessionProperties).includes(
+    property as KnownSessionProperties,
+  );
 };
