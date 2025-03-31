@@ -1,5 +1,7 @@
 import { Messenger } from '@metamask/base-controller';
-import AppMetadataController, {
+
+import {
+  AppMetadataController,
   getDefaultAppMetadataControllerState,
   type AppMetadataControllerOptions,
 } from './AppMetadataController';
@@ -132,6 +134,12 @@ type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
   | [WithControllerOptions, WithControllerCallback<ReturnValue>];
 
+/**
+ * Helper function to create a controller instance with optional configuration
+ *
+ * @param args - Either a callback function or an options object followed by a callback function
+ * @returns The result of the callback function
+ */
 function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): ReturnValue {

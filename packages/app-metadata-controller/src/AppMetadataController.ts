@@ -31,6 +31,8 @@ export type AppMetadataControllerState = {
 
 /**
  * Function to get default state of the {@link AppMetadataController}.
+ *
+ * @returns The default state object for the AppMetadataController
  */
 export const getDefaultAppMetadataControllerState =
   (): AppMetadataControllerState => ({
@@ -61,10 +63,14 @@ export type AppMetadataControllerStateChangeEvent = ControllerStateChangeEvent<
   AppMetadataControllerState
 >;
 
+/**
+ * Events that can be emitted by the {@link AppMetadataController}
+ */
 export type AppMetadataControllerEvents = AppMetadataControllerStateChangeEvent;
 
 /**
  * Actions that this controller is allowed to call.
+ * Currently set to never as this controller doesn't call any other controllers.
  */
 type AllowedActions = never;
 
@@ -75,6 +81,9 @@ type AllowedEvents = never;
 
 /**
  * Messenger type for the {@link AppMetadataController}.
+ *
+ * @returns A restricted messenger type that defines the allowed actions and events
+ * for the AppMetadataController
  */
 export type AppMetadataControllerMessenger = RestrictedMessenger<
   typeof controllerName,
@@ -85,11 +94,9 @@ export type AppMetadataControllerMessenger = RestrictedMessenger<
 >;
 
 /**
- * {@link AppMetadataController}'s metadata.
+ * Metadata configuration for the {@link AppMetadataController}.
  *
- * This allows us to choose if fields of the state should be persisted or not
- * using the `persist` flag; and if they can be sent to Sentry or not, using
- * the `anonymous` flag.
+ * Defines persistence and anonymity settings for each state property.
  */
 const controllerMetadata = {
   currentAppVersion: {
@@ -127,8 +134,8 @@ export class AppMetadataController extends BaseController<
    * @param options - the controller options
    * @param options.state - Initial controller state.
    * @param options.messenger - Messenger used to communicate with BaseV2 controller.
-   * @param options.currentMigrationVersion
-   * @param options.currentAppVersion
+   * @param options.currentMigrationVersion - The current migration version number
+   * @param options.currentAppVersion - The current application version string
    */
   constructor({
     state = {},
@@ -154,7 +161,7 @@ export class AppMetadataController extends BaseController<
   /**
    * Updates the currentAppVersion in state, and sets the previousAppVersion to the old currentAppVersion.
    *
-   * @param newAppVersion
+   * @param newAppVersion - The new version string to set as the current app version
    */
   #updateAppVersion(newAppVersion: string): void {
     const oldCurrentAppVersion = this.state.currentAppVersion;
@@ -170,7 +177,7 @@ export class AppMetadataController extends BaseController<
   /**
    * Updates the migrationVersion in state.
    *
-   * @param newMigrationVersion
+   * @param newMigrationVersion - The new version number to set as the current migration version
    */
   #updateMigrationVersion(newMigrationVersion: number): void {
     const oldCurrentMigrationVersion = this.state.currentMigrationVersion;
