@@ -6,7 +6,7 @@ import {
   type CaipChainId,
 } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
-import { KnownCaipNamespace } from '@metamask/utils';
+import { type Hex, KnownCaipNamespace } from '@metamask/utils';
 
 import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
 import {
@@ -21,6 +21,7 @@ import {
   formatNetworkActivityResponse,
   buildActiveNetworksUrl,
   validateAccountIds,
+  parseNetworkString,
 } from './utils';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -209,7 +210,7 @@ describe('utils', () => {
     const mockValidAccountId =
       'eip155:1:0x1234567890123456789012345678901234567890';
     const mockValidSolanaAccountId =
-      'solana:1:0x1234567890123456789012345678901234567890';
+      'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
     const mockInvalidAccountId = 'invalid:0:123';
 
     beforeEach(() => {
@@ -245,13 +246,14 @@ describe('utils', () => {
       expect(calledOptions.headers).toStrictEqual({
         Accept: 'application/json',
       });
-      expect(calledOptions.signal).toBeDefined();
       expect(result).toStrictEqual(mockResponse);
     });
 
     it('should successfully fetch active networks for valid Solana account ID', async () => {
       const mockResponse = {
-        activeNetworks: ['solana:1:0x1234567890123456789012345678901234567890'],
+        activeNetworks: [
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
       };
 
       (handleFetch as jest.Mock).mockResolvedValueOnce(mockResponse);
@@ -266,7 +268,7 @@ describe('utils', () => {
       const mockResponse = {
         activeNetworks: [
           'eip155:1:0x1234567890123456789012345678901234567890',
-          'solana:1:0x1234567890123456789012345678901234567890',
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         ],
       };
 
@@ -292,7 +294,6 @@ describe('utils', () => {
       expect(calledOptions.headers).toStrictEqual({
         Accept: 'application/json',
       });
-      expect(calledOptions.signal).toBeDefined();
       expect(result).toStrictEqual(mockResponse);
     });
 
@@ -363,7 +364,7 @@ describe('utils', () => {
       expect(() =>
         validateAccountIds([
           'eip155:1:0x1234567890123456789012345678901234567890',
-          'solana:1:0x1234567890123456789012345678901234567890',
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         ]),
       ).not.toThrow();
     });
@@ -390,7 +391,7 @@ describe('utils', () => {
     it('should construct URL with multiple account IDs', () => {
       const accountIds = [
         'eip155:1:0x1234567890123456789012345678901234567890',
-        'solana:1:0x1234567890123456789012345678901234567890',
+        'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
       ];
       const url = buildActiveNetworksUrl(accountIds);
       expect(url.toString()).toBe(
@@ -420,13 +421,15 @@ describe('utils', () => {
 
     it('should format non-EVM network responses correctly', () => {
       const response = {
-        activeNetworks: ['solana:1:0x1234567890123456789012345678901234567890'],
+        activeNetworks: [
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
       };
 
       const result = formatNetworkActivityResponse(response);
 
       expect(result).toStrictEqual({
-        '0x1234567890123456789012345678901234567890': {
+        EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
           namespace: KnownCaipNamespace.Solana,
           activeChains: [],
         },
@@ -437,7 +440,7 @@ describe('utils', () => {
       const response = {
         activeNetworks: [
           'eip155:1:0x1234567890123456789012345678901234567890',
-          'solana:1:0x1234567890123456789012345678901234567890',
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
         ],
       };
 
@@ -447,6 +450,10 @@ describe('utils', () => {
         '0x1234567890123456789012345678901234567890': {
           namespace: KnownCaipNamespace.Eip155,
           activeChains: ['1'],
+        },
+        EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
+          namespace: KnownCaipNamespace.Solana,
+          activeChains: [],
         },
       });
     });
@@ -524,6 +531,118 @@ describe('utils', () => {
           activeChains: ['137'],
         },
       });
+    });
+  });
+
+  describe('parseNetworkString', () => {
+    it('should parse valid EVM network string', () => {
+      const result = parseNetworkString(
+        'eip155:1:0x298fe5fdca148135e84407fa3c24042f038d3b5a',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Eip155,
+        chainId: '1',
+        address: '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as Hex,
+      });
+    });
+
+    it('should parse EVM network string with large chain ID', () => {
+      const result = parseNetworkString(
+        'eip155:534352:0x5197b5b062288bbf29008c92b08010a92dd677cd',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Eip155,
+        chainId: '534352',
+        address: '0x5197b5b062288bbf29008c92b08010a92dd677cd' as Hex,
+      });
+    });
+
+    it('should reject invalid EVM address format', () => {
+      const result = parseNetworkString('eip155:1:0xinvalid');
+      expect(result).toBeNull();
+    });
+
+    it('should parse valid Solana network string', () => {
+      const result = parseNetworkString(
+        'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Solana,
+        chainId: '1',
+        address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Hex,
+      });
+    });
+
+    it('should reject invalid Solana address', () => {
+      const result = parseNetworkString('solana:1:invalid_solana_address');
+      expect(result).toBeNull();
+    });
+
+    it('should parse valid Bitcoin network string', () => {
+      // Test legacy address
+      const legacy = parseNetworkString(
+        'bip122:1:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      );
+      expect(legacy).toStrictEqual({
+        namespace: KnownCaipNamespace.Bip122,
+        chainId: '1',
+        address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' as Hex,
+      });
+
+      // Test SegWit address
+      const segwit = parseNetworkString(
+        'bip122:1:3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy',
+      );
+      expect(segwit).toStrictEqual({
+        namespace: KnownCaipNamespace.Bip122,
+        chainId: '1',
+        address: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy' as Hex,
+      });
+
+      // Test Native SegWit address
+      const nativeSegwit = parseNetworkString(
+        'bip122:1:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+      );
+      expect(nativeSegwit).toStrictEqual({
+        namespace: KnownCaipNamespace.Bip122,
+        chainId: '1',
+        address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' as Hex,
+      });
+    });
+
+    it('should reject invalid Bitcoin address format', () => {
+      const result = parseNetworkString('bip122:1:invalid');
+      expect(result).toBeNull();
+    });
+
+    it('should handle missing chainId', () => {
+      const result = parseNetworkString(
+        'eip155::0x298fe5fdca148135e84407fa3c24042f038d3b5a',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Eip155,
+        chainId: '',
+        address: '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as Hex,
+      });
+    });
+
+    it('should handle missing components', () => {
+      expect(parseNetworkString('eip155:')).toBeNull();
+      expect(parseNetworkString('eip155:1')).toBeNull();
+      expect(parseNetworkString(':1:address')).toBeNull();
+      expect(parseNetworkString('::address')).toBeNull();
+    });
+
+    it('should handle unknown namespace', () => {
+      const result = parseNetworkString(
+        'unknown:1:0x298fe5fdca148135e84407fa3c24042f038d3b5a',
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should handle empty string', () => {
+      const result = parseNetworkString('');
+      expect(result).toBeNull();
     });
   });
 });

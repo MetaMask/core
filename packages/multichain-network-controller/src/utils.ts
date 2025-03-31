@@ -147,7 +147,8 @@ export function validateAccountIds(accountIds: string[]): void {
     throw new Error('At least one account ID is required');
   }
 
-  const caip10Regex = /^(eip155|solana):[0-9]+:0x[0-9a-fA-F]{40}$/u;
+  const caip10Regex =
+    /^(eip155:[0-9]+:0x[0-9a-fA-F]{40}|solana:[0-9]+:[1-9A-HJ-NP-Za-km-z]{32,44}|bip122:[0-9]+:(1|3|bc1)[a-zA-Z0-9]{25,62})$/u;
   const invalidIds = accountIds.filter((id) => !caip10Regex.test(id));
 
   if (invalidIds.length > 0) {
@@ -184,17 +185,12 @@ export async function fetchNetworkActivityByAccounts(
 
     const url = buildActiveNetworksUrl(accountIds);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
     const response: ActiveNetworksResponse = await handleFetch(url, {
-      signal: controller.signal,
       method: 'GET',
       headers: {
         Accept: 'application/json',
       },
     });
-
-    clearTimeout(timeoutId);
 
     if (!Array.isArray(response?.activeNetworks)) {
       throw new Error('Invalid response format from active networks API');
@@ -219,16 +215,41 @@ export async function fetchNetworkActivityByAccounts(
  * @param network - The network string to parse
  * @returns The parsed components or null if invalid
  */
-function parseNetworkString(network: string): NetworkStringComponents | null {
+export function parseNetworkString(
+  network: string,
+): NetworkStringComponents | null {
   const [namespace, chainId, address] = network.split(':');
 
-  if (!address?.startsWith('0x')) {
+  if (!namespace || !address) {
     return null;
+  }
+
+  // Validate address format based on namespace
+  switch (namespace as KnownCaipNamespace) {
+    case KnownCaipNamespace.Eip155:
+      if (!address.startsWith('0x') || !/^0x[0-9a-fA-F]{40}$/u.test(address)) {
+        return null;
+      }
+      break;
+    case KnownCaipNamespace.Solana:
+      if (!isSolanaAddress(address)) {
+        return null;
+      }
+      break;
+    case KnownCaipNamespace.Bip122:
+      // Bitcoin addresses can be legacy, segwit, or native segwit
+      // Need a utility function to validate bitcoin addresses
+      if (!/^(1|3|bc1)[a-zA-Z0-9]{25,62}$/u.test(address)) {
+        return null;
+      }
+      break;
+    default:
+      return null;
   }
 
   return {
     namespace: namespace as KnownCaipNamespace,
-    chainId,
+    chainId: chainId || '',
     address: address as Hex,
   };
 }
@@ -260,6 +281,7 @@ export function formatNetworkActivityResponse(
       };
     }
 
+    // Only add chainId to activeChains for EVM networks (non-EVM networks are not supported yet)
     if (namespace === KnownCaipNamespace.Eip155 && chainId) {
       networksByAddress[address].activeChains.push(chainId);
     }
