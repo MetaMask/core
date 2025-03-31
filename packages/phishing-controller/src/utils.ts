@@ -1,10 +1,7 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import {
-  ListKeys,
-  phishingListKeyNameMap,
-} from './PhishingController';
+import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
   HotlistDiff,
   Hotlist,
@@ -63,24 +60,30 @@ const splitStringByPeriod = <Start extends string, End extends string>(
  */
 export const applyDiffs = (
   listState: PhishingListState,
-  hotlistDiffs: Hotlist | HotlistDiff[] | any,
+  hotlistDiffs: Hotlist | HotlistDiff[] | unknown,
   listKey: ListKeys,
   recentlyAddedC2Domains: string[] = [],
   recentlyRemovedC2Domains: string[] = [],
 ): PhishingListState => {
   // Ensure we have an array to work with
   let diffsArray: HotlistDiff[] = [];
-  
+
   if (Array.isArray(hotlistDiffs)) {
     // It's already an array
     diffsArray = hotlistDiffs;
   } else if (hotlistDiffs && typeof hotlistDiffs === 'object') {
     // It might be the new format with diffEntries
-    if (hotlistDiffs.diffEntries && Array.isArray(hotlistDiffs.diffEntries)) {
-      diffsArray = hotlistDiffs.diffEntries;
+    const hotlistWithDiffEntries = hotlistDiffs as {
+      diffEntries?: HotlistDiff[];
+    };
+    if (
+      hotlistWithDiffEntries.diffEntries &&
+      Array.isArray(hotlistWithDiffEntries.diffEntries)
+    ) {
+      diffsArray = hotlistWithDiffEntries.diffEntries;
     }
   }
-  
+
   // filter to remove diffs that were added before the lastUpdate time.
   // filter to remove diffs that aren't applicable to the specified list (by listKey).
   const diffsToApply = diffsArray.filter(
@@ -176,7 +179,7 @@ export function validateConfig(
 export const domainToParts = (domain: string) => {
   try {
     return domain.split('.').reverse();
-  } catch (e) {
+  } catch {
     throw new Error(JSON.stringify(domain));
   }
 };
