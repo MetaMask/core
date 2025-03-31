@@ -337,13 +337,15 @@ function waitForTransactionFinished(
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = 'testinfuraid';
 const HTTP_PROVIDERS = {
-  goerli: new HttpProvider('https://goerli.infura.io/v3/goerli-pid'),
+  sepolia: new HttpProvider('https://sepolia.infura.io/v3/sepolia-pid'),
   // TODO: Investigate and address why tests break when mainet has a different INFURA_PROJECT_ID
   mainnet: new HttpProvider(
     `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),
   linea: new HttpProvider('https://linea.infura.io/v3/linea-pid'),
-  lineaGoerli: new HttpProvider('https://linea-g.infura.io/v3/linea-g-pid'),
+  lineaSepolia: new HttpProvider(
+    'https://linea-sepolia.infura.io/v3/linea-sepolia-pid',
+  ),
   custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
   palm: new HttpProvider('https://palm-mainnet.infura.io/v3/palm-pid'),
 };
@@ -357,13 +359,13 @@ type MockNetwork = {
 };
 
 const MOCK_NETWORK: MockNetwork = {
-  chainId: ChainId.goerli,
-  provider: HTTP_PROVIDERS.goerli,
-  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.goerli),
+  chainId: ChainId.sepolia,
+  provider: HTTP_PROVIDERS.sepolia,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.sepolia),
   state: {
-    selectedNetworkClientId: NetworkType.goerli,
+    selectedNetworkClientId: NetworkType.sepolia,
     networksMetadata: {
-      [NetworkType.goerli]: {
+      [NetworkType.sepolia]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
@@ -390,14 +392,14 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   subscribe: () => undefined,
 };
 
-const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
-  chainId: ChainId['linea-goerli'],
-  provider: HTTP_PROVIDERS.lineaGoerli,
-  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaGoerli),
+const MOCK_LINEA_SEPOLIA_NETWORK: MockNetwork = {
+  chainId: ChainId['linea-sepolia'],
+  provider: HTTP_PROVIDERS.lineaSepolia,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaSepolia),
   state: {
-    selectedNetworkClientId: NetworkType['linea-goerli'],
+    selectedNetworkClientId: NetworkType['linea-sepolia'],
     networksMetadata: {
-      [NetworkType['linea-goerli']]: {
+      [NetworkType['linea-sepolia']]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
@@ -1769,7 +1771,7 @@ describe('TransactionController', () => {
       const { controller, changeNetwork } = setupController({
         network: {
           state: {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
           },
         },
       });
@@ -1796,7 +1798,7 @@ describe('TransactionController', () => {
       const { controller, changeNetwork } = setupController({
         network: {
           state: {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
           },
         },
         mockNetworkClientConfigurationsByNetworkClientId: {
@@ -3265,7 +3267,7 @@ describe('TransactionController', () => {
 
     it('rejects unknown transaction', async () => {
       const { controller } = setupController({
-        network: MOCK_LINEA_GOERLI_NETWORK,
+        network: MOCK_LINEA_SEPOLIA_NETWORK,
       });
 
       await controller.stopTransaction('transactionIdMock', {
@@ -3292,7 +3294,7 @@ describe('TransactionController', () => {
 
     it('publishes transaction events', async () => {
       const { controller, messenger, mockTransactionApprovalRequest } =
-        setupController({ network: MOCK_LINEA_GOERLI_NETWORK });
+        setupController({ network: MOCK_LINEA_SEPOLIA_NETWORK });
 
       const approvedEventListener = jest.fn();
       const submittedEventListener = jest.fn();
@@ -5255,7 +5257,7 @@ describe('TransactionController', () => {
       const { controller, messenger } = setupController();
       messenger.registerActionHandler(
         'NetworkController:findNetworkClientIdByChainId',
-        () => 'goerli',
+        () => 'sepolia',
       );
 
       const mockTransactionParam = {
