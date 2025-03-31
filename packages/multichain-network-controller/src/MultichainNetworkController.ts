@@ -182,6 +182,7 @@ export class MultichainNetworkController extends BaseController<
     const formattedEVMAccounts = accounts.map((account) => {
       return `${KnownCaipNamespace.Eip155}:0:${account.address}`;
     });
+
     const activeNetworks =
       await fetchNetworkActivityByAccounts(formattedEVMAccounts);
     const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
