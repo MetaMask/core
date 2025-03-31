@@ -2,6 +2,7 @@
   "metamask/accounts-controller": "team-accounts",
   "metamask/address-book-controller": "team-confirmations",
   "metamask/announcement-controller": "team-wallet-ux",
+  "metamask/app-metadata-controller": "team-mobile-platform",
   "metamask/approval-controller": "team-confirmations",
   "metamask/assets-controllers": "team-assets",
   "metamask/base-controller": "team-wallet-framework",
