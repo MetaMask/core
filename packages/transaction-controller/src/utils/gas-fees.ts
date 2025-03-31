@@ -15,6 +15,7 @@ import { add0x, createModuleLogger } from '@metamask/utils';
 import { getGasFeeFlow } from './gas-flow';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   SavedGasFees,
   TransactionParams,
@@ -32,6 +33,7 @@ export type UpdateGasFeesRequest = {
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
   getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
 
@@ -110,6 +112,26 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
  */
 export function gweiDecimalToWeiHex(value: string) {
   return toHex(gweiDecToWEIBN(value));
+}
+
+/**
+ * Converts a value from Gwei decimal representation to Wei decimal representation
+ *
+ * @param gweiDecimal - The value in Gwei as a string or number
+ * @returns The value in Wei as a string
+ *
+ * @example
+ * // Convert 1.5 Gwei to Wei
+ * gweiDecimalToWeiDecimal("1.5")
+ * // Returns "1500000000"
+ */
+export function gweiDecimalToWeiDecimal(gweiDecimal: string | number): string {
+  const gwei =
+    typeof gweiDecimal === 'string' ? gweiDecimal : String(gweiDecimal);
+
+  const weiDecimal = Number(gwei) * 1e9;
+
+  return weiDecimal.toString();
 }
 
 /**
@@ -326,8 +348,14 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
 async function getSuggestedGasFees(
   request: UpdateGasFeesRequest,
 ): Promise<SuggestedGasFees> {
-  const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
-    request;
+  const {
+    eip1559,
+    ethQuery,
+    gasFeeFlows,
+    getGasFeeEstimates,
+    messenger,
+    txMeta,
+  } = request;
 
   const { networkClientId } = txMeta;
 
@@ -340,7 +368,11 @@ async function getSuggestedGasFees(
     return {};
   }
 
-  const gasFeeFlow = getGasFeeFlow(txMeta, gasFeeFlows) as GasFeeFlow;
+  const gasFeeFlow = getGasFeeFlow(
+    txMeta,
+    gasFeeFlows,
+    messenger,
+  ) as GasFeeFlow;
 
   try {
     const gasFeeControllerData = await getGasFeeEstimates({ networkClientId });
@@ -348,6 +380,7 @@ async function getSuggestedGasFees(
     const response = await gasFeeFlow.getGasFees({
       ethQuery,
       gasFeeControllerData,
+      messenger,
       transactionMeta: txMeta,
     });
 
