@@ -135,10 +135,13 @@ type WithControllerArgs<ReturnValue> =
   | [WithControllerOptions, WithControllerCallback<ReturnValue>];
 
 /**
- * Helper function to create a controller instance with optional configuration
+ * Builds an AppMetadataController based on the given options, then calls the
+ * given function with that controller.
  *
- * @param args - Either a callback function or an options object followed by a callback function
- * @returns The result of the callback function
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag accepts controller options and config; the function
+ * will be called with the built controller.
+ * @returns Whatever the callback returns.
  */
 function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>

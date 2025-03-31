@@ -30,9 +30,12 @@ export type AppMetadataControllerState = {
 };
 
 /**
- * Function to get default state of the {@link AppMetadataController}.
+ * Constructs the default {@link AppMetadataController} state. This allows
+ * consumers to provide a partial state object when initializing the controller
+ * and also helps in constructing complete state objects for this controller in
+ * tests.
  *
- * @returns The default state object for the AppMetadataController
+ * @returns The default {@link AppMetadataController} state.
  */
 export const getDefaultAppMetadataControllerState =
   (): AppMetadataControllerState => ({
@@ -134,8 +137,8 @@ export class AppMetadataController extends BaseController<
    * @param options - the controller options
    * @param options.state - Initial controller state.
    * @param options.messenger - Messenger used to communicate with BaseV2 controller.
-   * @param options.currentMigrationVersion - The current migration version number
-   * @param options.currentAppVersion - The current application version string
+   * @param options.currentMigrationVersion - The migration version to store in state.
+   * @param options.currentAppVersion - The app version to store in state.
    */
   constructor({
     state = {},
@@ -161,7 +164,7 @@ export class AppMetadataController extends BaseController<
   /**
    * Updates the currentAppVersion in state, and sets the previousAppVersion to the old currentAppVersion.
    *
-   * @param newAppVersion - The new version string to set as the current app version
+   * @param newAppVersion - The new app version to store in state.
    */
   #updateAppVersion(newAppVersion: string): void {
     const oldCurrentAppVersion = this.state.currentAppVersion;
@@ -177,7 +180,7 @@ export class AppMetadataController extends BaseController<
   /**
    * Updates the migrationVersion in state.
    *
-   * @param newMigrationVersion - The new version number to set as the current migration version
+   * @param newMigrationVersion - The new migration version to store in state.
    */
   #updateMigrationVersion(newMigrationVersion: number): void {
     const oldCurrentMigrationVersion = this.state.currentMigrationVersion;
