@@ -3,6 +3,7 @@ import type { Hex } from '@metamask/utils';
 
 import { GasFeePoller, updateTransactionGasFees } from './GasFeePoller';
 import { flushPromises } from '../../../../tests/helpers';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GasFeeFlowResponse, Layer1GasFeeFlow } from '../types';
 import {
   GasFeeEstimateLevel,
@@ -16,6 +17,7 @@ import {
 } from '../types';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
 
+jest.mock('../utils/feature-flags');
 jest.mock('../utils/layer1-gas-fee-flow', () => ({
   getTransactionLayer1GasFee: jest.fn(),
 }));
@@ -77,6 +79,7 @@ describe('GasFeePoller', () => {
   const layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]> = [];
   const getGasFeeControllerEstimatesMock = jest.fn();
   const findNetworkClientIdByChainIdMock = jest.fn();
+  const messengerMock = jest.fn() as unknown as TransactionControllerMessenger;
 
   beforeEach(() => {
     jest.clearAllTimers();
@@ -97,6 +100,7 @@ describe('GasFeePoller', () => {
       getGasFeeControllerEstimates: getGasFeeControllerEstimatesMock,
       getTransactions: getTransactionsMock,
       layer1GasFeeFlows: layer1GasFeeFlowsMock,
+      messenger: messengerMock,
       onStateChange: (listener: () => void) => {
         triggerOnStateChange = listener;
       },
@@ -136,6 +140,7 @@ describe('GasFeePoller', () => {
         expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith({
           ethQuery: expect.any(Object),
           gasFeeControllerData: {},
+          messenger: expect.any(Function),
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });
@@ -150,6 +155,7 @@ describe('GasFeePoller', () => {
         expect(getTransactionLayer1GasFeeMock).toHaveBeenCalledWith({
           provider: expect.any(Object),
           layer1GasFeeFlows: layer1GasFeeFlowsMock,
+          messenger: expect.any(Function),
           transactionMeta: TRANSACTION_META_MOCK,
         });
       });

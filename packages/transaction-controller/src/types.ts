@@ -6,6 +6,8 @@ import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
+import type { TransactionControllerMessenger } from './TransactionController';
+
 /**
  * Given a record, ensures that each property matches the `Json` type.
  */
@@ -76,16 +78,6 @@ export type TransactionMeta = {
    * The balance of the token that is being sent.
    */
   currentTokenBalance?: string;
-
-  /**
-   * Unique ID for custodian transaction.
-   */
-  custodyId?: string;
-
-  /**
-   * Custodian transaction status.
-   */
-  custodyStatus?: string;
 
   /** The optional custom nonce override as a decimal string. */
   customNonceValue?: string;
@@ -1213,6 +1205,9 @@ export type GasFeeFlowRequest = {
   /** Gas fee controller data matching the chain ID of the transaction. */
   gasFeeControllerData: GasFeeState;
 
+  /** The messenger instance. */
+  messenger: TransactionControllerMessenger;
+
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
 };
@@ -1228,10 +1223,18 @@ export type GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
    *
-   * @param transactionMeta - The transaction metadata.
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
    * @returns Whether the gas fee flow supports the transaction.
    */
-  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   /**
    * Get gas fee estimates for a specific transaction.
@@ -1262,10 +1265,18 @@ export type Layer1GasFeeFlow = {
   /**
    * Determine if the gas fee flow supports the specified transaction.
    *
-   * @param transactionMeta - The transaction metadata.
-   * @returns Whether the layer1 gas fee flow supports the transaction.
+   * @param args - The arguments for the matcher function.
+   * @param args.transactionMeta - The transaction metadata.
+   * @param args.messenger - The messenger instance.
+   * @returns Whether the gas fee flow supports the transaction.
    */
-  matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   /**
    * Get layer 1 gas fee estimates for a specific transaction.
@@ -1553,6 +1564,41 @@ export type TransactionBatchRequest = {
 export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
   batchId: Hex;
+};
+
+/**
+ * Request parameters for updating a custodial transaction.
+ */
+export type UpdateCustodialTransactionRequest = {
+  /** The ID of the transaction to update. */
+  transactionId: string;
+
+  /** The error message to be assigned in case transaction status update to failed. */
+  errorMessage?: string;
+
+  /** The new hash value to be assigned. */
+  hash?: string;
+
+  /** The new status value to be assigned. */
+  status?: TransactionStatus;
+
+  /** The new gas limit value to be assigned. */
+  gasLimit?: string;
+
+  /** The new gas price value to be assigned. */
+  gasPrice?: string;
+
+  /** The new max fee per gas value to be assigned. */
+  maxFeePerGas?: string;
+
+  /** The new max priority fee per gas value to be assigned. */
+  maxPriorityFeePerGas?: string;
+
+  /** The new nonce value to be assigned. */
+  nonce?: string;
+
+  /** The new transaction type (hardfork) to be assigned. */
+  type?: TransactionEnvelopeType;
 };
 
 /**
