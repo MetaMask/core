@@ -1,10 +1,12 @@
 import { BaseController } from '@metamask/base-controller';
 import type { StateMetadata } from '@metamask/base-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
 import { getDelegationHashOffchain } from '@metamask-private/delegator-core-viem';
 import type { Address } from 'viem';
 
 import type {
+  Delegation,
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
@@ -13,7 +15,7 @@ import { parseDelegation } from './utils';
 
 export const controllerName = 'DelegationController';
 
-export type AllowedActions = SignatureControllerSignDelegationAction;
+export type AllowedActions = KeyringControllerSignTypedMessageAction;
 
 type FilterByHash = {
   hash: Hex;
@@ -23,14 +25,12 @@ type FilterByDelegator = {
   delegator: Address;
   delegate?: Address;
   label?: string;
-  chains?: number[];
 };
 
 type FilterByDelegate = {
   delegate: Address;
   delegator?: Address;
   label?: string;
-  chains?: number[];
 };
 
 type DelegationFilter = FilterByHash | FilterByDelegator | FilterByDelegate;
@@ -79,34 +79,21 @@ export class DelegationController extends BaseController<
     });
   }
 
-  sign(
-    delegation: Delegation,
-    options?: { skipConfirmation: boolean } = {
-      skipConfirmation: false,
-    },
-  ) {
-    const parsed = parseDelegation(delegation);
-    this.messagingSystem.call(`SignatureController:signDelegation`);
+  sign(delegation: Delegation) {
+    // this.messagingSystem.call('KeyringController:signTypedMessage', {
+    //   data: SIGNABLE_DELEGATION_TYPED_DATA,
+    // });
   }
 
-  /**
-   * Stores a delegation entry in the controller state.
-   *
-   * @param entry - The delegation entry to add.
-   * @param entry.data - The delegation data.
-   * @param entry.meta - The delegation metadata.
-   * @param skipConfirmation
-   */
-  store(entry: DelegationEntry, skipConfirmation = false) {
-    const { data, meta } = entry;
-    const hash = getDelegationHashOffchain({
-      ...data,
-      salt: BigInt(data.salt),
-    });
+  store(delegation: Delegation) {
+    const hash = getDelegationHashOffchain(parseDelegation(delegation));
     this.update((state) => {
       state.delegations[hash] = {
-        data,
-        meta,
+        data: delegation,
+        meta: {
+          label: '',
+          chainId: 1,
+        },
       };
     });
   }
@@ -148,12 +135,6 @@ export class DelegationController extends BaseController<
 
     if (filter.label) {
       list = list.filter((entry) => entry.meta.label === filter.label);
-    }
-
-    if (filter.chains && filter.chains.length > 0) {
-      list = list.filter((entry) =>
-        filter.chains?.some((chain) => entry.meta.chains.includes(chain)),
-      );
     }
 
     return list;
