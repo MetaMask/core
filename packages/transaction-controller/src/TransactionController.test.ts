@@ -337,13 +337,15 @@ function waitForTransactionFinished(
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = 'testinfuraid';
 const HTTP_PROVIDERS = {
-  goerli: new HttpProvider('https://goerli.infura.io/v3/goerli-pid'),
+  sepolia: new HttpProvider('https://sepolia.infura.io/v3/sepolia-pid'),
   // TODO: Investigate and address why tests break when mainet has a different INFURA_PROJECT_ID
   mainnet: new HttpProvider(
     `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),
   linea: new HttpProvider('https://linea.infura.io/v3/linea-pid'),
-  lineaGoerli: new HttpProvider('https://linea-g.infura.io/v3/linea-g-pid'),
+  lineaSepolia: new HttpProvider(
+    'https://linea-sepolia.infura.io/v3/linea-sepolia-pid',
+  ),
   custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
   palm: new HttpProvider('https://palm-mainnet.infura.io/v3/palm-pid'),
 };
@@ -357,13 +359,13 @@ type MockNetwork = {
 };
 
 const MOCK_NETWORK: MockNetwork = {
-  chainId: ChainId.goerli,
-  provider: HTTP_PROVIDERS.goerli,
-  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.goerli),
+  chainId: ChainId.sepolia,
+  provider: HTTP_PROVIDERS.sepolia,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.sepolia),
   state: {
-    selectedNetworkClientId: NetworkType.goerli,
+    selectedNetworkClientId: NetworkType.sepolia,
     networksMetadata: {
-      [NetworkType.goerli]: {
+      [NetworkType.sepolia]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
@@ -390,14 +392,14 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   subscribe: () => undefined,
 };
 
-const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
-  chainId: ChainId['linea-goerli'],
-  provider: HTTP_PROVIDERS.lineaGoerli,
-  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaGoerli),
+const MOCK_LINEA_SEPOLIA_NETWORK: MockNetwork = {
+  chainId: ChainId['linea-sepolia'],
+  provider: HTTP_PROVIDERS.lineaSepolia,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaSepolia),
   state: {
-    selectedNetworkClientId: NetworkType['linea-goerli'],
+    selectedNetworkClientId: NetworkType['linea-sepolia'],
     networksMetadata: {
-      [NetworkType['linea-goerli']]: {
+      [NetworkType['linea-sepolia']]: {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
@@ -1769,7 +1771,7 @@ describe('TransactionController', () => {
       const { controller, changeNetwork } = setupController({
         network: {
           state: {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
           },
         },
       });
@@ -1796,7 +1798,7 @@ describe('TransactionController', () => {
       const { controller, changeNetwork } = setupController({
         network: {
           state: {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: InfuraNetworkType.sepolia,
           },
         },
         mockNetworkClientConfigurationsByNetworkClientId: {
@@ -3265,7 +3267,7 @@ describe('TransactionController', () => {
 
     it('rejects unknown transaction', async () => {
       const { controller } = setupController({
-        network: MOCK_LINEA_GOERLI_NETWORK,
+        network: MOCK_LINEA_SEPOLIA_NETWORK,
       });
 
       await controller.stopTransaction('transactionIdMock', {
@@ -3292,7 +3294,7 @@ describe('TransactionController', () => {
 
     it('publishes transaction events', async () => {
       const { controller, messenger, mockTransactionApprovalRequest } =
-        setupController({ network: MOCK_LINEA_GOERLI_NETWORK });
+        setupController({ network: MOCK_LINEA_SEPOLIA_NETWORK });
 
       const approvedEventListener = jest.fn();
       const submittedEventListener = jest.fn();
@@ -5255,7 +5257,7 @@ describe('TransactionController', () => {
       const { controller, messenger } = setupController();
       messenger.registerActionHandler(
         'NetworkController:findNetworkClientIdByChainId',
-        () => 'goerli',
+        () => 'sepolia',
       );
 
       const mockTransactionParam = {
@@ -5308,7 +5310,7 @@ describe('TransactionController', () => {
         options: {
           hooks: {
             afterSign: () => false,
-            beforePublish: () => false,
+            beforePublish: () => Promise.resolve(false),
             getAdditionalSignArguments: () => [metadataMock],
           },
         },
@@ -5350,7 +5352,7 @@ describe('TransactionController', () => {
         options: {
           hooks: {
             afterSign: () => false,
-            beforePublish: () => false,
+            beforePublish: () => Promise.resolve(false),
             getAdditionalSignArguments: () => [metadataMock],
           },
           // @ts-expect-error sign intentionally returns undefined
@@ -5680,7 +5682,6 @@ describe('TransactionController', () => {
       };
       transactionMeta = {
         ...baseTransaction,
-        custodyId: '123',
         history: [{ ...baseTransaction }],
       };
     });
@@ -5708,7 +5709,8 @@ describe('TransactionController', () => {
           updateToInitialState: true,
         });
 
-        controller.updateCustodialTransaction(transactionId, {
+        controller.updateCustodialTransaction({
+          transactionId,
           status: newStatus,
           errorMessage,
         });
@@ -5744,7 +5746,8 @@ describe('TransactionController', () => {
           finishedEventListener,
         );
 
-        controller.updateCustodialTransaction(transactionId, {
+        controller.updateCustodialTransaction({
+          transactionId,
           status: newStatus,
           errorMessage,
         });
@@ -5763,7 +5766,7 @@ describe('TransactionController', () => {
     );
 
     it('updates transaction hash', async () => {
-      const newHash = '1234';
+      const newHash = '0x1234';
       const { controller } = setupController({
         options: {
           state: {
@@ -5773,7 +5776,8 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {
+      controller.updateCustodialTransaction({
+        transactionId,
         hash: newHash,
       });
 
@@ -5782,40 +5786,166 @@ describe('TransactionController', () => {
       expect(updatedTransaction.hash).toStrictEqual(newHash);
     });
 
+    it('updates gasLimit', async () => {
+      const newGasLimit = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        gasLimit: newGasLimit,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.gasLimit).toStrictEqual(newGasLimit);
+    });
+
+    it('updates gasPrice', async () => {
+      const newGasPrice = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        gasPrice: newGasPrice,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.gasPrice).toStrictEqual(newGasPrice);
+    });
+
+    it('updates maxFeePerGas', async () => {
+      const newMaxFeePerGas = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        maxFeePerGas: newMaxFeePerGas,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxFeePerGas).toStrictEqual(
+        newMaxFeePerGas,
+      );
+    });
+
+    it('updates maxPriorityFeePerGas', async () => {
+      const newMaxPriorityFeePerGas = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        maxPriorityFeePerGas: newMaxPriorityFeePerGas,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxPriorityFeePerGas).toStrictEqual(
+        newMaxPriorityFeePerGas,
+      );
+    });
+
+    it('updates nonce', async () => {
+      const newNonce = '0x1234';
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        nonce: newNonce,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.nonce).toStrictEqual(newNonce);
+    });
+
+    it('updates type from legacy to feeMarket', async () => {
+      const newType = TransactionEnvelopeType.feeMarket;
+      const { controller } = setupController({
+        options: { state: { transactions: [transactionMeta] } },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        type: newType,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.type).toStrictEqual(newType);
+    });
+
+    it('updates type from feeMarket to legacy', async () => {
+      const newType = TransactionEnvelopeType.legacy;
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...transactionMeta,
+                txParams: {
+                  ...transactionMeta.txParams,
+                  maxFeePerGas: '0x1234',
+                  maxPriorityFeePerGas: '0x1234',
+                },
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        type: newType,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+
+      expect(updatedTransaction.txParams.maxFeePerGas).toBeUndefined();
+      expect(updatedTransaction.txParams.maxPriorityFeePerGas).toBeUndefined();
+    });
+
     it('throws if custodial transaction does not exists', async () => {
       const nonExistentId = 'nonExistentId';
       const newStatus = TransactionStatus.approved as const;
       const { controller } = setupController();
 
       expect(() =>
-        controller.updateCustodialTransaction(nonExistentId, {
+        controller.updateCustodialTransaction({
+          transactionId: nonExistentId,
           status: newStatus,
         }),
       ).toThrow(
         'Cannot update custodial transaction as no transaction metadata found',
       );
-    });
-
-    it('throws if transaction is not a custodial transaction', async () => {
-      const nonCustodialTransaction: TransactionMeta = {
-        ...baseTransaction,
-        history: [{ ...baseTransaction }],
-      };
-      const newStatus = TransactionStatus.approved as const;
-      const { controller } = setupController({
-        options: {
-          state: {
-            transactions: [nonCustodialTransaction],
-          },
-        },
-        updateToInitialState: true,
-      });
-
-      expect(() =>
-        controller.updateCustodialTransaction(nonCustodialTransaction.id, {
-          status: newStatus,
-        }),
-      ).toThrow('Transaction must be a custodian transaction');
     });
 
     it('throws if status is invalid', async () => {
@@ -5830,7 +5960,8 @@ describe('TransactionController', () => {
       });
 
       expect(() =>
-        controller.updateCustodialTransaction(transactionMeta.id, {
+        controller.updateCustodialTransaction({
+          transactionId: transactionMeta.id,
           status: newStatus,
         }),
       ).toThrow(
@@ -5848,12 +5979,123 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      controller.updateCustodialTransaction(transactionId, {});
+      controller.updateCustodialTransaction({
+        transactionId,
+        ...{},
+      });
 
       const updatedTransaction = controller.state.transactions[0];
 
       expect(updatedTransaction.status).toStrictEqual(transactionMeta.status);
       expect(updatedTransaction.hash).toStrictEqual(transactionMeta.hash);
+    });
+
+    it.each([
+      {
+        paramName: 'hash',
+        newValue: '0x1234',
+        expectedPath: 'hash',
+      },
+      {
+        paramName: 'gasLimit',
+        newValue: '0x1234',
+        expectedPath: 'txParams.gasLimit',
+      },
+      {
+        paramName: 'gasPrice',
+        newValue: '0x1234',
+        expectedPath: 'txParams.gasPrice',
+      },
+      {
+        paramName: 'maxFeePerGas',
+        newValue: '0x1234',
+        expectedPath: 'txParams.maxFeePerGas',
+      },
+      {
+        paramName: 'maxPriorityFeePerGas',
+        newValue: '0x1234',
+        expectedPath: 'txParams.maxPriorityFeePerGas',
+      },
+      {
+        paramName: 'nonce',
+        newValue: '0x1234',
+        expectedPath: 'txParams.nonce',
+      },
+    ])('updates $paramName', async ({ paramName, newValue, expectedPath }) => {
+      const { controller } = setupController({
+        options: {
+          state: { transactions: [transactionMeta] },
+        },
+        updateToInitialState: true,
+      });
+
+      controller.updateCustodialTransaction({
+        transactionId,
+        [paramName]: newValue,
+      });
+
+      const updatedTransaction = controller.state.transactions[0];
+      const pathParts = expectedPath.split('.');
+      let actualValue = updatedTransaction;
+
+      for (const key of pathParts) {
+        // Type assertion needed since we're accessing dynamic properties
+        actualValue = actualValue[
+          key as keyof typeof actualValue
+        ] as typeof actualValue;
+      }
+
+      expect(actualValue).toStrictEqual(newValue);
+    });
+
+    describe('type updates', () => {
+      it('updates from legacy to feeMarket', async () => {
+        const newType = TransactionEnvelopeType.feeMarket;
+        const { controller } = setupController({
+          options: { state: { transactions: [transactionMeta] } },
+          updateToInitialState: true,
+        });
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          type: newType,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+        expect(updatedTransaction.txParams.type).toStrictEqual(newType);
+      });
+
+      it('updates from feeMarket to legacy', async () => {
+        const newType = TransactionEnvelopeType.legacy;
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...transactionMeta,
+                  txParams: {
+                    ...transactionMeta.txParams,
+                    maxFeePerGas: '0x1234',
+                    maxPriorityFeePerGas: '0x1234',
+                  },
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        controller.updateCustodialTransaction({
+          transactionId,
+          type: newType,
+        });
+
+        const updatedTransaction = controller.state.transactions[0];
+        expect(updatedTransaction.txParams.maxFeePerGas).toBeUndefined();
+        expect(
+          updatedTransaction.txParams.maxPriorityFeePerGas,
+        ).toBeUndefined();
+      });
     });
   });
 
