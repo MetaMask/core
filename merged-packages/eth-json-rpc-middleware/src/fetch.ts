@@ -2,7 +2,6 @@ import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
-import { isJsonRpcFailure } from '@metamask/utils';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type { AbstractRpcService, Block } from './types';
@@ -150,7 +149,11 @@ function createFetchMiddlewareWithRpcService({
         },
       );
 
-      if (isJsonRpcFailure(jsonRpcResponse)) {
+      // NOTE: We intentionally do not test to see if `jsonRpcResponse.error` is
+      // strictly a JSON-RPC error response as per
+      // <https://www.jsonrpc.org/specification#error_object> to account for
+      // Ganache returning error objects with extra properties such as `name`
+      if ('error' in jsonRpcResponse) {
         throw rpcErrors.internal({
           data: jsonRpcResponse.error,
         });
