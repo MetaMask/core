@@ -19,6 +19,7 @@ import type {
   MultichainNetworkConfiguration,
   ActiveNetworksByAddress,
   ActiveNetworksResponse,
+  NetworkStringComponents,
 } from './types';
 
 /**
@@ -141,7 +142,7 @@ export const toMultichainNetworkConfigurationsByChainId = (
  * @param accountIds - Array of account IDs to validate
  * @throws Error if any account ID is invalid
  */
-function validateAccountIds(accountIds: string[]): void {
+export function validateAccountIds(accountIds: string[]): void {
   if (!accountIds.length) {
     throw new Error('At least one account ID is required');
   }
@@ -162,7 +163,7 @@ function validateAccountIds(accountIds: string[]): void {
  * @param accountIds - Array of account IDs
  * @returns URL object for the API endpoint
  */
-function buildActiveNetworksUrl(accountIds: string[]): URL {
+export function buildActiveNetworksUrl(accountIds: string[]): URL {
   const url = new URL(`${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks`);
   url.searchParams.append('accountIds', accountIds.join(','));
   return url;
@@ -213,6 +214,26 @@ export async function fetchNetworkActivityByAccounts(
 }
 
 /**
+ * Parses a network string in the format "namespace:chainId:address".
+ *
+ * @param network - The network string to parse
+ * @returns The parsed components or null if invalid
+ */
+function parseNetworkString(network: string): NetworkStringComponents | null {
+  const [namespace, chainId, address] = network.split(':');
+
+  if (!address?.startsWith('0x')) {
+    return null;
+  }
+
+  return {
+    namespace: namespace as KnownCaipNamespace,
+    chainId,
+    address: address as Hex,
+  };
+}
+
+/**
  * Formats the API response into our state structure.
  * Example input: ["eip155:1:0x123...", "eip155:137:0x123...", "solana:1:0xabc..."]
  *
@@ -225,24 +246,22 @@ export function formatNetworkActivityResponse(
   const networksByAddress: ActiveNetworksByAddress = {};
 
   response.activeNetworks.forEach((network) => {
-    const [namespace, chainId, address] = network.split(':');
-
-    if (!address?.startsWith('0x')) {
+    const components = parseNetworkString(network);
+    if (!components) {
       return;
     }
 
-    const hexAddress = address as Hex;
-    const caipNamespace = namespace as KnownCaipNamespace;
+    const { namespace, chainId, address } = components;
 
-    if (!networksByAddress[hexAddress]) {
-      networksByAddress[hexAddress] = {
-        namespace: caipNamespace,
+    if (!networksByAddress[address]) {
+      networksByAddress[address] = {
+        namespace,
         activeChains: [],
       };
     }
 
-    if (caipNamespace === KnownCaipNamespace.Eip155 && chainId) {
-      networksByAddress[hexAddress].activeChains.push(chainId);
+    if (namespace === KnownCaipNamespace.Eip155 && chainId) {
+      networksByAddress[address].activeChains.push(chainId);
     }
   });
 

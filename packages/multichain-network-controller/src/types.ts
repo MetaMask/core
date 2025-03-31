@@ -15,7 +15,11 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { type CaipAssetType, type Hex } from '@metamask/utils';
+import {
+  type CaipAssetType,
+  type Hex,
+  type KnownCaipNamespace,
+} from '@metamask/utils';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -216,4 +220,13 @@ export type ActiveNetworksByAddress = {
     namespace: string;
     activeChains: string[];
   };
+};
+
+/**
+ * Components of a network string in the format "namespace:chainId:address"
+ */
+export type NetworkStringComponents = {
+  namespace: KnownCaipNamespace;
+  chainId: string;
+  address: Hex;
 };

@@ -19,6 +19,8 @@ import {
   toMultichainNetworkConfigurationsByChainId,
   fetchNetworkActivityByAccounts,
   formatNetworkActivityResponse,
+  buildActiveNetworksUrl,
+  validateAccountIds,
 } from './utils';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -97,6 +99,26 @@ describe('utils', () => {
         chainId: 'eip155:1',
         isEvm: true,
         name: 'https://mainnet.infura.io/',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    });
+
+    it('uses default block explorer index when undefined', () => {
+      const network: NetworkConfiguration = {
+        chainId: '0x1',
+        name: 'Ethereum Mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: undefined,
+        rpcEndpoints: [],
+        defaultRpcEndpointIndex: 0,
+      };
+      expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
+        chainId: 'eip155:1',
+        isEvm: true,
+        name: 'Ethereum Mainnet',
         nativeCurrency: 'ETH',
         blockExplorerUrls: ['https://etherscan.io'],
         defaultBlockExplorerUrlIndex: 0,
@@ -324,6 +346,59 @@ describe('utils', () => {
     });
   });
 
+  describe('validateAccountIds', () => {
+    it('should throw error for empty account IDs array', () => {
+      expect(() => validateAccountIds([])).toThrow(
+        'At least one account ID is required',
+      );
+    });
+
+    it('should throw error for invalid account ID format', () => {
+      expect(() => validateAccountIds(['invalid:0:123'])).toThrow(
+        'Invalid CAIP-10 account IDs: invalid:0:123',
+      );
+    });
+
+    it('should not throw for valid account IDs', () => {
+      expect(() =>
+        validateAccountIds([
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:0x1234567890123456789012345678901234567890',
+        ]),
+      ).not.toThrow();
+    });
+
+    it('should throw for mixed valid and invalid account IDs', () => {
+      expect(() =>
+        validateAccountIds([
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'invalid:0:123',
+        ]),
+      ).toThrow('Invalid CAIP-10 account IDs: invalid:0:123');
+    });
+  });
+
+  describe('buildActiveNetworksUrl', () => {
+    it('should construct URL with single account ID', () => {
+      const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
+      const url = buildActiveNetworksUrl([accountId]);
+      expect(url.toString()).toBe(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks?accountIds=${encodeURIComponent(accountId)}`,
+      );
+    });
+
+    it('should construct URL with multiple account IDs', () => {
+      const accountIds = [
+        'eip155:1:0x1234567890123456789012345678901234567890',
+        'solana:1:0x1234567890123456789012345678901234567890',
+      ];
+      const url = buildActiveNetworksUrl(accountIds);
+      expect(url.toString()).toBe(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks?accountIds=${encodeURIComponent(accountIds.join(','))}`,
+      );
+    });
+  });
+
   describe('formatNetworkActivityResponse', () => {
     it('should format EVM network responses correctly', () => {
       const response = {
@@ -402,6 +477,53 @@ describe('utils', () => {
       const result = formatNetworkActivityResponse(response);
 
       expect(result).toStrictEqual({});
+    });
+
+    it('should handle invalid network format', () => {
+      const response = {
+        activeNetworks: ['invalid:network:format'],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should handle missing chainId in network string', () => {
+      const response = {
+        activeNetworks: ['eip155::0x1234567890123456789012345678901234567890'],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: [],
+        },
+      });
+    });
+
+    it('should handle multiple addresses with different networks', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x9876543210987654321098765432109876543210',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+        '0x9876543210987654321098765432109876543210': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['137'],
+        },
+      });
     });
   });
 });
