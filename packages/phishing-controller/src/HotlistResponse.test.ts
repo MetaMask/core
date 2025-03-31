@@ -84,7 +84,7 @@ describe('HotlistResponse Interface', () => {
             lastUpdated: 0,
           },
         ],
-        hotlistLastSuccessTimestamp: 0,
+        hotlistLastSuccessTimestamp: 1,
       },
     });
     
@@ -131,7 +131,7 @@ describe('HotlistResponse Interface', () => {
             lastUpdated: 0,
           },
         ],
-        hotlistLastSuccessTimestamp: 0,
+        hotlistLastSuccessTimestamp: 1,
       },
     });
     
@@ -142,7 +142,7 @@ describe('HotlistResponse Interface', () => {
     expect(controller.state.phishingLists[0].blocklist).toContain(testBlockedDomain);
     
     // The lastFetchedAt property is not in the old format, so the timestamp should remain unchanged
-    expect(controller.state.hotlistLastSuccessTimestamp).toBe(0);
+    expect(controller.state.hotlistLastSuccessTimestamp).toBe(1);
   });
 
   it('should handle unrecognized format without modifying the state', async () => {
@@ -172,7 +172,7 @@ describe('HotlistResponse Interface', () => {
           lastUpdated: 0,
         },
       ],
-      hotlistLastSuccessTimestamp: 0,
+      hotlistLastSuccessTimestamp: 1,
     };
 
     const controller = getPhishingController({

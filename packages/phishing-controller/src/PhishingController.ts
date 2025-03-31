@@ -689,6 +689,12 @@ export class PhishingController extends BaseController<
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
         draftState.c2DomainBlocklistLastFetched = timeNow;
+        
+        // Set hotlistLastSuccessTimestamp to the stalelist's lastUpdated value if available
+        // This ensures we have a valid timestamp for future hotlist diff requests
+        if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
+          draftState.hotlistLastSuccessTimestamp = stalelistResponse.data.lastUpdated;
+        }
       });
     }
 
@@ -729,9 +735,13 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
-    // const lastDiffTimestamp = Math.max(
-    //   ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
-    // );
+    // If we have no successful timestamp yet (it's 0), we should fetch the stalelist instead
+    // as it will set up both stalelist and hotlist properly
+    if (this.state.hotlistLastSuccessTimestamp === 0) {
+      await this.updateStalelist();
+      return;
+    }
+
     let hotlistResponse: DataResultWrapper<HotlistResponse | HotlistDiff[]> | null;
 
     try {
