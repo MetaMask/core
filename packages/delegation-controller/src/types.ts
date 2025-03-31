@@ -1,10 +1,15 @@
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
+import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
-import type { DelegationStruct } from '@metamask-private/delegator-core-viem';
+import {
+  SIGNABLE_DELEGATION_TYPED_DATA as DELEGATION_TYPED_DATA,
+  type DelegationStruct,
+} from '@metamask-private/delegator-core-viem';
 
 import type {
   controllerName,
@@ -16,6 +21,18 @@ export type Delegation = Omit<DelegationStruct, 'salt'> & { salt: string };
 export type DelegationMetadata = {
   chainId: number;
   label: string;
+};
+
+const EIP712Domain = [
+  { name: 'name', type: 'string' },
+  { name: 'version', type: 'string' },
+  { name: 'chainId', type: 'uint256' },
+  { name: 'verifyingContract', type: 'address' },
+];
+
+export const SIGNABLE_DELEGATION_TYPED_DATA = {
+  EIP712Domain,
+  ...DELEGATION_TYPED_DATA,
 };
 
 export type DelegationEntry = {
@@ -39,9 +56,15 @@ export type DelegationControllerStoreAction = {
   handler: DelegationController['store'];
 };
 
+export type DelegationControllerSignAction = {
+  type: `${typeof controllerName}:sign`;
+  handler: DelegationController['sign'];
+};
+
 export type DelegationControllerActions =
   | DelegationControllerGetStateAction
-  | DelegationControllerStoreAction;
+  | DelegationControllerStoreAction
+  | DelegationControllerSignAction;
 
 export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -50,7 +73,10 @@ export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type DelegationControllerEvents = DelegationControllerStateChangeEvent;
 
-type AllowedActions = never;
+export type AllowedActions =
+  | KeyringControllerSignTypedMessageAction
+  | AccountsControllerGetSelectedAccountAction;
+
 type AllowedEvents = never;
 
 export type DelegationControllerMessenger = RestrictedMessenger<

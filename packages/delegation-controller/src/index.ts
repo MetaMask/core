@@ -3,5 +3,6 @@ export type {
   DelegationControllerEvents,
   DelegationControllerMessenger,
   Delegation,
+  AllowedActions,
 } from './types';
 export { DelegationController } from './delegation-controller';

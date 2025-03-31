@@ -1,21 +1,25 @@
-import { BaseController } from '@metamask/base-controller';
 import type { StateMetadata } from '@metamask/base-controller';
-import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
+import { BaseController } from '@metamask/base-controller';
+import type { TypedMessageParams } from '@metamask/keyring-controller';
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
-import { getDelegationHashOffchain } from '@metamask-private/delegator-core-viem';
+import {
+  getDelegationHashOffchain,
+  getDeleGatorEnvironment,
+} from '@metamask-private/delegator-core-viem';
 import type { Address } from 'viem';
 
-import type {
-  Delegation,
-  DelegationControllerMessenger,
-  DelegationControllerState,
-  DelegationEntry,
+import {
+  SIGNABLE_DELEGATION_TYPED_DATA,
+  type Delegation,
+  type DelegationControllerMessenger,
+  type DelegationControllerState,
+  type DelegationEntry,
 } from './types';
 import { parseDelegation } from './utils';
+import { sepolia } from 'viem/chains';
 
 export const controllerName = 'DelegationController';
-
-export type AllowedActions = KeyringControllerSignTypedMessageAction;
 
 type FilterByHash = {
   hash: Hex;
@@ -79,10 +83,37 @@ export class DelegationController extends BaseController<
     });
   }
 
-  sign(delegation: Delegation) {
-    // this.messagingSystem.call('KeyringController:signTypedMessage', {
-    //   data: SIGNABLE_DELEGATION_TYPED_DATA,
-    // });
+  async sign(delegation: Delegation) {
+    const chainId = sepolia.id;
+
+    const account = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+
+    const delegatorEnv = getDeleGatorEnvironment(chainId, '1.2.0');
+
+    const data: TypedMessageParams = {
+      data: {
+        types: SIGNABLE_DELEGATION_TYPED_DATA,
+        primaryType: 'Delegation',
+        domain: {
+          chainId: String(chainId),
+          name: 'DelegationManager',
+          version: '1',
+          verifyingContract: delegatorEnv.DelegationManager,
+        },
+        message: delegation,
+      },
+      from: account.address,
+    };
+
+    const signature = (await this.messagingSystem.call(
+      'KeyringController:signTypedMessage',
+      data,
+      SignTypedDataVersion.V4,
+    )) as string;
+
+    return signature;
   }
 
   store(delegation: Delegation) {
