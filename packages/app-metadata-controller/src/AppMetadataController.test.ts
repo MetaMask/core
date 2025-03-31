@@ -28,7 +28,7 @@ describe('AppMetadataController', () => {
     });
 
     it('sets default state and does not modify it', () => {
-      withController({ state: {} }, ({ controller }) => {
+      withController(({ controller }) => {
         expect(controller.state).toStrictEqual(
           getDefaultAppMetadataControllerState(),
         );
