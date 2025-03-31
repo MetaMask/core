@@ -394,8 +394,7 @@ describe('PendingTransactionTracker', () => {
             ...options,
             getTransactions: () => freeze([transactionMetaMock], true),
             hooks: {
-              beforeCheckPendingTransaction: () => false,
-              beforePublish: () => false,
+              beforeCheckPendingTransaction: () => Promise.resolve(false),
             },
           });
 
@@ -744,7 +743,7 @@ describe('PendingTransactionTracker', () => {
           );
         });
 
-        it('if beforePublish returns false, does not resubmit the transaction', async () => {
+        it('if beforeCheckPendingTransaction returns false, does not resubmit the transaction', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
           const getTransactions = jest
             .fn()
@@ -754,8 +753,7 @@ describe('PendingTransactionTracker', () => {
             ...options,
             getTransactions,
             hooks: {
-              beforeCheckPendingTransaction: () => false,
-              beforePublish: () => false,
+              beforeCheckPendingTransaction: () => Promise.resolve(false),
             },
           });
 

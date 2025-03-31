@@ -31,7 +31,11 @@ import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { v4 as uuidV4 } from 'uuid';
 
-import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
+import {
+  DEPRECATED_NETWORKS,
+  INFURA_BLOCKED_KEY,
+  NetworkStatus,
+} from './constants';
 import type {
   AutoManagedNetworkClient,
   ProxyWithAccessibleTarget,
@@ -513,6 +517,11 @@ export type NetworkControllerGetSelectedNetworkClientAction = {
   handler: NetworkController['getSelectedNetworkClient'];
 };
 
+export type NetworkControllerGetSelectedChainIdAction = {
+  type: 'NetworkController:getSelectedChainId';
+  handler: NetworkController['getSelectedChainId'];
+};
+
 export type NetworkControllerGetEIP1559CompatibilityAction = {
   type: `NetworkController:getEIP1559Compatibility`;
   handler: NetworkController['getEIP1559Compatibility'];
@@ -569,6 +578,7 @@ export type NetworkControllerActions =
   | NetworkControllerGetEthQueryAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetSelectedNetworkClientAction
+  | NetworkControllerGetSelectedChainIdAction
   | NetworkControllerGetEIP1559CompatibilityAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerSetActiveNetworkAction
@@ -665,6 +675,12 @@ function getDefaultInfuraNetworkConfigurationsByChainId(): Record<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
     const chainId = ChainId[infuraNetworkType];
+
+    // Skip deprecated network as default network.
+    if (DEPRECATED_NETWORKS.has(chainId)) {
+      return obj;
+    }
+
     const rpcEndpointUrl =
       // This ESLint rule mistakenly produces an error.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -1182,10 +1198,13 @@ export class NetworkController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSelectedNetworkClient`,
       this.getSelectedNetworkClient.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${this.name}:getSelectedChainId`,
+      this.getSelectedChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -1245,6 +1264,18 @@ export class NetworkController extends BaseController<
       };
     }
     return undefined;
+  }
+
+  /**
+   * Accesses the chain ID from the selected network client.
+   *
+   * @returns The chain ID of the selected network client in hex format or undefined if there is no network client.
+   */
+  getSelectedChainId(): Hex | undefined {
+    const networkConfiguration = this.getNetworkConfigurationByNetworkClientId(
+      this.state.selectedNetworkClientId,
+    );
+    return networkConfiguration?.chainId;
   }
 
   /**

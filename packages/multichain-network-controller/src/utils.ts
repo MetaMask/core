@@ -6,7 +6,9 @@ import {
   type CaipChainId,
   KnownCaipNamespace,
   toCaipChainId,
+  parseCaipChainId,
   hexToNumber,
+  add0x,
 } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
@@ -18,6 +20,17 @@ import type {
   ActiveNetworksByAddress,
   ActiveNetworksResponse,
 } from './types';
+
+/**
+ * Checks if the chain ID is EVM.
+ *
+ * @param chainId - The account type to check.
+ * @returns Whether the network is EVM.
+ */
+export function isEvmCaipChainId(chainId: CaipChainId): boolean {
+  const { namespace } = parseCaipChainId(chainId);
+  return namespace === (KnownCaipNamespace.Eip155 as string);
+}
 
 /**
  * Returns the chain id of the non-EVM network based on the account address.
@@ -58,6 +71,23 @@ export const toEvmCaipChainId = (chainId: Hex): CaipChainId =>
   toCaipChainId(KnownCaipNamespace.Eip155, hexToNumber(chainId).toString());
 
 /**
+ * Convert an eip155 CAIP chain ID to a hex chain ID.
+ *
+ * @param chainId - The CAIP chain ID to convert.
+ * @returns The hex chain ID.
+ */
+export function convertEvmCaipToHexChainId(chainId: CaipChainId): Hex {
+  const { namespace, reference } = parseCaipChainId(chainId);
+  if (namespace === (KnownCaipNamespace.Eip155 as string)) {
+    return add0x(parseInt(reference, 10).toString(16));
+  }
+
+  throw new Error(
+    `Unsupported CAIP chain ID namespace: ${namespace}. Only eip155 is supported.`,
+  );
+}
+
+/**
  * Updates a network configuration to the format used by the MultichainNetworkController.
  * This method is exclusive for EVM networks with hex identifiers from the NetworkController.
  *
@@ -67,13 +97,22 @@ export const toEvmCaipChainId = (chainId: Hex): CaipChainId =>
 export const toMultichainNetworkConfiguration = (
   network: NetworkConfiguration,
 ): MultichainNetworkConfiguration => {
+  const {
+    chainId,
+    name,
+    rpcEndpoints,
+    defaultRpcEndpointIndex,
+    nativeCurrency,
+    blockExplorerUrls,
+    defaultBlockExplorerUrlIndex,
+  } = network;
   return {
-    chainId: toEvmCaipChainId(network.chainId),
+    chainId: toEvmCaipChainId(chainId),
     isEvm: true,
-    name: network.name,
-    nativeCurrency: network.nativeCurrency,
-    blockExplorerUrls: network.blockExplorerUrls,
-    defaultBlockExplorerUrlIndex: network.defaultBlockExplorerUrlIndex || 0,
+    name: name || rpcEndpoints[defaultRpcEndpointIndex].url,
+    nativeCurrency,
+    blockExplorerUrls,
+    defaultBlockExplorerUrlIndex: defaultBlockExplorerUrlIndex || 0,
   };
 };
 
