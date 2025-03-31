@@ -13,9 +13,20 @@ import type {
 
 export type Delegation = Omit<DelegationStruct, 'salt'> & { salt: string };
 
+export type DelegationMetadata = {
+  label: string;
+  chains: number[];
+  extra: string;
+};
+
+export type DelegationEntry = {
+  meta: DelegationMetadata;
+  data: Delegation;
+};
+
 export type DelegationControllerState = {
   delegations: {
-    [hash: Hex]: Delegation;
+    [hash: Hex]: DelegationEntry;
   };
 };
 
@@ -25,8 +36,8 @@ export type DelegationControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type DelegationControllerAddDelegationAction = {
-  type: `${typeof controllerName}:addDelegation`;
-  handler: DelegationController['addDelegation'];
+  type: `${typeof controllerName}:store`;
+  handler: DelegationController['store'];
 };
 
 export type DelegationControllerActions =
