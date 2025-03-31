@@ -79,16 +79,6 @@ export type TransactionMeta = {
    */
   currentTokenBalance?: string;
 
-  /**
-   * Unique ID for custodian transaction.
-   */
-  custodyId?: string;
-
-  /**
-   * Custodian transaction status.
-   */
-  custodyStatus?: string;
-
   /** The optional custom nonce override as a decimal string. */
   customNonceValue?: string;
 
@@ -1574,6 +1564,41 @@ export type TransactionBatchRequest = {
 export type TransactionBatchResult = {
   /** ID of the batch to locate related transactions. */
   batchId: Hex;
+};
+
+/**
+ * Request parameters for updating a custodial transaction.
+ */
+export type UpdateCustodialTransactionRequest = {
+  /** The ID of the transaction to update. */
+  transactionId: string;
+
+  /** The error message to be assigned in case transaction status update to failed. */
+  errorMessage?: string;
+
+  /** The new hash value to be assigned. */
+  hash?: string;
+
+  /** The new status value to be assigned. */
+  status?: TransactionStatus;
+
+  /** The new gas limit value to be assigned. */
+  gasLimit?: string;
+
+  /** The new gas price value to be assigned. */
+  gasPrice?: string;
+
+  /** The new max fee per gas value to be assigned. */
+  maxFeePerGas?: string;
+
+  /** The new max priority fee per gas value to be assigned. */
+  maxPriorityFeePerGas?: string;
+
+  /** The new nonce value to be assigned. */
+  nonce?: string;
+
+  /** The new transaction type (hardfork) to be assigned. */
+  type?: TransactionEnvelopeType;
 };
 
 /**
