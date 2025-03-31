@@ -1,10 +1,12 @@
 export {
   BrokenCircuitError,
   CircuitState,
+  ConstantBackoff,
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
+  ExponentialBackoff,
   createServicePolicy,
   handleAll,
   handleWhen,

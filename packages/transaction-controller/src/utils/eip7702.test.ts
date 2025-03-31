@@ -8,6 +8,7 @@ import {
   DELEGATION_PREFIX,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
+  getDelegationAddress,
   isAccountUpgradedToEIP7702,
   signAuthorizationList,
 } from './eip7702';
@@ -33,6 +34,7 @@ const CHAIN_ID_2_MOCK = '0x456';
 const ADDRESS_MOCK = '0x1234567890123456789012345678901234567890';
 const ADDRESS_2_MOCK = '0x0987654321098765432109876543210987654321';
 const ADDRESS_3_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+const PUBLIC_KEY_MOCK = '0x112233';
 const ETH_QUERY_MOCK = {} as EthQuery;
 
 const DATA_MOCK =
@@ -271,6 +273,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -293,6 +296,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK.toUpperCase() as Hex,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -313,6 +317,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -331,6 +336,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -349,6 +355,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -369,6 +376,7 @@ describe('EIP-7702 Utils', () => {
         await isAccountUpgradedToEIP7702(
           ADDRESS_MOCK,
           CHAIN_ID_MOCK,
+          PUBLIC_KEY_MOCK,
           controllerMessenger,
           ETH_QUERY_MOCK,
         ),
@@ -416,6 +424,55 @@ describe('EIP-7702 Utils', () => {
         data: DATA_MISSING_PROPS_MOCK,
         to: ADDRESS_MOCK,
       });
+    });
+
+    it.each(['gas', 'maxFeePerGas', 'maxPriorityFeePerGas'])(
+      'throws if %s specified in transaction',
+      (prop) => {
+        expect(() =>
+          generateEIP7702BatchTransaction(ADDRESS_MOCK, [{ [prop]: '0x1234' }]),
+        ).toThrow(
+          `EIP-7702 batch transactions do not support gas parameters per call - ${prop}: 0x1234`,
+        );
+      },
+    );
+  });
+
+  describe('getDelegationAddress', () => {
+    it('returns the delegation address', async () => {
+      getCodeMock.mockResolvedValueOnce(
+        `${DELEGATION_PREFIX}${remove0x(ADDRESS_2_MOCK)}`,
+      );
+
+      expect(
+        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+      ).toStrictEqual(ADDRESS_2_MOCK);
+    });
+
+    it('returns undefined if no code', async () => {
+      getCodeMock.mockResolvedValueOnce(undefined);
+
+      expect(
+        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined if empty code', async () => {
+      getCodeMock.mockResolvedValueOnce('0x');
+
+      expect(
+        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined if not delegation code', async () => {
+      getCodeMock.mockResolvedValueOnce(
+        '0x1234567890123456789012345678901234567890123456789012345678901234567890',
+      );
+
+      expect(
+        await getDelegationAddress(ADDRESS_MOCK, ETH_QUERY_MOCK),
+      ).toBeUndefined();
     });
   });
 });

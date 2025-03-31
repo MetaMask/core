@@ -1,5 +1,6 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { Hex } from '@metamask/utils';
 
 import {
   validateBatchRequest,
@@ -10,9 +11,32 @@ import {
 import { TransactionEnvelopeType, TransactionType } from '../types';
 import type { TransactionParams } from '../types';
 
-const FROM_MOCK = '0x1678a085c290ebd122dc42cba69373b5953b831d';
-const TO_MOCK = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
+const DATA_MOCK = '0x12345678';
+const FROM_MOCK: Hex = '0x1678a085c290ebd122dc42cba69373b5953b831d';
+const TO_MOCK: Hex = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
 const ORIGIN_MOCK = 'test-origin';
+
+const VALIDATE_BATCH_REQUEST_MOCK = {
+  internalAccounts: [],
+  request: {
+    from: FROM_MOCK,
+    networkClientId: 'testNetworkClientId',
+    origin: ORIGIN_MOCK,
+    transactions: [
+      {
+        params: {
+          to: '0xabc' as Hex,
+        },
+      },
+      {
+        params: {
+          to: TO_MOCK,
+        },
+      },
+    ],
+  },
+  sizeLimit: 2,
+};
 
 describe('validation', () => {
   describe('validateTxParams', () => {
@@ -680,9 +704,10 @@ describe('validation', () => {
       );
     });
 
-    it('throws if external and to is internal account', async () => {
+    it('throws if external and to is internal account and data', async () => {
       await expect(
         validateTransactionOrigin({
+          data: DATA_MOCK,
           from: FROM_MOCK,
           internalAccounts: [TO_MOCK],
           origin: ORIGIN_MOCK,
@@ -693,10 +718,32 @@ describe('validation', () => {
         }),
       ).rejects.toThrow(
         rpcErrors.invalidParams(
-          'External transactions to internal accounts are not supported',
+          'External transactions to internal accounts cannot include data',
         ),
       );
     });
+
+    it.each([
+      ['undefined', undefined],
+      ['empty', ''],
+      ['empty hex', '0x'],
+    ])(
+      'does not throw if external and to is internal account but data is %s',
+      async (_title, data) => {
+        expect(
+          await validateTransactionOrigin({
+            data,
+            from: FROM_MOCK,
+            internalAccounts: [TO_MOCK],
+            origin: ORIGIN_MOCK,
+            selectedAddress: '0x123',
+            txParams: {
+              to: TO_MOCK,
+            } as TransactionParams,
+          }),
+        ).toBeUndefined();
+      },
+    );
 
     it('does not throw if external and to is internal account but type is batch', async () => {
       expect(
@@ -732,51 +779,22 @@ describe('validation', () => {
     it('throws if external origin and any transaction target is internal account', () => {
       expect(() =>
         validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
-          request: {
-            from: FROM_MOCK,
-            networkClientId: 'testNetworkClientId',
-            origin: ORIGIN_MOCK,
-            transactions: [
-              {
-                params: {
-                  to: '0xabc',
-                },
-              },
-              {
-                params: {
-                  to: TO_MOCK,
-                },
-              },
-            ],
-          },
         }),
       ).toThrow(
-        rpcErrors.invalidParams(
-          'External transactions to internal accounts are not supported',
-        ),
+        rpcErrors.invalidParams('Calls to internal accounts are not supported'),
       );
     });
 
     it('does not throw if no origin and any transaction target is internal account', () => {
       expect(() =>
         validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
           request: {
-            from: FROM_MOCK,
-            networkClientId: 'testNetworkClientId',
-            transactions: [
-              {
-                params: {
-                  to: '0xabc',
-                },
-              },
-              {
-                params: {
-                  to: TO_MOCK,
-                },
-              },
-            ],
+            ...VALIDATE_BATCH_REQUEST_MOCK.request,
+            origin: undefined,
           },
         }),
       ).not.toThrow();
@@ -785,24 +803,34 @@ describe('validation', () => {
     it('does not throw if internal origin and any transaction target is internal account', () => {
       expect(() =>
         validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
           request: {
-            from: FROM_MOCK,
-            networkClientId: 'testNetworkClientId',
+            ...VALIDATE_BATCH_REQUEST_MOCK.request,
             origin: ORIGIN_METAMASK,
-            transactions: [
-              {
-                params: {
-                  to: '0xabc',
-                },
-              },
-              {
-                params: {
-                  to: TO_MOCK,
-                },
-              },
-            ],
           },
+        }),
+      ).not.toThrow();
+    });
+
+    it('throws if transaction count is greater than limit', () => {
+      expect(() =>
+        validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
+          sizeLimit: 1,
+        }),
+      ).toThrow(rpcErrors.invalidParams('Batch size cannot exceed 1. got: 2'));
+    });
+
+    it('does not throw if transaction count is internal and greater than limit', () => {
+      expect(() =>
+        validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
+          request: {
+            ...VALIDATE_BATCH_REQUEST_MOCK.request,
+            origin: ORIGIN_METAMASK,
+          },
+          sizeLimit: 1,
         }),
       ).not.toThrow();
     });

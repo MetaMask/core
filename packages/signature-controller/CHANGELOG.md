@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^27.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^23.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
+## [26.0.0]
+
+### Added
+
+- **BREAKING:** Add peer dependency on `^26.0.0` of `@metamask/accounts-controller`([#5470](https://github.com/MetaMask/core/pull/5470))
+- Add EIP-7702 signature validations ([#5470](https://github.com/MetaMask/core/pull/5470))
+  - Throw if external and `verifyingContract` matches any internal account.
+  - Throw if external and `primaryType` is `Delegation` and `delegator` matches any internal EOA account.
+
+### Changed
+
+- Bump `@metamask/accounts-controller` peer dependency to `^26.1.0` ([#5481](https://github.com/MetaMask/core/pull/5481))
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
 ## [23.2.1]
 
 ### Changed
@@ -461,7 +494,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.0.0...HEAD
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@26.0.0...@metamask/signature-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@25.0.0...@metamask/signature-controller@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@24.0.0...@metamask/signature-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.1...@metamask/signature-controller@24.0.0
 [23.2.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.2.0...@metamask/signature-controller@23.2.1
 [23.2.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.1.0...@metamask/signature-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@23.0.1...@metamask/signature-controller@23.1.0

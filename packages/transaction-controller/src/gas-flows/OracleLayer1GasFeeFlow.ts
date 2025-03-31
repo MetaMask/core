@@ -2,9 +2,9 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { omit } from 'lodash';
 
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   Layer1GasFeeFlow,
   Layer1GasFeeFlowRequest,
@@ -41,7 +41,13 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     this.#signTransaction = signTransaction ?? false;
   }
 
-  abstract matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  abstract matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   async getLayer1Fee(
     request: Layer1GasFeeFlowRequest,
@@ -103,7 +109,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     transactionMeta: TransactionMeta,
   ): TransactionMeta['txParams'] {
     return {
-      ...omit(transactionMeta.txParams, 'gas'),
+      ...transactionMeta.txParams,
       gasLimit: transactionMeta.txParams.gas,
     };
   }

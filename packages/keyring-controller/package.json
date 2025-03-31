@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "19.2.1",
+  "version": "21.0.1",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -47,15 +47,15 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/util": "^8.1.0",
+    "@ethereumjs/util": "^9.1.0",
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
     "@metamask/base-controller": "^8.0.0",
     "@metamask/browser-passworder": "^4.3.0",
-    "@metamask/eth-hd-keyring": "^10.0.0",
+    "@metamask/eth-hd-keyring": "^12.0.0",
     "@metamask/eth-sig-util": "^8.2.0",
-    "@metamask/eth-simple-keyring": "^8.1.0",
-    "@metamask/keyring-api": "^17.2.0",
-    "@metamask/keyring-internal-api": "^4.0.3",
+    "@metamask/eth-simple-keyring": "^10.0.0",
+    "@metamask/keyring-api": "^17.4.0",
+    "@metamask/keyring-internal-api": "^6.0.1",
     "@metamask/utils": "^11.2.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
@@ -63,12 +63,13 @@
     "ulid": "^2.3.0"
   },
   "devDependencies": {
-    "@ethereumjs/common": "^3.2.0",
-    "@ethereumjs/tx": "^4.2.0",
+    "@ethereumjs/common": "^4.4.0",
+    "@ethereumjs/tx": "^5.4.0",
     "@keystonehq/bc-ur-registry-eth": "^0.19.0",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-utils": "^3.0.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
