@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated `TokensController`, `TokenListController`, and `AccountTrackerController` to use per-chain state variants. ([#5310](https://github.com/MetaMask/core/pull/5310))
+
+### Removed
+
+- **BREAKING:** Remove deprecated state fields scoped to the current chain ([#5310](https://github.com/MetaMask/core/pull/5310))
+  - This change removes the following state fields:
+    - `TokensController:state`
+      - `detectedTokens` (replaced by `detectedTokensByChainId`)
+      - `ignoredTokens` (replaced by `ignoredTokensByChainId`)
+      - `tokens` (replaced by `tokensByChainId`)
+    - `TokenListController:state`
+      - `tokenList` (replaced by `tokensChainsCache`)
+    - `AccountTrackerController:state`
+      - `accounts` (replaced by `accountsByChainId`)
+
 ## [55.0.1]
 
 ### Added

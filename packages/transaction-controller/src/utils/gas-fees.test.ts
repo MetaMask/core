@@ -1,7 +1,7 @@
 import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 
 import type { UpdateGasFeesRequest } from './gas-fees';
-import { updateGasFees } from './gas-fees';
+import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
 import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
 
@@ -548,5 +548,31 @@ describe('gas-fees', () => {
         );
       });
     });
+  });
+});
+
+describe('gweiDecimalToWeiDecimal', () => {
+  it('converts string gwei decimal to wei decimal', () => {
+    expect(gweiDecimalToWeiDecimal('1')).toBe('1000000000');
+    expect(gweiDecimalToWeiDecimal('1.5')).toBe('1500000000');
+    expect(gweiDecimalToWeiDecimal('0.1')).toBe('100000000');
+    expect(gweiDecimalToWeiDecimal('123.456')).toBe('123456000000');
+  });
+
+  it('converts number gwei decimal to wei decimal', () => {
+    expect(gweiDecimalToWeiDecimal(1)).toBe('1000000000');
+    expect(gweiDecimalToWeiDecimal(1.5)).toBe('1500000000');
+    expect(gweiDecimalToWeiDecimal(0.1)).toBe('100000000');
+    expect(gweiDecimalToWeiDecimal(123.456)).toBe('123456000000');
+  });
+
+  it('handles zero values', () => {
+    expect(gweiDecimalToWeiDecimal('0')).toBe('0');
+    expect(gweiDecimalToWeiDecimal(0)).toBe('0');
+  });
+
+  it('handles very large values', () => {
+    expect(gweiDecimalToWeiDecimal('1000000')).toBe('1000000000000000');
+    expect(gweiDecimalToWeiDecimal(1000000)).toBe('1000000000000000');
   });
 });

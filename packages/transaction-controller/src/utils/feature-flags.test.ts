@@ -6,10 +6,12 @@ import type { TransactionControllerFeatureFlags } from './feature-flags';
 import {
   FEATURE_FLAG_EIP_7702,
   FEATURE_FLAG_TRANSACTIONS,
+  getAcceleratedPollingParams,
   getBatchSizeLimit,
   getEIP7702ContractAddresses,
   getEIP7702SupportedChains,
   getEIP7702UpgradeContractAddress,
+  getGasFeeRandomisation,
 } from './feature-flags';
 import { isValidSignature } from './signature';
 import type { TransactionControllerMessenger } from '..';
@@ -190,6 +192,32 @@ describe('Feature Flags Utils', () => {
         ),
       ).toStrictEqual([ADDRESS_2_MOCK]);
     });
+
+    it('validates signature using padded chain ID', () => {
+      const chainId = '0x539' as const;
+
+      isValidSignatureMock.mockReturnValueOnce(false).mockReturnValueOnce(true);
+
+      mockFeatureFlags({
+        [FEATURE_FLAG_EIP_7702]: {
+          contracts: {
+            [chainId]: [{ address: ADDRESS_MOCK, signature: SIGNATURE_MOCK }],
+          },
+        },
+      });
+
+      getEIP7702ContractAddresses(
+        chainId,
+        controllerMessenger,
+        PUBLIC_KEY_MOCK,
+      );
+
+      expect(isValidSignatureMock).toHaveBeenCalledWith(
+        [ADDRESS_MOCK, `0x0539`],
+        SIGNATURE_MOCK,
+        PUBLIC_KEY_MOCK,
+      );
+    });
   });
 
   describe('getEIP7702UpgradeContractAddress', () => {
@@ -282,6 +310,197 @@ describe('Feature Flags Utils', () => {
     it('returns default value if undefined', () => {
       mockFeatureFlags({});
       expect(getBatchSizeLimit(controllerMessenger)).toBe(10);
+    });
+  });
+
+  describe('getAcceleratedPollingParams', () => {
+    it('returns default values if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 10,
+        intervalMs: 3000,
+      });
+    });
+
+    it('returns values from chain-specific config when available', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                countMax: 5,
+                intervalMs: 2000,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 5,
+        intervalMs: 2000,
+      });
+    });
+
+    it('returns default values from feature flag when no chain-specific config', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 15,
+        intervalMs: 4000,
+      });
+    });
+
+    it('uses chain-specific over default values', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                countMax: 5,
+                intervalMs: 2000,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 5,
+        intervalMs: 2000,
+      });
+    });
+
+    it('uses defaults if chain not found in perChainConfig', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+            perChainConfig: {
+              [CHAIN_ID_2_MOCK]: {
+                countMax: 5,
+                intervalMs: 2000,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 15,
+        intervalMs: 4000,
+      });
+    });
+
+    it('merges partial chain-specific config with defaults', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          acceleratedPolling: {
+            defaultCountMax: 15,
+            defaultIntervalMs: 4000,
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                // Only specify countMax, intervalMs should use default
+                countMax: 5,
+              },
+            },
+          },
+        },
+      });
+
+      const params = getAcceleratedPollingParams(
+        CHAIN_ID_MOCK as Hex,
+        controllerMessenger,
+      );
+
+      expect(params).toStrictEqual({
+        countMax: 5,
+        intervalMs: 4000,
+      });
+    });
+  });
+
+  describe('getGasFeeRandomisation', () => {
+    it('returns empty objects if no feature flags set', () => {
+      mockFeatureFlags({});
+
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {},
+        preservedNumberOfDigits: undefined,
+      });
+    });
+
+    it('returns values from feature flags when set', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasFeeRandomisation: {
+            randomisedGasFeeDigits: {
+              [CHAIN_ID_MOCK]: 3,
+              [CHAIN_ID_2_MOCK]: 5,
+            },
+            preservedNumberOfDigits: 2,
+          },
+        },
+      });
+
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {
+          [CHAIN_ID_MOCK]: 3,
+          [CHAIN_ID_2_MOCK]: 5,
+        },
+        preservedNumberOfDigits: 2,
+      });
+    });
+
+    it('returns empty randomisedGasFeeDigits if not set in feature flags', () => {
+      mockFeatureFlags({
+        [FEATURE_FLAG_TRANSACTIONS]: {
+          gasFeeRandomisation: {
+            preservedNumberOfDigits: 2,
+          },
+        },
+      });
+
+      expect(getGasFeeRandomisation(controllerMessenger)).toStrictEqual({
+        randomisedGasFeeDigits: {},
+        preservedNumberOfDigits: 2,
+      });
     });
   });
 });
