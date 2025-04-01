@@ -76,7 +76,7 @@ export function createNetworkClient({
       : configuration.rpcUrl;
   const availableEndpointUrls = [
     primaryEndpointUrl,
-    ...configuration.failoverRpcUrls,
+    ...(configuration.failoverRpcUrls ?? []),
   ];
   const rpcService = new RpcServiceChain(
     availableEndpointUrls.map((endpointUrl) => ({

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `RpcEndpoint` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking
+- Update `NetworkClientConfiguration` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking
+
 ### Fixed
 
 - Upgrade `@metamask/eth-json-rpc-infura` to `^10.1.1` and `@metamask/eth-json-rpc-infura` to `^16.0.1` ([#5573](https://github.com/MetaMask/core/pull/5573))
