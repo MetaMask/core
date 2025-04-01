@@ -149,6 +149,7 @@ export type BridgeToken = {
   // TODO deprecate this field and use balance instead
   string: string | undefined; // normalized balance as a stringified number
   tokenFiatAmount?: number | null;
+  occurrences?: number;
 };
 
 export enum BridgeFlag {
