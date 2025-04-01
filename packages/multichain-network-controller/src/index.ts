@@ -1,5 +1,8 @@
 export { MultichainNetworkController } from './MultichainNetworkController';
-export { getDefaultMultichainNetworkControllerState } from './constants';
+export {
+  getDefaultMultichainNetworkControllerState,
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+} from './constants';
 export type {
   MultichainNetworkMetadata,
   SupportedCaipChainId,

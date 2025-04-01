@@ -7,8 +7,7 @@ import {
 } from './fetch';
 import mockBridgeQuotesErc20Erc20 from '../../tests/mock-quotes-erc20-erc20.json';
 import mockBridgeQuotesNativeErc20 from '../../tests/mock-quotes-native-erc20.json';
-import { BridgeClientId } from '../constants/bridge';
-import { CHAIN_IDS } from '../constants/chains';
+import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
 
 const mockFetchFn = jest.fn();
 
@@ -44,6 +43,10 @@ describe('fetch', () => {
             isActiveSrc: false,
             isActiveDest: true,
           },
+          '1151111081099710': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
         },
       };
       const mockResponse = {
@@ -56,12 +59,17 @@ describe('fetch', () => {
       const result = await fetchBridgeFeatureFlags(
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
         {
           headers: { 'X-Client-Id': 'extension' },
+          cacheOptions: {
+            cacheRefreshTime: 600000,
+          },
+          functionName: 'fetchBridgeFeatureFlags',
         },
       );
 
@@ -70,29 +78,33 @@ describe('fetch', () => {
         refreshRate: 3,
         support: true,
         chains: {
-          [CHAIN_IDS.MAINNET]: {
-            isActiveSrc: true,
+          'eip155:1': {
             isActiveDest: true,
-          },
-          [CHAIN_IDS.OPTIMISM]: {
             isActiveSrc: true,
+          },
+          'eip155:10': {
             isActiveDest: false,
-          },
-          [CHAIN_IDS.LINEA_MAINNET]: {
             isActiveSrc: true,
+          },
+          'eip155:11111': {
             isActiveDest: true,
+            isActiveSrc: false,
           },
-          '0x78': {
-            isActiveSrc: true,
+          'eip155:120': {
             isActiveDest: false,
+            isActiveSrc: true,
           },
-          [CHAIN_IDS.POLYGON]: {
-            isActiveSrc: false,
+          'eip155:137': {
             isActiveDest: true,
+            isActiveSrc: false,
           },
-          '0x2b67': {
-            isActiveSrc: false,
+          'eip155:59144': {
             isActiveDest: true,
+            isActiveSrc: true,
+          },
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            isActiveDest: true,
+            isActiveSrc: true,
           },
         },
       };
@@ -129,11 +141,16 @@ describe('fetch', () => {
       const result = await fetchBridgeFeatureFlags(
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getAllFeatureFlags',
         {
+          cacheOptions: {
+            cacheRefreshTime: 600000,
+          },
+          functionName: 'fetchBridgeFeatureFlags',
           headers: { 'X-Client-Id': 'extension' },
         },
       );
@@ -156,7 +173,11 @@ describe('fetch', () => {
       mockFetchFn.mockRejectedValue(mockError);
 
       await expect(
-        fetchBridgeFeatureFlags(BridgeClientId.EXTENSION, mockFetchFn),
+        fetchBridgeFeatureFlags(
+          BridgeClientId.EXTENSION,
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+        ),
       ).rejects.toThrow(mockError);
     });
   });
@@ -165,28 +186,59 @@ describe('fetch', () => {
     it('should fetch bridge tokens successfully', async () => {
       const mockResponse = [
         {
+          address: '0x0000000000000000000000000000000000000000',
+          assetId: 'eip155:10/slip44:614',
+          symbol: 'ETH',
+          decimals: 18,
+          name: 'Ether',
+          coingeckoId: 'ethereum',
+          aggregators: [],
+          iconUrl:
+            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+          metadata: {
+            honeypotStatus: {},
+            isContractVerified: false,
+            erc20Permit: false,
+            description: {},
+            createdAt: '2023-10-31T22:16:37.494Z',
+          },
+          chainId: 10,
+        },
+        {
           address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+          assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
           symbol: 'ABC',
+          name: 'ABC',
           decimals: 16,
+          chainId: 10,
         },
         {
           address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f985',
+          assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f985',
           decimals: 16,
+          chainId: 10,
         },
         {
           address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f986',
+          assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986',
           decimals: 16,
           symbol: 'DEF',
+          name: 'DEF',
           aggregators: ['lifi'],
+          chainId: 10,
         },
         {
           address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f987',
+          assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f987',
           symbol: 'DEF',
+          chainId: 10,
         },
         {
           address: '0x124',
+          assetId: 'eip155:10/erc20:0x0b2c639c533813f4aa9d7837caf62653d097ff85',
           symbol: 'JKL',
           decimals: 16,
+          chainId: 10,
         },
       ];
 
@@ -196,11 +248,16 @@ describe('fetch', () => {
         '0xa',
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
         'https://bridge.api.cx.metamask.io/getTokens?chainId=10',
         {
+          cacheOptions: {
+            cacheRefreshTime: 600000,
+          },
+          functionName: 'fetchBridgeTokens',
           headers: { 'X-Client-Id': 'extension' },
         },
       );
@@ -208,20 +265,38 @@ describe('fetch', () => {
       expect(result).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           address: '0x0000000000000000000000000000000000000000',
+          aggregators: [],
+          assetId: 'eip155:10/slip44:614',
+          chainId: 10,
+          coingeckoId: 'ethereum',
           decimals: 18,
-          iconUrl: '',
+          iconUrl:
+            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+          metadata: {
+            createdAt: '2023-10-31T22:16:37.494Z',
+            description: {},
+            erc20Permit: false,
+            honeypotStatus: {},
+            isContractVerified: false,
+          },
           name: 'Ether',
           symbol: 'ETH',
         },
         '0x1f9840a85d5af5bf1d1762f925bdaddc4201f986': {
           address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f986',
+          assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f986',
+          chainId: 10,
           decimals: 16,
+          name: 'DEF',
           symbol: 'DEF',
           aggregators: ['lifi'],
         },
         '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
           address: '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+          assetId: 'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+          chainId: 10,
           decimals: 16,
+          name: 'ABC',
           symbol: 'ABC',
         },
       });
@@ -233,7 +308,12 @@ describe('fetch', () => {
       mockFetchFn.mockRejectedValue(mockError);
 
       await expect(
-        fetchBridgeTokens('0xa', BridgeClientId.EXTENSION, mockFetchFn),
+        fetchBridgeTokens(
+          '0xa',
+          BridgeClientId.EXTENSION,
+          mockFetchFn,
+          BRIDGE_PROD_API_BASE_URL,
+        ),
       ).rejects.toThrow(mockError);
     });
   });
@@ -245,7 +325,7 @@ describe('fetch', () => {
 
       const result = await fetchBridgeQuotes(
         {
-          walletAddress: '0x123',
+          walletAddress: '0x388c818ca8b9251b393131c08a736a67ccb19297',
           srcChainId: 1,
           destChainId: 10,
           srcTokenAddress: AddressZero,
@@ -256,11 +336,16 @@ describe('fetch', () => {
         signal,
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
         {
+          cacheOptions: {
+            cacheRefreshTime: 0,
+          },
+          functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension' },
           signal,
         },
@@ -279,7 +364,7 @@ describe('fetch', () => {
 
       const result = await fetchBridgeQuotes(
         {
-          walletAddress: '0x123',
+          walletAddress: '0x388c818ca8b9251b393131c08a736a67ccb19297',
           srcChainId: 1,
           destChainId: 10,
           srcTokenAddress: AddressZero,
@@ -290,11 +375,16 @@ describe('fetch', () => {
         signal,
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
         {
+          cacheOptions: {
+            cacheRefreshTime: 0,
+          },
+          functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension' },
           signal,
         },
@@ -332,7 +422,7 @@ describe('fetch', () => {
 
       const result = await fetchBridgeQuotes(
         {
-          walletAddress: '0x123',
+          walletAddress: '0x388c818ca8b9251b393131c08a736a67ccb19297',
           srcChainId: 1,
           destChainId: 10,
           srcTokenAddress: AddressZero,
@@ -343,11 +433,16 @@ describe('fetch', () => {
         signal,
         BridgeClientId.EXTENSION,
         mockFetchFn,
+        BRIDGE_PROD_API_BASE_URL,
       );
 
       expect(mockFetchFn).toHaveBeenCalledWith(
-        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x123&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&slippage=0.5&insufficientBal=false&resetApproval=false',
+        'https://bridge.api.cx.metamask.io/getQuote?walletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&destWalletAddress=0x388C818CA8B9251b393131C08a736A67ccB19297&srcChainId=1&destChainId=10&srcTokenAddress=0x0000000000000000000000000000000000000000&destTokenAddress=0x0000000000000000000000000000000000000000&srcTokenAmount=20000&insufficientBal=false&resetApproval=false&slippage=0.5',
         {
+          cacheOptions: {
+            cacheRefreshTime: 0,
+          },
+          functionName: 'fetchBridgeQuotes',
           headers: { 'X-Client-Id': 'extension' },
           signal,
         },

@@ -1,11 +1,12 @@
 import { getAddress } from '@ethersproject/address';
 import type { BigNumber } from '@ethersproject/bignumber';
-import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+
+import { isNativeAddress } from './bridge';
 
 export const fetchTokenBalance = async (
   address: string,
@@ -28,7 +29,7 @@ export const calcLatestSrcBalance = async (
   chainId: Hex,
 ): Promise<BigNumber | undefined> => {
   if (tokenAddress && chainId) {
-    if (tokenAddress === AddressZero) {
+    if (isNativeAddress(tokenAddress)) {
       const ethersProvider = new Web3Provider(provider);
       return await ethersProvider.getBalance(getAddress(selectedAddress));
     }

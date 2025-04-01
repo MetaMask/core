@@ -1,23 +1,20 @@
-/* eslint-disable n/no-process-env */
 import { Contract } from '@ethersproject/contracts';
+import { SolScope } from '@metamask/keyring-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 
 import {
   getEthUsdtResetData,
+  getNativeAssetForChainId,
   isEthUsdt,
+  isSolanaChainId,
   isSwapsDefaultTokenAddress,
   isSwapsDefaultTokenSymbol,
   sumHexes,
-  getBridgeApiBaseUrl,
 } from './bridge';
 import {
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
-} from '../constants/bridge';
-import {
-  BRIDGE_DEV_API_BASE_URL,
-  BRIDGE_PROD_API_BASE_URL,
 } from '../constants/bridge';
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
@@ -95,10 +92,7 @@ describe('Bridge utils', () => {
   describe('isSwapsDefaultTokenAddress', () => {
     it('returns true for default token address of given chain', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
-      const defaultToken =
-        SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-          chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-        ];
+      const defaultToken = getNativeAssetForChainId(chainId);
 
       expect(isSwapsDefaultTokenAddress(defaultToken.address, chainId)).toBe(
         true,
@@ -120,10 +114,7 @@ describe('Bridge utils', () => {
   describe('isSwapsDefaultTokenSymbol', () => {
     it('returns true for default token symbol of given chain', () => {
       const chainId = Object.keys(SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[0] as Hex;
-      const defaultToken =
-        SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-          chainId as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
-        ];
+      const defaultToken = getNativeAssetForChainId(chainId);
 
       expect(isSwapsDefaultTokenSymbol(defaultToken.symbol, chainId)).toBe(
         true,
@@ -142,29 +133,73 @@ describe('Bridge utils', () => {
     });
   });
 
-  describe('getBridgeApiBaseUrl', () => {
-    const originalEnv = process.env;
-
-    beforeEach(() => {
-      process.env = { ...originalEnv };
+  describe('isSolanaChainId', () => {
+    it('returns true for ChainId.SOLANA', () => {
+      expect(isSolanaChainId(1151111081099710)).toBe(true);
     });
 
-    afterEach(() => {
-      process.env = originalEnv;
+    it('returns true for SolScope.Mainnet', () => {
+      expect(isSolanaChainId(SolScope.Mainnet)).toBe(true);
     });
 
-    it('returns custom API URL when BRIDGE_CUSTOM_API_BASE_URL is set', () => {
-      process.env.BRIDGE_CUSTOM_API_BASE_URL = 'https://custom-api.example.com';
-      expect(getBridgeApiBaseUrl()).toBe('https://custom-api.example.com');
+    it('returns false for other chainIds', () => {
+      expect(isSolanaChainId(1)).toBe(false);
+      expect(isSolanaChainId('0x0')).toBe(false);
+    });
+  });
+
+  describe('getNativeAssetForChainId', () => {
+    it('should return native asset for hex chainId', () => {
+      const result = getNativeAssetForChainId('0x1');
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x1'],
+        chainId: 1,
+        assetId: 'eip155:1/slip44:60',
+      });
     });
 
-    it('returns dev API URL when BRIDGE_USE_DEV_APIS is set', () => {
-      process.env.BRIDGE_USE_DEV_APIS = 'true';
-      expect(getBridgeApiBaseUrl()).toBe(BRIDGE_DEV_API_BASE_URL);
+    it('should return native asset for decimal chainId', () => {
+      const result = getNativeAssetForChainId(137);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x89'],
+        chainId: 137,
+        assetId: 'eip155:137/slip44:966',
+      });
     });
 
-    it('returns prod API URL by default', () => {
-      expect(getBridgeApiBaseUrl()).toBe(BRIDGE_PROD_API_BASE_URL);
+    it('should return native asset for CAIP chainId', () => {
+      const result = getNativeAssetForChainId('eip155:1');
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP['0x1'],
+        chainId: 1,
+        assetId: 'eip155:1/slip44:60',
+      });
+    });
+
+    it('should return native asset for Solana chainId', () => {
+      const result = getNativeAssetForChainId(SolScope.Mainnet);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[SolScope.Mainnet],
+        chainId: 1151111081099710,
+        assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      });
+    });
+
+    it('should throw error for unsupported chainId', () => {
+      expect(() => getNativeAssetForChainId('999999')).toThrow(
+        'No XChain Swaps native asset found for chainId: 999999',
+      );
+    });
+
+    it('should handle different chainId formats for the same chain', () => {
+      const hexResult = getNativeAssetForChainId('0x89');
+      const decimalResult = getNativeAssetForChainId(137);
+      const stringifiedDecimalResult = getNativeAssetForChainId('137');
+      const caipResult = getNativeAssetForChainId('eip155:137');
+
+      expect(hexResult).toStrictEqual(decimalResult);
+      expect(decimalResult).toStrictEqual(caipResult);
+      expect(decimalResult).toStrictEqual(stringifiedDecimalResult);
     });
   });
 });

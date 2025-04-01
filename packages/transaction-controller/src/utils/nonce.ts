@@ -51,14 +51,14 @@ export async function getNextNonce(
  *
  * @param currentChainId - Chain ID of the current network.
  * @param fromAddress - Address of the account from which the transactions to filter from are sent.
- * @param transactionStatus - Status of the transactions for which to filter.
+ * @param transactionStatuses - Status of the transactions for which to filter.
  * @param transactions - Array of transactionMeta objects that have been prefiltered.
  * @returns Array of transactions formatted for the nonce tracker.
  */
 export function getAndFormatTransactionsForNonceTracker(
   currentChainId: string,
   fromAddress: string,
-  transactionStatus: TransactionStatus,
+  transactionStatuses: TransactionStatus[],
   transactions: TransactionMeta[],
 ): NonceTrackerTransaction[] {
   return transactions
@@ -67,7 +67,7 @@ export function getAndFormatTransactionsForNonceTracker(
         !isTransfer &&
         !isUserOperation &&
         chainId === currentChainId &&
-        status === transactionStatus &&
+        transactionStatuses.includes(status) &&
         from.toLowerCase() === fromAddress.toLowerCase(),
     )
     .map(({ status, txParams: { from, gas, value, nonce } }) => {

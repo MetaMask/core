@@ -1,15 +1,11 @@
 import { TestGasFeeFlow } from './TestGasFeeFlow';
-import {
-  GasFeeEstimateType,
-  type GasFeeFlowRequest,
-  type TransactionMeta,
-} from '../types';
+import { GasFeeEstimateType, type GasFeeFlowRequest } from '../types';
 
 describe('TestGasFeeFlow', () => {
   describe('matchesTransaction', () => {
     it('should return true', () => {
       const testGasFeeFlow = new TestGasFeeFlow();
-      const result = testGasFeeFlow.matchesTransaction({} as TransactionMeta);
+      const result = testGasFeeFlow.matchesTransaction();
       expect(result).toBe(true);
     });
   });
