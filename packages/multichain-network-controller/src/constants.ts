@@ -91,3 +91,14 @@ export const CAIP_ACCOUNT_PREFIXES = {
   BTC: `${KnownCaipNamespace.Bip122}:0:`,
   SOLANA: `${KnownCaipNamespace.Solana}:0:`,
 } as const;
+
+/**
+ * The client header for the multichain accounts API.
+ */
+export const MULTICHAIN_ACCOUNTS_CLIENT_HEADER = 'x-metamask-clientproduct';
+
+/**
+ * The client ID for the multichain accounts API.
+ */
+export const MULTICHAIN_ACCOUNTS_CLIENT_ID =
+  'metamask-multichain-network-controller';

@@ -17,7 +17,11 @@ import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
   CAIP_ACCOUNT_PREFIXES,
 } from './constants';
-import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
+import {
+  MULTICHAIN_ACCOUNTS_DOMAIN,
+  MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
+  MULTICHAIN_ACCOUNTS_CLIENT_ID,
+} from './constants';
 import type {
   SupportedCaipChainId,
   MultichainNetworkConfiguration,
@@ -192,6 +196,7 @@ export async function fetchNetworkActivityByAccounts(
     const response: ActiveNetworksResponse = await handleFetch(url, {
       method: 'GET',
       headers: {
+        [MULTICHAIN_ACCOUNTS_CLIENT_HEADER]: MULTICHAIN_ACCOUNTS_CLIENT_ID,
         Accept: 'application/json',
       },
     });
