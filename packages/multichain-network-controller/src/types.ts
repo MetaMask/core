@@ -17,7 +17,7 @@ import type {
 } from '@metamask/network-controller';
 import {
   type CaipAssetType,
-  type Hex,
+  type CaipAccountAddress,
   type KnownCaipNamespace,
 } from '@metamask/utils';
 
@@ -216,7 +216,7 @@ export type ActiveNetworksResponse = {
  * The active networks for the currently selected account.
  */
 export type ActiveNetworksByAddress = {
-  [address in Hex]: {
+  [address in CaipAccountAddress]: {
     namespace: string;
     activeChains: string[];
   };
@@ -228,5 +228,5 @@ export type ActiveNetworksByAddress = {
 export type NetworkStringComponents = {
   namespace: KnownCaipNamespace;
   chainId: string;
-  address: Hex;
+  address: CaipAccountAddress;
 };

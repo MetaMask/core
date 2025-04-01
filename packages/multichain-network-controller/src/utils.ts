@@ -4,6 +4,7 @@ import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type Hex,
   type CaipChainId,
+  type CaipAccountAddress,
   KnownCaipNamespace,
   toCaipChainId,
   parseCaipChainId,
@@ -12,7 +13,10 @@ import {
 } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
-import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
+import {
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+  CAIP_ACCOUNT_PREFIXES,
+} from './constants';
 import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
 import type {
   SupportedCaipChainId,
@@ -288,4 +292,18 @@ export function formatNetworkActivityResponse(
   });
 
   return networksByAddress;
+}
+
+/**
+ * Formats an account address with its corresponding CAIP prefix. Used to format the account IDs for the active networks API.
+ *
+ * @param address - The account address
+ * @param chainType - The type of chain (EVM, BTC, or SOLANA)
+ * @returns The formatted CAIP-10 account identifier
+ */
+export function formatCaipAccountId(
+  address: CaipAccountAddress,
+  chainType: keyof typeof CAIP_ACCOUNT_PREFIXES,
+): string {
+  return `${CAIP_ACCOUNT_PREFIXES[chainType]}${address}`;
 }

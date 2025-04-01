@@ -6,7 +6,7 @@ import {
   type CaipChainId,
 } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
-import { type Hex, KnownCaipNamespace } from '@metamask/utils';
+import { type CaipAccountAddress, KnownCaipNamespace } from '@metamask/utils';
 
 import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
 import {
@@ -22,6 +22,7 @@ import {
   buildActiveNetworksUrl,
   validateAccountIds,
   parseNetworkString,
+  formatCaipAccountId,
 } from './utils';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -542,7 +543,8 @@ describe('utils', () => {
       expect(result).toStrictEqual({
         namespace: KnownCaipNamespace.Eip155,
         chainId: '1',
-        address: '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as Hex,
+        address:
+          '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as CaipAccountAddress,
       });
     });
 
@@ -553,7 +555,8 @@ describe('utils', () => {
       expect(result).toStrictEqual({
         namespace: KnownCaipNamespace.Eip155,
         chainId: '534352',
-        address: '0x5197b5b062288bbf29008c92b08010a92dd677cd' as Hex,
+        address:
+          '0x5197b5b062288bbf29008c92b08010a92dd677cd' as CaipAccountAddress,
       });
     });
 
@@ -569,7 +572,8 @@ describe('utils', () => {
       expect(result).toStrictEqual({
         namespace: KnownCaipNamespace.Solana,
         chainId: '1',
-        address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Hex,
+        address:
+          'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAccountAddress,
       });
     });
 
@@ -586,7 +590,7 @@ describe('utils', () => {
       expect(legacy).toStrictEqual({
         namespace: KnownCaipNamespace.Bip122,
         chainId: '1',
-        address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' as Hex,
+        address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' as CaipAccountAddress,
       });
 
       // Test SegWit address
@@ -596,7 +600,7 @@ describe('utils', () => {
       expect(segwit).toStrictEqual({
         namespace: KnownCaipNamespace.Bip122,
         chainId: '1',
-        address: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy' as Hex,
+        address: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy' as CaipAccountAddress,
       });
 
       // Test Native SegWit address
@@ -606,7 +610,8 @@ describe('utils', () => {
       expect(nativeSegwit).toStrictEqual({
         namespace: KnownCaipNamespace.Bip122,
         chainId: '1',
-        address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' as Hex,
+        address:
+          'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' as CaipAccountAddress,
       });
     });
 
@@ -622,7 +627,8 @@ describe('utils', () => {
       expect(result).toStrictEqual({
         namespace: KnownCaipNamespace.Eip155,
         chainId: '',
-        address: '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as Hex,
+        address:
+          '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as CaipAccountAddress,
       });
     });
 
@@ -643,6 +649,36 @@ describe('utils', () => {
     it('should handle empty string', () => {
       const result = parseNetworkString('');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('formatCaipAccountId', () => {
+    it('formats EVM addresses correctly', () => {
+      const evmAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
+      expect(formatCaipAccountId(evmAddress, 'EVM')).toBe(
+        `${KnownCaipNamespace.Eip155}:0:${evmAddress}`,
+      );
+    });
+
+    it('formats Solana addresses correctly', () => {
+      const solanaAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      expect(formatCaipAccountId(solanaAddress, 'SOLANA')).toBe(
+        `${KnownCaipNamespace.Solana}:0:${solanaAddress}`,
+      );
+    });
+
+    it('formats Bitcoin addresses correctly', () => {
+      const bitcoinAddress = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+      expect(formatCaipAccountId(bitcoinAddress, 'BTC')).toBe(
+        `${KnownCaipNamespace.Bip122}:0:${bitcoinAddress}`,
+      );
+    });
+
+    it('maintains address case sensitivity', () => {
+      const mixedCaseAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
+      const result = formatCaipAccountId(mixedCaseAddress, 'EVM');
+      expect(result).toContain(mixedCaseAddress);
+      expect(result).not.toContain(mixedCaseAddress.toLowerCase());
     });
   });
 });

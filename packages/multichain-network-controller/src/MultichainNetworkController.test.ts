@@ -537,7 +537,11 @@ describe('MultichainNetworkController', () => {
 
   describe('getNetworksWithActivityByAccounts', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      jest.spyOn(console, 'error').mockImplementation();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
     });
 
     it('should return networksWithActivity when no accounts exist', async () => {
@@ -626,6 +630,48 @@ describe('MultichainNetworkController', () => {
           activeChains: ['1'],
         },
       });
+    });
+
+    it('should handle errors and return cached networksWithActivity', async () => {
+      const mockCachedNetworks = {
+        '0x1234567890123456789012345678901234567890': {
+          namespace: 'eip155',
+          activeChains: ['1'],
+        },
+      };
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            networksWithActivity: mockCachedNetworks,
+          },
+        },
+      });
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: '0x1234567890123456789012345678901234567890',
+          }),
+        ],
+      );
+
+      await controller.getNetworksWithActivityByAccounts();
+
+      (fetchNetworkActivityByAccounts as jest.Mock).mockRejectedValueOnce(
+        new Error('Network error'),
+      );
+
+      const result = await controller.getNetworksWithActivityByAccounts();
+
+      expect(console.error).toHaveBeenCalledWith(
+        'Error fetching networks with activity by accounts',
+        expect.any(Error),
+      );
+
+      expect(result).toStrictEqual(mockCachedNetworks);
     });
   });
 });

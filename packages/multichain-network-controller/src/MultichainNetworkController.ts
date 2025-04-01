@@ -2,11 +2,7 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import {
-  type CaipChainId,
-  isCaipChainId,
-  KnownCaipNamespace,
-} from '@metamask/utils';
+import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
@@ -26,6 +22,7 @@ import {
   formatNetworkActivityResponse,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
+  formatCaipAccountId,
 } from './utils';
 
 /**
@@ -127,9 +124,9 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
-   * Retrieves all multichain accounts from the AccountsController.
+   * Lists all multichain accounts from the AccountsController.
    *
-   * @returns An array of internal accounts.
+   * @returns Array of internal accounts
    */
   #listMultichainAccounts(): InternalAccount[] {
     return this.messagingSystem.call(
@@ -138,11 +135,12 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
-   * Filters and returns non-EVM accounts that should have balances.
+   * Lists only EVM accounts from all available multichain accounts.
    *
-   * @returns An array of non-EVM internal accounts.
+   * @returns Array of EVM internal accounts
    */
   #listEVMAccounts(): InternalAccount[] {
+    // TODO: This method will need to be updated when we add support for BTC and Solana
     const accounts = this.#listMultichainAccounts();
     return accounts.filter((account) => isEvmAccountType(account.type));
   }
@@ -174,24 +172,31 @@ export class MultichainNetworkController extends BaseController<
    * @returns A promise that resolves to the active networks for the available addresses
    */
   async getNetworksWithActivityByAccounts(): Promise<ActiveNetworksByAddress> {
-    const accounts = this.#listEVMAccounts();
-    if (!accounts || accounts.length === 0) {
+    try {
+      const accounts = this.#listEVMAccounts();
+      if (!accounts || accounts.length === 0) {
+        return this.state.networksWithActivity;
+      }
+
+      // TODO: This is a temporary solution to format the account IDs for the active networks API.
+      // Once we support BTC and Solana, we will need to update this method to support multiple chain types.
+      const formattedEVMAccounts = accounts.map((account) => {
+        return formatCaipAccountId(account.address, 'EVM');
+      });
+
+      const activeNetworks =
+        await fetchNetworkActivityByAccounts(formattedEVMAccounts);
+      const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
+
+      this.update((state) => {
+        state.networksWithActivity = formattedNetworks;
+      });
+
+      return this.state.networksWithActivity;
+    } catch (error) {
+      console.error('Error fetching networks with activity by accounts', error);
       return this.state.networksWithActivity;
     }
-
-    const formattedEVMAccounts = accounts.map((account) => {
-      return `${KnownCaipNamespace.Eip155}:0:${account.address}`;
-    });
-
-    const activeNetworks =
-      await fetchNetworkActivityByAccounts(formattedEVMAccounts);
-    const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
-
-    this.update((state) => {
-      state.networksWithActivity = formattedNetworks;
-    });
-
-    return this.state.networksWithActivity;
   }
 
   /**
