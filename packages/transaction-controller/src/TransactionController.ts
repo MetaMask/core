@@ -1158,7 +1158,7 @@ export class TransactionController extends BaseController<
     const isEIP1559Compatible =
       await this.getEIP1559Compatibility(networkClientId);
 
-    validateTxParams(txParams, isEIP1559Compatible);
+    validateTxParams(txParams, isEIP1559Compatible, chainId);
 
     if (!txParams.type) {
       // Determine transaction type based on transaction parameters and network compatibility

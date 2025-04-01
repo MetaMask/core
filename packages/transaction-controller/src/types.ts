@@ -751,6 +751,9 @@ export type TransactionParams = {
 
   /**
    * Network ID as per EIP-155.
+   *
+   * @deprecated Ignored.
+   * Use `networkClientId` when calling `addTransaction`.
    */
   chainId?: Hex;
 
