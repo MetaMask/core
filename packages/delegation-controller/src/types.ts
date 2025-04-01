@@ -5,6 +5,7 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
+import type { NetworkControllerGetSelectedChainIdAction } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import {
   SIGNABLE_DELEGATION_TYPED_DATA as DELEGATION_TYPED_DATA,
@@ -75,7 +76,8 @@ export type DelegationControllerEvents = DelegationControllerStateChangeEvent;
 
 export type AllowedActions =
   | KeyringControllerSignTypedMessageAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerGetSelectedChainIdAction;
 
 type AllowedEvents = never;
 

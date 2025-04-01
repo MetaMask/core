@@ -3,6 +3,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { TypedMessageParams } from '@metamask/keyring-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
+import { hexToNumber } from '@metamask/utils';
 import {
   getDelegationHashOffchain,
   getDeleGatorEnvironment,
@@ -17,7 +18,6 @@ import {
   type DelegationEntry,
 } from './types';
 import { parseDelegation } from './utils';
-import { sepolia } from 'viem/chains';
 
 export const controllerName = 'DelegationController';
 
@@ -84,20 +84,26 @@ export class DelegationController extends BaseController<
   }
 
   async sign(delegation: Delegation) {
-    const chainId = sepolia.id;
+    const chainId = this.messagingSystem.call(
+      'NetworkController:getSelectedChainId',
+    );
 
     const account = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
 
-    const delegatorEnv = getDeleGatorEnvironment(chainId, '1.2.0');
+    if (!chainId || !account) {
+      throw new Error('No chainId or account selected');
+    }
+
+    const delegatorEnv = getDeleGatorEnvironment(hexToNumber(chainId), '1.2.0');
 
     const data: TypedMessageParams = {
       data: {
         types: SIGNABLE_DELEGATION_TYPED_DATA,
         primaryType: 'Delegation',
         domain: {
-          chainId: String(chainId),
+          chainId: hexToNumber(chainId),
           name: 'DelegationManager',
           version: '1',
           verifyingContract: delegatorEnv.DelegationManager,
