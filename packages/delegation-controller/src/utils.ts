@@ -2,6 +2,8 @@ import type { DelegationStruct } from '@metamask-private/delegator-core-viem';
 
 import type { Delegation } from './types';
 
+export { hexToNumber } from '@metamask/utils';
+
 /**
  * Serializes a delegation to a form that can be stored in the controller state.
  *

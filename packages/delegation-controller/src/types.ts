@@ -6,16 +6,15 @@ import type {
 } from '@metamask/base-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { NetworkControllerGetSelectedChainIdAction } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
-import {
-  SIGNABLE_DELEGATION_TYPED_DATA as DELEGATION_TYPED_DATA,
-  type DelegationStruct,
-} from '@metamask-private/delegator-core-viem';
+import type { Address, Hex } from 'viem';
 
 import type {
   controllerName,
   DelegationController,
 } from './delegation-controller';
+import type { DelegationStruct } from './sdk';
+
+export type { Address, Hex } from 'viem';
 
 export type Delegation = Omit<DelegationStruct, 'salt'> & { salt: string };
 
@@ -24,22 +23,31 @@ export type DelegationMetadata = {
   label: string;
 };
 
-const EIP712Domain = [
-  { name: 'name', type: 'string' },
-  { name: 'version', type: 'string' },
-  { name: 'chainId', type: 'uint256' },
-  { name: 'verifyingContract', type: 'address' },
-];
-
-export const SIGNABLE_DELEGATION_TYPED_DATA = {
-  EIP712Domain,
-  ...DELEGATION_TYPED_DATA,
-};
-
 export type DelegationEntry = {
   data: Delegation;
   meta: DelegationMetadata;
 };
+
+export type FilterByHash = {
+  hash: Hex;
+};
+
+export type FilterByDelegator = {
+  delegator: Address;
+  delegate?: Address;
+  label?: string;
+};
+
+export type FilterByDelegate = {
+  delegate: Address;
+  delegator?: Address;
+  label?: string;
+};
+
+export type DelegationFilter =
+  | FilterByHash
+  | FilterByDelegator
+  | FilterByDelegate;
 
 export type DelegationControllerState = {
   delegations: {

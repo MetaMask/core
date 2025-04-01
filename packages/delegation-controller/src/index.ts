@@ -5,4 +5,5 @@ export type {
   Delegation,
   AllowedActions,
 } from './types';
+
 export { DelegationController } from './delegation-controller';
