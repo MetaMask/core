@@ -2,42 +2,19 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { TypedMessageParams } from '@metamask/keyring-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import type { Hex } from '@metamask/utils';
-import { hexToNumber } from '@metamask/utils';
-import {
-  getDelegationHashOffchain,
-  getDeleGatorEnvironment,
-} from '@metamask-private/delegator-core-viem';
-import type { Address } from 'viem';
 
-import {
-  SIGNABLE_DELEGATION_TYPED_DATA,
-  type Delegation,
-  type DelegationControllerMessenger,
-  type DelegationControllerState,
-  type DelegationEntry,
+import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
+import { getDelegationHashOffchain, getDeleGatorEnvironment } from './sdk';
+import type {
+  Delegation,
+  DelegationControllerMessenger,
+  DelegationControllerState,
+  DelegationEntry,
+  DelegationFilter,
 } from './types';
-import { parseDelegation } from './utils';
+import { hexToNumber, parseDelegation } from './utils';
 
 export const controllerName = 'DelegationController';
-
-type FilterByHash = {
-  hash: Hex;
-};
-
-type FilterByDelegator = {
-  delegator: Address;
-  delegate?: Address;
-  label?: string;
-};
-
-type FilterByDelegate = {
-  delegate: Address;
-  delegator?: Address;
-  label?: string;
-};
-
-type DelegationFilter = FilterByHash | FilterByDelegator | FilterByDelegate;
 
 const delegationControllerMetadata = {
   delegations: {
@@ -96,7 +73,7 @@ export class DelegationController extends BaseController<
       throw new Error('No chainId or account selected');
     }
 
-    const delegatorEnv = getDeleGatorEnvironment(hexToNumber(chainId), '1.2.0');
+    const delegatorEnv = getDeleGatorEnvironment(hexToNumber(chainId));
 
     const data: TypedMessageParams = {
       data: {
@@ -113,11 +90,11 @@ export class DelegationController extends BaseController<
       from: account.address,
     };
 
-    const signature = (await this.messagingSystem.call(
+    const signature: string = await this.messagingSystem.call(
       'KeyringController:signTypedMessage',
       data,
       SignTypedDataVersion.V4,
-    )) as string;
+    );
 
     return signature;
   }
