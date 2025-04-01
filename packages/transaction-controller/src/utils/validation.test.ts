@@ -177,21 +177,6 @@ describe('validation', () => {
           from: '0x3244e191f1b4903970224322180f1fbbc415696b',
           to: '0x3244e191f1b4903970224322180f1fbbc415696b',
           value: '1',
-          chainId: {},
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction params: chainId is not a Number or hex string. got: ([object Object])',
-        ),
-      );
-
-      expect(() =>
-        validateTxParams({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          value: '1',
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any),
@@ -606,6 +591,80 @@ describe('validation', () => {
             `Invalid transaction params: yParity must be '0x' or '0x1'. got: 0x2`,
           ),
         );
+      });
+    });
+
+    describe('chainId', () => {
+      it('throws if chain ID in params does not match chain ID of network client', () => {
+        const chainIdParams = '0x1';
+        const chainIdNetworkClient = '0x2';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+              chainId: chainIdParams,
+            },
+            false,
+            chainIdNetworkClient,
+          ),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            `Invalid transaction params: chainId must match the network client, got: ${chainIdParams}, expected: ${chainIdNetworkClient}`,
+          ),
+        );
+      });
+
+      it('throws if chain ID in params is wrong type', () => {
+        const chainIdParams = 123 as never;
+        const chainIdNetworkClient = '0x2';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+              chainId: chainIdParams,
+            },
+            false,
+            chainIdNetworkClient,
+          ),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            `Invalid transaction params: chainId must match the network client, got: ${String(chainIdParams)}, expected: ${chainIdNetworkClient}`,
+          ),
+        );
+      });
+
+      it('does not throw if no chain ID in params', () => {
+        const chainIdNetworkClient = '0x2';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+            },
+            false,
+            chainIdNetworkClient,
+          ),
+        ).not.toThrow();
+      });
+
+      it('does not throw if no network client chain ID', () => {
+        const chainIdParams = '0x1';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+              chainId: chainIdParams,
+            },
+            false,
+          ),
+        ).not.toThrow();
       });
     });
   });
