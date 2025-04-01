@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.1]
+### Fixed
+- Fix `fetch` middleware so that non-standard JSON-RPC error responses are no longer treated as successful responses ([#367](https://github.com/MetaMask/eth-json-rpc-middleware/pull/367))
+  - A "non-standard" error response is one with an `error` field but where there are more properties in the error object than expected
+
 ## [16.0.0]
 ### Added
 - Support updated EIP-5792 specification ([#363](https://github.com/MetaMask/eth-json-rpc-middleware/pull/363))
@@ -306,7 +311,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v16.0.1...HEAD
+[16.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v16.0.0...v16.0.1
 [16.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.3.0...v16.0.0
 [15.3.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.2.0...v15.3.0
 [15.2.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.1.2...v15.2.0
