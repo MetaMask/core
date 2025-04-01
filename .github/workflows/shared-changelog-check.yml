@@ -1,0 +1,152 @@
+name: Shared Changelog Check
+
+on:
+  workflow_call:
+    inputs:
+      feature-branch:
+        required: true
+        type: string
+      pr-number:
+        required: false
+        type: string
+      event-type:
+        required: true
+        type: string
+      is-monorepo:
+        description: 'Set to true for monorepo projects (only yarn workspaces are supported)'
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      gh-token:
+        required: true
+
+jobs:
+  shared_changelog_check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conditional Skip or Execute
+        run: |
+          if [[ "${{ inputs.event-type }}" == "merge_group" ]]; then
+            echo "Merge group event detected, auto-succeeding."
+            exit 0
+          fi
+          echo "Proceeding with pull request checks."
+
+      - name: Checkout github-tools repository
+        if: ${{ inputs.event-type == 'pull_request' }}
+        uses: actions/checkout@v4
+        with:
+          repository: MetaMask/core
+          ref: changelog-checker
+          path: github-tools
+
+      - name: Set up Node.js
+        if: ${{ inputs.event-type == 'pull_request' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ./github-tools/.nvmrc
+          cache-dependency-path: ./github-tools/yarn.lock
+          cache: yarn
+
+      - name: Enable Corepack
+        if: ${{ inputs.event-type == 'pull_request' }}
+        run: corepack enable
+        shell: bash
+        working-directory: ./github-tools
+
+      - name: Install dependencies
+        if: ${{ inputs.event-type == 'pull_request' }}
+        run: yarn --immutable
+        shell: bash
+        working-directory: ./github-tools
+
+      - name: Check PR Labels
+        if: ${{ inputs.event-type == 'pull_request' }}
+        id: label-check
+        run: |
+          # Fetch labels from the GitHub API
+          labels=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+          "https://api.github.com/repos/${{ github.repository }}/issues/${{ inputs.pr-number }}/labels")
+
+          # Proceed with checking for the 'no-changelog' label using jq
+          if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
+            echo "No-changelog label found, skipping changelog check."
+            echo "SKIP_CHANGELOG=true" >> $GITHUB_ENV
+          else
+            echo "SKIP_CHANGELOG=false" >> $GITHUB_ENV
+            echo "No-changelog label not found, proceeding with changelog check."
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.gh-token }}
+        shell: bash
+
+      - name: Check Changelog
+        if: ${{ inputs.event-type == 'pull_request' && env.SKIP_CHANGELOG != 'true' }}
+        id: changelog-check
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.gh-token }}
+          IS_MONOREPO: ${{ inputs.is-monorepo || 'false' }}
+        working-directory: ./github-tools
+        run: |
+          if [ "$IS_MONOREPO" = "true" ]; then
+            echo "Running in monorepo mode - checking changelogs for changed packages..."
+
+            # Fetch changed files in the PR
+            CHANGED_FILES=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" | \
+              jq -r '.[].filename')
+
+            # Identify changed packages
+            declare -a CHANGED_PACKAGES
+
+            # Extract package names from file paths
+            for FILE in $CHANGED_FILES; do
+              if [[ $FILE =~ ^packages/([^/]+)/ ]]; then
+                PACKAGE="${BASH_REMATCH[1]}"
+
+                # Skip test files, docs, etc. if desired
+                if [[ ! $FILE =~ \.test\.|\.spec\.|__tests__/ ]] && \
+                  [[ ! $FILE =~ ^packages/$PACKAGE/docs/ ]] && \
+                  [[ ! $FILE =~ ^packages/$PACKAGE/CHANGELOG\.md$ ]]; then
+
+                  # Add package to our tracking array if not already there
+                  if [[ ! " ${CHANGED_PACKAGES[@]} " =~ " ${PACKAGE} " ]]; then
+                    CHANGED_PACKAGES+=("$PACKAGE")
+                    echo "Code changes detected in package: $PACKAGE"
+                  fi
+                fi
+              fi
+            done
+
+            # Skip if no packages with code changes were found
+            if [ ${#CHANGED_PACKAGES[@]} -eq 0 ]; then
+              echo "No package code changes detected that would require changelog updates."
+              exit 0
+            fi
+
+            # Check changelogs for each changed package
+            OVERALL_STATUS=0
+            for PACKAGE in "${CHANGED_PACKAGES[@]}"; do
+              echo "Checking changelog for package: $PACKAGE"
+              CHANGELOG_PATH="packages/${PACKAGE}/CHANGELOG.md"
+
+              # Call the existing changelog:check script for each package
+              yarn run changelog:check ${{ github.repository }} ${{ github.head_ref }} "$CHANGELOG_PATH"
+
+              # Capture the exit code
+              STATUS=$?
+              if [ $STATUS -ne 0 ]; then
+                OVERALL_STATUS=1
+                echo "::error::Changelog check failed for package: $PACKAGE"
+              fi
+            done
+
+            # Exit with the overall status
+            exit $OVERALL_STATUS
+          else
+            echo "Running in single-repo mode - checking changelog for the entire repository..."
+            # Original single-repo check
+            yarn run changelog:check ${{ github.repository }} ${{ github.head_ref }} CHANGELOG.md
+          fi
