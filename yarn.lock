@@ -2991,6 +2991,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^21.0.1"
     "@metamask/network-controller": "npm:^22.2.1"
     "@metamask/utils": "npm:^11.3.0"
+    "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
