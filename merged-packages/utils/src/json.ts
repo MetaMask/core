@@ -45,6 +45,7 @@ export type Json =
  * A helper type to make properties with `undefined` in their type optional, but
  * not `undefined` itself.
  *
+ * @deprecated Use `ObjectType` and/or `ExactOptionalize` from `@metamask/superstruct@>=3.2.0` instead.
  * @example
  * ```ts
  * type Foo = ObjectOptional<{ foo: string | undefined }>;
@@ -67,6 +68,8 @@ export type ObjectOptional<Schema extends Record<string, unknown>> = {
  * An object type with support for exact optionals. This is used by the `object`
  * struct. This uses the {@link ObjectOptional} helper to make properties with
  * `undefined` in their type optional, but not `undefined` itself.
+ *
+ * @deprecated Use `ObjectType` from `@metamask/superstruct@>=3.2.0` instead.
  */
 export type ObjectType<Schema extends ObjectSchema> = Simplify<
   ObjectOptional<
@@ -80,6 +83,7 @@ export type ObjectType<Schema extends ObjectSchema> = Simplify<
  * A struct to check if the given value is a valid object, with support for
  * {@link exactOptional} types.
  *
+ * @deprecated Use `exactOptional` and `object` from `@metamask/superstruct@>=3.2.0` instead.
  * @param schema - The schema of the object.
  * @returns A struct to check if the given value is an object.
  */
@@ -116,6 +120,7 @@ function hasOptional({ path, branch }: Context): boolean {
  * This struct should be used in conjunction with the {@link object} from this
  * library, to get proper type inference.
  *
+ * @deprecated Use `exactOptional` and `object` from `@metamask/superstruct@>=3.2.0` instead.
  * @param struct - The struct to check the value against, if present.
  * @returns A struct to check if the given value is valid, or not present.
  * @example
