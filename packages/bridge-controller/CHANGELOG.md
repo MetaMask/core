@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Occurrences added to BridgeToken type ([#5572](https://github.com/MetaMask/core/pull/5572))
+
 ## [11.0.0]
 
 ### Added
