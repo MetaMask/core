@@ -1,18 +1,17 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { TypedMessageParams } from '@metamask/keyring-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
-import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
-import { getDelegationHashOffchain, getDeleGatorEnvironment } from './sdk';
+import { getDelegationHash } from './sdk';
 import type {
+  Address,
   Delegation,
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
   DelegationFilter,
 } from './types';
-import { parseDelegation } from './utils';
+import { createTypedMessageParams } from './utils';
 
 export const controllerName = 'DelegationController';
 
@@ -37,6 +36,10 @@ export function getDefaultDelegationControllerState(): DelegationControllerState
   };
 }
 
+/**
+ * The {@link DelegationController} class.
+ * This controller is meant to be a centralized place to store and sign delegations.
+ */
 export class DelegationController extends BaseController<
   typeof controllerName,
   DelegationControllerState,
@@ -60,9 +63,16 @@ export class DelegationController extends BaseController<
     });
   }
 
+  /**
+   * Signs a delegation.
+   *
+   * @param delegation - The delegation to sign.
+   * @returns The signature of the delegation.
+   */
   async sign(delegation: Delegation) {
     // TODO: Obtain this from `NetworkController:getSelectedChainId` once
     // available.
+    // Ref: https://github.com/MetaMask/metamask-extension/issues/31150
     const chainId = 11155111; // sepolia
 
     const account = this.messagingSystem.call(
@@ -73,23 +83,14 @@ export class DelegationController extends BaseController<
       throw new Error('No chainId or account selected');
     }
 
-    const delegatorEnv = getDeleGatorEnvironment(chainId);
+    const data = createTypedMessageParams({
+      chainId,
+      from: account.address as Address,
+      delegation,
+    });
 
-    const data: TypedMessageParams = {
-      data: {
-        types: SIGNABLE_DELEGATION_TYPED_DATA,
-        primaryType: 'Delegation',
-        domain: {
-          chainId,
-          name: 'DelegationManager',
-          version: '1',
-          verifyingContract: delegatorEnv.DelegationManager,
-        },
-        message: delegation,
-      },
-      from: account.address,
-    };
-
+    // TODO:: Replace with `SignatureController:newUnsignedTypedMessage`.
+    // Waiting on confirmations team to implement this.
     const signature: string = await this.messagingSystem.call(
       'KeyringController:signTypedMessage',
       data,
@@ -99,14 +100,22 @@ export class DelegationController extends BaseController<
     return signature;
   }
 
+  /**
+   * Stores a delegation in storage.
+   *
+   * @param delegation - The delegation to store.
+   */
   store(delegation: Delegation) {
-    const hash = getDelegationHashOffchain(parseDelegation(delegation));
+    const hash = getDelegationHash(delegation);
     this.update((state) => {
       state.delegations[hash] = {
         data: delegation,
         meta: {
           label: '',
-          chainId: 1,
+          // TODO: Obtain this from `NetworkController:getSelectedChainId` once
+          // available.
+          // Ref: https://github.com/MetaMask/metamask-extension/issues/31150
+          chainId: 11155111,
         },
       };
     });
@@ -155,7 +164,7 @@ export class DelegationController extends BaseController<
   }
 
   /**
-   * Deletes delegation entries from the controller state.
+   * Deletes delegation entries from storage.
    *
    * @param filter - The filter to use to delete the delegation entries.
    * @returns A list of delegation entries that were deleted.
@@ -164,7 +173,7 @@ export class DelegationController extends BaseController<
     const list = this.retrieve(filter);
     const deleted: DelegationEntry[] = [];
     list.forEach((entry) => {
-      const hash = getDelegationHashOffchain(parseDelegation(entry.data));
+      const hash = getDelegationHash(entry.data);
       deleted.push(entry);
       delete this.state.delegations[hash];
     });

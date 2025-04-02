@@ -1,4 +1,4 @@
-import { DELEGATION_TYPED_DATA } from './sdk';
+import { sdk } from './sdk';
 
 const EIP712Domain = [
   { name: 'name', type: 'string' },
@@ -9,5 +9,5 @@ const EIP712Domain = [
 
 export const SIGNABLE_DELEGATION_TYPED_DATA = {
   EIP712Domain,
-  ...DELEGATION_TYPED_DATA,
+  ...sdk.SIGNABLE_DELEGATION_TYPED_DATA,
 };

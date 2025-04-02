@@ -11,11 +11,13 @@ import type {
   controllerName,
   DelegationController,
 } from './delegation-controller';
-import type { DelegationStruct } from './sdk';
+import type { sdk } from './sdk';
 
 export type { Address, Hex } from 'viem';
 
-export type Delegation = Omit<DelegationStruct, 'salt'> & { salt: string };
+// TODO: Soon the SDK DelegationStruct will have a `salt` field of type `Hex`.
+// Until then, we'll have to convert things manually.
+export type Delegation = Omit<sdk.DelegationStruct, 'salt'> & { salt: Hex };
 
 export type DelegationMetadata = {
   chainId: number;

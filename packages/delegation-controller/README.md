@@ -1,6 +1,6 @@
 # `@metamask/delegation-controller`
 
-Maps ENS names to their resolved addresses by chain id.
+Centralized place to store and sign delegations.
 
 ## Installation
 
