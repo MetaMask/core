@@ -334,7 +334,7 @@ export function formatCaipAccountId(
     case ChainType.Solana:
       return `${CAIP_ACCOUNT_PREFIXES.SOLANA}${address}`;
     default:
-      throw new Error('Unsupported chain type');
+      throw new Error(`Unsupported chain type: ${String(chainType)}`);
   }
 }
 

@@ -694,10 +694,10 @@ describe('utils', () => {
     });
 
     it('throws an error for unsupported chain types', () => {
-      const unsupportedChainType = 'unsupported' as ChainType;
+      const unsupportedChainType = -1 as unknown as ChainType;
       expect(() =>
         formatCaipAccountId('address', unsupportedChainType),
-      ).toThrow('Unsupported chain type: unsupported');
+      ).toThrow('Unsupported chain type: -1');
     });
   });
 
