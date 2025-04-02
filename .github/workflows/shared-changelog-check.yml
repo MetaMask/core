@@ -164,7 +164,8 @@ jobs:
             # Extract package names from file paths
             while IFS= read -r FILE; do
               # Skip workflow files
-              if [[ "$FILE" =~ (^|^\./)\.github/workflows/ ]]; then
+              echo "Checking file: '$FILE'"
+              if [[ "$FILE" =~ ^\.github/workflows/ ]]; then
                 continue
               fi
 
