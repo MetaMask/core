@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/keyring-controller",
-  "version": "21.0.1",
-  "description": "Stores identities seen in the wallet and manages interactions such as signing",
+  "name": "@metamask/app-metadata-controller",
+  "version": "0.0.0",
+  "description": "Manages requests that for app metadata",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/keyring-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/app-metadata-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,8 +37,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/keyring-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/app-metadata-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/app-metadata-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -47,40 +47,18 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/util": "^9.1.0",
-    "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
-    "@metamask/base-controller": "^8.0.0",
-    "@metamask/browser-passworder": "^4.3.0",
-    "@metamask/eth-hd-keyring": "^12.0.0",
-    "@metamask/eth-sig-util": "^8.2.0",
-    "@metamask/eth-simple-keyring": "^10.0.0",
-    "@metamask/keyring-api": "^17.4.0",
-    "@metamask/keyring-internal-api": "^6.0.1",
-    "@metamask/utils": "^11.2.0",
-    "async-mutex": "^0.5.0",
-    "ethereumjs-wallet": "^1.0.1",
-    "immer": "^9.0.6",
-    "ulid": "^2.3.0"
+    "@metamask/base-controller": "^8.0.0"
   },
   "devDependencies": {
-    "@ethereumjs/common": "^4.4.0",
-    "@ethereumjs/tx": "^5.4.0",
-    "@keystonehq/bc-ur-registry-eth": "^0.19.0",
-    "@lavamoat/allow-scripts": "^3.0.4",
-    "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-utils": "^3.0.0",
-    "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "jest-environment-node": "^27.5.1",
     "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2",
-    "uuid": "^8.3.2"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
@@ -88,12 +66,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "lavamoat": {
-    "allowScripts": {
-      "@lavamoat/preinstall-always-fail": false,
-      "ethereumjs-wallet>ethereum-cryptography>keccak": false,
-      "ethereumjs-wallet>ethereum-cryptography>secp256k1": false
-    }
   }
 }
