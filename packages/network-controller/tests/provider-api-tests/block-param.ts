@@ -1,4 +1,5 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
+import { rpcErrors } from '@metamask/rpc-errors';
 
 import type { ProviderType } from './helpers';
 import {
@@ -9,6 +10,7 @@ import {
   withNetworkClient,
 } from './helpers';
 import { ignoreRejection } from '../../../../tests/helpers';
+import { NetworkClientType } from '../../src/types';
 import { buildRootMessenger } from '../helpers';
 
 type TestsForRpcMethodSupportingBlockParam = {
@@ -346,6 +348,69 @@ export function testsForRpcMethodSupportingBlockParam(
           mockResults[0],
           mockResults[0],
         ]);
+      });
+    });
+
+    it('does not discard an error in a non-standard JSON-RPC error response, but throws it', async () => {
+      const request = {
+        method,
+        params: buildMockParams({ blockParamIndex, blockParam }),
+      };
+      const error = {
+        code: -32000,
+        data: {
+          foo: 'bar',
+        },
+        message: 'VM Exception while processing transaction: revert',
+        name: 'RuntimeError',
+        stack:
+          'RuntimeError: VM Exception while processing transaction: revert at exactimate (/Users/elliot/code/metamask/metamask-mobile/node_modules/ganache/dist/node/webpack:/Ganache/ethereum/ethereum/lib/src/helpers/gas-estimator.js:257:23)',
+      };
+
+      await withMockedCommunications({ providerType }, async (comms) => {
+        // The first time a block-cacheable request is made, the
+        // block-cache middleware will request the latest block number
+        // through the block tracker to determine the cache key. Later,
+        // the block-ref middleware will request the latest block number
+        // again to resolve the value of "latest", but the block number is
+        // cached once made, so we only need to mock the request once.
+        comms.mockNextBlockTrackerRequest({ blockNumber: '0x100' });
+        comms.mockRpcCall({
+          request: buildRequestWithReplacedBlockParam(
+            request,
+            blockParamIndex,
+            '0x100',
+          ),
+          response: {
+            error,
+          },
+        });
+
+        const promise = withNetworkClient(
+          { providerType },
+          async ({ provider }) => {
+            return await provider.request(request);
+          },
+        );
+
+        // This is not ideal, but we can refactor this later.
+        // eslint-disable-next-line jest/no-conditional-in-test
+        if (providerType === NetworkClientType.Infura) {
+          // This is not ideal, but we can refactor this later.
+          // eslint-disable-next-line jest/no-conditional-expect
+          await expect(promise).rejects.toThrow(
+            rpcErrors.internal({
+              message: error.message,
+              data: { cause: error },
+            }),
+          );
+        } else {
+          // This is not ideal, but we can refactor this later.
+          // eslint-disable-next-line jest/no-conditional-expect
+          await expect(promise).rejects.toThrow(
+            rpcErrors.internal({ data: error }),
+          );
+        }
       });
     });
 
