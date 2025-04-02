@@ -51,9 +51,8 @@
     "@metamask/accounts-controller": "^27.0.0",
     "@metamask/base-controller": "^8.0.0",
     "@metamask/keyring-controller": "^21.0.1",
-    "@metamask/network-controller": "^22.2.1",
-    "@metamask/utils": "^11.3.0",
-    "viem": "^2.24.1"
+    "@metamask/network-controller": "^22.1.1",
+    "@metamask/utils": "^11.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
@@ -64,10 +63,11 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "viem": "^2.21.8"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^22.0.0"
+    "viem": ">=2.18.2 <3.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

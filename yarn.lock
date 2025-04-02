@@ -2989,7 +2989,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/keyring-controller": "npm:^21.0.1"
-    "@metamask/network-controller": "npm:^22.2.1"
+    "@metamask/network-controller": "npm:^22.1.1"
     "@metamask/utils": "npm:^11.3.0"
     "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
@@ -2999,9 +2999,9 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
-    viem: "npm:^2.24.1"
+    viem: "npm:^2.21.8"
   peerDependencies:
-    "@metamask/network-controller": ^22.0.0
+    viem: ">=2.18.2 <3.0.0"
   languageName: unknown
   linkType: soft
 
@@ -3177,7 +3177,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-infura@npm:^10.0.0, @metamask/eth-json-rpc-infura@npm:^10.1.0":
+"@metamask/eth-json-rpc-infura@npm:^10.0.0":
+  version: 10.1.1
+  resolution: "@metamask/eth-json-rpc-infura@npm:10.1.1"
+  dependencies:
+    "@metamask/eth-json-rpc-provider": "npm:^4.1.7"
+    "@metamask/json-rpc-engine": "npm:^10.0.2"
+    "@metamask/rpc-errors": "npm:^7.0.2"
+    "@metamask/utils": "npm:^11.0.1"
+  checksum: 10/24296fd6d2dca4b9bda2692590eafcecc7318c2d2acf0b5a2e3f3670ffbe7ff0c6338779b8b31a69060cc7963e98d9bf354e3c0f43683371f1f2e9c7642dc763
+  languageName: node
+  linkType: hard
+
+"@metamask/eth-json-rpc-infura@npm:^10.1.0":
   version: 10.1.0
   resolution: "@metamask/eth-json-rpc-infura@npm:10.1.0"
   dependencies:
@@ -3831,7 +3843,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@npm:^22.2.1":
+"@metamask/network-controller@npm:^22.1.1":
   version: 22.2.1
   resolution: "@metamask/network-controller@npm:22.2.1"
   dependencies:
@@ -14416,9 +14428,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^2.24.1":
-  version: 2.24.1
-  resolution: "viem@npm:2.24.1"
+"viem@npm:^2.21.8":
+  version: 2.24.3
+  resolution: "viem@npm:2.24.3"
   dependencies:
     "@noble/curves": "npm:1.8.1"
     "@noble/hashes": "npm:1.7.1"
@@ -14433,7 +14445,7 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/ef9231d93a823f3b10920857c2e9f93fcfd1998e31afb28a9c5c25c6ffac23241908705c2636138f6eceef31adf683399c9a836a1995e64957243b5e5efce8e1
+  checksum: 10/758a8952abe804a5482717593b3d0e39e9cd196348930640be64766b0bd3ce1a19eaa4a28bdf49b9be261abb502732d4fc7a871db5fa052e43ab17243f206d27
   languageName: node
   linkType: hard
 
