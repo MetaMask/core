@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `gasPayment` to `TransactionType` enum ([#5584](https://github.com/MetaMask/core/pull/5584))
+
 ### Changed
 
 - Throw if `chainId` in `TransactionParams` does not match `networkClientId` when calling `addTransaction` ([#5511](https://github.com/MetaMask/core/pull/5569))
   - Mark `chainId` in `TransactionParams` as deprecated.
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
 
 ## [52.3.0]
 

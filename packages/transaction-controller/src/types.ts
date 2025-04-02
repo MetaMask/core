@@ -613,6 +613,11 @@ export enum TransactionType {
   ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
 
   /**
+   * Transaction is a token or native transfer to MetaMask to pay for gas fees.
+   */
+  gasPayment = 'gas_payment',
+
+  /**
    * An incoming (deposit) transaction.
    */
   incoming = 'incoming',
