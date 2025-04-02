@@ -5,7 +5,6 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
-import type { NetworkControllerGetSelectedChainIdAction } from '@metamask/network-controller';
 import type { Address, Hex } from 'viem';
 
 import type {
@@ -84,8 +83,7 @@ export type DelegationControllerEvents = DelegationControllerStateChangeEvent;
 
 export type AllowedActions =
   | KeyringControllerSignTypedMessageAction
-  | AccountsControllerGetSelectedAccountAction
-  | NetworkControllerGetSelectedChainIdAction;
+  | AccountsControllerGetSelectedAccountAction;
 
 type AllowedEvents = never;
 

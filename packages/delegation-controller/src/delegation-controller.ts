@@ -12,7 +12,7 @@ import type {
   DelegationEntry,
   DelegationFilter,
 } from './types';
-import { hexToNumber, parseDelegation } from './utils';
+import { parseDelegation } from './utils';
 
 export const controllerName = 'DelegationController';
 
@@ -61,9 +61,9 @@ export class DelegationController extends BaseController<
   }
 
   async sign(delegation: Delegation) {
-    const chainId = this.messagingSystem.call(
-      'NetworkController:getSelectedChainId',
-    );
+    // TODO: Obtain this from `NetworkController:getSelectedChainId` once
+    // available.
+    const chainId = 11155111; // sepolia
 
     const account = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
@@ -73,14 +73,14 @@ export class DelegationController extends BaseController<
       throw new Error('No chainId or account selected');
     }
 
-    const delegatorEnv = getDeleGatorEnvironment(hexToNumber(chainId));
+    const delegatorEnv = getDeleGatorEnvironment(chainId);
 
     const data: TypedMessageParams = {
       data: {
         types: SIGNABLE_DELEGATION_TYPED_DATA,
         primaryType: 'Delegation',
         domain: {
-          chainId: hexToNumber(chainId),
+          chainId,
           name: 'DelegationManager',
           version: '1',
           verifyingContract: delegatorEnv.DelegationManager,
