@@ -56,7 +56,7 @@
     "@metamask/accounts-controller": "^27.0.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^21.0.1",
-    "@metamask/network-controller": "^23.1.0",
+    "@metamask/network-controller": "^23.2.0",
     "@types/jest": "^27.4.1",
     "@types/uuid": "^8.3.0",
     "deepmerge": "^4.2.2",
