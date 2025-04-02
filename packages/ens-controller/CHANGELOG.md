@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add and export a new dummy type `TestType` ([#5575](https://github.com/MetaMask/core/pull/5575))
+
 ## [16.0.0]
 
 ### Changed
