@@ -106,7 +106,7 @@ export type MultichainNetworkControllerState = {
   /**
    * The active networks for the available EVM addresses (non-EVM networks will be supported in the future).
    */
-  networksWithActivity: ActiveNetworksByAddress;
+  networksWithTransactionActivity: ActiveNetworksByAddress;
 };
 
 /**
@@ -127,13 +127,13 @@ export type MultichainNetworkControllerSetActiveNetworkAction = {
   handler: SetActiveNetworkMethod;
 };
 
-export type GetNetworksWithActivityByAccountsMethod =
+export type GetNetworksWithTransactionActivityByAccountsMethod =
   () => Promise<ActiveNetworksByAddress>;
 
-export type MultichainNetworkControllerGetNetworksWithActivityByAccountsAction =
+export type MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction =
   {
-    type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:getNetworksWithActivityByAccounts`;
-    handler: GetNetworksWithActivityByAccountsMethod;
+    type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:getNetworksWithTransactionActivityByAccounts`;
+    handler: GetNetworksWithTransactionActivityByAccountsMethod;
   };
 
 /**
@@ -155,7 +155,7 @@ export type MultichainNetworkControllerNetworkDidChangeEvent = {
 export type MultichainNetworkControllerActions =
   | MultichainNetworkControllerGetStateAction
   | MultichainNetworkControllerSetActiveNetworkAction
-  | MultichainNetworkControllerGetNetworksWithActivityByAccountsAction;
+  | MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction;
 
 /**
  * Events emitted by {@link MultichainNetworkController}.

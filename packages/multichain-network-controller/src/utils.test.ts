@@ -8,7 +8,11 @@ import {
 import { type NetworkConfiguration } from '@metamask/network-controller';
 import { type CaipAccountAddress, KnownCaipNamespace } from '@metamask/utils';
 
-import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
+import {
+  MULTICHAIN_ACCOUNTS_DOMAIN,
+  MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
+  MULTICHAIN_ACCOUNTS_CLIENT_ID,
+} from './constants';
 import {
   isEvmCaipChainId,
   toEvmCaipChainId,
@@ -23,6 +27,7 @@ import {
   validateAccountIds,
   parseNetworkString,
   formatCaipAccountId,
+  ChainType,
 } from './utils';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -246,6 +251,7 @@ describe('utils', () => {
       expect(calledOptions.method).toBe('GET');
       expect(calledOptions.headers).toStrictEqual({
         Accept: 'application/json',
+        [MULTICHAIN_ACCOUNTS_CLIENT_HEADER]: MULTICHAIN_ACCOUNTS_CLIENT_ID,
       });
       expect(result).toStrictEqual(mockResponse);
     });
@@ -294,6 +300,7 @@ describe('utils', () => {
       expect(calledOptions.method).toBe('GET');
       expect(calledOptions.headers).toStrictEqual({
         Accept: 'application/json',
+        [MULTICHAIN_ACCOUNTS_CLIENT_HEADER]: MULTICHAIN_ACCOUNTS_CLIENT_ID,
       });
       expect(result).toStrictEqual(mockResponse);
     });
@@ -655,28 +662,28 @@ describe('utils', () => {
   describe('formatCaipAccountId', () => {
     it('formats EVM addresses correctly', () => {
       const evmAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
-      expect(formatCaipAccountId(evmAddress, 'EVM')).toBe(
+      expect(formatCaipAccountId(evmAddress, ChainType.EVM)).toBe(
         `${KnownCaipNamespace.Eip155}:0:${evmAddress}`,
       );
     });
 
     it('formats Solana addresses correctly', () => {
       const solanaAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      expect(formatCaipAccountId(solanaAddress, 'SOLANA')).toBe(
+      expect(formatCaipAccountId(solanaAddress, ChainType.Solana)).toBe(
         `${KnownCaipNamespace.Solana}:0:${solanaAddress}`,
       );
     });
 
     it('formats Bitcoin addresses correctly', () => {
       const bitcoinAddress = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
-      expect(formatCaipAccountId(bitcoinAddress, 'BTC')).toBe(
+      expect(formatCaipAccountId(bitcoinAddress, ChainType.Bitcoin)).toBe(
         `${KnownCaipNamespace.Bip122}:0:${bitcoinAddress}`,
       );
     });
 
     it('maintains address case sensitivity', () => {
       const mixedCaseAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
-      const result = formatCaipAccountId(mixedCaseAddress, 'EVM');
+      const result = formatCaipAccountId(mixedCaseAddress, ChainType.EVM);
       expect(result).toContain(mixedCaseAddress);
       expect(result).not.toContain(mixedCaseAddress.toLowerCase());
     });

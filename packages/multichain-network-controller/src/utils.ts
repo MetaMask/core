@@ -1,5 +1,12 @@
 import { handleFetch } from '@metamask/controller-utils';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import {
+  type KeyringAccountType,
+  BtcScope,
+  SolScope,
+  BtcAccountType,
+  EthAccountType,
+  SolAccountType,
+} from '@metamask/keyring-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type Hex,
@@ -29,6 +36,15 @@ import type {
   ActiveNetworksResponse,
   NetworkStringComponents,
 } from './types';
+
+/**
+ * The type of chain.
+ */
+export enum ChainType {
+  EVM = 'EVM',
+  Solana = 'Solana',
+  Bitcoin = 'Bitcoin',
+}
 
 /**
  * Checks if the chain ID is EVM.
@@ -308,7 +324,38 @@ export function formatNetworkActivityResponse(
  */
 export function formatCaipAccountId(
   address: CaipAccountAddress,
-  chainType: keyof typeof CAIP_ACCOUNT_PREFIXES,
+  chainType: ChainType,
 ): string {
-  return `${CAIP_ACCOUNT_PREFIXES[chainType]}${address}`;
+  switch (chainType) {
+    case ChainType.EVM:
+      return `${CAIP_ACCOUNT_PREFIXES.EVM}${address}`;
+    case ChainType.Bitcoin:
+      return `${CAIP_ACCOUNT_PREFIXES.BTC}${address}`;
+    case ChainType.Solana:
+      return `${CAIP_ACCOUNT_PREFIXES.SOLANA}${address}`;
+    default:
+      throw new Error('Unsupported chain type');
+  }
+}
+
+/**
+ * Checks account type and returns the corresponding chain type.
+ *
+ * @param accountType - The account type to check
+ * @returns The chain type
+ */
+export function getChainTypeFromAccountType(
+  accountType: KeyringAccountType,
+): ChainType {
+  switch (accountType) {
+    case EthAccountType.Eoa:
+    case EthAccountType.Erc4337:
+      return ChainType.EVM;
+    case BtcAccountType.P2wpkh:
+      return ChainType.Bitcoin;
+    case SolAccountType.DataAccount:
+      return ChainType.Solana;
+    default:
+      throw new Error(`Unsupported account type: ${accountType}`);
+  }
 }

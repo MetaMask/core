@@ -23,6 +23,7 @@ import {
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
   formatCaipAccountId,
+  getChainTypeFromAccountType,
 } from './utils';
 
 /**
@@ -135,17 +136,6 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
-   * Lists only EVM accounts from all available multichain accounts.
-   *
-   * @returns Array of EVM internal accounts
-   */
-  #listEVMAccounts(): InternalAccount[] {
-    // TODO: This method will need to be updated when we add support for BTC and Solana
-    const accounts = this.#listMultichainAccounts();
-    return accounts.filter((account) => isEvmAccountType(account.type));
-  }
-
-  /**
    * Sets the active network.
    *
    * @param id - The non-EVM Caip chain ID or EVM client ID of the network to set active.
@@ -171,31 +161,30 @@ export class MultichainNetworkController extends BaseController<
    *
    * @returns A promise that resolves to the active networks for the available addresses
    */
-  async getNetworksWithActivityByAccounts(): Promise<ActiveNetworksByAddress> {
+  async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
     try {
-      const accounts = this.#listEVMAccounts();
+      const accounts = this.#listMultichainAccounts();
       if (!accounts || accounts.length === 0) {
-        return this.state.networksWithActivity;
+        return this.state.networksWithTransactionActivity;
       }
 
-      // TODO: This is a temporary solution to format the account IDs for the active networks API.
-      // Once we support BTC and Solana, we will need to update this method to support multiple chain types.
-      const formattedEVMAccounts = accounts.map((account) => {
-        return formatCaipAccountId(account.address, 'EVM');
+      const formattedAccounts = accounts.map((account) => {
+        const chainType = getChainTypeFromAccountType(account.type);
+        return formatCaipAccountId(account.address, chainType);
       });
 
       const activeNetworks =
-        await fetchNetworkActivityByAccounts(formattedEVMAccounts);
+        await fetchNetworkActivityByAccounts(formattedAccounts);
       const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
 
       this.update((state) => {
-        state.networksWithActivity = formattedNetworks;
+        state.networksWithTransactionActivity = formattedNetworks;
       });
 
-      return this.state.networksWithActivity;
+      return this.state.networksWithTransactionActivity;
     } catch (error) {
       console.error('Error fetching networks with activity by accounts', error);
-      return this.state.networksWithActivity;
+      return this.state.networksWithTransactionActivity;
     }
   }
 
@@ -321,8 +310,8 @@ export class MultichainNetworkController extends BaseController<
       this.setActiveNetwork.bind(this),
     );
     this.messagingSystem.registerActionHandler(
-      'MultichainNetworkController:getNetworksWithActivityByAccounts',
-      this.getNetworksWithActivityByAccounts.bind(this),
+      'MultichainNetworkController:getNetworksWithTransactionActivityByAccounts',
+      this.getNetworksWithTransactionActivityByAccounts.bind(this),
     );
   }
 }

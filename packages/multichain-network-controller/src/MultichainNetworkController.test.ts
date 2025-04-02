@@ -535,7 +535,7 @@ describe('MultichainNetworkController', () => {
     });
   });
 
-  describe('getNetworksWithActivityByAccounts', () => {
+  describe('getNetworksWithTransactionActivityByAccounts', () => {
     beforeEach(() => {
       jest.spyOn(console, 'error').mockImplementation();
     });
@@ -544,7 +544,7 @@ describe('MultichainNetworkController', () => {
       jest.restoreAllMocks();
     });
 
-    it('should return networksWithActivity when no accounts exist', async () => {
+    it('should return networksWithTransactionActivity when no accounts exist', async () => {
       const { controller, messenger } = setupController({
         getSelectedChainId: jest.fn().mockReturnValue('0x1'),
       });
@@ -554,7 +554,8 @@ describe('MultichainNetworkController', () => {
         () => [],
       );
 
-      const result = await controller.getNetworksWithActivityByAccounts();
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
       expect(result).toStrictEqual({});
     });
 
@@ -584,7 +585,8 @@ describe('MultichainNetworkController', () => {
         mockResponse,
       );
 
-      const result = await controller.getNetworksWithActivityByAccounts();
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
       expect(result).toStrictEqual({
         '0x1234567890123456789012345678901234567890': {
           namespace: 'eip155',
@@ -623,7 +625,8 @@ describe('MultichainNetworkController', () => {
         mockResponse,
       );
 
-      const result = await controller.getNetworksWithActivityByAccounts();
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
       expect(result).toStrictEqual({
         '0x1234567890123456789012345678901234567890': {
           namespace: 'eip155',
@@ -632,7 +635,7 @@ describe('MultichainNetworkController', () => {
       });
     });
 
-    it('should handle errors and return cached networksWithActivity', async () => {
+    it('should handle errors and return cached networksWithTransactionActivity', async () => {
       const mockCachedNetworks = {
         '0x1234567890123456789012345678901234567890': {
           namespace: 'eip155',
@@ -643,7 +646,7 @@ describe('MultichainNetworkController', () => {
       const { controller, messenger } = setupController({
         options: {
           state: {
-            networksWithActivity: mockCachedNetworks,
+            networksWithTransactionActivity: mockCachedNetworks,
           },
         },
       });
@@ -658,13 +661,14 @@ describe('MultichainNetworkController', () => {
         ],
       );
 
-      await controller.getNetworksWithActivityByAccounts();
+      await controller.getNetworksWithTransactionActivityByAccounts();
 
       (fetchNetworkActivityByAccounts as jest.Mock).mockRejectedValueOnce(
         new Error('Network error'),
       );
 
-      const result = await controller.getNetworksWithActivityByAccounts();
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
 
       expect(console.error).toHaveBeenCalledWith(
         'Error fetching networks with activity by accounts',
