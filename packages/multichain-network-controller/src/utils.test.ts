@@ -1,9 +1,13 @@
 import { handleFetch } from '@metamask/controller-utils';
 import {
+  type KeyringAccountType,
+  type CaipChainId,
   BtcScope,
   SolScope,
   EthScope,
-  type CaipChainId,
+  EthAccountType,
+  BtcAccountType,
+  SolAccountType,
 } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
 import { type CaipAccountAddress, KnownCaipNamespace } from '@metamask/utils';
@@ -28,6 +32,7 @@ import {
   parseNetworkString,
   formatCaipAccountId,
   ChainType,
+  getChainTypeFromAccountType,
 } from './utils';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -686,6 +691,37 @@ describe('utils', () => {
       const result = formatCaipAccountId(mixedCaseAddress, ChainType.EVM);
       expect(result).toContain(mixedCaseAddress);
       expect(result).not.toContain(mixedCaseAddress.toLowerCase());
+    });
+
+    it('throws an error for unsupported chain types', () => {
+      const unsupportedChainType = 'unsupported' as ChainType;
+      expect(() =>
+        formatCaipAccountId('address', unsupportedChainType),
+      ).toThrow('Unsupported chain type: unsupported');
+    });
+  });
+
+  describe('getChainTypeFromAccountType', () => {
+    it('returns EVM for EthAccountType.Eoa', () => {
+      const result = getChainTypeFromAccountType(EthAccountType.Eoa);
+      expect(result).toBe(ChainType.EVM);
+    });
+
+    it('returns Bitcoin for BtcAccountType.P2wpkh', () => {
+      const result = getChainTypeFromAccountType(BtcAccountType.P2wpkh);
+      expect(result).toBe(ChainType.Bitcoin);
+    });
+
+    it('returns Solana for SolAccountType.DataAccount', () => {
+      const result = getChainTypeFromAccountType(SolAccountType.DataAccount);
+      expect(result).toBe(ChainType.Solana);
+    });
+
+    it('throws an error for unsupported account types', () => {
+      const unsupportedAccountType = 'unsupported' as KeyringAccountType;
+      expect(() => getChainTypeFromAccountType(unsupportedAccountType)).toThrow(
+        'Unsupported account type: unsupported',
+      );
     });
   });
 });
