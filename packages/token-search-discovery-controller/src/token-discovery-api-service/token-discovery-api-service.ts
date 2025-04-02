@@ -4,6 +4,7 @@ import type {
   TopGainersParams,
   TopLosersParams,
   TrendingTokensParams,
+  BlueChipParams,
 } from '../types';
 
 export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
@@ -86,6 +87,34 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
     }
     if (topGainersParams?.limit) {
       url.searchParams.append('limit', topGainersParams.limit);
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Portfolio API request failed with status: ${response.status}`,
+      );
+    }
+
+    return response.json();
+  }
+
+  async getBlueChipTokensByChains(
+    blueChipParams?: BlueChipParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    const url = new URL('/tokens-search/blue-chip', this.#baseUrl);
+
+    if (blueChipParams?.chains && blueChipParams.chains.length > 0) {
+      url.searchParams.append('chains', blueChipParams.chains.join());
+    }
+    if (blueChipParams?.limit) {
+      url.searchParams.append('limit', blueChipParams.limit);
     }
 
     const response = await fetch(url, {

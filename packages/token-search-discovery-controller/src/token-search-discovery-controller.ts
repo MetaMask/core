@@ -14,6 +14,7 @@ import type {
   TrendingTokensParams,
   TopGainersParams,
   TopLosersParams,
+  BlueChipParams,
 } from './types';
 
 // === GENERAL ===
@@ -170,5 +171,11 @@ export class TokenSearchDiscoveryController extends BaseController<
     params: TopLosersParams,
   ): Promise<MoralisTokenResponseItem[]> {
     return this.#tokenDiscoveryService.getTopLosersByChains(params);
+  }
+
+  async getBlueChipTokens(
+    params: BlueChipParams,
+  ): Promise<MoralisTokenResponseItem[]> {
+    return this.#tokenDiscoveryService.getBlueChipTokensByChains(params);
   }
 }

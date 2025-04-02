@@ -113,6 +113,10 @@ describe('TokenSearchDiscoveryController', () => {
     async getTopLosersByChains(): Promise<MoralisTokenResponseItem[]> {
       return mockTrendingResults;
     }
+
+    async getBlueChipTokensByChains(): Promise<MoralisTokenResponseItem[]> {
+      return mockTrendingResults;
+    }
   }
 
   let mainController: TokenSearchDiscoveryController;
@@ -183,6 +187,12 @@ describe('TokenSearchDiscoveryController', () => {
     });
   });
 
+  describe('getBlueChipTokens', () => {
+    it('should return blue chip tokens results', async () => {
+      const results = await mainController.getBlueChipTokens({});
+      expect(results).toStrictEqual(mockTrendingResults);
+    });
+  });
   describe('error handling', () => {
     class ErrorTokenSearchService extends AbstractTokenSearchApiService {
       async searchTokens(): Promise<TokenSearchResponseItem[]> {
@@ -200,6 +210,10 @@ describe('TokenSearchDiscoveryController', () => {
       }
 
       async getTopLosersByChains(): Promise<MoralisTokenResponseItem[]> {
+        return [];
+      }
+
+      async getBlueChipTokensByChains(): Promise<MoralisTokenResponseItem[]> {
         return [];
       }
     }

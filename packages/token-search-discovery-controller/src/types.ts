@@ -15,6 +15,8 @@ export type TopLosersParams = ParamsBase;
 
 export type TopGainersParams = ParamsBase;
 
+export type BlueChipParams = ParamsBase;
+
 // API response types
 
 export type TokenSearchResponseItem = {
