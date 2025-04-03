@@ -754,4 +754,124 @@ describe('MultichainTransactionsController', () => {
     expect(finalTransactions).toHaveLength(1);
     expect(finalTransactions[0]).toBe(mainnetTransaction);
   });
+
+  it('publishes transactionFinalized event when transaction is confirmed', async () => {
+    const { messenger } = setupController();
+
+    const confirmedTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'confirmed' as const,
+    };
+
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockBtcAccount.id]: [confirmedTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(publishSpy).toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionFinalized',
+      confirmedTransaction,
+    );
+  });
+
+  it('publishes transactionSubmitted event when transaction is submitted', async () => {
+    const { messenger } = setupController();
+
+    const submittedTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'submitted' as const,
+    };
+
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockBtcAccount.id]: [submittedTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(publishSpy).toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionSubmitted',
+      submittedTransaction,
+    );
+  });
+
+  it('does not publish events for other transaction statuses', async () => {
+    const { messenger } = setupController();
+
+    const pendingTransaction = {
+      ...mockTransactionResult.data[0],
+      id: '123',
+      status: 'unconfirmed' as const,
+    };
+
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockBtcAccount.id]: [pendingTransaction],
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(publishSpy).not.toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionFinalized',
+      expect.anything(),
+    );
+    expect(publishSpy).not.toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionSubmitted',
+      expect.anything(),
+    );
+  });
+
+  it('publishes correct events for multiple transactions with different statuses', async () => {
+    const { messenger } = setupController();
+
+    const transactions = [
+      {
+        ...mockTransactionResult.data[0],
+        id: '123',
+        status: 'confirmed' as const,
+      },
+      {
+        ...mockTransactionResult.data[0],
+        id: '456',
+        status: 'submitted' as const,
+      },
+      {
+        ...mockTransactionResult.data[0],
+        id: '789',
+        status: 'unconfirmed' as const,
+      },
+    ];
+
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    messenger.publish('AccountsController:accountTransactionsUpdated', {
+      transactions: {
+        [mockBtcAccount.id]: transactions,
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(publishSpy).toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionFinalized',
+      transactions[0],
+    );
+    expect(publishSpy).toHaveBeenCalledWith(
+      'MultichainTransactionsController:transactionSubmitted',
+      transactions[1],
+    );
+  });
 });
