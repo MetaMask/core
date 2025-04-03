@@ -11,4 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#5317](https://github.com/MetaMask/core/pull/5577))
+- Initial release ([#5577](https://github.com/MetaMask/core/pull/5577))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/app-metadata-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/app-metadata-controller@1.0.0
