@@ -20,7 +20,7 @@ import type { KeyringControllerGetStateAction } from '@metamask/keyring-controll
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
-import type { AccountId, SnapId } from '@metamask/snaps-sdk';
+import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import {
   KnownCaipNamespace,
