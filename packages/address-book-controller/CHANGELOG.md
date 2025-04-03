@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add and export a new dummy type `TestType` ([#5575](https://github.com/MetaMask/core/pull/5575))
 
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
 ## [6.0.3]
 
 ### Changed
