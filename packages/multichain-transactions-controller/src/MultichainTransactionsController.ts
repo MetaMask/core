@@ -415,7 +415,6 @@ export class MultichainTransactionsController extends BaseController<
 
         filteredNewTransactions.forEach((tx) => {
           transactions.set(tx.id, tx);
-          this.#publishTransactionUpdateEvent(tx);
         });
 
         // Sorted by timestamp (newest first). If the timestamp is not provided, those
@@ -437,6 +436,17 @@ export class MultichainTransactionsController extends BaseController<
         },
       );
     });
+
+    // After we update the state, publish the events for new/updated transactions
+    Object.entries(transactionsUpdate.transactions).forEach(
+      ([_, newTransactions]) => {
+        const filteredNewTransactions =
+          this.#filterTransactions(newTransactions);
+        filteredNewTransactions.forEach((tx) => {
+          this.#publishTransactionUpdateEvent(tx);
+        });
+      },
+    );
   }
 
   /**
