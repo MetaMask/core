@@ -67,6 +67,22 @@ export function getDefaultMultichainTransactionsControllerState(): MultichainTra
 }
 
 /**
+ * Event emitted when a transaction is finalized.
+ */
+export type MultichainTransactionsControllerTransactionFinalizedEvent = {
+  type: `${typeof controllerName}:transactionFinalized`;
+  payload: [Transaction];
+};
+
+/**
+ * Event emitted when a transaction is submitted.
+ */
+export type MultichainTransactionsControllerTransactionSubmittedEvent = {
+  type: `${typeof controllerName}:transactionSubmitted`;
+  payload: [Transaction];
+};
+
+/**
  * Returns the state of the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerGetStateAction =
@@ -94,17 +110,9 @@ export type MultichainTransactionsControllerActions =
  * Events emitted by {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerEvents =
-  MultichainTransactionsControllerStateChange;
-
-export type MultichainTransactionsControllerTransactionFinalizedEvent = {
-  type: `${typeof controllerName}:transactionFinalized`;
-  payload: [Transaction];
-};
-
-export type MultichainTransactionsControllerTransactionSubmittedEvent = {
-  type: `${typeof controllerName}:transactionSubmitted`;
-  payload: [Transaction];
-};
+  | MultichainTransactionsControllerStateChange
+  | MultichainTransactionsControllerTransactionFinalizedEvent
+  | MultichainTransactionsControllerTransactionSubmittedEvent;
 
 /**
  * Messenger type for the MultichainTransactionsController.
@@ -131,9 +139,7 @@ export type AllowedActions =
 export type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountTransactionsUpdatedEvent
-  | MultichainTransactionsControllerTransactionFinalizedEvent
-  | MultichainTransactionsControllerTransactionSubmittedEvent;
+  | AccountsControllerAccountTransactionsUpdatedEvent;
 
 /**
  * {@link MultichainTransactionsController}'s metadata.
