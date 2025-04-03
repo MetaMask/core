@@ -15,10 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add and export a new dummy type `TestType` ([#5575](https://github.com/MetaMask/core/pull/5575))
-
-### Added
-
 - Add optional `additionalDefaultNetworks` option to `NetworkController` constructor ([#5527](https://github.com/MetaMask/core/pull/5527))
   - This can be used to customize which custom networks the default `networkConfigurationsByChainId` includes.
 - Add `getSelectedChainId` method to `NetworkController` ([#5516](https://github.com/MetaMask/core/pull/5516))
