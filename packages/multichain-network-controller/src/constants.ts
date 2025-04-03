@@ -12,7 +12,7 @@ import type {
 export const BTC_NATIVE_ASSET = `${BtcScope.Mainnet}/slip44:0`;
 export const BTC_TESTNET_NATIVE_ASSET = `${BtcScope.Testnet}/slip44:0`;
 export const BTC_SIGNET_NATIVE_ASSET = `${BtcScope.Signet}/slip44:0`;
-export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/slip44:501}`;
+export const SOL_NATIVE_ASSET = `${SolScope.Mainnet}/slip44:501`;
 export const SOL_TESTNET_NATIVE_ASSET = `${SolScope.Testnet}/slip44:501`;
 export const SOL_DEVNET_NATIVE_ASSET = `${SolScope.Devnet}/slip44:501`;
 
@@ -61,6 +61,11 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
   },
 };
 
+/**
+ * Array of all the Non-EVM chain IDs.
+ * This is a temporary mention until we develop
+ * a more robust solution to identify testnet networks.
+ */
 export const NON_EVM_TESTNET_IDS = [
   BtcScope.Testnet,
   BtcScope.Signet,
