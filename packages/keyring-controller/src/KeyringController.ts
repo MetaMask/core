@@ -2195,15 +2195,6 @@ export class KeyringController extends BaseController<
           vault = result.vault;
           this.#password = password;
 
-          // In case that the vault is already using the correct params,
-          // we can store the encryption key and salt in the state
-          if (
-            this.#encryptor.isVaultUpdated &&
-            this.#encryptor.isVaultUpdated(encryptedVault)
-          ) {
-            updatedState.encryptionKey = result.exportedKeyString;
-            updatedState.encryptionSalt = result.salt;
-          }
         } else {
           const parsedEncryptedVault = JSON.parse(encryptedVault);
 
