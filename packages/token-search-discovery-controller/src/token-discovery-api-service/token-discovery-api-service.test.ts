@@ -79,19 +79,19 @@ describe('TokenDiscoveryApiService', () => {
     it.each([
       {
         params: { chains: ['1'], limit: '5' },
-        expectedPath: '/tokens-search/trending-by-chains?chains=1&limit=5',
+        expectedPath: '/tokens-search/trending?chains=1&limit=5',
       },
       {
         params: { chains: ['1', '137'] },
-        expectedPath: '/tokens-search/trending-by-chains?chains=1,137',
+        expectedPath: '/tokens-search/trending?chains=1,137',
       },
       {
         params: { limit: '10' },
-        expectedPath: '/tokens-search/trending-by-chains?limit=10',
+        expectedPath: '/tokens-search/trending?limit=10',
       },
       {
         params: {},
-        expectedPath: '/tokens-search/trending-by-chains',
+        expectedPath: '/tokens-search/trending',
       },
     ])(
       'should construct correct URL for params: $params',
@@ -107,7 +107,7 @@ describe('TokenDiscoveryApiService', () => {
 
     it('should handle API errors', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/trending-by-chains')
+        .get('/tokens-search/trending')
         .reply(500, 'Server Error');
 
       await expect(service.getTrendingTokensByChains({})).rejects.toThrow(
@@ -117,7 +117,7 @@ describe('TokenDiscoveryApiService', () => {
 
     it('should return trending results', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/trending-by-chains')
+        .get('/tokens-search/trending')
         .reply(200, mockTrendingResponse);
 
       const results = await service.getTrendingTokensByChains({});
@@ -128,7 +128,7 @@ describe('TokenDiscoveryApiService', () => {
   describe('getTopGainersByChains', () => {
     it('should return top gainers results', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/top-gainers-by-chains')
+        .get('/tokens-search/top-gainers')
         .reply(200, mockTrendingResponse);
 
       const results = await service.getTopGainersByChains({});
@@ -137,7 +137,7 @@ describe('TokenDiscoveryApiService', () => {
 
     it('should handle API errors', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/top-gainers-by-chains')
+        .get('/tokens-search/top-gainers')
         .reply(500, 'Server Error');
 
       await expect(service.getTopGainersByChains({})).rejects.toThrow(
@@ -148,11 +148,11 @@ describe('TokenDiscoveryApiService', () => {
     it.each([
       {
         params: { chains: ['1'], limit: '5' },
-        expectedPath: '/tokens-search/top-gainers-by-chains?chains=1&limit=5',
+        expectedPath: '/tokens-search/top-gainers?chains=1&limit=5',
       },
       {
         params: { chains: ['1', '137'] },
-        expectedPath: '/tokens-search/top-gainers-by-chains?chains=1,137',
+        expectedPath: '/tokens-search/top-gainers?chains=1,137',
       },
     ])(
       'should construct correct URL for params: $params',
@@ -170,7 +170,7 @@ describe('TokenDiscoveryApiService', () => {
   describe('getTopLosersByChains', () => {
     it('should return top losers results', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/top-losers-by-chains')
+        .get('/tokens-search/top-losers')
         .reply(200, mockTrendingResponse);
 
       const results = await service.getTopLosersByChains({});
@@ -179,7 +179,7 @@ describe('TokenDiscoveryApiService', () => {
 
     it('should handle API errors', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/top-losers-by-chains')
+        .get('/tokens-search/top-losers')
         .reply(500, 'Server Error');
 
       await expect(service.getTopLosersByChains({})).rejects.toThrow(
@@ -190,11 +190,11 @@ describe('TokenDiscoveryApiService', () => {
     it.each([
       {
         params: { chains: ['1'], limit: '5' },
-        expectedPath: '/tokens-search/top-losers-by-chains?chains=1&limit=5',
+        expectedPath: '/tokens-search/top-losers?chains=1&limit=5',
       },
       {
         params: { chains: ['1', '137'] },
-        expectedPath: '/tokens-search/top-losers-by-chains?chains=1,137',
+        expectedPath: '/tokens-search/top-losers?chains=1,137',
       },
     ])(
       'should construct correct URL for params: $params',
@@ -254,7 +254,7 @@ describe('TokenDiscoveryApiService', () => {
   describe('error handling', () => {
     it('should handle network errors', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/trending-by-chains')
+        .get('/tokens-search/trending')
         .reply(500, 'Server Error');
 
       await expect(service.getTrendingTokensByChains({})).rejects.toThrow(
@@ -264,7 +264,7 @@ describe('TokenDiscoveryApiService', () => {
 
     it('should handle malformed JSON responses', async () => {
       nock(TEST_API_URLS.PORTFOLIO_API)
-        .get('/tokens-search/trending-by-chains')
+        .get('/tokens-search/trending')
         .reply(200, 'invalid json');
 
       await expect(service.getTrendingTokensByChains({})).rejects.toThrow(

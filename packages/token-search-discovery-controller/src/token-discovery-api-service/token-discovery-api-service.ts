@@ -21,7 +21,7 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
   async getTrendingTokensByChains(
     trendingTokensParams?: TrendingTokensParams,
   ): Promise<MoralisTokenResponseItem[]> {
-    const url = new URL('/tokens-search/trending-by-chains', this.#baseUrl);
+    const url = new URL('/tokens-search/trending', this.#baseUrl);
 
     if (
       trendingTokensParams?.chains &&
@@ -52,7 +52,7 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
   async getTopLosersByChains(
     topLosersParams?: TopLosersParams,
   ): Promise<MoralisTokenResponseItem[]> {
-    const url = new URL('/tokens-search/top-losers-by-chains', this.#baseUrl);
+    const url = new URL('/tokens-search/top-losers', this.#baseUrl);
 
     if (topLosersParams?.chains && topLosersParams.chains.length > 0) {
       url.searchParams.append('chains', topLosersParams.chains.join());
@@ -80,7 +80,7 @@ export class TokenDiscoveryApiService extends AbstractTokenDiscoveryApiService {
   async getTopGainersByChains(
     topGainersParams?: TopGainersParams,
   ): Promise<MoralisTokenResponseItem[]> {
-    const url = new URL('/tokens-search/top-gainers-by-chains', this.#baseUrl);
+    const url = new URL('/tokens-search/top-gainers', this.#baseUrl);
 
     if (topGainersParams?.chains && topGainersParams.chains.length > 0) {
       url.searchParams.append('chains', topGainersParams.chains.join());
