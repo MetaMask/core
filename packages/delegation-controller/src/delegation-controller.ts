@@ -136,24 +136,18 @@ export class DelegationController extends BaseController<
       return [delegation];
     }
 
-    let list: DelegationEntry[] = [];
+    let list: DelegationEntry[] = Object.values(this.state.delegations);
 
-    if ('delegator' in filter) {
-      list = Object.values(this.state.delegations).filter(
-        (entry) => entry.data.delegator === filter.delegator,
+    if ('delegator' in filter && 'delegate' in filter) {
+      list = list.filter(
+        (entry) =>
+          entry.data.delegator === filter.delegator &&
+          entry.data.delegate === filter.delegate,
       );
-      if (filter.delegate) {
-        list = list.filter((entry) => entry.data.delegate === filter.delegate);
-      }
+    } else if ('delegator' in filter) {
+      list = list.filter((entry) => entry.data.delegator === filter.delegator);
     } else if ('delegate' in filter) {
-      list = Object.values(this.state.delegations).filter(
-        (entry) => entry.data.delegate === filter.delegate,
-      );
-      if (filter.delegator) {
-        list = list.filter(
-          (entry) => entry.data.delegator === filter.delegator,
-        );
-      }
+      list = list.filter((entry) => entry.data.delegate === filter.delegate);
     }
 
     if (filter.label) {
@@ -175,7 +169,9 @@ export class DelegationController extends BaseController<
     list.forEach((entry) => {
       const hash = getDelegationHash(entry.data);
       deleted.push(entry);
-      delete this.state.delegations[hash];
+      this.update((state) => {
+        delete state.delegations[hash];
+      });
     });
     return deleted;
   }
