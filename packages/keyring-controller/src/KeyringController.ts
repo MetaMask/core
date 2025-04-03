@@ -2175,6 +2175,7 @@ export class KeyringController extends BaseController<
     encryptionKey?: string,
     encryptionSalt?: string,
   ): Promise<EthKeyring[]> {
+    console.log('Unlock keyrings...');
     return this.#withVaultLock(async ({ releaseLock }) => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
@@ -2195,8 +2196,17 @@ export class KeyringController extends BaseController<
           vault = result.vault;
           this.#password = password;
 
-          updatedState.encryptionKey = result.exportedKeyString;
-          updatedState.encryptionSalt = result.salt;
+          // This condition is required to not set the state of the keyring
+          // with an encryption key and salt derived from with parameters
+          // that are not the ones set by the encrytor class.
+          if (
+            !this.#encryptor.isVaultUpdated ||
+            !this.#encryptor.isVaultUpdated(encryptedVault)
+          ) {
+            console.log('set stored encryption key and salt');
+            updatedState.encryptionKey = result.exportedKeyString;
+            updatedState.encryptionSalt = result.salt;
+          }
         } else {
           const parsedEncryptedVault = JSON.parse(encryptedVault);
 
