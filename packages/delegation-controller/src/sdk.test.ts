@@ -1,5 +1,5 @@
 import type { Caveats } from '@metamask-private/delegator-core-viem';
-import type * as sdk from '@metamask-private/delegator-core-viem';
+import * as sdk from '@metamask-private/delegator-core-viem';
 import type { Address, Hex } from 'viem';
 
 import {
@@ -58,7 +58,7 @@ describe('sdk', () => {
 
       expect(delegation).toStrictEqual({
         delegator,
-        delegate: '0x0000000000000000000000000000000000000a11' as Address,
+        delegate: sdk.ANY_BENEFICIARY,
         authority,
         caveats,
         salt,
@@ -77,8 +77,7 @@ describe('sdk', () => {
       expect(delegation).toStrictEqual({
         delegator,
         delegate,
-        authority:
-          '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as Hex,
+        authority: sdk.ROOT_AUTHORITY,
         caveats,
         salt,
         signature: '0x',
@@ -94,9 +93,8 @@ describe('sdk', () => {
 
       expect(delegation).toStrictEqual({
         delegator,
-        delegate: '0x0000000000000000000000000000000000000a11' as Address,
-        authority:
-          '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as Hex,
+        delegate: sdk.ANY_BENEFICIARY,
+        authority: sdk.ROOT_AUTHORITY,
         caveats,
         salt,
         signature: '0x',
