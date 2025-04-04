@@ -80,25 +80,24 @@ jobs:
           GITHUB_REPO: ${{ inputs.repo }}
           PR_NUMBER: ${{ inputs.pr-number }}
         run: |
-          # Fetch labels from the GitHub API
-          if ! labels=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+          # Fetch labels and check for no-changelog
+          if labels=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
             "https://api.github.com/repos/${GITHUB_REPO}/issues/${PR_NUMBER}/labels"); then
-            echo "::error::Failed to fetch labels from GitHub API."
-            exit 1
-          fi
-
-          # Proceed with checking for the 'no-changelog' label using jq
-          if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")'; then
-            echo "No-changelog label found, skipping changelog check."
-            echo "SKIP_CHANGELOG=true" >> "$GITHUB_ENV"
+            if echo "$labels" | jq -e '.[] | select(.name == "no-changelog")' > /dev/null; then
+              echo "no-changelog label found, skipping changelog check."
+              echo "skip_check=true" >> $GITHUB_OUTPUT
+            else
+              echo "No no-changelog label found, proceeding with check."
+              echo "skip_check=false" >> $GITHUB_OUTPUT
+            fi
           else
-            echo "SKIP_CHANGELOG=false" >> "$GITHUB_ENV"
-            echo "No-changelog label not found, proceeding with changelog check."
+            echo "::error::Failed to fetch labels. Assuming changelog check is needed."
+            echo "skip_check=false" >> $GITHUB_OUTPUT
           fi
         shell: bash
 
       - name: Check Changelog
-        if: ${{ inputs.event-type == 'pull_request' && env.SKIP_CHANGELOG != 'true' }}
+        if: ${{ inputs.event-type == 'pull_request' && steps.label-check.outputs.skip_check != 'true' }}
         id: changelog-check
         shell: bash
         working-directory: ./github-tools
