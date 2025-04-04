@@ -2201,9 +2201,8 @@ export class KeyringController extends BaseController<
           // that are not the ones set by the encrytor class.
           if (
             !this.#encryptor.isVaultUpdated ||
-            !this.#encryptor.isVaultUpdated(encryptedVault)
+            this.#encryptor.isVaultUpdated(encryptedVault)
           ) {
-            console.log('set stored encryption key and salt');
             updatedState.encryptionKey = result.exportedKeyString;
             updatedState.encryptionSalt = result.salt;
           }
