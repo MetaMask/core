@@ -7,15 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [27.0.1]
-
-### Fixed
-
-- Stop throwing an error if `verifyingContract` field in EIP712 payloads is undefined or not a string ([#5595](https://github.com/MetaMask/core/pull/5595))
+## [27.1.0]
 
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+### Fixed
+
+- Stop throwing an error if `verifyingContract` field in EIP712 payloads is undefined or not a string ([#5595](https://github.com/MetaMask/core/pull/5595))
 
 ## [27.0.0]
 
@@ -504,8 +504,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.0.1...HEAD
-[27.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.0.0...@metamask/signature-controller@27.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@27.0.0...@metamask/signature-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@26.0.0...@metamask/signature-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@25.0.0...@metamask/signature-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@24.0.0...@metamask/signature-controller@25.0.0
