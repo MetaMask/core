@@ -513,12 +513,20 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       smartTransaction.uuid,
       chainId,
     );
-    if (this.#ethQuery === undefined) {
+    if (ethQuery === undefined) {
       throw new Error(ETH_QUERY_ERROR_MSG);
     }
 
     if (isNewSmartTransaction) {
-      await this.#addMetaMetricsPropsToNewSmartTransaction(smartTransaction);
+      try {
+        await this.#addMetaMetricsPropsToNewSmartTransaction(smartTransaction);
+      } catch (error) {
+        console.error(
+          'Failed to add metrics props to smart transaction:',
+          error,
+        );
+        // Continue without metrics props
+      }
     }
 
     this.trackStxStatusChange(
@@ -955,7 +963,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         preTxBalance = new BigNumber(preTxBalanceBN).toString(16);
       }
     } catch (error) {
-      console.error('provider error', error);
+      console.error('ethQuery.getBalance error:', error);
     }
 
     const requiresNonce = txParams && !txParams.nonce;
@@ -963,20 +971,26 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     let nonceLock;
     let nonceDetails = {};
 
+    // This should only happen for Swaps. Non-swaps transactions should already have a nonce
     if (requiresNonce) {
-      nonceLock = await this.#getNonceLock(
-        txParams.from,
-        selectedNetworkClientId,
-      );
-      nonce = hexlify(nonceLock.nextNonce);
-      nonceDetails = nonceLock.nonceDetails;
-      txParams.nonce ??= nonce;
+      try {
+        nonceLock = await this.#getNonceLock(
+          txParams.from,
+          selectedNetworkClientId,
+        );
+        nonce = hexlify(nonceLock.nextNonce);
+        nonceDetails = nonceLock.nonceDetails;
+        txParams.nonce ??= nonce;
+      } catch (error) {
+        console.error('Failed to acquire nonce lock:', error);
+        throw error;
+      }
     }
 
     const txHashes = signedTransactions.map((tx) => getTxHash(tx));
     const submitTransactionResponse = {
       ...data,
-      txHash: txHashes[0], // For backward compatibility
+      txHash: txHashes[txHashes.length - 1], // For backward compatibility - use the last tx hash
       txHashes,
     };
 
@@ -999,8 +1013,13 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         },
         { chainId, ethQuery },
       );
+    } catch (error) {
+      console.error('Failed to create a smart transaction:', error);
+      throw error;
     } finally {
-      nonceLock?.releaseLock();
+      if (nonceLock) {
+        nonceLock.releaseLock();
+      }
     }
 
     return submitTransactionResponse;

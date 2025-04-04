@@ -723,6 +723,183 @@ describe('SmartTransactionsController', () => {
       });
     });
 
+    it('should acquire nonce for Swap transactions only', async () => {
+      // Create a mock for getNonceLock
+      const mockGetNonceLock = jest.fn().mockResolvedValue({
+        nextNonce: 'nextNonce',
+        nonceDetails: { test: 'details' },
+        releaseLock: jest.fn(),
+      });
+
+      await withController(
+        {
+          options: {
+            getNonceLock: mockGetNonceLock,
+          },
+        },
+        async ({ controller }) => {
+          const signedTransaction = createSignedTransaction();
+          const submitTransactionsApiResponse =
+            createSubmitTransactionsApiResponse();
+
+          // First API mock for the case without nonce
+          nock(API_BASE_URL)
+            .post(
+              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            )
+            .reply(200, submitTransactionsApiResponse);
+
+          // Second API mock for the case with nonce
+          nock(API_BASE_URL)
+            .post(
+              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            )
+            .reply(200, submitTransactionsApiResponse);
+
+          // Case 1: Swap transaction without nonce (should call getNonceLock)
+          const txParamsWithoutNonce = {
+            ...createTxParams(),
+            nonce: undefined, // Explicitly undefined nonce
+          };
+
+          await controller.submitSignedTransactions({
+            signedTransactions: [signedTransaction],
+            txParams: txParamsWithoutNonce,
+            // No transactionMeta means type defaults to 'swap'
+          });
+
+          // Verify getNonceLock was called for the Swap
+          expect(mockGetNonceLock).toHaveBeenCalledTimes(1);
+          expect(mockGetNonceLock).toHaveBeenCalledWith(
+            txParamsWithoutNonce.from,
+            NetworkType.mainnet,
+          );
+
+          // Reset the mock
+          mockGetNonceLock.mockClear();
+
+          // Case 2: Transaction with nonce already set (should NOT call getNonceLock)
+          const txParamsWithNonce = createTxParams(); // This has nonce: '0'
+
+          await controller.submitSignedTransactions({
+            signedTransactions: [signedTransaction],
+            txParams: txParamsWithNonce,
+          });
+
+          // Verify getNonceLock was NOT called for transaction with nonce
+          expect(mockGetNonceLock).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should properly set nonce on txParams and mark transaction as swap type', async () => {
+      // Mock with a specific nextNonce value we can verify
+      const mockGetNonceLock = jest.fn().mockResolvedValue({
+        nextNonce: 42,
+        nonceDetails: { test: 'nonce details' },
+        releaseLock: jest.fn(),
+      });
+
+      await withController(
+        {
+          options: {
+            getNonceLock: mockGetNonceLock,
+          },
+        },
+        async ({ controller }) => {
+          const signedTransaction = createSignedTransaction();
+          const submitTransactionsApiResponse =
+            createSubmitTransactionsApiResponse();
+          nock(API_BASE_URL)
+            .post(
+              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            )
+            .reply(200, submitTransactionsApiResponse);
+
+          // Create txParams without nonce
+          const txParamsWithoutNonce = {
+            ...createTxParams(),
+            nonce: undefined,
+            from: addressFrom,
+          };
+
+          await controller.submitSignedTransactions({
+            signedTransactions: [signedTransaction],
+            txParams: txParamsWithoutNonce,
+            // No transactionMeta provided, should default to 'swap' type
+          });
+
+          // Get the created smart transaction
+          const createdSmartTransaction =
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ][0];
+
+          // Verify nonce was set correctly on the txParams in the created transaction
+          expect(createdSmartTransaction.txParams.nonce).toBe('0x42'); // 42 as a hex string
+
+          // Verify transaction type is set to 'swap' by default
+          expect(createdSmartTransaction.type).toBe('swap');
+
+          // Verify nonceDetails were passed correctly
+          expect(createdSmartTransaction.nonceDetails).toStrictEqual({
+            test: 'nonce details',
+          });
+        },
+      );
+    });
+
+    it('should handle errors when acquiring nonce lock', async () => {
+      // Mock getNonceLock to reject with an error
+      const mockError = new Error('Failed to acquire nonce');
+      const mockGetNonceLock = jest.fn().mockRejectedValue(mockError);
+
+      // Spy on console.error to verify it's called
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await withController(
+        {
+          options: {
+            getNonceLock: mockGetNonceLock,
+          },
+        },
+        async ({ controller }) => {
+          const signedTransaction = createSignedTransaction();
+          const submitTransactionsApiResponse =
+            createSubmitTransactionsApiResponse();
+          nock(API_BASE_URL)
+            .post(
+              `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+            )
+            .reply(200, submitTransactionsApiResponse);
+
+          // Create txParams without nonce
+          const txParamsWithoutNonce = {
+            ...createTxParams(),
+            nonce: undefined,
+            from: addressFrom,
+          };
+
+          // Attempt to submit a transaction that will fail when acquiring nonce
+          await expect(
+            controller.submitSignedTransactions({
+              signedTransactions: [signedTransaction],
+              txParams: txParamsWithoutNonce,
+            }),
+          ).rejects.toThrow('Failed to acquire nonce');
+
+          // Verify error was logged
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'Failed to acquire nonce lock:',
+            mockError,
+          );
+
+          // Cleanup spy
+          consoleErrorSpy.mockRestore();
+        },
+      );
+    });
+
     it('submits a batch of signed transactions', async () => {
       await withController(async ({ controller }) => {
         const signedTransaction1 = createSignedTransaction();
@@ -2086,6 +2263,126 @@ describe('SmartTransactionsController', () => {
               ],
             ).not.toContainEqual({ txParams: { from: address } });
           });
+        },
+      );
+    });
+  });
+
+  describe('createOrUpdateSmartTransaction', () => {
+    beforeEach(() => {
+      jest
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
+        .mockImplementation(() => ({}));
+    });
+
+    it('adds metaMetricsProps to new smart transactions', async () => {
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
+      const newSmartTransaction = {
+        uuid: 'new-uuid-test',
+        status: SmartTransactionStatuses.PENDING,
+        txParams: {
+          from: addressFrom,
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [],
+                },
+              },
+            },
+            getMetaMetricsProps: jest.fn().mockResolvedValue({
+              accountHardwareType: 'Test Hardware',
+              accountType: 'test-account',
+              deviceModel: 'test-model',
+            }),
+          },
+        },
+        async ({ controller }) => {
+          controller.updateSmartTransaction(
+            newSmartTransaction as SmartTransaction,
+          );
+
+          // Allow async operations to complete
+          await flushPromises();
+
+          // Verify MetaMetricsProps were added
+          const updatedTransaction =
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ][0];
+          expect(updatedTransaction.accountHardwareType).toBe('Test Hardware');
+          expect(updatedTransaction.accountType).toBe('test-account');
+          expect(updatedTransaction.deviceModel).toBe('test-model');
+        },
+      );
+    });
+
+    it('continues without metaMetricsProps if adding them fails', async () => {
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
+      const newSmartTransaction = {
+        uuid: 'new-uuid-test',
+        status: SmartTransactionStatuses.PENDING,
+        txParams: {
+          from: addressFrom,
+        },
+      };
+
+      // Mock console.error to verify it's called
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [],
+                },
+              },
+            },
+            // Mock getting MetaMetricsProps to fail
+            getMetaMetricsProps: jest
+              .fn()
+              .mockRejectedValue(new Error('Test metrics error')),
+          },
+        },
+        async ({ controller }) => {
+          controller.updateSmartTransaction(
+            newSmartTransaction as SmartTransaction,
+          );
+
+          // Allow async operations to complete
+          await flushPromises();
+
+          // Verify transaction was still added even without metrics props
+          const updatedTransaction =
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ][0];
+          expect(updatedTransaction.uuid).toBe('new-uuid-test');
+
+          // These should be undefined since getting metrics props failed
+          expect(updatedTransaction.accountHardwareType).toBeUndefined();
+          expect(updatedTransaction.accountType).toBeUndefined();
+          expect(updatedTransaction.deviceModel).toBeUndefined();
+
+          // Verify the error was logged
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'Failed to add metrics props to smart transaction:',
+            expect.any(Error),
+          );
+
+          // Clean up the spy
+          consoleErrorSpy.mockRestore();
         },
       );
     });
