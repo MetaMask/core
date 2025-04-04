@@ -10,9 +10,11 @@ jobs:
   check_changelog:
     uses: './.github/workflows/shared-changelog-check.yml'
     with:
+      base-branch: main
       event-type: ${{ github.event_name }}
-      pr-number: ${{ github.event.pull_request.number }}
       feature-branch: ${{ github.head_ref }}
       is-monorepo: true
+      pr-number: ${{ github.event.pull_request.number }}
+      repo: ${{ github.repository }}
     secrets:
       gh-token: ${{ secrets.GITHUB_TOKEN }}

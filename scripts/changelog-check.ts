@@ -1,147 +1,77 @@
 import { parseChangelog } from '@metamask/auto-changelog';
+import { execa } from 'execa';
+import fs from 'fs/promises';
 
 /**
- * Asynchronously fetches the CHANGELOG.md file content from a specified GitHub repository and branch.
- * The function constructs a URL to access the raw content of the file using GitHub's raw content service.
- * It handles authorization using an optional GitHub token from environment variables.
+ * Gets the list of changed files between the current branch and main.
  *
- * @param options - The options for fetching the CHANGELOG.md file.
- * @param options.repoUrl - The full name of the repository (e.g., "owner/repo").
- * @param options.changelogPath - The path to the CHANGELOG.md file.
- * @param options.branch - The branch from which to fetch the CHANGELOG.md file.
- * @returns A promise that resolves to the content of the CHANGELOG.md file as a string.
- * If the fetch operation fails, it logs an error and returns an empty string.
+ * @param targetRepoPath - The path to the target repository
+ * @param baseRef - The base reference to compare against
+ * @returns Array of changed file paths
  */
-async function fetchChangelogFromGitHub({
-  repoUrl,
-  changelogPath,
-  branch,
-}: {
-  repoUrl: string;
-  changelogPath: string;
-  branch: string;
-}): Promise<string> {
+async function getChangedFiles(
+  targetRepoPath: string,
+  baseRef: string,
+): Promise<string[]> {
+  if (!targetRepoPath) {
+    throw new Error('TARGET_REPO_PATH environment variable must be set');
+  }
+
   try {
-    const url = `https://raw.githubusercontent.com/${repoUrl}/${branch}/${changelogPath}`;
-    // eslint-disable-next-line n/no-process-env
-    const token = process.env.GITHUB_TOKEN ?? '';
-    const headers: HeadersInit = token
-      ? { Authorization: `Bearer ${token}` }
-      : {};
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins -- This script only runs in CI with Node.js >=18
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    return await response.text();
-  } catch (error) {
-    console.error(
-      `❌ Error fetching CHANGELOG.md from ${branch} on ${repoUrl}:`,
-      error,
+    const { stdout } = await execa(
+      'git',
+      ['diff', '--name-only', `${baseRef}...HEAD`],
+      {
+        cwd: targetRepoPath,
+      },
     );
+
+    return stdout.split('\n').filter(Boolean);
+  } catch (error) {
+    console.error('Failed to get changed files:', error);
     throw error;
   }
 }
 
 /**
- * Validates that the CHANGELOG.md in a feature branch has been updated correctly by comparing it
- * against the CHANGELOG.md in the base branch.
+ * Reads and validates a changelog file.
  *
- * @param options - The options for the changelog check.
- * @param options.repoUrl - The GitHub repository from which to fetch the CHANGELOG.md file.
- * @param options.changelogPath - The path to the CHANGELOG.md file.
- * @param options.featureBranch - The feature branch that should contain the updated CHANGELOG.md.
+ * @param changelogPath - The path to the changelog file to check
  */
-async function checkChangelog({
-  repoUrl,
-  changelogPath,
-  featureBranch,
-}: {
-  repoUrl: string;
-  changelogPath: string;
-  featureBranch: string;
-}) {
-  console.log(
-    `🔍 Fetching CHANGELOG.md from GitHub repository: ${repoUrl} ${changelogPath}`,
-  );
+async function checkChangelogFile(changelogPath: string): Promise<void> {
+  try {
+    console.log(`🔍 Reading changelog file: ${changelogPath}`);
+    const changelogContent = await fs.readFile(changelogPath, 'utf-8');
 
-  const changelogContent = await fetchChangelogFromGitHub({
-    repoUrl,
-    changelogPath,
-    branch: featureBranch,
-  });
-
-  if (!changelogContent) {
-    throw new Error('❌ CHANGELOG.md is missing in the feature branch.');
-  }
-
-  const changelogUnreleasedChanges = parseChangelog({
-    changelogContent,
-    repoUrl,
-  }).getReleaseChanges('Unreleased');
-
-  if (Object.values(changelogUnreleasedChanges).length === 0) {
-    throw new Error(
-      "❌ No new entries detected under '## Unreleased'. Please update the changelog.",
-    );
-  }
-
-  console.log('✅ CHANGELOG.md has been correctly updated.');
-}
-
-type ChangedFile = {
-  filename: string;
-};
-
-/**
- * Asynchronously fetches the list of changed files from a specified GitHub pull request.
- *
- * @returns A promise that resolves to an array of changed file paths.
- */
-async function fetchChangedFiles(): Promise<string[]> {
-  // eslint-disable-next-line n/no-process-env
-  const { GITHUB_TOKEN, GITHUB_REPO, PR_NUMBER } = process.env;
-  const files: string[] = [];
-  let page = 1;
-
-  while (true) {
-    const headers: HeadersInit = GITHUB_TOKEN
-      ? { Authorization: `Bearer ${GITHUB_TOKEN}` }
-      : {};
-    const url = `https://api.github.com/repos/${GITHUB_REPO}/pulls/${PR_NUMBER}/files?page=${page}&per_page=100`;
-
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins -- This script only runs in CI with Node.js >=18
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch changed files: ${response.statusText}`);
+    if (!changelogContent) {
+      throw new Error('CHANGELOG.md is empty or missing');
     }
 
-    const data = (await response.json()) as ChangedFile[];
+    const changelogUnreleasedChanges = parseChangelog({
+      changelogContent,
+      repoUrl: '', // Not needed when reading local files
+    }).getReleaseChanges('Unreleased');
 
-    if (!data.length) {
-      break;
+    if (Object.values(changelogUnreleasedChanges).length === 0) {
+      throw new Error(
+        "❌ No new entries detected under '## Unreleased'. Please update the changelog.",
+      );
     }
 
-    files.push(...data.map((file) => file.filename));
-
-    if (data.length < 100) {
-      break;
+    console.log('✅ CHANGELOG.md has been correctly updated.');
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new Error(`❌ CHANGELOG.md not found at ${changelogPath}`);
     }
-
-    page += 1;
+    throw error;
   }
-
-  return files;
 }
 
 /**
- * Extracts the changed packages from a list of changed files.
+ * Gets the list of changed packages from the changed files.
  *
- * @param files - An array of changed file paths.
- * @returns An array of changed package names.
+ * @param files - The list of changed files
+ * @returns Array of changed package names
  */
 function getChangedPackages(files: string[]): string[] {
   const changedPackages = new Set<string>();
@@ -172,18 +102,21 @@ function getChangedPackages(files: string[]): string[] {
 }
 
 /**
- * Main function that orchestrates the changelog check process.
- *
- * @throws {Error} If required environment variables are not set or if an error occurs during the process.
+ * Main function to run the changelog check.
  */
 async function main() {
   // eslint-disable-next-line n/no-process-env
-  const { IS_MONOREPO, GITHUB_REPO, HEAD_REF } = process.env;
+  const { IS_MONOREPO, TARGET_REPO_PATH, BASE_REF = 'main' } = process.env;
 
-  if (!GITHUB_REPO || !HEAD_REF) {
-    throw new Error(
-      'Required environment variables GITHUB_REPO and HEAD_REF must be set',
-    );
+  if (!TARGET_REPO_PATH) {
+    throw new Error('TARGET_REPO_PATH environment variable must be set');
+  }
+
+  // Verify the target repo path exists
+  try {
+    await fs.access(TARGET_REPO_PATH);
+  } catch {
+    throw new Error(`Target repository path not found: ${TARGET_REPO_PATH}`);
   }
 
   if (IS_MONOREPO === 'true') {
@@ -191,7 +124,7 @@ async function main() {
       'Running in monorepo mode - checking changelogs for changed packages...',
     );
 
-    const changedFiles = await fetchChangedFiles();
+    const changedFiles = await getChangedFiles(TARGET_REPO_PATH, BASE_REF);
     if (!changedFiles.length) {
       console.log('No changed files found. Exiting successfully.');
       return;
@@ -206,18 +139,13 @@ async function main() {
     }
 
     let hasError = false;
-    for (const package_ of changedPackages) {
+    for (const pkg of changedPackages) {
       try {
-        await checkChangelog({
-          repoUrl: GITHUB_REPO,
-          changelogPath: `packages/${package_}/CHANGELOG.md`,
-          featureBranch: HEAD_REF,
-        });
-      } catch (error) {
-        console.error(
-          `❌ Changelog check failed for package ${package_}:`,
-          error,
+        await checkChangelogFile(
+          `${TARGET_REPO_PATH}/packages/${pkg}/CHANGELOG.md`,
         );
+      } catch (error) {
+        console.error(`❌ Changelog check failed for package ${pkg}:`, error);
         hasError = true;
       }
     }
@@ -229,11 +157,7 @@ async function main() {
     console.log(
       'Running in single-repo mode - checking changelog for the entire repository...',
     );
-    await checkChangelog({
-      repoUrl: GITHUB_REPO,
-      changelogPath: 'CHANGELOG.md',
-      featureBranch: HEAD_REF,
-    });
+    await checkChangelogFile(`${TARGET_REPO_PATH}/CHANGELOG.md`);
   }
 }
 

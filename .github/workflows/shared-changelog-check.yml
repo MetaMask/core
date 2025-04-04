@@ -3,13 +3,13 @@ name: Shared ChangeLog Check
 on:
   workflow_call:
     inputs:
-      feature-branch:
-        required: true
-        type: string
-      pr-number:
+      base-branch:
         required: false
         type: string
       event-type:
+        description: 'The event type'
+        type: string
+      feature-branch:
         required: true
         type: string
       is-monorepo:
@@ -17,6 +17,14 @@ on:
         required: false
         type: boolean
         default: false
+      pr-number:
+        description: 'The pull request number'
+        required: false
+        type: string
+      repo:
+        description: 'The repository to check'
+        required: true
+        type: string
     secrets:
       gh-token:
         required: true
@@ -32,6 +40,15 @@ jobs:
             exit 0
           fi
           echo "Proceeding with pull request checks."
+
+      - name: Check out target repository
+        if: ${{ inputs.event-type == 'pull_request' }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repo }}
+          ref: ${{ inputs.feature-branch }}
+          path: target-repo
+          fetch-depth: 0
 
       - name: Checkout github-tools repository
         if: ${{ inputs.event-type == 'pull_request' }}
@@ -65,7 +82,7 @@ jobs:
         id: label-check
         env:
           GITHUB_TOKEN: ${{ secrets.gh-token }}
-          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_REPO: ${{ inputs.repo }}
           PR_NUMBER: ${{ inputs.pr-number }}
         run: |
           # Fetch labels from the GitHub API
@@ -90,11 +107,10 @@ jobs:
         id: changelog-check
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.gh-token }}
           IS_MONOREPO: ${{ inputs.is-monorepo || 'false' }}
-          GITHUB_REPO: ${{ github.repository }}
-          HEAD_REF: ${{ github.head_ref }}
-          PR_NUMBER: ${{ inputs.pr-number }}
+          TARGET_REPO_PATH: ./target-repo
+          HEAD_REF: ${{ inputs.feature-branch }}
+          BASE_REF: ${{ inputs.base-branch || 'main' }}
         working-directory: ./github-tools
         run: |
           yarn run changelog:check
