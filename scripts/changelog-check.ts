@@ -1,5 +1,5 @@
 import { parseChangelog } from '@metamask/auto-changelog';
-import { execa } from 'execa';
+import execa from 'execa';
 import fs from 'fs/promises';
 
 /**
