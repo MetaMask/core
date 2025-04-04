@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Skip `origin` validation for `batch` transaction type ([#5586](https://github.com/MetaMask/core/pull/5586))
+
 ## [53.0.0]
 
 ### Added

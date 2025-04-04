@@ -77,6 +77,10 @@ export async function validateTransactionOrigin({
     throw providerErrors.unauthorized({ data: { origin } });
   }
 
+  if (type === TransactionType.batch) {
+    return;
+  }
+
   if (
     isExternal &&
     (authorizationList || envelopeType === TransactionEnvelopeType.setCode)
@@ -93,8 +97,7 @@ export async function validateTransactionOrigin({
     hasData &&
     internalAccounts?.some(
       (account) => account.toLowerCase() === to?.toLowerCase(),
-    ) &&
-    type !== TransactionType.batch
+    )
   ) {
     throw rpcErrors.invalidParams(
       'External transactions to internal accounts cannot include data',
