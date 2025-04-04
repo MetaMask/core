@@ -195,3 +195,4 @@ export type {
   TokenSearchDiscoveryDataControllerActions,
   TokenSearchDiscoveryDataControllerMessenger,
 } from './TokenSearchDiscoveryDataController';
+export type TestType = 'test';
