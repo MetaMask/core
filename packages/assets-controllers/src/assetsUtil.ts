@@ -186,6 +186,8 @@ export enum SupportedTokenDetectionNetworks {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   moonriver = '0x505', // decimal: 1285
+  // bera chain
+  berachain = '0x138de',
 }
 
 /**
