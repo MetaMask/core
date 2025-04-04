@@ -101,10 +101,6 @@ jobs:
         if: ${{ inputs.event-type == 'pull_request' && env.SKIP_CHANGELOG != 'true' }}
         id: changelog-check
         shell: bash
-        env:
-          REPO_PATH: ../target-repo
-          HEAD_REF: ${{ inputs.feature-branch }}
-          BASE_REF: ${{ inputs.base-branch || 'main' }}
         working-directory: ./github-tools
         run: |
-          yarn run changelog:check
+          yarn run changelog:check ../target-repo ${{ inputs.base-branch || 'main' }}

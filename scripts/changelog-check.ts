@@ -26,26 +26,38 @@ async function getWorkspacePatterns(repoPath: string): Promise<string[]> {
 }
 
 /**
- * Gets the package name from a file path based on workspace patterns
+ * This function gets the workspace base and package name from the file path
  *
  * @param filePath - The path to the file
  * @param workspacePatterns - The workspace patterns
- * @returns The package name or null if no match is found
+ * @returns An object containing the base directory and package name, or null if no match is found
  */
-function getPackageFromPath(
+function getPackageInfo(
   filePath: string,
   workspacePatterns: string[],
-): string | null {
-  // Convert glob patterns to regex patterns
-  const regexPatterns = workspacePatterns.map((pattern) => {
-    return new RegExp(`^${pattern.replace(/\*/gu, '([^/]+)')}$`, 'u');
-  });
+): { base: string; package: string } | null {
+  for (const pattern of workspacePatterns) {
+    // Extract the base directory (everything before the *)
+    const wildcardIndex = pattern.indexOf('*');
+    if (wildcardIndex === -1) {
+      continue;
+    }
 
-  // Try each pattern until we find a match
-  for (const regex of regexPatterns) {
-    const match = filePath.match(regex);
-    if (match) {
-      return match[1]; // Return the captured package name
+    const baseDir = pattern.substring(0, wildcardIndex);
+
+    // Check if the file path starts with this base directory
+    if (filePath.startsWith(baseDir)) {
+      // Extract the package name (everything between baseDir and the next slash)
+      const remainingPath = filePath.substring(baseDir.length);
+      const nextSlashIndex = remainingPath.indexOf('/');
+
+      if (nextSlashIndex !== -1) {
+        const packageName = remainingPath.substring(0, nextSlashIndex);
+        return {
+          base: baseDir,
+          package: packageName,
+        };
+      }
     }
   }
 
@@ -64,12 +76,10 @@ async function getChangedFiles(
   baseRef: string,
 ): Promise<string[]> {
   try {
-    // First fetch the base branch
     await execa('git', ['fetch', 'origin', baseRef], {
       cwd: repoPath,
     });
 
-    // Then get the diff between base and current HEAD
     const { stdout } = await execa(
       'git',
       ['diff', '--name-only', `origin/${baseRef}...HEAD`],
@@ -124,13 +134,13 @@ async function checkChangelogFile(changelogPath: string): Promise<void> {
  *
  * @param files - The list of changed files
  * @param workspacePatterns - The workspace patterns
- * @returns Array of changed package names
+ * @returns Array of changed package information
  */
 async function getChangedPackages(
   files: string[],
   workspacePatterns: string[],
-): Promise<string[]> {
-  const changedPackages = new Set<string>();
+): Promise<{ base: string; package: string }[]> {
+  const changedPackages = new Map<string, { base: string; package: string }>();
 
   for (const file of files) {
     // Skip workflow files
@@ -138,8 +148,8 @@ async function getChangedPackages(
       continue;
     }
 
-    const pkg = getPackageFromPath(file, workspacePatterns);
-    if (pkg) {
+    const packageInfo = getPackageInfo(file, workspacePatterns);
+    if (packageInfo) {
       // Skip test files, docs, and changelog files
       if (
         !file.match(/\.(test|spec)\./u) &&
@@ -147,45 +157,56 @@ async function getChangedPackages(
         !file.includes('/docs/') &&
         !file.endsWith('CHANGELOG.md')
       ) {
-        changedPackages.add(pkg);
+        // Use package name as key to avoid duplicates
+        changedPackages.set(packageInfo.package, packageInfo);
       }
     }
   }
 
-  return Array.from(changedPackages);
+  return Array.from(changedPackages.values());
 }
 
 /**
  * Main function to run the changelog check.
  */
 async function main() {
-  const {
-    BASE_REF: baseRef = 'main',
-    REPO_PATH,
-    // eslint-disable-next-line n/no-process-env
-  } = process.env;
-
-  if (!REPO_PATH) {
-    throw new Error('REPO_PATH environment variable must be set');
+  // Parse command-line arguments
+  const args = process.argv.slice(2);
+  if (args.length < 2) {
+    console.error(
+      '❌ Usage: ts-node src/check-changelog.ts <repo-path> <base-ref>',
+    );
+    throw new Error('❌ Missing required arguments.');
   }
 
-  const repoPath = path.resolve(process.cwd(), REPO_PATH);
+  const [repoPath, baseRef] = args;
+
+  if (!repoPath || !baseRef) {
+    console.error(
+      '❌ Usage: ts-node src/check-changelog.ts <repo-path> <base-ref>',
+    );
+    throw new Error('❌ Missing required arguments.');
+  }
+
+  const absoluteRepoPath = path.resolve(process.cwd(), repoPath);
 
   // Verify the repo path exists
   try {
-    await fs.access(repoPath);
+    await fs.access(absoluteRepoPath);
   } catch {
-    throw new Error(`Repository path not found: ${repoPath}`);
+    throw new Error(`Repository path not found: ${absoluteRepoPath}`);
   }
 
-  const workspacePatterns = await getWorkspacePatterns(repoPath);
+  const workspacePatterns = await getWorkspacePatterns(absoluteRepoPath);
+
+  console.log('🔍 Workspace patterns:', workspacePatterns);
 
   if (workspacePatterns.length > 0) {
     console.log(
       'Running in monorepo mode - checking changelogs for changed packages...',
     );
 
-    const changedFiles = await getChangedFiles(repoPath, baseRef);
+    const changedFiles = await getChangedFiles(absoluteRepoPath, baseRef);
     if (!changedFiles.length) {
       console.log('No changed files found. Exiting successfully.');
       return;
@@ -204,24 +225,21 @@ async function main() {
 
     let hasError = false;
 
-    for (const pkg of changedPackages) {
+    for (const pkgInfo of changedPackages) {
       try {
-        // Find the matching workspace pattern for this package
-        const pattern = workspacePatterns.find((p) =>
-          new RegExp(`^${p.replace(/\*/gu, '[^/]+')}$`, 'u').test(`${pkg}`),
-        );
-        if (!pattern) {
-          throw new Error(
-            `Could not find workspace pattern for package ${pkg}`,
-          );
-        }
-
-        const packageBase = pattern.replace('/*', '');
         await checkChangelogFile(
-          path.join(repoPath, packageBase, pkg, 'CHANGELOG.md'),
+          path.join(
+            absoluteRepoPath,
+            pkgInfo.base,
+            pkgInfo.package,
+            'CHANGELOG.md',
+          ),
         );
       } catch (error) {
-        console.error(`❌ Changelog check failed for package ${pkg}:`, error);
+        console.error(
+          `❌ Changelog check failed for package ${pkgInfo.package}:`,
+          error,
+        );
         hasError = true;
       }
     }
@@ -233,7 +251,7 @@ async function main() {
     console.log(
       'Running in single-repo mode - checking changelog for the entire repository...',
     );
-    await checkChangelogFile(`${repoPath}/CHANGELOG.md`);
+    await checkChangelogFile(`${absoluteRepoPath}/CHANGELOG.md`);
   }
 }
 
