@@ -1,4 +1,4 @@
-import { SDK } from './sdk';
+import * as SDK from './sdk';
 
 const EIP712Domain = [
   { name: 'name', type: 'string' },

@@ -5,13 +5,11 @@ import {
   DelegationController,
   getDefaultDelegationControllerState,
 } from './delegation-controller';
-import { getDelegationHash } from './sdk';
+import { type Delegation, getDelegationHashOffchain } from './sdk';
 import type {
-  Delegation,
   DelegationControllerMessenger,
   DelegationControllerState,
 } from './types';
-import { parseDelegation, serializeDelegation } from './utils';
 
 const FROM_MOCK = '0x456DEF0123456789ABCDEF0123456789ABCDEF01' as Address;
 const SIGNATURE_HASH_MOCK = '0x123ABC';
@@ -170,7 +168,7 @@ describe('DelegationController', () => {
 
       controller.store(DELEGATION_MOCK);
 
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       expect(controller.state.delegations[hash]).toStrictEqual({
         data: DELEGATION_MOCK,
         meta: {
@@ -182,7 +180,7 @@ describe('DelegationController', () => {
 
     it('overwrites existing delegation with same hash', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
 
       const updatedDelegation = {
@@ -202,7 +200,7 @@ describe('DelegationController', () => {
 
     it('stores delegation with custom label', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
       controller.testUpdate((state) => {
         state.delegations[hash].meta.label = 'custom-label';
@@ -217,7 +215,7 @@ describe('DelegationController', () => {
   describe('retrieve', () => {
     it('retrieves delegation by hash', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
 
       const result = controller.retrieve({ hash });
@@ -342,7 +340,7 @@ describe('DelegationController', () => {
         ...DELEGATION_MOCK,
         delegate: '0x9234567890123456789012345678901234567890' as Address,
       };
-      const hash = getDelegationHash(DELEGATION_MOCK) as Hex;
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK) as Hex;
       controller.store(DELEGATION_MOCK);
       controller.store(delegation2);
       controller.testUpdate((state) => {
@@ -365,7 +363,7 @@ describe('DelegationController', () => {
         ...DELEGATION_MOCK,
         delegator: '0x8234567890123456789012345678901234567890' as Address,
       };
-      const hash = getDelegationHash(DELEGATION_MOCK) as Hex;
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK) as Hex;
       controller.store(DELEGATION_MOCK);
       controller.store(delegation2);
       controller.testUpdate((state) => {
@@ -396,7 +394,7 @@ describe('DelegationController', () => {
 
     it('filters by label', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
       controller.testUpdate((state) => {
         state.delegations[hash].meta.label = 'test-label';
@@ -468,7 +466,7 @@ describe('DelegationController', () => {
 
     it('filters by label with delegate filter', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
       controller.testUpdate((state) => {
         state.delegations[hash].meta.label = 'test-label';
@@ -485,7 +483,7 @@ describe('DelegationController', () => {
 
     it('filters by label with delegator filter', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
       controller.testUpdate((state) => {
         state.delegations[hash].meta.label = 'test-label';
@@ -502,7 +500,7 @@ describe('DelegationController', () => {
 
     it('filters by delegator, delegate, and label', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
       controller.testUpdate((state) => {
         state.delegations[hash].meta.label = 'test-label';
@@ -535,9 +533,10 @@ describe('DelegationController', () => {
       controller.store(DELEGATION_MOCK);
       controller.store(delegation2);
       controller.testUpdate((state) => {
-        state.delegations[getDelegationHash(DELEGATION_MOCK)].meta.label =
-          'test-label';
-        state.delegations[getDelegationHash(delegation2)].meta.label =
+        state.delegations[
+          getDelegationHashOffchain(DELEGATION_MOCK)
+        ].meta.label = 'test-label';
+        state.delegations[getDelegationHashOffchain(delegation2)].meta.label =
           'test-label';
       });
 
@@ -566,7 +565,7 @@ describe('DelegationController', () => {
   describe('delete', () => {
     it('deletes delegation by hash', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
 
       const deleted = controller.delete({ hash });
@@ -599,7 +598,7 @@ describe('DelegationController', () => {
 
     it('deletes delegations by label', () => {
       const { controller } = createController();
-      const hash = getDelegationHash(DELEGATION_MOCK);
+      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
       controller.store(DELEGATION_MOCK);
       controller.testUpdate((state) => {
         state.delegations[hash].meta.label = 'test-label';
@@ -650,9 +649,10 @@ describe('DelegationController', () => {
       controller.store(DELEGATION_MOCK);
       controller.store(delegation2);
       controller.testUpdate((state) => {
-        state.delegations[getDelegationHash(DELEGATION_MOCK)].meta.label =
-          'test-label';
-        state.delegations[getDelegationHash(delegation2)].meta.label =
+        state.delegations[
+          getDelegationHashOffchain(DELEGATION_MOCK)
+        ].meta.label = 'test-label';
+        state.delegations[getDelegationHashOffchain(delegation2)].meta.label =
           'test-label';
       });
 
@@ -663,32 +663,8 @@ describe('DelegationController', () => {
       expect(deleted).toHaveLength(1);
       expect(Object.values(controller.state.delegations)).toHaveLength(1);
       expect(
-        controller.state.delegations[getDelegationHash(delegation2)],
+        controller.state.delegations[getDelegationHashOffchain(delegation2)],
       ).toBeDefined();
-    });
-  });
-
-  describe('utils', () => {
-    it('serializes a delegation', () => {
-      const delegationStruct = {
-        ...DELEGATION_MOCK,
-        salt: BigInt(DELEGATION_MOCK.salt),
-      };
-
-      const result = serializeDelegation(delegationStruct);
-
-      expect(result).toStrictEqual(DELEGATION_MOCK);
-    });
-
-    it('parses a delegation', () => {
-      const expected = {
-        ...DELEGATION_MOCK,
-        salt: BigInt(DELEGATION_MOCK.salt),
-      };
-
-      const result = parseDelegation(DELEGATION_MOCK);
-
-      expect(result).toStrictEqual(expected);
     });
   });
 });

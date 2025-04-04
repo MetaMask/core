@@ -27,6 +27,16 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./sdk": {
+      "import": {
+        "types": "./dist/sdk/index.d.mts",
+        "default": "./dist/sdk/index.mjs"
+      },
+      "require": {
+        "types": "./dist/sdk/index.d.cts",
+        "default": "./dist/sdk/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
@@ -47,7 +57,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask-private/delegator-core-viem": "^0.7.1",
+    "@metamask-private/delegator-core-viem": "^0.8.0",
     "@metamask/accounts-controller": "^27.0.0",
     "@metamask/base-controller": "^8.0.0",
     "@metamask/keyring-controller": "^21.0.1",

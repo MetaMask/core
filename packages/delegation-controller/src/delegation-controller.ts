@@ -2,10 +2,9 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
-import { getDelegationHash } from './sdk';
+import { type Delegation, getDelegationHashOffchain } from './sdk';
 import type {
   Address,
-  Delegation,
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
@@ -106,7 +105,7 @@ export class DelegationController extends BaseController<
    * @param delegation - The delegation to store.
    */
   store(delegation: Delegation) {
-    const hash = getDelegationHash(delegation);
+    const hash = getDelegationHashOffchain(delegation);
     this.update((state) => {
       state.delegations[hash] = {
         data: delegation,
@@ -167,7 +166,7 @@ export class DelegationController extends BaseController<
     const list = this.retrieve(filter);
     const deleted: DelegationEntry[] = [];
     list.forEach((entry) => {
-      const hash = getDelegationHash(entry.data);
+      const hash = getDelegationHashOffchain(entry.data);
       deleted.push(entry);
       this.update((state) => {
         delete state.delegations[hash];
