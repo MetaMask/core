@@ -217,7 +217,9 @@ export type ActiveNetworksResponse = {
  */
 export type ActiveNetworksByAddress = {
   [address in CaipAccountAddress]: {
-    namespace: string;
+    // namespace is the CAIP namespace of the network
+    namespace: KnownCaipNamespace;
+    // activeChains is an array of chain IDs that are active on the network most primarily used for EVM networks
     activeChains: string[];
   };
 };
@@ -226,7 +228,10 @@ export type ActiveNetworksByAddress = {
  * Components of a network string in the format "namespace:chainId:address"
  */
 export type NetworkStringComponents = {
+  // namespace is the CAIP namespace of the network
   namespace: KnownCaipNamespace;
+  // chainId is the chain ID of the network
   chainId: string;
+  // address is the address of the account on the network
   address: CaipAccountAddress;
 };

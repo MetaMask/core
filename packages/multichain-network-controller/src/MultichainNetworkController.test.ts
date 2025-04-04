@@ -16,6 +16,7 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
@@ -629,7 +630,7 @@ describe('MultichainNetworkController', () => {
         await controller.getNetworksWithTransactionActivityByAccounts();
       expect(result).toStrictEqual({
         '0x1234567890123456789012345678901234567890': {
-          namespace: 'eip155',
+          namespace: KnownCaipNamespace.Eip155,
           activeChains: ['1'],
         },
       });
@@ -638,7 +639,7 @@ describe('MultichainNetworkController', () => {
     it('should handle errors and return cached networksWithTransactionActivity', async () => {
       const mockCachedNetworks = {
         '0x1234567890123456789012345678901234567890': {
-          namespace: 'eip155',
+          namespace: KnownCaipNamespace.Eip155,
           activeChains: ['1'],
         },
       };
