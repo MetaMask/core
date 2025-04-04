@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       is-monorepo:
-        description: 'Set to true for monorepo projects (only yarn workspaces are supported)'
+        description: 'Set to true for monorepo projects'
         required: false
         type: boolean
         default: false
@@ -108,7 +108,7 @@ jobs:
         shell: bash
         env:
           IS_MONOREPO: ${{ inputs.is-monorepo || 'false' }}
-          TARGET_REPO_PATH: ../target-repo
+          REPO_PATH: ../target-repo
           HEAD_REF: ${{ inputs.feature-branch }}
           BASE_REF: ${{ inputs.base-branch || 'main' }}
         working-directory: ./github-tools
