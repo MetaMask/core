@@ -13,3 +13,4 @@ export {
   getDefaultAddressBookControllerState,
   AddressBookController,
 } from './AddressBookController';
+export type TestType = 'test';

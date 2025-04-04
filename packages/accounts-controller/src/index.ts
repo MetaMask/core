@@ -35,3 +35,4 @@ export {
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
 } from './utils';
+export type TestType = 'test';
