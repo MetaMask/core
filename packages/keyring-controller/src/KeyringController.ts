@@ -2197,7 +2197,7 @@ export class KeyringController extends BaseController<
 
           // This condition is required to not set the state of the keyring
           // with an encryption key and salt derived from with parameters
-          // that are not the ones set by the encrytor class.
+          // that are not the ones set by the encryptor class.
           if (
             !this.#encryptor.isVaultUpdated ||
             this.#encryptor.isVaultUpdated(encryptedVault)
