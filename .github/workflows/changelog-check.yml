@@ -13,7 +13,6 @@ jobs:
       base-branch: main
       event-type: ${{ github.event_name }}
       feature-branch: ${{ github.head_ref }}
-      is-monorepo: true
       pr-number: ${{ github.event.pull_request.number }}
       repo: ${{ github.repository }}
     secrets:

@@ -19,7 +19,7 @@ async function getWorkspacePatterns(repoPath: string): Promise<string[]> {
   const packageJson = JSON.parse(content) as PackageJson;
 
   if (!Array.isArray(packageJson.workspaces)) {
-    throw new Error('Workspaces must be an array of strings');
+    return [];
   }
 
   return packageJson.workspaces;
@@ -161,7 +161,6 @@ async function getChangedPackages(
 async function main() {
   const {
     BASE_REF: baseRef = 'main',
-    IS_MONOREPO: isMonorepo,
     REPO_PATH,
     // eslint-disable-next-line n/no-process-env
   } = process.env;
@@ -179,7 +178,9 @@ async function main() {
     throw new Error(`Repository path not found: ${repoPath}`);
   }
 
-  if (isMonorepo === 'true') {
+  const workspacePatterns = await getWorkspacePatterns(repoPath);
+
+  if (workspacePatterns.length > 0) {
     console.log(
       'Running in monorepo mode - checking changelogs for changed packages...',
     );
@@ -189,8 +190,6 @@ async function main() {
       console.log('No changed files found. Exiting successfully.');
       return;
     }
-
-    const workspacePatterns = await getWorkspacePatterns(repoPath);
 
     const changedPackages = await getChangedPackages(
       changedFiles,

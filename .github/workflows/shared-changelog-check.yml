@@ -12,11 +12,6 @@ on:
       feature-branch:
         required: true
         type: string
-      is-monorepo:
-        description: 'Set to true for monorepo projects'
-        required: false
-        type: boolean
-        default: false
       pr-number:
         description: 'The pull request number'
         required: false
@@ -107,7 +102,6 @@ jobs:
         id: changelog-check
         shell: bash
         env:
-          IS_MONOREPO: ${{ inputs.is-monorepo || 'false' }}
           REPO_PATH: ../target-repo
           HEAD_REF: ${{ inputs.feature-branch }}
           BASE_REF: ${{ inputs.base-branch || 'main' }}
