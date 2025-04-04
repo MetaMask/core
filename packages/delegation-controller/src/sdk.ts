@@ -1,14 +1,14 @@
-import * as sdk from '@metamask-private/delegator-core-viem';
+import * as SDK from '@metamask-private/delegator-core-viem';
 
 import type { Address, Delegation, Hex } from './types';
 import { parseDelegation, serializeDelegation } from './utils';
 
-export { sdk };
+export { SDK };
 
 type CreateDelegationOptions = {
   delegator: Address;
   delegate?: Address;
-  caveats: sdk.Caveats;
+  caveats: SDK.Caveats;
   authority?: Hex;
   salt?: Hex;
 };
@@ -21,10 +21,10 @@ type CreateDelegationOptions = {
 export function createDelegation(opts: CreateDelegationOptions): Delegation {
   const { delegator, delegate, caveats, authority, salt } = opts;
   const _salt = salt ? BigInt(salt) : undefined;
-  let _delegation: sdk.DelegationStruct;
+  let _delegation: SDK.DelegationStruct;
 
   if (authority && delegate) {
-    _delegation = sdk.createDelegation(
+    _delegation = SDK.createDelegation(
       delegate,
       delegator,
       authority,
@@ -32,17 +32,17 @@ export function createDelegation(opts: CreateDelegationOptions): Delegation {
       _salt,
     );
   } else if (authority && !delegate) {
-    _delegation = sdk.createOpenDelegation(
+    _delegation = SDK.createOpenDelegation(
       delegator,
       authority,
       caveats,
       _salt,
     );
   } else if (!authority && delegate) {
-    _delegation = sdk.createRootDelegation(delegate, delegator, caveats, _salt);
+    _delegation = SDK.createRootDelegation(delegate, delegator, caveats, _salt);
   } else {
     // !authority && !delegate
-    _delegation = sdk.createOpenRootDelegation(delegator, caveats, _salt);
+    _delegation = SDK.createOpenRootDelegation(delegator, caveats, _salt);
   }
 
   return serializeDelegation(_delegation);
@@ -54,14 +54,14 @@ export function createDelegation(opts: CreateDelegationOptions): Delegation {
  * @returns The caveat builder.
  */
 export function createCaveatBuilder(chainId: number) {
-  const env = sdk.getDeleGatorEnvironment(chainId);
-  return sdk.createCaveatBuilder(env);
+  const env = SDK.getDeleGatorEnvironment(chainId);
+  return SDK.createCaveatBuilder(env);
 }
 
 type EncodeRedeemDelegationsOptions = {
   delegations: Delegation[][];
-  modes: sdk.ExecutionMode[];
-  executions: sdk.ExecutionStruct[][];
+  modes: SDK.ExecutionMode[];
+  executions: SDK.ExecutionStruct[][];
 };
 
 /**
@@ -75,7 +75,7 @@ export function encodeRedeemDelegations(opts: EncodeRedeemDelegationsOptions) {
     delegation.map(parseDelegation),
   );
 
-  return sdk.DelegationFramework.encode.redeemDelegations(
+  return SDK.DelegationFramework.encode.redeemDelegations(
     _delegations,
     modes,
     executions,
@@ -89,5 +89,5 @@ export function encodeRedeemDelegations(opts: EncodeRedeemDelegationsOptions) {
  */
 export function getDelegationHash(delegation: Delegation) {
   const _delegation = parseDelegation(delegation);
-  return sdk.getDelegationHashOffchain(_delegation);
+  return SDK.getDelegationHashOffchain(_delegation);
 }

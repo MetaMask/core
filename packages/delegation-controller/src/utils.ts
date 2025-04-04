@@ -1,7 +1,7 @@
 import type { TypedMessageParams } from '@metamask/keyring-controller';
 
 import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
-import { sdk } from './sdk';
+import { SDK } from './sdk';
 import type { Address, Delegation } from './types';
 
 /**
@@ -11,7 +11,7 @@ import type { Address, Delegation } from './types';
  * @returns The serialized delegation (Delegation).
  */
 export function serializeDelegation(
-  delegation: sdk.DelegationStruct,
+  delegation: SDK.DelegationStruct,
 ): Delegation {
   return {
     ...delegation,
@@ -25,7 +25,7 @@ export function serializeDelegation(
  * @param delegation - The serialized delegation.
  * @returns The parsed delegation (DelegationStruct).
  */
-export function parseDelegation(delegation: Delegation): sdk.DelegationStruct {
+export function parseDelegation(delegation: Delegation): SDK.DelegationStruct {
   return {
     ...delegation,
     salt: BigInt(delegation.salt),
@@ -47,7 +47,7 @@ export function createTypedMessageParams(
   opts: CreateTypedMessageParamsOptions,
 ): TypedMessageParams {
   const { chainId, from, delegation } = opts;
-  const delegatorEnv = sdk.getDeleGatorEnvironment(chainId);
+  const delegatorEnv = SDK.getDeleGatorEnvironment(chainId);
 
   const data: TypedMessageParams = {
     data: {

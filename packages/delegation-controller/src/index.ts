@@ -11,7 +11,7 @@ export {
   createCaveatBuilder,
   encodeRedeemDelegations,
   getDelegationHash,
-  sdk,
+  SDK,
 } from './sdk';
 
 export { DelegationController } from './delegation-controller';
