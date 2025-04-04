@@ -69,8 +69,8 @@ export function getDefaultMultichainTransactionsControllerState(): MultichainTra
 /**
  * Event emitted when a transaction is finalized.
  */
-export type MultichainTransactionsControllerTransactionFinalizedEvent = {
-  type: `${typeof controllerName}:transactionFinalized`;
+export type MultichainTransactionsControllerTransactionConfirmedEvent = {
+  type: `${typeof controllerName}:transactionConfirmed`;
   payload: [Transaction];
 };
 
@@ -111,7 +111,7 @@ export type MultichainTransactionsControllerActions =
  */
 export type MultichainTransactionsControllerEvents =
   | MultichainTransactionsControllerStateChange
-  | MultichainTransactionsControllerTransactionFinalizedEvent
+  | MultichainTransactionsControllerTransactionConfirmedEvent
   | MultichainTransactionsControllerTransactionSubmittedEvent;
 
 /**
@@ -374,7 +374,7 @@ export class MultichainTransactionsController extends BaseController<
   #publishTransactionUpdateEvent(updatedTransaction: Transaction) {
     if (updatedTransaction.status === TransactionStatus.Confirmed) {
       this.messagingSystem.publish(
-        'MultichainTransactionsController:transactionFinalized',
+        'MultichainTransactionsController:transactionConfirmed',
         updatedTransaction,
       );
     }
@@ -396,6 +396,7 @@ export class MultichainTransactionsController extends BaseController<
     transactionsUpdate: AccountTransactionsUpdatedEventPayload,
   ): void {
     const updatedTransactions: Record<string, Transaction[]> = {};
+    const transactionsToPublish: Transaction[] = [];
 
     if (!transactionsUpdate?.transactions) {
       return;
@@ -421,6 +422,7 @@ export class MultichainTransactionsController extends BaseController<
 
         filteredNewTransactions.forEach((tx) => {
           transactions.set(tx.id, tx);
+          transactionsToPublish.push(tx);
         });
 
         // Sorted by timestamp (newest first). If the timestamp is not provided, those
@@ -444,15 +446,9 @@ export class MultichainTransactionsController extends BaseController<
     });
 
     // After we update the state, publish the events for new/updated transactions
-    Object.entries(transactionsUpdate.transactions).forEach(
-      ([_, newTransactions]) => {
-        const filteredNewTransactions =
-          this.#filterTransactions(newTransactions);
-        filteredNewTransactions.forEach((tx) => {
-          this.#publishTransactionUpdateEvent(tx);
-        });
-      },
-    );
+    transactionsToPublish.forEach((tx) => {
+      this.#publishTransactionUpdateEvent(tx);
+    });
   }
 
   /**

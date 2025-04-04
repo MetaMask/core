@@ -755,7 +755,7 @@ describe('MultichainTransactionsController', () => {
     expect(finalTransactions[0]).toBe(mainnetTransaction);
   });
 
-  it('publishes transactionFinalized event when transaction is confirmed', async () => {
+  it('publishes transactionConfirmed event when transaction is confirmed', async () => {
     const { messenger } = setupController();
 
     const confirmedTransaction = {
@@ -775,7 +775,7 @@ describe('MultichainTransactionsController', () => {
     await waitForAllPromises();
 
     expect(publishSpy).toHaveBeenCalledWith(
-      'MultichainTransactionsController:transactionFinalized',
+      'MultichainTransactionsController:transactionConfirmed',
       confirmedTransaction,
     );
   });
@@ -825,7 +825,7 @@ describe('MultichainTransactionsController', () => {
     await waitForAllPromises();
 
     expect(publishSpy).not.toHaveBeenCalledWith(
-      'MultichainTransactionsController:transactionFinalized',
+      'MultichainTransactionsController:transactionConfirmed',
       expect.anything(),
     );
     expect(publishSpy).not.toHaveBeenCalledWith(
@@ -866,7 +866,7 @@ describe('MultichainTransactionsController', () => {
     await waitForAllPromises();
 
     expect(publishSpy).toHaveBeenCalledWith(
-      'MultichainTransactionsController:transactionFinalized',
+      'MultichainTransactionsController:transactionConfirmed',
       transactions[0],
     );
     expect(publishSpy).toHaveBeenCalledWith(
