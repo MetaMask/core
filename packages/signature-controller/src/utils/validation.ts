@@ -220,10 +220,11 @@ function validateVerifyingContract({
   internalAccounts: Hex[];
   origin: string | undefined;
 }) {
-  const verifyingContract = data?.domain?.verifyingContract as Hex;
+  const verifyingContract = data?.domain?.verifyingContract as Hex | undefined;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
 
   if (
+    verifyingContract != null &&
     isExternal &&
     internalAccounts.some(
       (internalAccount) =>
