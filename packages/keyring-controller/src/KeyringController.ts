@@ -2175,7 +2175,6 @@ export class KeyringController extends BaseController<
     encryptionKey?: string,
     encryptionSalt?: string,
   ): Promise<EthKeyring[]> {
-    console.log('Unlock keyrings...');
     return this.#withVaultLock(async ({ releaseLock }) => {
       const encryptedVault = this.state.vault;
       if (!encryptedVault) {
