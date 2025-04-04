@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [27.0.1]
 
-### Fix
+### Fixed
 
 - Stop throwing an error if `verifyingContract` field in EIP712 payloads is undefined or not a string ([#5595](https://github.com/MetaMask/core/pull/5595))
 
