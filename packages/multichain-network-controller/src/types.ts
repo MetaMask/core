@@ -1,3 +1,4 @@
+import type { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
 import {
   type ControllerGetStateAction,
   type ControllerStateChangeEvent,
@@ -14,7 +15,11 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { type CaipAssetType } from '@metamask/utils';
+import {
+  type CaipAssetType,
+  type CaipAccountAddress,
+  type KnownCaipNamespace,
+} from '@metamask/utils';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -31,7 +36,8 @@ export type CommonNetworkConfiguration = {
    */
   isEvm: boolean;
   /**
-   * The chain ID of the network.
+   * The chain ID of the network.fcvfc
+   * 0≈*
    */
   chainId: CaipChainId;
   /**
@@ -97,6 +103,10 @@ export type MultichainNetworkControllerState = {
    * Whether EVM or non-EVM network is selected
    */
   isEvmSelected: boolean;
+  /**
+   * The active networks for the available EVM addresses (non-EVM networks will be supported in the future).
+   */
+  networksWithTransactionActivity: ActiveNetworksByAddress;
 };
 
 /**
@@ -117,6 +127,15 @@ export type MultichainNetworkControllerSetActiveNetworkAction = {
   handler: SetActiveNetworkMethod;
 };
 
+export type GetNetworksWithTransactionActivityByAccountsMethod =
+  () => Promise<ActiveNetworksByAddress>;
+
+export type MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction =
+  {
+    type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:getNetworksWithTransactionActivityByAccounts`;
+    handler: GetNetworksWithTransactionActivityByAccountsMethod;
+  };
+
 /**
  * Event emitted when the state of the {@link MultichainNetworkController} changes.
  */
@@ -135,7 +154,8 @@ export type MultichainNetworkControllerNetworkDidChangeEvent = {
  */
 export type MultichainNetworkControllerActions =
   | MultichainNetworkControllerGetStateAction
-  | MultichainNetworkControllerSetActiveNetworkAction;
+  | MultichainNetworkControllerSetActiveNetworkAction
+  | MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction;
 
 /**
  * Events emitted by {@link MultichainNetworkController}.
@@ -150,6 +170,7 @@ export type MultichainNetworkControllerEvents =
 export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
+  | AccountsControllerListMultichainAccountsAction
   | NetworkControllerRemoveNetworkAction
   | NetworkControllerGetSelectedChainIdAction
   | NetworkControllerFindNetworkClientIdByChainIdAction;
@@ -183,3 +204,34 @@ export type MultichainNetworkControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+/**
+ * The response from the active networks endpoint.
+ */
+export type ActiveNetworksResponse = {
+  activeNetworks: string[];
+};
+
+/**
+ * The active networks for the currently selected account.
+ */
+export type ActiveNetworksByAddress = {
+  [address in CaipAccountAddress]: {
+    // namespace is the CAIP namespace of the network
+    namespace: KnownCaipNamespace;
+    // activeChains is an array of chain IDs that are active on the network most primarily used for EVM networks
+    activeChains: string[];
+  };
+};
+
+/**
+ * Components of a network string in the format "namespace:chainId:address"
+ */
+export type NetworkStringComponents = {
+  // namespace is the CAIP namespace of the network
+  namespace: KnownCaipNamespace;
+  // chainId is the chain ID of the network
+  chainId: string;
+  // address is the address of the account on the network
+  address: CaipAccountAddress;
+};

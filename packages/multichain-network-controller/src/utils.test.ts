@@ -1,11 +1,22 @@
+import { handleFetch } from '@metamask/controller-utils';
 import {
+  type KeyringAccountType,
+  type CaipChainId,
   BtcScope,
   SolScope,
   EthScope,
-  type CaipChainId,
+  EthAccountType,
+  BtcAccountType,
+  SolAccountType,
 } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
+import { type CaipAccountAddress, KnownCaipNamespace } from '@metamask/utils';
 
+import {
+  MULTICHAIN_ACCOUNTS_DOMAIN,
+  MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
+  MULTICHAIN_ACCOUNTS_CLIENT_ID,
+} from './constants';
 import {
   isEvmCaipChainId,
   toEvmCaipChainId,
@@ -14,7 +25,19 @@ import {
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
+  fetchNetworkActivityByAccounts,
+  formatNetworkActivityResponse,
+  buildActiveNetworksUrl,
+  validateAccountIds,
+  parseNetworkString,
+  formatCaipAccountId,
+  ChainType,
+  getChainTypeFromAccountType,
 } from './utils';
+
+jest.mock('@metamask/controller-utils', () => ({
+  handleFetch: jest.fn(),
+}));
 
 describe('utils', () => {
   describe('getChainIdForNonEvmAddress', () => {
@@ -88,6 +111,26 @@ describe('utils', () => {
         chainId: 'eip155:1',
         isEvm: true,
         name: 'https://mainnet.infura.io/',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    });
+
+    it('uses default block explorer index when undefined', () => {
+      const network: NetworkConfiguration = {
+        chainId: '0x1',
+        name: 'Ethereum Mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: undefined,
+        rpcEndpoints: [],
+        defaultRpcEndpointIndex: 0,
+      };
+      expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
+        chainId: 'eip155:1',
+        isEvm: true,
+        name: 'Ethereum Mainnet',
         nativeCurrency: 'ETH',
         blockExplorerUrls: ['https://etherscan.io'],
         defaultBlockExplorerUrlIndex: 0,
@@ -171,6 +214,514 @@ describe('utils', () => {
       expect(isEvmCaipChainId(EthScope.Mainnet)).toBe(true);
       expect(isEvmCaipChainId(SolScope.Mainnet)).toBe(false);
       expect(isEvmCaipChainId(BtcScope.Mainnet)).toBe(false);
+    });
+  });
+
+  describe('fetchNetworkActivityByAccounts', () => {
+    const mockValidAccountId =
+      'eip155:1:0x1234567890123456789012345678901234567890';
+    const mockValidSolanaAccountId =
+      'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+    const mockInvalidAccountId = 'invalid:0:123';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should successfully fetch active networks for valid EVM account ID', async () => {
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      (handleFetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const expectedUrl = new URL(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks`,
+      );
+      expectedUrl.searchParams.append('accountIds', mockValidAccountId);
+
+      const result = await fetchNetworkActivityByAccounts([mockValidAccountId]);
+
+      const [calledUrl, calledOptions] = (handleFetch as jest.Mock).mock
+        .calls[0];
+      expect(new URL(calledUrl).toString()).toBe(expectedUrl.toString());
+      expect(calledOptions.method).toBe('GET');
+      expect(calledOptions.headers).toStrictEqual({
+        Accept: 'application/json',
+        [MULTICHAIN_ACCOUNTS_CLIENT_HEADER]: MULTICHAIN_ACCOUNTS_CLIENT_ID,
+      });
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('should successfully fetch active networks for valid Solana account ID', async () => {
+      const mockResponse = {
+        activeNetworks: [
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
+      };
+
+      (handleFetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const result = await fetchNetworkActivityByAccounts([
+        mockValidSolanaAccountId,
+      ]);
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('should handle multiple account IDs correctly', async () => {
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
+      };
+
+      (handleFetch as jest.Mock).mockResolvedValueOnce(mockResponse);
+
+      const expectedUrl = new URL(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks`,
+      );
+      expectedUrl.searchParams.append(
+        'accountIds',
+        `${mockValidAccountId},${mockValidSolanaAccountId}`,
+      );
+
+      const result = await fetchNetworkActivityByAccounts([
+        mockValidAccountId,
+        mockValidSolanaAccountId,
+      ]);
+
+      const [calledUrl, calledOptions] = (handleFetch as jest.Mock).mock
+        .calls[0];
+      expect(new URL(calledUrl).toString()).toBe(expectedUrl.toString());
+      expect(calledOptions.method).toBe('GET');
+      expect(calledOptions.headers).toStrictEqual({
+        Accept: 'application/json',
+        [MULTICHAIN_ACCOUNTS_CLIENT_HEADER]: MULTICHAIN_ACCOUNTS_CLIENT_ID,
+      });
+      expect(result).toStrictEqual(mockResponse);
+    });
+
+    it('should throw error for empty account IDs array', async () => {
+      await expect(fetchNetworkActivityByAccounts([])).rejects.toThrow(
+        'At least one account ID is required',
+      );
+    });
+
+    it('should throw error for invalid account ID format', async () => {
+      await expect(
+        fetchNetworkActivityByAccounts([mockInvalidAccountId]),
+      ).rejects.toThrow(/Invalid CAIP-10 account IDs/u);
+    });
+
+    it('should throw error for invalid API response format', async () => {
+      (handleFetch as jest.Mock).mockResolvedValueOnce({
+        invalidKey: [],
+      });
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow('Invalid response format from active networks API');
+    });
+
+    it('should handle request timeout', async () => {
+      (handleFetch as jest.Mock).mockRejectedValueOnce(
+        Object.assign(new Error(), { name: 'AbortError' }),
+      );
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow('Request timeout: Failed to fetch active networks');
+    });
+
+    it('should handle network errors', async () => {
+      const networkError = new Error('Network failure');
+      (handleFetch as jest.Mock).mockRejectedValueOnce(networkError);
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow(networkError);
+    });
+
+    it('should handle non-Error objects in catch block', async () => {
+      (handleFetch as jest.Mock).mockRejectedValueOnce('String error');
+
+      await expect(
+        fetchNetworkActivityByAccounts([mockValidAccountId]),
+      ).rejects.toThrow('Failed to fetch active networks: String error');
+    });
+  });
+
+  describe('validateAccountIds', () => {
+    it('should throw error for empty account IDs array', () => {
+      expect(() => validateAccountIds([])).toThrow(
+        'At least one account ID is required',
+      );
+    });
+
+    it('should throw error for invalid account ID format', () => {
+      expect(() => validateAccountIds(['invalid:0:123'])).toThrow(
+        'Invalid CAIP-10 account IDs: invalid:0:123',
+      );
+    });
+
+    it('should not throw for valid account IDs', () => {
+      expect(() =>
+        validateAccountIds([
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ]),
+      ).not.toThrow();
+    });
+
+    it('should throw for mixed valid and invalid account IDs', () => {
+      expect(() =>
+        validateAccountIds([
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'invalid:0:123',
+        ]),
+      ).toThrow('Invalid CAIP-10 account IDs: invalid:0:123');
+    });
+  });
+
+  describe('buildActiveNetworksUrl', () => {
+    it('should construct URL with single account ID', () => {
+      const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
+      const url = buildActiveNetworksUrl([accountId]);
+      expect(url.toString()).toBe(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks?accountIds=${encodeURIComponent(accountId)}`,
+      );
+    });
+
+    it('should construct URL with multiple account IDs', () => {
+      const accountIds = [
+        'eip155:1:0x1234567890123456789012345678901234567890',
+        'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      ];
+      const url = buildActiveNetworksUrl(accountIds);
+      expect(url.toString()).toBe(
+        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks?accountIds=${encodeURIComponent(accountIds.join(','))}`,
+      );
+    });
+  });
+
+  describe('formatNetworkActivityResponse', () => {
+    it('should format EVM network responses correctly', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1', '137'],
+        },
+      });
+    });
+
+    it('should format non-EVM network responses correctly', () => {
+      const response = {
+        activeNetworks: [
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
+          namespace: KnownCaipNamespace.Solana,
+          activeChains: [],
+        },
+      });
+    });
+
+    it('should handle mixed EVM and non-EVM networks', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+        EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
+          namespace: KnownCaipNamespace.Solana,
+          activeChains: [],
+        },
+      });
+    });
+
+    it('should skip entries with invalid addresses', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:invalid-address',
+          'eip155:1:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+      });
+    });
+
+    it('should handle empty response', () => {
+      const response = {
+        activeNetworks: [],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should handle invalid network format', () => {
+      const response = {
+        activeNetworks: ['invalid:network:format'],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({});
+    });
+
+    it('should handle missing chainId in network string', () => {
+      const response = {
+        activeNetworks: ['eip155::0x1234567890123456789012345678901234567890'],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: [],
+        },
+      });
+    });
+
+    it('should handle multiple addresses with different networks', () => {
+      const response = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x9876543210987654321098765432109876543210',
+        ],
+      };
+
+      const result = formatNetworkActivityResponse(response);
+
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+        '0x9876543210987654321098765432109876543210': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['137'],
+        },
+      });
+    });
+  });
+
+  describe('parseNetworkString', () => {
+    it('should parse valid EVM network string', () => {
+      const result = parseNetworkString(
+        'eip155:1:0x298fe5fdca148135e84407fa3c24042f038d3b5a',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Eip155,
+        chainId: '1',
+        address:
+          '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as CaipAccountAddress,
+      });
+    });
+
+    it('should parse EVM network string with large chain ID', () => {
+      const result = parseNetworkString(
+        'eip155:534352:0x5197b5b062288bbf29008c92b08010a92dd677cd',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Eip155,
+        chainId: '534352',
+        address:
+          '0x5197b5b062288bbf29008c92b08010a92dd677cd' as CaipAccountAddress,
+      });
+    });
+
+    it('should reject invalid EVM address format', () => {
+      const result = parseNetworkString('eip155:1:0xinvalid');
+      expect(result).toBeNull();
+    });
+
+    it('should parse valid Solana network string', () => {
+      const result = parseNetworkString(
+        'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Solana,
+        chainId: '1',
+        address:
+          'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAccountAddress,
+      });
+    });
+
+    it('should reject invalid Solana address', () => {
+      const result = parseNetworkString('solana:1:invalid_solana_address');
+      expect(result).toBeNull();
+    });
+
+    it('should parse valid Bitcoin network string', () => {
+      // Test legacy address
+      const legacy = parseNetworkString(
+        'bip122:1:1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
+      );
+      expect(legacy).toStrictEqual({
+        namespace: KnownCaipNamespace.Bip122,
+        chainId: '1',
+        address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' as CaipAccountAddress,
+      });
+
+      // Test SegWit address
+      const segwit = parseNetworkString(
+        'bip122:1:3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy',
+      );
+      expect(segwit).toStrictEqual({
+        namespace: KnownCaipNamespace.Bip122,
+        chainId: '1',
+        address: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy' as CaipAccountAddress,
+      });
+
+      // Test Native SegWit address
+      const nativeSegwit = parseNetworkString(
+        'bip122:1:bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+      );
+      expect(nativeSegwit).toStrictEqual({
+        namespace: KnownCaipNamespace.Bip122,
+        chainId: '1',
+        address:
+          'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' as CaipAccountAddress,
+      });
+    });
+
+    it('should reject invalid Bitcoin address format', () => {
+      const result = parseNetworkString('bip122:1:invalid');
+      expect(result).toBeNull();
+    });
+
+    it('should handle missing chainId', () => {
+      const result = parseNetworkString(
+        'eip155::0x298fe5fdca148135e84407fa3c24042f038d3b5a',
+      );
+      expect(result).toStrictEqual({
+        namespace: KnownCaipNamespace.Eip155,
+        chainId: '',
+        address:
+          '0x298fe5fdca148135e84407fa3c24042f038d3b5a' as CaipAccountAddress,
+      });
+    });
+
+    it('should handle missing components', () => {
+      expect(parseNetworkString('eip155:')).toBeNull();
+      expect(parseNetworkString('eip155:1')).toBeNull();
+      expect(parseNetworkString(':1:address')).toBeNull();
+      expect(parseNetworkString('::address')).toBeNull();
+    });
+
+    it('should handle unknown namespace', () => {
+      const result = parseNetworkString(
+        'unknown:1:0x298fe5fdca148135e84407fa3c24042f038d3b5a',
+      );
+      expect(result).toBeNull();
+    });
+
+    it('should handle empty string', () => {
+      const result = parseNetworkString('');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('formatCaipAccountId', () => {
+    it('formats EVM addresses correctly', () => {
+      const evmAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
+      expect(formatCaipAccountId(evmAddress, ChainType.EVM)).toBe(
+        `${KnownCaipNamespace.Eip155}:0:${evmAddress}`,
+      );
+    });
+
+    it('formats Solana addresses correctly', () => {
+      const solanaAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      expect(formatCaipAccountId(solanaAddress, ChainType.Solana)).toBe(
+        `${KnownCaipNamespace.Solana}:0:${solanaAddress}`,
+      );
+    });
+
+    it('formats Bitcoin addresses correctly', () => {
+      const bitcoinAddress = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+      expect(formatCaipAccountId(bitcoinAddress, ChainType.Bitcoin)).toBe(
+        `${KnownCaipNamespace.Bip122}:0:${bitcoinAddress}`,
+      );
+    });
+
+    it('maintains address case sensitivity', () => {
+      const mixedCaseAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
+      const result = formatCaipAccountId(mixedCaseAddress, ChainType.EVM);
+      expect(result).toContain(mixedCaseAddress);
+      expect(result).not.toContain(mixedCaseAddress.toLowerCase());
+    });
+
+    it('throws an error for unsupported chain types', () => {
+      const unsupportedChainType = -1 as unknown as ChainType;
+      expect(() =>
+        formatCaipAccountId('address', unsupportedChainType),
+      ).toThrow('Unsupported chain type: -1');
+    });
+  });
+
+  describe('getChainTypeFromAccountType', () => {
+    it('returns EVM for EthAccountType.Eoa', () => {
+      const result = getChainTypeFromAccountType(EthAccountType.Eoa);
+      expect(result).toBe(ChainType.EVM);
+    });
+
+    it('returns Bitcoin for BtcAccountType.P2wpkh', () => {
+      const result = getChainTypeFromAccountType(BtcAccountType.P2wpkh);
+      expect(result).toBe(ChainType.Bitcoin);
+    });
+
+    it('returns Solana for SolAccountType.DataAccount', () => {
+      const result = getChainTypeFromAccountType(SolAccountType.DataAccount);
+      expect(result).toBe(ChainType.Solana);
+    });
+
+    it('throws an error for unsupported account types', () => {
+      const unsupportedAccountType = 'unsupported' as KeyringAccountType;
+      expect(() => getChainTypeFromAccountType(unsupportedAccountType)).toThrow(
+        'Unsupported account type: unsupported',
+      );
     });
   });
 });

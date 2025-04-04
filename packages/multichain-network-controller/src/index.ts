@@ -18,6 +18,7 @@ export type {
   MultichainNetworkControllerActions,
   MultichainNetworkControllerEvents,
   MultichainNetworkControllerMessenger,
+  ActiveNetworksByAddress,
 } from './types';
 export {
   checkIfSupportedCaipChainId,

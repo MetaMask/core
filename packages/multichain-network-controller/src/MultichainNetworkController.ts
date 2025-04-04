@@ -13,12 +13,17 @@ import {
   type MultichainNetworkControllerState,
   type MultichainNetworkControllerMessenger,
   type SupportedCaipChainId,
+  type ActiveNetworksByAddress,
 } from './types';
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
+  fetchNetworkActivityByAccounts,
+  formatNetworkActivityResponse,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
+  formatCaipAccountId,
+  getChainTypeFromAccountType,
 } from './utils';
 
 /**
@@ -120,6 +125,17 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
+   * Lists all multichain accounts from the AccountsController.
+   *
+   * @returns Array of internal accounts
+   */
+  #listMultichainAccounts(): InternalAccount[] {
+    return this.messagingSystem.call(
+      'AccountsController:listMultichainAccounts',
+    );
+  }
+
+  /**
    * Sets the active network.
    *
    * @param id - The non-EVM Caip chain ID or EVM client ID of the network to set active.
@@ -137,6 +153,39 @@ export class MultichainNetworkController extends BaseController<
     }
 
     return await this.#setActiveEvmNetwork(id);
+  }
+
+  /**
+   * Returns the active networks for the available EVM addresses (non-EVM networks will be supported in the future).
+   * Fetches the data from the API and caches it in state.
+   *
+   * @returns A promise that resolves to the active networks for the available addresses
+   */
+  async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
+    try {
+      const accounts = this.#listMultichainAccounts();
+      if (!accounts || accounts.length === 0) {
+        return this.state.networksWithTransactionActivity;
+      }
+
+      const formattedAccounts = accounts.map((account) => {
+        const chainType = getChainTypeFromAccountType(account.type);
+        return formatCaipAccountId(account.address, chainType);
+      });
+
+      const activeNetworks =
+        await fetchNetworkActivityByAccounts(formattedAccounts);
+      const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
+
+      this.update((state) => {
+        state.networksWithTransactionActivity = formattedNetworks;
+      });
+
+      return this.state.networksWithTransactionActivity;
+    } catch (error) {
+      console.error('Error fetching networks with activity by accounts', error);
+      return this.state.networksWithTransactionActivity;
+    }
   }
 
   /**
@@ -259,6 +308,10 @@ export class MultichainNetworkController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'MultichainNetworkController:setActiveNetwork',
       this.setActiveNetwork.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'MultichainNetworkController:getNetworksWithTransactionActivityByAccounts',
+      this.getNetworksWithTransactionActivityByAccounts.bind(this),
     );
   }
 }

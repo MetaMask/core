@@ -16,6 +16,7 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
@@ -26,7 +27,18 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from './types';
+import { fetchNetworkActivityByAccounts } from './utils';
 import { createMockInternalAccount } from '../tests/utils';
+
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  handleFetch: jest.fn(),
+}));
+
+jest.mock('./utils', () => ({
+  ...jest.requireActual('./utils'),
+  fetchNetworkActivityByAccounts: jest.fn(),
+}));
 
 /**
  * Setup a test controller instance.
@@ -149,6 +161,7 @@ function setupController({
       'NetworkController:removeNetwork',
       'NetworkController:getSelectedChainId',
       'NetworkController:findNetworkClientIdByChainId',
+      'AccountsController:listMultichainAccounts',
     ],
     allowedEvents: ['AccountsController:selectedAccountChange'],
   });
@@ -520,6 +533,150 @@ describe('MultichainNetworkController', () => {
       await expect(controller.removeNetwork(BtcScope.Mainnet)).rejects.toThrow(
         'Removal of non-EVM networks is not supported',
       );
+    });
+  });
+
+  describe('getNetworksWithTransactionActivityByAccounts', () => {
+    beforeEach(() => {
+      jest.spyOn(console, 'error').mockImplementation();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('should return networksWithTransactionActivity when no accounts exist', async () => {
+      const { controller, messenger } = setupController({
+        getSelectedChainId: jest.fn().mockReturnValue('0x1'),
+      });
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [],
+      );
+
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
+      expect(result).toStrictEqual({});
+    });
+
+    it('should fetch and format network activity for EVM accounts', async () => {
+      const { controller, messenger } = setupController({
+        getSelectedChainId: jest.fn().mockReturnValue('0x1'),
+      });
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: '0x1234567890123456789012345678901234567890',
+          }),
+        ],
+      );
+
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      (fetchNetworkActivityByAccounts as jest.Mock).mockResolvedValueOnce(
+        mockResponse,
+      );
+
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: 'eip155',
+          activeChains: ['1', '137'],
+        },
+      });
+    });
+
+    it('should handle mixed EVM and non-EVM accounts correctly', async () => {
+      const { controller, messenger } = setupController({
+        getSelectedChainId: jest.fn().mockReturnValue('0x1'),
+      });
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: '0x1234567890123456789012345678901234567890',
+          }),
+          createMockInternalAccount({
+            type: SolAccountType.DataAccount,
+            address: 'solana123',
+          }),
+        ],
+      );
+
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      (fetchNetworkActivityByAccounts as jest.Mock).mockResolvedValueOnce(
+        mockResponse,
+      );
+
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
+      expect(result).toStrictEqual({
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+      });
+    });
+
+    it('should handle errors and return cached networksWithTransactionActivity', async () => {
+      const mockCachedNetworks = {
+        '0x1234567890123456789012345678901234567890': {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+      };
+
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            networksWithTransactionActivity: mockCachedNetworks,
+          },
+        },
+      });
+
+      messenger.registerActionHandler(
+        'AccountsController:listMultichainAccounts',
+        () => [
+          createMockInternalAccount({
+            type: EthAccountType.Eoa,
+            address: '0x1234567890123456789012345678901234567890',
+          }),
+        ],
+      );
+
+      await controller.getNetworksWithTransactionActivityByAccounts();
+
+      (fetchNetworkActivityByAccounts as jest.Mock).mockRejectedValueOnce(
+        new Error('Network error'),
+      );
+
+      const result =
+        await controller.getNetworksWithTransactionActivityByAccounts();
+
+      expect(console.error).toHaveBeenCalledWith(
+        'Error fetching networks with activity by accounts',
+        expect.any(Error),
+      );
+
+      expect(result).toStrictEqual(mockCachedNetworks);
     });
   });
 });

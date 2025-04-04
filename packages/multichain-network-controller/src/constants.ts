@@ -1,6 +1,7 @@
 import { type StateMetadata } from '@metamask/base-controller';
 import { BtcScope, SolScope } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import type {
   MultichainNetworkConfiguration,
@@ -58,6 +59,7 @@ export const getDefaultMultichainNetworkControllerState =
       AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
     selectedMultichainNetworkChainId: SolScope.Mainnet,
     isEvmSelected: true,
+    networksWithTransactionActivity: {},
   });
 
 /**
@@ -71,4 +73,32 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
   multichainNetworkConfigurationsByChainId: { persist: true, anonymous: true },
   selectedMultichainNetworkChainId: { persist: true, anonymous: true },
   isEvmSelected: { persist: true, anonymous: true },
+  networksWithTransactionActivity: { persist: true, anonymous: true },
 } satisfies StateMetadata<MultichainNetworkControllerState>;
+
+/**
+ * The domain for multichain accounts API.
+ */
+export const MULTICHAIN_ACCOUNTS_DOMAIN = 'https://accounts.api.cx.metamask.io';
+
+/**
+ * CAIP-10 format prefixes for different chain types.
+ * Format: namespace:chainId:
+ * Using '0' as chainId represents a wildcard to fetch activity across all chains.
+ */
+export const CAIP_ACCOUNT_PREFIXES = {
+  EVM: `${KnownCaipNamespace.Eip155}:0:`,
+  BTC: `${KnownCaipNamespace.Bip122}:0:`,
+  SOLANA: `${KnownCaipNamespace.Solana}:0:`,
+} as const;
+
+/**
+ * The client header for the multichain accounts API.
+ */
+export const MULTICHAIN_ACCOUNTS_CLIENT_HEADER = 'x-metamask-clientproduct';
+
+/**
+ * The client ID for the multichain accounts API.
+ */
+export const MULTICHAIN_ACCOUNTS_CLIENT_ID =
+  'metamask-multichain-network-controller';

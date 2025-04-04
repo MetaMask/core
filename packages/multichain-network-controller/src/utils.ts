@@ -1,8 +1,17 @@
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { handleFetch } from '@metamask/controller-utils';
+import {
+  type KeyringAccountType,
+  BtcScope,
+  SolScope,
+  BtcAccountType,
+  EthAccountType,
+  SolAccountType,
+} from '@metamask/keyring-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type Hex,
   type CaipChainId,
+  type CaipAccountAddress,
   KnownCaipNamespace,
   toCaipChainId,
   parseCaipChainId,
@@ -11,11 +20,31 @@ import {
 } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
-import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
+import {
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+  CAIP_ACCOUNT_PREFIXES,
+} from './constants';
+import {
+  MULTICHAIN_ACCOUNTS_DOMAIN,
+  MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
+  MULTICHAIN_ACCOUNTS_CLIENT_ID,
+} from './constants';
 import type {
   SupportedCaipChainId,
   MultichainNetworkConfiguration,
+  ActiveNetworksByAddress,
+  ActiveNetworksResponse,
+  NetworkStringComponents,
 } from './types';
+
+/**
+ * The type of chain.
+ */
+export enum ChainType {
+  EVM = 'EVM',
+  Solana = 'Solana',
+  Bitcoin = 'Bitcoin',
+}
 
 /**
  * Checks if the chain ID is EVM.
@@ -130,3 +159,203 @@ export const toMultichainNetworkConfigurationsByChainId = (
     }),
     {},
   );
+
+/**
+ * Validates CAIP-10 account IDs format.
+ *
+ * @param accountIds - Array of account IDs to validate
+ * @throws Error if any account ID is invalid
+ */
+export function validateAccountIds(accountIds: string[]): void {
+  if (!accountIds.length) {
+    throw new Error('At least one account ID is required');
+  }
+
+  const caip10Regex =
+    /^(eip155:[0-9]+:0x[0-9a-fA-F]{40}|solana:[0-9]+:[1-9A-HJ-NP-Za-km-z]{32,44}|bip122:[0-9]+:(1|3|bc1)[a-zA-Z0-9]{25,62})$/u;
+  const invalidIds = accountIds.filter((id) => !caip10Regex.test(id));
+
+  if (invalidIds.length > 0) {
+    throw new Error(
+      `Invalid CAIP-10 account IDs: ${invalidIds.join(', ')}. Expected format: <namespace>:<chainId>:<address>`,
+    );
+  }
+}
+
+/**
+ * Constructs the URL for the active networks API endpoint.
+ *
+ * @param accountIds - Array of account IDs
+ * @returns URL object for the API endpoint
+ */
+export function buildActiveNetworksUrl(accountIds: string[]): URL {
+  const url = new URL(`${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks`);
+  url.searchParams.append('accountIds', accountIds.join(','));
+  return url;
+}
+
+/**
+ * Fetches the active networks for given account IDs.
+ *
+ * @param accountIds - Array of CAIP-10 account IDs with wildcard chain references
+ * @returns Promise resolving to the active networks response
+ * @throws Error if the request fails or if account IDs are invalid
+ */
+export async function fetchNetworkActivityByAccounts(
+  accountIds: string[],
+): Promise<ActiveNetworksResponse> {
+  try {
+    validateAccountIds(accountIds);
+
+    const url = buildActiveNetworksUrl(accountIds);
+
+    const response: ActiveNetworksResponse = await handleFetch(url, {
+      method: 'GET',
+      headers: {
+        [MULTICHAIN_ACCOUNTS_CLIENT_HEADER]: MULTICHAIN_ACCOUNTS_CLIENT_ID,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!Array.isArray(response?.activeNetworks)) {
+      throw new Error('Invalid response format from active networks API');
+    }
+
+    return response;
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout: Failed to fetch active networks');
+      }
+      throw error;
+    }
+
+    throw new Error(`Failed to fetch active networks: ${String(error)}`);
+  }
+}
+
+/**
+ * Parses a network string in the format "namespace:chainId:address".
+ *
+ * @param network - The network string to parse
+ * @returns The parsed components or null if invalid
+ */
+export function parseNetworkString(
+  network: string,
+): NetworkStringComponents | null {
+  const [namespace, chainId, address] = network.split(':');
+
+  if (!namespace || !address) {
+    return null;
+  }
+
+  // Validate address format based on namespace
+  switch (namespace as KnownCaipNamespace) {
+    case KnownCaipNamespace.Eip155:
+      if (!address.startsWith('0x') || !/^0x[0-9a-fA-F]{40}$/u.test(address)) {
+        return null;
+      }
+      break;
+    case KnownCaipNamespace.Solana:
+      if (!isSolanaAddress(address)) {
+        return null;
+      }
+      break;
+    case KnownCaipNamespace.Bip122:
+      // Bitcoin addresses can be legacy, segwit, or native segwit
+      // Need a utility function to validate bitcoin addresses
+      if (!/^(1|3|bc1)[a-zA-Z0-9]{25,62}$/u.test(address)) {
+        return null;
+      }
+      break;
+    default:
+      return null;
+  }
+
+  return {
+    namespace: namespace as KnownCaipNamespace,
+    chainId: chainId || '',
+    address: address as Hex,
+  };
+}
+
+/**
+ * Formats the API response into our state structure.
+ * Example input: ["eip155:1:0x123...", "eip155:137:0x123...", "solana:1:0xabc..."]
+ *
+ * @param response - The raw API response
+ * @returns Formatted networks by address
+ */
+export function formatNetworkActivityResponse(
+  response: ActiveNetworksResponse,
+): ActiveNetworksByAddress {
+  const networksByAddress: ActiveNetworksByAddress = {};
+
+  response.activeNetworks.forEach((network) => {
+    const components = parseNetworkString(network);
+    if (!components) {
+      return;
+    }
+
+    const { namespace, chainId, address } = components;
+
+    if (!networksByAddress[address]) {
+      networksByAddress[address] = {
+        namespace,
+        activeChains: [],
+      };
+    }
+
+    // Only add chainId to activeChains for EVM networks (non-EVM networks are not supported yet)
+    if (namespace === KnownCaipNamespace.Eip155 && chainId) {
+      networksByAddress[address].activeChains.push(chainId);
+    }
+  });
+
+  return networksByAddress;
+}
+
+/**
+ * Formats an account address with its corresponding CAIP prefix. Used to format the account IDs for the active networks API.
+ *
+ * @param address - The account address
+ * @param chainType - The type of chain (EVM, BTC, or SOLANA)
+ * @returns The formatted CAIP-10 account identifier
+ */
+export function formatCaipAccountId(
+  address: CaipAccountAddress,
+  chainType: ChainType,
+): string {
+  switch (chainType) {
+    case ChainType.EVM:
+      return `${CAIP_ACCOUNT_PREFIXES.EVM}${address}`;
+    case ChainType.Bitcoin:
+      return `${CAIP_ACCOUNT_PREFIXES.BTC}${address}`;
+    case ChainType.Solana:
+      return `${CAIP_ACCOUNT_PREFIXES.SOLANA}${address}`;
+    default:
+      throw new Error(`Unsupported chain type: ${String(chainType)}`);
+  }
+}
+
+/**
+ * Checks account type and returns the corresponding chain type.
+ *
+ * @param accountType - The account type to check
+ * @returns The chain type
+ */
+export function getChainTypeFromAccountType(
+  accountType: KeyringAccountType,
+): ChainType {
+  switch (accountType) {
+    case EthAccountType.Eoa:
+    case EthAccountType.Erc4337:
+      return ChainType.EVM;
+    case BtcAccountType.P2wpkh:
+      return ChainType.Bitcoin;
+    case SolAccountType.DataAccount:
+      return ChainType.Solana;
+    default:
+      throw new Error(`Unsupported account type: ${accountType}`);
+  }
+}
