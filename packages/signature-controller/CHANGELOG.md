@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.0.1]
+
 ### Uncategorized
 
 - Stop throwing an error if `verifyingContract` field in EIP712 payloads is undefined or not a string ([#5595](https://github.com/MetaMask/core.git/pull/5595))
@@ -504,7 +506,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/signature-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/signature-controller@27.0.1...HEAD
+[27.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/signature-controller@27.0.0...@metamask/signature-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/signature-controller@26.0.0...@metamask/signature-controller@27.0.0
 [26.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/signature-controller@25.0.0...@metamask/signature-controller@26.0.0
 [25.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/signature-controller@24.0.0...@metamask/signature-controller@25.0.0

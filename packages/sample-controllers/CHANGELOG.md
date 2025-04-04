@@ -7,15 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 347.0.0 ([#5583](https://github.com/MetaMask/core.git/pull/5583))
-
 ## [0.1.0]
 
 ### Added
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/sample-controllers@0.1.0...HEAD
-[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/sample-controllers@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/sample-controllers@0.1.0
