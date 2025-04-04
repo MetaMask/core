@@ -1,6 +1,7 @@
 import { parseChangelog } from '@metamask/auto-changelog';
 import execa from 'execa';
 import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * Gets the list of changed files between the current branch and main.
@@ -13,10 +14,6 @@ async function getChangedFiles(
   targetRepoPath: string,
   baseRef: string,
 ): Promise<string[]> {
-  if (!targetRepoPath) {
-    throw new Error('TARGET_REPO_PATH environment variable must be set');
-  }
-
   try {
     const { stdout } = await execa(
       'git',
@@ -112,11 +109,13 @@ async function main() {
     throw new Error('TARGET_REPO_PATH environment variable must be set');
   }
 
+  const targetRepoPath = path.resolve(process.cwd(), TARGET_REPO_PATH);
+
   // Verify the target repo path exists
   try {
-    await fs.access(TARGET_REPO_PATH);
+    await fs.access(targetRepoPath);
   } catch {
-    throw new Error(`Target repository path not found: ${TARGET_REPO_PATH}`);
+    throw new Error(`Target repository path not found: ${targetRepoPath}`);
   }
 
   if (IS_MONOREPO === 'true') {
@@ -124,7 +123,7 @@ async function main() {
       'Running in monorepo mode - checking changelogs for changed packages...',
     );
 
-    const changedFiles = await getChangedFiles(TARGET_REPO_PATH, BASE_REF);
+    const changedFiles = await getChangedFiles(targetRepoPath, BASE_REF);
     if (!changedFiles.length) {
       console.log('No changed files found. Exiting successfully.');
       return;
@@ -142,7 +141,7 @@ async function main() {
     for (const pkg of changedPackages) {
       try {
         await checkChangelogFile(
-          `${TARGET_REPO_PATH}/packages/${pkg}/CHANGELOG.md`,
+          `${targetRepoPath}/packages/${pkg}/CHANGELOG.md`,
         );
       } catch (error) {
         console.error(`❌ Changelog check failed for package ${pkg}:`, error);
@@ -157,7 +156,7 @@ async function main() {
     console.log(
       'Running in single-repo mode - checking changelog for the entire repository...',
     );
-    await checkChangelogFile(`${TARGET_REPO_PATH}/CHANGELOG.md`);
+    await checkChangelogFile(`${targetRepoPath}/CHANGELOG.md`);
   }
 }
 

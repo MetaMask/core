@@ -108,7 +108,7 @@ jobs:
         shell: bash
         env:
           IS_MONOREPO: ${{ inputs.is-monorepo || 'false' }}
-          TARGET_REPO_PATH: ./target-repo
+          TARGET_REPO_PATH: ../target-repo
           HEAD_REF: ${{ inputs.feature-branch }}
           BASE_REF: ${{ inputs.base-branch || 'main' }}
         working-directory: ./github-tools
