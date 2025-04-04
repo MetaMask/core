@@ -15,9 +15,15 @@ async function getChangedFiles(
   baseRef: string,
 ): Promise<string[]> {
   try {
+    // First fetch the base branch
+    await execa('git', ['fetch', 'origin', baseRef], {
+      cwd: targetRepoPath,
+    });
+
+    // Then get the diff between base and current HEAD
     const { stdout } = await execa(
       'git',
-      ['diff', '--name-only', `${baseRef}...HEAD`],
+      ['diff', '--name-only', `origin/${baseRef}...HEAD`],
       {
         cwd: targetRepoPath,
       },
