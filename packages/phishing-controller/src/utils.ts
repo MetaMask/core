@@ -1,8 +1,13 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
+import type {
+  HotlistDiff,
+  Hotlist,
+  ListTypes,
+  PhishingListState,
+} from './PhishingController';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
@@ -55,14 +60,33 @@ const splitStringByPeriod = <Start extends string, End extends string>(
  */
 export const applyDiffs = (
   listState: PhishingListState,
-  hotlistDiffs: Hotlist,
+  hotlistDiffs: Hotlist | HotlistDiff[] | unknown,
   listKey: ListKeys,
   recentlyAddedC2Domains: string[] = [],
   recentlyRemovedC2Domains: string[] = [],
 ): PhishingListState => {
+  // Ensure we have an array to work with
+  let diffsArray: HotlistDiff[] = [];
+
+  if (Array.isArray(hotlistDiffs)) {
+    // It's already an array
+    diffsArray = hotlistDiffs;
+  } else if (hotlistDiffs && typeof hotlistDiffs === 'object') {
+    // It might be the new format with diffEntries
+    const hotlistWithDiffEntries = hotlistDiffs as {
+      diffEntries?: HotlistDiff[];
+    };
+    if (
+      hotlistWithDiffEntries.diffEntries &&
+      Array.isArray(hotlistWithDiffEntries.diffEntries)
+    ) {
+      diffsArray = hotlistWithDiffEntries.diffEntries;
+    }
+  }
+
   // filter to remove diffs that were added before the lastUpdate time.
   // filter to remove diffs that aren't applicable to the specified list (by listKey).
-  const diffsToApply = hotlistDiffs.filter(
+  const diffsToApply = diffsArray.filter(
     ({ timestamp, targetList }) =>
       timestamp > listState.lastUpdated &&
       splitStringByPeriod(targetList)[0] === listKey,
@@ -81,7 +105,7 @@ export const applyDiffs = (
     c2DomainBlocklist: new Set(listState.c2DomainBlocklist),
   };
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
-    const targetListType = splitStringByPeriod(targetList)[1];
+    const targetListType = splitStringByPeriod(targetList)[1] as ListTypes;
     if (timestamp > latestDiffTimestamp) {
       latestDiffTimestamp = timestamp;
     }
@@ -155,7 +179,7 @@ export function validateConfig(
 export const domainToParts = (domain: string) => {
   try {
     return domain.split('.').reverse();
-  } catch (e) {
+  } catch {
     throw new Error(JSON.stringify(domain));
   }
 };

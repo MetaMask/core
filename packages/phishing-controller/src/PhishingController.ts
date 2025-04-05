@@ -47,7 +47,7 @@ export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_
 export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`;
 
 /**
- * @type ListTypes
+ * ListTypes
  *
  * Type outlining the types of lists provided by aggregating different source lists
  */
@@ -58,15 +58,20 @@ export type ListTypes =
   | 'c2DomainBlocklist';
 
 /**
- * @type EthPhishingResponse
+ * EthPhishingResponse
  *
  * Configuration response from the eth-phishing-detect package
  * consisting of approved and unapproved website origins
- * @property blacklist - List of unapproved origins
- * @property fuzzylist - List of fuzzy-matched unapproved origins
- * @property tolerance - Fuzzy match tolerance level
- * @property version - Version number of this configuration
- * @property whitelist - List of approved origins
+ *
+ * blacklist - List of unapproved origins
+ *
+ * fuzzylist - List of fuzzy-matched unapproved origins
+ *
+ * tolerance - Fuzzy match tolerance level
+ *
+ * version - Version number of this configuration
+ *
+ * whitelist - List of approved origins
  */
 export type EthPhishingResponse = {
   blacklist: string[];
@@ -77,31 +82,38 @@ export type EthPhishingResponse = {
 };
 
 /**
- * @type C2DomainBlocklistResponse
+ * C2DomainBlocklistResponse
  *
  * Response for blocklist update requests
- * @property recentlyAdded - List of c2 domains recently added to the blocklist
- * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
- * @property lastFetchedAt - Timestamp of the last fetch request
+ *
+ * recentlyAdded - List of c2 domains recently added to the blocklist
+ *
+ * recentlyRemoved - List of c2 domains recently removed from the blocklist
+ *
+ * lastFetchedAt - Timestamp of the last fetch request
  */
 export type C2DomainBlocklistResponse = {
   recentlyAdded: string[];
   recentlyRemoved: string[];
-  lastFetchedAt: string;
+  lastFetchedAt: number;
 };
 
 /**
- * @type PhishingStalelist
+ * PhishingStalelist
  *
  * type defining expected type of the stalelist.json file.
- * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
- * @property tolerance - Fuzzy match tolerance level
- * @property lastUpdated - Timestamp of last update.
- * @property version - Stalelist data structure iteration.
+ *
+ * eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
+ *
+ * tolerance - Fuzzy match tolerance level
+ *
+ * lastUpdated - Timestamp of last update.
+ *
+ * version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   eth_phishing_detect_config: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
@@ -109,17 +121,25 @@ export type PhishingStalelist = {
 };
 
 /**
- * @type PhishingListState
+ * PhishingListState
  *
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
- * @property allowlist - List of approved origins (legacy naming "whitelist")
- * @property blocklist - List of unapproved origins (legacy naming "blacklist")
- * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
- * @property fuzzylist - List of fuzzy-matched unapproved origins
- * @property tolerance - Fuzzy match tolerance level
- * @property lastUpdated - Timestamp of last update.
- * @property version - Version of the phishing list state.
- * @property name - Name of the list. Used for attribution.
+ *
+ * allowlist - List of approved origins (legacy naming "whitelist")
+ *
+ * blocklist - List of unapproved origins (legacy naming "blacklist")
+ *
+ * c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
+ *
+ * fuzzylist - List of fuzzy-matched unapproved origins
+ *
+ * tolerance - Fuzzy match tolerance level
+ *
+ * lastUpdated - Timestamp of last update.
+ *
+ * version - Version of the phishing list state.
+ *
+ * name - Name of the list. Used for attribution.
  */
 export type PhishingListState = {
   allowlist: string[];
@@ -133,13 +153,17 @@ export type PhishingListState = {
 };
 
 /**
- * @type HotlistDiff
+ * HotlistDiff
  *
  * type defining the expected type of the diffs in hotlist.json file.
- * @property url - Url of the diff entry.
- * @property timestamp - Timestamp at which the diff was identified.
- * @property targetList - The list name where the diff was identified.
- * @property isRemoval - Was the diff identified a removal type.
+ *
+ * url - Url of the diff entry.
+ *
+ * timestamp - Timestamp at which the diff was identified.
+ *
+ * targetList - The list name where the diff was identified.
+ *
+ * isRemoval - Was the diff identified a removal type.
  */
 export type HotlistDiff = {
   url: string;
@@ -149,21 +173,38 @@ export type HotlistDiff = {
 };
 
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export type DataResultWrapper<T> = {
   data: T;
 };
 
 /**
- * @type Hotlist
+ * Hotlist
  *
  * Type defining expected hotlist.json file.
- * @property url - Url of the diff entry.
- * @property timestamp - Timestamp at which the diff was identified.
- * @property targetList - The list name where the diff was identified.
- * @property isRemoval - Was the diff identified a removal type.
+ *
+ * url - Url of the diff entry.
+ *
+ * timestamp - Timestamp at which the diff was identified.
+ *
+ * targetList - The list name where the diff was identified.
+ *
+ * isRemoval - Was the diff identified a removal type.
  */
 export type Hotlist = HotlistDiff[];
+
+/**
+ * HotlistResponse
+ *
+ * Response structure for hotlist update requests.
+ *
+ * diffEntries - Array of hotlist diff entries.
+ *
+ * lastFetchedAt - Timestamp of the last fetch request.
+ */
+export type HotlistResponse = {
+  diffEntries: HotlistDiff[];
+  lastFetchedAt: number;
+};
 
 /**
  * Enum containing upstream data provider source list keys.
@@ -204,10 +245,12 @@ const metadata = {
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
   c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
+  hotlistLastSuccessTimestamp: { persist: true, anonymous: false },
 };
 
 /**
  * Get a default empty state for the controller.
+ *
  * @returns The default empty state.
  */
 const getDefaultState = (): PhishingControllerState => {
@@ -217,15 +260,18 @@ const getDefaultState = (): PhishingControllerState => {
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
+    hotlistLastSuccessTimestamp: 0,
   };
 };
 
 /**
- * @type PhishingControllerState
+ * PhishingControllerState
  *
  * Phishing controller state
- * @property phishing - eth-phishing-detect configuration
- * @property whitelist - array of temporarily-approved origins
+ *
+ * phishing - eth-phishing-detect configuration
+ *
+ * whitelist - array of temporarily-approved origins
  */
 export type PhishingControllerState = {
   phishingLists: PhishingListState[];
@@ -233,15 +279,19 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
+  hotlistLastSuccessTimestamp: number;
 };
 
 /**
- * @type PhishingControllerOptions
+ * PhishingControllerOptions
  *
  * Phishing controller options
- * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
- * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
- * @property c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+ *
+ * stalelistRefreshInterval - Polling interval used to fetch stale list.
+ *
+ * hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+ *
+ * c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
@@ -294,9 +344,7 @@ export class PhishingController extends BaseController<
   PhishingControllerState,
   PhishingControllerMessenger
 > {
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  #detector: any;
+  #detector!: PhishingDetector;
 
   #stalelistRefreshInterval: number;
 
@@ -674,6 +722,13 @@ export class PhishingController extends BaseController<
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
         draftState.c2DomainBlocklistLastFetched = timeNow;
+
+        // Set hotlistLastSuccessTimestamp to the stalelist's lastUpdated value if available
+        // This ensures we have a valid timestamp for future hotlist diff requests
+        if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
+          draftState.hotlistLastSuccessTimestamp =
+            stalelistResponse.data.lastUpdated;
+        }
       });
     }
 
@@ -682,7 +737,7 @@ export class PhishingController extends BaseController<
     }
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
@@ -714,32 +769,61 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
-    let hotlistResponse: DataResultWrapper<Hotlist> | null;
+    // If we have no successful timestamp yet (it's 0), we should fetch the stalelist instead
+    // as it will set up both stalelist and hotlist properly
+    if (this.state.hotlistLastSuccessTimestamp === 0) {
+      await this.updateStalelist();
+      return;
+    }
+
+    // Update the response type to include lastFetchedAt at the root level
+    type HotlistResponseWrapper = {
+      lastFetchedAt?: number;
+    } & DataResultWrapper<HotlistResponse | HotlistDiff[]>;
+
+    let hotlistResponse: HotlistResponseWrapper | null;
 
     try {
-      if (this.state.phishingLists.length === 0) {
-        return;
-      }
-
-      const lastDiffTimestamp = Math.max(
-        ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
-      );
-
-      hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
-        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+      hotlistResponse = await this.#queryConfig<HotlistResponseWrapper>(
+        `${METAMASK_HOTLIST_DIFF_URL}/${this.state.hotlistLastSuccessTimestamp}`,
       );
     } finally {
-      // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
-      // traffic after a network disruption.
+      // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with traffic after a network disruption.
       this.update((draftState) => {
         draftState.hotlistLastFetched = fetchTimeNow();
+
+        // Check for lastFetchedAt at the root level of the response
+        if (
+          hotlistResponse &&
+          'lastFetchedAt' in hotlistResponse &&
+          typeof hotlistResponse.lastFetchedAt === 'number'
+        ) {
+          draftState.hotlistLastSuccessTimestamp =
+            hotlistResponse.lastFetchedAt;
+        }
       });
     }
 
     if (!hotlistResponse?.data) {
       return;
     }
-    const hotlist = hotlistResponse.data;
+
+    // Handle both old format (array) and new format (object with diffEntries)
+    let hotlist: HotlistDiff[];
+    if (Array.isArray(hotlistResponse.data)) {
+      // Old format - direct array
+      hotlist = hotlistResponse.data;
+    } else if (
+      'diffEntries' in hotlistResponse.data &&
+      Array.isArray(hotlistResponse.data.diffEntries)
+    ) {
+      // New format - object with diffEntries property
+      hotlist = hotlistResponse.data.diffEntries;
+    } else {
+      // Unrecognized format
+      return;
+    }
+
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,
