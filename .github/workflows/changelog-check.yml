@@ -12,7 +12,7 @@ jobs:
     with:
       base-branch: main
       event-type: ${{ github.event_name }}
-      feature-branch: ${{ github.head_ref }}
+      head-ref: ${{ github.head_ref }}
       pr-number: ${{ github.event.pull_request.number }}
       repo: ${{ github.repository }}
     secrets:

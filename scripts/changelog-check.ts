@@ -45,7 +45,6 @@ function getPackageInfo(
 
     const baseDir = pattern.substring(0, wildcardIndex);
 
-    // Check if the file path starts with this base directory
     if (filePath.startsWith(baseDir)) {
       // Extract the package name (everything between baseDir and the next slash)
       const remainingPath = filePath.substring(baseDir.length);
@@ -102,7 +101,6 @@ async function getChangedFiles(
  */
 async function checkChangelogFile(changelogPath: string): Promise<void> {
   try {
-    console.log(`🔍 Reading changelog file: ${changelogPath}`);
     const changelogContent = await fs.readFile(changelogPath, 'utf-8');
 
     if (!changelogContent) {
@@ -111,16 +109,14 @@ async function checkChangelogFile(changelogPath: string): Promise<void> {
 
     const changelogUnreleasedChanges = parseChangelog({
       changelogContent,
-      repoUrl: '', // Not needed when reading local files
+      repoUrl: '', // Not needed as we're only parsing unreleased changes
     }).getReleaseChanges('Unreleased');
 
     if (Object.values(changelogUnreleasedChanges).length === 0) {
       throw new Error(
-        "❌ No new entries detected under '## Unreleased'. Please update the changelog.",
+        "❌ No new entries detected under '## Unreleased' section. Please update the changelog.",
       );
     }
-
-    console.log('✅ CHANGELOG.md has been correctly updated.');
   } catch (error) {
     if (error.code === 'ENOENT') {
       throw new Error(`❌ CHANGELOG.md not found at ${changelogPath}`);
@@ -139,7 +135,12 @@ async function checkChangelogFile(changelogPath: string): Promise<void> {
 async function getChangedPackages(
   files: string[],
   workspacePatterns: string[],
-): Promise<{ base: string; package: string }[]> {
+): Promise<
+  {
+    base: string;
+    package: string;
+  }[]
+> {
   const changedPackages = new Map<string, { base: string; package: string }>();
 
   for (const file of files) {
@@ -157,7 +158,6 @@ async function getChangedPackages(
         !file.includes('/docs/') &&
         !file.endsWith('CHANGELOG.md')
       ) {
-        // Use package name as key to avoid duplicates
         changedPackages.set(packageInfo.package, packageInfo);
       }
     }
@@ -172,12 +172,6 @@ async function getChangedPackages(
 async function main() {
   // Parse command-line arguments
   const args = process.argv.slice(2);
-  if (args.length < 2) {
-    console.error(
-      '❌ Usage: ts-node src/check-changelog.ts <repo-path> <base-ref>',
-    );
-    throw new Error('❌ Missing required arguments.');
-  }
 
   const [repoPath, baseRef] = args;
 
@@ -188,25 +182,23 @@ async function main() {
     throw new Error('❌ Missing required arguments.');
   }
 
-  const absoluteRepoPath = path.resolve(process.cwd(), repoPath);
+  const fullRepoPath = path.resolve(process.cwd(), repoPath);
 
   // Verify the repo path exists
   try {
-    await fs.access(absoluteRepoPath);
+    await fs.access(fullRepoPath);
   } catch {
-    throw new Error(`Repository path not found: ${absoluteRepoPath}`);
+    throw new Error(`Repository path not found: ${fullRepoPath}`);
   }
 
-  const workspacePatterns = await getWorkspacePatterns(absoluteRepoPath);
-
-  console.log('🔍 Workspace patterns:', workspacePatterns);
+  const workspacePatterns = await getWorkspacePatterns(fullRepoPath);
 
   if (workspacePatterns.length > 0) {
     console.log(
       'Running in monorepo mode - checking changelogs for changed packages...',
     );
 
-    const changedFiles = await getChangedFiles(absoluteRepoPath, baseRef);
+    const changedFiles = await getChangedFiles(fullRepoPath, baseRef);
     if (!changedFiles.length) {
       console.log('No changed files found. Exiting successfully.');
       return;
@@ -223,26 +215,32 @@ async function main() {
       return;
     }
 
-    let hasError = false;
+    const checkResults = await Promise.all(
+      changedPackages.map(async (pkgInfo) => {
+        try {
+          await checkChangelogFile(
+            path.join(
+              fullRepoPath,
+              pkgInfo.base,
+              pkgInfo.package,
+              'CHANGELOG.md',
+            ),
+          );
+          console.log(
+            `✅ CHANGELOG.md for ${pkgInfo.package} has been correctly updated.`,
+          );
+          return { package: pkgInfo.package, success: true };
+        } catch (error) {
+          console.error(
+            `❌ Changelog check failed for package ${pkgInfo.package}:`,
+            error,
+          );
+          return { package: pkgInfo.package, success: false, error };
+        }
+      }),
+    );
 
-    for (const pkgInfo of changedPackages) {
-      try {
-        await checkChangelogFile(
-          path.join(
-            absoluteRepoPath,
-            pkgInfo.base,
-            pkgInfo.package,
-            'CHANGELOG.md',
-          ),
-        );
-      } catch (error) {
-        console.error(
-          `❌ Changelog check failed for package ${pkgInfo.package}:`,
-          error,
-        );
-        hasError = true;
-      }
-    }
+    const hasError = checkResults.some((result) => !result.success);
 
     if (hasError) {
       throw new Error('One or more changelog checks failed');
@@ -251,7 +249,8 @@ async function main() {
     console.log(
       'Running in single-repo mode - checking changelog for the entire repository...',
     );
-    await checkChangelogFile(`${absoluteRepoPath}/CHANGELOG.md`);
+    await checkChangelogFile(path.join(fullRepoPath, 'CHANGELOG.md'));
+    console.log('✅ CHANGELOG.md has been correctly updated.');
   }
 }
 

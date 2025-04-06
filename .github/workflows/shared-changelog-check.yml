@@ -9,7 +9,7 @@ on:
       event-type:
         description: 'The event type'
         type: string
-      feature-branch:
+      head-ref:
         required: true
         type: string
       pr-number:
@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ inputs.repo }}
-          ref: ${{ inputs.feature-branch }}
+          ref: ${{ inputs.head-ref }}
           path: target-repo
           fetch-depth: 0
 
