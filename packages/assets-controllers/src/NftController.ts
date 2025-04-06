@@ -33,6 +33,7 @@ import type {
   NetworkControllerNetworkDidChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
+import type { PhishingDetectionScanResult } from '@metamask/phishing-controller';
 import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
@@ -67,6 +68,7 @@ import type {
   GetCollectionsResponse,
   TopBid,
 } from './NftDetectionController';
+import { RecommendedAction } from '../../phishing-controller/src/types';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
 
@@ -230,6 +232,14 @@ export type NftControllerGetStateAction = ControllerGetStateAction<
 export type NftControllerActions = NftControllerGetStateAction;
 
 /**
+ * Action type for scanning a URL with PhishingController
+ */
+export type PhishingControllerScanUrlAction = {
+  type: 'PhishingController:scanUrl';
+  handler: (url: string) => Promise<PhishingDetectionScanResult>;
+};
+
+/**
  * The external actions available to the {@link NftController}.
  */
 export type AllowedActions =
@@ -242,7 +252,8 @@ export type AllowedActions =
   | AssetsContractControllerGetERC721TokenURIAction
   | AssetsContractControllerGetERC721OwnerOfAction
   | AssetsContractControllerGetERC1155BalanceOfAction
-  | AssetsContractControllerGetERC1155TokenURIAction;
+  | AssetsContractControllerGetERC1155TokenURIAction
+  | PhishingControllerScanUrlAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -795,7 +806,7 @@ export class NftController extends BaseController<
           )
         : undefined,
     ]);
-    return {
+    const metadata = {
       ...nftApiMetadata,
       name: blockchainMetadata?.name ?? nftApiMetadata?.name ?? null,
       description:
@@ -805,6 +816,8 @@ export class NftController extends BaseController<
         blockchainMetadata?.standard ?? nftApiMetadata?.standard ?? null,
       tokenURI: blockchainMetadata?.tokenURI ?? null,
     };
+    // Sanitize the metadata by checking external links against phishing protection
+    return await this.#sanitizeNftMetadata(metadata);
   }
 
   /**
@@ -2078,6 +2091,56 @@ export class NftController extends BaseController<
     this.update(() => {
       return getDefaultNftControllerState();
     });
+  }
+
+  /**
+   * Checks if an external link is safe by scanning it with PhishingController
+   *
+   * @param url - The URL to check for phishing
+   * @returns Whether the URL is safe (true) or unsafe (false)
+   */
+  async #isExternalLinkSafe(url: string): Promise<boolean> {
+    try {
+      // Only check actual URLs
+      if (!url || !url.startsWith('http')) {
+        return true;
+      }
+
+      const scanResult = await this.messagingSystem.call(
+        'PhishingController:scanUrl',
+        url,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+      if (scanResult.recommendedAction === RecommendedAction.Block) {
+        return false;
+      }
+      return true;
+    } catch (error) {
+      // If there's an error checking the link, we err on the side of caution
+      console.error('Error checking external link safety:', error);
+      return true;
+    }
+  }
+
+  /**
+   * Sanitizes NFT metadata by checking external links against PhishingController
+   *
+   * @param metadata - The NFT metadata to sanitize
+   * @returns Sanitized NFT metadata with potentially dangerous links removed
+   */
+  async #sanitizeNftMetadata(metadata: NftMetadata): Promise<NftMetadata> {
+    const sanitizedMetadata = { ...metadata };
+
+    if (sanitizedMetadata.externalLink) {
+      const isExternalLinkSafe = await this.#isExternalLinkSafe(
+        sanitizedMetadata.externalLink,
+      );
+      if (!isExternalLinkSafe) {
+        // If unsafe, remove the link
+        delete sanitizedMetadata.externalLink;
+      }
+    }
+    return sanitizedMetadata;
   }
 }
 
