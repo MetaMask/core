@@ -34,7 +34,6 @@ import type {
   TransactionBatchRequest,
   ValidateSecurityRequest,
   IsAtomicBatchSupportedResult,
-  IsAtomicBatchSupportedRequest,
   IsAtomicBatchSupportedResultEntry,
 } from '../types';
 import {
