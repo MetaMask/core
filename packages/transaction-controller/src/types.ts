@@ -1720,3 +1720,17 @@ export type GasFeeToken = {
   /** Address of the token contract. */
   tokenAddress: Hex;
 };
+
+export type IsAtomicBatchSupportedRequest = {
+  address: Hex;
+  chainIds?: Hex[];
+};
+
+export type IsAtomicBatchSupportedResult = IsAtomicBatchSupportedResultEntry[];
+
+export type IsAtomicBatchSupportedResultEntry = {
+  chainId: Hex;
+  delegationAddress?: Hex;
+  isSupported: boolean;
+  upgradeContractAddress?: Hex;
+};
