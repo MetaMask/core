@@ -2271,6 +2271,12 @@ export class KeyringController extends BaseController<
   #updateVault(): Promise<boolean> {
     return this.#withVaultLock(async () => {
       const { encryptionKey, encryptionSalt, vault } = this.state;
+      // READ THIS CAREFULLY:
+      // We do check if the vault is still considered up-to-date, if not, we would not re-use the
+      // cached key and we will re-generate a new one (based on the password).
+      //
+      // This helps doing seamless updates of the vault. Useful in case we change some cryptographic
+      // parameters to the KDF.
       const useCachedKey =
         encryptionKey && vault && this.#encryptor.isVaultUpdated?.(vault);
 
