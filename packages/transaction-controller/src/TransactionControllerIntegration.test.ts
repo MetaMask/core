@@ -223,7 +223,7 @@ const setupController = async (
     disableHistory: false,
     disableSendFlowHistory: false,
     disableSwaps: false,
-    enableTxParamsGasFeeUpdates: () => true,
+    isAutomaticGasFeeUpdateEnabled: () => true,
     getCurrentNetworkEIP1559Compatibility: async (
       networkClientId?: NetworkClientId,
     ) => {

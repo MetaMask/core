@@ -294,7 +294,7 @@ export type TransactionControllerOptions = {
    * Callback to determine whether gas fee updates should be enabled for a given transaction.
    * Returns true to enable updates, false to disable them.
    */
-  enableTxParamsGasFeeUpdates?: (transactionMeta: TransactionMeta) => boolean;
+  isAutomaticGasFeeUpdateEnabled?: (transactionMeta: TransactionMeta) => boolean;
 
   /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
@@ -817,7 +817,7 @@ export class TransactionController extends BaseController<
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
-      enableTxParamsGasFeeUpdates,
+      isAutomaticGasFeeUpdateEnabled,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getExternalPendingTransactions,
@@ -853,7 +853,7 @@ export class TransactionController extends BaseController<
 
     this.messagingSystem = messenger;
     this.isTxParamsGasFeeUpdatesEnabled =
-      enableTxParamsGasFeeUpdates ?? ((_txMeta: TransactionMeta) => false);
+      isAutomaticGasFeeUpdateEnabled ?? ((_txMeta: TransactionMeta) => false);
     this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
