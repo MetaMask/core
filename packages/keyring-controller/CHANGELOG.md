@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: add comment to `useCachedKey` condition ([#5605](https://github.com/MetaMask/core/pull/5605))
+- chore: bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
+- chore: deprecate `@metamask/keyring-controller` versions ([#5546](https://github.com/MetaMask/core/pull/5546))
+- chore: update changelog after backport release ([#5544](https://github.com/MetaMask/core/pull/5544))
+- Release 343.0.0 ([#5542](https://github.com/MetaMask/core/pull/5542))
+- Release 319.0.0 ([#5439](https://github.com/MetaMask/core/pull/5439))
+- Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/core/pull/5437))
+- Release 319.0.0 ([#5437](https://github.com/MetaMask/core/pull/5437))
+- Release 317.0.0 ([#5426](https://github.com/MetaMask/core/pull/5426))
+
 ### Fixed
 
 - The cached encryption key is ignored when the vault needs to upgrade its encryption parameters ([#5601](https://github.com/MetaMask/core/pull/5601))
