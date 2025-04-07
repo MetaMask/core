@@ -326,7 +326,7 @@ export class NftController extends BaseController<
     concurrencyLimit: 10,
     cacheTTL: 1000 * 60 * 60 * 24, // 1 day in milliseconds
     allowedProtocols: ['http:', 'https:'],
-    deniedDomains: ['metamask.app.link']
+    deniedDomains: ['metamask.app.link'],
   };
 
   // Cache for URL safety check results
@@ -2151,6 +2151,8 @@ export class NftController extends BaseController<
         'PhishingController:scanUrl',
         url,
       );
+      
+      // We need this comment since the enum is imported from another package
       // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       const isSafe = scanResult.recommendedAction !== RecommendedAction.Block;
 
