@@ -12,7 +12,16 @@ import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopeString, InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
+/*
+ *
+ *
+ * EVM SPECIFIC GETTERS AND SETTERS
+ *
+ *
+ */
+
 /**
+ *
  * Checks if a scope string is either an EIP155 or wallet namespaced scope string.
  *
  * @param scopeString - The scope string to check.
@@ -140,14 +149,91 @@ export const setEthAccounts = (
   };
 };
 
-/**
- * Sets the permitted accounts to scopes with matching namespaces in the given scopes object.
+/*
  *
- * @param scopesObject - The scopes object to set the permitted accounts for.
- * @param accounts - The permitted accounts to add to the appropriate scopes.
- * @returns The updated scopes object with the permitted accounts set.
+ *
+ * GENERALIZE GETTERS AND SETTERS
+ *
+ *
  */
-const setPermittedAccountsForScopesObject = (
+
+/**
+ *
+ *  Getters
+ *
+ */
+
+/**
+ * Gets all accounts from a scopes object
+ * This extracts all account IDs from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param scopesObject - The scopes object to extract accounts from
+ * @returns Array of unique account IDs
+ */
+export function getCaipAccountIdsFromScopesObject(
+  scopesObject: InternalScopesObject,
+): CaipAccountId[] {
+  const allAccounts = new Set<CaipAccountId>();
+
+  Object.values(scopesObject).forEach(({ accounts }) => {
+    accounts.forEach((account) => {
+      allAccounts.add(account);
+    });
+  });
+
+  return Array.from(allAccounts);
+}
+
+/**
+ * Gets all accounts from an array of scopes objects
+ * This extracts all account IDs from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param scopesObjects - The scopes objects to extract accounts from
+ * @returns Array of unique account IDs
+ */
+export function getCaipAccountIdsFromScopesObjects(
+  scopesObjects: InternalScopesObject[],
+): CaipAccountId[] {
+  return Array.from(
+    new Set([...scopesObjects.flatMap(getCaipAccountIdsFromScopesObject)]),
+  );
+}
+
+/**
+ * Gets all permitted accounts from a CAIP-25 caveat
+ * This extracts all account IDs from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param caip25CaveatValue - The CAIP-25 caveat value to extract accounts from
+ * @returns Array of unique account IDs
+ */
+export function getCaipAccountIdsFromCaip25CaveatValue(
+  caip25CaveatValue: Caip25CaveatValue,
+): CaipAccountId[] {
+  return Array.from(
+    new Set([
+      ...getCaipAccountIdsFromScopesObject(caip25CaveatValue.requiredScopes),
+      ...getCaipAccountIdsFromScopesObject(caip25CaveatValue.optionalScopes),
+    ]),
+  );
+}
+
+/**
+ *
+ *  Setters
+ *
+ */
+
+/**
+ * Sets the CAIP account IDs to scopes with matching namespaces in the given scopes object.
+ *
+ * @param scopesObject - The scopes object to set the CAIP account IDs for.
+ * @param accounts - The CAIP account IDs to add to the appropriate scopes.
+ * @returns The updated scopes object with the CAIP account IDs set.
+ */
+const setCaipAccountIdsInScopesObject = (
   scopesObject: InternalScopesObject,
   accounts: CaipAccountId[],
 ) => {
@@ -191,17 +277,17 @@ const setPermittedAccountsForScopesObject = (
  * @param accounts - The permitted accounts to add to the appropriate scopes.
  * @returns The updated CAIP-25 caveat value with the permitted accounts set.
  */
-export const setPermittedAccounts = (
+export const setCaipAccountIdsInCaip25CaveatValue = (
   caip25CaveatValue: Caip25CaveatValue,
   accounts: CaipAccountId[],
 ): Caip25CaveatValue => {
   return {
     ...caip25CaveatValue,
-    requiredScopes: setPermittedAccountsForScopesObject(
+    requiredScopes: setCaipAccountIdsInScopesObject(
       caip25CaveatValue.requiredScopes,
       accounts,
     ),
-    optionalScopes: setPermittedAccountsForScopesObject(
+    optionalScopes: setCaipAccountIdsInScopesObject(
       caip25CaveatValue.optionalScopes,
       accounts,
     ),

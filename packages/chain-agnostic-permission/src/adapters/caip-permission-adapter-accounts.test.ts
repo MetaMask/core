@@ -3,7 +3,7 @@ import type { CaipAccountId } from '@metamask/utils';
 import {
   getEthAccounts,
   setEthAccounts,
-  setPermittedAccounts,
+  setCaipAccountIdsInCaip25CaveatValue,
 } from './caip-permission-adapter-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
 
@@ -187,7 +187,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
   });
 
-  describe('setPermittedAccounts', () => {
+  describe('setCaipAccountIdsInCaip25CaveatValue', () => {
     it('returns a CAIP-25 caveat value with all scopeObject.accounts set to accounts provided', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
@@ -216,7 +216,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         'bip122:000000000019d6689c085ae165831e93:xyz789',
       ];
 
-      const result = setPermittedAccounts(input, permittedAccounts);
+      const result = setCaipAccountIdsInCaip25CaveatValue(input, permittedAccounts);
 
       expect(result).toStrictEqual({
         requiredScopes: {
@@ -252,7 +252,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, [
+      const result = setCaipAccountIdsInCaip25CaveatValue(input, [
         'eip155:1:0xabc',
       ] as CaipAccountId[]);
 
@@ -281,7 +281,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, []);
+      const result = setCaipAccountIdsInCaip25CaveatValue(input, []);
 
       expect(result).toStrictEqual({
         requiredScopes: {
@@ -310,7 +310,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, [
+      const result = setCaipAccountIdsInCaip25CaveatValue(input, [
         'eip155:1:0xabc',
         'solana:4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZ:pubkey123',
       ]);
@@ -346,7 +346,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setPermittedAccounts(input, [
+      const result = setCaipAccountIdsInCaip25CaveatValue(input, [
         'eip155:1:0xabc',
         'eip155:5:0xdef',
         'eip155:137:0xghi',
