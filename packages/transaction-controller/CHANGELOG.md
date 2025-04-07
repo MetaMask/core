@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Skip `origin` validation for `batch` transaction type ([#5586](https://github.com/MetaMask/core/pull/5586))
+- **BREAKING:** `enableTxParamsGasFeeUpdates` now expects a callback function instead of a boolean.
+  - This callback is invoked before performing `txParams` gas fee updates. The update will proceed only if the callback returns a truthy value.
 
 ## [53.0.0]
 
