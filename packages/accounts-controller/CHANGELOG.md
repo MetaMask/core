@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 347.0.0 ([#5583](https://github.com/MetaMask/core/pull/5583))
-- fix(accounts-controller): do not fire events during `update` blocks ([#5555](https://github.com/MetaMask/core/pull/5555))
-- chore: bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
-- Release 343.0.0 ([#5542](https://github.com/MetaMask/core/pull/5542))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/core/pull/5518))
-
 ## [27.0.0]
 
 ### Changed

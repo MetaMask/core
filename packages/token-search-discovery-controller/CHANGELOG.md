@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Add top gainers losers to token discovery service ([#5309](https://github.com/MetaMask/core/pull/5309))
-- feat: add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
-
 ### Added
 
 - All param types (e.g. `TokenSearchParams`, `TrendingTokensParams`, etc.) inherit from `ParamsBase`
