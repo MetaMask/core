@@ -2195,6 +2195,8 @@ export class KeyringController extends BaseController<
           vault = result.vault;
           this.#password = password;
 
+          updatedState.encryptionKey = result.exportedKeyString;
+          updatedState.encryptionSalt = result.salt;
         } else {
           const parsedEncryptedVault = JSON.parse(encryptedVault);
 

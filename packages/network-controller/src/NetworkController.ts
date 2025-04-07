@@ -1405,6 +1405,7 @@ export class NetworkController extends BaseController<
    */
   async initializeProvider() {
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
+    await this.lookupNetwork();
   }
 
   /**
