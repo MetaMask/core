@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.0]
 
-### Uncategorized
+### Added
 
-- feat: STAKE-1005: refresh staking data when staking txs are confirmed ([#5607](https://github.com/MetaMask/core/pull/5607))
+- Refresh staking data when staking txs are confirmed ([#5607](https://github.com/MetaMask/core/pull/5607))
 
 ### Changed
 
