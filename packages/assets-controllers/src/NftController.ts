@@ -2212,6 +2212,7 @@ export class NftController extends BaseController<
           const isSafe = await this.#isExternalLinkSafe(url);
           return keys.map((key) => ({ key, isSafe }));
         } catch (error) {
+          console.error('Error checking external link safety:', error);
           // If there's an error, treat all associated keys as unsafe
           return keys.map((key) => ({ key, isSafe: false }));
         }
