@@ -1,10 +1,10 @@
 import { toHex } from '@metamask/controller-utils';
-import type { Hex, CaipChainId } from '@metamask/utils';
+import type { Hex, CaipChainId, CaipNamespace } from '@metamask/utils';
 import { hexToBigInt, KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { getUniqueArrayItems } from '../scope/transform';
-import type { InternalScopesObject } from '../scope/types';
+import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { isWalletScope, parseScopeString } from '../scope/types';
 
 /**
@@ -180,7 +180,7 @@ const filterChainScopesObjectByChainId = (
  * @param chainId - The chainID to add.
  * @returns The updated CAIP-25 caveat value with the added chainID.
  */
-export const addPermittedChainId = (
+export const addScopeToCaip25CaveatValue = (
   caip25CaveatValue: Caip25CaveatValue,
   chainId: CaipChainId,
 ): Caip25CaveatValue => {
@@ -226,8 +226,74 @@ export const setPermittedChainIds = (
   };
 
   chainIds.forEach((chainId) => {
-    updatedCaveatValue = addPermittedChainId(updatedCaveatValue, chainId);
+    updatedCaveatValue = addScopeToCaip25CaveatValue(
+      updatedCaveatValue,
+      chainId,
+    );
   });
 
   return updatedCaveatValue;
 };
+
+/**
+ * Gets all scopes from a CAIP-25 caveat value
+ *
+ * @param scopesObjects - The scopes objects to get the scopes from.
+ * @returns An array of InternalScopeStrings.
+ */
+export function getAllScopesFromScopesObjects(
+  scopesObjects: InternalScopesObject[],
+): InternalScopeString[] {
+  return Array.from(
+    new Set(
+      scopesObjects.flatMap((scopeObject) => {
+        return Object.keys(scopeObject);
+      }),
+    ),
+  ) as InternalScopeString[];
+}
+
+/**
+ * Gets all scopes (chain IDs) from a CAIP-25 caveat
+ * This extracts all scopes from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param caip25CaveatValue - The CAIP-25 caveat value to extract scopes from
+ * @returns Array of unique scope strings (chain IDs)
+ */
+export function getAllScopesFromCaip25CaveatValue(
+  caip25CaveatValue: Caip25CaveatValue,
+): CaipChainId[] {
+  const requiredScopes = Object.keys(caip25CaveatValue.requiredScopes);
+  const optionalScopes = Object.keys(caip25CaveatValue.optionalScopes);
+
+  return Array.from(
+    new Set([...requiredScopes, ...optionalScopes]),
+  ) as CaipChainId[];
+}
+
+/**
+ * Gets all non-wallet namespaces from a CAIP-25 caveat value
+ * This extracts all namespaces from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param caip25CaveatValue - The CAIP-25 caveat value to extract namespaces from
+ * @returns Array of unique namespace strings
+ */
+export function getAllNonWalletNamespacesFromCaip25CaveatValue(
+  caip25CaveatValue: Caip25CaveatValue,
+): CaipNamespace[] {
+  const allScopes = getAllScopesFromCaip25CaveatValue(caip25CaveatValue);
+  const allNamespaces = allScopes.reduce((acc, scope) => {
+    const { namespace, reference } = parseScopeString(scope);
+    if (namespace === KnownCaipNamespace.Wallet) {
+      if (reference) {
+        acc.add(reference);
+      }
+    } else if (namespace) {
+      acc.add(namespace);
+    }
+    return acc;
+  }, new Set<CaipNamespace>());
+  return Array.from(allNamespaces);
+}

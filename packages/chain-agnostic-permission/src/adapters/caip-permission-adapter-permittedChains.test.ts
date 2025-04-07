@@ -2,7 +2,7 @@ import {
   addPermittedEthChainId,
   getPermittedEthChainIds,
   setPermittedEthChainIds,
-  addPermittedChainId,
+  addScopeToCaip25CaveatValue,
   setPermittedChainIds,
 } from './caip-permission-adapter-permittedChains';
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -277,9 +277,9 @@ describe('CAIP-25 permittedChains adapters', () => {
     });
   });
 
-  describe('addPermittedChainId', () => {
+  describe('addScopeToCaip25CaveatValue', () => {
     it('returns a version of the caveat value with a new optional scope for the passed chainId if it does not already exist in required or optional scopes', () => {
-      const result = addPermittedChainId(
+      const result = addScopeToCaip25CaveatValue(
         {
           requiredScopes: {
             'eip155:1': {
@@ -334,7 +334,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = addPermittedChainId(
+      const result = addScopeToCaip25CaveatValue(
         input,
         'bip122:000000000019d6689c085ae165831e93',
       );
@@ -365,7 +365,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = addPermittedChainId(input, existingScope);
+      const result = addScopeToCaip25CaveatValue(input, existingScope);
 
       expect(result).toStrictEqual(input);
     });
@@ -383,7 +383,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = addPermittedChainId(input, existingScope);
+      const result = addScopeToCaip25CaveatValue(input, existingScope);
 
       expect(result).toStrictEqual(input);
     });
