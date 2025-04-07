@@ -322,15 +322,18 @@ export class NftController extends BaseController<
   }) => void;
 
   // Configuration for URL safety checks
-  #urlSafetyConfig = {
+  readonly #urlSafetyConfig = {
     concurrencyLimit: 10,
     cacheTTL: 1000 * 60 * 60 * 24, // 1 day in milliseconds
     allowedProtocols: ['http:', 'https:'],
-    deniedDomains: ['metamask.app.link']
+    deniedDomains: ['metamask.app.link'],
   };
 
   // Cache for URL safety check results
-  #urlSafetyCache: Map<string, { isSafe: boolean; timestamp: number }> = new Map();
+  readonly #urlSafetyCache: Map<
+    string,
+    { isSafe: boolean; timestamp: number }
+  > = new Map();
 
   /**
    * Creates an NftController instance.
