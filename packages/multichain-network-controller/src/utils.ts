@@ -1,4 +1,4 @@
-import { handleFetch } from '@metamask/controller-utils';
+import { handleFetch, isValidHexAddress } from '@metamask/controller-utils';
 import {
   type KeyringAccountType,
   BtcScope,
@@ -17,13 +17,12 @@ import {
   parseCaipChainId,
   hexToNumber,
   add0x,
+  toCaipAccountId,
 } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
+import log from 'loglevel';
 
-import {
-  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
-  CAIP_ACCOUNT_PREFIXES,
-} from './constants';
+import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
 import {
   MULTICHAIN_ACCOUNTS_DOMAIN,
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
@@ -176,9 +175,12 @@ export function validateAccountIds(accountIds: string[]): void {
   const invalidIds = accountIds.filter((id) => !caip10Regex.test(id));
 
   if (invalidIds.length > 0) {
-    throw new Error(
-      `Invalid CAIP-10 account IDs: ${invalidIds.join(', ')}. Expected format: <namespace>:<chainId>:<address>`,
-    );
+    const error = `Invalid CAIP-10 account IDs: ${invalidIds.join(', ')}. Expected format: <namespace>:<chainId>:<address>`;
+    log.error('Account ID validation failed: invalid CAIP-10 format', {
+      error,
+      invalidIds,
+    });
+    throw new Error(error);
   }
 }
 
@@ -204,9 +206,9 @@ export function buildActiveNetworksUrl(accountIds: string[]): URL {
 export async function fetchNetworkActivityByAccounts(
   accountIds: string[],
 ): Promise<ActiveNetworksResponse> {
-  try {
-    validateAccountIds(accountIds);
+  validateAccountIds(accountIds);
 
+  try {
     const url = buildActiveNetworksUrl(accountIds);
 
     const response: ActiveNetworksResponse = await handleFetch(url, {
@@ -252,7 +254,7 @@ export function parseNetworkString(
   // Validate address format based on namespace
   switch (namespace as KnownCaipNamespace) {
     case KnownCaipNamespace.Eip155:
-      if (!address.startsWith('0x') || !/^0x[0-9a-fA-F]{40}$/u.test(address)) {
+      if (!isValidHexAddress(address, { allowNonPrefixed: false })) {
         return null;
       }
       break;
@@ -274,8 +276,8 @@ export function parseNetworkString(
 
   return {
     namespace: namespace as KnownCaipNamespace,
-    chainId: chainId || '',
-    address: address as Hex,
+    chainId: chainId as CaipChainId,
+    address: address as CaipAccountAddress,
   };
 }
 
@@ -306,7 +308,7 @@ export function formatNetworkActivityResponse(
       };
     }
 
-    // Only add chainId to activeChains for EVM networks (non-EVM networks are not supported yet)
+    // Only add chainId to activeChains for EVM networks if chainId exists
     if (namespace === KnownCaipNamespace.Eip155 && chainId) {
       networksByAddress[address].activeChains.push(chainId);
     }
@@ -328,11 +330,11 @@ export function formatCaipAccountId(
 ): string {
   switch (chainType) {
     case ChainType.EVM:
-      return `${CAIP_ACCOUNT_PREFIXES.EVM}${address}`;
+      return toCaipAccountId(KnownCaipNamespace.Eip155, '0', address);
     case ChainType.Bitcoin:
-      return `${CAIP_ACCOUNT_PREFIXES.BTC}${address}`;
+      return toCaipAccountId(KnownCaipNamespace.Bip122, '0', address);
     case ChainType.Solana:
-      return `${CAIP_ACCOUNT_PREFIXES.SOLANA}${address}`;
+      return toCaipAccountId(KnownCaipNamespace.Solana, '0', address);
     default:
       throw new Error(`Unsupported chain type: ${String(chainType)}`);
   }

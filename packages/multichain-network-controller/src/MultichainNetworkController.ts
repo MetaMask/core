@@ -3,6 +3,7 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
+import log from 'loglevel';
 
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
@@ -183,7 +184,7 @@ export class MultichainNetworkController extends BaseController<
 
       return this.state.networksWithTransactionActivity;
     } catch (error) {
-      console.error('Error fetching networks with activity by accounts', error);
+      log.error('Error fetching networks with activity by accounts', error);
       return this.state.networksWithTransactionActivity;
     }
   }

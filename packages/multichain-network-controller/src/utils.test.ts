@@ -11,6 +11,7 @@ import {
 } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
 import { type CaipAccountAddress, KnownCaipNamespace } from '@metamask/utils';
+import log from 'loglevel';
 
 import {
   MULTICHAIN_ACCOUNTS_DOMAIN,
@@ -37,6 +38,26 @@ import {
 
 jest.mock('@metamask/controller-utils', () => ({
   handleFetch: jest.fn(),
+  isValidHexAddress: jest.fn((address) => {
+    return /^0x[0-9a-fA-F]{40}$/u.test(address);
+  }),
+}));
+
+jest.mock('@metamask/utils', () => ({
+  ...jest.requireActual('@metamask/utils'),
+  isCaipAccountId: jest.fn((id) => {
+    const evmPattern = /^eip155:\d+:0x[0-9a-fA-F]{40}$/u;
+    const solanaPattern = /^solana:\d+:[1-9A-HJ-NP-Za-km-z]{32,44}$/u;
+    const bitcoinPattern = /^bip122:\d+:(1|3|bc1)[a-zA-Z0-9]{25,62}$/u;
+
+    return (
+      evmPattern.test(id) || solanaPattern.test(id) || bitcoinPattern.test(id)
+    );
+  }),
+}));
+
+jest.mock('loglevel', () => ({
+  error: jest.fn(),
 }));
 
 describe('utils', () => {
@@ -317,9 +338,20 @@ describe('utils', () => {
     });
 
     it('should throw error for invalid account ID format', async () => {
+      (handleFetch as jest.Mock).mockReset();
+
       await expect(
         fetchNetworkActivityByAccounts([mockInvalidAccountId]),
-      ).rejects.toThrow(/Invalid CAIP-10 account IDs/u);
+      ).rejects.toThrow('Invalid CAIP-10 account IDs');
+
+      expect(handleFetch).not.toHaveBeenCalled();
+
+      expect(log.error).toHaveBeenCalledWith(
+        'Account ID validation failed: invalid CAIP-10 format',
+        expect.objectContaining({
+          invalidIds: [mockInvalidAccountId],
+        }),
+      );
     });
 
     it('should throw error for invalid API response format', async () => {
@@ -361,34 +393,73 @@ describe('utils', () => {
   });
 
   describe('validateAccountIds', () => {
-    it('should throw error for empty account IDs array', () => {
+    const mockValidEvmId =
+      'eip155:1:0x1234567890123456789012345678901234567890';
+    const mockValidSolanaId =
+      'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+    const mockInvalidId = 'invalid:format:address';
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should not throw for valid EVM account ID', () => {
+      expect(() => validateAccountIds([mockValidEvmId])).not.toThrow();
+    });
+
+    it('should not throw for valid Solana account ID', () => {
+      expect(() => validateAccountIds([mockValidSolanaId])).not.toThrow();
+    });
+
+    it('should not throw for multiple valid account IDs', () => {
+      expect(() =>
+        validateAccountIds([mockValidEvmId, mockValidSolanaId]),
+      ).not.toThrow();
+    });
+
+    it('should throw for empty array', () => {
       expect(() => validateAccountIds([])).toThrow(
         'At least one account ID is required',
       );
     });
 
-    it('should throw error for invalid account ID format', () => {
-      expect(() => validateAccountIds(['invalid:0:123'])).toThrow(
-        'Invalid CAIP-10 account IDs: invalid:0:123',
+    it('should throw for invalid account ID format', () => {
+      expect(() => validateAccountIds([mockInvalidId])).toThrow(
+        `Invalid CAIP-10 account IDs: ${mockInvalidId}`,
+      );
+      expect(log.error).toHaveBeenCalledWith(
+        'Account ID validation failed: invalid CAIP-10 format',
+        expect.objectContaining({
+          invalidIds: [mockInvalidId],
+        }),
       );
     });
 
-    it('should not throw for valid account IDs', () => {
+    it('should throw and list all invalid IDs when multiple invalid IDs are provided', () => {
+      const secondInvalidId = 'another:invalid:id';
       expect(() =>
-        validateAccountIds([
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        ]),
-      ).not.toThrow();
+        validateAccountIds([mockInvalidId, secondInvalidId]),
+      ).toThrow(
+        `Invalid CAIP-10 account IDs: ${mockInvalidId}, ${secondInvalidId}`,
+      );
+      expect(log.error).toHaveBeenCalledWith(
+        'Account ID validation failed: invalid CAIP-10 format',
+        expect.objectContaining({
+          invalidIds: [mockInvalidId, secondInvalidId],
+        }),
+      );
     });
 
-    it('should throw for mixed valid and invalid account IDs', () => {
-      expect(() =>
-        validateAccountIds([
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'invalid:0:123',
-        ]),
-      ).toThrow('Invalid CAIP-10 account IDs: invalid:0:123');
+    it('should throw even if some IDs are valid when at least one is invalid', () => {
+      expect(() => validateAccountIds([mockValidEvmId, mockInvalidId])).toThrow(
+        `Invalid CAIP-10 account IDs: ${mockInvalidId}`,
+      );
+      expect(log.error).toHaveBeenCalledWith(
+        'Account ID validation failed: invalid CAIP-10 format',
+        expect.objectContaining({
+          invalidIds: [mockInvalidId],
+        }),
+      );
     });
   });
 

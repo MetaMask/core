@@ -36,7 +36,7 @@ export type CommonNetworkConfiguration = {
    */
   isEvm: boolean;
   /**
-   * The chain ID of the network.fcvfc
+   * The chain ID of the network.
    * 0≈*
    */
   chainId: CaipChainId;
@@ -215,14 +215,15 @@ export type ActiveNetworksResponse = {
 /**
  * The active networks for the currently selected account.
  */
-export type ActiveNetworksByAddress = {
-  [address in CaipAccountAddress]: {
+export type ActiveNetworksByAddress = Record<
+  CaipAccountAddress,
+  {
     // namespace is the CAIP namespace of the network
     namespace: KnownCaipNamespace;
     // activeChains is an array of chain IDs that are active on the network most primarily used for EVM networks
     activeChains: string[];
-  };
-};
+  }
+>;
 
 /**
  * Components of a network string in the format "namespace:chainId:address"

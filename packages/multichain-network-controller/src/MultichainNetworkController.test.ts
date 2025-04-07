@@ -17,6 +17,7 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
+import log from 'loglevel';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
@@ -538,7 +539,8 @@ describe('MultichainNetworkController', () => {
 
   describe('getNetworksWithTransactionActivityByAccounts', () => {
     beforeEach(() => {
-      jest.spyOn(console, 'error').mockImplementation();
+      jest.clearAllMocks();
+      jest.spyOn(log, 'error').mockImplementation();
     });
 
     afterEach(() => {
@@ -671,7 +673,7 @@ describe('MultichainNetworkController', () => {
       const result =
         await controller.getNetworksWithTransactionActivityByAccounts();
 
-      expect(console.error).toHaveBeenCalledWith(
+      expect(log.error).toHaveBeenCalledWith(
         'Error fetching networks with activity by accounts',
         expect.any(Error),
       );
