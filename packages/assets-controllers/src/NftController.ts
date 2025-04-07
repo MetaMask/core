@@ -2128,21 +2128,30 @@ export class NftController extends BaseController<
       // Validate URL format and protocol
       try {
         const urlObj = new URL(url);
-        
+
         // Check for allowed protocols
         if (!this.#urlSafetyConfig.allowedProtocols.includes(urlObj.protocol)) {
-          this.#urlSafetyCache.set(url, { isSafe: false, timestamp: Date.now() });
+          this.#urlSafetyCache.set(url, {
+            isSafe: false,
+            timestamp: Date.now(),
+          });
           return false;
         }
-        
+
         // Check against denied domains
         if (this.#urlSafetyConfig.deniedDomains.includes(urlObj.hostname)) {
-          this.#urlSafetyCache.set(url, { isSafe: false, timestamp: Date.now() });
+          this.#urlSafetyCache.set(url, {
+            isSafe: false,
+            timestamp: Date.now(),
+          });
           return false;
         }
       } catch (e) {
         // If URL parsing fails, consider it unsafe
-        this.#urlSafetyCache.set(url, { isSafe: false, timestamp: Date.now() });
+        this.#urlSafetyCache.set(url, {
+          isSafe: false,
+          timestamp: Date.now(),
+        });
         return false;
       }
 
@@ -2173,7 +2182,7 @@ export class NftController extends BaseController<
   ): Promise<{ key: string; isSafe: boolean }[]> {
     // Use set to track unique URLs (avoid checking same URL multiple times)
     const uniqueUrls = new Map<string, string[]>();
-    
+
     // Group URLs by their value to avoid duplicate checks
     for (const { key, url } of urls) {
       if (!uniqueUrls.has(url)) {
@@ -2182,19 +2191,19 @@ export class NftController extends BaseController<
         uniqueUrls.get(url)?.push(key);
       }
     }
-    
+
     // Process unique URLs with controlled concurrency
     const results: { key: string; isSafe: boolean }[] = [];
     const urlEntries = Array.from(uniqueUrls.entries());
     let processedCount = 0;
-    
+
     // Process in chunks of concurrencyLimit
     while (processedCount < urlEntries.length) {
       const chunk = urlEntries.slice(
         processedCount,
         processedCount + this.#urlSafetyConfig.concurrencyLimit,
       );
-      
+
       const chunkPromises = chunk.map(async ([url, keys]) => {
         try {
           const isSafe = await this.#isExternalLinkSafe(url);
@@ -2204,13 +2213,13 @@ export class NftController extends BaseController<
           return keys.map((key) => ({ key, isSafe: false }));
         }
       });
-      
+
       const chunkResults = await Promise.all(chunkPromises);
       results.push(...chunkResults.flat());
-      
+
       processedCount += chunk.length;
     }
-    
+
     return results;
   }
 
@@ -2222,10 +2231,10 @@ export class NftController extends BaseController<
    */
   async #sanitizeNftMetadata(metadata: NftMetadata): Promise<NftMetadata> {
     const sanitizedMetadata = { ...metadata };
-    
+
     // Collect all URL fields that need to be checked
     const urlFields: { key: string; url: string }[] = [];
-    
+
     // Check standard URL fields
     const fieldsToCheck = [
       'externalLink',
@@ -2236,14 +2245,14 @@ export class NftController extends BaseController<
       'animation',
       'animationOriginal',
     ];
-    
+
     for (const field of fieldsToCheck) {
       const url = sanitizedMetadata[field as keyof NftMetadata];
       if (typeof url === 'string' && url && url.startsWith('http')) {
         urlFields.push({ key: field, url });
       }
     }
-    
+
     // Check collection links if they exist
     if (sanitizedMetadata.collection) {
       // Check for external link in collection object
@@ -2258,24 +2267,20 @@ export class NftController extends BaseController<
         });
       }
     }
-    
+
     // No URLs to check
     if (urlFields.length === 0) {
       return sanitizedMetadata;
     }
-    
     // Process URLs in parallel with controlled concurrency
     const safetyResults = await this.#processUrlBatch(urlFields);
-    
+
     // Remove any unsafe URLs from metadata
     for (const { key, isSafe } of safetyResults) {
       if (!isSafe) {
         if (key === 'collection.externalLink' && sanitizedMetadata.collection) {
           const { collection } = sanitizedMetadata;
           if ('externalLink' in collection) {
-            // Collection type doesn't explicitly define externalLink,
-            // but we've verified it exists with the 'in' operator
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             delete (collection as Record<string, unknown>).externalLink;
           }
         } else {
@@ -2283,7 +2288,7 @@ export class NftController extends BaseController<
         }
       }
     }
-    
+
     return sanitizedMetadata;
   }
 }
