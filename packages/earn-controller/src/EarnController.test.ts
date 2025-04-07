@@ -1,8 +1,13 @@
 import type { AccountsController } from '@metamask/accounts-controller';
 import { Messenger } from '@metamask/base-controller';
+import { toHex } from '@metamask/controller-utils';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import { StakeSdk, StakingApiService } from '@metamask/stake-sdk';
 
+import type {
+  EarnControllerGetStateAction,
+  EarnControllerStateChangeEvent,
+} from './EarnController';
 import {
   EarnController,
   type EarnControllerState,
@@ -13,6 +18,11 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './EarnController';
+import type { TransactionMeta } from '../../transaction-controller/src';
+import {
+  TransactionStatus,
+  TransactionType,
+} from '../../transaction-controller/src';
 
 jest.mock('@metamask/stake-sdk', () => ({
   StakeSdk: {
@@ -63,6 +73,7 @@ function getEarnControllerMessenger(
     allowedEvents: [
       'NetworkController:stateChange',
       'AccountsController:selectedAccountChange',
+      'TransactionController:transactionConfirmed',
     ],
   });
 }
@@ -101,6 +112,30 @@ const createMockInternalAccount = ({
 const mockAccount1Address = '0x1234';
 
 const mockAccount2Address = '0xabc';
+
+const createMockTransaction = ({
+  id = '1',
+  type = TransactionType.stakingDeposit,
+  chainId = toHex(1),
+  networkClientId = 'networkClientIdMock',
+  time = 123456789,
+  status = TransactionStatus.confirmed,
+  txParams = {
+    gasUsed: '0x5208',
+    from: mockAccount1Address,
+    to: mockAccount2Address,
+  },
+}: Partial<TransactionMeta> = {}): TransactionMeta => {
+  return {
+    id,
+    type,
+    chainId,
+    networkClientId,
+    time,
+    status,
+    txParams,
+  };
+};
 
 const mockPooledStakes = {
   account: mockAccount1Address,
@@ -632,6 +667,87 @@ describe('EarnController', () => {
         expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
           address: account.address,
         });
+      });
+    });
+
+    describe('On transaction confirmed', () => {
+      let controller: EarnController;
+      let messenger: Messenger<
+        EarnControllerGetStateAction | AllowedActions,
+        EarnControllerStateChangeEvent | AllowedEvents
+      >;
+
+      beforeEach(() => {
+        const earnController = setupController();
+        controller = earnController.controller;
+        messenger = earnController.messenger;
+
+        jest.spyOn(controller, 'refreshPooledStakes').mockResolvedValue();
+      });
+
+      it('updates pooled stakes for staking deposit transaction type', () => {
+        const MOCK_CONFIRMED_DEPOSIT_TX = createMockTransaction({
+          type: TransactionType.stakingDeposit,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_DEPOSIT_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: MOCK_CONFIRMED_DEPOSIT_TX.txParams.from,
+          resetCache: true,
+        });
+      });
+
+      it('updates pooled stakes for staking unstake transaction type', () => {
+        const MOCK_CONFIRMED_UNSTAKE_TX = createMockTransaction({
+          type: TransactionType.stakingUnstake,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_UNSTAKE_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: MOCK_CONFIRMED_UNSTAKE_TX.txParams.from,
+          resetCache: true,
+        });
+      });
+
+      it('updates pooled stakes for staking claim transaction type', () => {
+        const MOCK_CONFIRMED_CLAIM_TX = createMockTransaction({
+          type: TransactionType.stakingClaim,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_CLAIM_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenNthCalledWith(1, {
+          address: MOCK_CONFIRMED_CLAIM_TX.txParams.from,
+          resetCache: true,
+        });
+      });
+
+      it('ignores non-staking transaction types', () => {
+        const MOCK_CONFIRMED_SWAP_TX = createMockTransaction({
+          type: TransactionType.swap,
+          status: TransactionStatus.confirmed,
+        });
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          MOCK_CONFIRMED_SWAP_TX,
+        );
+
+        expect(controller.refreshPooledStakes).toHaveBeenCalledTimes(0);
       });
     });
   });
