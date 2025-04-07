@@ -1703,7 +1703,7 @@ export class TransactionController extends BaseController<
       }
 
       // Update same nonce local transactions as dropped and define replacedBy properties.
-      this.markNonceDuplicatesDropped(transactionId);
+      this.#markNonceDuplicatesDropped(transactionId);
 
       // Update external provided transaction with updated gas values and confirmed status.
       this.updateTransaction(
@@ -3358,7 +3358,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - Used to identify original transaction.
    */
-  private markNonceDuplicatesDropped(transactionId: string) {
+  #markNonceDuplicatesDropped(transactionId: string) {
     const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
@@ -3589,10 +3589,10 @@ export class TransactionController extends BaseController<
     );
   }
 
-  private onConfirmedTransaction(transactionMeta: TransactionMeta) {
+  #onConfirmedTransaction(transactionMeta: TransactionMeta) {
     log('Processing confirmed transaction', transactionMeta.id);
 
-    this.markNonceDuplicatesDropped(transactionMeta.id);
+    this.#markNonceDuplicatesDropped(transactionMeta.id);
 
     this.messagingSystem.publish(
       `${controllerName}:transactionConfirmed`,
@@ -3736,7 +3736,7 @@ export class TransactionController extends BaseController<
   ) {
     pendingTransactionTracker.hub.on(
       'transaction-confirmed',
-      this.onConfirmedTransaction.bind(this),
+      this.#onConfirmedTransaction.bind(this),
     );
 
     pendingTransactionTracker.hub.on(
