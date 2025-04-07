@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.3.1]
+
+### Fixed
+
+- Improve error handling and monitoring ([#508](https://github.com/MetaMask/smart-transactions-controller/pull/508))
+
 ## [16.3.0]
 
 ### Added
@@ -543,7 +549,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.1...HEAD
+[16.3.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.3.0...v16.3.1
 [16.3.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.2.0...v16.3.0
 [16.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.1.0...v16.2.0
 [16.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v16.0.1...v16.1.0
