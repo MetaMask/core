@@ -1215,6 +1215,7 @@ describe('TransactionController', () => {
         chainId: CHAIN_ID_MOCK,
         ethQuery: expect.anything(),
         isSimulationEnabled: true,
+        messenger: expect.anything(),
         txParams: transactionParamsMock,
       });
 
@@ -2011,6 +2012,7 @@ describe('TransactionController', () => {
         ethQuery: expect.any(Object),
         isCustomNetwork: false,
         isSimulationEnabled: true,
+        messenger: expect.any(Object),
         txMeta: expect.any(Object),
       });
     });

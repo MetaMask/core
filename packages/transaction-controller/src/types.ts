@@ -613,6 +613,11 @@ export enum TransactionType {
   ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
 
   /**
+   * Transaction is a token or native transfer to MetaMask to pay for gas fees.
+   */
+  gasPayment = 'gas_payment',
+
+  /**
    * An incoming (deposit) transaction.
    */
   incoming = 'incoming',
@@ -741,6 +746,9 @@ export type TransactionParams = {
 
   /**
    * Network ID as per EIP-155.
+   *
+   * @deprecated Ignored.
+   * Use `networkClientId` when calling `addTransaction`.
    */
   chainId?: Hex;
 

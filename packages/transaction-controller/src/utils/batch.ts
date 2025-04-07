@@ -101,6 +101,7 @@ export async function addTransactionBatch(
     transactions,
     useHook,
     validateSecurity,
+    origin,
   } = userRequest;
 
   log('Adding', userRequest);
@@ -200,6 +201,7 @@ export async function addTransactionBatch(
     requireApproval,
     securityAlertResponse,
     type: TransactionType.batch,
+    origin,
   });
 
   // Wait for the transaction to be published.

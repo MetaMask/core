@@ -1,6 +1,7 @@
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
@@ -388,6 +389,7 @@ type MockNetworkClient = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   blockTracker: any;
+  provider: SafeEventEmitterProvider;
   clock: sinon.SinonFakeTimers;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -555,6 +557,7 @@ export async function withNetworkClient(
 
   const client = {
     blockTracker,
+    provider,
     clock,
     makeRpcCall: curriedMakeRpcCall,
     makeRpcCallsInSeries,

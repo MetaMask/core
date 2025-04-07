@@ -1171,7 +1171,7 @@ export class TransactionController extends BaseController<
     const isEIP1559Compatible =
       await this.getEIP1559Compatibility(networkClientId);
 
-    validateTxParams(txParams, isEIP1559Compatible);
+    validateTxParams(txParams, isEIP1559Compatible, chainId);
 
     if (!txParams.type) {
       // Determine transaction type based on transaction parameters and network compatibility
@@ -1535,6 +1535,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txParams: transaction,
     });
 
@@ -1562,6 +1563,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txParams: transaction,
     });
 
@@ -4143,6 +4145,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txMeta: transactionMeta,
     });
   }
