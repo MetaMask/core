@@ -227,7 +227,7 @@ export async function fetchNetworkActivityByAccounts(
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
-        throw new Error('Request timeout: Failed to fetch active networks');
+        throw new Error(`Request timeout: Failed to fetch active networks: ${error}`);
       }
       throw error;
     }
