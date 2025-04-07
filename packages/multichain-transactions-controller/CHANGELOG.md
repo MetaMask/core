@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: sends transaction update events ([#5587](https://github.com/MetaMask/core/pull/5587))
+- chore: bump accounts dependencies ([#5565](https://github.com/MetaMask/core/pull/5565))
+- Release 343.0.0 ([#5542](https://github.com/MetaMask/core/pull/5542))
+
 ## [0.8.0]
 
 ### Changed
