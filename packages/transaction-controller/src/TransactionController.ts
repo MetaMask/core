@@ -103,6 +103,8 @@ import type {
   PublishHook,
   PublishBatchHook,
   GasFeeToken,
+  IsAtomicBatchSupportedResult,
+  IsAtomicBatchSupportedRequest,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -290,8 +292,13 @@ export type TransactionControllerOptions = {
   /** Whether to disable additional processing on swaps transactions. */
   disableSwaps: boolean;
 
-  /** Whether to enable gas fee updates. */
-  enableTxParamsGasFeeUpdates?: boolean;
+  /**
+   * Callback to determine whether gas fee updates should be enabled for a given transaction.
+   * Returns true to enable updates, false to disable them.
+   */
+  isAutomaticGasFeeUpdateEnabled?: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
 
   /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
@@ -657,7 +664,9 @@ export class TransactionController extends BaseController<
 
   private readonly isSendFlowHistoryDisabled: boolean;
 
-  private readonly isTxParamsGasFeeUpdatesEnabled: boolean;
+  private readonly isTxParamsGasFeeUpdatesEnabled: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
 
   private readonly approvingTransactionIds: Set<string> = new Set();
 
@@ -812,7 +821,7 @@ export class TransactionController extends BaseController<
       disableHistory,
       disableSendFlowHistory,
       disableSwaps,
-      enableTxParamsGasFeeUpdates,
+      isAutomaticGasFeeUpdateEnabled,
       getCurrentAccountEIP1559Compatibility,
       getCurrentNetworkEIP1559Compatibility,
       getExternalPendingTransactions,
@@ -847,7 +856,8 @@ export class TransactionController extends BaseController<
     });
 
     this.messagingSystem = messenger;
-    this.isTxParamsGasFeeUpdatesEnabled = enableTxParamsGasFeeUpdates ?? false;
+    this.isTxParamsGasFeeUpdatesEnabled =
+      isAutomaticGasFeeUpdateEnabled ?? ((_txMeta: TransactionMeta) => false);
     this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -1049,12 +1059,14 @@ export class TransactionController extends BaseController<
   /**
    * Determine which chains support atomic batch transactions with the given account address.
    *
-   * @param address - The address of the account to check.
-   * @returns  The supported chain IDs.
+   * @param request - Request object containing the account address and other parameters.
+   * @returns  Result object containing the supported chains and related information.
    */
-  async isAtomicBatchSupported(address: Hex): Promise<Hex[]> {
+  async isAtomicBatchSupported(
+    request: IsAtomicBatchSupportedRequest,
+  ): Promise<IsAtomicBatchSupportedResult> {
     return isAtomicBatchSupported({
-      address,
+      ...request,
       getEthQuery: (chainId) => this.#getEthQuery({ chainId }),
       messenger: this.messagingSystem,
       publicKeyEIP7702: this.#publicKeyEIP7702,
@@ -1171,7 +1183,7 @@ export class TransactionController extends BaseController<
     const isEIP1559Compatible =
       await this.getEIP1559Compatibility(networkClientId);
 
-    validateTxParams(txParams, isEIP1559Compatible);
+    validateTxParams(txParams, isEIP1559Compatible, chainId);
 
     if (!txParams.type) {
       // Determine transaction type based on transaction parameters and network compatibility
@@ -1535,6 +1547,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txParams: transaction,
     });
 
@@ -1562,6 +1575,7 @@ export class TransactionController extends BaseController<
       chainId: this.#getChainId(networkClientId),
       ethQuery,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txParams: transaction,
     });
 
@@ -1689,7 +1703,7 @@ export class TransactionController extends BaseController<
       }
 
       // Update same nonce local transactions as dropped and define replacedBy properties.
-      this.markNonceDuplicatesDropped(transactionId);
+      this.#markNonceDuplicatesDropped(transactionId);
 
       // Update external provided transaction with updated gas values and confirmed status.
       this.updateTransaction(
@@ -2864,7 +2878,7 @@ export class TransactionController extends BaseController<
 
       const rawTx = await this.#trace(
         { name: 'Sign', parentContext: traceContext },
-        () => this.signTransaction(transactionMeta),
+        () => this.#signTransaction(transactionMeta),
       );
 
       if (!(await this.beforePublish(transactionMeta))) {
@@ -2876,7 +2890,7 @@ export class TransactionController extends BaseController<
         return ApprovalState.SkippedViaBeforePublishHook;
       }
 
-      if (!rawTx) {
+      if (!rawTx && !transactionMeta.isExternalSign) {
         return ApprovalState.NotApproved;
       }
 
@@ -2920,7 +2934,7 @@ export class TransactionController extends BaseController<
 
           ({ transactionHash: hash } = await publishHook(
             transactionMeta,
-            rawTx,
+            rawTx ?? '0x',
           ));
 
           if (hash === undefined) {
@@ -3344,7 +3358,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - Used to identify original transaction.
    */
-  private markNonceDuplicatesDropped(transactionId: string) {
+  #markNonceDuplicatesDropped(transactionId: string) {
     const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
@@ -3357,6 +3371,7 @@ export class TransactionController extends BaseController<
       (transaction) =>
         transaction.id !== transactionId &&
         transaction.txParams.from === from &&
+        nonce &&
         transaction.txParams.nonce === nonce &&
         transaction.chainId === chainId &&
         transaction.type !== TransactionType.incoming,
@@ -3469,10 +3484,15 @@ export class TransactionController extends BaseController<
     );
   }
 
-  private async signTransaction(
+  async #signTransaction(
     transactionMeta: TransactionMeta,
   ): Promise<string | undefined> {
-    const { txParams } = transactionMeta;
+    const { isExternalSign, txParams } = transactionMeta;
+
+    if (isExternalSign) {
+      log('Skipping sign as signed externally');
+      return undefined;
+    }
 
     log('Signing transaction', txParams);
 
@@ -3569,10 +3589,10 @@ export class TransactionController extends BaseController<
     );
   }
 
-  private onConfirmedTransaction(transactionMeta: TransactionMeta) {
+  #onConfirmedTransaction(transactionMeta: TransactionMeta) {
     log('Processing confirmed transaction', transactionMeta.id);
 
-    this.markNonceDuplicatesDropped(transactionMeta.id);
+    this.#markNonceDuplicatesDropped(transactionMeta.id);
 
     this.messagingSystem.publish(
       `${controllerName}:transactionConfirmed`,
@@ -3716,7 +3736,7 @@ export class TransactionController extends BaseController<
   ) {
     pendingTransactionTracker.hub.on(
       'transaction-confirmed',
-      this.onConfirmedTransaction.bind(this),
+      this.#onConfirmedTransaction.bind(this),
     );
 
     pendingTransactionTracker.hub.on(
@@ -4143,6 +4163,7 @@ export class TransactionController extends BaseController<
       ethQuery,
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      messenger: this.messagingSystem,
       txMeta: transactionMeta,
     });
   }

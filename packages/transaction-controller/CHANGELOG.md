@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isExternalSign` property to `TransactionMeta` to disable nonce generation and signing ([#5604](https://github.com/MetaMask/core/pull/5604))
+- Add types for `isAtomicBatchSupported` method ([#5600](https://github.com/MetaMask/core/pull/5600))
+  - `IsAtomicBatchSupportedRequest`
+  - `IsAtomicBatchSupportedResult`
+  - `IsAtomicBatchSupportedResultEntry`
+
+### Changed
+
+- **BREAKING:** Update signature of `isAtomicBatchSupported` method ([#5600](https://github.com/MetaMask/core/pull/5600))
+  - Replace `address` argument with `request` object containing `address` and optional `chainIds`.
+  - Return array of `IsAtomicBatchSupportedResultEntry` objects.
+- Skip `origin` validation for `batch` transaction type ([#5586](https://github.com/MetaMask/core/pull/5586))
+- **BREAKING:** `enableTxParamsGasFeeUpdates` is renamed to `isAutomaticGasFeeUpdateEnabled` now expects a callback function instead of a boolean.
+  - This callback is invoked before performing `txParams` gas fee updates. The update will proceed only if the callback returns a truthy value.
+  - If not set it will default to return `false`.
+
+## [53.0.0]
+
+### Added
+
+- Add `gasPayment` to `TransactionType` enum ([#5584](https://github.com/MetaMask/core/pull/5584))
+- Add `TransactionControllerUpdateCustodialTransactionAction` messenger action ([#5045](https://github.com/MetaMask/core/pull/5045))
+
+### Changed
+
+- **BREAKING:** Return `Promise` from `beforePublish` and `beforeCheckPendingTransaction` hooks ([#5045](https://github.com/MetaMask/core/pull/5045))
+- Support additional parameters in `updateCustodialTransaction` method ([#5045](https://github.com/MetaMask/core/pull/5045))
+  - `gasLimit`
+  - `gasPrice`
+  - `maxFeePerGas`
+  - `maxPriorityFeePerGas`
+  - `nonce`
+  - `type`
+- Configure gas estimation fallback using remote feature flags ([#5556](https://github.com/MetaMask/core/pull/5556))
+- Throw if `chainId` in `TransactionParams` does not match `networkClientId` when calling `addTransaction` ([#5511](https://github.com/MetaMask/core/pull/5569))
+  - Mark `chainId` in `TransactionParams` as deprecated.
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+### Removed
+
+- **BREAKING:** Remove `custodyId` and `custodyStatus` properties from `TransactionMeta` ([#5045](https://github.com/MetaMask/core/pull/5045))
+
 ## [52.3.0]
 
 ### Added
@@ -1458,7 +1502,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@53.0.0...HEAD
+[53.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.3.0...@metamask/transaction-controller@53.0.0
 [52.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.2.0...@metamask/transaction-controller@52.3.0
 [52.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.1.0...@metamask/transaction-controller@52.2.0
 [52.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@52.0.0...@metamask/transaction-controller@52.1.0
