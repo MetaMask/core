@@ -8,7 +8,7 @@ on:
 
 jobs:
   check_changelog:
-    uses: './.github/workflows/shared-changelog-check.yml'
+    uses: 'MetaMask/github-tools/.github/workflows/changelog-check.yml@cryptodev2s/changelog-checker'
     with:
       base-branch: main
       head-ref: ${{ github.head_ref }}
