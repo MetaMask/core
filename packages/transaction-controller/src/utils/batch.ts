@@ -33,6 +33,8 @@ import type {
   PublishHook,
   TransactionBatchRequest,
   ValidateSecurityRequest,
+  IsAtomicBatchSupportedResult,
+  IsAtomicBatchSupportedResultEntry,
 } from '../types';
 import {
   TransactionEnvelopeType,
@@ -57,8 +59,9 @@ type AddTransactionBatchRequest = {
   ) => void;
 };
 
-type IsAtomicBatchSupportedRequest = {
+type IsAtomicBatchSupportedRequestInternal = {
   address: Hex;
+  chainIds?: Hex[];
   getEthQuery: (chainId: Hex) => EthQuery;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
@@ -217,10 +220,11 @@ export async function addTransactionBatch(
  * @returns The chain IDs that support atomic batch transactions.
  */
 export async function isAtomicBatchSupported(
-  request: IsAtomicBatchSupportedRequest,
-): Promise<Hex[]> {
+  request: IsAtomicBatchSupportedRequestInternal,
+): Promise<IsAtomicBatchSupportedResult> {
   const {
     address,
+    chainIds,
     getEthQuery,
     messenger,
     publicKeyEIP7702: publicKey,
@@ -231,9 +235,13 @@ export async function isAtomicBatchSupported(
   }
 
   const chainIds7702 = getEIP7702SupportedChains(messenger);
-  const chainIds: Hex[] = [];
+  const results: IsAtomicBatchSupportedResultEntry[] = [];
 
   for (const chainId of chainIds7702) {
+    if (chainIds && !chainIds.includes(chainId)) {
+      continue;
+    }
+
     const ethQuery = getEthQuery(chainId);
 
     const { isSupported, delegationAddress } = await isAccountUpgradedToEIP7702(
@@ -244,14 +252,23 @@ export async function isAtomicBatchSupported(
       ethQuery,
     );
 
-    if (!delegationAddress || isSupported) {
-      chainIds.push(chainId);
-    }
+    const upgradeContractAddress = getEIP7702UpgradeContractAddress(
+      chainId,
+      messenger,
+      publicKey,
+    );
+
+    results.push({
+      chainId,
+      delegationAddress,
+      isSupported,
+      upgradeContractAddress,
+    });
   }
 
-  log('Atomic batch supported chains', chainIds);
+  log('Atomic batch supported results', results);
 
-  return chainIds;
+  return results;
 }
 
 /**

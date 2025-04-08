@@ -102,6 +102,8 @@ import type {
   PublishHook,
   PublishBatchHook,
   GasFeeToken,
+  IsAtomicBatchSupportedResult,
+  IsAtomicBatchSupportedRequest,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -1036,12 +1038,14 @@ export class TransactionController extends BaseController<
   /**
    * Determine which chains support atomic batch transactions with the given account address.
    *
-   * @param address - The address of the account to check.
-   * @returns  The supported chain IDs.
+   * @param request - Request object containing the account address and other parameters.
+   * @returns  Result object containing the supported chains and related information.
    */
-  async isAtomicBatchSupported(address: Hex): Promise<Hex[]> {
+  async isAtomicBatchSupported(
+    request: IsAtomicBatchSupportedRequest,
+  ): Promise<IsAtomicBatchSupportedResult> {
     return isAtomicBatchSupported({
-      address,
+      ...request,
       getEthQuery: (chainId) => this.#getEthQuery({ chainId }),
       messenger: this.messagingSystem,
       publicKeyEIP7702: this.#publicKeyEIP7702,
