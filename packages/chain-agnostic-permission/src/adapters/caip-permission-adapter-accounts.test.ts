@@ -4,7 +4,6 @@ import {
   getEthAccounts,
   setEthAccounts,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
-  getCaipAccountIdsFromScopesObject,
   getCaipAccountIdsFromScopesObjects,
   getCaipAccountIdsFromCaip25CaveatValue,
 } from './caip-permission-adapter-accounts';
@@ -373,57 +372,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
         sessionProperties: {},
         isMultichainOrigin: false,
       });
-    });
-  });
-
-  describe('getCaipAccountIdsFromScopesObject', () => {
-    it('returns all unique account IDs from a scopes object', () => {
-      const scopesObject = {
-        'eip155:1': {
-          accounts: [
-            'eip155:1:0x1234567890123456789012345678901234567890',
-            'eip155:1:0x2345678901234567890123456789012345678901',
-          ],
-        },
-        'eip155:5': {
-          accounts: [
-            'eip155:5:0x1234567890123456789012345678901234567890',
-            'eip155:5:0x3456789012345678901234567890123456789012',
-          ],
-        },
-        'bip122:000000000019d6689c085ae165831e93': {
-          accounts: [
-            'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
-          ],
-        },
-      } as InternalScopesObject;
-
-      const result = getCaipAccountIdsFromScopesObject(scopesObject);
-
-      expect(result).toEqual([
-        'eip155:1:0x1234567890123456789012345678901234567890',
-        'eip155:1:0x2345678901234567890123456789012345678901',
-        'eip155:5:0x1234567890123456789012345678901234567890',
-        'eip155:5:0x3456789012345678901234567890123456789012',
-        'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
-      ]);
-    });
-
-    it('returns an empty array if the scopes object is empty', () => {
-      const result = getCaipAccountIdsFromScopesObject(
-        {} as InternalScopesObject,
-      );
-      expect(result).toEqual([]);
-    });
-
-    it('returns an empty array if no accounts are present in any scope', () => {
-      const scopesObject = {
-        'eip155:1': { accounts: [] },
-        'eip155:5': { accounts: [] },
-      } as InternalScopesObject;
-
-      const result = getCaipAccountIdsFromScopesObject(scopesObject);
-      expect(result).toEqual([]);
     });
   });
 
