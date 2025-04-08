@@ -176,11 +176,11 @@ export function getCaipAccountIdsFromScopesObject(
 ): CaipAccountId[] {
   const allAccounts = new Set<CaipAccountId>();
 
-  Object.values(scopesObject).forEach(({ accounts }) => {
-    accounts.forEach((account) => {
+  for (const { accounts } of Object.values(scopesObject)) {
+    for (const account of accounts) {
       allAccounts.add(account);
-    });
-  });
+    }
+  }
 
   return Array.from(allAccounts);
 }
@@ -196,9 +196,17 @@ export function getCaipAccountIdsFromScopesObject(
 export function getCaipAccountIdsFromScopesObjects(
   scopesObjects: InternalScopesObject[],
 ): CaipAccountId[] {
-  return Array.from(
-    new Set([...scopesObjects.flatMap(getCaipAccountIdsFromScopesObject)]),
-  );
+  const allAccounts = new Set<CaipAccountId>();
+
+  for (const scopeObject of scopesObjects) {
+    for (const { accounts } of Object.values(scopeObject)) {
+      for (const account of accounts) {
+        allAccounts.add(account);
+      }
+    }
+  }
+
+  return Array.from(allAccounts);
 }
 
 /**
@@ -212,12 +220,10 @@ export function getCaipAccountIdsFromScopesObjects(
 export function getCaipAccountIdsFromCaip25CaveatValue(
   caip25CaveatValue: Caip25CaveatValue,
 ): CaipAccountId[] {
-  return Array.from(
-    new Set([
-      ...getCaipAccountIdsFromScopesObject(caip25CaveatValue.requiredScopes),
-      ...getCaipAccountIdsFromScopesObject(caip25CaveatValue.optionalScopes),
-    ]),
-  );
+  return getCaipAccountIdsFromScopesObjects([
+    caip25CaveatValue.requiredScopes,
+    caip25CaveatValue.optionalScopes,
+  ]);
 }
 
 /**
@@ -228,66 +234,76 @@ export function getCaipAccountIdsFromCaip25CaveatValue(
 
 /**
  * Sets the CAIP account IDs to scopes with matching namespaces in the given scopes object.
+ * This function should not be used with Smart Contract Accounts (SCA) because
+ * it adds the same account ID to all the scopes that have the same namespace.
  *
  * @param scopesObject - The scopes object to set the CAIP account IDs for.
  * @param accounts - The CAIP account IDs to add to the appropriate scopes.
  * @returns The updated scopes object with the CAIP account IDs set.
  */
-const setCaipAccountIdsInScopesObject = (
+const setNonSCACaipAccountIdsInScopesObject = (
   scopesObject: InternalScopesObject,
   accounts: CaipAccountId[],
 ) => {
-  const updatedScopesObject: InternalScopesObject = {};
-  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
-    // Cast needed because index type is returned as `string` by `Object.entries`
-    const scopeString = key as keyof typeof scopesObject;
-    const { namespace, reference } = parseScopeString(scopeString);
+  const accountsByNamespace = new Map<string, Set<string>>();
 
-    let caipAccounts: CaipAccountId[] = [];
-    if (namespace && reference) {
-      caipAccounts = accounts.reduce<CaipAccountId[]>((acc, account) => {
-        const {
-          chain: { namespace: accountNamespace },
-          address: accountAddress,
-        } = parseCaipAccountId(account);
-        // If the account namespace is the same as the scope namespace, add the account to the scope
-        // This will, for example, distribute all EIP155 accounts, regardless of reference, to all EIP155 scopes
-        if (namespace === accountNamespace) {
-          acc.push(`${namespace}:${reference}:${accountAddress}`);
-        }
-        return acc;
-      }, []);
+  for (const account of accounts) {
+    const {
+      chain: { namespace },
+      address,
+    } = parseCaipAccountId(account);
+
+    if (!accountsByNamespace.has(namespace)) {
+      accountsByNamespace.set(namespace, new Set());
     }
 
-    const uniqueCaipAccounts = getUniqueArrayItems(caipAccounts);
+    accountsByNamespace.get(namespace)!.add(address);
+  }
 
-    updatedScopesObject[scopeString] = {
+  const updatedScopesObject: InternalScopesObject = {};
+
+  for (const [scopeString, scopeObject] of Object.entries(scopesObject)) {
+    const { namespace, reference } = parseScopeString(scopeString as string);
+
+    let caipAccounts: CaipAccountId[] = [];
+
+    if (namespace && reference && accountsByNamespace.has(namespace)) {
+      // For scopes with a specific namespace and reference
+      const addressSet = accountsByNamespace.get(namespace)!;
+      caipAccounts = Array.from(addressSet).map(
+        (address) => `${namespace}:${reference}:${address}` as CaipAccountId,
+      );
+    }
+
+    updatedScopesObject[scopeString as keyof typeof scopesObject] = {
       ...scopeObject,
-      accounts: uniqueCaipAccounts,
+      accounts: getUniqueArrayItems(caipAccounts),
     };
-  });
+  }
 
   return updatedScopesObject;
 };
 
 /**
  * Sets the permitted accounts to scopes with matching namespaces in the given CAIP-25 caveat value.
+ * This function should not be used with Smart Contract Accounts (SCA) because
+ * it adds the same account ID to all scopes that have the same namespace as the account.
  *
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted accounts for.
  * @param accounts - The permitted accounts to add to the appropriate scopes.
  * @returns The updated CAIP-25 caveat value with the permitted accounts set.
  */
-export const setCaipAccountIdsInCaip25CaveatValue = (
+export const setNonSCACaipAccountIdsInCaip25CaveatValue = (
   caip25CaveatValue: Caip25CaveatValue,
   accounts: CaipAccountId[],
 ): Caip25CaveatValue => {
   return {
     ...caip25CaveatValue,
-    requiredScopes: setCaipAccountIdsInScopesObject(
+    requiredScopes: setNonSCACaipAccountIdsInScopesObject(
       caip25CaveatValue.requiredScopes,
       accounts,
     ),
-    optionalScopes: setCaipAccountIdsInScopesObject(
+    optionalScopes: setNonSCACaipAccountIdsInScopesObject(
       caip25CaveatValue.optionalScopes,
       accounts,
     ),
