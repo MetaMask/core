@@ -8,6 +8,7 @@ import {
   SolAccountType,
   type KeyringAccountType,
   type CaipChainId,
+  EthScope,
 } from '@metamask/keyring-api';
 import type {
   NetworkControllerGetStateAction,
@@ -21,7 +22,7 @@ import log from 'loglevel';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
-import { MultichainNetworkServiceController } from './MultichainNetworkServiceController';
+import { MultichainNetworkService } from './MultichainNetworkService';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -41,9 +42,9 @@ jest.mock('./utils', () => ({
 }));
 
 /**
- * Mock implementation of MultichainNetworkServiceController for testing.
+ * Mock implementation of MultichainNetworkService for testing.
  */
-class MockMultichainNetworkService extends MultichainNetworkServiceController {
+class MockMultichainNetworkService extends MultichainNetworkService {
   constructor() {
     super({ fetch: jest.fn() });
   }
@@ -61,7 +62,7 @@ class MockMultichainNetworkService extends MultichainNetworkServiceController {
  * @param args.removeNetwork - Mock for NetworkController:removeNetwork action.
  * @param args.getSelectedChainId - Mock for NetworkController:getSelectedChainId action.
  * @param args.findNetworkClientIdByChainId - Mock for NetworkController:findNetworkClientIdByChainId action.
- * @param args.mockNetworkService - Mock for MultichainNetworkServiceController.
+ * @param args.mockNetworkService - Mock for MultichainNetworkService.
  * @returns A collection of test controllers and mocks.
  */
 function setupController({
@@ -96,7 +97,7 @@ function setupController({
     ReturnType<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>,
     Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
   >;
-  mockNetworkService?: MultichainNetworkServiceController;
+  mockNetworkService?: MultichainNetworkService;
 } = {}) {
   const messenger = new Messenger<
     MultichainNetworkControllerAllowedActions,
@@ -601,6 +602,7 @@ describe('MultichainNetworkController', () => {
           createMockInternalAccount({
             type: EthAccountType.Eoa,
             address: '0x1234567890123456789012345678901234567890',
+            scopes: [EthScope.Eoa],
           }),
         ],
       );
@@ -641,10 +643,12 @@ describe('MultichainNetworkController', () => {
           createMockInternalAccount({
             type: EthAccountType.Eoa,
             address: '0x1234567890123456789012345678901234567890',
+            scopes: [EthScope.Eoa],
           }),
           createMockInternalAccount({
             type: SolAccountType.DataAccount,
             address: 'solana123',
+            scopes: [SolScope.Mainnet],
           }),
         ],
       );
@@ -654,7 +658,7 @@ describe('MultichainNetworkController', () => {
 
       expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
         'eip155:0:0x1234567890123456789012345678901234567890',
-        'solana:1:solana123',
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:solana123',
       ]);
 
       expect(result).toStrictEqual({

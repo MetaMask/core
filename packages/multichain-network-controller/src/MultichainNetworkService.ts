@@ -5,16 +5,17 @@ import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
 } from './constants';
-import type { ActiveNetworksResponse } from './types';
-import { ActiveNetworksResponseStruct, buildActiveNetworksUrl } from './utils';
+import {
+  ActiveNetworksResponseStruct,
+  type ActiveNetworksResponse,
+} from './types';
+import { buildActiveNetworksUrl, assertCaipAccountIds } from './utils';
 
 /**
  * Service responsible for fetching network activity data from the API.
  */
-export class MultichainNetworkServiceController {
+export class MultichainNetworkService {
   readonly #fetch: typeof fetch;
-
-  // readonly #messagingSystem: MultichainNetworkControllerMessenger;
 
   constructor({ fetch: fetchFunction }: { fetch: typeof fetch }) {
     this.#fetch = fetchFunction;
@@ -45,13 +46,14 @@ export class MultichainNetworkServiceController {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: unknown = await response.json();
 
       if (!is(data, ActiveNetworksResponseStruct)) {
         throw new Error('Invalid response format from active networks API');
       }
-
-      return data as ActiveNetworksResponse;
+      const typedData = data as ActiveNetworksResponse;
+      assertCaipAccountIds(typedData.activeNetworks);
+      return typedData;
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {

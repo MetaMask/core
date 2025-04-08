@@ -8,7 +8,7 @@ import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from './constants';
-import type { MultichainNetworkServiceController } from './MultichainNetworkServiceController';
+import type { MultichainNetworkService } from './MultichainNetworkService';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
@@ -22,8 +22,7 @@ import {
   formatNetworkActivityResponse,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
-  formatCaipAccountId,
-  getChainTypeFromAccountType,
+  toCaipAccountIds,
 } from './utils';
 
 /**
@@ -35,7 +34,7 @@ export class MultichainNetworkController extends BaseController<
   MultichainNetworkControllerState,
   MultichainNetworkControllerMessenger
 > {
-  readonly #networkService: MultichainNetworkServiceController;
+  readonly #networkService: MultichainNetworkService;
 
   constructor({
     messenger,
@@ -47,7 +46,7 @@ export class MultichainNetworkController extends BaseController<
       Partial<MultichainNetworkControllerState>,
       'multichainNetworkConfigurationsByChainId'
     >;
-    networkService: MultichainNetworkServiceController;
+    networkService: MultichainNetworkService;
   }) {
     super({
       messenger,
@@ -163,10 +162,9 @@ export class MultichainNetworkController extends BaseController<
       return this.state.networksWithTransactionActivity;
     }
 
-    const formattedAccounts = accounts.map((account: InternalAccount) => {
-      const chainType = getChainTypeFromAccountType(account.type);
-      return formatCaipAccountId(account.address, chainType);
-    });
+    const formattedAccounts = accounts
+      .map((account: InternalAccount) => toCaipAccountIds(account))
+      .flat();
 
     const activeNetworks =
       await this.#networkService.fetchNetworkActivity(formattedAccounts);

@@ -5,26 +5,22 @@ import {
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
   MULTICHAIN_ACCOUNTS_DOMAIN,
 } from './constants';
-import { MultichainNetworkServiceController } from './MultichainNetworkServiceController';
+import { MultichainNetworkService } from './MultichainNetworkService';
 import type { ActiveNetworksResponse } from './types';
 
-describe('MultichainNetworkServiceController', () => {
+describe('MultichainNetworkService', () => {
   const mockFetch = jest.fn();
   const validAccountIds: CaipAccountId[] = [
     'eip155:1:0x1234567890123456789012345678901234567890' as CaipAccountId,
     'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as CaipAccountId,
   ];
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('constructor', () => {
     it('creates an instance with the provided fetch function', () => {
-      const service = new MultichainNetworkServiceController({
+      const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
-      expect(service).toBeInstanceOf(MultichainNetworkServiceController);
+      expect(service).toBeInstanceOf(MultichainNetworkService);
     });
   });
 
@@ -39,7 +35,7 @@ describe('MultichainNetworkServiceController', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const service = new MultichainNetworkServiceController({
+      const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
       const result = await service.fetchNetworkActivity(validAccountIds);
@@ -63,7 +59,7 @@ describe('MultichainNetworkServiceController', () => {
         status: 404,
       });
 
-      const service = new MultichainNetworkServiceController({
+      const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
 
@@ -78,7 +74,7 @@ describe('MultichainNetworkServiceController', () => {
         json: () => Promise.resolve({ invalidKey: 'invalid data' }),
       });
 
-      const service = new MultichainNetworkServiceController({
+      const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
 
@@ -92,7 +88,7 @@ describe('MultichainNetworkServiceController', () => {
       abortError.name = 'AbortError';
       mockFetch.mockRejectedValueOnce(abortError);
 
-      const service = new MultichainNetworkServiceController({
+      const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
 
@@ -105,7 +101,7 @@ describe('MultichainNetworkServiceController', () => {
       const networkError = new Error('Network error');
       mockFetch.mockRejectedValueOnce(networkError);
 
-      const service = new MultichainNetworkServiceController({
+      const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
 
@@ -117,7 +113,7 @@ describe('MultichainNetworkServiceController', () => {
     it('handles non-Error fetch failures', async () => {
       mockFetch.mockRejectedValueOnce('Unknown error');
 
-      const service = new MultichainNetworkServiceController({
+      const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
 

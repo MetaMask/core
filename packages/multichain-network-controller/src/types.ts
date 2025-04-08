@@ -4,12 +4,7 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type {
-  BtcScope,
-  CaipAccountId,
-  CaipChainId,
-  SolScope,
-} from '@metamask/keyring-api';
+import type { BtcScope, CaipChainId, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
@@ -21,10 +16,19 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import {
+  array,
+  object,
+  string,
+  pattern,
+  type Infer,
+} from '@metamask/superstruct';
+import {
   type CaipAssetType,
   type CaipAccountAddress,
   type CaipNamespace,
 } from '@metamask/utils';
+
+import type { MultichainNetworkController } from './MultichainNetworkController';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 
@@ -42,7 +46,7 @@ export type CommonNetworkConfiguration = {
   isEvm: boolean;
   /**
    * The chain ID of the network.
-   * 0≈*
+   *
    */
   chainId: CaipChainId;
   /**
@@ -132,13 +136,10 @@ export type MultichainNetworkControllerSetActiveNetworkAction = {
   handler: SetActiveNetworkMethod;
 };
 
-export type GetNetworksWithTransactionActivityByAccountsMethod =
-  () => Promise<ActiveNetworksByAddress>;
-
 export type MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction =
   {
     type: `${typeof MULTICHAIN_NETWORK_CONTROLLER_NAME}:getNetworksWithTransactionActivityByAccounts`;
-    handler: GetNetworksWithTransactionActivityByAccountsMethod;
+    handler: MultichainNetworkController['getNetworksWithTransactionActivityByAccounts'];
   };
 
 /**
@@ -210,12 +211,11 @@ export type MultichainNetworkControllerMessenger = RestrictedMessenger<
   AllowedEvents['type']
 >;
 
-/**
- * The response from the active networks endpoint.
- */
-export type ActiveNetworksResponse = {
-  activeNetworks: CaipAccountId[];
-};
+export const ActiveNetworksResponseStruct = object({
+  activeNetworks: array(pattern(string(), /^[^:]+:[^:]+:[^:]+$/u)),
+});
+
+export type ActiveNetworksResponse = Infer<typeof ActiveNetworksResponseStruct>;
 
 /**
  * The active networks for the currently selected account.

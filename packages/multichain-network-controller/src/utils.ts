@@ -1,25 +1,16 @@
-import {
-  type KeyringAccountType,
-  BtcScope,
-  SolScope,
-  BtcAccountType,
-  EthAccountType,
-  SolAccountType,
-} from '@metamask/keyring-api';
+import { BtcScope, SolScope, EthScope } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isBtcMainnetAddress } from '@metamask/keyring-utils';
 import type { NetworkConfiguration } from '@metamask/network-controller';
-import { array, object, string } from '@metamask/superstruct';
 import {
   type Hex,
   type CaipChainId,
-  type CaipAccountAddress,
   type CaipAccountId,
   KnownCaipNamespace,
   toCaipChainId,
   parseCaipChainId,
   hexToNumber,
   add0x,
-  toCaipAccountId,
   parseCaipAccountId,
   isValidHexAddress,
 } from '@metamask/utils';
@@ -158,16 +149,17 @@ export const toMultichainNetworkConfigurationsByChainId = (
     {},
   );
 
+// TODO: Move this function to @metamask/utils
 /**
  * Type guard to check if a namespace is a known CAIP namespace.
  *
  * @param namespace - The namespace to check
  * @returns Whether the namespace is a known CAIP namespace
  */
-function isKnownNamespace(namespace: string): namespace is KnownCaipNamespace {
-  return Object.values(KnownCaipNamespace).includes(
-    namespace as KnownCaipNamespace,
-  );
+function isKnownCaipNamespace(
+  namespace: string,
+): namespace is KnownCaipNamespace {
+  return Object.values<string>(KnownCaipNamespace).includes(namespace);
 }
 
 /**
@@ -176,7 +168,9 @@ function isKnownNamespace(namespace: string): namespace is KnownCaipNamespace {
  * @param accountIds - Array of account IDs to validate
  * @throws Error if any account ID is invalid
  */
-export function validateAccountIds(accountIds: string[]): void {
+export function assertCaipAccountIds(
+  accountIds: string[],
+): asserts accountIds is CaipAccountId[] {
   if (!accountIds.length) {
     throw new Error('At least one account ID is required');
   }
@@ -187,7 +181,7 @@ export function validateAccountIds(accountIds: string[]): void {
       chain: { namespace },
     } = parseCaipAccountId(id as CaipAccountId);
 
-    if (!isKnownNamespace(namespace)) {
+    if (!isKnownCaipNamespace(namespace)) {
       return true;
     }
 
@@ -224,10 +218,6 @@ export function buildActiveNetworksUrl(accountIds: CaipAccountId[]): URL {
   return url;
 }
 
-export const ActiveNetworksResponseStruct = object({
-  activeNetworks: array(string()),
-});
-
 /**
  * Formats the API response into our state structure.
  * Example input: ["eip155:1:0x123...", "eip155:137:0x123...", "solana:1:0xabc..."]
@@ -244,7 +234,7 @@ export function formatNetworkActivityResponse(
     const {
       address,
       chain: { namespace, reference },
-    } = parseCaipAccountId(network);
+    } = parseCaipAccountId(network as CaipAccountId);
 
     if (!networksByAddress[address]) {
       networksByAddress[address] = {
@@ -259,46 +249,25 @@ export function formatNetworkActivityResponse(
 }
 
 /**
- * Formats an account address with its corresponding CAIP prefix. Used to format the account IDs for the active networks API.
+ * Converts an internal account to an array of CAIP-10 account IDs.
  *
- * @param address - The account address
- * @param chainType - The type of chain (EVM, BTC, or SOLANA)
- * @returns The formatted CAIP-10 account identifier
+ * @param account - The internal account to convert
+ * @returns The CAIP-10 account IDs
  */
-export function formatCaipAccountId(
-  address: CaipAccountAddress,
-  chainType: ChainType,
-): CaipAccountId {
-  switch (chainType) {
-    case ChainType.Evm:
-      return toCaipAccountId(KnownCaipNamespace.Eip155, '0', address);
-    case ChainType.Bitcoin:
-      return toCaipAccountId(KnownCaipNamespace.Bip122, '1', address);
-    case ChainType.Solana:
-      return toCaipAccountId(KnownCaipNamespace.Solana, '1', address);
-    default:
-      throw new Error(`Unsupported chain type: ${String(chainType)}`);
+export function toCaipAccountIds(account: InternalAccount): CaipAccountId[] {
+  const formattedAccounts: CaipAccountId[] = [];
+  const allowedScopes = [
+    String(BtcScope.Mainnet),
+    String(SolScope.Mainnet),
+    String(EthScope.Mainnet),
+    String(EthScope.Testnet),
+    String(EthScope.Eoa),
+  ];
+  for (const scope of account.scopes) {
+    if (allowedScopes.includes(scope)) {
+      formattedAccounts.push(`${scope}:${account.address}`);
+    }
   }
-}
 
-/**
- * Checks account type and returns the corresponding chain type.
- *
- * @param accountType - The account type to check
- * @returns The chain type
- */
-export function getChainTypeFromAccountType(
-  accountType: KeyringAccountType,
-): ChainType {
-  switch (accountType) {
-    case EthAccountType.Eoa:
-    case EthAccountType.Erc4337:
-      return ChainType.Evm;
-    case BtcAccountType.P2wpkh:
-      return ChainType.Bitcoin;
-    case SolAccountType.DataAccount:
-      return ChainType.Solana;
-    default:
-      throw new Error(`Unsupported account type: ${accountType}`);
-  }
+  return formattedAccounts;
 }

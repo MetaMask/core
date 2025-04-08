@@ -1,5 +1,4 @@
 import {
-  type KeyringAccountType,
   type CaipChainId,
   BtcScope,
   SolScope,
@@ -24,10 +23,8 @@ import {
   toMultichainNetworkConfigurationsByChainId,
   formatNetworkActivityResponse,
   buildActiveNetworksUrl,
-  validateAccountIds,
-  formatCaipAccountId,
-  ChainType,
-  getChainTypeFromAccountType,
+  assertCaipAccountIds,
+  toCaipAccountIds,
 } from './utils';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -55,7 +52,7 @@ jest.mock('@metamask/utils', () => {
         evmPattern.test(id) || solanaPattern.test(id) || bitcoinPattern.test(id)
       );
     }),
-    isKnownNamespace: () => {
+    isKnownCaipNamespace: () => {
       return true;
     },
     KnownCaipNamespace: {
@@ -259,7 +256,7 @@ describe('utils', () => {
     });
   });
 
-  describe('validateAccountIds', () => {
+  describe('assertCaipAccountIds', () => {
     const mockValidEvmId =
       'eip155:1:0x1234567890123456789012345678901234567890';
     const mockValidSolanaId =
@@ -267,27 +264,27 @@ describe('utils', () => {
     const mockInvalidId = 'invalid:format:address';
 
     it('should not throw for valid EVM account ID', () => {
-      expect(() => validateAccountIds([mockValidEvmId])).not.toThrow();
+      expect(() => assertCaipAccountIds([mockValidEvmId])).not.toThrow();
     });
 
     it('should not throw for valid Solana account ID', () => {
-      expect(() => validateAccountIds([mockValidSolanaId])).not.toThrow();
+      expect(() => assertCaipAccountIds([mockValidSolanaId])).not.toThrow();
     });
 
     it('should not throw for multiple valid account IDs', () => {
       expect(() =>
-        validateAccountIds([mockValidEvmId, mockValidSolanaId]),
+        assertCaipAccountIds([mockValidEvmId, mockValidSolanaId]),
       ).not.toThrow();
     });
 
     it('should throw for empty array', () => {
-      expect(() => validateAccountIds([])).toThrow(
+      expect(() => assertCaipAccountIds([])).toThrow(
         'At least one account ID is required',
       );
     });
 
     it('should throw for invalid account ID format', () => {
-      expect(() => validateAccountIds([mockInvalidId])).toThrow(
+      expect(() => assertCaipAccountIds([mockInvalidId])).toThrow(
         `Invalid CAIP-10 account IDs: ${mockInvalidId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
@@ -301,7 +298,7 @@ describe('utils', () => {
     it('should throw and list all invalid IDs when multiple invalid IDs are provided', () => {
       const secondInvalidId = 'another:invalid:id';
       expect(() =>
-        validateAccountIds([mockInvalidId, secondInvalidId]),
+        assertCaipAccountIds([mockInvalidId, secondInvalidId]),
       ).toThrow(
         `Invalid CAIP-10 account IDs: ${mockInvalidId}, ${secondInvalidId}`,
       );
@@ -314,9 +311,9 @@ describe('utils', () => {
     });
 
     it('should throw even if some IDs are valid when at least one is invalid', () => {
-      expect(() => validateAccountIds([mockValidEvmId, mockInvalidId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${mockInvalidId}`,
-      );
+      expect(() =>
+        assertCaipAccountIds([mockValidEvmId, mockInvalidId]),
+      ).toThrow(`Invalid CAIP-10 account IDs: ${mockInvalidId}`);
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
@@ -328,7 +325,7 @@ describe('utils', () => {
     it('should throw for unsupported namespace', () => {
       const unsupportedNamespaceId =
         'cosmos:1:cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02';
-      expect(() => validateAccountIds([unsupportedNamespaceId])).toThrow(
+      expect(() => assertCaipAccountIds([unsupportedNamespaceId])).toThrow(
         `Invalid CAIP-10 account IDs: ${unsupportedNamespaceId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
@@ -341,7 +338,7 @@ describe('utils', () => {
 
     it('should throw for invalid EVM address', () => {
       const invalidEvmId = 'eip155:1:0xinvalid';
-      expect(() => validateAccountIds([invalidEvmId])).toThrow(
+      expect(() => assertCaipAccountIds([invalidEvmId])).toThrow(
         `Invalid CAIP-10 account IDs: ${invalidEvmId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
@@ -354,7 +351,7 @@ describe('utils', () => {
 
     it('should throw for invalid Solana address', () => {
       const invalidSolanaId = 'solana:1:invalid';
-      expect(() => validateAccountIds([invalidSolanaId])).toThrow(
+      expect(() => assertCaipAccountIds([invalidSolanaId])).toThrow(
         `Invalid CAIP-10 account IDs: ${invalidSolanaId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
@@ -367,7 +364,7 @@ describe('utils', () => {
 
     it('should throw for invalid Bitcoin address', () => {
       const invalidBitcoinId = 'bip122:1:invalid';
-      expect(() => validateAccountIds([invalidBitcoinId])).toThrow(
+      expect(() => assertCaipAccountIds([invalidBitcoinId])).toThrow(
         `Invalid CAIP-10 account IDs: ${invalidBitcoinId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
@@ -381,7 +378,7 @@ describe('utils', () => {
     it('should handle unknown namespace in address validation', () => {
       const customNamespaceId =
         'custom:1:0x1234567890123456789012345678901234567890';
-      expect(() => validateAccountIds([customNamespaceId])).toThrow(
+      expect(() => assertCaipAccountIds([customNamespaceId])).toThrow(
         `Invalid CAIP-10 account IDs: ${customNamespaceId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
@@ -395,7 +392,7 @@ describe('utils', () => {
     it('should handle switch default case in address validation', () => {
       const testNamespaceId =
         'test:1:0x1234567890123456789012345678901234567890';
-      expect(() => validateAccountIds([testNamespaceId])).toThrow(
+      expect(() => assertCaipAccountIds([testNamespaceId])).toThrow(
         `Invalid CAIP-10 account IDs: ${testNamespaceId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
@@ -519,64 +516,108 @@ describe('utils', () => {
     });
   });
 
-  describe('formatCaipAccountId', () => {
-    it('formats EVM addresses correctly', () => {
-      const evmAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
-      expect(formatCaipAccountId(evmAddress, ChainType.Evm)).toBe(
-        `${KnownCaipNamespace.Eip155}:0:${evmAddress}`,
-      );
+  describe('toCaipAccountIds', () => {
+    const mockAddress = '0x1234567890123456789012345678901234567890';
+
+    it('should format account with EVM scopes', () => {
+      const account = {
+        address: mockAddress,
+        scopes: [EthScope.Eoa, EthScope.Mainnet, EthScope.Testnet],
+        type: EthAccountType.Eoa,
+        id: '1',
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'Test Account',
+          importTime: Date.now(),
+          keyring: { type: 'test' },
+        },
+      };
+
+      const result = toCaipAccountIds(account);
+      expect(result).toStrictEqual([
+        `${EthScope.Eoa}:${mockAddress}`,
+        `${EthScope.Mainnet}:${mockAddress}`,
+        `${EthScope.Testnet}:${mockAddress}`,
+      ]);
     });
 
-    it('formats Solana addresses correctly', () => {
-      const solanaAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      expect(formatCaipAccountId(solanaAddress, ChainType.Solana)).toBe(
-        `${KnownCaipNamespace.Solana}:1:${solanaAddress}`,
-      );
+    it('should format account with BTC scope', () => {
+      const btcAddress = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+      const account = {
+        address: btcAddress,
+        scopes: [BtcScope.Mainnet],
+        type: BtcAccountType.P2wpkh,
+        id: '2',
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'BTC Account',
+          importTime: Date.now(),
+          keyring: { type: 'test' },
+        },
+      };
+
+      const result = toCaipAccountIds(account);
+      expect(result).toStrictEqual([`${BtcScope.Mainnet}:${btcAddress}`]);
     });
 
-    it('formats Bitcoin addresses correctly', () => {
-      const bitcoinAddress = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
-      expect(formatCaipAccountId(bitcoinAddress, ChainType.Bitcoin)).toBe(
-        `${KnownCaipNamespace.Bip122}:1:${bitcoinAddress}`,
-      );
+    it('should format account with Solana scope', () => {
+      const solAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+      const account = {
+        address: solAddress,
+        scopes: [SolScope.Mainnet],
+        type: SolAccountType.DataAccount,
+        id: '3',
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'SOL Account',
+          importTime: Date.now(),
+          keyring: { type: 'test' },
+        },
+      };
+
+      const result = toCaipAccountIds(account);
+      expect(result).toStrictEqual([`${SolScope.Mainnet}:${solAddress}`]);
     });
 
-    it('maintains address case sensitivity', () => {
-      const mixedCaseAddress = '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599';
-      const result = formatCaipAccountId(mixedCaseAddress, ChainType.Evm);
-      expect(result).toContain(mixedCaseAddress);
-      expect(result).not.toContain(mixedCaseAddress.toLowerCase());
+    it('should ignore unsupported scopes', () => {
+      const account = {
+        address: mockAddress,
+        scopes: [EthScope.Eoa, 'unsupported:123' as `${string}:${string}`],
+        type: EthAccountType.Eoa,
+        id: '4',
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'Test Account',
+          importTime: Date.now(),
+          keyring: { type: 'test' },
+        },
+      };
+
+      const result = toCaipAccountIds(account);
+      expect(result).toStrictEqual([`${EthScope.Eoa}:${mockAddress}`]);
     });
 
-    it('throws an error for unsupported chain types', () => {
-      const unsupportedChainType = -1 as unknown as ChainType;
-      expect(() =>
-        formatCaipAccountId('address', unsupportedChainType),
-      ).toThrow('Unsupported chain type: -1');
-    });
-  });
+    it('should return empty array for account with no supported scopes', () => {
+      const account = {
+        address: mockAddress,
+        scopes: ['unsupported:123' as `${string}:${string}`],
+        type: EthAccountType.Eoa,
+        id: '5',
+        options: {},
+        methods: [],
+        metadata: {
+          name: 'Test Account',
+          importTime: Date.now(),
+          keyring: { type: 'test' },
+        },
+      };
 
-  describe('getChainTypeFromAccountType', () => {
-    it('returns EVM for EthAccountType.Eoa', () => {
-      const result = getChainTypeFromAccountType(EthAccountType.Eoa);
-      expect(result).toBe(ChainType.Evm);
-    });
-
-    it('returns Bitcoin for BtcAccountType.P2wpkh', () => {
-      const result = getChainTypeFromAccountType(BtcAccountType.P2wpkh);
-      expect(result).toBe(ChainType.Bitcoin);
-    });
-
-    it('returns Solana for SolAccountType.DataAccount', () => {
-      const result = getChainTypeFromAccountType(SolAccountType.DataAccount);
-      expect(result).toBe(ChainType.Solana);
-    });
-
-    it('throws an error for unsupported account types', () => {
-      const unsupportedAccountType = 'unsupported' as KeyringAccountType;
-      expect(() => getChainTypeFromAccountType(unsupportedAccountType)).toThrow(
-        'Unsupported account type: unsupported',
-      );
+      const result = toCaipAccountIds(account);
+      expect(result).toStrictEqual([]);
     });
   });
 });
