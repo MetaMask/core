@@ -257,7 +257,7 @@ const setNonSCACaipAccountIdsInScopesObject = (
       accountsByNamespace.set(namespace, new Set());
     }
 
-    accountsByNamespace.get(namespace)!.add(address);
+    accountsByNamespace.get(namespace)?.add(address);
   }
 
   const updatedScopesObject: InternalScopesObject = {};
@@ -268,11 +268,12 @@ const setNonSCACaipAccountIdsInScopesObject = (
     let caipAccounts: CaipAccountId[] = [];
 
     if (namespace && reference && accountsByNamespace.has(namespace)) {
-      // For scopes with a specific namespace and reference
-      const addressSet = accountsByNamespace.get(namespace)!;
-      caipAccounts = Array.from(addressSet).map(
-        (address) => `${namespace}:${reference}:${address}` as CaipAccountId,
-      );
+      const addressSet = accountsByNamespace.get(namespace);
+      if (addressSet) {
+        caipAccounts = Array.from(addressSet).map(
+          (address) => `${namespace}:${reference}:${address}` as CaipAccountId,
+        );
+      }
     }
 
     updatedScopesObject[scopeString as keyof typeof scopesObject] = {

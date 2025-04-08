@@ -536,7 +536,10 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = overwriteCaipChainIdsInCaip25CaveatValue(input, ['eip155:1', 'eip155:2']);
+      const result = overwriteCaipChainIdsInCaip25CaveatValue(input, [
+        'eip155:1',
+        'eip155:2',
+      ]);
 
       expect(input).toStrictEqual({
         requiredScopes: {
@@ -556,11 +559,15 @@ describe('CAIP-25 permittedChains adapters', () => {
     it('returns all unique scopes from multiple scope objects as an array', () => {
       const result = getAllScopesFromScopesObjects([
         {
-          'eip155:1': { accounts: ['eip155:1:0x1234567890123456789012345678901234567890'] },
+          'eip155:1': {
+            accounts: ['eip155:1:0x1234567890123456789012345678901234567890'],
+          },
           'eip155:5': { accounts: [] },
         },
         {
-          'eip155:1': { accounts: ['eip155:1:0x2345678901234567890123456789012345678901'] },
+          'eip155:1': {
+            accounts: ['eip155:1:0x2345678901234567890123456789012345678901'],
+          },
           'bip122:000000000019d6689c085ae165831e93': { accounts: [] },
         },
         {
@@ -568,7 +575,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         },
       ]);
 
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         'eip155:1',
         'eip155:5',
         'bip122:000000000019d6689c085ae165831e93',
@@ -578,12 +585,12 @@ describe('CAIP-25 permittedChains adapters', () => {
 
     it('returns an empty array when given empty scope objects', () => {
       const result = getAllScopesFromScopesObjects([{}, {}]);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('returns an empty array when given an empty array', () => {
       const result = getAllScopesFromScopesObjects([]);
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
   });
 
@@ -591,11 +598,15 @@ describe('CAIP-25 permittedChains adapters', () => {
     it('returns all unique scopes from both required and optional scopes', () => {
       const result = getAllScopesFromCaip25CaveatValue({
         requiredScopes: {
-          'eip155:1': { accounts: ['eip155:1:0x1234567890123456789012345678901234567890'] },
+          'eip155:1': {
+            accounts: ['eip155:1:0x1234567890123456789012345678901234567890'],
+          },
           'eip155:5': { accounts: [] },
         },
         optionalScopes: {
-          'eip155:1': { accounts: ['eip155:1:0x2345678901234567890123456789012345678901'] },
+          'eip155:1': {
+            accounts: ['eip155:1:0x2345678901234567890123456789012345678901'],
+          },
           'bip122:000000000019d6689c085ae165831e93': { accounts: [] },
           wallet: { accounts: [] },
         },
@@ -603,7 +614,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       });
 
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         'eip155:1',
         'eip155:5',
         'bip122:000000000019d6689c085ae165831e93',
@@ -618,31 +629,35 @@ describe('CAIP-25 permittedChains adapters', () => {
         sessionProperties: {},
         isMultichainOrigin: false,
       });
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('returns only required scopes when optional scopes is empty', () => {
       const result = getAllScopesFromCaip25CaveatValue({
         requiredScopes: {
-          'eip155:1': { accounts: ['eip155:1:0x1234567890123456789012345678901234567890'] },
+          'eip155:1': {
+            accounts: ['eip155:1:0x1234567890123456789012345678901234567890'],
+          },
         },
         optionalScopes: {},
         sessionProperties: {},
         isMultichainOrigin: false,
       });
-      expect(result).toEqual(['eip155:1']);
+      expect(result).toStrictEqual(['eip155:1']);
     });
 
     it('returns only optional scopes when required scopes is empty', () => {
       const result = getAllScopesFromCaip25CaveatValue({
         requiredScopes: {},
         optionalScopes: {
-          'eip155:1': { accounts: ['eip155:1:0x1234567890123456789012345678901234567890'] },
+          'eip155:1': {
+            accounts: ['eip155:1:0x1234567890123456789012345678901234567890'],
+          },
         },
         sessionProperties: {},
         isMultichainOrigin: false,
       });
-      expect(result).toEqual(['eip155:1']);
+      expect(result).toStrictEqual(['eip155:1']);
     });
   });
 
@@ -650,11 +665,17 @@ describe('CAIP-25 permittedChains adapters', () => {
     it('returns all unique non-wallet namespaces from both required and optional scopes', () => {
       const result = getAllNonWalletNamespacesFromCaip25CaveatValue({
         requiredScopes: {
-          'eip155:1': { accounts: ['eip155:1:0x1234567890123456789012345678901234567890'] },
+          'eip155:1': {
+            accounts: ['eip155:1:0x1234567890123456789012345678901234567890'],
+          },
           'bip122:000000000019d6689c085ae165831e93': { accounts: [] },
         },
         optionalScopes: {
-          'wallet:eip155': { accounts: ['wallet:eip155:0x1234567890123456789012345678901234567890'] },
+          'wallet:eip155': {
+            accounts: [
+              'wallet:eip155:0x1234567890123456789012345678901234567890',
+            ],
+          },
           'wallet:solana': { accounts: [] },
           wallet: { accounts: [] },
         },
@@ -662,7 +683,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       });
 
-      expect(result).toEqual(['eip155', 'bip122', 'solana']);
+      expect(result).toStrictEqual(['eip155', 'bip122', 'solana']);
     });
 
     it('returns references from wallet namespace scopes', () => {
@@ -678,7 +699,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       });
 
-      expect(result).toEqual(['eip155', 'bip122']);
+      expect(result).toStrictEqual(['eip155', 'bip122']);
     });
 
     it('returns an empty array when no non-wallet namespaces are present', () => {
@@ -690,7 +711,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         sessionProperties: {},
         isMultichainOrigin: false,
       });
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('returns an empty array when given empty scope objects', () => {
@@ -700,7 +721,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         sessionProperties: {},
         isMultichainOrigin: false,
       });
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
   });
 
@@ -712,22 +733,28 @@ describe('CAIP-25 permittedChains adapters', () => {
             type: Caip25CaveatType,
             value: {
               requiredScopes: {
-                'eip155:1': { 
-                  accounts: ['eip155:1:0x1234567890123456789012345678901234567890'] 
+                'eip155:1': {
+                  accounts: [
+                    'eip155:1:0x1234567890123456789012345678901234567890',
+                  ],
                 },
-                'eip155:5': { 
-                  accounts: []
+                'eip155:5': {
+                  accounts: [
+                    'eip155:5:0x1234567890123456789012345678901234567890',
+                  ],
                 },
               },
               optionalScopes: {
-                'eip155:10': { 
-                  accounts: []
+                'eip155:10': {
+                  accounts: [],
                 },
-                'bip122:000000000019d6689c085ae165831e93': { 
-                  accounts: []
+                'bip122:000000000019d6689c085ae165831e93': {
+                  accounts: [
+                    'bip122:000000000019d6689c085ae165831e93:0x1234567890123456789012345678901234567890',
+                  ],
                 },
-                wallet: { 
-                  accounts: []
+                wallet: {
+                  accounts: [],
                 },
               },
               sessionProperties: {},
@@ -735,11 +762,12 @@ describe('CAIP-25 permittedChains adapters', () => {
             },
           },
         ],
-      } as any;
+      };
 
+      // @ts-expect-error
       const result = getAllScopesFromPermission(permission);
 
-      expect(result).toEqual([
+      expect(result).toStrictEqual([
         'eip155:1',
         'eip155:5',
         'eip155:10',
@@ -761,11 +789,11 @@ describe('CAIP-25 permittedChains adapters', () => {
             },
           },
         ],
-      } as any;
+      };
 
       const result = getAllScopesFromPermission(permission);
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
 
     it('returns an empty array when the permission has no caveats', () => {
@@ -775,7 +803,7 @@ describe('CAIP-25 permittedChains adapters', () => {
 
       const result = getAllScopesFromPermission(permission);
 
-      expect(result).toEqual([]);
+      expect(result).toStrictEqual([]);
     });
   });
 });
