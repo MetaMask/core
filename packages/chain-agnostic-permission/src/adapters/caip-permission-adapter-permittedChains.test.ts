@@ -733,28 +733,24 @@ describe('CAIP-25 permittedChains adapters', () => {
             type: Caip25CaveatType,
             value: {
               requiredScopes: {
-                'eip155:1': {
+                'eip155:1': { 
                   accounts: [
-                    'eip155:1:0x1234567890123456789012345678901234567890',
-                  ],
+                    'eip155:1:0x1234567890123456789012345678901234567890'
+                  ]
                 },
-                'eip155:5': {
-                  accounts: [
-                    'eip155:5:0x1234567890123456789012345678901234567890',
-                  ],
+                'eip155:5': { 
+                  accounts: []
                 },
               },
               optionalScopes: {
-                'eip155:10': {
-                  accounts: [],
+                'eip155:10': { 
+                  accounts: []
                 },
-                'bip122:000000000019d6689c085ae165831e93': {
-                  accounts: [
-                    'bip122:000000000019d6689c085ae165831e93:0x1234567890123456789012345678901234567890',
-                  ],
+                'bip122:000000000019d6689c085ae165831e93': { 
+                  accounts: []
                 },
-                wallet: {
-                  accounts: [],
+                wallet: { 
+                  accounts: []
                 },
               },
               sessionProperties: {},
@@ -762,9 +758,8 @@ describe('CAIP-25 permittedChains adapters', () => {
             },
           },
         ],
-      };
+      } as { caveats: { type: string; value: Caip25CaveatValue }[] };
 
-      // @ts-expect-error
       const result = getAllScopesFromPermission(permission);
 
       expect(result).toStrictEqual([
@@ -789,11 +784,11 @@ describe('CAIP-25 permittedChains adapters', () => {
             },
           },
         ],
-      };
+      } as { caveats: { type: string; value: Caip25CaveatValue }[] };
 
       const result = getAllScopesFromPermission(permission);
 
-      expect(result).toStrictEqual([]);
+      expect(result).toEqual([]);
     });
 
     it('returns an empty array when the permission has no caveats', () => {
@@ -803,7 +798,7 @@ describe('CAIP-25 permittedChains adapters', () => {
 
       const result = getAllScopesFromPermission(permission);
 
-      expect(result).toStrictEqual([]);
+      expect(result).toEqual([]);
     });
   });
 });

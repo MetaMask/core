@@ -159,7 +159,7 @@ export const setEthAccounts = (
 
 /**
  *
- *  Getters
+ * Getters
  *
  */
 
@@ -228,7 +228,7 @@ export function getCaipAccountIdsFromCaip25CaveatValue(
 
 /**
  *
- *  Setters
+ * Setters
  *
  */
 
