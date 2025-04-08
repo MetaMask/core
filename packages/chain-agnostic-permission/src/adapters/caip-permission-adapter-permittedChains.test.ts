@@ -2,8 +2,8 @@ import {
   addPermittedEthChainId,
   getPermittedEthChainIds,
   setPermittedEthChainIds,
-  addScopeToCaip25CaveatValue,
-  setCaipChainIdsInCaip25CaveatValue,
+  addCaipChainIdInCaip25CaveatValue,
+  overwriteCaipChainIdsInCaip25CaveatValue,
   getAllScopesFromScopesObjects,
   getAllScopesFromCaip25CaveatValue,
   getAllNonWalletNamespacesFromCaip25CaveatValue,
@@ -282,9 +282,9 @@ describe('CAIP-25 permittedChains adapters', () => {
     });
   });
 
-  describe('addScopeToCaip25CaveatValue', () => {
+  describe('addCaipChainIdInCaip25CaveatValue', () => {
     it('returns a version of the caveat value with a new optional scope for the passed chainId if it does not already exist in required or optional scopes', () => {
-      const result = addScopeToCaip25CaveatValue(
+      const result = addCaipChainIdInCaip25CaveatValue(
         {
           requiredScopes: {
             'eip155:1': {
@@ -339,7 +339,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = addScopeToCaip25CaveatValue(
+      const result = addCaipChainIdInCaip25CaveatValue(
         input,
         'bip122:000000000019d6689c085ae165831e93',
       );
@@ -370,7 +370,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = addScopeToCaip25CaveatValue(input, existingScope);
+      const result = addCaipChainIdInCaip25CaveatValue(input, existingScope);
 
       expect(result).toStrictEqual(input);
     });
@@ -388,15 +388,15 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = addScopeToCaip25CaveatValue(input, existingScope);
+      const result = addCaipChainIdInCaip25CaveatValue(input, existingScope);
 
       expect(result).toStrictEqual(input);
     });
   });
 
-  describe('setCaipChainIdsInCaip25CaveatValue', () => {
+  describe('overwriteCaipChainIdsInCaip25CaveatValue', () => {
     it('returns a CAIP-25 caveat value with non-wallet scopes missing from the chainIds array removed', () => {
-      const result = setCaipChainIdsInCaip25CaveatValue(
+      const result = overwriteCaipChainIdsInCaip25CaveatValue(
         {
           requiredScopes: {
             'eip155:1': {
@@ -455,7 +455,7 @@ describe('CAIP-25 permittedChains adapters', () => {
     });
 
     it('returns a CAIP-25 caveat value with optional scopes added for missing chainIds', () => {
-      const result = setCaipChainIdsInCaip25CaveatValue(
+      const result = overwriteCaipChainIdsInCaip25CaveatValue(
         {
           requiredScopes: {
             'eip155:1': {
@@ -486,7 +486,7 @@ describe('CAIP-25 permittedChains adapters', () => {
     });
 
     it('preserves wallet namespace scopes when setting permitted chainIds', () => {
-      const result = setCaipChainIdsInCaip25CaveatValue(
+      const result = overwriteCaipChainIdsInCaip25CaveatValue(
         {
           requiredScopes: {},
           optionalScopes: {
@@ -536,7 +536,7 @@ describe('CAIP-25 permittedChains adapters', () => {
         isMultichainOrigin: false,
       };
 
-      const result = setCaipChainIdsInCaip25CaveatValue(input, ['eip155:1', 'eip155:2']);
+      const result = overwriteCaipChainIdsInCaip25CaveatValue(input, ['eip155:1', 'eip155:2']);
 
       expect(input).toStrictEqual({
         requiredScopes: {

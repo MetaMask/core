@@ -191,7 +191,7 @@ describe('CAIP-25 eth_accounts adapters', () => {
     });
   });
 
-  describe('setCaipAccountIdsInCaip25CaveatValue', () => {
+  describe('setNonSCACaipAccountIdsInCaip25CaveatValue', () => {
     it('returns a CAIP-25 caveat value with all scopeObject.accounts set to accounts provided', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {

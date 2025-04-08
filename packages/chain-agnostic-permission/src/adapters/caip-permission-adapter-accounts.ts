@@ -152,7 +152,7 @@ export const setEthAccounts = (
 /*
  *
  *
- * GENERALIZE GETTERS AND SETTERS
+ * GENERALIZED GETTERS AND SETTERS
  *
  *
  */
