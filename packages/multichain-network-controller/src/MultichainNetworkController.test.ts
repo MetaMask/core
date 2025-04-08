@@ -558,7 +558,6 @@ describe('MultichainNetworkController', () => {
 
   describe('getNetworksWithTransactionActivityByAccounts', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
       jest.spyOn(log, 'error').mockImplementation();
     });
 
@@ -668,49 +667,6 @@ describe('MultichainNetworkController', () => {
           activeChains: ['1'],
         },
       });
-    });
-
-    it('should handle errors and return cached networksWithTransactionActivity', async () => {
-      const mockCachedNetworks = {
-        '0x1234567890123456789012345678901234567890': {
-          namespace: KnownCaipNamespace.Eip155,
-          activeChains: ['1'],
-        },
-      };
-
-      const mockNetworkService = new MockMultichainNetworkService();
-      mockNetworkService.fetchNetworkActivity.mockRejectedValue(
-        new Error('Network error'),
-      );
-
-      const { controller, messenger } = setupController({
-        options: {
-          state: {
-            networksWithTransactionActivity: mockCachedNetworks,
-          },
-        },
-        mockNetworkService,
-      });
-
-      messenger.registerActionHandler(
-        'AccountsController:listMultichainAccounts',
-        () => [
-          createMockInternalAccount({
-            type: EthAccountType.Eoa,
-            address: '0x1234567890123456789012345678901234567890',
-          }),
-        ],
-      );
-
-      const result =
-        await controller.getNetworksWithTransactionActivityByAccounts();
-
-      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalled();
-      expect(log.error).toHaveBeenCalledWith(
-        'Error fetching networks with activity by accounts',
-        expect.any(Error),
-      );
-      expect(result).toStrictEqual(mockCachedNetworks);
     });
   });
 });

@@ -266,10 +266,6 @@ describe('utils', () => {
       'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
     const mockInvalidId = 'invalid:format:address';
 
-    beforeEach(() => {
-      jest.clearAllMocks();
-    });
-
     it('should not throw for valid EVM account ID', () => {
       expect(() => validateAccountIds([mockValidEvmId])).not.toThrow();
     });

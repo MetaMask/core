@@ -157,32 +157,27 @@ export class MultichainNetworkController extends BaseController<
    * @returns A promise that resolves to the active networks for the available addresses
    */
   async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
-    try {
-      const accounts = this.messagingSystem.call(
-        'AccountsController:listMultichainAccounts',
-      );
-      if (!accounts || accounts.length === 0) {
-        return this.state.networksWithTransactionActivity;
-      }
-
-      const formattedAccounts = accounts.map((account: InternalAccount) => {
-        const chainType = getChainTypeFromAccountType(account.type);
-        return formatCaipAccountId(account.address, chainType);
-      });
-
-      const activeNetworks =
-        await this.#networkService.fetchNetworkActivity(formattedAccounts);
-      const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
-
-      this.update((state) => {
-        state.networksWithTransactionActivity = formattedNetworks;
-      });
-
-      return this.state.networksWithTransactionActivity;
-    } catch (error) {
-      log.error('Error fetching networks with activity by accounts', error);
+    const accounts = this.messagingSystem.call(
+      'AccountsController:listMultichainAccounts',
+    );
+    if (!accounts || accounts.length === 0) {
       return this.state.networksWithTransactionActivity;
     }
+
+    const formattedAccounts = accounts.map((account: InternalAccount) => {
+      const chainType = getChainTypeFromAccountType(account.type);
+      return formatCaipAccountId(account.address, chainType);
+    });
+
+    const activeNetworks =
+      await this.#networkService.fetchNetworkActivity(formattedAccounts);
+    const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
+
+    this.update((state) => {
+      state.networksWithTransactionActivity = formattedNetworks;
+    });
+
+    return this.state.networksWithTransactionActivity;
   }
 
   /**
