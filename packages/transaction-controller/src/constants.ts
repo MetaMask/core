@@ -30,6 +30,7 @@ export const CHAIN_IDS = {
   SCROLL: '0x82750',
   SCROLL_SEPOLIA: '0x8274f',
   MEGAETH_TESTNET: '0x18c6',
+  SEI: '0x531',
 } as const;
 
 export const GAS_BUFFER_CHAIN_OVERRIDES = {

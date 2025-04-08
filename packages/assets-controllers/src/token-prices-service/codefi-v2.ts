@@ -255,6 +255,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x63564c40',
   // Linea Mainnet
   '0xe708',
+  // Sei Mainnet
+  '0x531',
 ] as const;
 
 /**
