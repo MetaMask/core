@@ -216,6 +216,12 @@ export type TransactionMeta = {
   id: string;
 
   /**
+   * Whether the transaction is signed externally.
+   * No signing will be performed in the client and the `nonce` will be `undefined`.
+   */
+  isExternalSign?: boolean;
+
+  /**
    * Whether the transaction is a transfer.
    */
   isTransfer?: boolean;

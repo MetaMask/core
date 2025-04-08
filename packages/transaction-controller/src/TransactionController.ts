@@ -1703,7 +1703,7 @@ export class TransactionController extends BaseController<
       }
 
       // Update same nonce local transactions as dropped and define replacedBy properties.
-      this.markNonceDuplicatesDropped(transactionId);
+      this.#markNonceDuplicatesDropped(transactionId);
 
       // Update external provided transaction with updated gas values and confirmed status.
       this.updateTransaction(
@@ -2878,7 +2878,7 @@ export class TransactionController extends BaseController<
 
       const rawTx = await this.#trace(
         { name: 'Sign', parentContext: traceContext },
-        () => this.signTransaction(transactionMeta),
+        () => this.#signTransaction(transactionMeta),
       );
 
       if (!(await this.beforePublish(transactionMeta))) {
@@ -2890,7 +2890,7 @@ export class TransactionController extends BaseController<
         return ApprovalState.SkippedViaBeforePublishHook;
       }
 
-      if (!rawTx) {
+      if (!rawTx && !transactionMeta.isExternalSign) {
         return ApprovalState.NotApproved;
       }
 
@@ -2934,7 +2934,7 @@ export class TransactionController extends BaseController<
 
           ({ transactionHash: hash } = await publishHook(
             transactionMeta,
-            rawTx,
+            rawTx ?? '0x',
           ));
 
           if (hash === undefined) {
@@ -3358,7 +3358,7 @@ export class TransactionController extends BaseController<
    *
    * @param transactionId - Used to identify original transaction.
    */
-  private markNonceDuplicatesDropped(transactionId: string) {
+  #markNonceDuplicatesDropped(transactionId: string) {
     const transactionMeta = this.getTransaction(transactionId);
     if (!transactionMeta) {
       return;
@@ -3371,6 +3371,7 @@ export class TransactionController extends BaseController<
       (transaction) =>
         transaction.id !== transactionId &&
         transaction.txParams.from === from &&
+        nonce &&
         transaction.txParams.nonce === nonce &&
         transaction.chainId === chainId &&
         transaction.type !== TransactionType.incoming,
@@ -3483,10 +3484,15 @@ export class TransactionController extends BaseController<
     );
   }
 
-  private async signTransaction(
+  async #signTransaction(
     transactionMeta: TransactionMeta,
   ): Promise<string | undefined> {
-    const { txParams } = transactionMeta;
+    const { isExternalSign, txParams } = transactionMeta;
+
+    if (isExternalSign) {
+      log('Skipping sign as signed externally');
+      return undefined;
+    }
 
     log('Signing transaction', txParams);
 
@@ -3583,10 +3589,10 @@ export class TransactionController extends BaseController<
     );
   }
 
-  private onConfirmedTransaction(transactionMeta: TransactionMeta) {
+  #onConfirmedTransaction(transactionMeta: TransactionMeta) {
     log('Processing confirmed transaction', transactionMeta.id);
 
-    this.markNonceDuplicatesDropped(transactionMeta.id);
+    this.#markNonceDuplicatesDropped(transactionMeta.id);
 
     this.messagingSystem.publish(
       `${controllerName}:transactionConfirmed`,
@@ -3730,7 +3736,7 @@ export class TransactionController extends BaseController<
   ) {
     pendingTransactionTracker.hub.on(
       'transaction-confirmed',
-      this.onConfirmedTransaction.bind(this),
+      this.#onConfirmedTransaction.bind(this),
     );
 
     pendingTransactionTracker.hub.on(
