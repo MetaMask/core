@@ -210,7 +210,7 @@ export const addScopeToCaip25CaveatValue = (
  * @param chainIds - The CAIP-2 chainIDs to set as permitted.
  * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.
  */
-export const setPermittedChainIds = (
+export const setCaipChainIdsInCaip25CaveatValue = (
   caip25CaveatValue: Caip25CaveatValue,
   chainIds: CaipChainId[],
 ): Caip25CaveatValue => {
@@ -222,7 +222,6 @@ export const setPermittedChainIds = (
     isMultichainOrigin: caip25CaveatValue.isMultichainOrigin,
   };
 
-  // Process required scopes
   for (const [key, value] of Object.entries(caip25CaveatValue.requiredScopes)) {
     const scopeString = key as keyof typeof caip25CaveatValue.requiredScopes;
     if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
@@ -230,7 +229,6 @@ export const setPermittedChainIds = (
     }
   }
 
-  // Process optional scopes
   for (const [key, value] of Object.entries(caip25CaveatValue.optionalScopes)) {
     const scopeString = key as keyof typeof caip25CaveatValue.optionalScopes;
     if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
@@ -238,7 +236,6 @@ export const setPermittedChainIds = (
     }
   }
 
-  // Ensure all chainIds are added to optional scopes if not already present
   for (const chainId of chainIds) {
     if (!result.requiredScopes[chainId] && !result.optionalScopes[chainId]) {
       result.optionalScopes[chainId] = { accounts: [] };
@@ -298,7 +295,7 @@ export function getAllNonWalletNamespacesFromCaip25CaveatValue(
 ): CaipNamespace[] {
   const allScopes = getAllScopesFromCaip25CaveatValue(caip25CaveatValue);
   const namespaceSet = new Set<CaipNamespace>();
-  
+
   for (const scope of allScopes) {
     const { namespace, reference } = parseScopeString(scope);
     if (namespace === KnownCaipNamespace.Wallet) {
@@ -309,6 +306,6 @@ export function getAllNonWalletNamespacesFromCaip25CaveatValue(
       namespaceSet.add(namespace);
     }
   }
-  
+
   return Array.from(namespaceSet);
 }

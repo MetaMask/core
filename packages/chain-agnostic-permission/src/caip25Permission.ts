@@ -22,8 +22,8 @@ import {
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
-import { setPermittedAccounts } from './adapters/caip-permission-adapter-accounts';
-import { setPermittedChainIds } from './adapters/caip-permission-adapter-permittedChains';
+import { setCaipAccountIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-accounts';
+import { setCaipChainIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
   isSupportedAccount,
@@ -512,12 +512,12 @@ export const generateCaip25Caveat = (
     caveats: [{ type: string; value: Caip25CaveatValue }];
   };
 } => {
-  const caveatValueWithChains = setPermittedChainIds(
+  const caveatValueWithChains = setCaipChainIdsInCaip25CaveatValue(
     caip25CaveatValue,
     chainIds,
   );
 
-  const caveatValueWithAccounts = setPermittedAccounts(
+  const caveatValueWithAccounts = setCaipAccountIdsInCaip25CaveatValue(
     caveatValueWithChains,
     accountAddresses,
   );

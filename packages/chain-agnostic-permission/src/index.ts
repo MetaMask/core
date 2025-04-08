@@ -7,7 +7,7 @@ export {
   getPermittedEthChainIds,
   addPermittedEthChainId,
   setPermittedEthChainIds,
-  setPermittedChainIds,
+  setCaipChainIdsInCaip25CaveatValue,
   addScopeToCaip25CaveatValue,
 } from './adapters/caip-permission-adapter-permittedChains';
 export {
