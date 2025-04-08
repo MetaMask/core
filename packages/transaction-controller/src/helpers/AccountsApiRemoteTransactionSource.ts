@@ -19,14 +19,14 @@ import type {
 import { TransactionStatus, TransactionType } from '../types';
 
 export const SUPPORTED_CHAIN_IDS: Hex[] = [
-  '0x1',
-  '0x89',
-  '0x38',
-  '0x7a69',
-  '0x19',
-  '0xa',
-  '0xa4b1',
-  '0x7a69',
+  CHAIN_IDS.MAINNET,
+  CHAIN_IDS.POLYGON,
+  CHAIN_IDS.BSC,
+  CHAIN_IDS.LINEA_MAINNET,
+  CHAIN_IDS.BASE,
+  CHAIN_IDS.OPTIMISM,
+  CHAIN_IDS.ARBITRUM,
+  CHAIN_IDS.SCROLL,
 ];
 
 const log = createModuleLogger(
