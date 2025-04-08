@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isExternalSign` property to `TransactionMeta` to disable nonce generation and signing ([#5604](https://github.com/MetaMask/core/pull/5604))
+- Add types for `isAtomicBatchSupported` method ([#5600](https://github.com/MetaMask/core/pull/5600))
+  - `IsAtomicBatchSupportedRequest`
+  - `IsAtomicBatchSupportedResult`
+  - `IsAtomicBatchSupportedResultEntry`
+
 ### Changed
 
+- **BREAKING:** Update signature of `isAtomicBatchSupported` method ([#5600](https://github.com/MetaMask/core/pull/5600))
+  - Replace `address` argument with `request` object containing `address` and optional `chainIds`.
+  - Return array of `IsAtomicBatchSupportedResultEntry` objects.
 - Skip `origin` validation for `batch` transaction type ([#5586](https://github.com/MetaMask/core/pull/5586))
+- **BREAKING:** `enableTxParamsGasFeeUpdates` is renamed to `isAutomaticGasFeeUpdateEnabled` now expects a callback function instead of a boolean.
+  - This callback is invoked before performing `txParams` gas fee updates. The update will proceed only if the callback returns a truthy value.
+  - If not set it will default to return `false`.
 
 ## [53.0.0]
 
