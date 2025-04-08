@@ -294,7 +294,9 @@ export type TransactionControllerOptions = {
    * Callback to determine whether gas fee updates should be enabled for a given transaction.
    * Returns true to enable updates, false to disable them.
    */
-  isAutomaticGasFeeUpdateEnabled?: (transactionMeta: TransactionMeta) => boolean;
+  isAutomaticGasFeeUpdateEnabled?: (
+    transactionMeta: TransactionMeta,
+  ) => boolean;
 
   /** Whether or not the account supports EIP-1559. */
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
