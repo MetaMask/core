@@ -1720,3 +1720,33 @@ export type GasFeeToken = {
   /** Address of the token contract. */
   tokenAddress: Hex;
 };
+
+/** Request to check if atomic batch is supported for an account. */
+export type IsAtomicBatchSupportedRequest = {
+  /** Address of the account to check. */
+  address: Hex;
+
+  /**
+   * IDs of specific chains to check.
+   * If not provided, all supported chains will be checked.
+   */
+  chainIds?: Hex[];
+};
+
+/** Result of checking if atomic batch is supported for an account. */
+export type IsAtomicBatchSupportedResult = IsAtomicBatchSupportedResultEntry[];
+
+/** Info about atomic batch support for a single chain. */
+export type IsAtomicBatchSupportedResultEntry = {
+  /** ID of the chain. */
+  chainId: Hex;
+
+  /** Address of the contract that the account was upgraded to. */
+  delegationAddress?: Hex;
+
+  /** Whether the upgraded contract is supported. */
+  isSupported: boolean;
+
+  /** Address of the contract that the account would be upgraded to. */
+  upgradeContractAddress?: Hex;
+};
