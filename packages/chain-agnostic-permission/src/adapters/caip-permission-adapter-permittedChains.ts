@@ -2,10 +2,11 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex, CaipChainId, CaipNamespace } from '@metamask/utils';
 import { hexToBigInt, KnownCaipNamespace } from '@metamask/utils';
 
-import type { Caip25CaveatValue } from '../caip25Permission';
+import { Caip25CaveatType, type Caip25CaveatValue } from '../caip25Permission';
 import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { isWalletScope, parseScopeString } from '../scope/types';
+import { getCaip25CaveatFromPermission } from 'src/temp-utils';
 
 /**
  * Gets the Ethereum (EIP155 namespaced) chainIDs from internal scopes.
@@ -308,4 +309,29 @@ export function getAllNonWalletNamespacesFromCaip25CaveatValue(
   }
 
   return Array.from(namespaceSet);
+}
+
+/**
+ * Gets all scopes (chain IDs) from a CAIP-25 permission
+ * This extracts all scopes from both required and optional scopes
+ * and returns a unique set.
+ *
+ * @param caip25Permission - The CAIP-25 permission object
+ * @param caip25Permission.caveats - The caveats of the CAIP-25 permission
+ * @returns Array of unique scope strings (chain IDs)
+ */
+export function getAllScopesFromPermission(caip25Permission: {
+  caveats: {
+    type: string;
+    value: Caip25CaveatValue;
+  }[];
+}): CaipChainId[] {
+  const caip25Caveat = caip25Permission.caveats.find(
+    (caveat) => caveat.type === Caip25CaveatType,
+  );
+  if (!caip25Caveat) {
+    return [];
+  }
+
+  return getAllScopesFromCaip25CaveatValue(caip25Caveat.value);
 }
