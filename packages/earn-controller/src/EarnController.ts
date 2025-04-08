@@ -25,6 +25,10 @@ import {
   type VaultDailyApy,
   type VaultApyAverages,
 } from '@metamask/stake-sdk';
+import {
+  TransactionType,
+  type TransactionControllerTransactionConfirmedEvent,
+} from '@metamask/transaction-controller';
 
 import type {
   RefreshPooledStakesOptions,
@@ -57,6 +61,17 @@ export type StablecoinVault = {
   supply: string;
   liquidity: string;
 };
+
+type StakingTransactionTypes =
+  | TransactionType.stakingDeposit
+  | TransactionType.stakingUnstake
+  | TransactionType.stakingClaim;
+
+const stakingTransactionTypes = new Set<StakingTransactionTypes>([
+  TransactionType.stakingDeposit,
+  TransactionType.stakingUnstake,
+  TransactionType.stakingClaim,
+]);
 
 /**
  * Metadata for the EarnController.
@@ -178,7 +193,8 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  */
 export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -233,6 +249,7 @@ export class EarnController extends BaseController<
     );
     this.#selectedNetworkClientId = selectedNetworkClientId;
 
+    // Listen for network changes
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (networkControllerState) => {
@@ -263,6 +280,30 @@ export class EarnController extends BaseController<
          */
         this.refreshStakingEligibility({ address }).catch(console.error);
         this.refreshPooledStakes({ address }).catch(console.error);
+      },
+    );
+
+    // Listen for confirmed staking transactions
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      (transactionMeta) => {
+        /**
+         * When we speed up a transaction, we set the type as Retry and we lose
+         * information about type of transaction that is being set up, so we use
+         * original type to track that information.
+         */
+        const { type, originalType } = transactionMeta;
+
+        const isStakingTransaction =
+          stakingTransactionTypes.has(type as StakingTransactionTypes) ||
+          stakingTransactionTypes.has(originalType as StakingTransactionTypes);
+
+        if (isStakingTransaction) {
+          const sender = transactionMeta.txParams.from;
+          this.refreshPooledStakes({ resetCache: true, address: sender }).catch(
+            console.error,
+          );
+        }
       },
     );
   }

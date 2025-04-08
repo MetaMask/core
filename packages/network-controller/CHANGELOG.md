@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.2.0]
+
+### Added
+
+- Add optional `additionalDefaultNetworks` option to `NetworkController` constructor ([#5527](https://github.com/MetaMask/core/pull/5527))
+  - This can be used to customize which custom networks the default `networkConfigurationsByChainId` includes.
+- Add `getSelectedChainId` method to `NetworkController` ([#5516](https://github.com/MetaMask/core/pull/5516))
+  - This is also callable via the messenger.
+- Add `DEPRECATED_NETWORKS` constant ([#5560](https://github.com/MetaMask/core/pull/5560))
+
+### Changed
+
+- Remove Goerli and Linea Goerli from set of default networks ([#5560](https://github.com/MetaMask/core/pull/5560))
+  - Note that if you do not pass any initial state to NetworkController, this means that `0x5` and `0xe704` will no longer be keys in `networkConfigurationsByChainId`.
+  - We are not counting this as a breaking change because we don't make any guarantees about what keys are present in `networkConfigurationsByChainId` at runtime — only that they must be valid chain IDs.
+  - If you want more of a guarantee, you are recommended to persist the NetworkController state and then pass it back through as initial state.
+- Update `RpcEndpoint` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking.
+- Update `NetworkClientConfiguration` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking.
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+### Fixed
+
+- Upgrade `@metamask/eth-json-rpc-infura` to `^10.1.1` and `@metamask/eth-json-rpc-infura` to `^16.0.1` ([#5573](https://github.com/MetaMask/core/pull/5573))
+  - This fixes a bug where non-standard unsuccessful JSON-RPC errors were being ignored/discarded
+
 ## [23.1.0]
 
 ### Added
@@ -787,7 +814,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.2.0...HEAD
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.1.0...@metamask/network-controller@23.2.0
 [23.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.0.0...@metamask/network-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.1...@metamask/network-controller@23.0.0
 [22.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.0...@metamask/network-controller@22.2.1

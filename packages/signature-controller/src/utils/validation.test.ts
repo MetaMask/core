@@ -311,6 +311,24 @@ describe('Validation Utils', () => {
             );
           });
 
+          it('does not throw if external origin in request and verifying contract is not present', () => {
+            const data = JSON.parse(DATA_TYPED_MOCK);
+            delete data.domain.verifyingContract;
+
+            expect(() =>
+              validateTypedSignatureRequest({
+                currentChainId: CHAIN_ID_MOCK,
+                internalAccounts: ['0x1234', INTERNAL_ACCOUNT_MOCK],
+                messageData: {
+                  data,
+                  from: '0x3244e191f1b4903970224322180f1fbbc415696b',
+                },
+                request: { origin: ORIGIN_MOCK } as OriginalRequest,
+                version,
+              }),
+            ).not.toThrow();
+          });
+
           it('throws if external origin in message params and verifying contract is internal account', () => {
             const data = JSON.parse(DATA_TYPED_MOCK);
             data.domain.verifyingContract = INTERNAL_ACCOUNT_MOCK;
