@@ -97,6 +97,12 @@ export enum KnownSessionProperties {
   SolanaAccountChangedNotifications = 'solana_accountChanged_notifications',
 }
 
+/**
+ * Checks if a given value is a known session property.
+ *
+ * @param value - The value to check.
+ * @returns `true` if the value is a known session property, otherwise `false`.
+ */
 export function isKnownSessionPropertyValue(
   value: string,
 ): value is KnownSessionProperties {
