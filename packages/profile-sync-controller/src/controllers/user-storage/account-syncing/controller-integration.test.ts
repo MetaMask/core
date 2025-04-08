@@ -299,7 +299,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
   });
 
   describe('handles corrupted user storage gracefully', () => {
-    const arrangeMocksForBogusAccounts = async () => {
+    const arrangeMocksForBogusAccounts = async (persist = true) => {
       const accountsList =
         MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[];
       const { messengerMocks, config, options } = await arrangeMocks({
@@ -327,6 +327,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
                 status: 200,
                 body: await createMockUserStorageEntries(userStorageList),
               },
+              persist,
             ),
           mockEndpointBatchDeleteUserStorage:
             mockEndpointBatchDeleteUserStorage(
@@ -374,7 +375,15 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         const onAccountSyncErroneousSituation = jest.fn();
 
         const { config, options, userStorageList, accountsList } =
-          await arrangeMocksForBogusAccounts();
+          await arrangeMocksForBogusAccounts(false);
+
+        await mockEndpointGetUserStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          {
+            status: 200,
+            body: 'null',
+          },
+        );
 
         await AccountSyncingControllerIntegrationModule.syncInternalAccountsWithUserStorage(
           {
@@ -411,7 +420,7 @@ describe('user-storage/account-syncing/controller-integration - syncInternalAcco
         const onAccountSyncErroneousSituation = jest.fn();
 
         const { config, options, userStorageList, accountsList } =
-          await arrangeMocksForBogusAccounts();
+          await arrangeMocksForBogusAccounts(false);
 
         await mockEndpointGetUserStorageAllFeatureEntries(
           USER_STORAGE_FEATURE_NAMES.accounts,

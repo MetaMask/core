@@ -1,5 +1,6 @@
+import { AddressZero } from '@ethersproject/constants';
+import { SolScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
-import { ZeroAddress } from 'ethers';
 
 import { CHAIN_IDS } from './chains';
 import type { BridgeControllerState } from '../types';
@@ -16,7 +17,8 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.ARBITRUM,
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
-];
+  SolScope.Mainnet,
+] as const;
 
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
 
@@ -55,8 +57,7 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
     [BridgeFeatureFlagsKey.MOBILE_CONFIG]: DEFAULT_FEATURE_FLAG_CONFIG,
   },
   quoteRequest: {
-    srcTokenAddress: ZeroAddress,
-    slippage: BRIDGE_DEFAULT_SLIPPAGE,
+    srcTokenAddress: AddressZero,
   },
   quotesInitialLoadTime: null,
   quotes: [],

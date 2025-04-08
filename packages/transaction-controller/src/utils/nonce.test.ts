@@ -78,6 +78,21 @@ describe('nonce', () => {
 
       expect(releaseLock).toHaveBeenCalledTimes(1);
     });
+
+    it('returns undefined if transaction is signed externally', async () => {
+      const transactionMeta = {
+        ...TRANSACTION_META_MOCK,
+        isExternalSign: true,
+      };
+
+      const [nonce, releaseLock] = await getNextNonce(
+        transactionMeta,
+        jest.fn(),
+      );
+
+      expect(nonce).toBeUndefined();
+      expect(releaseLock).toBeUndefined();
+    });
   });
 
   describe('getAndFormatTransactionsForNonceTracker', () => {
@@ -168,7 +183,7 @@ describe('nonce', () => {
       const result = getAndFormatTransactionsForNonceTracker(
         '0x2',
         fromAddress,
-        TransactionStatus.confirmed,
+        [TransactionStatus.confirmed],
         inputTransactions,
       );
 

@@ -4,6 +4,7 @@ import { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { flushPromises } from '../../../../tests/helpers';
 import {
   TransactionStatus,
+  TransactionType,
   type RemoteTransactionSource,
   type TransactionMeta,
 } from '../types';
@@ -38,7 +39,6 @@ const CONTROLLER_ARGS_MOCK: ConstructorParameters<
     };
   },
   getCache: () => CACHE_MOCK,
-  getChainIds: () => [CHAIN_ID_MOCK],
   getLocalTransactions: () => [],
   remoteTransactionSource: {} as RemoteTransactionSource,
   trimTransactions: (transactions) => transactions,
@@ -154,7 +154,6 @@ describe('IncomingTransactionHelper', () => {
       expect(remoteTransactionSource.fetchTransactions).toHaveBeenCalledWith({
         address: ADDRESS_MOCK,
         cache: CACHE_MOCK,
-        chainIds: [CHAIN_ID_MOCK],
         includeTokenTransfers: true,
         queryEntireHistory: true,
         updateCache: expect.any(Function),
@@ -248,20 +247,6 @@ describe('IncomingTransactionHelper', () => {
             .fn()
             .mockReturnValueOnce(true)
             .mockReturnValueOnce(false),
-        });
-
-        const { incomingTransactionsListener } = await runInterval(helper);
-
-        expect(incomingTransactionsListener).not.toHaveBeenCalled();
-      });
-
-      it('does not if current network is not supported by remote transaction source', async () => {
-        const helper = new IncomingTransactionHelper({
-          ...CONTROLLER_ARGS_MOCK,
-          remoteTransactionSource: createRemoteTransactionSourceMock(
-            [TRANSACTION_MOCK],
-            { chainIds: ['0x123'] },
-          ),
         });
 
         const { incomingTransactionsListener } = await runInterval(helper);
@@ -378,19 +363,6 @@ describe('IncomingTransactionHelper', () => {
 
       expect(jest.getTimerCount()).toBe(0);
     });
-
-    it('does nothing if network not supported by remote transaction source', async () => {
-      const helper = new IncomingTransactionHelper({
-        ...CONTROLLER_ARGS_MOCK,
-        remoteTransactionSource: createRemoteTransactionSourceMock([], {
-          chainIds: ['0x123'],
-        }),
-      });
-
-      helper.start();
-
-      expect(jest.getTimerCount()).toBe(0);
-    });
   });
 
   describe('stop', () => {
@@ -424,6 +396,60 @@ describe('IncomingTransactionHelper', () => {
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith([TRANSACTION_MOCK_2]);
+    });
+
+    it('including transactions with same hash but different types', async () => {
+      const localTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+
+      const remoteTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.incoming,
+      };
+
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        getLocalTransactions: () => [localTransaction],
+        remoteTransactionSource: createRemoteTransactionSourceMock([
+          remoteTransaction,
+        ]),
+      });
+
+      const listener = jest.fn();
+      helper.hub.on('transactions', listener);
+      await helper.update();
+
+      expect(listener).toHaveBeenCalledWith([
+        remoteTransaction,
+        localTransaction,
+      ]);
+    });
+
+    it('excluding transactions with same hash and type', async () => {
+      const localTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+
+      const remoteTransaction = {
+        ...TRANSACTION_MOCK,
+        type: TransactionType.simpleSend,
+      };
+      const helper = new IncomingTransactionHelper({
+        ...CONTROLLER_ARGS_MOCK,
+        getLocalTransactions: () => [localTransaction],
+        remoteTransactionSource: createRemoteTransactionSourceMock([
+          remoteTransaction,
+        ]),
+      });
+
+      const listener = jest.fn();
+      helper.hub.on('transactions', listener);
+      await helper.update();
+
+      expect(listener).not.toHaveBeenCalled();
     });
   });
 });

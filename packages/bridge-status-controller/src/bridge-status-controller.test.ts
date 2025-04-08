@@ -131,6 +131,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
   srcTokenAmount: '991250000000000',
   srcAsset: {
     address: '0x0000000000000000000000000000000000000000',
+    assetId: `eip155:${srcChainId}/slip44:60`,
     chainId: srcChainId,
     symbol: 'ETH',
     decimals: 18,
@@ -145,6 +146,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
   destTokenAmount: '990654755978612',
   destAsset: {
     address: '0x0000000000000000000000000000000000000000',
+    assetId: `eip155:${destChainId}/slip44:60`,
     chainId: destChainId,
     symbol: 'ETH',
     decimals: 18,
@@ -160,6 +162,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       amount: '8750000000000',
       asset: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${srcChainId}/slip44:60`,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -186,6 +189,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       },
       srcAsset: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${srcChainId}/slip44:60`,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -198,6 +202,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       },
       destAsset: {
         address: '0x0000000000000000000000000000000000000000',
+        assetId: `eip155:${destChainId}/slip44:60`,
         chainId: destChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -372,7 +377,7 @@ const getMessengerMock = ({
 } = {}) =>
   ({
     call: jest.fn((method: string) => {
-      if (method === 'AccountsController:getSelectedAccount') {
+      if (method === 'AccountsController:getSelectedMultichainAccount') {
         return { address: account };
       } else if (method === 'NetworkController:findNetworkClientIdByChainId') {
         return 'networkClientId';
@@ -567,7 +572,7 @@ describe('BridgeStatusController', () => {
 
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -725,7 +730,7 @@ describe('BridgeStatusController', () => {
 
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -807,18 +812,18 @@ describe('BridgeStatusController', () => {
       // Setup
       jest.useFakeTimers();
 
-      let getSelectedAccountCalledTimes = 0;
+      let getSelectedMultichainAccountCalledTimes = 0;
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             let account;
 
-            if (getSelectedAccountCalledTimes === 0) {
+            if (getSelectedMultichainAccountCalledTimes === 0) {
               account = '0xaccount1';
             } else {
               account = '0xaccount2';
             }
-            getSelectedAccountCalledTimes += 1;
+            getSelectedMultichainAccountCalledTimes += 1;
             return { address: account };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -900,7 +905,7 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'
@@ -996,7 +1001,7 @@ describe('BridgeStatusController', () => {
       jest.useFakeTimers();
       const messengerMock = {
         call: jest.fn((method: string) => {
-          if (method === 'AccountsController:getSelectedAccount') {
+          if (method === 'AccountsController:getSelectedMultichainAccount') {
             return { address: '0xaccount1' };
           } else if (
             method === 'NetworkController:findNetworkClientIdByChainId'

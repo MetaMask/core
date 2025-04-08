@@ -2,6 +2,7 @@ import { type Hex } from '@metamask/utils';
 
 import { OracleLayer1GasFeeFlow } from './OracleLayer1GasFeeFlow';
 import { CHAIN_IDS } from '../constants';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 
 const OPTIMISM_STACK_CHAIN_IDS: Hex[] = [
@@ -26,7 +27,12 @@ export class OptimismLayer1GasFeeFlow extends OracleLayer1GasFeeFlow {
     super(OPTIMISM_GAS_PRICE_ORACLE_ADDRESS);
   }
 
-  matchesTransaction(transactionMeta: TransactionMeta): boolean {
+  matchesTransaction({
+    transactionMeta,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean {
     return OPTIMISM_STACK_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 }

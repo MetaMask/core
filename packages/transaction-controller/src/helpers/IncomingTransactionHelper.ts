@@ -25,8 +25,6 @@ export class IncomingTransactionHelper {
     AccountsController['getSelectedAccount']
   >;
 
-  readonly #getChainIds: () => Hex[];
-
   readonly #getLocalTransactions: () => TransactionMeta[];
 
   readonly #includeTokenTransfers?: boolean;
@@ -52,7 +50,6 @@ export class IncomingTransactionHelper {
   constructor({
     getCache,
     getCurrentAccount,
-    getChainIds,
     getLocalTransactions,
     includeTokenTransfers,
     isEnabled,
@@ -66,7 +63,6 @@ export class IncomingTransactionHelper {
     getCurrentAccount: () => ReturnType<
       AccountsController['getSelectedAccount']
     >;
-    getChainIds: () => Hex[];
     getLocalTransactions: () => TransactionMeta[];
     includeTokenTransfers?: boolean;
     isEnabled?: () => boolean;
@@ -80,7 +76,6 @@ export class IncomingTransactionHelper {
 
     this.#getCache = getCache;
     this.#getCurrentAccount = getCurrentAccount;
-    this.#getChainIds = getChainIds;
     this.#getLocalTransactions = getLocalTransactions;
     this.#includeTokenTransfers = includeTokenTransfers;
     this.#isEnabled = isEnabled ?? (() => true);
@@ -147,7 +142,6 @@ export class IncomingTransactionHelper {
     }
 
     const account = this.#getCurrentAccount();
-    const chainIds = this.#getChainIds();
     const cache = this.#getCache();
     const includeTokenTransfers = this.#includeTokenTransfers ?? true;
     const queryEntireHistory = this.#queryEntireHistory ?? true;
@@ -160,7 +154,6 @@ export class IncomingTransactionHelper {
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
           cache,
-          chainIds,
           includeTokenTransfers,
           queryEntireHistory,
           updateCache: this.#updateCache,
@@ -191,7 +184,8 @@ export class IncomingTransactionHelper {
           (currentTx) =>
             currentTx.hash?.toLowerCase() === tx.hash?.toLowerCase() &&
             currentTx.txParams.from?.toLowerCase() ===
-              tx.txParams.from?.toLowerCase(),
+              tx.txParams.from?.toLowerCase() &&
+            currentTx.type === tx.type,
         ),
     );
 
@@ -232,16 +226,6 @@ export class IncomingTransactionHelper {
   }
 
   #canStart(): boolean {
-    const isEnabled = this.#isEnabled();
-    const chainIds = this.#getChainIds();
-
-    const supportedChainIds =
-      this.#remoteTransactionSource.getSupportedChains();
-
-    const isAnyChainSupported = chainIds.some((chainId) =>
-      supportedChainIds.includes(chainId),
-    );
-
-    return isEnabled && isAnyChainSupported;
+    return this.#isEnabled();
   }
 }

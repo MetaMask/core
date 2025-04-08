@@ -19,10 +19,9 @@ import {
 } from '@metamask/keyring-api';
 import {
   type KeyringControllerState,
-  type KeyringControllerGetKeyringForAccountAction,
   type KeyringControllerGetKeyringsByTypeAction,
-  type KeyringControllerGetAccountsAction,
   type KeyringControllerStateChangeEvent,
+  type KeyringControllerGetStateAction,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -34,12 +33,8 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import {
-  type Keyring,
-  type Json,
-  type CaipChainId,
-  isCaipChainId,
-} from '@metamask/utils';
+import { type CaipChainId, isCaipChainId } from '@metamask/utils';
+import type { WritableDraft } from 'immer/dist/internal.js';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
@@ -120,9 +115,8 @@ export type AccountsControllerUpdateAccountMetadataAction = {
 };
 
 export type AllowedActions =
-  | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetAccountsAction;
+  | KeyringControllerGetStateAction;
 
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
@@ -209,11 +203,6 @@ export type AccountsControllerMessenger = RestrictedMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-
-type AddressAndKeyringTypeObject = {
-  address: string;
-  type: string;
-};
 
 const accountsControllerMetadata = {
   internalAccounts: {
@@ -348,21 +337,22 @@ export class AccountsController extends BaseController<
    * @returns The selected internal account.
    */
   getSelectedAccount(): InternalAccount {
+    const {
+      internalAccounts: { selectedAccount },
+    } = this.state;
+
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (this.state.internalAccounts.selectedAccount === '') {
+    if (selectedAccount === '') {
       return EMPTY_ACCOUNT;
     }
 
-    const selectedAccount = this.getAccountExpect(
-      this.state.internalAccounts.selectedAccount,
-    );
-    if (isEvmAccountType(selectedAccount.type)) {
-      return selectedAccount;
+    const account = this.getAccountExpect(selectedAccount);
+    if (isEvmAccountType(account.type)) {
+      return account;
     }
 
     const accounts = this.listAccounts();
-
     if (!accounts.length) {
       // ! Should never reach this.
       throw new Error('No EVM accounts');
@@ -384,14 +374,18 @@ export class AccountsController extends BaseController<
   getSelectedMultichainAccount(
     chainId?: CaipChainId,
   ): InternalAccount | undefined {
+    const {
+      internalAccounts: { selectedAccount },
+    } = this.state;
+
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (this.state.internalAccounts.selectedAccount === '') {
+    if (selectedAccount === '') {
       return EMPTY_ACCOUNT;
     }
 
     if (!chainId) {
-      return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+      return this.getAccountExpect(selectedAccount);
     }
 
     const accounts = this.listMultichainAccounts(chainId);
@@ -419,13 +413,12 @@ export class AccountsController extends BaseController<
   setSelectedAccount(accountId: string): void {
     const account = this.getAccountExpect(accountId);
 
-    this.update((currentState) => {
-      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
-        Date.now();
-      currentState.internalAccounts.selectedAccount = account.id;
-    });
+    this.#update((state) => {
+      const { internalAccounts } = state;
 
-    this.#publishAccountChangeEvent(account);
+      internalAccounts.accounts[account.id].metadata.lastSelected = Date.now();
+      internalAccounts.selectedAccount = account.id;
+    });
   }
 
   /**
@@ -467,23 +460,26 @@ export class AccountsController extends BaseController<
       throw new Error('Account name already exists');
     }
 
-    this.update((currentState) => {
-      const internalAccount = {
-        ...account,
-        metadata: { ...account.metadata, ...metadata },
-      };
-      // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
-      // See: https://github.com/MetaMask/utils/issues/168
-      // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
-      currentState.internalAccounts.accounts[accountId] = internalAccount;
+    const internalAccount = {
+      ...account,
+      metadata: { ...account.metadata, ...metadata },
+    };
 
-      if (metadata.name) {
-        this.messagingSystem.publish(
-          'AccountsController:accountRenamed',
-          internalAccount,
-        );
-      }
+    this.#update((state) => {
+      // FIXME: Using the state as-is cause the following error: "Type instantiation is excessively
+      // deep and possibly infinite.ts(2589)" (https://github.com/MetaMask/utils/issues/168)
+      // Using a type-cast workaround this error and is slightly better than using a @ts-expect-error
+      // which sometimes fail when compiling locally.
+      (state as AccountsControllerState).internalAccounts.accounts[accountId] =
+        internalAccount;
     });
+
+    if (metadata.name) {
+      this.messagingSystem.publish(
+        'AccountsController:accountRenamed',
+        internalAccount,
+      );
+    }
   }
 
   /**
@@ -543,30 +539,8 @@ export class AccountsController extends BaseController<
       {} as Record<string, InternalAccount>,
     );
 
-    this.update((currentState) => {
-      currentState.internalAccounts.accounts = accounts;
-
-      if (
-        !currentState.internalAccounts.accounts[
-          currentState.internalAccounts.selectedAccount
-        ]
-      ) {
-        const lastSelectedAccount = this.#getLastSelectedAccount(
-          Object.values(accounts),
-        );
-
-        if (lastSelectedAccount) {
-          currentState.internalAccounts.selectedAccount =
-            lastSelectedAccount.id;
-          currentState.internalAccounts.accounts[
-            lastSelectedAccount.id
-          ].metadata.lastSelected = this.#getLastSelectedIndex();
-          this.#publishAccountChangeEvent(lastSelectedAccount);
-        } else {
-          // It will be undefined if there are no accounts
-          currentState.internalAccounts.selectedAccount = '';
-        }
-      }
+    this.#update((state) => {
+      state.internalAccounts.accounts = accounts;
     });
   }
 
@@ -619,23 +593,34 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Get Snap keyring from the keyring controller.
+   *
+   * @returns The Snap keyring if available.
+   */
+  #getSnapKeyring(): SnapKeyring | undefined {
+    const [snapKeyring] = this.messagingSystem.call(
+      'KeyringController:getKeyringsByType',
+      SnapKeyring.type,
+    );
+
+    // Snap keyring is not available until the first account is created in the keyring
+    // controller, so this might be undefined.
+    return snapKeyring as SnapKeyring | undefined;
+  }
+
+  /**
    * Returns a list of internal accounts created using the SnapKeyring.
    *
    * @returns A promise that resolves to an array of InternalAccount objects.
    */
   async #listSnapAccounts(): Promise<InternalAccount[]> {
-    const [snapKeyring] = this.messagingSystem.call(
-      'KeyringController:getKeyringsByType',
-      SnapKeyring.type,
-    );
-    // snap keyring is not available until the first account is created in the keyring controller
-    if (!snapKeyring) {
+    const keyring = this.#getSnapKeyring();
+
+    if (!keyring) {
       return [];
     }
 
-    const snapAccounts = (snapKeyring as SnapKeyring).listAccounts();
-
-    return snapAccounts;
+    return keyring.listAccounts();
   }
 
   /**
@@ -646,54 +631,52 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves to an array of InternalAccount objects.
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
-    const addresses = await this.messagingSystem.call(
-      'KeyringController:getAccounts',
-    );
     const internalAccounts: InternalAccount[] = [];
-    for (const address of addresses) {
-      const keyring = await this.messagingSystem.call(
-        'KeyringController:getKeyringForAccount',
-        address,
-      );
-
-      const keyringType = (keyring as Keyring<Json>).type;
+    const { keyrings } = await this.messagingSystem.call(
+      'KeyringController:getState',
+    );
+    for (const keyring of keyrings) {
+      const keyringType = keyring.type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
         // We only consider "normal accounts" here, so keep looping
         continue;
       }
 
-      const id = getUUIDFromAddressOfNormalAccount(address);
+      for (const address of keyring.accounts) {
+        const id = getUUIDFromAddressOfNormalAccount(address);
 
-      const nameLastUpdatedAt = this.#populateExistingMetadata(
-        id,
-        'nameLastUpdatedAt',
-      );
+        const nameLastUpdatedAt = this.#populateExistingMetadata(
+          id,
+          'nameLastUpdatedAt',
+        );
 
-      internalAccounts.push({
-        id,
-        address,
-        options: {},
-        methods: [
-          EthMethod.PersonalSign,
-          EthMethod.Sign,
-          EthMethod.SignTransaction,
-          EthMethod.SignTypedDataV1,
-          EthMethod.SignTypedDataV3,
-          EthMethod.SignTypedDataV4,
-        ],
-        scopes: [EthScope.Eoa],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: this.#populateExistingMetadata(id, 'name') ?? '',
-          ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
-          importTime:
-            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
-          keyring: {
-            type: (keyring as Keyring<Json>).type,
+        internalAccounts.push({
+          id,
+          address,
+          options: {},
+          methods: [
+            EthMethod.PersonalSign,
+            EthMethod.Sign,
+            EthMethod.SignTransaction,
+            EthMethod.SignTypedDataV1,
+            EthMethod.SignTypedDataV3,
+            EthMethod.SignTypedDataV4,
+          ],
+          scopes: [EthScope.Eoa],
+          type: EthAccountType.Eoa,
+          metadata: {
+            name: this.#populateExistingMetadata(id, 'name') ?? '',
+            ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
+            importTime:
+              this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+            lastSelected:
+              this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
+            keyring: {
+              type: keyringType,
+            },
           },
-        },
-      });
+        });
+      }
     }
 
     return internalAccounts;
@@ -720,158 +703,215 @@ export class AccountsController extends BaseController<
    * Handles changes in the keyring state, specifically when new accounts are added or removed.
    *
    * @param keyringState - The new state of the keyring controller.
+   * @param keyringState.isUnlocked - True if the keyrings are unlocked, false otherwise.
+   * @param keyringState.keyrings - List of all keyrings.
    */
-  #handleOnKeyringStateChange(keyringState: KeyringControllerState): void {
-    // check if there are any new accounts added
-    // TODO: change when accountAdded event is added to the keyring controller
+  #handleOnKeyringStateChange({
+    isUnlocked,
+    keyrings,
+  }: KeyringControllerState): void {
+    // TODO: Change when accountAdded event is added to the keyring controller.
 
     // We check for keyrings length to be greater than 0 because the extension client may try execute
     // submit password twice and clear the keyring state.
     // https://github.com/MetaMask/KeyringController/blob/2d73a4deed8d013913f6ef0c9f5c0bb7c614f7d3/src/KeyringController.ts#L910
-    if (keyringState.isUnlocked && keyringState.keyrings.length > 0) {
-      const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
-      const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
+    if (!isUnlocked || keyrings.length === 0) {
+      return;
+    }
 
-      for (const keyring of keyringState.keyrings) {
-        if (keyring.type === KeyringTypes.snap) {
-          updatedSnapKeyringAddresses.push(
-            ...keyring.accounts.map((address) => {
-              return {
-                address,
-                type: keyring.type,
-              };
-            }),
-          );
+    // State patches.
+    const generatePatch = () => {
+      return {
+        previous: {} as Record<string, InternalAccount>,
+        added: [] as {
+          address: string;
+          type: string;
+        }[],
+        updated: [] as InternalAccount[],
+        removed: [] as InternalAccount[],
+      };
+    };
+    const patches = {
+      snap: generatePatch(),
+      normal: generatePatch(),
+    };
+
+    // Gets the patch object based on the keyring type (since Snap accounts and other accounts
+    // are handled differently).
+    const patchOf = (type: string) => {
+      if (type === KeyringTypes.snap) {
+        return patches.snap;
+      }
+      return patches.normal;
+    };
+
+    // Create a map (with lower-cased addresses) of all existing accounts.
+    for (const account of this.listMultichainAccounts()) {
+      const address = account.address.toLowerCase();
+      const patch = patchOf(account.metadata.keyring.type);
+
+      patch.previous[address] = account;
+    }
+
+    // Go over all keyring changes and create patches out of it.
+    const addresses = new Set<string>();
+    for (const keyring of keyrings) {
+      const patch = patchOf(keyring.type);
+
+      for (const accountAddress of keyring.accounts) {
+        // Lower-case address to use it in the `previous` map.
+        const address = accountAddress.toLowerCase();
+        const account = patch.previous[address];
+
+        if (account) {
+          // If the account exists before, this might be an update.
+          patch.updated.push(account);
         } else {
-          updatedNormalKeyringAddresses.push(
-            ...keyring.accounts.map((address) => {
-              return {
-                address,
-                type: keyring.type,
-              };
-            }),
+          // Otherwise, that's a new account.
+          patch.added.push({
+            address,
+            type: keyring.type,
+          });
+        }
+
+        // Keep track of those address to check for removed accounts later.
+        addresses.add(address);
+      }
+    }
+
+    // We might have accounts associated with removed keyrings, so we iterate
+    // over all previous known accounts and check against the keyring addresses.
+    for (const patch of [patches.snap, patches.normal]) {
+      for (const [address, account] of Object.entries(patch.previous)) {
+        // If a previous address is not part of the new addesses, then it got removed.
+        if (!addresses.has(address)) {
+          patch.removed.push(account);
+        }
+      }
+    }
+
+    // Diff that we will use to publish events afterward.
+    const diff = {
+      removed: [] as string[],
+      added: [] as InternalAccount[],
+    };
+
+    this.#update((state) => {
+      const { internalAccounts } = state;
+
+      for (const patch of [patches.snap, patches.normal]) {
+        for (const account of patch.removed) {
+          delete internalAccounts.accounts[account.id];
+
+          diff.removed.push(account.id);
+        }
+
+        for (const added of patch.added) {
+          const account = this.#getInternalAccountFromAddressAndType(
+            added.address,
+            added.type,
+          );
+
+          if (account) {
+            // Re-compute the list of accounts everytime, so we can make sure new names
+            // are also considered.
+            const accounts = Object.values(
+              internalAccounts.accounts,
+            ) as InternalAccount[];
+
+            // Get next account name available for this given keyring.
+            const name = this.getNextAvailableAccountName(
+              account.metadata.keyring.type,
+              accounts,
+            );
+
+            // If it's the first account, we need to select it.
+            const lastSelected =
+              accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
+
+            internalAccounts.accounts[account.id] = {
+              ...account,
+              metadata: {
+                ...account.metadata,
+                name,
+                importTime: Date.now(),
+                lastSelected,
+              },
+            };
+
+            diff.added.push(internalAccounts.accounts[account.id]);
+          }
+        }
+      }
+    });
+
+    // Now publish events
+    for (const id of diff.removed) {
+      this.messagingSystem.publish('AccountsController:accountRemoved', id);
+    }
+
+    for (const account of diff.added) {
+      this.messagingSystem.publish('AccountsController:accountAdded', account);
+    }
+
+    // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
+    // like `accountUpdated` (we would still need to check if anything really changed on the account).
+  }
+
+  /**
+   * Update the state and fixup the currently selected account.
+   *
+   * @param callback - Callback for updating state, passed a draft state object.
+   */
+  #update(callback: (state: WritableDraft<AccountsControllerState>) => void) {
+    // The currently selected account might get deleted during the update, so keep track
+    // of it before doing any change.
+    const previouslySelectedAccount =
+      this.state.internalAccounts.selectedAccount;
+
+    this.update((state) => {
+      callback(state);
+
+      // If the account no longer exists (or none is selected), we need to re-select another one.
+      const { internalAccounts } = state;
+      if (!internalAccounts.accounts[previouslySelectedAccount]) {
+        const accounts = Object.values(
+          internalAccounts.accounts,
+        ) as InternalAccount[];
+
+        // Get the lastly selected account (according to the current accounts).
+        const lastSelectedAccount = this.#getLastSelectedAccount(accounts);
+        if (lastSelectedAccount) {
+          internalAccounts.selectedAccount = lastSelectedAccount.id;
+          internalAccounts.accounts[
+            lastSelectedAccount.id
+          ].metadata.lastSelected = this.#getLastSelectedIndex();
+        } else {
+          // It will be undefined if there are no accounts.
+          internalAccounts.selectedAccount = '';
+        }
+      }
+    });
+
+    // Now, we compare the newly selected account, and we send event if different.
+    const { selectedAccount } = this.state.internalAccounts;
+    if (selectedAccount && selectedAccount !== previouslySelectedAccount) {
+      const account = this.getSelectedMultichainAccount();
+
+      // The account should always be defined at this point, since we have already checked for
+      // `selectedAccount` to be non-empty.
+      if (account) {
+        if (isEvmAccountType(account.type)) {
+          this.messagingSystem.publish(
+            'AccountsController:selectedEvmAccountChange',
+            account,
           );
         }
-      }
-
-      const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
-        this.listMultichainAccounts().reduce(
-          (accumulator, account) => {
-            if (account.metadata.keyring.type === KeyringTypes.snap) {
-              accumulator.previousSnapInternalAccounts.push(account);
-            } else {
-              accumulator.previousNormalInternalAccounts.push(account);
-            }
-            return accumulator;
-          },
-          {
-            previousNormalInternalAccounts: [] as InternalAccount[],
-            previousSnapInternalAccounts: [] as InternalAccount[],
-          },
+        this.messagingSystem.publish(
+          'AccountsController:selectedAccountChange',
+          account,
         );
-
-      const addedAccounts: AddressAndKeyringTypeObject[] = [];
-      const deletedAccounts: InternalAccount[] = [];
-
-      // snap account ids are random uuid while normal accounts
-      // are determininistic based on the address
-
-      // ^NOTE: This will be removed when normal accounts also implement internal accounts
-      // finding all the normal accounts that were added
-      for (const account of updatedNormalKeyringAddresses) {
-        if (
-          !this.state.internalAccounts.accounts[
-            getUUIDFromAddressOfNormalAccount(account.address)
-          ]
-        ) {
-          addedAccounts.push(account);
-        }
       }
-
-      // finding all the snap accounts that were added
-      for (const account of updatedSnapKeyringAddresses) {
-        if (
-          !previousSnapInternalAccounts.find(
-            (internalAccount: InternalAccount) =>
-              internalAccount.address.toLowerCase() ===
-              account.address.toLowerCase(),
-          )
-        ) {
-          addedAccounts.push(account);
-        }
-      }
-
-      // finding all the normal accounts that were deleted
-      for (const account of previousNormalInternalAccounts) {
-        if (
-          !updatedNormalKeyringAddresses.find(
-            ({ address }) =>
-              address.toLowerCase() === account.address.toLowerCase(),
-          )
-        ) {
-          deletedAccounts.push(account);
-        }
-      }
-
-      // finding all the snap accounts that were deleted
-      for (const account of previousSnapInternalAccounts) {
-        if (
-          !updatedSnapKeyringAddresses.find(
-            ({ address }) =>
-              address.toLowerCase() === account.address.toLowerCase(),
-          )
-        ) {
-          deletedAccounts.push(account);
-        }
-      }
-
-      this.update((currentState) => {
-        if (deletedAccounts.length > 0) {
-          for (const account of deletedAccounts) {
-            currentState.internalAccounts.accounts = this.#handleAccountRemoved(
-              currentState.internalAccounts.accounts,
-              account.id,
-            );
-          }
-        }
-
-        if (addedAccounts.length > 0) {
-          for (const account of addedAccounts) {
-            currentState.internalAccounts.accounts =
-              this.#handleNewAccountAdded(
-                currentState.internalAccounts.accounts,
-                account,
-              );
-          }
-        }
-
-        // We don't use list accounts because it is not the updated state yet.
-        const existingAccounts = Object.values(
-          currentState.internalAccounts.accounts,
-        );
-
-        // handle if the selected account was deleted
-        if (
-          !currentState.internalAccounts.accounts[
-            this.state.internalAccounts.selectedAccount
-          ]
-        ) {
-          const lastSelectedAccount =
-            this.#getLastSelectedAccount(existingAccounts);
-
-          if (lastSelectedAccount) {
-            currentState.internalAccounts.selectedAccount =
-              lastSelectedAccount.id;
-            currentState.internalAccounts.accounts[
-              lastSelectedAccount.id
-            ].metadata.lastSelected = this.#getLastSelectedIndex();
-            this.#publishAccountChangeEvent(lastSelectedAccount);
-          } else {
-            // It will be undefined if there are no accounts
-            currentState.internalAccounts.selectedAccount = '';
-          }
-        }
-      });
     }
   }
 
@@ -1008,99 +1048,33 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Handles the addition of a new account to the controller.
+   * Get an internal account given an address and a keyring type.
+   *
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
    *
-   * @param accountsState - AccountsController accounts state that is to be mutated.
-   * @param account - The address and keyring type object of the new account.
-   * @returns The updated AccountsController accounts state.
+   * @param address - The address of the new account.
+   * @param type - The keyring type of the new account.
+   * @returns The newly generated/retrieved internal account.
    */
-  #handleNewAccountAdded(
-    accountsState: AccountsControllerState['internalAccounts']['accounts'],
-    account: AddressAndKeyringTypeObject,
-  ): AccountsControllerState['internalAccounts']['accounts'] {
-    let newAccount: InternalAccount;
-    if (account.type !== KeyringTypes.snap) {
-      newAccount = this.#generateInternalAccountForNonSnapAccount(
-        account.address,
-        account.type,
-      );
-    } else {
-      const [snapKeyring] = this.messagingSystem.call(
-        'KeyringController:getKeyringsByType',
-        SnapKeyring.type,
-      );
+  #getInternalAccountFromAddressAndType(
+    address: string,
+    type: string,
+  ): InternalAccount | undefined {
+    if (type === KeyringTypes.snap) {
+      const keyring = this.#getSnapKeyring();
 
-      newAccount = (snapKeyring as SnapKeyring).getAccountByAddress(
-        account.address,
-      ) as InternalAccount;
-
-      // The snap deleted the account before the keyring controller could add it
-      if (!newAccount) {
-        return accountsState;
+      // We need the Snap keyring to retrieve the account from its address.
+      if (!keyring) {
+        return undefined;
       }
+
+      // This might be undefined if the Snap deleted the account before
+      // reaching that point.
+      return keyring.getAccountByAddress(address);
     }
 
-    const isFirstAccount = Object.keys(accountsState).length === 0;
-
-    // Get next account name available for this given keyring
-    const accountName = this.getNextAvailableAccountName(
-      newAccount.metadata.keyring.type,
-      Object.values(accountsState),
-    );
-
-    const newAccountWithUpdatedMetadata = {
-      ...newAccount,
-      metadata: {
-        ...newAccount.metadata,
-        name: accountName,
-        importTime: Date.now(),
-        lastSelected: isFirstAccount ? this.#getLastSelectedIndex() : 0,
-      },
-    };
-    accountsState[newAccount.id] = newAccountWithUpdatedMetadata;
-
-    this.messagingSystem.publish(
-      'AccountsController:accountAdded',
-      newAccountWithUpdatedMetadata,
-    );
-
-    return accountsState;
-  }
-
-  #publishAccountChangeEvent(account: InternalAccount) {
-    if (isEvmAccountType(account.type)) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedEvmAccountChange',
-        account,
-      );
-    }
-    this.messagingSystem.publish(
-      'AccountsController:selectedAccountChange',
-      account,
-    );
-  }
-
-  /**
-   * Handles the removal of an account from the internal accounts list.
-   *
-   * @param accountsState - AccountsController accounts state that is to be mutated.
-   * @param accountId - The ID of the account to be removed.
-   * @returns The updated AccountsController state.
-   */
-  #handleAccountRemoved(
-    accountsState: AccountsControllerState['internalAccounts']['accounts'],
-    accountId: string,
-  ): AccountsControllerState['internalAccounts']['accounts'] {
-    delete accountsState[accountId];
-
-    this.messagingSystem.publish(
-      'AccountsController:accountRemoved',
-      accountId,
-    );
-
-    return accountsState;
+    return this.#generateInternalAccountForNonSnapAccount(address, type);
   }
 
   /**

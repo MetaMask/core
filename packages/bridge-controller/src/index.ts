@@ -1,31 +1,24 @@
 export { BridgeController } from './bridge-controller';
 
 export type {
-  AssetType,
   ChainConfiguration,
   L1GasFees,
+  SolanaFees,
   QuoteMetadata,
-  SortOrder,
   BridgeToken,
-  BridgeFlag,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
-  QuoteRequest,
+  GenericQuoteRequest,
   Protocol,
-  ActionTypes,
+  TokenAmountValues,
   Step,
   RefuelData,
   Quote,
   QuoteResponse,
-  ChainId,
   FeeData,
   TxData,
-  BridgeFeatureFlagsKey,
   BridgeFeatureFlags,
-  RequestStatus,
-  BridgeUserAction,
-  BridgeBackgroundAction,
   BridgeControllerState,
   BridgeControllerAction,
   BridgeControllerActions,
@@ -33,11 +26,23 @@ export type {
   BridgeControllerMessenger,
 } from './types';
 
-export { FeeType } from './types';
+export {
+  AssetType,
+  SortOrder,
+  BridgeFlag,
+  ActionTypes,
+  ChainId,
+  BridgeFeatureFlagsKey,
+  RequestStatus,
+  BridgeUserAction,
+  BridgeBackgroundAction,
+  FeeType,
+} from './types';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
   BridgeClientId,
+  BRIDGE_CONTROLLER_NAME,
   BRIDGE_QUOTE_MAX_ETA_SECONDS,
   BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE,
   BRIDGE_PREFERRED_GAS_ESTIMATE,
@@ -47,16 +52,42 @@ export {
   DEFAULT_MAX_REFRESH_COUNT,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   METABRIDGE_CHAIN_TO_ADDRESS_MAP,
+  BRIDGE_DEV_API_BASE_URL,
+  BRIDGE_PROD_API_BASE_URL,
 } from './constants/bridge';
 
 export type { AllowedBridgeChainIds } from './constants/bridge';
 
-export type { SwapsTokenObject } from './constants/tokens';
+export {
+  /**
+   * @deprecated This type should not be used. Use {@link BridgeAsset} instead.
+   */
+  type SwapsTokenObject,
+  /**
+   * @deprecated This map should not be used. Use getNativeAssetForChainId" } instead.
+   */
+  SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+} from './constants/tokens';
 
 export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 
 export {
   getEthUsdtResetData,
   isEthUsdt,
-  getBridgeApiBaseUrl,
+  isNativeAddress,
+  isSolanaChainId,
+  getNativeAssetForChainId,
+  getDefaultBridgeControllerState,
 } from './utils/bridge';
+
+export { isValidQuoteRequest } from './utils/quote';
+
+export { calcLatestSrcBalance } from './utils/balance';
+
+export { fetchBridgeTokens } from './utils/fetch';
+
+export {
+  formatChainIdToCaip,
+  formatChainIdToHex,
+  formatAddressToCaipReference,
+} from './utils/caip-formatters';

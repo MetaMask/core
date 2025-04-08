@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0]
+
+### Added
+
+- Send new `MultichainTransactionsController:transaction{Confirmed,Submitted}` events during transaction updates ([#5587](https://github.com/MetaMask/core/pull/5587))
+
+## [0.8.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` to `^27.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+- Bump `@metamask/polling-controller` to `^13.0.0` ([#5507](https://github.com/MetaMask/core/pull/5507))
+
+## [0.7.2]
+
+### Fixed
+
+- Filters out non-mainnet Solana transactions from the transactions update events ([#5497](https://github.com/MetaMask/core/pull/5497))
+- `@metamask/snaps-controllers` peer dependency is no longer also a direct dependency ([#5464](https://github.com/MetaMask/core/pull/5464))
+
+## [0.7.1]
+
+### Fixed
+
+- Check if `KeyringController` is unlocked before processing account events in `MultichainTransactionsController` ([#5473](https://github.com/MetaMask/core/pull/5473))
+  - This is needed since some Snaps might decrypt their state which needs the `KeyringController` to be unlocked.
+
+## [0.7.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^26.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- **BREAKING:** Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+
+## [0.6.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency to `^25.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+- Bump `@metamask/keyring-internal-api` from `^4.0.3` to `^5.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+
 ## [0.5.0]
 
 ### Changed
@@ -67,7 +108,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5133](https://github.com/MetaMask/core/pull/5133)), ([#5177](https://github.com/MetaMask/core/pull/5177))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.9.0...HEAD
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.8.0...@metamask/multichain-transactions-controller@0.9.0
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.7.2...@metamask/multichain-transactions-controller@0.8.0
+[0.7.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.7.1...@metamask/multichain-transactions-controller@0.7.2
+[0.7.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.7.0...@metamask/multichain-transactions-controller@0.7.1
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.6.0...@metamask/multichain-transactions-controller@0.7.0
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.5.0...@metamask/multichain-transactions-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.4.0...@metamask/multichain-transactions-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.3.0...@metamask/multichain-transactions-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-transactions-controller@0.2.0...@metamask/multichain-transactions-controller@0.3.0
