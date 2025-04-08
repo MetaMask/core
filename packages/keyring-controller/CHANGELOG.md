@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.2]
+
 ### Uncategorized
 
 - chore: add comment to `useCachedKey` condition ([#5605](https://github.com/MetaMask/core.git/pull/5605))
@@ -742,7 +744,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@21.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@21.0.2...HEAD
+[21.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@21.0.1...@metamask/keyring-controller@21.0.2
 [21.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@21.0.0...@metamask/keyring-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@20.0.0...@metamask/keyring-controller@21.0.0
 [20.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@19.2.2...@metamask/keyring-controller@20.0.0
