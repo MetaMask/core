@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The cached encryption key is ignored when the vault needs to upgrade its encryption parameters ([#5601](https://github.com/MetaMask/core/pull/5601))
+
 ## [21.0.1]
 
 ### Fixed
