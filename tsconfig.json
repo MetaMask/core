@@ -46,6 +46,7 @@
     { "path": "./packages/rate-limit-controller" },
     { "path": "./packages/remote-feature-flag-controller" },
     { "path": "./packages/sample-controllers" },
+    { "path": "./packages/seedless-onboarding-controller" },
     { "path": "./packages/selected-network-controller" },
     { "path": "./packages/signature-controller" },
     { "path": "./packages/token-search-discovery-controller" },
