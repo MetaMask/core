@@ -7,6 +7,14 @@ import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { isWalletScope, parseScopeString } from '../scope/types';
 
+/*
+ *
+ *
+ * EVM SPECIFIC GETTERS AND SETTERS
+ *
+ *
+ */
+
 /**
  * Gets the Ethereum (EIP155 namespaced) chainIDs from internal scopes.
  *
@@ -146,77 +154,19 @@ export const setPermittedEthChainIds = (
   return updatedCaveatValue;
 };
 
-/**
- * Adds a chainID to the optional scopes if it is not already present
- * in either the pre-existing required or optional scopes.
+/*
  *
- * @param caip25CaveatValue - The CAIP-25 caveat value to add the chainID to.
- * @param chainId - The chainID to add.
- * @returns The updated CAIP-25 caveat value with the added chainID.
- */
-export const addScopeToCaip25CaveatValue = (
-  caip25CaveatValue: Caip25CaveatValue,
-  chainId: CaipChainId,
-): Caip25CaveatValue => {
-  if (
-    caip25CaveatValue.requiredScopes[chainId] ||
-    caip25CaveatValue.optionalScopes[chainId]
-  ) {
-    return caip25CaveatValue;
-  }
-
-  return {
-    ...caip25CaveatValue,
-    optionalScopes: {
-      ...caip25CaveatValue.optionalScopes,
-      [chainId]: {
-        accounts: [],
-      },
-    },
-  };
-};
-
-/**
- * Sets the permitted CAIP-2 chainIDs for the required and optional scopes.
  *
- * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted CAIP-2 chainIDs for.
- * @param chainIds - The CAIP-2 chainIDs to set as permitted.
- * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.
+ * GENERALIZED GETTERS AND SETTERS
+ *
+ *
  */
-export const setCaipChainIdsInCaip25CaveatValue = (
-  caip25CaveatValue: Caip25CaveatValue,
-  chainIds: CaipChainId[],
-): Caip25CaveatValue => {
-  const chainIdSet = new Set(chainIds);
-  const result: Caip25CaveatValue = {
-    requiredScopes: {},
-    optionalScopes: {},
-    sessionProperties: caip25CaveatValue.sessionProperties,
-    isMultichainOrigin: caip25CaveatValue.isMultichainOrigin,
-  };
 
-  for (const [key, value] of Object.entries(caip25CaveatValue.requiredScopes)) {
-    const scopeString = key as keyof typeof caip25CaveatValue.requiredScopes;
-    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
-      result.requiredScopes[scopeString] = value;
-    }
-  }
-
-  for (const [key, value] of Object.entries(caip25CaveatValue.optionalScopes)) {
-    const scopeString = key as keyof typeof caip25CaveatValue.optionalScopes;
-    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
-      result.optionalScopes[scopeString] = value;
-    }
-  }
-
-  for (const chainId of chainIds) {
-    if (!result.requiredScopes[chainId] && !result.optionalScopes[chainId]) {
-      result.optionalScopes[chainId] = { accounts: [] };
-    }
-  }
-
-  return result;
-};
+/*
+ *
+ * GETTERS
+ *
+ */
 
 /**
  * Gets all scopes from a CAIP-25 caveat value
@@ -307,3 +257,81 @@ export function getAllScopesFromPermission(caip25Permission: {
 
   return getAllScopesFromCaip25CaveatValue(caip25Caveat.value);
 }
+
+/*
+ *
+ * SETTERS
+ *
+ */
+
+/**
+ * Adds a chainID to the optional scopes if it is not already present
+ * in either the pre-existing required or optional scopes.
+ *
+ * @param caip25CaveatValue - The CAIP-25 caveat value to add the chainID to.
+ * @param chainId - The chainID to add.
+ * @returns The updated CAIP-25 caveat value with the added chainID.
+ */
+export const addCaipChainIdInCaip25CaveatValue = (
+  caip25CaveatValue: Caip25CaveatValue,
+  chainId: CaipChainId,
+): Caip25CaveatValue => {
+  if (
+    caip25CaveatValue.requiredScopes[chainId] ||
+    caip25CaveatValue.optionalScopes[chainId]
+  ) {
+    return caip25CaveatValue;
+  }
+
+  return {
+    ...caip25CaveatValue,
+    optionalScopes: {
+      ...caip25CaveatValue.optionalScopes,
+      [chainId]: {
+        accounts: [],
+      },
+    },
+  };
+};
+
+/**
+ * Sets the permitted CAIP-2 chainIDs for the required and optional scopes.
+ *
+ * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted CAIP-2 chainIDs for.
+ * @param chainIds - The CAIP-2 chainIDs to set as permitted.
+ * @returns The updated CAIP-25 caveat value with the permitted CAIP-2 chainIDs.
+ */
+export const overwriteCaipChainIdsInCaip25CaveatValue = (
+  caip25CaveatValue: Caip25CaveatValue,
+  chainIds: CaipChainId[],
+): Caip25CaveatValue => {
+  const chainIdSet = new Set(chainIds);
+  const result: Caip25CaveatValue = {
+    requiredScopes: {},
+    optionalScopes: {},
+    sessionProperties: caip25CaveatValue.sessionProperties,
+    isMultichainOrigin: caip25CaveatValue.isMultichainOrigin,
+  };
+
+  for (const [key, value] of Object.entries(caip25CaveatValue.requiredScopes)) {
+    const scopeString = key as keyof typeof caip25CaveatValue.requiredScopes;
+    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
+      result.requiredScopes[scopeString] = value;
+    }
+  }
+
+  for (const [key, value] of Object.entries(caip25CaveatValue.optionalScopes)) {
+    const scopeString = key as keyof typeof caip25CaveatValue.optionalScopes;
+    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
+      result.optionalScopes[scopeString] = value;
+    }
+  }
+
+  for (const chainId of chainIds) {
+    if (!result.requiredScopes[chainId] && !result.optionalScopes[chainId]) {
+      result.optionalScopes[chainId] = { accounts: [] };
+    }
+  }
+
+  return result;
+};
