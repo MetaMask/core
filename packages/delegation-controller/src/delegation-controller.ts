@@ -1,14 +1,20 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { isAddressEqual } from 'viem';
 
-import { type Delegation, getDelegationHashOffchain } from './sdk';
+import {
+  type Delegation,
+  getDelegationHashOffchain,
+  ROOT_AUTHORITY,
+} from './sdk';
 import type {
   Address,
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
   DelegationFilter,
+  Hex,
 } from './types';
 import { createTypedMessageParams } from './utils';
 
@@ -102,76 +108,131 @@ export class DelegationController extends BaseController<
   /**
    * Stores a delegation in storage.
    *
-   * @param delegation - The delegation to store.
+   * @param entry - The delegation entry to store.
    */
-  store(delegation: Delegation) {
-    const hash = getDelegationHashOffchain(delegation);
+  store(entry: DelegationEntry) {
+    const hash = getDelegationHashOffchain(entry.data);
     this.update((state) => {
-      state.delegations[hash] = {
-        data: delegation,
-        meta: {
-          label: '',
-          // TODO: Obtain this from `NetworkController:getSelectedChainId` once
-          // available.
-          // Ref: https://github.com/MetaMask/metamask-extension/issues/31150
-          chainId: 11155111,
-        },
-      };
+      state.delegations[hash] = entry;
     });
   }
 
   /**
-   * Retrieves the delegation entry for a given delegation hash.
+   * Lists delegation entries.
    *
-   * @param filter - The filter to use to retrieve the delegation entry.
+   * @param filter - The filter to use to list the delegation entries.
    * @returns A list of delegation entries that match the filter.
    */
-  retrieve(filter: DelegationFilter) {
-    if ('hash' in filter) {
-      const delegation = this.state.delegations[filter.hash];
-      if (!delegation) {
-        return [];
-      }
-      return [delegation];
-    }
+  list(filter?: DelegationFilter) {
+    const account = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+    const requester = account.address as Address;
 
     let list: DelegationEntry[] = Object.values(this.state.delegations);
 
-    if ('delegator' in filter && 'delegate' in filter) {
-      list = list.filter(
-        (entry) =>
-          entry.data.delegator === filter.delegator &&
-          entry.data.delegate === filter.delegate,
+    if (filter?.from) {
+      list = list.filter((entry) =>
+        isAddressEqual(entry.data.delegator, filter.from as Address),
       );
-    } else if ('delegator' in filter) {
-      list = list.filter((entry) => entry.data.delegator === filter.delegator);
-    } else if ('delegate' in filter) {
-      list = list.filter((entry) => entry.data.delegate === filter.delegate);
     }
 
-    if (filter.label) {
-      list = list.filter((entry) => entry.meta.label === filter.label);
+    if (
+      !filter?.from ||
+      (filter?.from && !isAddressEqual(filter.from, requester))
+    ) {
+      list = list.filter((entry) =>
+        isAddressEqual(entry.data.delegate, requester),
+      );
+    }
+
+    if (filter?.chainId) {
+      list = list.filter((entry) => entry.chainId === filter.chainId);
+    }
+
+    if (filter?.tags) {
+      list = list.filter((entry) =>
+        entry.tags.some((tag) => filter.tags?.includes(tag)),
+      );
     }
 
     return list;
   }
 
   /**
-   * Deletes delegation entries from storage.
+   * Retrieves the delegation entry for a given delegation hash.
    *
-   * @param filter - The filter to use to delete the delegation entries.
-   * @returns A list of delegation entries that were deleted.
+   * @param hash - The hash of the delegation to retrieve.
+   * @returns The delegation entry, or null if not found.
    */
-  delete(filter: DelegationFilter): DelegationEntry[] {
-    const list = this.retrieve(filter);
-    const deleted: DelegationEntry[] = [];
-    list.forEach((entry) => {
-      const hash = getDelegationHashOffchain(entry.data);
-      deleted.push(entry);
-      this.update((state) => {
-        delete state.delegations[hash];
+  retrieve(hash: Hex) {
+    return this.state.delegations[hash] ?? null;
+  }
+
+  /**
+   * Retrieves a delegation chain from a delegation hash.
+   *
+   * @param hash - The hash of the delegation to retrieve.
+   * @returns The delegation chain, or null if not found.
+   */
+  chain(hash: Hex) {
+    const chain: DelegationEntry[] = [];
+
+    const entry = this.retrieve(hash);
+    if (!entry) {
+      return null;
+    }
+    chain.push(entry);
+
+    for (let _hash = entry.data.authority; _hash !== ROOT_AUTHORITY; ) {
+      const parent = this.retrieve(_hash);
+      if (!parent) {
+        throw new Error('Invalid delegation chain');
+      }
+      chain.push(parent);
+      _hash = parent.data.authority;
+    }
+
+    return chain;
+  }
+
+  /**
+   * Deletes a delegation entrie from storage, along with any other entries
+   * that are redelegated from it.
+   *
+   * @param hash - The hash of the delegation to delete.
+   * @returns The number of entries deleted.
+   */
+  delete(hash: Hex): number {
+    const root = this.retrieve(hash);
+    if (!root) {
+      return 0;
+    }
+
+    const list = Object.values(this.state.delegations);
+
+    let count = 0;
+    const nextHashes: Hex[] = [hash];
+
+    while (nextHashes.length > 0) {
+      const nextHash = nextHashes.pop();
+      if (nextHash === undefined) {
+        // this should never happen
+        continue;
+      }
+
+      list.forEach((entry) => {
+        if (entry.data.authority === nextHash) {
+          nextHashes.push(entry.data.authority);
+        }
       });
-    });
-    return deleted;
+
+      this.update((state) => {
+        delete state.delegations[nextHash];
+      });
+      count += 1;
+    }
+
+    return count;
   }
 }

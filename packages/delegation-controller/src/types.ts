@@ -15,36 +15,18 @@ import type { Delegation } from './sdk';
 
 export type { Address, Hex } from 'viem';
 
-export type DelegationMetadata = {
-  chainId: number;
-  label: string;
-};
-
 export type DelegationEntry = {
+  tags: string[];
+  chainId: number;
   data: Delegation;
-  meta: DelegationMetadata;
+  meta?: string;
 };
 
-export type FilterByHash = {
-  hash: Hex;
+export type DelegationFilter = {
+  chainId?: number;
+  tags?: string[];
+  from?: Address;
 };
-
-export type FilterByDelegator = {
-  delegator: Address;
-  delegate?: Address;
-  label?: string;
-};
-
-export type FilterByDelegate = {
-  delegate: Address;
-  delegator?: Address;
-  label?: string;
-};
-
-export type DelegationFilter =
-  | FilterByHash
-  | FilterByDelegator
-  | FilterByDelegate;
 
 export type DelegationControllerState = {
   delegations: {
