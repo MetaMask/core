@@ -202,8 +202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     files, and these files were only CommonJS-compatible, and the `exports`
     field in `package.json` linked to these files. This is an anti-pattern and
     was rightfully flagged by the
-    ["Are the Types Wrong?"](https://arethetypeswronghub.io/) tool as
-    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswronghub.io/blob/main/docs/problems/FalseCJS.md).
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
 - Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
   - Previously, the build tool we used to generate JavaScript files extracted
@@ -651,7 +651,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `cancelQRSynchronization` method ([#1387](https://github.com/MetaMask/core/pull/1387))
+- Add `cancelQRSynchronization` method ([#1387](https://github.com/MetaMask/core.git/pull/1387))
 
 ## [5.0.0]
 
@@ -705,7 +705,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:**: Bump eth-keyring-controller version to @metamask/eth-keyring-controller v10 ([#1072](https://github.com/MetaMask/core/pull/1072))
+- **BREAKING:**: Bump eth-keyring-controller version to @metamask/eth-keyring-controller v10 ([#1072](https://github.com/MetaMask/core.git/pull/1072))
   - `exportSeedPhrase` now returns a `Uint8Array` typed SRP (can be converted to a string using [this approach](https://github.com/MetaMask/eth-hd-keyring/blob/53b0570559595ba5b3fd8c80e900d847cd6dee3d/index.js#L40)). It was previously a Buffer.
   - The HD keyring included with the keyring controller has been updated from v4 to v6. See [the `eth-hd-keyring` changelog entries for v5 and v6](https://github.com/MetaMask/eth-hd-keyring/blob/main/CHANGELOG.md#600) for further details on breaking changes.
 
