@@ -10,7 +10,7 @@ describe('@metamask/chain-agnostic-permission', () => {
         "getPermittedEthChainIds",
         "addPermittedEthChainId",
         "setPermittedEthChainIds",
-        "setPermittedChainIds",
+        "setCaipChainIdsInCaip25CaveatValue",
         "addScopeToCaip25CaveatValue",
         "getInternalScopesObject",
         "getSessionScopes",
