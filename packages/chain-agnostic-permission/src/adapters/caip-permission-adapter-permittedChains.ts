@@ -159,12 +159,13 @@ const filterChainScopesObjectByChainId = (
   scopesObject: InternalScopesObject,
   chainIds: CaipChainId[],
 ): InternalScopesObject => {
+  const chainIdSet = new Set(chainIds);
   const updatedScopesObject: InternalScopesObject = {};
 
   Object.entries(scopesObject).forEach(([key, scopeObject]) => {
     // Cast needed because index type is returned as `string` by `Object.entries`
     const scopeString = key as keyof typeof scopesObject;
-    if (isWalletScope(scopeString) || chainIds.includes(scopeString)) {
+    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
       updatedScopesObject[scopeString] = scopeObject;
     }
   });
@@ -185,8 +186,8 @@ export const addScopeToCaip25CaveatValue = (
   chainId: CaipChainId,
 ): Caip25CaveatValue => {
   if (
-    Object.keys(caip25CaveatValue.requiredScopes).includes(chainId) ||
-    Object.keys(caip25CaveatValue.optionalScopes).includes(chainId)
+    caip25CaveatValue.requiredScopes[chainId] ||
+    caip25CaveatValue.optionalScopes[chainId]
   ) {
     return caip25CaveatValue;
   }
@@ -213,26 +214,38 @@ export const setPermittedChainIds = (
   caip25CaveatValue: Caip25CaveatValue,
   chainIds: CaipChainId[],
 ): Caip25CaveatValue => {
-  let updatedCaveatValue: Caip25CaveatValue = {
-    ...caip25CaveatValue,
-    requiredScopes: filterChainScopesObjectByChainId(
-      caip25CaveatValue.requiredScopes,
-      chainIds,
-    ),
-    optionalScopes: filterChainScopesObjectByChainId(
-      caip25CaveatValue.optionalScopes,
-      chainIds,
-    ),
+  const chainIdSet = new Set(chainIds);
+  const result: Caip25CaveatValue = {
+    requiredScopes: {},
+    optionalScopes: {},
+    sessionProperties: caip25CaveatValue.sessionProperties,
+    isMultichainOrigin: caip25CaveatValue.isMultichainOrigin,
   };
 
-  chainIds.forEach((chainId) => {
-    updatedCaveatValue = addScopeToCaip25CaveatValue(
-      updatedCaveatValue,
-      chainId,
-    );
-  });
+  // Process required scopes
+  for (const [key, value] of Object.entries(caip25CaveatValue.requiredScopes)) {
+    const scopeString = key as keyof typeof caip25CaveatValue.requiredScopes;
+    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
+      result.requiredScopes[scopeString] = value;
+    }
+  }
 
-  return updatedCaveatValue;
+  // Process optional scopes
+  for (const [key, value] of Object.entries(caip25CaveatValue.optionalScopes)) {
+    const scopeString = key as keyof typeof caip25CaveatValue.optionalScopes;
+    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
+      result.optionalScopes[scopeString] = value;
+    }
+  }
+
+  // Ensure all chainIds are added to optional scopes if not already present
+  for (const chainId of chainIds) {
+    if (!result.requiredScopes[chainId] && !result.optionalScopes[chainId]) {
+      result.optionalScopes[chainId] = { accounts: [] };
+    }
+  }
+
+  return result;
 };
 
 /**
@@ -244,13 +257,15 @@ export const setPermittedChainIds = (
 export function getAllScopesFromScopesObjects(
   scopesObjects: InternalScopesObject[],
 ): InternalScopeString[] {
-  return Array.from(
-    new Set(
-      scopesObjects.flatMap((scopeObject) => {
-        return Object.keys(scopeObject);
-      }),
-    ),
-  ) as InternalScopeString[];
+  const scopeSet = new Set<InternalScopeString>();
+
+  for (const scopeObject of scopesObjects) {
+    for (const key of Object.keys(scopeObject)) {
+      scopeSet.add(key as InternalScopeString);
+    }
+  }
+
+  return Array.from(scopeSet);
 }
 
 /**
@@ -264,12 +279,10 @@ export function getAllScopesFromScopesObjects(
 export function getAllScopesFromCaip25CaveatValue(
   caip25CaveatValue: Caip25CaveatValue,
 ): CaipChainId[] {
-  const requiredScopes = Object.keys(caip25CaveatValue.requiredScopes);
-  const optionalScopes = Object.keys(caip25CaveatValue.optionalScopes);
-
-  return Array.from(
-    new Set([...requiredScopes, ...optionalScopes]),
-  ) as CaipChainId[];
+  return getAllScopesFromScopesObjects([
+    caip25CaveatValue.requiredScopes,
+    caip25CaveatValue.optionalScopes,
+  ]) as CaipChainId[];
 }
 
 /**
@@ -284,16 +297,18 @@ export function getAllNonWalletNamespacesFromCaip25CaveatValue(
   caip25CaveatValue: Caip25CaveatValue,
 ): CaipNamespace[] {
   const allScopes = getAllScopesFromCaip25CaveatValue(caip25CaveatValue);
-  const allNamespaces = allScopes.reduce((acc, scope) => {
+  const namespaceSet = new Set<CaipNamespace>();
+  
+  for (const scope of allScopes) {
     const { namespace, reference } = parseScopeString(scope);
     if (namespace === KnownCaipNamespace.Wallet) {
       if (reference) {
-        acc.add(reference);
+        namespaceSet.add(reference);
       }
     } else if (namespace) {
-      acc.add(namespace);
+      namespaceSet.add(namespace);
     }
-    return acc;
-  }, new Set<CaipNamespace>());
-  return Array.from(allNamespaces);
+  }
+  
+  return Array.from(namespaceSet);
 }
