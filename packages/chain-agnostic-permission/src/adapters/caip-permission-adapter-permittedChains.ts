@@ -6,7 +6,6 @@ import { Caip25CaveatType, type Caip25CaveatValue } from '../caip25Permission';
 import { getUniqueArrayItems } from '../scope/transform';
 import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { isWalletScope, parseScopeString } from '../scope/types';
-import { getCaip25CaveatFromPermission } from 'src/temp-utils';
 
 /**
  * Gets the Ethereum (EIP155 namespaced) chainIDs from internal scopes.
