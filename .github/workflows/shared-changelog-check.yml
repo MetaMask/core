@@ -6,9 +6,6 @@ on:
       base-branch:
         required: false
         type: string
-      event-type:
-        description: 'The event type'
-        type: string
       head-ref:
         required: true
         type: string
