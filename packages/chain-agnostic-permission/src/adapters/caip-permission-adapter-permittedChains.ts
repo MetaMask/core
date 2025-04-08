@@ -148,33 +148,6 @@ export const setPermittedEthChainIds = (
 };
 
 /**
- * Filters the scopes object to only include:
- * - Scopes without references (e.g. "wallet:")
- * - CAIP-2 ChainId scopes for the given chainIDs
- *
- * @param scopesObject - The scopes object to filter.
- * @param chainIds - The CAIP-2 chainIDs to filter for.
- * @returns The filtered scopes object.
- */
-const filterChainScopesObjectByChainId = (
-  scopesObject: InternalScopesObject,
-  chainIds: CaipChainId[],
-): InternalScopesObject => {
-  const chainIdSet = new Set(chainIds);
-  const updatedScopesObject: InternalScopesObject = {};
-
-  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
-    // Cast needed because index type is returned as `string` by `Object.entries`
-    const scopeString = key as keyof typeof scopesObject;
-    if (isWalletScope(scopeString) || chainIdSet.has(scopeString)) {
-      updatedScopesObject[scopeString] = scopeObject;
-    }
-  });
-
-  return updatedScopesObject;
-};
-
-/**
  * Adds a chainID to the optional scopes if it is not already present
  * in either the pre-existing required or optional scopes.
  *

@@ -22,7 +22,7 @@ import {
 } from '@metamask/utils';
 import { cloneDeep, isEqual } from 'lodash';
 
-import { setCaipAccountIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-accounts';
+import { setNonSCACaipAccountIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-accounts';
 import { setCaipChainIdsInCaip25CaveatValue } from './adapters/caip-permission-adapter-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
 import {
@@ -517,7 +517,7 @@ export const generateCaip25Caveat = (
     chainIds,
   );
 
-  const caveatValueWithAccounts = setCaipAccountIdsInCaip25CaveatValue(
+  const caveatValueWithAccounts = setNonSCACaipAccountIdsInCaip25CaveatValue(
     caveatValueWithChains,
     accountAddresses,
   );

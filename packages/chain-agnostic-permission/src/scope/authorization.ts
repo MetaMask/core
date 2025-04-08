@@ -1,4 +1,4 @@
-import type { CaipChainId, Hex, Json } from '@metamask/utils';
+import type { CaipChainId, CaipNamespace, Hex, Json } from '@metamask/utils';
 
 import { bucketScopesBySupport } from './filter';
 import { normalizeAndMergeScopes } from './transform';
@@ -8,7 +8,7 @@ import type {
   NormalizedScopesObject,
 } from './types';
 import { getValidScopes } from './validation';
-
+import { parseScopeString } from './types';
 /**
  * Represents the parameters of a [CAIP-25](https://chainagnostic.org/CAIPs/caip-25) request.
  */
@@ -103,3 +103,20 @@ export const bucketScopes = (
 
   return { supportedScopes, supportableScopes, unsupportableScopes };
 };
+
+/**
+ * Checks if a given CAIP namespace is present in a NormalizedScopesObject.
+ *
+ * @param scopesObject - The NormalizedScopesObject to check.
+ * @param caipNamespace - The CAIP namespace to check for.
+ * @returns true if the CAIP namespace is present in the NormalizedScopesObject, false otherwise.
+ */
+export function isNamespaceInScopesObject(
+  scopesObject: NormalizedScopesObject,
+  caipNamespace: CaipNamespace,
+) {
+  return Object.keys(scopesObject).some((scope) => {
+    const { namespace } = parseScopeString(scope);
+    return namespace === caipNamespace;
+  });
+}

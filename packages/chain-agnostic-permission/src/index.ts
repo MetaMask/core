@@ -1,7 +1,9 @@
 export {
   getEthAccounts,
   setEthAccounts,
-  setPermittedAccounts,
+  setNonSCACaipAccountIdsInCaip25CaveatValue,
+  getCaipAccountIdsFromScopesObject,
+  getCaipAccountIdsFromScopesObjects,
 } from './adapters/caip-permission-adapter-accounts';
 export {
   getPermittedEthChainIds,
@@ -9,6 +11,9 @@ export {
   setPermittedEthChainIds,
   setCaipChainIdsInCaip25CaveatValue,
   addScopeToCaip25CaveatValue,
+  getAllNonWalletNamespacesFromCaip25CaveatValue,
+  getAllScopesFromPermission,
+  getAllScopesFromCaip25CaveatValue,
 } from './adapters/caip-permission-adapter-permittedChains';
 export {
   getInternalScopesObject,
@@ -20,6 +25,7 @@ export type { Caip25Authorization } from './scope/authorization';
 export {
   validateAndNormalizeScopes,
   bucketScopes,
+  isNamespaceInScopesObject,
 } from './scope/authorization';
 export { assertIsInternalScopeString } from './scope/assert';
 export {
@@ -28,6 +34,7 @@ export {
   KnownWalletNamespaceRpcMethods,
   KnownNotifications,
   KnownWalletScopeString,
+  isKnownSessionPropertyValue,
 } from './scope/constants';
 export { getSupportedScopeObjects } from './scope/filter';
 export type {
