@@ -12,10 +12,10 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   CaipAccountId,
   CaipAssetId,
+  CaipAssetType,
   CaipChainId,
   Hex,
 } from '@metamask/utils';
-import type { BigNumber } from 'bignumber.js';
 
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
@@ -68,13 +68,15 @@ export type SolanaFees = {
   solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
 };
 
+type StringifiedDecimalNumber = string;
+
 /**
  * valueInCurrency values are calculated based on the user's selected currency
  */
 export type TokenAmountValues = {
-  amount: BigNumber;
-  valueInCurrency: BigNumber | null;
-  usd: BigNumber | null;
+  amount: StringifiedDecimalNumber;
+  valueInCurrency: StringifiedDecimalNumber | null;
+  usd: StringifiedDecimalNumber | null;
 };
 
 /**
@@ -87,7 +89,7 @@ export type QuoteMetadata = {
   toTokenAmount: TokenAmountValues;
   adjustedReturn: Omit<TokenAmountValues, 'amount'>; // destTokenAmount - totalNetworkFee
   sentAmount: TokenAmountValues; // srcTokenAmount + metabridgeFee
-  swapRate: BigNumber; // destTokenAmount / sentAmount
+  swapRate: StringifiedDecimalNumber; // destTokenAmount / sentAmount
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
 
@@ -328,6 +330,7 @@ export type BridgeControllerState = {
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
   quotesRefreshCount: number;
+  assetExchangeRates: Record<CaipAssetType, Omit<TokenAmountValues, 'amount'>>; // EVM and multichain assets that are not indexed by the assets controllers
 };
 
 export type BridgeControllerAction<

@@ -1,3 +1,5 @@
+import { BigNumber } from '@ethersproject/bignumber';
+
 import type { GenericQuoteRequest } from '../types';
 
 export const isValidQuoteRequest = (
@@ -44,3 +46,12 @@ export const isValidQuoteRequest = (
       : true)
   );
 };
+
+/**
+ * Generates a pseudo-unique string that identifies each quote by aggregator, bridge, and steps
+ *
+ * @param quote - The quote to generate an identifier for
+ * @returns A pseudo-unique string that identifies the quote
+ */
+export const getQuoteIdentifier = (quote: QuoteResponse['quote']) =>
+  `${quote.bridgeId}-${quote.bridges[0]}-${quote.steps.length}`;

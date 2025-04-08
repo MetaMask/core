@@ -79,6 +79,10 @@ const metadata: StateMetadata<BridgeControllerState> = {
     persist: false,
     anonymous: false,
   },
+  assetExchangeRates: {
+    persist: false,
+    anonymous: false,
+  },
 };
 
 const RESET_STATE_ABORT_MESSAGE = 'Reset controller state';
