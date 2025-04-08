@@ -3,7 +3,6 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
-import log from 'loglevel';
 
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
