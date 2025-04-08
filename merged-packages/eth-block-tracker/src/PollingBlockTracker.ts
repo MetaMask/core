@@ -319,17 +319,11 @@ export class PollingBlockTracker
 
     try {
       await this._updateLatestBlock();
-    } catch (err: any) {
-      const newErr = new Error(
-        `PollingBlockTracker - encountered an error while attempting to update latest block:\n${
-          err.stack ?? err
-        }`,
-      );
-
+    } catch (error: unknown) {
       try {
-        this.emit('error', newErr);
-      } catch (emitErr) {
-        console.error(newErr);
+        this.emit('error', error);
+      } catch {
+        console.error(`Error updating latest block: ${getErrorMessage(error)}`);
       }
 
       interval = this._retryTimeout;

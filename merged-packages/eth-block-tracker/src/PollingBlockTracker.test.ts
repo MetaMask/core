@@ -371,7 +371,8 @@ describe('PollingBlockTracker', () => {
     });
 
     METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-      it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws an Error`, async () => {
+      it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws`, async () => {
+        const thrownError = new Error('boom');
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
         await withPollingBlockTracker(
@@ -381,7 +382,7 @@ describe('PollingBlockTracker', () => {
                 {
                   methodName: 'eth_blockNumber',
                   implementation: () => {
-                    throw new Error('boom');
+                    throw thrownError;
                   },
                 },
                 {
@@ -392,60 +393,20 @@ describe('PollingBlockTracker', () => {
             },
           },
           async ({ blockTracker }) => {
-            const promiseForCaughtError = new Promise<any>((resolve) => {
-              blockTracker[methodToAddListener]('error', resolve);
-            });
+            const errorListener = jest.fn();
+            blockTracker[methodToAddListener]('error', errorListener);
 
             const promiseForLatestBlock = blockTracker.getLatestBlock();
 
-            const caughtError = await promiseForCaughtError;
-            expect(caughtError.message).toMatch(
-              /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
-            );
             const latestBlock = await promiseForLatestBlock;
-            expect(latestBlock).toBe('0x0');
-          },
-        );
-      });
-
-      it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws a string`, async () => {
-        recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-        await withPollingBlockTracker(
-          {
-            provider: {
-              stubs: [
-                {
-                  methodName: 'eth_blockNumber',
-                  implementation: () => {
-                    throw 'boom';
-                  },
-                },
-                {
-                  methodName: 'eth_blockNumber',
-                  result: '0x0',
-                },
-              ],
-            },
-          },
-          async ({ blockTracker }) => {
-            const promiseForCaughtError = new Promise<any>((resolve) => {
-              blockTracker[methodToAddListener]('error', resolve);
-            });
-
-            const promiseForLatestBlock = blockTracker.getLatestBlock();
-
-            const caughtError = await promiseForCaughtError;
-            expect(caughtError.message).toMatch(
-              /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-            );
-            const latestBlock = await promiseForLatestBlock;
+            expect(errorListener).toHaveBeenCalledWith(thrownError);
             expect(latestBlock).toBe('0x0');
           },
         );
       });
 
       it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider rejects with an error`, async () => {
+        const thrownError = new Error('boom');
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
         await withPollingBlockTracker(
@@ -454,7 +415,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  error: new Error('boom'),
+                  error: thrownError,
                 },
                 {
                   methodName: 'eth_blockNumber',
@@ -464,24 +425,21 @@ describe('PollingBlockTracker', () => {
             },
           },
           async ({ blockTracker }) => {
-            const promiseForCaughtError = new Promise<any>((resolve) => {
-              blockTracker[methodToAddListener]('error', resolve);
-            });
+            const errorListener = jest.fn();
+            blockTracker[methodToAddListener]('error', errorListener);
 
             const promiseForLatestBlock = blockTracker.getLatestBlock();
 
-            const caughtError = await promiseForCaughtError;
-            expect(caughtError.message).toMatch(
-              /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-            );
             const latestBlock = await promiseForLatestBlock;
+            expect(errorListener).toHaveBeenCalledWith(thrownError);
             expect(latestBlock).toBe('0x0');
           },
         );
       });
     });
 
-    it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
+    it('should log an error if, while making a request for the latest block number, the provider throws and there is nothing listening to "error"', async () => {
+      const thrownError = new Error('boom');
       recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
       await withPollingBlockTracker(
@@ -491,7 +449,7 @@ describe('PollingBlockTracker', () => {
               {
                 methodName: 'eth_blockNumber',
                 implementation: () => {
-                  throw new Error('boom');
+                  throw thrownError;
                 },
               },
             ],
@@ -506,17 +464,14 @@ describe('PollingBlockTracker', () => {
           });
 
           expect(console.error).toHaveBeenCalledWith(
-            expect.objectContaining({
-              message: expect.stringMatching(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-              ),
-            }),
+            'Error updating latest block: boom',
           );
         },
       );
     });
 
-    it('should log an error the request for the latest block number throws a string and there is nothing listening to "error"', async () => {
+    it('should log an error if, while requesting the latest block number, the provider rejects and there is nothing listening to "error"', async () => {
+      const thrownError = new Error('boom');
       recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
       await withPollingBlockTracker(
@@ -525,9 +480,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                implementation: () => {
-                  throw 'boom';
-                },
+                error: thrownError,
               },
             ],
           },
@@ -541,44 +494,7 @@ describe('PollingBlockTracker', () => {
           });
 
           expect(console.error).toHaveBeenCalledWith(
-            expect.objectContaining({
-              message: expect.stringMatching(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-              ),
-            }),
-          );
-        },
-      );
-    });
-
-    it('should log an error if, while requesting the latest block number, the provider rejects with an error and there is nothing listening to "error"', async () => {
-      recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-      await withPollingBlockTracker(
-        {
-          provider: {
-            stubs: [
-              {
-                methodName: 'eth_blockNumber',
-                error: new Error('boom'),
-              },
-            ],
-          },
-        },
-        async ({ blockTracker }) => {
-          jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-          blockTracker.getLatestBlock();
-          await new Promise((resolve) => {
-            blockTracker.on('_waitingForNextIteration', resolve);
-          });
-
-          expect(console.error).toHaveBeenCalledWith(
-            expect.objectContaining({
-              message: expect.stringMatching(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-              ),
-            }),
+            'Error updating latest block: boom',
           );
         },
       );
@@ -1217,7 +1133,8 @@ describe('PollingBlockTracker', () => {
           );
         });
 
-        it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider throws an Error`, async () => {
+        it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider throws`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -1227,7 +1144,7 @@ describe('PollingBlockTracker', () => {
                   {
                     methodName: 'eth_blockNumber',
                     implementation: () => {
-                      throw new Error('boom');
+                      throw thrownError;
                     },
                   },
                   {
@@ -1238,64 +1155,22 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
                 blockTracker[methodToAddListener]('latest', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
-              );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toBe('0x0');
-            },
-          );
-        });
-
-        it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider throws a string`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    implementation: () => {
-                      throw 'boom';
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    result: '0x0',
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForLatestBlock = new Promise((resolve) => {
-                blockTracker[methodToAddListener]('latest', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-              );
-              const latestBlock = await promiseForLatestBlock;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(latestBlock).toBe('0x0');
             },
           );
         });
 
         it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider rejects with an error`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -1304,7 +1179,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: new Error('boom'),
+                    error: thrownError,
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -1314,25 +1189,22 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
                 blockTracker[methodToAddListener]('latest', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-              );
               const latestBlock = await promiseForLatestBlock;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(latestBlock).toBe('0x0');
             },
           );
         });
 
-        it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
+        it('should log an error if, while making a request for the latest block number, the provider throws and there is nothing listening to "error"', async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -1342,7 +1214,7 @@ describe('PollingBlockTracker', () => {
                   {
                     methodName: 'eth_blockNumber',
                     implementation: () => {
-                      throw new Error('boom');
+                      throw thrownError;
                     },
                   },
                   {
@@ -1361,56 +1233,14 @@ describe('PollingBlockTracker', () => {
               });
 
               expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                  ),
-                }),
-              );
-            },
-          );
-        });
-
-        it('should log an error if, while making a request for the latest block number, the provider throws a string and there is nothing listening to "error"', async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    implementation: () => {
-                      throw 'boom';
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    result: '0x0',
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-              blockTracker[methodToAddListener]('latest', EMPTY_FUNCTION);
-              await new Promise((resolve) => {
-                blockTracker.on('_waitingForNextIteration', resolve);
-              });
-
-              expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-                  ),
-                }),
+                'Error updating latest block: boom',
               );
             },
           );
         });
 
         it('should log an error if, while making the request for the latest block number, the provider rejects with an error and there is nothing listening to "error"', async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -1419,7 +1249,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: new Error('boom'),
+                    error: thrownError,
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -1437,11 +1267,7 @@ describe('PollingBlockTracker', () => {
               });
 
               expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                  ),
-                }),
+                'Error updating latest block: boom',
               );
             },
           );
@@ -1849,7 +1675,8 @@ describe('PollingBlockTracker', () => {
           );
         });
 
-        it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider throws an Error`, async () => {
+        it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider throws`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -1859,7 +1686,7 @@ describe('PollingBlockTracker', () => {
                   {
                     methodName: 'eth_blockNumber',
                     implementation: () => {
-                      throw new Error('boom');
+                      throw thrownError;
                     },
                   },
                   {
@@ -1870,64 +1697,22 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
                 blockTracker[methodToAddListener]('sync', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
-              );
               const sync = await promiseForSync;
-              expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
-            },
-          );
-        });
-
-        it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider throws a string`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    implementation: () => {
-                      throw 'boom';
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    result: '0x0',
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForSync = new Promise((resolve) => {
-                blockTracker[methodToAddListener]('sync', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-              );
-              const sync = await promiseForSync;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
             },
           );
         });
 
         it(`should emit the "error" event and should not kill the block tracker if, while making the request for the latest block number, the provider rejects with an error`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -1946,25 +1731,22 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
                 blockTracker[methodToAddListener]('sync', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-              );
               const sync = await promiseForSync;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
             },
           );
         });
 
-        it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
+        it('should log an error if, while making a request for the latest block number, the provider throws and there is nothing listening to "error"', async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -1974,7 +1756,7 @@ describe('PollingBlockTracker', () => {
                   {
                     methodName: 'eth_blockNumber',
                     implementation: () => {
-                      throw new Error('boom');
+                      throw thrownError;
                     },
                   },
                 ],
@@ -1989,52 +1771,14 @@ describe('PollingBlockTracker', () => {
               });
 
               expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                  ),
-                }),
-              );
-            },
-          );
-        });
-
-        it('should log an error if, while making a request for the latest block number, the provider throws a string and there is nothing listening to "error"', async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    implementation: () => {
-                      throw 'boom';
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-              blockTracker[methodToAddListener]('sync', EMPTY_FUNCTION);
-              await new Promise((resolve) => {
-                blockTracker.on('_waitingForNextIteration', resolve);
-              });
-
-              expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-                  ),
-                }),
+                'Error updating latest block: boom',
               );
             },
           );
         });
 
         it('should log an error if, while making the request for the latest block number, the provider rejects with an error and there is nothing listening to "error"', async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -2043,7 +1787,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: new Error('boom'),
+                    error: thrownError,
                   },
                 ],
               },
@@ -2057,11 +1801,7 @@ describe('PollingBlockTracker', () => {
               });
 
               expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                  ),
-                }),
+                'Error updating latest block: boom',
               );
             },
           );
@@ -2666,7 +2406,8 @@ describe('PollingBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws an Error`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -2676,7 +2417,7 @@ describe('PollingBlockTracker', () => {
                   {
                     methodName: 'eth_blockNumber',
                     implementation: () => {
-                      throw new Error('boom');
+                      throw thrownError;
                     },
                   },
                   {
@@ -2687,64 +2428,22 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
                 blockTracker.once('latest', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
-              );
               const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toBe('0x0');
-            },
-          );
-        });
-
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws a string`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    implementation: () => {
-                      throw 'boom';
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    result: '0x0',
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForLatestBlock = new Promise((resolve) => {
-                blockTracker.once('latest', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-              );
-              const latestBlock = await promiseForLatestBlock;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(latestBlock).toBe('0x0');
             },
           );
         });
 
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider rejects with an error`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -2753,7 +2452,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: new Error('boom'),
+                    error: thrownError,
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -2763,26 +2462,23 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForLatestBlock = new Promise((resolve) => {
                 blockTracker.once('latest', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-              );
               const latestBlock = await promiseForLatestBlock;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(latestBlock).toBe('0x0');
             },
           );
         });
       });
 
-      it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
+      it('should log an error if, while making a request for the latest block number, the provider throws and there is nothing listening to "error"', async () => {
+        const thrownError = new Error('boom');
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
         await withPollingBlockTracker(
@@ -2792,7 +2488,7 @@ describe('PollingBlockTracker', () => {
                 {
                   methodName: 'eth_blockNumber',
                   implementation: () => {
-                    throw new Error('boom');
+                    throw thrownError;
                   },
                 },
                 {
@@ -2811,56 +2507,14 @@ describe('PollingBlockTracker', () => {
             });
 
             expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                ),
-              }),
-            );
-          },
-        );
-      });
-
-      it('should log an error if, while making a request for the latest block number, the provider throws a string and there is nothing listening to "error"', async () => {
-        recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-        await withPollingBlockTracker(
-          {
-            provider: {
-              stubs: [
-                {
-                  methodName: 'eth_blockNumber',
-                  implementation: () => {
-                    throw 'boom';
-                  },
-                },
-                {
-                  methodName: 'eth_blockNumber',
-                  result: '0x0',
-                },
-              ],
-            },
-          },
-          async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-            blockTracker.once('latest', EMPTY_FUNCTION);
-            await new Promise((resolve) => {
-              blockTracker.on('_waitingForNextIteration', resolve);
-            });
-
-            expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-                ),
-              }),
+              'Error updating latest block: boom',
             );
           },
         );
       });
 
       it('should log an error if, while making the request for the latest block number, the provider rejects with an error and there is nothing listening to "error"', async () => {
+        const thrownError = new Error('boom');
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
         await withPollingBlockTracker(
@@ -2869,7 +2523,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  error: new Error('boom'),
+                  error: thrownError,
                 },
                 {
                   methodName: 'eth_blockNumber',
@@ -2887,11 +2541,7 @@ describe('PollingBlockTracker', () => {
             });
 
             expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                ),
-              }),
+              'Error updating latest block: boom',
             );
           },
         );
@@ -2953,7 +2603,8 @@ describe('PollingBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws an Error`, async () => {
+        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -2963,7 +2614,7 @@ describe('PollingBlockTracker', () => {
                   {
                     methodName: 'eth_blockNumber',
                     implementation: () => {
-                      throw new Error('boom');
+                      throw thrownError;
                     },
                   },
                   {
@@ -2974,64 +2625,22 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
                 blockTracker.once('sync', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom\n/u,
-              );
               const sync = await promiseForSync;
-              expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
-            },
-          );
-        });
-
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws a string`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    implementation: () => {
-                      throw 'boom';
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    result: '0x0',
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForSync = new Promise((resolve) => {
-                blockTracker.once('sync', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-              );
-              const sync = await promiseForSync;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
             },
           );
         });
 
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider rejects with an error`, async () => {
+          const thrownError = new Error('boom');
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
           await withPollingBlockTracker(
@@ -3040,7 +2649,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    error: new Error('boom'),
+                    error: thrownError,
                   },
                   {
                     methodName: 'eth_blockNumber',
@@ -3050,26 +2659,23 @@ describe('PollingBlockTracker', () => {
               },
             },
             async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
+              const errorListener = jest.fn();
+              blockTracker[methodToAddListener]('error', errorListener);
 
               const promiseForSync = new Promise((resolve) => {
                 blockTracker.once('sync', resolve);
               });
 
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-              );
               const sync = await promiseForSync;
+              expect(errorListener).toHaveBeenCalledWith(thrownError);
               expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
             },
           );
         });
       });
 
-      it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
+      it('should log an error if, while making a request for the latest block number, the provider throws and there is nothing listening to "error"', async () => {
+        const thrownError = new Error('boom');
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
         await withPollingBlockTracker(
@@ -3079,7 +2685,7 @@ describe('PollingBlockTracker', () => {
                 {
                   methodName: 'eth_blockNumber',
                   implementation: () => {
-                    throw new Error('boom');
+                    throw thrownError;
                   },
                 },
                 {
@@ -3098,56 +2704,14 @@ describe('PollingBlockTracker', () => {
             });
 
             expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                ),
-              }),
-            );
-          },
-        );
-      });
-
-      it('should log an error if, while making a request for the latest block number, the provider throws a string and there is nothing listening to "error"', async () => {
-        recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-        await withPollingBlockTracker(
-          {
-            provider: {
-              stubs: [
-                {
-                  methodName: 'eth_blockNumber',
-                  implementation: () => {
-                    throw 'boom';
-                  },
-                },
-                {
-                  methodName: 'eth_blockNumber',
-                  result: '0x0',
-                },
-              ],
-            },
-          },
-          async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-            blockTracker.once('sync', EMPTY_FUNCTION);
-            await new Promise((resolve) => {
-              blockTracker.on('_waitingForNextIteration', resolve);
-            });
-
-            expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nboom/u,
-                ),
-              }),
+              'Error updating latest block: boom',
             );
           },
         );
       });
 
       it('should log an error if, while making the request for the latest block number, the provider rejects with an error and there is nothing listening to "error"', async () => {
+        const thrownError = new Error('boom');
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
         await withPollingBlockTracker(
@@ -3156,7 +2720,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  error: new Error('boom'),
+                  error: thrownError,
                 },
                 {
                   methodName: 'eth_blockNumber',
@@ -3174,11 +2738,7 @@ describe('PollingBlockTracker', () => {
             });
 
             expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: boom/u,
-                ),
-              }),
+              'Error updating latest block: boom',
             );
           },
         );
