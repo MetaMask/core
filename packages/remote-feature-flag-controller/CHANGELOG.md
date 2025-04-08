@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 319.0.0 ([#5439](https://github.com/MetaMask/core.git/pull/5439))
+- Revert "Release 319.0.0 (#5437)" ([#5437](https://github.com/MetaMask/core.git/pull/5437))
+- Release 319.0.0 ([#5437](https://github.com/MetaMask/core.git/pull/5437))
+
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
@@ -77,11 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of the RemoteFeatureFlagController. ([#4931](https://github.com/MetaMask/core/pull/4931))
   - This controller manages the retrieval and caching of remote feature flags. It fetches feature flags from a remote API, caches them, and provides methods to access and manage these flags. The controller ensures that feature flags are refreshed based on a specified interval and handles cases where the controller is disabled or the network is unavailable.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.6.0...HEAD
-[1.6.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.5.0...@metamask/remote-feature-flag-controller@1.6.0
-[1.5.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.4.0...@metamask/remote-feature-flag-controller@1.5.0
-[1.4.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.3.0...@metamask/remote-feature-flag-controller@1.4.0
-[1.3.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.2.0...@metamask/remote-feature-flag-controller@1.3.0
-[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.1.0...@metamask/remote-feature-flag-controller@1.2.0
-[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/remote-feature-flag-controller@1.0.0...@metamask/remote-feature-flag-controller@1.1.0
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/remote-feature-flag-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/remote-feature-flag-controller@1.6.0...HEAD
+[1.6.0]: https://github.com/MetaMask/core.git/compare/@metamask/remote-feature-flag-controller@1.5.0...@metamask/remote-feature-flag-controller@1.6.0
+[1.5.0]: https://github.com/MetaMask/core.git/compare/@metamask/remote-feature-flag-controller@1.4.0...@metamask/remote-feature-flag-controller@1.5.0
+[1.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/remote-feature-flag-controller@1.3.0...@metamask/remote-feature-flag-controller@1.4.0
+[1.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/remote-feature-flag-controller@1.2.0...@metamask/remote-feature-flag-controller@1.3.0
+[1.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/remote-feature-flag-controller@1.1.0...@metamask/remote-feature-flag-controller@1.2.0
+[1.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/remote-feature-flag-controller@1.0.0...@metamask/remote-feature-flag-controller@1.1.0
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/remote-feature-flag-controller@1.0.0
