@@ -9,6 +9,7 @@ import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from './constants';
+import type { MultichainNetworkServiceController } from './MultichainNetworkServiceController';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
@@ -19,7 +20,6 @@ import {
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
-  fetchNetworkActivityByAccounts,
   formatNetworkActivityResponse,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
@@ -36,15 +36,19 @@ export class MultichainNetworkController extends BaseController<
   MultichainNetworkControllerState,
   MultichainNetworkControllerMessenger
 > {
+  readonly #networkService: MultichainNetworkServiceController;
+
   constructor({
     messenger,
     state,
+    networkService,
   }: {
     messenger: MultichainNetworkControllerMessenger;
     state?: Omit<
       Partial<MultichainNetworkControllerState>,
       'multichainNetworkConfigurationsByChainId'
     >;
+    networkService: MultichainNetworkServiceController;
   }) {
     super({
       messenger,
@@ -56,6 +60,7 @@ export class MultichainNetworkController extends BaseController<
       },
     });
 
+    this.#networkService = networkService;
     this.#subscribeToMessageEvents();
     this.#registerMessageHandlers();
   }
@@ -126,17 +131,6 @@ export class MultichainNetworkController extends BaseController<
   }
 
   /**
-   * Lists all multichain accounts from the AccountsController.
-   *
-   * @returns Array of internal accounts
-   */
-  #listMultichainAccounts(): InternalAccount[] {
-    return this.messagingSystem.call(
-      'AccountsController:listMultichainAccounts',
-    );
-  }
-
-  /**
    * Sets the active network.
    *
    * @param id - The non-EVM Caip chain ID or EVM client ID of the network to set active.
@@ -164,18 +158,20 @@ export class MultichainNetworkController extends BaseController<
    */
   async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
     try {
-      const accounts = this.#listMultichainAccounts();
+      const accounts = this.messagingSystem.call(
+        'AccountsController:listMultichainAccounts',
+      );
       if (!accounts || accounts.length === 0) {
         return this.state.networksWithTransactionActivity;
       }
 
-      const formattedAccounts = accounts.map((account) => {
+      const formattedAccounts = accounts.map((account: InternalAccount) => {
         const chainType = getChainTypeFromAccountType(account.type);
         return formatCaipAccountId(account.address, chainType);
       });
 
       const activeNetworks =
-        await fetchNetworkActivityByAccounts(formattedAccounts);
+        await this.#networkService.fetchNetworkActivity(formattedAccounts);
       const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
 
       this.update((state) => {

@@ -1,4 +1,5 @@
 export { MultichainNetworkController } from './MultichainNetworkController';
+export { MultichainNetworkServiceController } from './MultichainNetworkServiceController';
 export {
   getDefaultMultichainNetworkControllerState,
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
@@ -19,6 +20,7 @@ export type {
   MultichainNetworkControllerEvents,
   MultichainNetworkControllerMessenger,
   ActiveNetworksByAddress,
+  ActiveNetworksResponse,
 } from './types';
 export {
   checkIfSupportedCaipChainId,

@@ -21,6 +21,7 @@ import log from 'loglevel';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
+import { MultichainNetworkServiceController } from './MultichainNetworkServiceController';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -28,7 +29,6 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from './types';
-import { fetchNetworkActivityByAccounts } from './utils';
 import { createMockInternalAccount } from '../tests/utils';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -38,8 +38,18 @@ jest.mock('@metamask/controller-utils', () => ({
 
 jest.mock('./utils', () => ({
   ...jest.requireActual('./utils'),
-  fetchNetworkActivityByAccounts: jest.fn(),
 }));
+
+/**
+ * Mock implementation of MultichainNetworkServiceController for testing.
+ */
+class MockMultichainNetworkService extends MultichainNetworkServiceController {
+  constructor() {
+    super({ fetch: jest.fn() });
+  }
+
+  fetchNetworkActivity = jest.fn();
+}
 
 /**
  * Setup a test controller instance.
@@ -51,6 +61,7 @@ jest.mock('./utils', () => ({
  * @param args.removeNetwork - Mock for NetworkController:removeNetwork action.
  * @param args.getSelectedChainId - Mock for NetworkController:getSelectedChainId action.
  * @param args.findNetworkClientIdByChainId - Mock for NetworkController:findNetworkClientIdByChainId action.
+ * @param args.mockNetworkService - Mock for MultichainNetworkServiceController.
  * @returns A collection of test controllers and mocks.
  */
 function setupController({
@@ -60,6 +71,7 @@ function setupController({
   removeNetwork,
   getSelectedChainId,
   findNetworkClientIdByChainId,
+  mockNetworkService,
 }: {
   options?: Partial<
     ConstructorParameters<typeof MultichainNetworkController>[0]
@@ -84,6 +96,7 @@ function setupController({
     ReturnType<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>,
     Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
   >;
+  mockNetworkService?: MultichainNetworkServiceController;
 } = {}) {
   const messenger = new Messenger<
     MultichainNetworkControllerAllowedActions,
@@ -167,7 +180,11 @@ function setupController({
     allowedEvents: ['AccountsController:selectedAccountChange'],
   });
 
-  // Default state to use Solana network with EVM as active network
+  const defaultNetworkService = new MockMultichainNetworkService();
+  defaultNetworkService.fetchNetworkActivity.mockResolvedValue({
+    activeNetworks: [],
+  });
+
   const controller = new MultichainNetworkController({
     messenger: options.messenger || controllerMessenger,
     state: {
@@ -175,6 +192,7 @@ function setupController({
       isEvmSelected: true,
       ...options.state,
     },
+    networkService: mockNetworkService || defaultNetworkService,
   });
 
   const triggerSelectedAccountChange = (accountType: KeyringAccountType) => {
@@ -205,6 +223,7 @@ function setupController({
     mockFindNetworkClientIdByChainId,
     publishSpy,
     triggerSelectedAccountChange,
+    networkService: mockNetworkService || defaultNetworkService,
   };
 }
 
@@ -563,8 +582,18 @@ describe('MultichainNetworkController', () => {
     });
 
     it('should fetch and format network activity for EVM accounts', async () => {
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'eip155:137:0x1234567890123456789012345678901234567890',
+        ],
+      };
+
+      const mockNetworkService = new MockMultichainNetworkService();
+      mockNetworkService.fetchNetworkActivity.mockResolvedValue(mockResponse);
+
       const { controller, messenger } = setupController({
-        getSelectedChainId: jest.fn().mockReturnValue('0x1'),
+        mockNetworkService,
       });
 
       messenger.registerActionHandler(
@@ -577,19 +606,13 @@ describe('MultichainNetworkController', () => {
         ],
       );
 
-      const mockResponse = {
-        activeNetworks: [
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'eip155:137:0x1234567890123456789012345678901234567890',
-        ],
-      };
-
-      (fetchNetworkActivityByAccounts as jest.Mock).mockResolvedValueOnce(
-        mockResponse,
-      );
-
       const result =
         await controller.getNetworksWithTransactionActivityByAccounts();
+
+      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
+        'eip155:0:0x1234567890123456789012345678901234567890',
+      ]);
+
       expect(result).toStrictEqual({
         '0x1234567890123456789012345678901234567890': {
           namespace: 'eip155',
@@ -599,8 +622,18 @@ describe('MultichainNetworkController', () => {
     });
 
     it('should handle mixed EVM and non-EVM accounts correctly', async () => {
+      const mockResponse = {
+        activeNetworks: [
+          'eip155:1:0x1234567890123456789012345678901234567890',
+          'solana:1:solana123',
+        ],
+      };
+
+      const mockNetworkService = new MockMultichainNetworkService();
+      mockNetworkService.fetchNetworkActivity.mockResolvedValue(mockResponse);
+
       const { controller, messenger } = setupController({
-        getSelectedChainId: jest.fn().mockReturnValue('0x1'),
+        mockNetworkService,
       });
 
       messenger.registerActionHandler(
@@ -617,22 +650,21 @@ describe('MultichainNetworkController', () => {
         ],
       );
 
-      const mockResponse = {
-        activeNetworks: [
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'solana:1:0x1234567890123456789012345678901234567890',
-        ],
-      };
-
-      (fetchNetworkActivityByAccounts as jest.Mock).mockResolvedValueOnce(
-        mockResponse,
-      );
-
       const result =
         await controller.getNetworksWithTransactionActivityByAccounts();
+
+      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
+        'eip155:0:0x1234567890123456789012345678901234567890',
+        'solana:1:solana123',
+      ]);
+
       expect(result).toStrictEqual({
         '0x1234567890123456789012345678901234567890': {
           namespace: KnownCaipNamespace.Eip155,
+          activeChains: ['1'],
+        },
+        solana123: {
+          namespace: KnownCaipNamespace.Solana,
           activeChains: ['1'],
         },
       });
@@ -646,12 +678,18 @@ describe('MultichainNetworkController', () => {
         },
       };
 
+      const mockNetworkService = new MockMultichainNetworkService();
+      mockNetworkService.fetchNetworkActivity.mockRejectedValue(
+        new Error('Network error'),
+      );
+
       const { controller, messenger } = setupController({
         options: {
           state: {
             networksWithTransactionActivity: mockCachedNetworks,
           },
         },
+        mockNetworkService,
       });
 
       messenger.registerActionHandler(
@@ -664,20 +702,14 @@ describe('MultichainNetworkController', () => {
         ],
       );
 
-      await controller.getNetworksWithTransactionActivityByAccounts();
-
-      (fetchNetworkActivityByAccounts as jest.Mock).mockRejectedValueOnce(
-        new Error('Network error'),
-      );
-
       const result =
         await controller.getNetworksWithTransactionActivityByAccounts();
 
+      expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalled();
       expect(log.error).toHaveBeenCalledWith(
         'Error fetching networks with activity by accounts',
         expect.any(Error),
       );
-
       expect(result).toStrictEqual(mockCachedNetworks);
     });
   });
