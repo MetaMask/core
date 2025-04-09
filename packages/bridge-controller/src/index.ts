@@ -91,3 +91,5 @@ export {
   formatChainIdToHex,
   formatAddressToCaipReference,
 } from './utils/caip-formatters';
+
+export { selectBridgeQuotesWithMetadata } from './selectors';

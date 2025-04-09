@@ -37,15 +37,6 @@ type ExchangeRateControllers = MultichainAssetsRatesControllerState &
 
 type BridgeAppState = BridgeControllerState & ExchangeRateControllers;
 
-// const getEvmTokenExchangeRates = (state: TokenRatesControllerState) =>
-//   state.marketData;
-// const getEVMNativeExchangeRates = (state: CurrencyRateState) =>
-//   state.currencyRates;
-// const getMultichainAssetExchangeRate = (
-//   conversionRates: MultichainAssetsRatesControllerState['conversionRates'],
-//   assetId: CaipAssetType,
-// ) => conversionRates[assetId];
-
 const selectAssetExchangeRate = (
   exchangeRateSources: ExchangeRateControllers,
   chainId?: GenericQuoteRequest['srcChainId'],
@@ -100,3 +91,73 @@ const selectAssetExchangeRate = (
 export const selectIsAssetExchangeRateInState = (
   ...i: Parameters<typeof selectAssetExchangeRate>
 ) => selectAssetExchangeRate(...i) !== null;
+
+/**
+ * Selects cross-chain swap quotes including their metadata
+ *
+ * @param state - The state of the bridge controller and its dependency controllers
+ * @returns The quotes with metadata
+ *
+ * @example usage in the extension
+ * ```ts
+ * const quotes = useSelector(state => selectBridgeQuotesWithMetadata(state.metamask));
+ * ```
+ */
+export const selectBridgeQuotesWithMetadata = createSelector(
+  (state: BridgeAppState) => state.quotes,
+  (state: BridgeAppState) =>
+    selectAssetExchangeRate(
+      state,
+      state.quoteRequest.srcChainId,
+      state.quoteRequest.srcTokenAddress,
+    ),
+  (state: BridgeAppState) =>
+    selectAssetExchangeRate(
+      state,
+      state.quoteRequest.destChainId,
+      state.quoteRequest.destTokenAddress,
+    ),
+  (state: BridgeAppState) =>
+    selectAssetExchangeRate(
+      state,
+      state.quoteRequest.srcChainId,
+      state.quoteRequest.srcChainId
+        ? getNativeAssetForChainId(state.quoteRequest.srcChainId).assetId
+        : undefined,
+    ),
+  (
+    quotes,
+    srcTokenExchangeRate,
+    destTokenExchangeRate,
+    nativeExchangeRate,
+  ): (QuoteResponse & QuoteMetadata)[] => {
+    const newQuotes = quotes.map((quote: QuoteResponse & SolanaFees) => {
+      const sentAmount = calcSentAmount(
+        quote.quote,
+        srcTokenExchangeRate?.valueInCurrency ?? null,
+        srcTokenExchangeRate?.usd ?? null,
+      );
+      const toTokenAmount = calcToAmount(
+        quote.quote,
+        destTokenExchangeRate?.valueInCurrency ?? null,
+        destTokenExchangeRate?.usd ?? null,
+      );
+      const relayerFee = calcRelayerFee(
+        quote,
+        nativeExchangeRate?.valueInCurrency ?? null,
+        nativeExchangeRate?.usd ?? null,
+      );
+
+      return {
+        ...quote,
+        // QuoteMetadata fields
+        sentAmount,
+        toTokenAmount,
+        swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
+      };
+    });
+
+    // TODO rm type cast once everything is ported
+    return newQuotes as (QuoteResponse & QuoteMetadata)[];
+  },
+);
