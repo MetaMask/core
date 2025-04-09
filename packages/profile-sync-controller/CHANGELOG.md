@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Update origin used for `SnapController:handleRequest` ([#5616](https://github.com/MetaMask/core/pull/5616))
+
 ## [11.0.0]
 
 ### Changed
