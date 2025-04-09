@@ -47,7 +47,7 @@ export const validateBridgeStatusResponse = (data: unknown) => {
     status: enums(Object.values(StatusTypes)),
     srcChain: SrcChainStatusSchema,
     destChain: optional(DestChainStatusSchema),
-    bridge: optional(enums(Object.values(BridgeId))),
+    bridge: optional(string()),
     isExpectedToken: optional(boolean()),
     isUnrecognizedRouterAddress: optional(boolean()),
     refuel: optional(RefuelStatusResponseSchema),
