@@ -78,7 +78,7 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
 /**
  * The domain for multichain accounts API.
  */
-export const MULTICHAIN_ACCOUNTS_DOMAIN = 'https://accounts.api.cx.metamask.io';
+export const MULTICHAIN_ACCOUNTS_BASE_URL = 'https://accounts.api.cx.metamask.io';
 
 /**
  * The client header for the multichain accounts API.
