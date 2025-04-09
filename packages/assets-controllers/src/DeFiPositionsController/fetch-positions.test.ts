@@ -40,7 +40,7 @@ describe('fetchPositions', () => {
 
   it('handles successful responses', async () => {
     const scope = nock(DEFAULT_DEFI_POSITIONS_API_URL)
-      .get(`/${mockAccountAddress}`)
+      .get(`/positions/${mockAccountAddress}`)
       .reply(200, mockResponse);
 
     const fetchPositions = buildPositionFetcher();
@@ -68,7 +68,7 @@ describe('fetchPositions', () => {
 
   it('handles non-200 responses', async () => {
     const scope = nock(DEFAULT_DEFI_POSITIONS_API_URL)
-      .get(`/${mockAccountAddress}`)
+      .get(`/positions/${mockAccountAddress}`)
       .reply(400);
 
     const fetchPositions = buildPositionFetcher();
