@@ -125,10 +125,6 @@ export class DeFiPositionsController extends BaseController<
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
       async (selectedAccount) => {
-        console.log(
-          'DEFI POSITIONS CONTROLLER EVENT: AccountsController:selectedAccountChange',
-          selectedAccount.address,
-        );
         await this.#updateAccountPositions(selectedAccount.address);
       },
     );
@@ -138,10 +134,6 @@ export class DeFiPositionsController extends BaseController<
       async () => {
         const { address } = this.messagingSystem.call(
           'AccountsController:getSelectedAccount',
-        );
-        console.log(
-          'DEFI POSITIONS CONTROLLER EVENT: NetworkController:stateChange',
-          address,
         );
 
         if (address) {
