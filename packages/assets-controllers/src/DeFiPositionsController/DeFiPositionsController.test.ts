@@ -166,20 +166,6 @@ describe('DeFiPositionsController', () => {
   });
 
   it('fetches positions for all accounts when polling', async () => {
-    const mockData = {
-      [OWNER_ACCOUNTS[0].address]: {
-        fetchData: 'mock-fetch-data-1',
-        groupedData: 'mock-grouped-data-1',
-      },
-      [OWNER_ACCOUNTS[1].address]: {
-        fetchData: 'mock-fetch-data-2',
-        groupedData: 'mock-grouped-data-2',
-      },
-    } as unknown as Record<
-      string,
-      { fetchData: DefiPositionResponse[]; groupedData: GroupedPositions }
-    >;
-
     const mockFetchPositions = jest.fn().mockImplementation((address) => {
       if (OWNER_ACCOUNTS[0].address === address) {
         return 'mock-fetch-data-1';
