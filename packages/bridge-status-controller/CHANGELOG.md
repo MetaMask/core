@@ -9,13 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.0.1]
 
-### Uncategorized
+### Fixed
 
-- Chore/bridge status bridge type ([#5623](https://github.com/MetaMask/core/pull/5623))
-
-### Added
-
-- Add `relay` to the list of bridges in the `BridgeId` enum ([#5636](https://github.com/MetaMask/core/pull/5623))
+- Add `relay` to the list of bridges in the `BridgeId` enum to prevent validation from failing ([#5636](https://github.com/MetaMask/core/pull/5636))
 
 ## [12.0.0]
 
