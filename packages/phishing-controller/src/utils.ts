@@ -1,12 +1,9 @@
 import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 
-import type { Hotlist, PhishingListState } from './PhishingController';
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
-import type {
-  PhishingDetectorList,
-  PhishingDetectorConfiguration,
-} from './PhishingDetector';
+import type { DataResultWrapper, Hotlist, ListNames, PhishingListState } from './PhishingController';
+import type { PhishingDetectorConfiguration, PhishingDetectorList } from './PhishingDetector';
 
 const DEFAULT_TOLERANCE = 3;
 
@@ -55,18 +52,22 @@ const splitStringByPeriod = <Start extends string, End extends string>(
  */
 export const applyDiffs = (
   listState: PhishingListState,
-  hotlistDiffs: Hotlist,
+  hotlistDiffs: DataResultWrapper<Hotlist> | Hotlist,
   listKey: ListKeys,
   recentlyAddedC2Domains: string[] = [],
   recentlyRemovedC2Domains: string[] = [],
 ): PhishingListState => {
   // filter to remove diffs that were added before the lastUpdate time.
   // filter to remove diffs that aren't applicable to the specified list (by listKey).
-  const diffsToApply = hotlistDiffs?.filter(
+  const diffsArray = hotlistDiffs && typeof hotlistDiffs === 'object' && 'data' in hotlistDiffs
+    ? hotlistDiffs.data
+    : hotlistDiffs || [];
+  
+  const diffsToApply = diffsArray.filter(
     ({ timestamp, targetList }) =>
       timestamp > listState.lastUpdated &&
       splitStringByPeriod(targetList)[0] === listKey,
-  ) || [];
+  );
 
   // the reason behind using latestDiffTimestamp as the lastUpdated time
   // is so that we can benefit server-side from memoization due to end client's

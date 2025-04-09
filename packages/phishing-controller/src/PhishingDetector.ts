@@ -147,7 +147,7 @@ export class PhishingDetector {
     let domain;
     try {
       domain = new URL(url).hostname;
-    } catch (error) {
+    } catch {
       return {
         result: false,
         type: PhishingDetectorResultType.All,

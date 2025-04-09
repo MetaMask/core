@@ -1,6 +1,7 @@
 import * as sinon from 'sinon';
 
-import { ListKeys, ListNames, Hotlist } from './PhishingController';
+import type { Hotlist } from './PhishingController';
+import { ListKeys, ListNames } from './PhishingController';
 import {
   applyDiffs,
   domainToParts,

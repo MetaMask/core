@@ -101,7 +101,7 @@ export type C2DomainBlocklistResponse = {
  */
 export type PhishingStalelist = {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   eth_phishing_detect_config: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
@@ -150,7 +150,7 @@ export type HotlistDiff = {
 
 /**
  * @type DataResultWrapper<T>
- * 
+ *
  * Type for API responses that wrap data (e.g. hotlist)
  * @property data - The wrapped data
  * @property lastFetchedAt - Timestamp of the last fetch request
@@ -215,6 +215,7 @@ const metadata = {
 
 /**
  * Get a default empty state for the controller.
+ *
  * @returns The default empty state.
  */
 const getDefaultState = (): PhishingControllerState => {
@@ -691,7 +692,7 @@ export class PhishingController extends BaseController<
     }
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
+
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
@@ -748,14 +749,15 @@ export class PhishingController extends BaseController<
     if (!hotlistResponse?.data) {
       return;
     }
-    
+
     // Only update the success timestamp when we have a successful response
     this.update((draftState) => {
       // We've already verified that hotlistResponse is not null above
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      draftState.hotlistLastSuccessTimestamp = hotlistResponse!.lastFetchedAt || draftState.hotlistLastSuccessTimestamp;
+      draftState.hotlistLastSuccessTimestamp =
+        hotlistResponse?.lastFetchedAt ||
+        draftState.hotlistLastSuccessTimestamp;
     });
-    
+
     const hotlist = hotlistResponse.data;
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
@@ -809,7 +811,7 @@ export class PhishingController extends BaseController<
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,
-        [], // Empty hotlist diffs array as this only updates c2DomainBlocklist
+        { data: [] }, // Proper Hotlist object with empty data array
         phishingListNameKeyMap[phishingList.name],
         recentlyAddedC2Domains,
         recentlyRemovedC2Domains,
