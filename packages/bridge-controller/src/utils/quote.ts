@@ -90,10 +90,10 @@ export const calcSolanaTotalNetworkFee = (
   return {
     amount: solanaFeeInNative.toString(),
     valueInCurrency: exchangeRate
-      ? solanaFeeInNative.mul(exchangeRate).toString()
+      ? solanaFeeInNative.times(exchangeRate).toString()
       : null,
     usd: usdExchangeRate
-      ? solanaFeeInNative.mul(usdExchangeRate).toString()
+      ? solanaFeeInNative.times(usdExchangeRate).toString()
       : null,
   };
 };
@@ -109,10 +109,10 @@ export const calcToAmount = (
   return {
     amount: normalizedDestAmount.toString(),
     valueInCurrency: exchangeRate
-      ? normalizedDestAmount.mul(exchangeRate).toString()
+      ? normalizedDestAmount.times(exchangeRate).toString()
       : null,
     usd: usdExchangeRate
-      ? normalizedDestAmount.mul(usdExchangeRate).toString()
+      ? normalizedDestAmount.times(usdExchangeRate).toString()
       : null,
   };
 };
@@ -122,16 +122,16 @@ export const calcSentAmount = (
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const normalizedSentAmount = calcTokenAmount(
-    new BigNumber(srcTokenAmount).add(feeData.metabridge.amount),
+    new BigNumber(srcTokenAmount).plus(feeData.metabridge.amount),
     srcAsset.decimals,
   );
   return {
     amount: normalizedSentAmount.toString(),
     valueInCurrency: exchangeRate
-      ? normalizedSentAmount.mul(exchangeRate).toString()
+      ? normalizedSentAmount.times(exchangeRate).toString()
       : null,
     usd: usdExchangeRate
-      ? normalizedSentAmount.mul(usdExchangeRate).toString()
+      ? normalizedSentAmount.times(usdExchangeRate).toString()
       : null,
   };
 };
@@ -145,9 +145,9 @@ export const calcRelayerFee = (
     trade,
   } = bridgeQuote;
   const relayerFeeInNative = calcTokenAmount(
-    new BigNumber(trade.value, 16).sub(
+    new BigNumber(trade.value, 16).minus(
       isNativeAddress(srcAsset.address)
-        ? new BigNumber(srcTokenAmount).add(feeData.metabridge.amount)
+        ? new BigNumber(srcTokenAmount).plus(feeData.metabridge.amount)
         : 0,
     ),
     18,
@@ -155,10 +155,10 @@ export const calcRelayerFee = (
   return {
     amount: relayerFeeInNative.toString(),
     valueInCurrency: exchangeRate
-      ? relayerFeeInNative.mul(exchangeRate).toString()
+      ? relayerFeeInNative.times(exchangeRate).toString()
       : null,
     usd: usdExchangeRate
-      ? relayerFeeInNative.mul(usdExchangeRate).toString()
+      ? relayerFeeInNative.times(usdExchangeRate).toString()
       : null,
   };
 };
@@ -180,22 +180,22 @@ const calcTotalGasFee = ({
 
   const totalGasLimitInDec = new BigNumber(
     trade.gasLimit?.toString() ?? '0',
-  ).add(approval?.gasLimit?.toString() ?? '0');
+  ).plus(approval?.gasLimit?.toString() ?? '0');
 
-  const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).add(
+  const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
     priorityFeePerGasInDecGwei,
   );
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .mul(totalFeePerGasInDecGwei)
-    .add(l1GasFeesInDecGWei);
-  const gasFeesInDecEth = gasFeesInDecGwei.shift(-9);
+    .times(totalFeePerGasInDecGwei)
+    .plus(l1GasFeesInDecGWei);
+  const gasFeesInDecEth = gasFeesInDecGwei.shiftedBy(-9);
 
   const gasFeesInDisplayCurrency = nativeToDisplayCurrencyExchangeRate
-    ? gasFeesInDecEth.mul(nativeToDisplayCurrencyExchangeRate.toString())
+    ? gasFeesInDecEth.times(nativeToDisplayCurrencyExchangeRate.toString())
     : null;
   const gasFeesInUSD = nativeToUsdExchangeRate
-    ? gasFeesInDecEth.mul(nativeToUsdExchangeRate.toString())
+    ? gasFeesInDecEth.times(nativeToUsdExchangeRate.toString())
     : null;
 
   return {
@@ -251,14 +251,14 @@ export const calcTotalEstimatedNetworkFee = (
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: new BigNumber(gasFee.amount).add(relayerFee.amount).toString(),
+    amount: new BigNumber(gasFee.amount).plus(relayerFee.amount).toString(),
     valueInCurrency: gasFee.valueInCurrency
       ? new BigNumber(gasFee.valueInCurrency)
-          .add(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
     usd: gasFee.usd
-      ? new BigNumber(gasFee.usd).add(relayerFee.usd || '0').toString()
+      ? new BigNumber(gasFee.usd).plus(relayerFee.usd || '0').toString()
       : null,
   };
 };
@@ -268,14 +268,14 @@ export const calcTotalMaxNetworkFee = (
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: new BigNumber(gasFee.amountMax).add(relayerFee.amount).toString(),
+    amount: new BigNumber(gasFee.amountMax).plus(relayerFee.amount).toString(),
     valueInCurrency: gasFee.valueInCurrencyMax
       ? new BigNumber(gasFee.valueInCurrencyMax)
-          .add(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
     usd: gasFee.usdMax
-      ? new BigNumber(gasFee.usdMax).add(relayerFee.usd || '0').toString()
+      ? new BigNumber(gasFee.usdMax).plus(relayerFee.usd || '0').toString()
       : null,
   };
 };
@@ -287,13 +287,13 @@ export const calcAdjustedReturn = (
   valueInCurrency:
     toTokenAmount.valueInCurrency && totalEstimatedNetworkFee.valueInCurrency
       ? new BigNumber(toTokenAmount.valueInCurrency)
-          .sub(totalEstimatedNetworkFee.valueInCurrency)
+          .minus(totalEstimatedNetworkFee.valueInCurrency)
           .toString()
       : null,
   usd:
     toTokenAmount.usd && totalEstimatedNetworkFee.usd
       ? new BigNumber(toTokenAmount.usd)
-          .sub(totalEstimatedNetworkFee.usd)
+          .minus(totalEstimatedNetworkFee.usd)
           .toString()
       : null,
 });
@@ -308,12 +308,12 @@ export const calcCost = (
   valueInCurrency:
     adjustedReturn.valueInCurrency && sentAmount.valueInCurrency
       ? new BigNumber(sentAmount.valueInCurrency)
-          .sub(adjustedReturn.valueInCurrency)
+          .minus(adjustedReturn.valueInCurrency)
           .toString()
       : null,
   usd:
     adjustedReturn.usd && sentAmount.usd
-      ? new BigNumber(sentAmount.usd).sub(adjustedReturn.usd).toString()
+      ? new BigNumber(sentAmount.usd).minus(adjustedReturn.usd).toString()
       : null,
 });
 
