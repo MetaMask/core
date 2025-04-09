@@ -50,13 +50,13 @@ export type Balance = {
   decimals: number;
   balanceRaw: string;
   balance: number;
-  price?: number; // TODO: Confirm this is the case
+  price?: number;
   tokens?: Underlying[];
 };
 
-// TODO: Update with new API URL
+// TODO: Update with prod API URL when available
 export const DEFAULT_DEFI_POSITIONS_API_URL =
-  'https://defi-services.metamask-institutional.io/defi-data/positions';
+  'https://defiadapters.dev-api.cx.metamask.io';
 
 /**
  * Builds a function that fetches DeFi positions for a given account address
@@ -68,7 +68,9 @@ export function buildPositionFetcher(
   apiUrl: string = DEFAULT_DEFI_POSITIONS_API_URL,
 ) {
   return async (accountAddress: string): Promise<DefiPositionResponse[]> => {
-    const defiPositionsResponse = await fetch(`${apiUrl}/${accountAddress}`);
+    const defiPositionsResponse = await fetch(
+      `${apiUrl}/positions/${accountAddress}`,
+    );
 
     if (defiPositionsResponse.status !== 200) {
       throw new Error(

@@ -66,9 +66,7 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
     if (!chainData.protocols[protocolId]) {
       chainData.protocols[protocolId] = {
         protocolDetails: {
-          // TODO: Prepare better source for protocol name
           name: upperFirst(camelCase(protocolId)),
-          // TODO: Picking icon url from the first product position might not be consistent
           iconUrl,
         },
         aggregatedMarketValue: 0,

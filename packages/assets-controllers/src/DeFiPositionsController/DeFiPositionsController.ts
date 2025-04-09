@@ -144,7 +144,6 @@ export class DeFiPositionsController extends BaseController<
   }
 
   async #updateAccountPositions(accountAddress: string) {
-    // TODO: This is done to give the UI a loading effect. Probably not the best way to do this
     this.update((state) => {
       state.allDeFiPositions[accountAddress] = null;
     });
