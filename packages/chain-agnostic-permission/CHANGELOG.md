@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- export Caip25Errors from @metamask/chain-agnostic-permission package ([#5566](https://github.com/MetaMask/controllers.git/pull/5566))
-
 ### Changed
 
 - Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
@@ -52,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/chain-agnostic-permission@0.3.0...HEAD
-[0.3.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/chain-agnostic-permission@0.2.0...@metamask/chain-agnostic-permission@0.3.0
-[0.2.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/chain-agnostic-permission@0.1.0...@metamask/chain-agnostic-permission@0.2.0
-[0.1.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/chain-agnostic-permission@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.2.0...@metamask/chain-agnostic-permission@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@0.1.0...@metamask/chain-agnostic-permission@0.2.0
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chain-agnostic-permission@0.1.0

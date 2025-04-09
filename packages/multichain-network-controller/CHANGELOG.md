@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/353.0.0 ([#5612](https://github.com/MetaMask/controllers.git/pull/5612))
-- Release 347.0.0 ([#5583](https://github.com/MetaMask/controllers.git/pull/5583))
-- chore: bump accounts dependencies ([#5565](https://github.com/MetaMask/controllers.git/pull/5565))
-- feat: add `removeNetwork` to `multichain-network-controller` ([#5516](https://github.com/MetaMask/controllers.git/pull/5516))
-- Release 343.0.0 ([#5542](https://github.com/MetaMask/controllers.git/pull/5542))
-- Release 338.0.0 ([#5518](https://github.com/MetaMask/controllers.git/pull/5518))
-
 ## [0.3.0]
 
 ### Changed
@@ -51,9 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/controllers.git/compare/@metamask/multichain-network-controller@0.3.0...HEAD
-[0.3.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/multichain-network-controller@0.2.0...@metamask/multichain-network-controller@0.3.0
-[0.2.0]: https://github.com/MetaMask/controllers.git/compare/@metamask/multichain-network-controller@0.1.2...@metamask/multichain-network-controller@0.2.0
-[0.1.2]: https://github.com/MetaMask/controllers.git/compare/@metamask/multichain-network-controller@0.1.1...@metamask/multichain-network-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/controllers.git/compare/@metamask/multichain-network-controller@0.1.0...@metamask/multichain-network-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/controllers.git/releases/tag/@metamask/multichain-network-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.3.0...HEAD
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.2.0...@metamask/multichain-network-controller@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.1.2...@metamask/multichain-network-controller@0.2.0
+[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.1.1...@metamask/multichain-network-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.1.0...@metamask/multichain-network-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/multichain-network-controller@0.1.0
