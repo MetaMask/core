@@ -210,25 +210,29 @@ export class DelegationController extends BaseController<
     }
 
     const list = Object.values(this.state.delegations);
-
     let count = 0;
     const nextHashes: Hex[] = [hash];
 
     while (nextHashes.length > 0) {
-      const nextHash = nextHashes.pop();
-      if (nextHash === undefined) {
-        // this should never happen
+      const currentHash = nextHashes.pop();
+      if (currentHash === undefined) {
         continue;
       }
 
-      list.forEach((entry) => {
-        if (entry.data.authority === nextHash) {
-          nextHashes.push(entry.data.authority);
-        }
+      // Find all delegations that have this hash as their authority
+      const children = list.filter(
+        (entry) => entry.data.authority === currentHash,
+      );
+
+      // Add the hashes of all child delegations to be processed next
+      children.forEach((child) => {
+        const childHash = getDelegationHashOffchain(child.data);
+        nextHashes.push(childHash);
       });
 
+      // Delete the current delegation
       this.update((state) => {
-        delete state.delegations[nextHash];
+        delete state.delegations[currentHash];
       });
       count += 1;
     }
