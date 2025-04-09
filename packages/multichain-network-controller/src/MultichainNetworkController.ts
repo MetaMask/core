@@ -4,11 +4,11 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
+import type { AbstractMultichainNetworkService } from './AbstractMultichainNetworkService';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from './constants';
-import type { MultichainNetworkService } from './MultichainNetworkService';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
@@ -34,7 +34,7 @@ export class MultichainNetworkController extends BaseController<
   MultichainNetworkControllerState,
   MultichainNetworkControllerMessenger
 > {
-  readonly #networkService: MultichainNetworkService;
+  readonly #networkService: AbstractMultichainNetworkService;
 
   constructor({
     messenger,
@@ -46,7 +46,7 @@ export class MultichainNetworkController extends BaseController<
       Partial<MultichainNetworkControllerState>,
       'multichainNetworkConfigurationsByChainId'
     >;
-    networkService: MultichainNetworkService;
+    networkService: AbstractMultichainNetworkService;
   }) {
     super({
       messenger,

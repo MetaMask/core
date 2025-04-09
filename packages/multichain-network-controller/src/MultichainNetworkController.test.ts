@@ -17,18 +17,20 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
-import { KnownCaipNamespace } from '@metamask/utils';
+import { KnownCaipNamespace, type PublicInterface } from '@metamask/utils';
 import log from 'loglevel';
+import type { CaipAccountId } from '@metamask/utils';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
-import { MultichainNetworkService } from './MultichainNetworkService';
+import type { MultichainNetworkService } from './MultichainNetworkService';
 import {
   type AllowedActions,
   type AllowedEvents,
   type MultichainNetworkControllerAllowedActions,
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
+  type ActiveNetworksResponse,
 } from './types';
 import { createMockInternalAccount } from '../tests/utils';
 
@@ -41,15 +43,20 @@ jest.mock('./utils', () => ({
   ...jest.requireActual('./utils'),
 }));
 
-/**
- * Mock implementation of MultichainNetworkService for testing.
- */
-class MockMultichainNetworkService extends MultichainNetworkService {
-  constructor() {
-    super({ fetch: jest.fn() });
-  }
+type AbstractMultichainNetworkService =
+  PublicInterface<MultichainNetworkService>;
 
-  fetchNetworkActivity = jest.fn();
+/**
+ * Creates a mock network service for testing.
+ *
+ * @returns A mock network service that implements the MultichainNetworkService interface.
+ */
+function createMockNetworkService() {
+  return {
+    fetchNetworkActivity: jest
+      .fn()
+      .mockResolvedValue({ activeNetworks: [] } as ActiveNetworksResponse),
+  };
 }
 
 /**
@@ -97,7 +104,7 @@ function setupController({
     ReturnType<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>,
     Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
   >;
-  mockNetworkService?: MultichainNetworkService;
+  mockNetworkService?: AbstractMultichainNetworkService;
 } = {}) {
   const messenger = new Messenger<
     MultichainNetworkControllerAllowedActions,
@@ -181,10 +188,7 @@ function setupController({
     allowedEvents: ['AccountsController:selectedAccountChange'],
   });
 
-  const defaultNetworkService = new MockMultichainNetworkService();
-  defaultNetworkService.fetchNetworkActivity.mockResolvedValue({
-    activeNetworks: [],
-  });
+  const defaultNetworkService = createMockNetworkService();
 
   const controller = new MultichainNetworkController({
     messenger: options.messenger ?? controllerMessenger,
@@ -567,10 +571,6 @@ describe('MultichainNetworkController', () => {
       jest.spyOn(log, 'error').mockImplementation();
     });
 
-    afterEach(() => {
-      jest.restoreAllMocks();
-    });
-
     it('returns empty object when no accounts exist', async () => {
       const { controller, messenger } = setupController({
         getSelectedChainId: jest.fn().mockReturnValue('0x1'),
@@ -594,7 +594,7 @@ describe('MultichainNetworkController', () => {
         ],
       };
 
-      const mockNetworkService = new MockMultichainNetworkService();
+      const mockNetworkService = createMockNetworkService();
       mockNetworkService.fetchNetworkActivity.mockResolvedValue(mockResponse);
 
       const { controller, messenger } = setupController({
@@ -635,7 +635,7 @@ describe('MultichainNetworkController', () => {
         ],
       };
 
-      const mockNetworkService = new MockMultichainNetworkService();
+      const mockNetworkService = createMockNetworkService();
       mockNetworkService.fetchNetworkActivity.mockResolvedValue(mockResponse);
 
       const { controller, messenger } = setupController({
