@@ -15,7 +15,7 @@ import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
   type KeyringControllerUnlockEvent,
-  type KeyringControllerAddNewAccountAction,
+  type KeyringControllerWithKeyringAction,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -36,16 +36,7 @@ import {
   performMainNetworkSync,
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
-import {
-  batchDeleteUserStorage,
-  batchUpsertUserStorage,
-  deleteUserStorage,
-  deleteUserStorageAllFeatureEntries,
-  getUserStorage,
-  getUserStorageAllFeatureEntries,
-  upsertUserStorage,
-} from './services';
-import { createSHA256Hash } from '../../shared/encryption';
+import { Env, UserStorage } from '../../sdk';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import {
   type UserStoragePathWithFeatureAndKey,
@@ -58,7 +49,6 @@ import type {
   AuthenticationControllerGetSessionProfile,
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
-  AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
 
 const controllerName = 'UserStorageController';
@@ -192,6 +182,9 @@ type ActionsObj = CreateActionsObj<
   | 'performGetStorage'
   | 'performGetStorageAllFeatureEntries'
   | 'performSetStorage'
+  | 'performBatchSetStorage'
+  | 'performDeleteStorage'
+  | 'performBatchDeleteStorage'
   | 'getStorageKey'
   | 'enableProfileSyncing'
   | 'disableProfileSyncing'
@@ -211,6 +204,12 @@ export type UserStorageControllerPerformGetStorageAllFeatureEntries =
   ActionsObj['performGetStorageAllFeatureEntries'];
 export type UserStorageControllerPerformSetStorage =
   ActionsObj['performSetStorage'];
+export type UserStorageControllerPerformBatchSetStorage =
+  ActionsObj['performBatchSetStorage'];
+export type UserStorageControllerPerformDeleteStorage =
+  ActionsObj['performDeleteStorage'];
+export type UserStorageControllerPerformBatchDeleteStorage =
+  ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
 export type UserStorageControllerEnableProfileSyncing =
   ActionsObj['enableProfileSyncing'];
@@ -231,11 +230,10 @@ export type AllowedActions =
   | AuthenticationControllerGetSessionProfile
   | AuthenticationControllerPerformSignIn
   | AuthenticationControllerIsSignedIn
-  | AuthenticationControllerPerformSignOut
   // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
-  | KeyringControllerAddNewAccountAction
+  | KeyringControllerWithKeyringAction
   // Network Syncing
   | NetworkControllerGetStateAction
   | NetworkControllerAddNetworkAction
@@ -247,23 +245,11 @@ export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
-export type UserStorageControllerAccountSyncingInProgress = {
-  type: `${typeof controllerName}:accountSyncingInProgress`;
-  payload: [boolean];
-};
-export type UserStorageControllerAccountSyncingComplete = {
-  type: `${typeof controllerName}:accountSyncingComplete`;
-  payload: [boolean];
-};
-export type Events =
-  | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete;
+
+export type Events = UserStorageControllerStateChangeEvent;
 
 export type AllowedEvents =
   | UserStorageControllerStateChangeEvent
-  | UserStorageControllerAccountSyncingInProgress
-  | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   // Account Syncing Events
@@ -301,12 +287,9 @@ export default class UserStorageController extends BaseController<
     isNetworkSyncingEnabled: false,
   };
 
+  readonly #userStorage: UserStorage;
+
   readonly #auth = {
-    getBearerToken: async () => {
-      return await this.messagingSystem.call(
-        'AuthenticationController:getBearerToken',
-      );
-    },
     getProfileId: async () => {
       const sessionProfile = await this.messagingSystem.call(
         'AuthenticationController:getSessionProfile',
@@ -321,16 +304,13 @@ export default class UserStorageController extends BaseController<
         'AuthenticationController:performSignIn',
       );
     },
-    signOut: async () => {
-      return this.messagingSystem.call(
-        'AuthenticationController:performSignOut',
-      );
-    },
   };
 
   readonly #config?: ControllerConfig;
 
   #isUnlocked = false;
+
+  #storageKeyCache: Record<`metamask:${string}`, string> = {};
 
   readonly #keyringController = {
     setupLockedStateSubscriptions: () => {
@@ -378,6 +358,34 @@ export default class UserStorageController extends BaseController<
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
 
+    this.#userStorage = new UserStorage(
+      {
+        env: Env.PRD,
+        auth: {
+          getAccessToken: () =>
+            this.messagingSystem.call(
+              'AuthenticationController:getBearerToken',
+            ),
+          getUserProfile: async () => {
+            return await this.messagingSystem.call(
+              'AuthenticationController:getSessionProfile',
+            );
+          },
+          signMessage: (message) =>
+            this.#snapSignMessage(message as `metamask:${string}`),
+        },
+      },
+      {
+        storage: {
+          getStorageKey: async (message) =>
+            this.#storageKeyCache[message] ?? null,
+          setStorageKey: async (message, key) => {
+            this.#storageKeyCache[message] = key;
+          },
+        },
+      },
+    );
+
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
@@ -397,7 +405,7 @@ export default class UserStorageController extends BaseController<
     if (this.#env.isNetworkSyncingEnabled) {
       startNetworkSyncing({
         messenger,
-        getStorageConfig: () => this.#getStorageOptions(),
+        getUserStorageControllerInstance: () => this,
         isMutationSyncBlocked: () =>
           !this.state.hasNetworkSyncingSyncedAtLeastOnce,
       });
@@ -422,6 +430,21 @@ export default class UserStorageController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'UserStorageController:performSetStorage',
       this.performSetStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performBatchSetStorage',
+      this.performBatchSetStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performDeleteStorage',
+      this.performDeleteStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:performBatchDeleteStorage',
+      this.performBatchDeleteStorage.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -450,66 +473,6 @@ export default class UserStorageController extends BaseController<
     );
   }
 
-  async #getStorageOptions() {
-    if (!this.state.isProfileSyncingEnabled) {
-      return null;
-    }
-
-    const { storageKey, bearerToken } =
-      await this.#getStorageKeyAndBearerToken();
-    return {
-      storageKey,
-      bearerToken,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    };
-  }
-
-  public async enableProfileSyncing(): Promise<void> {
-    try {
-      this.#setIsProfileSyncingUpdateLoading(true);
-
-      const isSignedIn = this.#auth.isSignedIn();
-      if (!isSignedIn) {
-        await this.#auth.signIn();
-      }
-
-      this.update((state) => {
-        state.isProfileSyncingEnabled = true;
-      });
-
-      this.#setIsProfileSyncingUpdateLoading(false);
-    } catch (e) {
-      this.#setIsProfileSyncingUpdateLoading(false);
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(
-        `${controllerName} - failed to enable profile syncing - ${errorMessage}`,
-      );
-    }
-  }
-
-  public async disableProfileSyncing(): Promise<void> {
-    const isAlreadyDisabled = !this.state.isProfileSyncingEnabled;
-    if (isAlreadyDisabled) {
-      return;
-    }
-
-    try {
-      this.#setIsProfileSyncingUpdateLoading(true);
-
-      this.#setIsProfileSyncingUpdateLoading(false);
-
-      this.update((state) => {
-        state.isProfileSyncingEnabled = false;
-      });
-    } catch (e) {
-      this.#setIsProfileSyncingUpdateLoading(false);
-      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
-      throw new Error(
-        `${controllerName} - failed to disable profile syncing - ${errorMessage}`,
-      );
-    }
-  }
-
   /**
    * Allows retrieval of stored data. Data stored is string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
@@ -520,17 +483,10 @@ export default class UserStorageController extends BaseController<
   public async performGetStorage(
     path: UserStoragePathWithFeatureAndKey,
   ): Promise<string | null> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    const result = await getUserStorage({
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.getItem(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
     });
-
-    return result;
   }
 
   /**
@@ -543,17 +499,10 @@ export default class UserStorageController extends BaseController<
   public async performGetStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
   ): Promise<string[] | null> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    const result = await getUserStorageAllFeatureEntries({
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.getAllFeatureItems(path, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
     });
-
-    return result;
   }
 
   /**
@@ -568,14 +517,9 @@ export default class UserStorageController extends BaseController<
     path: UserStoragePathWithFeatureAndKey,
     value: string,
   ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await upsertUserStorage(value, {
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.setItem(path, value, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
     });
   }
 
@@ -593,14 +537,9 @@ export default class UserStorageController extends BaseController<
     path: FeatureName,
     values: [UserStorageFeatureKeys<FeatureName>, string][],
   ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await batchUpsertUserStorage(values, {
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.batchSetItems(path, values, {
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
     });
   }
 
@@ -613,13 +552,9 @@ export default class UserStorageController extends BaseController<
   public async performDeleteStorage(
     path: UserStoragePathWithFeatureAndKey,
   ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await deleteUserStorage({
-      path,
-      bearerToken,
-      storageKey,
+    return await this.#userStorage.deleteItem(path, {
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+      validateAgainstSchema: true,
     });
   }
 
@@ -633,14 +568,7 @@ export default class UserStorageController extends BaseController<
   public async performDeleteStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
   ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await deleteUserStorageAllFeatureEntries({
-      path,
-      bearerToken,
-      storageKey,
-    });
+    return await this.#userStorage.deleteAllFeatureItems(path);
   }
 
   /**
@@ -657,15 +585,7 @@ export default class UserStorageController extends BaseController<
     path: FeatureName,
     values: UserStorageFeatureKeys<FeatureName>[],
   ): Promise<void> {
-    const { bearerToken, storageKey } =
-      await this.#getStorageKeyAndBearerToken();
-
-    await batchDeleteUserStorage(values, {
-      path,
-      bearerToken,
-      storageKey,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
-    });
+    return await this.#userStorage.batchDeleteItems(path, values);
   }
 
   /**
@@ -674,42 +594,16 @@ export default class UserStorageController extends BaseController<
    * @returns the storage key
    */
   public async getStorageKey(): Promise<string> {
-    const storageKey = await this.#createStorageKey();
-    return storageKey;
+    return await this.#userStorage.getStorageKey();
   }
 
   /**
-   * Utility to get the bearer token and storage key
-   *
-   * @returns the bearer token and storage key
+   * Flushes the storage key cache.
+   * CAUTION: This is only public for testing purposes.
+   * It should not be used in production code.
    */
-  async #getStorageKeyAndBearerToken(): Promise<{
-    bearerToken: string;
-    storageKey: string;
-  }> {
-    const bearerToken = await this.#auth.getBearerToken();
-    if (!bearerToken) {
-      throw new Error('UserStorageController - unable to get bearer token');
-    }
-    const storageKey = await this.#createStorageKey();
-
-    return { bearerToken, storageKey };
-  }
-
-  /**
-   * Rather than storing the storage key, we can compute the storage key when needed.
-   *
-   * @returns the storage key
-   */
-  async #createStorageKey(): Promise<string> {
-    const id: string = await this.#auth.getProfileId();
-    if (!id) {
-      throw new Error('UserStorageController - unable to create storage key');
-    }
-
-    const storageKeySignature = await this.#snapSignMessage(`metamask:${id}`);
-    const storageKey = createSHA256Hash(storageKeySignature);
-    return storageKey;
+  public flushStorageKeyCache(): void {
+    this.#storageKeyCache = {};
   }
 
   #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
@@ -739,6 +633,45 @@ export default class UserStorageController extends BaseController<
     this.#_snapSignMessageCache[message] = result;
 
     return result;
+  }
+
+  public async enableProfileSyncing(): Promise<void> {
+    try {
+      this.#setIsProfileSyncingUpdateLoading(true);
+
+      const isSignedIn = this.#auth.isSignedIn();
+      if (!isSignedIn) {
+        await this.#auth.signIn();
+      }
+
+      this.update((state) => {
+        state.isProfileSyncingEnabled = true;
+      });
+
+      this.#setIsProfileSyncingUpdateLoading(false);
+    } catch (e) {
+      this.#setIsProfileSyncingUpdateLoading(false);
+      // istanbul ignore next
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      throw new Error(
+        `${controllerName} - failed to enable profile syncing - ${errorMessage}`,
+      );
+    }
+  }
+
+  public async disableProfileSyncing(): Promise<void> {
+    const isAlreadyDisabled = !this.state.isProfileSyncingEnabled;
+    if (isAlreadyDisabled) {
+      return;
+    }
+
+    this.#setIsProfileSyncingUpdateLoading(true);
+
+    this.update((state) => {
+      state.isProfileSyncingEnabled = false;
+    });
+
+    this.#setIsProfileSyncingUpdateLoading(false);
   }
 
   #setIsProfileSyncingUpdateLoading(
@@ -833,7 +766,7 @@ export default class UserStorageController extends BaseController<
 
     await performMainNetworkSync({
       messenger: this.messagingSystem,
-      getStorageConfig: () => this.#getStorageOptions(),
+      getUserStorageControllerInstance: () => this,
       maxNetworksToAdd: this.#config?.networkSyncing?.maxNumberOfNetworksToAdd,
       onNetworkAdded: (cId) =>
         this.#config?.networkSyncing?.onNetworkAdded?.(profileId, cId),

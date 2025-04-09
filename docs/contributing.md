@@ -4,6 +4,7 @@
 
 - [Setting up your development environment](#setting-up-your-development-environment)
 - [Understanding codeowners](#understanding-codeowners)
+- [Understanding code guidelines](#understanding-code-guidelines)
 - [Writing and running tests](#writing-and-running-tests)
 - [Linting](#linting)
 - [Building](#building)
@@ -27,6 +28,13 @@
 Although maintenance of this repository is superintended by the Wallet Framework team, the responsibility of maintenance is expected to be shared among multiple teams at MetaMask. In fact, some teams have codeownership over specific packages. The exact allocation is governed by the [`CODEOWNERS`](../.github/CODEOWNERS) file.
 
 **If your team is listed as a codeowner for a package, you may change, approve pull requests, and create releases without consulting the Wallet Framework team.** Alternatively, if you feel that your team should be granted codeownership over a specific package, you can submit a pull request to change `CODEOWNERS`.
+
+## Understanding code guidelines
+
+All code in this repo should not only follow the [MetaMask contributor guidelines](https://github.com/MetaMask/contributor-docs) but also the guidelines contained in this repo:
+
+- [Package guidelines](./package-guidelines.md)
+- [Controller guidelines](./controller-guidelines.md)
 
 ## Writing and running tests
 
@@ -62,20 +70,33 @@ Built files show up in the `dist/` directory in each package. These are the file
 - Run `yarn build` to build all packages in the monorepo.
 - Run `yarn workspace <workspaceName> run build` to build a single package.
 
+## Updating changelogs
+
+Each package in this repo has a file called `CHANGELOG.md` which is used to record consumer-facing changes that have been published over time. This file is useful for other engineers who are upgrading to new versions of packages so that they know how to use new features they are expecting, they know when bugs have been addressed, and they understand how to adapt to breaking changes (if any). All changelogs follow the ["Keep a Changelog"](https://keepachangelog.com/) specification (enforced by `@metamask/auto-changelog`).
+
+As you make changes to packages, make sure to update their changelogs in the same branch.
+
+We will offer more guidance here in the future, but in general:
+
+- Place new entries under the "Unreleased" section.
+- Place changes into categories. Consult the ["Keep a Changelog"](https://keepachangelog.com/en/1.1.0/#how) specification for the list.
+- Highlight breaking changes by prefixing them with `**BREAKING:**`.
+- Omit non-consumer facing changes from the changelog.
+- Do not simply reuse the commit message, but describe exact changes to the API or usable surface area of the project.
+- Use a list nested under a changelog entry to enumerate more details about a change if need be.
+- Include links to pull request(s) that introduced each change. (Most likely, this is the very same pull request in which you are updating the changelog.)
+- Combine like changes from multiple pull requests into a single changelog entry if necessary.
+- Split disparate changes from the same pull request into multiple entries if necessary.
+- Omit reverted changes from the changelog.
+
 ## Creating pull requests
 
-When submitting a pull request for this repo, take some a bit of extra time to fill out its description. Use the provided template as a guide, paying particular attention to two sections:
+When submitting a pull request for this repo, take some a bit of extra time to fill out its description. Use the provided template as a guide, paying particular attention to the **Explanation** section. This section is intended for you to explain the purpose and scope of your changes and share knowledge that other engineers might not be able to see from reading the PR alone. Some questions you should seek to answer are:
 
-- **Explanation**: This section is targeted toward maintainers and is intended for you to explain the purpose and scope of your changes and share knowledge that they might not be able to see from reading the PR alone. Some questions you should seek to answer are:
-  - What is the motivator for these changes? What need are the changes satisfying? Is there a ticket you can share or can you provide some more context for people who might not be familiar with the domain?
-  - Are there any changes in particular whose purpose might not be obvious or whose implementation might be difficult to decipher? How do they work?
-  - If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
-  - If you had to upgrade a dependency, why did you do so?
-- **Changelog:** This section is targeted toward consumers — internal developers of the extension or mobile app in addition to external dapp developers — and is intended to be a list of your changes from the perspective of each package in the monorepo. Questions you should seek to answer are:
-  - Which packages are being updated?
-  - What are the _exact_ changes to the API (types, interfaces, functions, methods) that are being changed?
-  - What are the anticipated effects to whichever platform might want to make use of these changes?
-  - If there are breaking changes to the API, what do consumers need to do in order to adapt to those changes upon upgrading to them?
+- What is the motivator for these changes? What need are the changes satisfying? Is there a ticket you can share or can you provide some more context for people who might not be familiar with the domain?
+- Are there any changes in particular whose purpose might not be obvious or whose implementation might be difficult to decipher? How do they work?
+- If your primary goal was to update one package but you found you had to update another one along the way, why did you do so?
+- If you had to upgrade a dependency, why did you do so?
 
 ## Testing changes to packages in another project
 
@@ -181,7 +202,90 @@ Have changes that you need to release? There are a few things to understand:
 - Unlike clients, releases are not issued on a schedule; **anyone may create a release at any time**. Because of this, you may wish to review the Pull Requests tab on GitHub and ensure that no one else has a release candidate already in progress. If not, then you are free to start the process.
 - The release process is a work in progress. Further improvements to simplify the process are planned, but in the meantime, if you encounter any issues, please reach out to the Wallet Framework team.
 
-Now for the process itself:
+Now for the process itself, you have two options: using our interactive UI (recommended for most users) or manual specification.
+
+### Option A: Interactive Mode (Recommended)
+
+This option provides a visual interface to streamline the release process:
+
+1. **Start the interactive release tool.**
+
+   On the `main` branch, run:
+
+   ```
+   yarn create-release-branch -i
+   ```
+
+   This will start a local web server (default port 3000) and open a browser interface.
+
+2. **Select packages to release.**
+
+   The UI will show all packages with changes since their last release. For each package:
+
+   - Choose whether to include it in the release
+   - Select an appropriate version bump (patch, minor, or major) following SemVer rules
+   - The UI will automatically validate your selections and identify dependencies that need to be included
+
+3. **Review and resolve dependency requirements.**
+
+   The UI automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
+
+   - Including the suggested additional packages
+   - Confirming that you want to skip certain packages (if you're certain they don't need to be updated)
+
+   Common types of dependency issues you might encounter:
+
+   - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
+   - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
+   - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
+
+   Unlike the manual workflow where you need to repeatedly edit a YAML file, in the interactive mode you can quickly resolve these issues by checking boxes and selecting version bumps directly in the UI.
+
+4. **Confirm your selections.**
+
+   Once you're satisfied with your package selections and version bumps, confirm them in the UI. This will:
+
+   - Create a new branch named `release/<new release version>`
+   - Update the version in each package's `package.json`
+   - Add a new section to each package's `CHANGELOG.md` for the new version
+
+5. **Review and update changelogs.**
+
+   Each selected package will have a new changelog section. Review these entries to ensure they are helpful for consumers:
+
+   - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines. Ensure that no changes are listed under "Uncategorized".
+   - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
+   - Reword changelog entries to explain changes in terms that users of the package will understand (e.g., avoid referencing internal variables/concepts).
+   - Consolidate related changes into single entries where appropriate.
+
+   Run `yarn changelog:validate` when you're done to ensure all changelogs are correctly formatted.
+
+6. **Push and submit a pull request.**
+
+   Create a PR for the release branch so that it can be reviewed and tested.
+   Release PRs can be approved by codeowners of affected packages, so as long as the above guidelines have been followed, there is no need to reach out to the Wallet Framework team for approval.
+
+7. **Incorporate any new changes from `main`.**
+
+   If you see the "Update branch" button on your release PR, stop and look over the most recent commits made to `main`. If there are new changes to packages you are releasing, make sure they are reflected in the appropriate changelogs.
+
+8. **Merge the release PR and wait for approval.**
+
+   "Squash & Merge" the release PR when it's approved.
+
+   Merging triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub. Before packages are published to NPM, this action will automatically notify the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team in Slack to review and approve the release.
+
+9. **Verify publication.**
+
+   Once the `npm-publishers` team has approved the release, you can click on the link in the Slack message to monitor the remainder of the process.
+
+   After the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages have been published.
+
+> **Tip:** You can specify a different port if needed: `yarn create-release-branch -i -p 3001`
+
+### Option B: Manual Release Specification
+
+If you prefer more direct control over the release process:
 
 1. **Start by creating the release branch.**
 
@@ -195,13 +299,20 @@ Now for the process itself:
 
    Once you save and close the release spec, the tool will proceed.
 
-3. **Include more packages as necessary.**
+3. **Review and resolve dependency requirements.**
 
-   Some packages in the monorepo have dependencies on other packages elsewhere in the monorepo. To ensure that clients are able to upgrade without receiving compile time or runtime errors, you may need to include some of these dependencies in your release. If the tool thinks that there are some packages you've left out, it will pause and let you know what they are.
+   The tool automatically analyzes your selections and identifies potential dependency issues that need to be addressed before proceeding. You'll need to review and resolve these issues by either:
 
-   To address the errors, you'll need to copy the path to the YAML file, reopen it in your editor, and include the packages it mentions. You also have the option to skip any packages you think aren't an issue, but make sure you've checked. (If you have any questions about this step, let the Wallet Framework team know.)
+   - Including the suggested additional packages
+   - Confirming that you want to skip certain packages (if you're certain they don't need to be updated)
 
-   Once you've made the requisite changes to the YAML file, save it and re-run `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
+   Common types of dependency issues you might encounter:
+
+   - **Missing dependencies**: If you're releasing Package A that depends on Package B, the UI will prompt you to include Package B
+   - **Breaking change impacts**: If you're releasing Package B with breaking changes, the UI will identify packages that have peer dependencies on Package B that need to be updated
+   - **Version incompatibilities**: The UI will flag if your selected version bumps don't follow semantic versioning rules relative to dependent packages
+
+   To address these issues, you will need to reopen the YAML file, modify it by either adding more packages to the release or omitting packages from the release you think are safe, and then re-running `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
 
 4. **Review and update changelogs for relevant packages.**
 
@@ -219,27 +330,26 @@ Now for the process itself:
 
    Make sure to run `yarn changelog:validate` once you're done to ensure all changelogs are correctly formatted.
 
-5. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
+5. **Push and submit a pull request.**
 
+   Create a PR for the release branch so that it can be reviewed and tested.
    Release PRs can be approved by codeowners of affected packages, so as long as the above guidelines have been followed, there is no need to reach out to the Wallet Framework team for approval.
 
-6. **Incorporate new changes made to `main` into changelogs.**
+6. **Incorporate any new changes from `main`.**
 
-   If at any point you see the "Update branch" button on your release PR, stop and look over the most recent commits made to `main`. If there are new changes to package you are trying to release, make sure that the changes are reflected in the changelog for that package.
+   If you see the "Update branch" button on your release PR, stop and look over the most recent commits made to `main`. If there are new changes to packages you are releasing, make sure they are reflected in the appropriate changelogs.
 
-7. **"Squash & Merge" the release and wait for approval.**
+7. **Merge the release PR and wait for approval.**
 
-   You're almost there!
+   "Squash & Merge" the release PR when it's approved.
 
    Merging triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub. Before packages are published to NPM, this action will automatically notify the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team in Slack to review and approve the release.
 
-8. **Verify that the new versions have been published.**
+8. **Verify publication.**
 
    Once the `npm-publishers` team has approved the release, you can click on the link in the Slack message to monitor the remainder of the process.
 
-   Once the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages has been published.
-
-   You're done!
+   After the action has completed, [check NPM](https://npms.io/search?q=scope%3Ametamask) to verify that all relevant packages have been published.
 
 ## Performing operations across the monorepo
 

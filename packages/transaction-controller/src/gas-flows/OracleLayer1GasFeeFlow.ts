@@ -1,18 +1,17 @@
-import { Common, Hardfork } from '@ethereumjs/common';
-import { TransactionFactory } from '@ethereumjs/tx';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
-import { omit } from 'lodash';
 
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   Layer1GasFeeFlow,
   Layer1GasFeeFlowRequest,
   Layer1GasFeeFlowResponse,
   TransactionMeta,
 } from '../types';
+import { prepareTransaction } from '../utils/prepare';
 
 const log = createModuleLogger(projectLogger, 'oracle-layer1-gas-fee-flow');
 
@@ -33,16 +32,22 @@ const GAS_PRICE_ORACLE_ABI = [
  * Layer 1 gas fee flow that obtains gas fee estimate using an oracle smart contract.
  */
 export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
-  #oracleAddress: Hex;
+  readonly #oracleAddress: Hex;
 
-  #signTransaction: boolean;
+  readonly #signTransaction: boolean;
 
   constructor(oracleAddress: Hex, signTransaction?: boolean) {
     this.#oracleAddress = oracleAddress;
     this.#signTransaction = signTransaction ?? false;
   }
 
-  abstract matchesTransaction(transactionMeta: TransactionMeta): boolean;
+  abstract matchesTransaction({
+    transactionMeta,
+    messenger,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean;
 
   async getLayer1Fee(
     request: Layer1GasFeeFlowRequest,
@@ -88,11 +93,9 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     sign: boolean,
   ) {
     const txParams = this.#buildTransactionParams(transactionMeta);
-    const common = this.#buildTransactionCommon(transactionMeta);
+    const { chainId } = transactionMeta;
 
-    let unserializedTransaction = TransactionFactory.fromTxData(txParams, {
-      common,
-    });
+    let unserializedTransaction = prepareTransaction(chainId, txParams);
 
     if (sign) {
       const keyBuffer = Buffer.from(DUMMY_KEY, 'hex');
@@ -106,17 +109,8 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     transactionMeta: TransactionMeta,
   ): TransactionMeta['txParams'] {
     return {
-      ...omit(transactionMeta.txParams, 'gas'),
+      ...transactionMeta.txParams,
       gasLimit: transactionMeta.txParams.gas,
     };
-  }
-
-  #buildTransactionCommon(transactionMeta: TransactionMeta) {
-    const chainId = Number(transactionMeta.chainId);
-
-    return Common.custom({
-      chainId,
-      defaultHardfork: Hardfork.London,
-    });
   }
 }

@@ -29,6 +29,7 @@ export const CHAIN_IDS = {
   ZORA: '0x76adf1',
   SCROLL: '0x82750',
   SCROLL_SEPOLIA: '0x8274f',
+  MEGAETH_TESTNET: '0x18c6',
 } as const;
 
 export const GAS_BUFFER_CHAIN_OVERRIDES = {
@@ -81,5 +82,25 @@ export const ABI_SIMULATION_ERC721_LEGACY = [
     ],
     name: 'Transfer',
     type: 'event',
+  },
+];
+
+export const ABI_IERC7821 = [
+  {
+    type: 'function',
+    name: 'execute',
+    inputs: [
+      { name: 'mode', type: 'bytes32', internalType: 'ModeCode' },
+      { name: 'executionData', type: 'bytes', internalType: 'bytes' },
+    ],
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    name: 'supportsExecutionMode',
+    inputs: [{ name: 'mode', type: 'bytes32', internalType: 'ModeCode' }],
+    outputs: [{ name: '', type: 'bool', internalType: 'bool' }],
+    stateMutability: 'view',
   },
 ];

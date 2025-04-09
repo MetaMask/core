@@ -1,3 +1,4 @@
+import { Messenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -11,14 +12,14 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
 import { buildTestObject } from '../../../tests/helpers';
-import type {
-  BuiltInNetworkClientId,
-  CustomNetworkClientId,
-  NetworkClient,
-  NetworkClientConfiguration,
-  NetworkClientId,
-  NetworkConfiguration,
-  NetworkController,
+import {
+  type BuiltInNetworkClientId,
+  type CustomNetworkClientId,
+  type NetworkClient,
+  type NetworkClientConfiguration,
+  type NetworkClientId,
+  type NetworkConfiguration,
+  type NetworkController,
 } from '../src';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
 import type {
@@ -26,6 +27,9 @@ import type {
   AddNetworkFields,
   CustomRpcEndpoint,
   InfuraRpcEndpoint,
+  NetworkControllerActions,
+  NetworkControllerEvents,
+  NetworkControllerMessenger,
   UpdateNetworkCustomRpcEndpointFields,
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
@@ -34,6 +38,59 @@ import type {
   InfuraNetworkClientConfiguration,
 } from '../src/types';
 import { NetworkClientType } from '../src/types';
+
+export type RootMessenger = Messenger<
+  NetworkControllerActions,
+  NetworkControllerEvents
+>;
+
+/**
+ * A list of active InfuraNetworkType that are used in many tests
+ *
+ * TODO: Base this off of InfuraNetworkType when Goerli is removed.
+ */
+export const INFURA_NETWORKS = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['linea-sepolia'],
+];
+
+/**
+ * A object that contains the configuration for a network that begining used in many tests
+ */
+export const TESTNET = {
+  networkType: InfuraNetworkType.sepolia,
+  chainId: ChainId.sepolia,
+  name: 'Sepolia',
+  nativeCurrency: 'SepoliaETH',
+};
+
+/**
+ * Build a root messenger that includes all events used by the network
+ * controller.
+ *
+ * @returns The messenger.
+ */
+export function buildRootMessenger(): RootMessenger {
+  return new Messenger<NetworkControllerActions, NetworkControllerEvents>();
+}
+
+/**
+ * Build a restricted messenger for the network controller.
+ *
+ * @param messenger - A messenger.
+ * @returns The network controller restricted messenger.
+ */
+export function buildNetworkControllerMessenger(
+  messenger = buildRootMessenger(),
+): NetworkControllerMessenger {
+  return messenger.getRestricted({
+    name: 'NetworkController',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+}
 
 /**
  * Builds an object that satisfies the NetworkClient shape, but using a fake
@@ -150,6 +207,7 @@ export function buildInfuraNetworkClientConfiguration(
   return {
     type: NetworkClientType.Infura,
     network,
+    failoverRpcUrls: [],
     infuraProjectId: 'test-infura-project-id',
     chainId: ChainId[network],
     ticker: NetworksTicker[network],
@@ -172,6 +230,7 @@ export function buildCustomNetworkClientConfiguration(
   return Object.assign(
     {
       chainId: toHex(1337),
+      failoverRpcUrls: [],
       rpcUrl: 'https://example.test',
       ticker: 'TEST',
     },
@@ -206,7 +265,7 @@ export function buildNetworkConfiguration(
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         defaultRpcEndpointType === RpcEndpointType.Infura
-          ? buildInfuraRpcEndpoint(InfuraNetworkType['linea-goerli'])
+          ? buildInfuraRpcEndpoint(TESTNET.networkType)
           : buildCustomRpcEndpoint({ url: 'https://test.endpoint' }),
       ],
     },
@@ -315,16 +374,18 @@ export function buildInfuraNetworkConfiguration(
  *
  * @param infuraNetworkType - The Infura network type from which to create the
  * InfuraRpcEndpoint.
+ * @param options - Options.
+ * @param options.failoverUrls - The failover URLs to use.
  * @returns The created InfuraRpcEndpoint object.
  */
 export function buildInfuraRpcEndpoint(
   infuraNetworkType: InfuraNetworkType,
+  { failoverUrls = [] }: { failoverUrls?: string[] } = {},
 ): InfuraRpcEndpoint {
   return {
+    failoverUrls,
     networkClientId: infuraNetworkType,
     type: RpcEndpointType.Infura as const,
-    // False negative - this is a string.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
   };
 }
@@ -341,6 +402,7 @@ export function buildCustomRpcEndpoint(
 ): CustomRpcEndpoint {
   return buildTestObject(
     {
+      failoverUrls: () => [],
       networkClientId: () => uuidV4(),
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
@@ -402,6 +464,7 @@ export function buildAddNetworkCustomRpcEndpointFields(
 ): AddNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
+      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },
@@ -422,6 +485,7 @@ export function buildUpdateNetworkCustomRpcEndpointFields(
 ): UpdateNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
+      failoverUrls: () => [],
       type: () => RpcEndpointType.Custom as const,
       url: () => generateCustomRpcEndpointUrl(),
     },

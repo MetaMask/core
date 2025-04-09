@@ -1,13 +1,18 @@
+import { Messenger } from '@metamask/base-controller';
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
 
-import { mockNetwork } from '../../../tests/mock-network';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import * as createNetworkClientModule from './create-network-client';
+import type {
+  NetworkControllerActions,
+  NetworkControllerEvents,
+} from './NetworkController';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
 } from './types';
 import { NetworkClientType } from './types';
+import { mockNetwork } from '../../../tests/mock-network';
 
 describe('createAutoManagedNetworkClient', () => {
   const networkClientConfigurations: [
@@ -16,24 +21,31 @@ describe('createAutoManagedNetworkClient', () => {
   ] = [
     {
       type: NetworkClientType.Custom,
+      failoverRpcUrls: [],
       rpcUrl: 'https://test.chain',
       chainId: '0x1337',
       ticker: 'ETH',
-    } as const,
+    },
     {
       type: NetworkClientType.Infura,
       network: NetworkType.mainnet,
       chainId: BUILT_IN_NETWORKS[NetworkType.mainnet].chainId,
       infuraProjectId: 'some-infura-project-id',
       ticker: BUILT_IN_NETWORKS[NetworkType.mainnet].ticker,
-    } as const,
+      failoverRpcUrls: [],
+    },
   ];
   for (const networkClientConfiguration of networkClientConfigurations) {
     describe(`given configuration for a ${networkClientConfiguration.type} network client`, () => {
       it('allows the network client configuration to be accessed', () => {
-        const { configuration } = createAutoManagedNetworkClient(
+        const { configuration } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions: () => ({
+            fetch,
+            btoa,
+          }),
+          messenger: getNetworkControllerMessenger(),
+        });
 
         expect(configuration).toStrictEqual(networkClientConfiguration);
       });
@@ -41,14 +53,26 @@ describe('createAutoManagedNetworkClient', () => {
       it('does not make any network requests initially', () => {
         // If unexpected requests occurred, then Nock would throw
         expect(() => {
-          createAutoManagedNetworkClient(networkClientConfiguration);
+          createAutoManagedNetworkClient({
+            networkClientConfiguration,
+            getRpcServiceOptions: () => ({
+              fetch,
+              btoa,
+            }),
+            messenger: getNetworkControllerMessenger(),
+          });
         }).not.toThrow();
       });
 
       it('returns a provider proxy that has the same interface as a provider', () => {
-        const { provider } = createAutoManagedNetworkClient(
+        const { provider } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions: () => ({
+            fetch,
+            btoa,
+          }),
+          messenger: getNetworkControllerMessenger(),
+        });
 
         // This also tests the `has` trap in the proxy
         expect('addListener' in provider).toBe(true);
@@ -87,9 +111,14 @@ describe('createAutoManagedNetworkClient', () => {
           ],
         });
 
-        const { provider } = createAutoManagedNetworkClient(
+        const { provider } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions: () => ({
+            fetch,
+            btoa,
+          }),
+          messenger: getNetworkControllerMessenger(),
+        });
 
         const result = await provider.request({
           id: 1,
@@ -120,10 +149,25 @@ describe('createAutoManagedNetworkClient', () => {
           createNetworkClientModule,
           'createNetworkClient',
         );
+        const getRpcServiceOptions = () => ({
+          btoa,
+          fetch,
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
+            },
+          },
+          policyOptions: {
+            maxRetries: 2,
+            maxConsecutiveFailures: 10,
+          },
+        });
 
-        const { provider } = createAutoManagedNetworkClient(
+        const { provider } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions,
+          messenger: getNetworkControllerMessenger(),
+        });
 
         await provider.request({
           id: 1,
@@ -139,14 +183,21 @@ describe('createAutoManagedNetworkClient', () => {
         });
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
         expect(createNetworkClientMock).toHaveBeenCalledWith(
-          networkClientConfiguration,
+          expect.objectContaining({
+            configuration: networkClientConfiguration,
+          }),
         );
       });
 
       it('returns a block tracker proxy that has the same interface as a block tracker', () => {
-        const { blockTracker } = createAutoManagedNetworkClient(
+        const { blockTracker } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions: () => ({
+            fetch,
+            btoa,
+          }),
+          messenger: getNetworkControllerMessenger(),
+        });
 
         // This also tests the `has` trap in the proxy
         expect('addListener' in blockTracker).toBe(true);
@@ -196,9 +247,14 @@ describe('createAutoManagedNetworkClient', () => {
           ],
         });
 
-        const { blockTracker } = createAutoManagedNetworkClient(
+        const { blockTracker } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions: () => ({
+            fetch,
+            btoa,
+          }),
+          messenger: getNetworkControllerMessenger(),
+        });
 
         const blockNumberViaLatest = await new Promise((resolve) => {
           blockTracker.once('latest', resolve);
@@ -250,10 +306,25 @@ describe('createAutoManagedNetworkClient', () => {
           createNetworkClientModule,
           'createNetworkClient',
         );
+        const getRpcServiceOptions = () => ({
+          btoa,
+          fetch,
+          fetchOptions: {
+            headers: {
+              'X-Foo': 'Bar',
+            },
+          },
+          policyOptions: {
+            maxRetries: 2,
+            maxConsecutiveFailures: 10,
+          },
+        });
 
-        const { blockTracker } = createAutoManagedNetworkClient(
+        const { blockTracker } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions,
+          messenger: getNetworkControllerMessenger(),
+        });
 
         await new Promise((resolve) => {
           blockTracker.once('latest', resolve);
@@ -265,7 +336,9 @@ describe('createAutoManagedNetworkClient', () => {
         await blockTracker.checkForLatestBlock();
         expect(createNetworkClientMock).toHaveBeenCalledTimes(1);
         expect(createNetworkClientMock).toHaveBeenCalledWith(
-          networkClientConfiguration,
+          expect.objectContaining({
+            configuration: networkClientConfiguration,
+          }),
         );
       });
 
@@ -284,9 +357,14 @@ describe('createAutoManagedNetworkClient', () => {
             },
           ],
         });
-        const { blockTracker, destroy } = createAutoManagedNetworkClient(
+        const { blockTracker, destroy } = createAutoManagedNetworkClient({
           networkClientConfiguration,
-        );
+          getRpcServiceOptions: () => ({
+            fetch,
+            btoa,
+          }),
+          messenger: getNetworkControllerMessenger(),
+        });
         // Start the block tracker
         blockTracker.on('latest', () => {
           // do nothing
@@ -299,3 +377,19 @@ describe('createAutoManagedNetworkClient', () => {
     });
   }
 });
+
+/**
+ * Constructs a NetworkController messenger.
+ *
+ * @returns The NetworkController messenger.
+ */
+function getNetworkControllerMessenger() {
+  return new Messenger<
+    NetworkControllerActions,
+    NetworkControllerEvents
+  >().getRestricted({
+    name: 'NetworkController',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+}

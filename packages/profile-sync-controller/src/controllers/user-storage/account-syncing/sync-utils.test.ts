@@ -7,7 +7,6 @@ import {
   getUserStorageAccountsList,
 } from './sync-utils';
 import type { AccountSyncingConfig, AccountSyncingOptions } from './types';
-import * as utils from './utils';
 
 describe('user-storage/account-syncing/sync-utils', () => {
   describe('canPerformAccountSyncing', () => {
@@ -70,28 +69,36 @@ describe('user-storage/account-syncing/sync-utils', () => {
   describe('getInternalAccountsList', () => {
     it('returns filtered internal accounts list', async () => {
       const internalAccounts = [
-        { id: '1', metadata: { keyring: { type: KeyringTypes.hd } } },
-        { id: '2', metadata: { keyring: { type: KeyringTypes.trezor } } },
+        {
+          address: '0x123',
+          id: '1',
+          metadata: { keyring: { type: KeyringTypes.hd } },
+        },
+        {
+          address: '0x456',
+          id: '2',
+          metadata: { keyring: { type: KeyringTypes.trezor } },
+        },
       ] as InternalAccount[];
 
       const options: AccountSyncingOptions = {
         getMessenger: jest.fn().mockReturnValue({
-          call: jest.fn().mockImplementation((controllerAndActionName) =>
+          call: jest.fn().mockImplementation((controllerAndActionName) => {
             // eslint-disable-next-line jest/no-conditional-in-test
-            controllerAndActionName === 'AccountsController:listAccounts'
-              ? internalAccounts
-              : null,
-          ),
+            if (controllerAndActionName === 'AccountsController:listAccounts') {
+              return internalAccounts;
+            }
+
+            // eslint-disable-next-line jest/no-conditional-in-test
+            if (controllerAndActionName === 'KeyringController:withKeyring') {
+              return ['0x123'];
+            }
+
+            return null;
+          }),
         }),
         getUserStorageControllerInstance: jest.fn(),
       };
-
-      jest
-        .spyOn(utils, 'doesInternalAccountHaveCorrectKeyringType')
-        .mockImplementation(
-          (account) =>
-            account.metadata.keyring.type === String(KeyringTypes.hd),
-        );
 
       const result = await getInternalAccountsList(options);
       expect(result).toStrictEqual([internalAccounts[0]]);

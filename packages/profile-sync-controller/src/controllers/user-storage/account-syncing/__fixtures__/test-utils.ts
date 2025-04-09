@@ -1,3 +1,4 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { MOCK_INTERNAL_ACCOUNTS } from './mockAccounts';
@@ -20,12 +21,21 @@ export function mockUserStorageMessengerForAccountSyncing(options?: {
 }) {
   const messengerMocks = mockUserStorageMessenger();
 
-  messengerMocks.mockKeyringAddNewAccount.mockImplementation(async () => {
+  messengerMocks.mockKeyringAddAccounts.mockImplementation(async () => {
     messengerMocks.baseMessenger.publish(
       'AccountsController:accountAdded',
       MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
-    return MOCK_INTERNAL_ACCOUNTS.ONE[0].address;
+  });
+
+  messengerMocks.mockKeyringGetAccounts.mockImplementation(async () => {
+    return (
+      options?.accounts?.accountsList
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        ?.filter((a) => a.metadata.keyring.type === KeyringTypes.hd)
+        .map((a) => a.address) ??
+      MOCK_INTERNAL_ACCOUNTS.ALL.map((a) => a.address)
+    );
   });
 
   messengerMocks.mockAccountsListAccounts.mockReturnValue(
