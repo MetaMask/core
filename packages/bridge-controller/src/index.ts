@@ -80,7 +80,19 @@ export {
   getDefaultBridgeControllerState,
 } from './utils/bridge';
 
-export { isValidQuoteRequest } from './utils/quote';
+export {
+  isValidQuoteRequest,
+  isQuoteExpired,
+  calcSolanaTotalNetworkFee,
+  calcRelayerFee,
+  calcEstimatedAndMaxTotalGasFee,
+  calcAdjustedReturn,
+  calcSwapRate,
+  calcCost,
+  formatEtaInMinutes,
+  calcTotalEstimatedNetworkFee,
+  calcTotalMaxNetworkFee,
+} from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
