@@ -3,6 +3,7 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { SolScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
+import type { CaipAssetType } from '@metamask/utils';
 import {
   type Hex,
   type CaipChainId,
@@ -11,9 +12,16 @@ import {
   parseCaipChainId,
   isCaipReference,
   numberToHex,
+  isCaipAssetType,
+  CaipAssetTypeStruct,
 } from '@metamask/utils';
 
-import { isNativeAddress, isSolanaChainId } from './bridge';
+import {
+  getNativeAssetForChainId,
+  isNativeAddress,
+  isSolanaChainId,
+} from './bridge';
+import type { GenericQuoteRequest } from '../types';
 import { ChainId } from '../types';
 
 /**
@@ -110,4 +118,31 @@ export const formatAddressToCaipReference = (address: string) => {
     throw new Error('Invalid address');
   }
   return addressWithoutPrefix;
+};
+
+/**
+ * Converts an address or assetId to a CaipAssetType
+ *
+ * @param addressOrAssetId - The address or assetId to convert
+ * @param chainId - The chainId of the asset
+ * @returns The CaipAssetType
+ */
+export const formatAddressToAssetId = (
+  addressOrAssetId: Hex | CaipAssetType | string,
+  chainId: GenericQuoteRequest['srcChainId'],
+): CaipAssetType | undefined => {
+  if (isCaipAssetType(addressOrAssetId)) {
+    return addressOrAssetId;
+  }
+  if (isNativeAddress(addressOrAssetId)) {
+    return getNativeAssetForChainId(chainId).assetId as CaipAssetType;
+  }
+  if (chainId === SolScope.Mainnet) {
+    return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
+  }
+  // EVM assets
+  if (!isStrictHexString(addressOrAssetId)) {
+    return undefined;
+  }
+  return CaipAssetTypeStruct.create(`${chainId}/erc20:${addressOrAssetId}`);
 };

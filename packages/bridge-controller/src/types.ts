@@ -1,5 +1,10 @@
 import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import type {
+  GetCurrencyRateState,
+  MultichainAssetsRatesControllerGetStateAction,
+  TokenRatesControllerGetStateAction,
+} from '@metamask/assets-controllers';
+import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
@@ -354,6 +359,9 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 
 export type AllowedActions =
   | AccountsControllerGetSelectedMultichainAccountAction
+  | GetCurrencyRateState
+  | TokenRatesControllerGetStateAction
+  | MultichainAssetsRatesControllerGetStateAction
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction

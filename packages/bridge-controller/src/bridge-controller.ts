@@ -9,8 +9,8 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { type SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { TransactionParams } from '@metamask/transaction-controller';
-import { numberToHex } from '@metamask/utils';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
+import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
   type BridgeClientId,
@@ -21,6 +21,7 @@ import {
   REFRESH_INTERVAL_MS,
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
+import { selectIsAssetExchangeRateInState } from './selectors';
 import type { GenericQuoteRequest, SolanaFees } from './types';
 import {
   type L1GasFees,
@@ -39,11 +40,16 @@ import {
   sumHexes,
 } from './utils/bridge';
 import {
+  formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { fetchBridgeFeatureFlags, fetchBridgeQuotes } from './utils/fetch';
+import {
+  fetchAssetPrices,
+  fetchBridgeFeatureFlags,
+  fetchBridgeQuotes,
+} from './utils/fetch';
 import { isValidQuoteRequest } from './utils/quote';
 
 const metadata: StateMetadata<BridgeControllerState> = {
@@ -201,6 +207,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesInitialLoadTime;
     });
 
+    await this.#fetchAssetExchangeRates(updatedQuoteRequest).catch((error) =>
+      console.warn('Failed to fetch asset exchange rates', error),
+    );
+
     if (isValidQuoteRequest(updatedQuoteRequest)) {
       this.#quotesFirstFetched = Date.now();
       const providerConfig = this.#getSelectedNetworkClient()?.configuration;
@@ -231,6 +241,65 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         },
       });
     }
+  };
+
+  readonly #fetchAssetExchangeRates = async ({
+    srcChainId,
+    srcTokenAddress,
+    destChainId,
+    destTokenAddress,
+  }: Partial<GenericQuoteRequest>) => {
+    const assetIdsToFetch: CaipAssetType[] = [];
+
+    const exchangeRateSources = {
+      ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
+      ...this.messagingSystem.call('CurrencyRateController:getState'),
+      ...this.messagingSystem.call('TokenRatesController:getState'),
+      ...this.state,
+    };
+
+    if (
+      srcTokenAddress &&
+      srcChainId &&
+      !selectIsAssetExchangeRateInState(
+        exchangeRateSources,
+        srcChainId,
+        srcTokenAddress,
+      )
+    ) {
+      const assetId = formatAddressToAssetId(srcTokenAddress, srcChainId);
+      if (assetId) {
+        assetIdsToFetch.push(assetId);
+      }
+    }
+    if (
+      destTokenAddress &&
+      destChainId &&
+      !selectIsAssetExchangeRateInState(
+        exchangeRateSources,
+        destChainId,
+        destTokenAddress,
+      )
+    ) {
+      const assetId = formatAddressToAssetId(destTokenAddress, destChainId);
+      if (assetId) {
+        assetIdsToFetch.push(assetId);
+      }
+    }
+    const currency = this.messagingSystem.call(
+      'CurrencyRateController:getState',
+    ).currentCurrency;
+
+    const pricesByAssetId = await fetchAssetPrices(
+      assetIdsToFetch,
+      currency,
+      this.#clientId,
+      this.#fetchFn,
+    );
+
+    this.update((state) => {
+      state.assetExchangeRates = pricesByAssetId;
+    });
   };
 
   readonly #hasSufficientBalance = async (
