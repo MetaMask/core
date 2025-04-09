@@ -179,6 +179,7 @@
   },
   "packages/controller-utils/src/util.test.ts": {
     "import-x/no-named-as-default": 1,
+    "import-x/order": 1,
     "jest/no-conditional-in-test": 1,
     "promise/param-names": 2
   },
@@ -419,7 +420,13 @@
     "import-x/no-named-as-default-member": 1
   },
   "packages/phishing-controller/src/PhishingController.ts": {
-    "jsdoc/check-tag-names": 45
+    "jsdoc/check-tag-names": 42,
+    "jsdoc/tag-lines": 1
+  },
+  "packages/phishing-controller/src/PhishingDetector.ts": {
+    "@typescript-eslint/no-unused-vars": 1,
+    "@typescript-eslint/prefer-readonly": 2,
+    "jsdoc/tag-lines": 2
   },
   "packages/phishing-controller/src/tests/utils.ts": {
     "@typescript-eslint/no-unused-vars": 1
@@ -429,8 +436,7 @@
   },
   "packages/phishing-controller/src/utils.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 1,
-    "@typescript-eslint/no-unused-vars": 1,
-    "prettier/prettier": 1
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/polling-controller/src/AbstractPollingController.ts": {
     "@typescript-eslint/prefer-readonly": 1
