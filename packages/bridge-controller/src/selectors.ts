@@ -36,7 +36,10 @@ type ExchangeRateControllers = MultichainAssetsRatesControllerState &
   CurrencyRateState &
   Pick<BridgeControllerState, 'assetExchangeRates'>;
 
-type BridgeAppState = BridgeControllerState & ExchangeRateControllers;
+/**
+ * The state of the bridge controller and its dependency controllers
+ */
+export type BridgeAppState = BridgeControllerState & ExchangeRateControllers;
 
 const selectAssetExchangeRate = (
   exchangeRateSources: ExchangeRateControllers,
