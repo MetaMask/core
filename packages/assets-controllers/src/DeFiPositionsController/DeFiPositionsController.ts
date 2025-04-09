@@ -195,7 +195,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
                 }
               }
 
-              return;
+              return undefined;
             }),
           )
         ).filter(Boolean) as {
