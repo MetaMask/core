@@ -85,3 +85,23 @@ export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
   // adapted later on if we have new kind of keyrings!
   return keyringType !== KeyringTypes.snap;
 }
+
+/**
+ * Check if a keyring is a HD keyring.
+ *
+ * @param keyringType - The account's keyring type.
+ * @returns True if the keyring is a HD keyring, false otherwise.
+ */
+export function isHdKeyringType(keyringType: KeyringTypes): boolean {
+  return keyringType === KeyringTypes.hd;
+}
+
+/**
+ * Get the derivation path for the index of an account within a HD keyring.
+ *
+ * @param index - The account index.
+ * @returns The derivation path.
+ */
+export function getDerivationPathForIndex(index: number): string {
+  return `m/44'/60'/0'/0/${index}`;
+}

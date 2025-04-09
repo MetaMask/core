@@ -38,7 +38,9 @@ import type { WritableDraft } from 'immer/dist/internal.js';
 
 import type { MultichainNetworkControllerNetworkDidChangeEvent } from './types';
 import {
+  getDerivationPathForIndex,
   getUUIDFromAddressOfNormalAccount,
+  isHdKeyringType,
   isNormalKeyringType,
   keyringTypeToName,
 } from './utils';
@@ -632,18 +634,33 @@ export class AccountsController extends BaseController<
    */
   async #listNormalAccounts(): Promise<InternalAccount[]> {
     const internalAccounts: InternalAccount[] = [];
-    const { keyrings } = await this.messagingSystem.call(
+    const { keyrings, keyringsMetadata } = await this.messagingSystem.call(
       'KeyringController:getState',
     );
-    for (const keyring of keyrings) {
+    for (let keyringIndex = 0; keyringIndex < keyrings.length; keyringIndex++) {
+      const keyring = keyrings[keyringIndex];
       const keyringType = keyring.type;
       if (!isNormalKeyringType(keyringType as KeyringTypes)) {
         // We only consider "normal accounts" here, so keep looping
         continue;
       }
 
-      for (const address of keyring.accounts) {
+      for (
+        let accountIndex = 0;
+        accountIndex < keyring.accounts.length;
+        accountIndex++
+      ) {
+        const address = keyring.accounts[accountIndex];
         const id = getUUIDFromAddressOfNormalAccount(address);
+
+        let options = {};
+
+        if (isHdKeyringType(keyring.type as KeyringTypes)) {
+          options = {
+            entropySource: keyringsMetadata[keyringIndex].id,
+            derivationPath: getDerivationPathForIndex(accountIndex),
+          };
+        }
 
         const nameLastUpdatedAt = this.#populateExistingMetadata(
           id,
@@ -653,7 +670,7 @@ export class AccountsController extends BaseController<
         internalAccounts.push({
           id,
           address,
-          options: {},
+          options,
           methods: [
             EthMethod.PersonalSign,
             EthMethod.Sign,
