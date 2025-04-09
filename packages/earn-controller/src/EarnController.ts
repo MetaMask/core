@@ -25,6 +25,16 @@ import {
   type VaultDailyApy,
   type VaultApyAverages,
 } from '@metamask/stake-sdk';
+import {
+  TransactionType,
+  type TransactionControllerTransactionConfirmedEvent,
+} from '@metamask/transaction-controller';
+
+import type {
+  RefreshPooledStakesOptions,
+  RefreshPooledStakingDataOptions,
+  RefreshStakingEligibilityOptions,
+} from './types';
 
 export const controllerName = 'EarnController';
 
@@ -51,6 +61,17 @@ export type StablecoinVault = {
   supply: string;
   liquidity: string;
 };
+
+type StakingTransactionTypes =
+  | TransactionType.stakingDeposit
+  | TransactionType.stakingUnstake
+  | TransactionType.stakingClaim;
+
+const stakingTransactionTypes = new Set<StakingTransactionTypes>([
+  TransactionType.stakingDeposit,
+  TransactionType.stakingUnstake,
+  TransactionType.stakingClaim,
+]);
 
 /**
  * Metadata for the EarnController.
@@ -172,7 +193,8 @@ export type EarnControllerEvents = EarnControllerStateChangeEvent;
  */
 export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger which is restricted to actions and events accessed by
@@ -227,6 +249,7 @@ export class EarnController extends BaseController<
     );
     this.#selectedNetworkClientId = selectedNetworkClientId;
 
+    // Listen for network changes
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (networkControllerState) => {
@@ -248,9 +271,39 @@ export class EarnController extends BaseController<
     // Listen for account changes
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
-      () => {
-        this.refreshStakingEligibility().catch(console.error);
-        this.refreshPooledStakes().catch(console.error);
+      (account) => {
+        const address = account?.address;
+        /**
+         * TEMP: There's a race condition where the account state isn't updated immediately.
+         * Until this has been fixed, we rely on the event payload for the latest account instead of #getCurrentAccount().
+         * Issue: https://github.com/MetaMask/accounts-planning/issues/887
+         */
+        this.refreshStakingEligibility({ address }).catch(console.error);
+        this.refreshPooledStakes({ address }).catch(console.error);
+      },
+    );
+
+    // Listen for confirmed staking transactions
+    this.messagingSystem.subscribe(
+      'TransactionController:transactionConfirmed',
+      (transactionMeta) => {
+        /**
+         * When we speed up a transaction, we set the type as Retry and we lose
+         * information about type of transaction that is being set up, so we use
+         * original type to track that information.
+         */
+        const { type, originalType } = transactionMeta;
+
+        const isStakingTransaction =
+          stakingTransactionTypes.has(type as StakingTransactionTypes) ||
+          stakingTransactionTypes.has(originalType as StakingTransactionTypes);
+
+        if (isStakingTransaction) {
+          const sender = transactionMeta.txParams.from;
+          this.refreshPooledStakes({ resetCache: true, address: sender }).catch(
+            console.error,
+          );
+        }
       },
     );
   }
@@ -317,12 +370,18 @@ export class EarnController extends BaseController<
    * Fetches updated stake information including lifetime rewards, assets, and exit requests
    * from the staking API service and updates the state.
    *
-   * @param resetCache - Control whether the BE cache should be invalidated.
+   * @param options - Optional arguments
+   * @param [options.resetCache] - Control whether the BE cache should be invalidated (optional).
+   * @param [options.address] - The address to refresh pooled stakes for (optional).
    * @returns A promise that resolves when the stakes data has been updated
    */
-  async refreshPooledStakes(resetCache = false): Promise<void> {
-    const currentAccount = this.#getCurrentAccount();
-    if (!currentAccount?.address) {
+  async refreshPooledStakes({
+    resetCache = false,
+    address,
+  }: RefreshPooledStakesOptions = {}): Promise<void> {
+    const addressToUse = address ?? this.#getCurrentAccount()?.address;
+
+    if (!addressToUse) {
       return;
     }
 
@@ -330,7 +389,7 @@ export class EarnController extends BaseController<
 
     const { accounts, exchangeRate } =
       await this.#stakingApiService.getPooledStakes(
-        [currentAccount.address],
+        [addressToUse],
         chainId,
         resetCache,
       );
@@ -345,17 +404,22 @@ export class EarnController extends BaseController<
    * Refreshes the staking eligibility status for the current account.
    * Updates the eligibility status in the controller state based on the location and address blocklist for compliance.
    *
+   * @param options - Optional arguments
+   * @param [options.address] - Address to refresh staking eligibility for (optional).
    * @returns A promise that resolves when the eligibility status has been updated
    */
-  async refreshStakingEligibility(): Promise<void> {
-    const currentAccount = this.#getCurrentAccount();
-    if (!currentAccount?.address) {
+  async refreshStakingEligibility({
+    address,
+  }: RefreshStakingEligibilityOptions = {}): Promise<void> {
+    const addressToCheck = address ?? this.#getCurrentAccount()?.address;
+
+    if (!addressToCheck) {
       return;
     }
 
     const { eligible: isEligible } =
       await this.#stakingApiService.getPooledStakingEligibility([
-        currentAccount.address,
+        addressToCheck,
       ]);
 
     this.update((state) => {
@@ -424,18 +488,23 @@ export class EarnController extends BaseController<
    * This method allows partial success, meaning some data may update while other requests fail.
    * All errors are collected and thrown as a single error message.
    *
-   * @param resetCache - Control whether the BE cache should be invalidated.
+   * @param options - Optional arguments
+   * @param [options.resetCache] - Control whether the BE cache should be invalidated (optional).
+   * @param [options.address] - The address to refresh pooled stakes for (optional).
    * @returns A promise that resolves when all possible data has been updated
    * @throws {Error} If any of the refresh operations fail, with concatenated error messages
    */
-  async refreshPooledStakingData(resetCache = false): Promise<void> {
+  async refreshPooledStakingData({
+    resetCache,
+    address,
+  }: RefreshPooledStakingDataOptions = {}): Promise<void> {
     const errors: Error[] = [];
 
     await Promise.all([
-      this.refreshPooledStakes(resetCache).catch((error) => {
+      this.refreshPooledStakes({ resetCache, address }).catch((error) => {
         errors.push(error);
       }),
-      this.refreshStakingEligibility().catch((error) => {
+      this.refreshStakingEligibility({ address }).catch((error) => {
         errors.push(error);
       }),
       this.refreshPooledStakingVaultMetadata().catch((error) => {

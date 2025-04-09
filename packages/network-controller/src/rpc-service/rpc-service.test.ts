@@ -1219,7 +1219,10 @@ function testsForRetriableFetchErrors({
         throw producedError;
       });
       const endpointUrl = 'https://rpc.example.chain';
-      const failoverService = buildMockRpcService();
+      const failoverEndpointUrl = 'https://failover.endpoint';
+      const failoverService = buildMockRpcService({
+        endpointUrl: new URL(failoverEndpointUrl),
+      });
       const onBreakListener = jest.fn();
       const service = new RpcService({
         fetch: mockFetch,
@@ -1253,6 +1256,7 @@ function testsForRetriableFetchErrors({
       expect(onBreakListener).toHaveBeenCalledWith({
         error: expectedError,
         endpointUrl: `${endpointUrl}/`,
+        failoverEndpointUrl: `${failoverEndpointUrl}/`,
       });
     });
   });
@@ -1580,7 +1584,10 @@ function testsForRetriableResponses({
         .times(16)
         .reply(httpStatus, responseBody);
       const endpointUrl = 'https://rpc.example.chain';
-      const failoverService = buildMockRpcService();
+      const failoverEndpointUrl = 'https://failover.endpoint';
+      const failoverService = buildMockRpcService({
+        endpointUrl: new URL(failoverEndpointUrl),
+      });
       const onBreakListener = jest.fn();
       const service = new RpcService({
         fetch,
@@ -1614,6 +1621,7 @@ function testsForRetriableResponses({
       expect(onBreakListener).toHaveBeenCalledWith({
         error: expectedError,
         endpointUrl: `${endpointUrl}/`,
+        failoverEndpointUrl: `${failoverEndpointUrl}/`,
       });
     });
   });
@@ -1624,13 +1632,18 @@ function testsForRetriableResponses({
 /**
  * Constructs a fake RPC service for use as a failover in tests.
  *
+ * @param overrides - The overrides.
  * @returns The fake failover service.
  */
-function buildMockRpcService(): AbstractRpcService {
+function buildMockRpcService(
+  overrides?: Partial<AbstractRpcService>,
+): AbstractRpcService {
   return {
+    endpointUrl: new URL('https://test.example'),
     request: jest.fn(),
     onRetry: jest.fn(),
     onBreak: jest.fn(),
     onDegraded: jest.fn(),
+    ...overrides,
   };
 }

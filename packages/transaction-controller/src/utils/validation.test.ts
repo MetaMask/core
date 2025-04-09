@@ -1,5 +1,6 @@
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { Hex } from '@metamask/utils';
 
 import {
   validateBatchRequest,
@@ -11,9 +12,31 @@ import { TransactionEnvelopeType, TransactionType } from '../types';
 import type { TransactionParams } from '../types';
 
 const DATA_MOCK = '0x12345678';
-const FROM_MOCK = '0x1678a085c290ebd122dc42cba69373b5953b831d';
-const TO_MOCK = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
+const FROM_MOCK: Hex = '0x1678a085c290ebd122dc42cba69373b5953b831d';
+const TO_MOCK: Hex = '0xfbb5595c18ca76bab52d66188e4ca50c7d95f77a';
 const ORIGIN_MOCK = 'test-origin';
+
+const VALIDATE_BATCH_REQUEST_MOCK = {
+  internalAccounts: [],
+  request: {
+    from: FROM_MOCK,
+    networkClientId: 'testNetworkClientId',
+    origin: ORIGIN_MOCK,
+    transactions: [
+      {
+        params: {
+          to: '0xabc' as Hex,
+        },
+      },
+      {
+        params: {
+          to: TO_MOCK,
+        },
+      },
+    ],
+  },
+  sizeLimit: 2,
+};
 
 describe('validation', () => {
   describe('validateTxParams', () => {
@@ -146,21 +169,6 @@ describe('validation', () => {
       ).toThrow(
         rpcErrors.invalidParams(
           'Invalid transaction value one million dollar$: number must be a valid number.',
-        ),
-      );
-
-      expect(() =>
-        validateTxParams({
-          from: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          to: '0x3244e191f1b4903970224322180f1fbbc415696b',
-          value: '1',
-          chainId: {},
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any),
-      ).toThrow(
-        rpcErrors.invalidParams(
-          'Invalid transaction params: chainId is not a Number or hex string. got: ([object Object])',
         ),
       );
 
@@ -585,6 +593,80 @@ describe('validation', () => {
         );
       });
     });
+
+    describe('chainId', () => {
+      it('throws if chain ID in params does not match chain ID of network client', () => {
+        const chainIdParams = '0x1';
+        const chainIdNetworkClient = '0x2';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+              chainId: chainIdParams,
+            },
+            false,
+            chainIdNetworkClient,
+          ),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            `Invalid transaction params: chainId must match the network client, got: ${chainIdParams}, expected: ${chainIdNetworkClient}`,
+          ),
+        );
+      });
+
+      it('throws if chain ID in params is wrong type', () => {
+        const chainIdParams = 123 as never;
+        const chainIdNetworkClient = '0x2';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+              chainId: chainIdParams,
+            },
+            false,
+            chainIdNetworkClient,
+          ),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            `Invalid transaction params: chainId must match the network client, got: ${String(chainIdParams)}, expected: ${chainIdNetworkClient}`,
+          ),
+        );
+      });
+
+      it('does not throw if no chain ID in params', () => {
+        const chainIdNetworkClient = '0x2';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+            },
+            false,
+            chainIdNetworkClient,
+          ),
+        ).not.toThrow();
+      });
+
+      it('does not throw if no network client chain ID', () => {
+        const chainIdParams = '0x1';
+
+        expect(() =>
+          validateTxParams(
+            {
+              from: FROM_MOCK,
+              to: TO_MOCK,
+              chainId: chainIdParams,
+            },
+            false,
+          ),
+        ).not.toThrow();
+      });
+    });
   });
 
   describe('validateTransactionOrigin', () => {
@@ -756,24 +838,8 @@ describe('validation', () => {
     it('throws if external origin and any transaction target is internal account', () => {
       expect(() =>
         validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
-          request: {
-            from: FROM_MOCK,
-            networkClientId: 'testNetworkClientId',
-            origin: ORIGIN_MOCK,
-            transactions: [
-              {
-                params: {
-                  to: '0xabc',
-                },
-              },
-              {
-                params: {
-                  to: TO_MOCK,
-                },
-              },
-            ],
-          },
         }),
       ).toThrow(
         rpcErrors.invalidParams('Calls to internal accounts are not supported'),
@@ -783,22 +849,11 @@ describe('validation', () => {
     it('does not throw if no origin and any transaction target is internal account', () => {
       expect(() =>
         validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
           request: {
-            from: FROM_MOCK,
-            networkClientId: 'testNetworkClientId',
-            transactions: [
-              {
-                params: {
-                  to: '0xabc',
-                },
-              },
-              {
-                params: {
-                  to: TO_MOCK,
-                },
-              },
-            ],
+            ...VALIDATE_BATCH_REQUEST_MOCK.request,
+            origin: undefined,
           },
         }),
       ).not.toThrow();
@@ -807,24 +862,34 @@ describe('validation', () => {
     it('does not throw if internal origin and any transaction target is internal account', () => {
       expect(() =>
         validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
           internalAccounts: ['0x123', TO_MOCK],
           request: {
-            from: FROM_MOCK,
-            networkClientId: 'testNetworkClientId',
+            ...VALIDATE_BATCH_REQUEST_MOCK.request,
             origin: ORIGIN_METAMASK,
-            transactions: [
-              {
-                params: {
-                  to: '0xabc',
-                },
-              },
-              {
-                params: {
-                  to: TO_MOCK,
-                },
-              },
-            ],
           },
+        }),
+      ).not.toThrow();
+    });
+
+    it('throws if transaction count is greater than limit', () => {
+      expect(() =>
+        validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
+          sizeLimit: 1,
+        }),
+      ).toThrow(rpcErrors.invalidParams('Batch size cannot exceed 1. got: 2'));
+    });
+
+    it('does not throw if transaction count is internal and greater than limit', () => {
+      expect(() =>
+        validateBatchRequest({
+          ...VALIDATE_BATCH_REQUEST_MOCK,
+          request: {
+            ...VALIDATE_BATCH_REQUEST_MOCK.request,
+            origin: ORIGIN_METAMASK,
+          },
+          sizeLimit: 1,
         }),
       ).not.toThrow();
     });

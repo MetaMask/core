@@ -21,8 +21,7 @@
     "import-x/namespace": 2
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
-    "jsdoc/check-tag-names": 5,
-    "jsdoc/tag-lines": 1
+    "jsdoc/check-tag-names": 5
   },
   "packages/assets-controllers/src/AssetsContractController.test.ts": {
     "import-x/order": 3
@@ -84,7 +83,6 @@
   },
   "packages/assets-controllers/src/TokenDetectionController.test.ts": {
     "import-x/namespace": 11,
-    "import-x/order": 3,
     "jsdoc/tag-lines": 1
   },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
@@ -118,8 +116,8 @@
   "packages/assets-controllers/src/TokensController.ts": {
     "@typescript-eslint/no-unused-vars": 1,
     "@typescript-eslint/prefer-readonly": 1,
-    "jsdoc/check-tag-names": 13,
-    "jsdoc/tag-lines": 3
+    "jsdoc/check-tag-names": 10,
+    "jsdoc/tag-lines": 2
   },
   "packages/assets-controllers/src/assetsUtil.test.ts": {
     "jest/no-conditional-in-test": 2
@@ -233,7 +231,7 @@
   },
   "packages/keyring-controller/src/KeyringController.ts": {
     "@typescript-eslint/no-unsafe-enum-comparison": 5,
-    "@typescript-eslint/no-unused-vars": 2
+    "@typescript-eslint/no-unused-vars": 1
   },
   "packages/keyring-controller/tests/mocks/mockKeyring.ts": {
     "@typescript-eslint/prefer-readonly": 1
