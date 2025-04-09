@@ -1,3 +1,5 @@
+import { BtcAccountType } from '@metamask/keyring-api';
+
 import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
 import {
   DeFiPositionsController,
@@ -7,15 +9,14 @@ import * as fetchPositions from './fetch-positions';
 import type { DefiPositionResponse } from './fetch-positions';
 import * as groupPositions from './group-positions';
 import type { GroupedPositions } from './group-positions';
+import { flushPromises } from '../../../../tests/helpers';
 import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
 import { Messenger } from '../../../base-controller/src/Messenger';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-import { BtcAccountType } from '@metamask/keyring-api';
-import { TransactionMeta } from '../../../transaction-controller/src/types';
-import { flushPromises } from '../../../../tests/helpers';
+import type { TransactionMeta } from '../../../transaction-controller/src/types';
 
 const OWNER_ACCOUNTS = [
   createMockInternalAccount({
@@ -40,6 +41,8 @@ type MainMessenger = Messenger<
 /**
  *
  * @param state - Partial state to initialize the controller with
+ * @param state.interval - The interval to poll for positions
+ * @param state.isEnabled - Whether the controller is enabled
  * @returns The controller instance and the trigger functions
  */
 function setupController({

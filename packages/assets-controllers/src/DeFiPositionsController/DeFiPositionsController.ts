@@ -5,15 +5,15 @@ import type {
   RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
+import type { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import type { KeyringControllerLockEvent } from '@metamask/keyring-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { DefiPositionResponse } from './fetch-positions';
 import { buildPositionFetcher } from './fetch-positions';
 import { groupPositions, type GroupedPositions } from './group-positions';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
-import { KeyringControllerLockEvent } from '@metamask/keyring-controller';
 import { reduceInBatchesSerially } from '../assetsUtil';
 
 const TEN_MINUTES_IN_MS = 60_000;
