@@ -175,7 +175,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       values: accounts,
       batchSize: FETCH_POSITIONS_BATCH_SIZE,
       eachBatch: async (workingResult, batch) => {
-        const results = (
+        const batchResults = (
           await Promise.all(
             batch.map(async ({ address: accountAddress, type }) => {
               if (type.startsWith('eip155:')) {
@@ -194,6 +194,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
                   };
                 }
               }
+
+              return;
             }),
           )
         ).filter(Boolean) as {
@@ -201,7 +203,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
           positions: GroupedPositionsPerChain | null;
         }[];
 
-        return [...workingResult, ...results];
+        return [...workingResult, ...batchResults];
       },
     });
 
