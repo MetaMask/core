@@ -3,9 +3,9 @@ import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { FakeProvider } from '../../../tests/fake-provider';
 import { MAX_SAFE_CHAIN_ID } from './constants';
 import * as util from './util';
+import { FakeProvider } from '../../../tests/fake-provider';
 
 const VALID = '4e1fF7229BDdAf0A73DF183a88d9c3a04cc975e0';
 const SOME_API = 'https://someapi.com';
@@ -514,7 +514,7 @@ describe('util', () => {
               return cb(null, { id: params[0] });
             }
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
             throw new Error(`Unsupported method ${method}`);
           }
         }

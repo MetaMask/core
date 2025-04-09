@@ -62,11 +62,11 @@ export const applyDiffs = (
 ): PhishingListState => {
   // filter to remove diffs that were added before the lastUpdate time.
   // filter to remove diffs that aren't applicable to the specified list (by listKey).
-  const diffsToApply = hotlistDiffs.filter(
+  const diffsToApply = hotlistDiffs?.filter(
     ({ timestamp, targetList }) =>
       timestamp > listState.lastUpdated &&
       splitStringByPeriod(targetList)[0] === listKey,
-  );
+  ) || [];
 
   // the reason behind using latestDiffTimestamp as the lastUpdated time
   // is so that we can benefit server-side from memoization due to end client's

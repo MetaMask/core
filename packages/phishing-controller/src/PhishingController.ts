@@ -87,7 +87,7 @@ export type EthPhishingResponse = {
 export type C2DomainBlocklistResponse = {
   recentlyAdded: string[];
   recentlyRemoved: string[];
-  lastFetchedAt: string;
+  lastFetchedAt: number;
 };
 
 /**
@@ -148,10 +148,16 @@ export type HotlistDiff = {
   isRemoval?: boolean;
 };
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+/**
+ * @type DataResultWrapper<T>
+ * 
+ * Type for API responses that wrap data (e.g. hotlist)
+ * @property data - The wrapped data
+ * @property lastFetchedAt - Timestamp of the last fetch request
+ */
 export type DataResultWrapper<T> = {
   data: T;
+  lastFetchedAt?: number;
 };
 
 /**
@@ -204,6 +210,7 @@ const metadata = {
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
   c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
+  hotlistLastSuccessTimestamp: { persist: true, anonymous: false },
 };
 
 /**
@@ -217,6 +224,7 @@ const getDefaultState = (): PhishingControllerState => {
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
+    hotlistLastSuccessTimestamp: 0,
   };
 };
 
@@ -233,6 +241,7 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
+  hotlistLastSuccessTimestamp: number;
 };
 
 /**
@@ -739,6 +748,14 @@ export class PhishingController extends BaseController<
     if (!hotlistResponse?.data) {
       return;
     }
+    
+    // Only update the success timestamp when we have a successful response
+    this.update((draftState) => {
+      // We've already verified that hotlistResponse is not null above
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      draftState.hotlistLastSuccessTimestamp = hotlistResponse!.lastFetchedAt || draftState.hotlistLastSuccessTimestamp;
+    });
+    
     const hotlist = hotlistResponse.data;
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
@@ -792,7 +809,7 @@ export class PhishingController extends BaseController<
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,
-        [],
+        [], // Empty hotlist diffs array as this only updates c2DomainBlocklist
         phishingListNameKeyMap[phishingList.name],
         recentlyAddedC2Domains,
         recentlyRemovedC2Domains,

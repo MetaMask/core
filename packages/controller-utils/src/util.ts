@@ -68,7 +68,7 @@ export function isSafeChainId(chainId: Hex): boolean {
  * @returns A '0x'-prefixed hex string.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export function BNToHex(inputBn: BN | BigNumber) {
   return add0x(inputBn.toString(16));
 }
@@ -154,7 +154,7 @@ export function getBuyURL(
   switch (networkCode) {
     case '1':
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+
       return `https://buy.coinbase.com/?code=9ec56d01-7e81-5017-930c-513daa27bb6a&amount=${amount}&address=${address}&crypto_currency=ETH`;
     case '5':
       return 'https://goerli-faucet.slock.it/';
@@ -298,7 +298,7 @@ export function toChecksumHexAddress(address: string): string;
  * major version. Please pass a string to `toChecksumHexAddress` instead.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export function toChecksumHexAddress<T>(address: T): T;
 
 // Tools only see JSDocs for overloads and ignore them for the implementation.
@@ -562,7 +562,7 @@ export function isPlainObject(value: unknown): value is PlainObject {
  * @template T - The non-empty array member type.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export type NonEmptyArray<T> = [T, ...T[]];
 
 /**
@@ -573,7 +573,7 @@ export type NonEmptyArray<T> = [T, ...T[]];
  * @returns Whether the value is a non-empty array.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+
 export function isNonEmptyArray<T>(value: T[]): value is NonEmptyArray<T> {
   return Array.isArray(value) && value.length > 0;
 }

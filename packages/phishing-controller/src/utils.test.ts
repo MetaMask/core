@@ -1,6 +1,6 @@
 import * as sinon from 'sinon';
 
-import { ListKeys, ListNames } from './PhishingController';
+import { ListKeys, ListNames, Hotlist } from './PhishingController';
 import {
   applyDiffs,
   domainToParts,
@@ -73,6 +73,30 @@ describe('applyDiffs', () => {
       ...exampleListState,
       blocklist: [...exampleListState.blocklist, exampleBlockedUrlTwo],
       lastUpdated: exampleAddDiff.timestamp,
+    });
+  });
+
+  it('handles null or undefined hotlistDiffs by using an empty array', () => {
+    // Test with undefined
+    const resultUndefined = applyDiffs(
+      exampleListState,
+      undefined as unknown as Hotlist,
+      ListKeys.EthPhishingDetectConfig,
+    );
+    expect(resultUndefined).toStrictEqual({
+      ...exampleListState,
+      name: ListNames.MetaMask,
+    });
+
+    // Test with null
+    const resultNull = applyDiffs(
+      exampleListState,
+      null as unknown as Hotlist,
+      ListKeys.EthPhishingDetectConfig,
+    );
+    expect(resultNull).toStrictEqual({
+      ...exampleListState,
+      name: ListNames.MetaMask,
     });
   });
 
