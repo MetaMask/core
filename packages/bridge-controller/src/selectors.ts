@@ -35,17 +35,28 @@ import {
   getQuoteIdentifier,
 } from './utils/quote';
 
+/**
+ * The controller states that provide exchange rates
+ */
 type ExchangeRateControllers = MultichainAssetsRatesControllerState &
   TokenRatesControllerState &
   CurrencyRateState &
   Pick<BridgeControllerState, 'assetExchangeRates'>;
 
 /**
- * The state of the bridge controller and its dependency controllers
+ * The state of the bridge controller and all its dependency controllers
  */
 export type BridgeAppState = BridgeControllerState & ExchangeRateControllers;
 
-const selectAssetExchangeRate = (
+/**
+ * Selects the asset exchange rate for a given chain and address
+ *
+ * @param exchangeRateSources The exchange rate sources
+ * @param chainId The chain ID of the asset
+ * @param address The address of the asset
+ * @returns The asset exchange rate for the given chain and address
+ */
+export const selectAssetExchangeRate = (
   exchangeRateSources: ExchangeRateControllers,
   chainId?: GenericQuoteRequest['srcChainId'],
   address?: GenericQuoteRequest['srcTokenAddress'],
@@ -53,6 +64,7 @@ const selectAssetExchangeRate = (
   if (!chainId || !address) {
     return null;
   }
+  // TODO return usd exchange rate if user has opted into metrics
   const assetId = formatAddressToAssetId(address, chainId);
   if (!assetId) {
     return null;
@@ -103,9 +115,15 @@ const selectAssetExchangeRate = (
   return null;
 };
 
+/**
+ * Selects whether an exchange rate is available for a given chain and address
+ *
+ * @param params The parameters to pass to {@link selectAssetExchangeRate}
+ * @returns Whether an exchange rate is available for the given chain and address
+ */
 export const selectIsAssetExchangeRateInState = (
-  ...i: Parameters<typeof selectAssetExchangeRate>
-) => selectAssetExchangeRate(...i) !== null;
+  ...params: Parameters<typeof selectAssetExchangeRate>
+) => selectAssetExchangeRate(...params) !== null;
 
 /**
  * Selects cross-chain swap quotes including their metadata

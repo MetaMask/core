@@ -104,4 +104,8 @@ export {
   formatAddressToCaipReference,
 } from './utils/caip-formatters';
 
-export { selectBridgeQuotes, type BridgeAppState } from './selectors';
+export {
+  selectBridgeQuotes,
+  type BridgeAppState,
+  selectAssetExchangeRate,
+} from './selectors';
