@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "12.0.0",
+  "version": "13.0.0",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "MetaMask",
@@ -71,7 +71,7 @@
     "@metamask/network-controller": "^23.2.0",
     "@metamask/snaps-controllers": "^9.19.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^53.0.0",
+    "@metamask/transaction-controller": "^54.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -88,7 +88,7 @@
     "@metamask/assets-controllers": "^55.0.0",
     "@metamask/network-controller": "^23.0.0",
     "@metamask/snaps-controllers": "^9.19.0",
-    "@metamask/transaction-controller": "^53.0.0",
+    "@metamask/transaction-controller": "^54.0.0",
     "reselect": "^5.1.1"
   },
   "engines": {

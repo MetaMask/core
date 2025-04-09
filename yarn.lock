@@ -2732,7 +2732,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^12.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^13.0.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -2755,7 +2755,7 @@ __metadata:
     "@metamask/snaps-controllers": "npm:^9.19.0"
     "@metamask/snaps-utils": "npm:^9.1.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^53.0.0"
+    "@metamask/transaction-controller": "npm:^54.0.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     bignumber.js: "npm:^4.1.0"
@@ -2773,7 +2773,7 @@ __metadata:
     "@metamask/assets-controllers": ^55.0.0
     "@metamask/network-controller": ^23.0.0
     "@metamask/snaps-controllers": ^9.19.0
-    "@metamask/transaction-controller": ^53.0.0
+    "@metamask/transaction-controller": ^54.0.0
     reselect: ^5.1.1
   languageName: unknown
   linkType: soft
@@ -2785,12 +2785,12 @@ __metadata:
     "@metamask/accounts-controller": "npm:^27.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
-    "@metamask/bridge-controller": "npm:^12.0.0"
+    "@metamask/bridge-controller": "npm:^13.0.0"
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^53.0.0"
+    "@metamask/transaction-controller": "npm:^54.0.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -2805,7 +2805,7 @@ __metadata:
   peerDependencies:
     "@metamask/accounts-controller": ^27.0.0
     "@metamask/network-controller": ^23.0.0
-    "@metamask/transaction-controller": ^53.0.0
+    "@metamask/transaction-controller": ^54.0.0
   languageName: unknown
   linkType: soft
 
@@ -3011,7 +3011,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/network-controller": "npm:^23.2.0"
     "@metamask/stake-sdk": "npm:^1.0.0"
-    "@metamask/transaction-controller": "npm:^53.0.0"
+    "@metamask/transaction-controller": "npm:^54.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
@@ -3873,7 +3873,7 @@ __metadata:
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/controller-utils": "npm:^11.7.0"
     "@metamask/keyring-controller": "npm:^21.0.2"
-    "@metamask/profile-sync-controller": "npm:^11.0.0"
+    "@metamask/profile-sync-controller": "npm:^11.0.1"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
@@ -4054,7 +4054,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@npm:^11.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^11.0.1, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
@@ -4457,7 +4457,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/transaction-controller@npm:^53.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^54.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -4530,7 +4530,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^13.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^53.0.0"
+    "@metamask/transaction-controller": "npm:^54.0.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
@@ -4549,7 +4549,7 @@ __metadata:
     "@metamask/gas-fee-controller": ^23.0.0
     "@metamask/keyring-controller": ^21.0.0
     "@metamask/network-controller": ^23.0.0
-    "@metamask/transaction-controller": ^53.0.0
+    "@metamask/transaction-controller": ^54.0.0
   languageName: unknown
   linkType: soft
 
