@@ -1,8 +1,4 @@
-import {
-  convertHexToDecimal,
-  toHex,
-  weiHexToGweiDec,
-} from '@metamask/controller-utils';
+import { toHex, weiHexToGweiDec } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
 import { isNativeAddress } from './bridge';
@@ -152,7 +148,7 @@ export const calcRelayerFee = (
     trade,
   } = bridgeQuote;
   const relayerFeeInNative = calcTokenAmount(
-    new BigNumber(convertHexToDecimal(trade.value)).sub(
+    new BigNumber(trade.value, 16).sub(
       isNativeAddress(srcAsset.address)
         ? new BigNumber(srcTokenAmount).add(feeData.metabridge.amount)
         : 0,
