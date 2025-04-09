@@ -1,4 +1,4 @@
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { Duration } from '@metamask/utils';
 
 import {
@@ -167,3 +167,45 @@ export async function fetchBridgeQuotes(
   });
   return filteredQuotes as QuoteResponse[];
 }
+
+/**
+ * Fetches the asset prices from the price API
+ *
+ * @param assetIds - The asset IDs to fetch prices for
+ * @param currency - The currency to fetch prices in
+ * @param clientId - The client ID for metrics
+ * @param fetchFn - The fetch function to use
+ * @returns The asset prices by assetId
+ */
+export const fetchAssetPrices = async (
+  assetIds: (CaipAssetType | undefined)[],
+  currency: string,
+  clientId: string,
+  fetchFn: FetchFunction,
+) => {
+  const queryParams = new URLSearchParams({
+    assetIds: assetIds.filter(Boolean).join(','),
+    includeMarketData: 'true',
+    vsCurrency: currency,
+  });
+  const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
+  const priceApiResponse = (await fetchFn(url, {
+    headers: getClientIdHeader(clientId),
+    cacheOptions: { cacheRefreshTime: Number(Duration.Second * 30) },
+    functionName: 'fetchAssetExchangeRates',
+  })) as Record<CaipAssetType, { price: number }>;
+
+  return Object.entries(priceApiResponse).reduce(
+    (acc, [k, curr]) => {
+      acc[k as CaipAssetType] = {
+        valueInCurrency: curr.price.toString(),
+        usd: currency === 'usd' ? curr.price.toString() : null,
+      };
+      return acc;
+    },
+    {} as Record<
+      CaipAssetType,
+      { valueInCurrency: string; usd: string | null }
+    >,
+  );
+};
