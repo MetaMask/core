@@ -85,6 +85,11 @@ export type TokenAmountValues = {
 };
 
 /**
+ * Asset exchange rate values for a given chain and address
+ */
+export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
+
+/**
  * Values derived from the quote response
  */
 export type QuoteMetadata = {
@@ -335,7 +340,10 @@ export type BridgeControllerState = {
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
   quotesRefreshCount: number;
-  assetExchangeRates: Record<CaipAssetType, Omit<TokenAmountValues, 'amount'>>; // EVM and multichain assets that are not indexed by the assets controllers
+  /**
+   * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
+   */
+  assetExchangeRates: Record<CaipAssetType, ExchangeRate>;
 };
 
 export type BridgeControllerAction<

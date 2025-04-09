@@ -84,8 +84,6 @@ export {
   isValidQuoteRequest,
   isQuoteExpired,
   formatEtaInMinutes,
-  calcTotalEstimatedNetworkFee,
-  calcTotalMaxNetworkFee,
 } from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
@@ -101,5 +99,5 @@ export {
 export {
   selectBridgeQuotes,
   type BridgeAppState,
-  selectAssetExchangeRate,
+  selectExchangeRateByChainIdAndAddress,
 } from './selectors';

@@ -6,16 +6,18 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { orderBy } from 'lodash';
-import { createSelector } from 'reselect';
+import {
+  createSelector as createSelector_,
+  createStructuredSelector as createStructuredSelector_,
+} from 'reselect';
 
 import type {
   BridgeControllerState,
   BridgeFeatureFlagsKey,
+  ExchangeRate,
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteResponse,
-  SolanaFees,
-  TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
 import {
@@ -28,11 +30,16 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters';
 import {
+  calcAdjustedReturn,
+  calcCost,
+  calcEstimatedAndMaxTotalGasFee,
   calcRelayerFee,
   calcSentAmount,
+  calcSolanaTotalNetworkFee,
   calcSwapRate,
   calcToAmount,
-  getQuoteIdentifier,
+  calcTotalEstimatedNetworkFee,
+  calcTotalMaxNetworkFee,
 } from './utils/quote';
 
 /**
@@ -42,11 +49,36 @@ type ExchangeRateControllers = MultichainAssetsRatesControllerState &
   TokenRatesControllerState &
   CurrencyRateState &
   Pick<BridgeControllerState, 'assetExchangeRates'>;
-
 /**
  * The state of the bridge controller and all its dependency controllers
  */
 export type BridgeAppState = BridgeControllerState & ExchangeRateControllers;
+/**
+ * Creates a structured selector for the bridge controller
+ */
+const createStructuredBridgeSelector =
+  createStructuredSelector_.withTypes<BridgeAppState>();
+/**
+ * Creates a typed selector for the bridge controller
+ */
+const createBridgeSelector = createSelector_.withTypes<BridgeAppState>();
+/**
+ * The merged client transaction and gas controller estimates for gas
+ */
+type BridgeFeesPerGas = {
+  estimatedBaseFeeInDecGwei: string;
+  maxPriorityFeePerGasInDecGwei: string;
+  maxFeePerGasInDecGwei: string;
+};
+/**
+ * Required parameters that clients must provide for the bridge quotes selector
+ */
+type BridgeQuotesClientParams = {
+  bridgeFeesPerGas: BridgeFeesPerGas;
+  sortOrder: SortOrder;
+  selectedQuote: (QuoteResponse & QuoteMetadata) | null;
+  featureFlagsKey: BridgeFeatureFlagsKey;
+};
 
 /**
  * Selects the asset exchange rate for a given chain and address
@@ -56,130 +88,136 @@ export type BridgeAppState = BridgeControllerState & ExchangeRateControllers;
  * @param address The address of the asset
  * @returns The asset exchange rate for the given chain and address
  */
-export const selectAssetExchangeRate = (
+export const selectExchangeRateByChainIdAndAddress = (
   exchangeRateSources: ExchangeRateControllers,
   chainId?: GenericQuoteRequest['srcChainId'],
   address?: GenericQuoteRequest['srcTokenAddress'],
-): Omit<TokenAmountValues, 'amount'> | null => {
+): ExchangeRate => {
   if (!chainId || !address) {
-    return null;
+    return {};
   }
   // TODO return usd exchange rate if user has opted into metrics
   const assetId = formatAddressToAssetId(address, chainId);
   if (!assetId) {
-    return null;
+    return {};
   }
 
   const { assetExchangeRates, currencyRates, marketData, conversionRates } =
     exchangeRateSources;
 
-  const assetExchangeRateToUse =
+  // If the asset exchange rate is available in the bridge controller, use it
+  // This is defined if the token's rate is not available from the assets controllers
+  const bridgeControllerRate =
     assetExchangeRates[assetId] ??
     assetExchangeRates[assetId.toLowerCase() as CaipAssetType];
-  if (assetExchangeRateToUse) {
-    return assetExchangeRateToUse;
+  if (bridgeControllerRate?.exchangeRate) {
+    return bridgeControllerRate;
   }
-
-  const multichainAssetExchangeRate = conversionRates?.[assetId];
+  // If the chain is a Solana chain, use the conversion rate from the multichain assets controller
   if (isSolanaChainId(chainId)) {
+    const multichainAssetExchangeRate = conversionRates?.[assetId];
     if (multichainAssetExchangeRate) {
       return {
-        valueInCurrency: multichainAssetExchangeRate.rate,
-        usd: null,
+        exchangeRate: multichainAssetExchangeRate.rate,
+        usdExchangeRate: undefined,
       };
     }
-    return null;
+    return {};
   }
-
+  // If the chain is an EVM chain, use the conversion rate from the currency rates controller
   const { symbol } = getNativeAssetForChainId(chainId);
-  const evmNativeExchangeRate = currencyRates[symbol];
+  const evmNativeExchangeRate = currencyRates[symbol.toLowerCase()];
   if (isNativeAddress(address) && evmNativeExchangeRate) {
     return {
-      valueInCurrency:
-        evmNativeExchangeRate?.conversionRate?.toString() ?? null,
-      usd: evmNativeExchangeRate?.usdConversionRate?.toString() ?? null,
+      exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
+      usdExchangeRate: evmNativeExchangeRate?.usdConversionRate?.toString(),
     };
   }
-
+  // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   const evmTokenExchangeRates = marketData[formatChainIdToHex(chainId)];
   const evmTokenExchangeRateForAddress = isStrictHexString(address)
     ? evmTokenExchangeRates?.[address]
     : null;
   if (evmTokenExchangeRateForAddress) {
     return {
-      valueInCurrency: evmTokenExchangeRateForAddress?.price.toString() ?? null,
-      usd: null,
+      exchangeRate: evmTokenExchangeRateForAddress?.price.toString(),
+      usdExchangeRate: undefined,
     };
   }
 
-  return null;
+  return {};
 };
 
 /**
- * Selects whether an exchange rate is available for a given chain and address
+ * Checks whether an exchange rate is available for a given chain and address
  *
- * @param params The parameters to pass to {@link selectAssetExchangeRate}
+ * @param params The parameters to pass to {@link selectExchangeRateByChainIdAndAddress}
  * @returns Whether an exchange rate is available for the given chain and address
  */
 export const selectIsAssetExchangeRateInState = (
-  ...params: Parameters<typeof selectAssetExchangeRate>
-) => selectAssetExchangeRate(...params) !== null;
+  ...params: Parameters<typeof selectExchangeRateByChainIdAndAddress>
+) => Boolean(selectExchangeRateByChainIdAndAddress(...params)?.exchangeRate);
 
-/**
- * Selects cross-chain swap quotes including their metadata
- *
- * @param state - The state of the bridge controller and its dependency controllers
- * @returns The quotes with metadata
- *
- * @example usage in the extension
- * ```ts
- * const quotes = useSelector(state => selectBridgeQuotesWithMetadata(state.metamask));
- * ```
- */
-export const selectBridgeQuotesWithMetadata = createSelector(
-  (state: BridgeAppState) => state.quotes,
-  (state: BridgeAppState) =>
-    selectAssetExchangeRate(
-      state,
-      state.quoteRequest.srcChainId,
-      state.quoteRequest.srcTokenAddress,
-    ),
-  (state: BridgeAppState) =>
-    selectAssetExchangeRate(
-      state,
-      state.quoteRequest.destChainId,
-      state.quoteRequest.destTokenAddress,
-    ),
-  (state: BridgeAppState) =>
-    selectAssetExchangeRate(
-      state,
-      state.quoteRequest.srcChainId,
-      state.quoteRequest.srcChainId
-        ? getNativeAssetForChainId(state.quoteRequest.srcChainId).assetId
-        : undefined,
-    ),
+// Selects cross-chain swap quotes including their metadata
+const selectBridgeQuotesWithMetadata = createBridgeSelector(
+  [
+    ({ quotes }, { bridgeFeesPerGas }: BridgeQuotesClientParams) => ({
+      quotes,
+      bridgeFeesPerGas,
+    }),
+    ({ quoteRequest: { srcChainId, srcTokenAddress }, ...state }) =>
+      selectExchangeRateByChainIdAndAddress(state, srcChainId, srcTokenAddress),
+    ({ quoteRequest: { destChainId, destTokenAddress }, ...state }) =>
+      selectExchangeRateByChainIdAndAddress(
+        state,
+        destChainId,
+        destTokenAddress,
+      ),
+    ({ quoteRequest: { srcChainId }, ...state }) =>
+      selectExchangeRateByChainIdAndAddress(
+        state,
+        srcChainId,
+        srcChainId ? getNativeAssetForChainId(srcChainId).address : undefined,
+      ),
+  ],
   (
-    quotes,
+    { quotes, bridgeFeesPerGas },
     srcTokenExchangeRate,
     destTokenExchangeRate,
     nativeExchangeRate,
-  ): (QuoteResponse & QuoteMetadata)[] => {
-    const newQuotes = quotes.map((quote: QuoteResponse & SolanaFees) => {
-      const sentAmount = calcSentAmount(
-        quote.quote,
-        srcTokenExchangeRate?.valueInCurrency ?? null,
-        srcTokenExchangeRate?.usd ?? null,
+  ) => {
+    const newQuotes = quotes.map((quote) => {
+      const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
+      const toTokenAmount = calcToAmount(quote.quote, destTokenExchangeRate);
+
+      let totalEstimatedNetworkFee, gasFee, totalMaxNetworkFee, relayerFee;
+
+      if (isSolanaChainId(quote.quote.srcChainId)) {
+        totalEstimatedNetworkFee = calcSolanaTotalNetworkFee(
+          quote,
+          nativeExchangeRate,
+        );
+        gasFee = totalEstimatedNetworkFee;
+        totalMaxNetworkFee = totalEstimatedNetworkFee;
+      } else {
+        relayerFee = calcRelayerFee(quote, nativeExchangeRate);
+        gasFee = calcEstimatedAndMaxTotalGasFee({
+          bridgeQuote: quote,
+          ...bridgeFeesPerGas,
+          ...nativeExchangeRate,
+        });
+        totalEstimatedNetworkFee = calcTotalEstimatedNetworkFee(
+          gasFee,
+          relayerFee,
+        );
+        totalMaxNetworkFee = calcTotalMaxNetworkFee(gasFee, relayerFee);
+      }
+
+      const adjustedReturn = calcAdjustedReturn(
+        toTokenAmount,
+        totalEstimatedNetworkFee,
       );
-      const toTokenAmount = calcToAmount(
-        quote.quote,
-        destTokenExchangeRate?.valueInCurrency ?? null,
-        destTokenExchangeRate?.usd ?? null,
-      );
-      const relayerFee = calcRelayerFee(
-        quote,
-        nativeExchangeRate?.valueInCurrency ?? null,
-        nativeExchangeRate?.usd ?? null,
-      );
+      const cost = calcCost(adjustedReturn, sentAmount);
 
       return {
         ...quote,
@@ -187,19 +225,24 @@ export const selectBridgeQuotesWithMetadata = createSelector(
         sentAmount,
         toTokenAmount,
         swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
+        totalNetworkFee: totalEstimatedNetworkFee,
+        totalMaxNetworkFee,
+        gasFee,
+        adjustedReturn,
+        cost,
       };
     });
 
-    // TODO rm type cast once everything is ported
-    return newQuotes as (QuoteResponse & QuoteMetadata)[];
+    return newQuotes;
   },
 );
 
-const selectOrderedBridgeQuotes = createSelector(
-  selectBridgeQuotesWithMetadata,
-  (_state: BridgeAppState, sortOrder: SortOrder = SortOrder.COST_ASC) =>
-    sortOrder,
-  (quotesWithMetadata, sortOrder) => {
+const selectSortedBridgeQuotes = createBridgeSelector(
+  [
+    selectBridgeQuotesWithMetadata,
+    (_, { sortOrder }: BridgeQuotesClientParams) => sortOrder,
+  ],
+  (quotesWithMetadata, sortOrder): (QuoteResponse & QuoteMetadata)[] => {
     switch (sortOrder) {
       case SortOrder.ETA_ASC:
         return orderBy(
@@ -218,88 +261,58 @@ const selectOrderedBridgeQuotes = createSelector(
   },
 );
 
+const selectRecommendedQuote = createBridgeSelector(
+  [selectSortedBridgeQuotes],
+  ([recommendedQuote]) => recommendedQuote,
+);
+
+const selectActiveQuote = createBridgeSelector(
+  [
+    selectRecommendedQuote,
+    (_, { selectedQuote }: BridgeQuotesClientParams) => selectedQuote,
+  ],
+  (recommendedQuote, selectedQuote) => selectedQuote ?? recommendedQuote,
+);
+
 /**
  * Selects sorted cross-chain swap quotes. By default, the quotes are sorted by cost in ascending order.
  *
  * @param state - The state of the bridge controller and its dependency controllers
+ * @param bridgeFeesPerGas - The merged client transaction and gas controller estimates for gas
  * @param sortOrder - The sort order of the quotes
+ * @param selectedQuote - The quote that is currently selected by the user, should be cleared by clients when the req params change
  * @param featureFlagsKey - The feature flags key for the client (e.g. `BridgeFeatureFlagsKey.EXTENSION_CONFIG`
- * @param currentSelectedQuote - The quote that is currently selected by the user, should be cleared by clients when the req params change
  * @returns The activeQuote, recommendedQuote, sortedQuotes, and other quote fetching metadata
  *
- * @example usage in the extension
+ * @example
  * ```ts
+ * const bridgeFeesPerGas = useSelector(getGasFeeEstimates);
  * const quotes = useSelector(state => selectBridgeQuotes(
  *   state.metamask,
- *   state.bridge.sortOrder,
- *   BridgeFeatureFlagsKey.EXTENSION_CONFIG,
- *   state.bridge.selectedQuote,
+ *   {
+ *     bridgeFeesPerGas,
+ *     sortOrder: state.bridge.sortOrder,
+ *     selectedQuote: state.bridge.selectedQuote,
+ *     featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
+ *   }
  * ));
  * ```
  */
-export const selectBridgeQuotes = createSelector(
-  (state, sortOrder) => selectOrderedBridgeQuotes(state, sortOrder),
-  ({
-    quotesRefreshCount,
-    quotesLastFetched,
-    quotesLoadingStatus,
-    quoteFetchError,
-    quotesInitialLoadTime,
-    quoteRequest,
-  }: BridgeAppState) => ({
-    quotesRefreshCount,
-    quotesLastFetched,
-    isLoading: quotesLoadingStatus === RequestStatus.LOADING,
-    quoteFetchError,
-    quotesInitialLoadTime,
-    insufficientBal: quoteRequest.insufficientBal,
-  }),
-  (
-    { bridgeFeatureFlags }: BridgeAppState,
-    _sortOrder: SortOrder,
-    featureFlagsKey: BridgeFeatureFlagsKey,
-    currentSelectedQuote: QuoteResponse,
-  ) => ({
-    selectedQuote: currentSelectedQuote,
-    maxRefreshCount: bridgeFeatureFlags[featureFlagsKey].maxRefreshCount,
-  }),
-  (
-    sortedQuotes: ReturnType<typeof selectOrderedBridgeQuotes>,
-    quoteFetchInfo,
-    { selectedQuote, maxRefreshCount },
-  ) => {
-    const {
-      quotesRefreshCount,
-      quotesLastFetched,
-      isLoading,
-      quoteFetchError,
-      quotesInitialLoadTime,
-      insufficientBal,
-    } = quoteFetchInfo;
-
-    const userSelectedQuote =
-      quotesRefreshCount <= 1
-        ? (selectedQuote ?? sortedQuotes[0])
-        : // Find match for selectedQuote in new quotes
-          sortedQuotes.find(({ quote }) =>
-            selectedQuote
-              ? getQuoteIdentifier(quote) ===
-                getQuoteIdentifier(selectedQuote.quote)
-              : false,
-          );
-
-    return {
-      sortedQuotes,
-      recommendedQuote: sortedQuotes[0],
-      activeQuote: userSelectedQuote ?? sortedQuotes[0],
-      quotesLastFetchedMs: quotesLastFetched,
-      isLoading,
-      quoteFetchError,
-      quotesRefreshCount,
-      quotesInitialLoadTimeMs: quotesInitialLoadTime,
-      isQuoteGoingToRefresh: insufficientBal
-        ? false
-        : quotesRefreshCount < maxRefreshCount,
-    };
-  },
-);
+export const selectBridgeQuotes = createStructuredBridgeSelector({
+  sortedQuotes: selectSortedBridgeQuotes,
+  recommendedQuote: selectRecommendedQuote,
+  activeQuote: selectActiveQuote,
+  quotesLastFetchedMs: (state) => state.quotesLastFetched,
+  isLoading: (state) => state.quotesLoadingStatus === RequestStatus.LOADING,
+  quoteFetchError: (state) => state.quoteFetchError,
+  quotesRefreshCount: (state) => state.quotesRefreshCount,
+  quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
+  isQuoteGoingToRefresh: (
+    state,
+    { featureFlagsKey }: BridgeQuotesClientParams,
+  ) =>
+    state.quoteRequest.insufficientBal
+      ? false
+      : state.quotesRefreshCount <
+        state.bridgeFeatureFlags[featureFlagsKey].maxRefreshCount,
+});

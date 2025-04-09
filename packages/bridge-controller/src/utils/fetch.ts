@@ -20,6 +20,7 @@ import type {
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
+  ExchangeRate,
 } from '../types';
 import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
@@ -182,9 +183,7 @@ export const fetchAssetPrices = async (
   currency: string,
   clientId: string,
   fetchFn: FetchFunction,
-): Promise<
-  Record<CaipAssetType, { valueInCurrency: string; usd: string | null }>
-> => {
+): Promise<Record<CaipAssetType, ExchangeRate>> => {
   const validAssetIds = assetIds.filter(Boolean);
   if (validAssetIds.length === 0) {
     return {};
@@ -204,14 +203,11 @@ export const fetchAssetPrices = async (
   return Object.entries(priceApiResponse).reduce(
     (acc, [k, curr]) => {
       acc[k as CaipAssetType] = {
-        valueInCurrency: curr.price.toString(),
-        usd: currency === 'usd' ? curr.price.toString() : null,
+        exchangeRate: curr.price.toString(),
+        usdExchangeRate: currency === 'usd' ? curr.price.toString() : undefined,
       };
       return acc;
     },
-    {} as Record<
-      CaipAssetType,
-      { valueInCurrency: string; usd: string | null }
-    >,
+    {} as Record<CaipAssetType, ExchangeRate>,
   );
 };
