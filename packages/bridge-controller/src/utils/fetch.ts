@@ -182,9 +182,15 @@ export const fetchAssetPrices = async (
   currency: string,
   clientId: string,
   fetchFn: FetchFunction,
-) => {
+): Promise<
+  Record<CaipAssetType, { valueInCurrency: string; usd: string | null }>
+> => {
+  const validAssetIds = assetIds.filter(Boolean);
+  if (validAssetIds.length === 0) {
+    return {};
+  }
   const queryParams = new URLSearchParams({
-    assetIds: assetIds.filter(Boolean).join(','),
+    assetIds: validAssetIds.join(','),
     includeMarketData: 'true',
     vsCurrency: currency,
   });

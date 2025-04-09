@@ -298,7 +298,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     this.update((state) => {
-      state.assetExchangeRates = pricesByAssetId;
+      state.assetExchangeRates = {
+        ...state.assetExchangeRates,
+        ...pricesByAssetId,
+      };
     });
   };
 
@@ -345,6 +348,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       state.quoteFetchError = DEFAULT_BRIDGE_CONTROLLER_STATE.quoteFetchError;
       state.quotesRefreshCount =
         DEFAULT_BRIDGE_CONTROLLER_STATE.quotesRefreshCount;
+      state.assetExchangeRates =
+        DEFAULT_BRIDGE_CONTROLLER_STATE.assetExchangeRates;
 
       // Keep feature flags
       const originalFeatureFlags = state.bridgeFeatureFlags;
