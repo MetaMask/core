@@ -3,7 +3,10 @@ import { sha256 } from 'ethereum-cryptography/sha256';
 
 import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type { Hotlist, PhishingListState } from './PhishingController';
-import type { PhishingDetectorConfiguration, PhishingDetectorList } from './PhishingDetector';
+import type {
+  PhishingDetectorConfiguration,
+  PhishingDetectorList,
+} from './PhishingDetector';
 
 const DEFAULT_TOLERANCE = 3;
 
