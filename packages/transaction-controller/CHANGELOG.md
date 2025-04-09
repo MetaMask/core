@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: Rename `enableTxParamsGasFeeUpdates` to `isAutomaticGasFeeUpdateEnabled` and also callback ([#5602](https://github.com/MetaMask/core/pull/5602))
+
 ### Added
 
 - Add `isExternalSign` property to `TransactionMeta` to disable nonce generation and signing ([#5604](https://github.com/MetaMask/core/pull/5604))
