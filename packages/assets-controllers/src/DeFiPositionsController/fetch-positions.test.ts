@@ -52,10 +52,10 @@ describe('fetchPositions', () => {
   });
 
   it('allows the use of a custom API URL', async () => {
-    const customApiUrl = 'http://mock-api.metamask.io/positions';
+    const customApiUrl = 'http://mock-api.metamask.io';
 
     const scope = nock(customApiUrl)
-      .get(`/${mockAccountAddress}`)
+      .get(`/positions/${mockAccountAddress}`)
       .reply(200, mockResponse);
 
     const fetchPositions = buildPositionFetcher(customApiUrl);
