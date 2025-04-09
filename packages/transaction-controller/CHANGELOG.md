@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [54.0.0]
 
-### Uncategorized
-
-- fix: Rename `enableTxParamsGasFeeUpdates` to `isAutomaticGasFeeUpdateEnabled` and also callback ([#5602](https://github.com/MetaMask/core/pull/5602))
-
 ### Added
 
 - Add `isExternalSign` property to `TransactionMeta` to disable nonce generation and signing ([#5604](https://github.com/MetaMask/core/pull/5604))
@@ -27,7 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replace `address` argument with `request` object containing `address` and optional `chainIds`.
   - Return array of `IsAtomicBatchSupportedResultEntry` objects.
 - Skip `origin` validation for `batch` transaction type ([#5586](https://github.com/MetaMask/core/pull/5586))
-- **BREAKING:** `enableTxParamsGasFeeUpdates` is renamed to `isAutomaticGasFeeUpdateEnabled` now expects a callback function instead of a boolean.
+
+### Fixed
+
+- **BREAKING:** `enableTxParamsGasFeeUpdates` is renamed to `isAutomaticGasFeeUpdateEnabled` now expects a callback function instead of a boolean. ([#5602](https://github.com/MetaMask/core/pull/5602))
   - This callback is invoked before performing `txParams` gas fee updates. The update will proceed only if the callback returns a truthy value.
   - If not set it will default to return `false`.
 
