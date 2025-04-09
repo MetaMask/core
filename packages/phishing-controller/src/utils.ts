@@ -60,7 +60,7 @@ const splitStringByPeriod = <Start extends string, End extends string>(
  */
 export const applyDiffs = (
   listState: PhishingListState,
-  hotlistDiffs: Hotlist | HotlistDiff[] | unknown,
+  hotlistDiffs: Hotlist | HotlistDiff[] | { diffEntries: HotlistDiff[] },
   listKey: ListKeys,
   recentlyAddedC2Domains: string[] = [],
   recentlyRemovedC2Domains: string[] = [],
