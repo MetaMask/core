@@ -19,7 +19,6 @@ import type {
 } from '@metamask/network-controller';
 import { KnownCaipNamespace, type PublicInterface } from '@metamask/utils';
 import log from 'loglevel';
-import type { CaipAccountId } from '@metamask/utils';
 
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';

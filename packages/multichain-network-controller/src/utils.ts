@@ -1,4 +1,4 @@
-import { BtcScope, SolScope, EthScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { isBtcMainnetAddress } from '@metamask/keyring-utils';
 import type { NetworkConfiguration } from '@metamask/network-controller';
