@@ -1,11 +1,8 @@
-import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Hex } from '@metamask/utils';
-
-import type {
-  DeFiPositionsControllerMessenger,
-  DeFiPositionsControllerState,
+import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
+import {
+  DeFiPositionsController,
+  getDefaultDefiPositionsControllerState,
 } from './DeFiPositionsController';
-import { DeFiPositionsController } from './DeFiPositionsController';
 import * as fetchPositions from './fetch-positions';
 import type { DefiPositionResponse } from './fetch-positions';
 import * as groupPositions from './group-positions';
@@ -16,14 +13,24 @@ import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-import type { NetworkState } from '../../../network-controller/src/NetworkController';
+import { BtcAccountType } from '@metamask/keyring-api';
+import { TransactionMeta } from '../../../transaction-controller/src/types';
+import { flushPromises } from '../../../../tests/helpers';
 
-const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
-const OWNER_ID = '54d1e7bc-1dce-4220-a15f-2f454bae7869';
-const OWNER_ACCOUNT = createMockInternalAccount({
-  id: OWNER_ID,
-  address: OWNER_ADDRESS,
-});
+const OWNER_ACCOUNTS = [
+  createMockInternalAccount({
+    id: 'mock-id-1',
+    address: '0x0000000000000000000000000000000000000001',
+  }),
+  createMockInternalAccount({
+    id: 'mock-id-2',
+    address: '0x0000000000000000000000000000000000000002',
+  }),
+  createMockInternalAccount({
+    id: 'mock-id-btc',
+    type: BtcAccountType.P2wpkh,
+  }),
+];
 
 type MainMessenger = Messenger<
   ExtractAvailableAction<DeFiPositionsControllerMessenger>,
@@ -35,85 +42,148 @@ type MainMessenger = Messenger<
  * @param state - Partial state to initialize the controller with
  * @returns The controller instance and the trigger functions
  */
-function setupController(state?: Partial<DeFiPositionsControllerState>) {
+function setupController({
+  interval,
+  isEnabled,
+}: {
+  interval?: number;
+  isEnabled?: boolean;
+} = {}) {
   const messenger: MainMessenger = new Messenger();
 
-  const mockGetSelectedAccount = jest.fn().mockReturnValue(OWNER_ACCOUNT);
+  const mockListAccounts = jest.fn().mockReturnValue(OWNER_ACCOUNTS);
   messenger.registerActionHandler(
-    'AccountsController:getSelectedAccount',
-    mockGetSelectedAccount,
+    'AccountsController:listAccounts',
+    mockListAccounts,
   );
 
   const restrictedMessenger = messenger.getRestricted({
     name: 'DeFiPositionsController',
-    allowedActions: ['AccountsController:getSelectedAccount'],
+    allowedActions: ['AccountsController:listAccounts'],
     allowedEvents: [
-      'AccountsController:selectedAccountChange',
-      'NetworkController:stateChange',
+      'KeyringController:unlock',
+      'KeyringController:lock',
+      'TransactionController:transactionConfirmed',
     ],
   });
 
   const controller = new DeFiPositionsController({
     messenger: restrictedMessenger,
-    state,
+    interval,
+    isEnabled,
   });
 
-  const triggerSelectedAccountChange = (
-    internalAccount: InternalAccount,
-  ): void => {
-    messenger.publish(
-      'AccountsController:selectedAccountChange',
-      internalAccount,
-    );
+  const triggerUnlock = (): void => {
+    messenger.publish('KeyringController:unlock');
   };
 
-  const triggerNetworkChange = (): void => {
-    messenger.publish('NetworkController:stateChange', {} as NetworkState, []);
+  const triggerLock = (): void => {
+    messenger.publish('KeyringController:lock');
+  };
+
+  const triggerTransactionConfirmed = (address: string): void => {
+    messenger.publish('TransactionController:transactionConfirmed', {
+      txParams: {
+        from: address,
+      },
+    } as unknown as TransactionMeta);
   };
 
   return {
     controller,
-    triggerSelectedAccountChange,
-    triggerNetworkChange,
+    triggerUnlock,
+    triggerLock,
+    triggerTransactionConfirmed,
   };
 }
 
 describe('DeFiPositionsController', () => {
-  it('sets default state', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('sets default state', async () => {
     const { controller } = setupController();
 
-    expect(controller.state).toStrictEqual({
-      allDeFiPositions: {},
+    expect(controller.state).toStrictEqual(
+      getDefaultDefiPositionsControllerState(),
+    );
+  });
+
+  it('stops polling if the keyring is locked', async () => {
+    const { controller, triggerLock } = setupController();
+    const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
+
+    triggerLock();
+
+    await flushPromises();
+
+    expect(stopAllPollingSpy).toHaveBeenCalled();
+  });
+
+  it('does not stop polling if the keyring is locked and the controller is disabled', async () => {
+    const { controller, triggerLock } = setupController({
+      isEnabled: false,
     });
+    const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
+
+    triggerLock();
+
+    await flushPromises();
+
+    expect(stopAllPollingSpy).not.toHaveBeenCalled();
   });
 
-  it('sets initial state', () => {
-    const initialState = {
-      allDeFiPositions: {
-        [OWNER_ADDRESS]: {
-          '0x1': {
-            aggregatedMarketValue: 0,
-            protocols: {},
-          },
-        },
+  it('starts polling if the keyring is unlocked', async () => {
+    const { controller, triggerUnlock } = setupController();
+    const startPollingSpy = jest.spyOn(controller, 'startPolling');
+
+    triggerUnlock();
+
+    await flushPromises();
+
+    expect(startPollingSpy).toHaveBeenCalled();
+  });
+
+  it('does not start polling if the keyring is unlocked and the controller is disabled', async () => {
+    const { controller, triggerUnlock } = setupController({
+      isEnabled: false,
+    });
+    const startPollingSpy = jest.spyOn(controller, 'startPolling');
+
+    triggerUnlock();
+
+    await flushPromises();
+
+    expect(startPollingSpy).not.toHaveBeenCalled();
+  });
+
+  it('fetches positions for all accounts when polling', async () => {
+    const mockData = {
+      [OWNER_ACCOUNTS[0].address]: {
+        fetchData: 'mock-fetch-data-1',
+        groupedData: 'mock-grouped-data-1',
       },
-    };
+      [OWNER_ACCOUNTS[1].address]: {
+        fetchData: 'mock-fetch-data-2',
+        groupedData: 'mock-grouped-data-2',
+      },
+    } as unknown as Record<
+      string,
+      { fetchData: DefiPositionResponse[]; groupedData: GroupedPositions }
+    >;
 
-    const { controller } = setupController(initialState);
+    const mockFetchPositions = jest.fn().mockImplementation((address) => {
+      if (OWNER_ACCOUNTS[0].address === address) {
+        return 'mock-fetch-data-1';
+      }
 
-    expect(controller.state).toStrictEqual(initialState);
-  });
-
-  it('updates positions when selected account changes', async () => {
-    const mockFetchPositionsResponse =
-      'mock-data' as unknown as DefiPositionResponse[];
-    const mockFetchPositions = jest
-      .fn()
-      .mockResolvedValue(mockFetchPositionsResponse);
-
-    const mockGroupPositionsResult = 'mock-grouped-data' as unknown as {
-      [key: Hex]: GroupedPositions;
-    };
+      throw new Error('Error fetching positions');
+    });
 
     const fetchPositionsSpy = jest
       .spyOn(fetchPositions, 'buildPositionFetcher')
@@ -121,58 +191,84 @@ describe('DeFiPositionsController', () => {
 
     const groupPositionsSpy = jest
       .spyOn(groupPositions, 'groupPositions')
-      .mockReturnValue(mockGroupPositionsResult);
+      .mockReturnValue('mock-grouped-data-1' as unknown as GroupedPositions);
 
-    const { controller, triggerSelectedAccountChange } = setupController();
+    const { controller } = setupController();
     const updateSpy = jest.spyOn(controller, 'update' as never);
 
-    triggerSelectedAccountChange(OWNER_ACCOUNT);
-
-    await new Promise(process.nextTick);
+    await controller._executePoll();
 
     expect(controller.state).toStrictEqual({
       allDeFiPositions: {
-        [OWNER_ADDRESS]: mockGroupPositionsResult,
+        [OWNER_ACCOUNTS[0].address]: 'mock-grouped-data-1',
+        [OWNER_ACCOUNTS[1].address]: null,
       },
     });
     expect(fetchPositionsSpy).toHaveBeenCalled();
-    expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ADDRESS);
-    expect(groupPositionsSpy).toHaveBeenCalledWith(mockFetchPositionsResponse);
-    expect(updateSpy).toHaveBeenCalledTimes(2);
+    expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[0].address);
+    expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[1].address);
+    expect(mockFetchPositions).toHaveBeenCalledTimes(2);
+
+    expect(groupPositionsSpy).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(groupPositionsSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('updates positions when network state changes', async () => {
-    const mockFetchPositionsResponse =
-      'mock-data' as unknown as DefiPositionResponse[];
-    const mockFetchPositions = jest
-      .fn()
-      .mockResolvedValue(mockFetchPositionsResponse);
-    const mockGroupPositionsResult = 'mock-grouped-data' as unknown as {
-      [key: Hex]: GroupedPositions;
-    };
+  it('does not fetch positions for an account when a transaction is confirmed if the controller is disabled', async () => {
+    const mockFetchPositions = jest.fn();
 
     const fetchPositionsSpy = jest
       .spyOn(fetchPositions, 'buildPositionFetcher')
       .mockReturnValue(mockFetchPositions);
-    const groupPositionsSpy = jest
-      .spyOn(groupPositions, 'groupPositions')
-      .mockReturnValue(mockGroupPositionsResult);
 
-    const { controller, triggerNetworkChange } = setupController();
+    const groupPositionsSpy = jest.spyOn(groupPositions, 'groupPositions');
+
+    const { controller, triggerTransactionConfirmed } = setupController({
+      isEnabled: false,
+    });
     const updateSpy = jest.spyOn(controller, 'update' as never);
 
-    triggerNetworkChange();
+    triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
+    await flushPromises();
 
-    await new Promise(process.nextTick);
+    expect(controller.state).toStrictEqual(
+      getDefaultDefiPositionsControllerState(),
+    );
+    expect(fetchPositionsSpy).toHaveBeenCalled();
+    expect(mockFetchPositions).not.toHaveBeenCalled();
+
+    expect(groupPositionsSpy).not.toHaveBeenCalled();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it('fetches positions for an account when a transaction is confirmed', async () => {
+    const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
+
+    const fetchPositionsSpy = jest
+      .spyOn(fetchPositions, 'buildPositionFetcher')
+      .mockReturnValue(mockFetchPositions);
+
+    const groupPositionsSpy = jest
+      .spyOn(groupPositions, 'groupPositions')
+      .mockReturnValue('mock-grouped-data-1' as unknown as GroupedPositions);
+
+    const { controller, triggerTransactionConfirmed } = setupController();
+    const updateSpy = jest.spyOn(controller, 'update' as never);
+
+    triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
+    await flushPromises();
 
     expect(controller.state).toStrictEqual({
       allDeFiPositions: {
-        [OWNER_ADDRESS]: mockGroupPositionsResult,
+        [OWNER_ACCOUNTS[0].address]: 'mock-grouped-data-1',
       },
     });
     expect(fetchPositionsSpy).toHaveBeenCalled();
-    expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ADDRESS);
-    expect(groupPositionsSpy).toHaveBeenCalledWith(mockFetchPositionsResponse);
-    expect(updateSpy).toHaveBeenCalledTimes(2);
+    expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[0].address);
+    expect(mockFetchPositions).toHaveBeenCalledTimes(1);
+
+    expect(groupPositionsSpy).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(groupPositionsSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 });

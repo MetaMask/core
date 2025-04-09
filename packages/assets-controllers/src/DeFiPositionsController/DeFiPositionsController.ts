@@ -1,29 +1,37 @@
-import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerListAccountsAction } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
-import type { NetworkControllerStateChangeEvent } from '@metamask/network-controller';
+import type { TransactionControllerTransactionConfirmedEvent } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { DefiPositionResponse } from './fetch-positions';
 import { buildPositionFetcher } from './fetch-positions';
 import { groupPositions, type GroupedPositions } from './group-positions';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import { KeyringControllerUnlockEvent } from '@metamask/keyring-controller';
+import { KeyringControllerLockEvent } from '@metamask/keyring-controller';
+import { reduceInBatchesSerially } from '../assetsUtil';
+
+const TEN_MINUTES_IN_MS = 60_000;
+
+const FETCH_POSITIONS_BATCH_SIZE = 10;
 
 const controllerName = 'DeFiPositionsController';
+
+type GroupedPositionsPerChain = {
+  [chain: Hex]: GroupedPositions;
+};
 
 export type DeFiPositionsControllerState = {
   /**
    * Object containing DeFi positions per account and network
    */
   allDeFiPositions: {
-    [accountAddress: string]: { [chain: Hex]: GroupedPositions } | null;
+    [accountAddress: string]: GroupedPositionsPerChain | null;
   };
 };
 
@@ -61,14 +69,15 @@ export type DeFiPositionsControllerStateChangeEvent =
 /**
  * The external actions available to the {@link DeFiPositionsController}.
  */
-export type AllowedActions = AccountsControllerGetSelectedAccountAction;
+export type AllowedActions = AccountsControllerListAccountsAction;
 
 /**
  * The external events available to the {@link DeFiPositionsController}.
  */
 export type AllowedEvents =
-  | NetworkControllerStateChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | KeyringControllerUnlockEvent
+  | KeyringControllerLockEvent
+  | TransactionControllerTransactionConfirmedEvent;
 
 /**
  * The messenger of the {@link DeFiPositionsController}.
@@ -84,7 +93,7 @@ export type DeFiPositionsControllerMessenger = RestrictedMessenger<
 /**
  * Controller that stores assets and exposes convenience methods
  */
-export class DeFiPositionsController extends BaseController<
+export class DeFiPositionsController extends StaticIntervalPollingController()<
   typeof controllerName,
   DeFiPositionsControllerState,
   DeFiPositionsControllerMessenger
@@ -98,62 +107,131 @@ export class DeFiPositionsController extends BaseController<
    *
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
-   * @param options.state - Initial state to set on this controller.
-   * @param options.apiUrl - Override for theAPI URL to use for fetching DeFi positions.
+   * @param options.apiUrl - Override for the API URL to use for fetching DeFi positions.
+   * @param options.interval - Override for the interval to use for polling DeFi positions. (default: 10 minutes)
+   * @param options.isEnabled - Whether the controller is enabled. (default: true)
    */
   constructor({
     messenger,
-    state,
     apiUrl,
+    interval = TEN_MINUTES_IN_MS,
+    isEnabled = true,
   }: {
     messenger: DeFiPositionsControllerMessenger;
-    state?: Partial<DeFiPositionsControllerState>;
     apiUrl?: string;
+    interval?: number;
+    isEnabled?: boolean;
   }) {
     super({
       name: controllerName,
       metadata: controllerMetadata,
       messenger,
-      state: {
-        ...getDefaultDefiPositionsControllerState(),
-        ...state,
-      },
+      state: getDefaultDefiPositionsControllerState(),
     });
+
+    this.setIntervalLength(interval);
 
     this.#fetchPositions = buildPositionFetcher(apiUrl);
 
-    this.messagingSystem.subscribe(
-      'AccountsController:selectedAccountChange',
-      async (selectedAccount) => {
-        await this.#updateAccountPositions(selectedAccount.address);
-      },
-    );
+    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
+      if (!isEnabled) {
+        return;
+      }
+
+      this.startPolling(null);
+    });
+
+    this.messagingSystem.subscribe('KeyringController:lock', () => {
+      if (!isEnabled) {
+        return;
+      }
+
+      this.stopAllPolling();
+    });
 
     this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
-      async () => {
-        const { address } = this.messagingSystem.call(
-          'AccountsController:getSelectedAccount',
-        );
-
-        if (address) {
-          await this.#updateAccountPositions(address);
+      'TransactionController:transactionConfirmed',
+      async (transactionMeta) => {
+        if (!isEnabled) {
+          return;
         }
+
+        const accountAddress = transactionMeta.txParams.from;
+        await this.#updateAccountPositions(accountAddress);
       },
     );
   }
 
-  async #updateAccountPositions(accountAddress: string) {
-    this.update((state) => {
-      state.allDeFiPositions[accountAddress] = null;
+  async _executePoll(): Promise<void> {
+    const accounts = this.messagingSystem.call(
+      'AccountsController:listAccounts',
+    );
+
+    const results = await reduceInBatchesSerially({
+      initialResult: [] as {
+        accountAddress: string;
+        positions: GroupedPositionsPerChain | null;
+      }[],
+      values: accounts,
+      batchSize: FETCH_POSITIONS_BATCH_SIZE,
+      eachBatch: async (workingResult, batch) => {
+        const results = (
+          await Promise.all(
+            batch.map(async ({ address: accountAddress, type }) => {
+              if (type.startsWith('eip155:')) {
+                try {
+                  const positions =
+                    await this.#fetchAccountPositions(accountAddress);
+
+                  return {
+                    accountAddress,
+                    positions,
+                  };
+                } catch (error) {
+                  return {
+                    accountAddress,
+                    positions: null,
+                  };
+                }
+              }
+            }),
+          )
+        ).filter(Boolean) as {
+          accountAddress: string;
+          positions: GroupedPositionsPerChain | null;
+        }[];
+
+        return [...workingResult, ...results];
+      },
     });
 
-    const defiPositionsResponse = await this.#fetchPositions(accountAddress);
+    const allDefiPositions = results.reduce(
+      (acc, { accountAddress, positions }) => {
+        acc[accountAddress] = positions;
+        return acc;
+      },
+      {} as DeFiPositionsControllerState['allDeFiPositions'],
+    );
 
-    const accountPositionsPerChain = groupPositions(defiPositionsResponse);
+    this.update((state) => {
+      state.allDeFiPositions = allDefiPositions;
+    });
+  }
+
+  async #updateAccountPositions(accountAddress: string): Promise<void> {
+    const accountPositionsPerChain =
+      await this.#fetchAccountPositions(accountAddress);
 
     this.update((state) => {
       state.allDeFiPositions[accountAddress] = accountPositionsPerChain;
     });
+  }
+
+  async #fetchAccountPositions(
+    accountAddress: string,
+  ): Promise<GroupedPositionsPerChain> {
+    const defiPositionsResponse = await this.#fetchPositions(accountAddress);
+
+    return groupPositions(defiPositionsResponse);
   }
 }
