@@ -6,8 +6,6 @@ import type { ChainId } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import { type SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex, type Hex } from '@metamask/utils';
@@ -527,9 +525,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           const { value: fees } = (await this.messagingSystem.call(
             'SnapController:handleRequest',
             {
-              snapId: selectedAccount.metadata.snap.id as SnapId,
+              // TODO fix these types
+              snapId: selectedAccount.metadata.snap.id as never,
               origin: 'metamask',
-              handler: HandlerType.OnRpcRequest,
+              handler: 'onRpcRequest' as never,
               request: {
                 method: 'getFeeForTransaction',
                 params: {
