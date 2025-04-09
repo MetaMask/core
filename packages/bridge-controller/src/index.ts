@@ -104,4 +104,4 @@ export {
   formatAddressToCaipReference,
 } from './utils/caip-formatters';
 
-export { selectBridgeQuotesWithMetadata } from './selectors';
+export { selectBridgeQuotes, type BridgeAppState } from './selectors';
