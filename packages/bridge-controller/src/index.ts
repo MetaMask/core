@@ -83,12 +83,6 @@ export {
 export {
   isValidQuoteRequest,
   isQuoteExpired,
-  calcSolanaTotalNetworkFee,
-  calcRelayerFee,
-  calcEstimatedAndMaxTotalGasFee,
-  calcAdjustedReturn,
-  calcSwapRate,
-  calcCost,
   formatEtaInMinutes,
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
