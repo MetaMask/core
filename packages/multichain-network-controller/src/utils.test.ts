@@ -8,10 +8,14 @@ import {
   SolAccountType,
 } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
-import { type CaipAccountId, KnownCaipNamespace } from '@metamask/utils';
+import {
+  type CaipAccountId,
+  KnownCaipNamespace,
+  type Json,
+} from '@metamask/utils';
 import log from 'loglevel';
 
-import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
+import { MULTICHAIN_ACCOUNTS_BASE_URL } from './constants';
 import type { ActiveNetworksResponse } from './types';
 import {
   isEvmCaipChainId,
@@ -21,11 +25,46 @@ import {
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
-  formatNetworkActivityResponse,
+  toActiveNetworksByAddress,
   buildActiveNetworksUrl,
   assertCaipAccountIds,
-  toCaipAccountIds,
+  toAllowedCaipAccountIds,
 } from './utils';
+
+const MOCK_ADDRESSES: {
+  evm: string;
+  solana: string;
+  bitcoin: string;
+} = {
+  evm: '0x1234567890123456789012345678901234567890',
+  solana: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  bitcoin: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+};
+
+const MOCK_CAIP_IDS: {
+  evm: CaipAccountId;
+  solana: CaipAccountId;
+  bitcoin: CaipAccountId;
+  invalid: string;
+  invalidEvm: string;
+  invalidSolana: string;
+  invalidBitcoin: string;
+  unsupportedNamespace: string;
+  customNamespace: string;
+  testNamespace: string;
+} = {
+  evm: `eip155:1:${MOCK_ADDRESSES.evm}`,
+  solana: `solana:1:${MOCK_ADDRESSES.solana}`,
+  bitcoin: `bip122:1:${MOCK_ADDRESSES.bitcoin}`,
+  invalid: 'invalid:format:address',
+  invalidEvm: 'eip155:1:0xinvalid',
+  invalidSolana: 'solana:1:invalid',
+  invalidBitcoin: 'bip122:1:invalid',
+  unsupportedNamespace:
+    'cosmos:1:cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02',
+  customNamespace: `custom:1:${MOCK_ADDRESSES.evm}`,
+  testNamespace: `test:1:${MOCK_ADDRESSES.evm}`,
+};
 
 jest.mock('@metamask/controller-utils', () => ({
   isValidHexAddress: jest.fn((address) => {
@@ -257,258 +296,245 @@ describe('utils', () => {
   });
 
   describe('assertCaipAccountIds', () => {
-    const mockValidEvmId =
-      'eip155:1:0x1234567890123456789012345678901234567890';
-    const mockValidSolanaId =
-      'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-    const mockInvalidId = 'invalid:format:address';
-
-    it('should not throw for valid EVM account ID', () => {
-      expect(() => assertCaipAccountIds([mockValidEvmId])).not.toThrow();
+    it('accepts valid EVM account ID', () => {
+      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.evm])).not.toThrow();
     });
 
-    it('should not throw for valid Solana account ID', () => {
-      expect(() => assertCaipAccountIds([mockValidSolanaId])).not.toThrow();
+    it('accepts valid Solana account ID', () => {
+      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.solana])).not.toThrow();
     });
 
-    it('should not throw for multiple valid account IDs', () => {
+    it('accepts multiple valid account IDs', () => {
       expect(() =>
-        assertCaipAccountIds([mockValidEvmId, mockValidSolanaId]),
+        assertCaipAccountIds([MOCK_CAIP_IDS.evm, MOCK_CAIP_IDS.solana]),
       ).not.toThrow();
     });
 
-    it('should throw for empty array', () => {
+    it('throws error for empty array', () => {
       expect(() => assertCaipAccountIds([])).toThrow(
         'At least one account ID is required',
       );
     });
 
-    it('should throw for invalid account ID format', () => {
-      expect(() => assertCaipAccountIds([mockInvalidId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${mockInvalidId}`,
+    it('throws error for invalid account ID format', () => {
+      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.invalid])).toThrow(
+        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalid}`,
       );
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [mockInvalidId],
+          invalidIds: [MOCK_CAIP_IDS.invalid],
         }),
       );
     });
 
-    it('should throw and list all invalid IDs when multiple invalid IDs are provided', () => {
+    it('lists all invalid IDs in error message', () => {
       const secondInvalidId = 'another:invalid:id';
       expect(() =>
-        assertCaipAccountIds([mockInvalidId, secondInvalidId]),
+        assertCaipAccountIds([MOCK_CAIP_IDS.invalid, secondInvalidId]),
       ).toThrow(
-        `Invalid CAIP-10 account IDs: ${mockInvalidId}, ${secondInvalidId}`,
+        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalid}, ${secondInvalidId}`,
       );
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [mockInvalidId, secondInvalidId],
+          invalidIds: [MOCK_CAIP_IDS.invalid, secondInvalidId],
         }),
       );
     });
 
-    it('should throw even if some IDs are valid when at least one is invalid', () => {
+    it('throws error when any ID is invalid', () => {
       expect(() =>
-        assertCaipAccountIds([mockValidEvmId, mockInvalidId]),
-      ).toThrow(`Invalid CAIP-10 account IDs: ${mockInvalidId}`);
+        assertCaipAccountIds([MOCK_CAIP_IDS.evm, MOCK_CAIP_IDS.invalid]),
+      ).toThrow(`Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalid}`);
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [mockInvalidId],
+          invalidIds: [MOCK_CAIP_IDS.invalid],
         }),
       );
     });
 
-    it('should throw for unsupported namespace', () => {
-      const unsupportedNamespaceId =
-        'cosmos:1:cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02';
-      expect(() => assertCaipAccountIds([unsupportedNamespaceId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${unsupportedNamespaceId}`,
+    it('throws error for unsupported namespace', () => {
+      expect(() =>
+        assertCaipAccountIds([MOCK_CAIP_IDS.unsupportedNamespace]),
+      ).toThrow(
+        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.unsupportedNamespace}`,
       );
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [unsupportedNamespaceId],
+          invalidIds: [MOCK_CAIP_IDS.unsupportedNamespace],
         }),
       );
     });
 
-    it('should throw for invalid EVM address', () => {
-      const invalidEvmId = 'eip155:1:0xinvalid';
-      expect(() => assertCaipAccountIds([invalidEvmId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${invalidEvmId}`,
+    it('throws error for invalid EVM address', () => {
+      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.invalidEvm])).toThrow(
+        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalidEvm}`,
       );
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [invalidEvmId],
+          invalidIds: [MOCK_CAIP_IDS.invalidEvm],
         }),
       );
     });
 
-    it('should throw for invalid Solana address', () => {
-      const invalidSolanaId = 'solana:1:invalid';
-      expect(() => assertCaipAccountIds([invalidSolanaId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${invalidSolanaId}`,
+    it('throws error for invalid Solana address', () => {
+      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.invalidSolana])).toThrow(
+        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalidSolana}`,
       );
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [invalidSolanaId],
+          invalidIds: [MOCK_CAIP_IDS.invalidSolana],
         }),
       );
     });
 
-    it('should throw for invalid Bitcoin address', () => {
-      const invalidBitcoinId = 'bip122:1:invalid';
-      expect(() => assertCaipAccountIds([invalidBitcoinId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${invalidBitcoinId}`,
-      );
+    it('throws error for invalid Bitcoin address', () => {
+      expect(() =>
+        assertCaipAccountIds([MOCK_CAIP_IDS.invalidBitcoin]),
+      ).toThrow(`Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalidBitcoin}`);
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [invalidBitcoinId],
+          invalidIds: [MOCK_CAIP_IDS.invalidBitcoin],
         }),
       );
     });
 
-    it('should handle unknown namespace in address validation', () => {
-      const customNamespaceId =
-        'custom:1:0x1234567890123456789012345678901234567890';
-      expect(() => assertCaipAccountIds([customNamespaceId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${customNamespaceId}`,
+    it('throws error for unknown namespace', () => {
+      expect(() =>
+        assertCaipAccountIds([MOCK_CAIP_IDS.customNamespace]),
+      ).toThrow(
+        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.customNamespace}`,
       );
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [customNamespaceId],
+          invalidIds: [MOCK_CAIP_IDS.customNamespace],
         }),
       );
     });
 
-    it('should handle switch default case in address validation', () => {
-      const testNamespaceId =
-        'test:1:0x1234567890123456789012345678901234567890';
-      expect(() => assertCaipAccountIds([testNamespaceId])).toThrow(
-        `Invalid CAIP-10 account IDs: ${testNamespaceId}`,
+    it('throws error for test namespace', () => {
+      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.testNamespace])).toThrow(
+        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.testNamespace}`,
       );
       expect(log.error).toHaveBeenCalledWith(
         'Account ID validation failed: invalid CAIP-10 format',
         expect.objectContaining({
-          invalidIds: [testNamespaceId],
+          invalidIds: [MOCK_CAIP_IDS.testNamespace],
         }),
       );
     });
   });
 
   describe('buildActiveNetworksUrl', () => {
-    it('should construct URL with single account ID', () => {
-      const accountId = 'eip155:1:0x1234567890123456789012345678901234567890';
-      const url = buildActiveNetworksUrl([accountId]);
+    it('constructs URL with single account ID', () => {
+      const url = buildActiveNetworksUrl([MOCK_CAIP_IDS.evm]);
       expect(url.toString()).toBe(
-        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks?accountIds=${encodeURIComponent(accountId)}`,
+        `${MULTICHAIN_ACCOUNTS_BASE_URL}/v2/activeNetworks?accountIds=${encodeURIComponent(MOCK_CAIP_IDS.evm)}`,
       );
     });
 
-    it('should construct URL with multiple account IDs', () => {
+    it('constructs URL with multiple account IDs', () => {
       const accountIds: CaipAccountId[] = [
-        'eip155:1:0x1234567890123456789012345678901234567890',
-        'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+        MOCK_CAIP_IDS.evm,
+        MOCK_CAIP_IDS.solana,
       ];
       const url = buildActiveNetworksUrl(accountIds);
       expect(url.toString()).toBe(
-        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks?accountIds=${encodeURIComponent(accountIds.join(','))}`,
+        `${MULTICHAIN_ACCOUNTS_BASE_URL}/v2/activeNetworks?accountIds=${encodeURIComponent(accountIds.join(','))}`,
       );
     });
   });
 
-  describe('formatNetworkActivityResponse', () => {
-    it('should format EVM network responses correctly', () => {
+  describe('toActiveNetworksByAddress', () => {
+    it('formats EVM network responses', () => {
       const response: ActiveNetworksResponse = {
         activeNetworks: [
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'eip155:137:0x1234567890123456789012345678901234567890',
+          `eip155:1:${MOCK_ADDRESSES.evm}`,
+          `eip155:137:${MOCK_ADDRESSES.evm}`,
         ],
       };
 
-      const result = formatNetworkActivityResponse(response);
+      const result = toActiveNetworksByAddress(response);
 
       expect(result).toStrictEqual({
-        '0x1234567890123456789012345678901234567890': {
+        [MOCK_ADDRESSES.evm]: {
           namespace: KnownCaipNamespace.Eip155,
           activeChains: ['1', '137'],
         },
       });
     });
 
-    it('should format non-EVM network responses correctly', () => {
+    it('formats non-EVM network responses', () => {
       const response: ActiveNetworksResponse = {
-        activeNetworks: [
-          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        ],
+        activeNetworks: [`solana:1:${MOCK_ADDRESSES.solana}`],
       };
 
-      const result = formatNetworkActivityResponse(response);
+      const result = toActiveNetworksByAddress(response);
 
       expect(result).toStrictEqual({
-        EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
+        [MOCK_ADDRESSES.solana]: {
           namespace: KnownCaipNamespace.Solana,
           activeChains: ['1'],
         },
       });
     });
 
-    it('should handle mixed EVM and non-EVM networks', () => {
+    it('formats mixed EVM and non-EVM networks', () => {
       const response: ActiveNetworksResponse = {
         activeNetworks: [
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'solana:1:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          `eip155:1:${MOCK_ADDRESSES.evm}`,
+          `solana:1:${MOCK_ADDRESSES.solana}`,
         ],
       };
 
-      const result = formatNetworkActivityResponse(response);
+      const result = toActiveNetworksByAddress(response);
 
       expect(result).toStrictEqual({
-        '0x1234567890123456789012345678901234567890': {
+        [MOCK_ADDRESSES.evm]: {
           namespace: KnownCaipNamespace.Eip155,
           activeChains: ['1'],
         },
-        EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: {
+        [MOCK_ADDRESSES.solana]: {
           namespace: KnownCaipNamespace.Solana,
           activeChains: ['1'],
         },
       });
     });
 
-    it('should handle empty response', () => {
+    it('returns empty object for empty response', () => {
       const response: ActiveNetworksResponse = {
         activeNetworks: [],
       };
 
-      const result = formatNetworkActivityResponse(response);
+      const result = toActiveNetworksByAddress(response);
 
       expect(result).toStrictEqual({});
     });
 
-    it('should handle multiple addresses with different networks', () => {
+    it('formats multiple addresses with different networks', () => {
+      const secondEvmAddress = '0x9876543210987654321098765432109876543210';
       const response: ActiveNetworksResponse = {
         activeNetworks: [
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'eip155:137:0x9876543210987654321098765432109876543210',
+          `eip155:1:${MOCK_ADDRESSES.evm}`,
+          `eip155:137:${secondEvmAddress}`,
         ],
       };
 
-      const result = formatNetworkActivityResponse(response);
+      const result = toActiveNetworksByAddress(response);
 
       expect(result).toStrictEqual({
-        '0x1234567890123456789012345678901234567890': {
+        [MOCK_ADDRESSES.evm]: {
           namespace: KnownCaipNamespace.Eip155,
           activeChains: ['1'],
         },
-        '0x9876543210987654321098765432109876543210': {
+        [secondEvmAddress]: {
           namespace: KnownCaipNamespace.Eip155,
           activeChains: ['137'],
         },
@@ -516,107 +542,99 @@ describe('utils', () => {
     });
   });
 
-  describe('toCaipAccountIds', () => {
-    const mockAddress = '0x1234567890123456789012345678901234567890';
-
-    it('should format account with EVM scopes', () => {
-      const account = {
-        address: mockAddress,
-        scopes: [EthScope.Eoa, EthScope.Mainnet, EthScope.Testnet],
-        type: EthAccountType.Eoa,
-        id: '1',
-        options: {},
-        methods: [],
-        metadata: {
-          name: 'Test Account',
-          importTime: Date.now(),
-          keyring: { type: 'test' },
-        },
+  describe('toAllowedCaipAccountIds', () => {
+    type AccountType = {
+      type: EthAccountType | BtcAccountType | SolAccountType;
+      id: string;
+      options: Record<string, Json>;
+      methods: string[];
+      metadata: {
+        name: string;
+        importTime: number;
+        keyring: { type: string };
       };
+      address: string;
+      scopes: `${string}:${string}`[];
+    };
 
-      const result = toCaipAccountIds(account);
+    const createMockAccount = (
+      address: string,
+      scopes: `${string}:${string}`[],
+      type: EthAccountType | BtcAccountType | SolAccountType,
+    ): AccountType => ({
+      address,
+      scopes,
+      type,
+      id: '1',
+      options: {},
+      methods: [],
+      metadata: {
+        name: 'Test Account',
+        importTime: Date.now(),
+        keyring: { type: 'test' },
+      },
+    });
+
+    it('formats account with EVM scopes', () => {
+      const account = createMockAccount(
+        MOCK_ADDRESSES.evm,
+        [EthScope.Eoa, EthScope.Mainnet, EthScope.Testnet],
+        EthAccountType.Eoa,
+      );
+
+      const result = toAllowedCaipAccountIds(account);
       expect(result).toStrictEqual([
-        `${EthScope.Eoa}:${mockAddress}`,
-        `${EthScope.Mainnet}:${mockAddress}`,
-        `${EthScope.Testnet}:${mockAddress}`,
+        `${EthScope.Eoa}:${MOCK_ADDRESSES.evm}`,
+        `${EthScope.Mainnet}:${MOCK_ADDRESSES.evm}`,
+        `${EthScope.Testnet}:${MOCK_ADDRESSES.evm}`,
       ]);
     });
 
-    it('should format account with BTC scope', () => {
-      const btcAddress = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
-      const account = {
-        address: btcAddress,
-        scopes: [BtcScope.Mainnet],
-        type: BtcAccountType.P2wpkh,
-        id: '2',
-        options: {},
-        methods: [],
-        metadata: {
-          name: 'BTC Account',
-          importTime: Date.now(),
-          keyring: { type: 'test' },
-        },
-      };
+    it('formats account with BTC scope', () => {
+      const account = createMockAccount(
+        MOCK_ADDRESSES.bitcoin,
+        [BtcScope.Mainnet],
+        BtcAccountType.P2wpkh,
+      );
 
-      const result = toCaipAccountIds(account);
-      expect(result).toStrictEqual([`${BtcScope.Mainnet}:${btcAddress}`]);
+      const result = toAllowedCaipAccountIds(account);
+      expect(result).toStrictEqual([
+        `${BtcScope.Mainnet}:${MOCK_ADDRESSES.bitcoin}`,
+      ]);
     });
 
-    it('should format account with Solana scope', () => {
-      const solAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
-      const account = {
-        address: solAddress,
-        scopes: [SolScope.Mainnet],
-        type: SolAccountType.DataAccount,
-        id: '3',
-        options: {},
-        methods: [],
-        metadata: {
-          name: 'SOL Account',
-          importTime: Date.now(),
-          keyring: { type: 'test' },
-        },
-      };
+    it('formats account with Solana scope', () => {
+      const account = createMockAccount(
+        MOCK_ADDRESSES.solana,
+        [SolScope.Mainnet],
+        SolAccountType.DataAccount,
+      );
 
-      const result = toCaipAccountIds(account);
-      expect(result).toStrictEqual([`${SolScope.Mainnet}:${solAddress}`]);
+      const result = toAllowedCaipAccountIds(account);
+      expect(result).toStrictEqual([
+        `${SolScope.Mainnet}:${MOCK_ADDRESSES.solana}`,
+      ]);
     });
 
-    it('should ignore unsupported scopes', () => {
-      const account = {
-        address: mockAddress,
-        scopes: [EthScope.Eoa, 'unsupported:123' as `${string}:${string}`],
-        type: EthAccountType.Eoa,
-        id: '4',
-        options: {},
-        methods: [],
-        metadata: {
-          name: 'Test Account',
-          importTime: Date.now(),
-          keyring: { type: 'test' },
-        },
-      };
+    it('excludes unsupported scopes', () => {
+      const account = createMockAccount(
+        MOCK_ADDRESSES.evm,
+        [EthScope.Eoa, 'unsupported:123'],
+        EthAccountType.Eoa,
+      );
 
-      const result = toCaipAccountIds(account);
-      expect(result).toStrictEqual([`${EthScope.Eoa}:${mockAddress}`]);
+      const result = toAllowedCaipAccountIds(account);
+      expect(result).toStrictEqual([`${EthScope.Eoa}:${MOCK_ADDRESSES.evm}`]);
     });
 
-    it('should return empty array for account with no supported scopes', () => {
-      const account = {
-        address: mockAddress,
-        scopes: ['unsupported:123' as `${string}:${string}`],
-        type: EthAccountType.Eoa,
-        id: '5',
-        options: {},
-        methods: [],
-        metadata: {
-          name: 'Test Account',
-          importTime: Date.now(),
-          keyring: { type: 'test' },
-        },
-      };
+    it('returns empty array for account with no supported scopes', () => {
+      const account = createMockAccount(
+        MOCK_ADDRESSES.evm,
+        ['unsupported:123'],
+        EthAccountType.Eoa,
+      );
 
-      const result = toCaipAccountIds(account);
+      const result = toAllowedCaipAccountIds(account);
       expect(result).toStrictEqual([]);
     });
   });

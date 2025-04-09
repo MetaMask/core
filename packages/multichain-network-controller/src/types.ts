@@ -16,16 +16,17 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import {
+  type Infer,
   array,
   object,
   string,
   pattern,
-  type Infer,
 } from '@metamask/superstruct';
-import {
-  type CaipAssetType,
-  type CaipAccountAddress,
-  type CaipNamespace,
+import type {
+  CaipAssetType,
+  CaipAccountAddress,
+  CaipNamespace,
+  CaipReference,
 } from '@metamask/utils';
 
 import type { MultichainNetworkController } from './MultichainNetworkController';

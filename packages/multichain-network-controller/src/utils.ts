@@ -17,8 +17,11 @@ import {
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 import log from 'loglevel';
 
-import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
-import { MULTICHAIN_ACCOUNTS_DOMAIN } from './constants';
+import {
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+  MULTICHAIN_ALLOWED_ACTIVE_NETWORK_SCOPES,
+} from './constants';
+import { MULTICHAIN_ACCOUNTS_BASE_URL } from './constants';
 import type {
   SupportedCaipChainId,
   MultichainNetworkConfiguration,
@@ -213,7 +216,7 @@ export function assertCaipAccountIds(
  * @returns URL object for the API endpoint
  */
 export function buildActiveNetworksUrl(accountIds: CaipAccountId[]): URL {
-  const url = new URL(`${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks`);
+  const url = new URL(`${MULTICHAIN_ACCOUNTS_BASE_URL}/v2/activeNetworks`);
   url.searchParams.append('accountIds', accountIds.join(','));
   return url;
 }
@@ -254,17 +257,12 @@ export function toActiveNetworksByAddress(
  * @param account - The internal account to convert
  * @returns The CAIP-10 account IDs
  */
-export function toCaipAccountIds(account: InternalAccount): CaipAccountId[] {
+export function toAllowedCaipAccountIds(
+  account: InternalAccount,
+): CaipAccountId[] {
   const formattedAccounts: CaipAccountId[] = [];
-  const allowedScopes = [
-    String(BtcScope.Mainnet),
-    String(SolScope.Mainnet),
-    String(EthScope.Mainnet),
-    String(EthScope.Testnet),
-    String(EthScope.Eoa),
-  ];
   for (const scope of account.scopes) {
-    if (allowedScopes.includes(scope)) {
+    if (MULTICHAIN_ALLOWED_ACTIVE_NETWORK_SCOPES.includes(scope)) {
       formattedAccounts.push(`${scope}:${account.address}`);
     }
   }

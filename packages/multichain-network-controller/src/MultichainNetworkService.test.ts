@@ -3,7 +3,7 @@ import type { CaipAccountId } from '@metamask/utils';
 import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
-  MULTICHAIN_ACCOUNTS_DOMAIN,
+  MULTICHAIN_ACCOUNTS_BASE_URL,
 } from './constants';
 import { MultichainNetworkService } from './MultichainNetworkService';
 import type { ActiveNetworksResponse } from './types';
@@ -16,7 +16,7 @@ describe('MultichainNetworkService', () => {
   ];
 
   describe('constructor', () => {
-    it('creates an instance with the provided fetch function', () => {
+    it('creates an instance with the provided fetch implementation', () => {
       const service = new MultichainNetworkService({
         fetch: mockFetch,
       });
@@ -25,7 +25,7 @@ describe('MultichainNetworkService', () => {
   });
 
   describe('fetchNetworkActivity', () => {
-    it('fetches network activity with correct URL and headers', async () => {
+    it('makes request with correct URL and headers', async () => {
       const mockResponse: ActiveNetworksResponse = {
         activeNetworks: ['eip155:1:0x1234567890123456789012345678901234567890'],
       };
@@ -41,7 +41,7 @@ describe('MultichainNetworkService', () => {
       const result = await service.fetchNetworkActivity(validAccountIds);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${MULTICHAIN_ACCOUNTS_DOMAIN}/v2/activeNetworks?accountIds=${encodeURIComponent(validAccountIds.join(','))}`,
+        `${MULTICHAIN_ACCOUNTS_BASE_URL}/v2/activeNetworks?accountIds=${encodeURIComponent(validAccountIds.join(','))}`,
         {
           method: 'GET',
           headers: {
@@ -53,7 +53,7 @@ describe('MultichainNetworkService', () => {
       expect(result).toStrictEqual(mockResponse);
     });
 
-    it('throws error when response is not ok', async () => {
+    it('throws error for non-200 response', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -68,7 +68,7 @@ describe('MultichainNetworkService', () => {
       ).rejects.toThrow('HTTP error! status: 404');
     });
 
-    it('throws error when response format is invalid', async () => {
+    it('throws error for invalid response format', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ invalidKey: 'invalid data' }),
@@ -83,7 +83,7 @@ describe('MultichainNetworkService', () => {
       ).rejects.toThrow('Invalid response format from active networks API');
     });
 
-    it('handles request timeout', async () => {
+    it('throws timeout error when request is aborted', async () => {
       const abortError = new Error('The operation was aborted');
       abortError.name = 'AbortError';
       mockFetch.mockRejectedValueOnce(abortError);
@@ -97,7 +97,7 @@ describe('MultichainNetworkService', () => {
       ).rejects.toThrow('Request timeout: Failed to fetch active networks');
     });
 
-    it('handles generic fetch errors', async () => {
+    it('propagates network errors', async () => {
       const networkError = new Error('Network error');
       mockFetch.mockRejectedValueOnce(networkError);
 
@@ -110,7 +110,7 @@ describe('MultichainNetworkService', () => {
       ).rejects.toThrow(networkError.message);
     });
 
-    it('handles non-Error fetch failures', async () => {
+    it('throws formatted error for non-Error failures', async () => {
       mockFetch.mockRejectedValueOnce('Unknown error');
 
       const service = new MultichainNetworkService({

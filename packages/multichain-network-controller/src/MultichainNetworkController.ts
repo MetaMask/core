@@ -19,10 +19,10 @@ import {
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
-  formatNetworkActivityResponse,
+  toActiveNetworksByAddress,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
-  toCaipAccountIds,
+  toAllowedCaipAccountIds,
 } from './utils';
 
 /**
@@ -163,12 +163,12 @@ export class MultichainNetworkController extends BaseController<
     }
 
     const formattedAccounts = accounts
-      .map((account: InternalAccount) => toCaipAccountIds(account))
+      .map((account: InternalAccount) => toAllowedCaipAccountIds(account))
       .flat();
 
     const activeNetworks =
       await this.#networkService.fetchNetworkActivity(formattedAccounts);
-    const formattedNetworks = formatNetworkActivityResponse(activeNetworks);
+    const formattedNetworks = toActiveNetworksByAddress(activeNetworks);
 
     this.update((state) => {
       state.networksWithTransactionActivity = formattedNetworks;

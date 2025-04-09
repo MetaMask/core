@@ -1,5 +1,5 @@
 import { type StateMetadata } from '@metamask/base-controller';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, EthScope } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
 import type {
@@ -78,7 +78,8 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
 /**
  * The domain for multichain accounts API.
  */
-export const MULTICHAIN_ACCOUNTS_BASE_URL = 'https://accounts.api.cx.metamask.io';
+export const MULTICHAIN_ACCOUNTS_BASE_URL =
+  'https://accounts.api.cx.metamask.io';
 
 /**
  * The client header for the multichain accounts API.
@@ -90,3 +91,14 @@ export const MULTICHAIN_ACCOUNTS_CLIENT_HEADER = 'x-metamask-clientproduct';
  */
 export const MULTICHAIN_ACCOUNTS_CLIENT_ID =
   'metamask-multichain-network-controller';
+
+/**
+ * The allowed active network scopes for the multichain network controller.
+ */
+export const MULTICHAIN_ALLOWED_ACTIVE_NETWORK_SCOPES = [
+  String(BtcScope.Mainnet),
+  String(SolScope.Mainnet),
+  String(EthScope.Mainnet),
+  String(EthScope.Testnet),
+  String(EthScope.Eoa),
+];

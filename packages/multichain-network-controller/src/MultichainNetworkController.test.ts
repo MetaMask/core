@@ -187,13 +187,13 @@ function setupController({
   });
 
   const controller = new MultichainNetworkController({
-    messenger: options.messenger || controllerMessenger,
+    messenger: options.messenger ?? controllerMessenger,
     state: {
       selectedMultichainNetworkChainId: SolScope.Mainnet,
       isEvmSelected: true,
       ...options.state,
     },
-    networkService: mockNetworkService || defaultNetworkService,
+    networkService: mockNetworkService ?? defaultNetworkService,
   });
 
   const triggerSelectedAccountChange = (accountType: KeyringAccountType) => {
@@ -224,7 +224,7 @@ function setupController({
     mockFindNetworkClientIdByChainId,
     publishSpy,
     triggerSelectedAccountChange,
-    networkService: mockNetworkService || defaultNetworkService,
+    networkService: mockNetworkService ?? defaultNetworkService,
   };
 }
 
@@ -558,6 +558,11 @@ describe('MultichainNetworkController', () => {
   });
 
   describe('getNetworksWithTransactionActivityByAccounts', () => {
+    const MOCK_EVM_ADDRESS = '0x1234567890123456789012345678901234567890';
+    const MOCK_SOLANA_ADDRESS = 'solana123';
+    const MOCK_EVM_CHAIN_1 = '1';
+    const MOCK_EVM_CHAIN_137 = '137';
+
     beforeEach(() => {
       jest.spyOn(log, 'error').mockImplementation();
     });
@@ -566,7 +571,7 @@ describe('MultichainNetworkController', () => {
       jest.restoreAllMocks();
     });
 
-    it('should return networksWithTransactionActivity when no accounts exist', async () => {
+    it('returns empty object when no accounts exist', async () => {
       const { controller, messenger } = setupController({
         getSelectedChainId: jest.fn().mockReturnValue('0x1'),
       });
@@ -581,11 +586,11 @@ describe('MultichainNetworkController', () => {
       expect(result).toStrictEqual({});
     });
 
-    it('should fetch and format network activity for EVM accounts', async () => {
+    it('fetches and formats network activity for EVM accounts', async () => {
       const mockResponse = {
         activeNetworks: [
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'eip155:137:0x1234567890123456789012345678901234567890',
+          `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
+          `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_137}:${MOCK_EVM_ADDRESS}`,
         ],
       };
 
@@ -601,7 +606,7 @@ describe('MultichainNetworkController', () => {
         () => [
           createMockInternalAccount({
             type: EthAccountType.Eoa,
-            address: '0x1234567890123456789012345678901234567890',
+            address: MOCK_EVM_ADDRESS,
             scopes: [EthScope.Eoa],
           }),
         ],
@@ -611,22 +616,22 @@ describe('MultichainNetworkController', () => {
         await controller.getNetworksWithTransactionActivityByAccounts();
 
       expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
-        'eip155:0:0x1234567890123456789012345678901234567890',
+        `eip155:0:${MOCK_EVM_ADDRESS}`,
       ]);
 
       expect(result).toStrictEqual({
-        '0x1234567890123456789012345678901234567890': {
-          namespace: 'eip155',
-          activeChains: ['1', '137'],
+        [MOCK_EVM_ADDRESS]: {
+          namespace: KnownCaipNamespace.Eip155,
+          activeChains: [MOCK_EVM_CHAIN_1, MOCK_EVM_CHAIN_137],
         },
       });
     });
 
-    it('should handle mixed EVM and non-EVM accounts correctly', async () => {
+    it('formats network activity for mixed EVM and non-EVM accounts', async () => {
       const mockResponse = {
         activeNetworks: [
-          'eip155:1:0x1234567890123456789012345678901234567890',
-          'solana:1:solana123',
+          `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
+          `${KnownCaipNamespace.Solana}:${MOCK_EVM_CHAIN_1}:${MOCK_SOLANA_ADDRESS}`,
         ],
       };
 
@@ -642,12 +647,12 @@ describe('MultichainNetworkController', () => {
         () => [
           createMockInternalAccount({
             type: EthAccountType.Eoa,
-            address: '0x1234567890123456789012345678901234567890',
+            address: MOCK_EVM_ADDRESS,
             scopes: [EthScope.Eoa],
           }),
           createMockInternalAccount({
             type: SolAccountType.DataAccount,
-            address: 'solana123',
+            address: MOCK_SOLANA_ADDRESS,
             scopes: [SolScope.Mainnet],
           }),
         ],
@@ -657,18 +662,18 @@ describe('MultichainNetworkController', () => {
         await controller.getNetworksWithTransactionActivityByAccounts();
 
       expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
-        'eip155:0:0x1234567890123456789012345678901234567890',
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:solana123',
+        `${KnownCaipNamespace.Eip155}:0:${MOCK_EVM_ADDRESS}`,
+        `${KnownCaipNamespace.Solana}:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:${MOCK_SOLANA_ADDRESS}`,
       ]);
 
       expect(result).toStrictEqual({
-        '0x1234567890123456789012345678901234567890': {
+        [MOCK_EVM_ADDRESS]: {
           namespace: KnownCaipNamespace.Eip155,
-          activeChains: ['1'],
+          activeChains: [MOCK_EVM_CHAIN_1],
         },
-        solana123: {
+        [MOCK_SOLANA_ADDRESS]: {
           namespace: KnownCaipNamespace.Solana,
-          activeChains: ['1'],
+          activeChains: [MOCK_EVM_CHAIN_1],
         },
       });
     });
