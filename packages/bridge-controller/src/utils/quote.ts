@@ -1,9 +1,9 @@
-import { BigNumber } from '@ethersproject/bignumber';
 import {
   convertHexToDecimal,
   toHex,
   weiHexToGweiDec,
 } from '@metamask/controller-utils';
+import { BigNumber } from 'bignumber.js';
 
 import { isNativeAddress } from './bridge';
 import type {
@@ -69,8 +69,8 @@ export const getQuoteIdentifier = (quote: QuoteResponse['quote']) =>
   `${quote.bridgeId}-${quote.bridges[0]}-${quote.steps.length}`;
 
 const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
-  const divisor = BigNumber.from(10).pow(decimals ?? 0);
-  return BigNumber.from(value.toString()).div(divisor);
+  const divisor = new BigNumber(10).pow(decimals ?? 0);
+  return new BigNumber(value).div(divisor);
 };
 
 export const isQuoteExpired = (
@@ -128,7 +128,7 @@ export const calcSentAmount = (
   usdExchangeRate: string | null,
 ) => {
   const normalizedSentAmount = calcTokenAmount(
-    BigNumber.from(srcTokenAmount).add(feeData.metabridge.amount),
+    new BigNumber(srcTokenAmount).add(feeData.metabridge.amount),
     srcAsset.decimals,
   );
   return {
@@ -152,9 +152,9 @@ export const calcRelayerFee = (
     trade,
   } = bridgeQuote;
   const relayerFeeInNative = calcTokenAmount(
-    BigNumber.from(convertHexToDecimal(trade.value)).sub(
+    new BigNumber(convertHexToDecimal(trade.value)).sub(
       isNativeAddress(srcAsset.address)
-        ? BigNumber.from(srcTokenAmount).add(feeData.metabridge.amount)
+        ? new BigNumber(srcTokenAmount).add(feeData.metabridge.amount)
         : 0,
     ),
     18,
@@ -185,18 +185,18 @@ const calcTotalGasFee = ({
 }) => {
   const { approval, trade, l1GasFeesInHexWei } = bridgeQuote;
 
-  const totalGasLimitInDec = BigNumber.from(
+  const totalGasLimitInDec = new BigNumber(
     trade.gasLimit?.toString() ?? '0',
   ).add(approval?.gasLimit?.toString() ?? '0');
 
-  const totalFeePerGasInDecGwei = BigNumber.from(feePerGasInDecGwei).add(
+  const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).add(
     priorityFeePerGasInDecGwei,
   );
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
     .mul(totalFeePerGasInDecGwei)
     .add(l1GasFeesInDecGWei);
-  const gasFeesInDecEth = BigNumber.from(gasFeesInDecGwei.shl(9));
+  const gasFeesInDecEth = gasFeesInDecGwei.shift(-9);
 
   const gasFeesInDisplayCurrency = nativeToDisplayCurrencyExchangeRate
     ? gasFeesInDecEth.mul(nativeToDisplayCurrencyExchangeRate.toString())
@@ -260,16 +260,14 @@ export const calcTotalEstimatedNetworkFee = (
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: BigNumber.from(gasFee.amount).add(relayerFee.amount).toString(),
+    amount: new BigNumber(gasFee.amount).add(relayerFee.amount).toString(),
     valueInCurrency: gasFee.valueInCurrency
-      ? BigNumber.from(gasFee.valueInCurrency)
+      ? new BigNumber(gasFee.valueInCurrency)
           .add(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
     usd: gasFee.usd
-      ? BigNumber.from(gasFee.usd)
-          .add(relayerFee.usd || '0')
-          .toString()
+      ? new BigNumber(gasFee.usd).add(relayerFee.usd || '0').toString()
       : null,
   };
 };
@@ -279,16 +277,14 @@ export const calcTotalMaxNetworkFee = (
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: BigNumber.from(gasFee.amountMax).add(relayerFee.amount).toString(),
+    amount: new BigNumber(gasFee.amountMax).add(relayerFee.amount).toString(),
     valueInCurrency: gasFee.valueInCurrencyMax
-      ? BigNumber.from(gasFee.valueInCurrencyMax)
+      ? new BigNumber(gasFee.valueInCurrencyMax)
           .add(relayerFee.valueInCurrency || '0')
           .toString()
       : null,
     usd: gasFee.usdMax
-      ? BigNumber.from(gasFee.usdMax)
-          .add(relayerFee.usd || '0')
-          .toString()
+      ? new BigNumber(gasFee.usdMax).add(relayerFee.usd || '0').toString()
       : null,
   };
 };
@@ -299,20 +295,20 @@ export const calcAdjustedReturn = (
 ) => ({
   valueInCurrency:
     toTokenAmount.valueInCurrency && totalEstimatedNetworkFee.valueInCurrency
-      ? BigNumber.from(toTokenAmount.valueInCurrency)
+      ? new BigNumber(toTokenAmount.valueInCurrency)
           .sub(totalEstimatedNetworkFee.valueInCurrency)
           .toString()
       : null,
   usd:
     toTokenAmount.usd && totalEstimatedNetworkFee.usd
-      ? BigNumber.from(toTokenAmount.usd)
+      ? new BigNumber(toTokenAmount.usd)
           .sub(totalEstimatedNetworkFee.usd)
           .toString()
       : null,
 });
 
 export const calcSwapRate = (sentAmount: string, destTokenAmount: string) =>
-  BigNumber.from(destTokenAmount).div(sentAmount).toString();
+  new BigNumber(destTokenAmount).div(sentAmount).toString();
 
 export const calcCost = (
   adjustedReturn: ReturnType<typeof calcAdjustedReturn>,
@@ -320,13 +316,13 @@ export const calcCost = (
 ) => ({
   valueInCurrency:
     adjustedReturn.valueInCurrency && sentAmount.valueInCurrency
-      ? BigNumber.from(sentAmount.valueInCurrency)
+      ? new BigNumber(sentAmount.valueInCurrency)
           .sub(adjustedReturn.valueInCurrency)
           .toString()
       : null,
   usd:
     adjustedReturn.usd && sentAmount.usd
-      ? BigNumber.from(sentAmount.usd).sub(adjustedReturn.usd).toString()
+      ? new BigNumber(sentAmount.usd).sub(adjustedReturn.usd).toString()
       : null,
 });
 

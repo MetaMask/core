@@ -2758,6 +2758,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^53.0.0"
     "@metamask/utils": "npm:^11.2.0"
     "@types/jest": "npm:^27.4.1"
+    bignumber.js: "npm:^4.1.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     jest-environment-jsdom: "npm:^27.5.1"
