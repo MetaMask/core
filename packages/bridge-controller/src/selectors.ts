@@ -57,26 +57,30 @@ const selectAssetExchangeRate = (
     return assetExchangeRates[assetId];
   }
 
-  const multichainAssetExchangeRate = conversionRates[assetId];
-  if (isSolanaChainId(chainId) && multichainAssetExchangeRate) {
-    return {
-      valueInCurrency: multichainAssetExchangeRate.rate,
-      usd: null,
-    };
+  const multichainAssetExchangeRate = conversionRates?.[assetId];
+  if (isSolanaChainId(chainId)) {
+    if (multichainAssetExchangeRate) {
+      return {
+        valueInCurrency: multichainAssetExchangeRate.rate,
+        usd: null,
+      };
+    }
+    return null;
   }
 
   const { symbol } = getNativeAssetForChainId(chainId);
   const evmNativeExchangeRate = currencyRates[symbol];
   if (isNativeAddress(address) && evmNativeExchangeRate) {
     return {
-      valueInCurrency: evmNativeExchangeRate.conversionRate?.toString() ?? null,
-      usd: evmNativeExchangeRate.usdConversionRate?.toString() ?? null,
+      valueInCurrency:
+        evmNativeExchangeRate?.conversionRate?.toString() ?? null,
+      usd: evmNativeExchangeRate?.usdConversionRate?.toString() ?? null,
     };
   }
 
   const evmTokenExchangeRates = marketData[formatChainIdToHex(chainId)];
   const evmTokenExchangeRateForAddress = isStrictHexString(address)
-    ? evmTokenExchangeRates[address]
+    ? evmTokenExchangeRates?.[address]
     : null;
   if (evmTokenExchangeRateForAddress) {
     return {
