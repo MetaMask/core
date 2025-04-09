@@ -226,6 +226,6 @@ export type ActiveNetworksByAddress = Record<
     // CAIP-2 namespace of the network.
     namespace: CaipNamespace;
     // Active chain IDs (CAIP-2 references) on that network (primarily used for EVM networks).
-    activeChains: string[];
+    activeChains: CaipReference[];
   }
 >;
