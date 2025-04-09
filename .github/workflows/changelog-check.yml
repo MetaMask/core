@@ -3,8 +3,6 @@ name: Check Changelog
 on:
   pull_request:
     types: [opened, synchronize, labeled, unlabeled]
-  merge_group:
-    types: [checks_requested]
 
 jobs:
   check_changelog:
