@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
 - Add `relay` to the list of bridges in the `BridgeId` enum ([#5636](https://github.com/MetaMask/core/pull/5623))
 
 ## [12.0.0]
