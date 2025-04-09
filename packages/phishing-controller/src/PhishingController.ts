@@ -724,6 +724,11 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateHotlist() {
+    if (this.state.hotlistLastSuccessTimestamp === 0) {
+      await this.updateStalelist();
+      return;
+    }
+
     let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
     try {
@@ -731,12 +736,8 @@ export class PhishingController extends BaseController<
         return;
       }
 
-      const lastDiffTimestamp = Math.max(
-        ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
-      );
-
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
-        `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
+        `${METAMASK_HOTLIST_DIFF_URL}/${this.state.hotlistLastSuccessTimestamp}`,
       );
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
@@ -811,7 +812,7 @@ export class PhishingController extends BaseController<
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,
-        { data: [] }, // Proper Hotlist object with empty data array
+        [], // Proper Hotlist object with empty data array
         phishingListNameKeyMap[phishingList.name],
         recentlyAddedC2Domains,
         recentlyRemovedC2Domains,

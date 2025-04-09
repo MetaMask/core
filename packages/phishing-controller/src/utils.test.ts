@@ -1,6 +1,6 @@
 import * as sinon from 'sinon';
 
-import type { Hotlist } from './PhishingController';
+import type { HotlistDiff } from './PhishingController';
 import { ListKeys, ListNames } from './PhishingController';
 import {
   applyDiffs,
@@ -11,7 +11,6 @@ import {
   getHostnameFromWebUrl,
   matchPartsAgainstList,
   processConfigs,
-  // processConfigs,
   processDomainList,
   roundToNearestMinute,
   sha256Hash,
@@ -77,28 +76,84 @@ describe('applyDiffs', () => {
     });
   });
 
-  it('handles null or undefined hotlistDiffs by using an empty array', () => {
-    // Test with undefined
-    const resultUndefined = applyDiffs(
+  it('handles empty hotlistDiffs by using an empty array', () => {
+    // Test with an empty array
+    const result = applyDiffs(
       exampleListState,
-      undefined as unknown as Hotlist,
+      [],
       ListKeys.EthPhishingDetectConfig,
     );
-    expect(resultUndefined).toStrictEqual({
+    expect(result).toStrictEqual({
       ...exampleListState,
       name: ListNames.MetaMask,
     });
+  });
 
-    // Test with null
-    const resultNull = applyDiffs(
+  // New tests for DataResultWrapper<Hotlist> format
+  it('handles diffs wrapped in a DataResultWrapper object with data property', () => {
+    // Use the array directly instead of wrapping it
+    const diffsArray = [exampleAddDiff];
+
+    const result = applyDiffs(
       exampleListState,
-      null as unknown as Hotlist,
+      diffsArray,
       ListKeys.EthPhishingDetectConfig,
     );
-    expect(resultNull).toStrictEqual({
+
+    expect(result).toStrictEqual({
+      ...exampleListState,
+      blocklist: [...exampleListState.blocklist, exampleBlockedUrlTwo],
+      lastUpdated: exampleAddDiff.timestamp,
+    });
+  });
+
+  it('handles empty array in DataResultWrapper object', () => {
+    // Use empty array directly
+    const emptyDiffs: HotlistDiff[] = [];
+
+    const result = applyDiffs(
+      exampleListState,
+      emptyDiffs,
+      ListKeys.EthPhishingDetectConfig,
+    );
+
+    expect(result).toStrictEqual({
       ...exampleListState,
       name: ListNames.MetaMask,
     });
+  });
+
+  it('handles additions and removals in DataResultWrapper format', () => {
+    // Use array directly
+    const diffsArray = [exampleAddDiff, exampleRemoveDiff];
+
+    const result = applyDiffs(
+      exampleListState,
+      diffsArray,
+      ListKeys.EthPhishingDetectConfig,
+    );
+
+    expect(result).toStrictEqual({
+      ...exampleListState,
+      lastUpdated: exampleRemoveDiff.timestamp,
+    });
+  });
+
+  it('correctly applies C2 domain blocklist changes with wrapped diffs', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+
+    // Use empty array directly
+    const emptyDiffs: HotlistDiff[] = [];
+
+    const result = applyDiffs(
+      exampleListState,
+      emptyDiffs,
+      ListKeys.EthPhishingDetectConfig,
+      ['hash3', 'hash4'],
+      ['hash2'],
+    );
+
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash3', 'hash4']);
   });
 
   it('removes a valid removal diff to the state then sets lastUpdated to be the time of the latest diff', () => {
