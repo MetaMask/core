@@ -371,7 +371,7 @@ describe('updateTransactionGasFees', () => {
     updateTransactionGasFees({
       txMeta,
       gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-      isTxParamsGasFeeUpdatesEnabled: true,
+      isTxParamsGasFeeUpdatesEnabled: () => true,
     });
 
     expect(txMeta.gasFeeEstimates).toBe(FEE_MARKET_GAS_FEE_ESTIMATES_MOCK);
@@ -385,7 +385,7 @@ describe('updateTransactionGasFees', () => {
     updateTransactionGasFees({
       txMeta,
       gasFeeEstimatesLoaded: true,
-      isTxParamsGasFeeUpdatesEnabled: true,
+      isTxParamsGasFeeUpdatesEnabled: () => true,
     });
 
     expect(txMeta.gasFeeEstimatesLoaded).toBe(true);
@@ -393,7 +393,7 @@ describe('updateTransactionGasFees', () => {
     updateTransactionGasFees({
       txMeta,
       gasFeeEstimatesLoaded: false,
-      isTxParamsGasFeeUpdatesEnabled: true,
+      isTxParamsGasFeeUpdatesEnabled: () => true,
     });
 
     expect(txMeta.gasFeeEstimatesLoaded).toBe(false);
@@ -408,14 +408,14 @@ describe('updateTransactionGasFees', () => {
     updateTransactionGasFees({
       txMeta,
       layer1GasFee: layer1GasFeeMock,
-      isTxParamsGasFeeUpdatesEnabled: true,
+      isTxParamsGasFeeUpdatesEnabled: () => true,
     });
 
     expect(txMeta.layer1GasFee).toBe(layer1GasFeeMock);
   });
 
   describe('does not update txParams gas values', () => {
-    it('if isTxParamsGasFeeUpdatesEnabled is false', () => {
+    it('if isTxParamsGasFeeUpdatesEnabled callback returns false', () => {
       const prevMaxFeePerGas = '0x987654321';
       const prevMaxPriorityFeePerGas = '0x98765432';
       const userFeeLevel = UserFeeLevel.MEDIUM;
@@ -432,11 +432,10 @@ describe('updateTransactionGasFees', () => {
       updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        isTxParamsGasFeeUpdatesEnabled: false,
+        isTxParamsGasFeeUpdatesEnabled: () => false,
       });
 
       expect(txMeta.txParams.maxFeePerGas).toBe(prevMaxFeePerGas);
-
       expect(txMeta.txParams.maxPriorityFeePerGas).toBe(
         prevMaxPriorityFeePerGas,
       );
@@ -468,7 +467,7 @@ describe('updateTransactionGasFees', () => {
       updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        isTxParamsGasFeeUpdatesEnabled: true,
+        isTxParamsGasFeeUpdatesEnabled: () => true,
       });
 
       expect(txMeta.txParams.maxFeePerGas).toBe(
@@ -500,16 +499,31 @@ describe('updateTransactionGasFees', () => {
       updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        isTxParamsGasFeeUpdatesEnabled: true,
+        isTxParamsGasFeeUpdatesEnabled: () => true,
       });
 
       expect(txMeta.txParams.maxFeePerGas).toBe(
         FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[userFeeLevel].maxFeePerGas,
       );
-
       expect(txMeta.txParams.maxPriorityFeePerGas).toBe(
         FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[userFeeLevel].maxPriorityFeePerGas,
       );
+    });
+
+    it('calls isTxParamsGasFeeUpdatesEnabled with transaction meta', () => {
+      const mockCallback = jest.fn(() => true);
+      const txMeta = {
+        ...TRANSACTION_META_MOCK,
+        userFeeLevel: GasFeeEstimateLevel.Low,
+      };
+
+      updateTransactionGasFees({
+        txMeta,
+        gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
+        isTxParamsGasFeeUpdatesEnabled: mockCallback,
+      });
+
+      expect(mockCallback).toHaveBeenCalledWith(txMeta);
     });
 
     describe('EIP-1559 compatible chains', () => {
@@ -522,14 +536,13 @@ describe('updateTransactionGasFees', () => {
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          isTxParamsGasFeeUpdatesEnabled: true,
+          isTxParamsGasFeeUpdatesEnabled: () => true,
         });
 
         expect(txMeta.txParams.maxFeePerGas).toBe(
           FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[GasFeeEstimateLevel.Low]
             .maxFeePerGas,
         );
-
         expect(txMeta.txParams.maxPriorityFeePerGas).toBe(
           FEE_MARKET_GAS_FEE_ESTIMATES_MOCK[GasFeeEstimateLevel.Low]
             .maxPriorityFeePerGas,
@@ -545,7 +558,7 @@ describe('updateTransactionGasFees', () => {
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: GAS_PRICE_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          isTxParamsGasFeeUpdatesEnabled: true,
+          isTxParamsGasFeeUpdatesEnabled: () => true,
         });
 
         expect(txMeta.txParams.maxFeePerGas).toBe(
@@ -566,7 +579,7 @@ describe('updateTransactionGasFees', () => {
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          isTxParamsGasFeeUpdatesEnabled: true,
+          isTxParamsGasFeeUpdatesEnabled: () => true,
         });
 
         expect(txMeta.txParams.maxFeePerGas).toBe(
@@ -593,7 +606,7 @@ describe('updateTransactionGasFees', () => {
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          isTxParamsGasFeeUpdatesEnabled: true,
+          isTxParamsGasFeeUpdatesEnabled: () => true,
         });
 
         expect(txMeta.txParams.gasPrice).toBe(
@@ -617,7 +630,7 @@ describe('updateTransactionGasFees', () => {
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: GAS_PRICE_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          isTxParamsGasFeeUpdatesEnabled: true,
+          isTxParamsGasFeeUpdatesEnabled: () => true,
         });
 
         expect(txMeta.txParams.gasPrice).toBe(
@@ -640,7 +653,7 @@ describe('updateTransactionGasFees', () => {
         updateTransactionGasFees({
           txMeta,
           gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-          isTxParamsGasFeeUpdatesEnabled: true,
+          isTxParamsGasFeeUpdatesEnabled: () => true,
         });
 
         expect(txMeta.txParams.gasPrice).toBe(
@@ -666,7 +679,7 @@ describe('updateTransactionGasFees', () => {
       updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: FEE_MARKET_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        isTxParamsGasFeeUpdatesEnabled: true,
+        isTxParamsGasFeeUpdatesEnabled: () => true,
       });
 
       expect(txMeta.txParams.maxFeePerGas).toBe(
@@ -695,7 +708,7 @@ describe('updateTransactionGasFees', () => {
       updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: LEGACY_GAS_FEE_ESTIMATES_MOCK as GasFeeEstimates,
-        isTxParamsGasFeeUpdatesEnabled: true,
+        isTxParamsGasFeeUpdatesEnabled: () => true,
       });
 
       expect(txMeta.txParams.gasPrice).toBe(
@@ -721,7 +734,7 @@ describe('updateTransactionGasFees', () => {
       updateTransactionGasFees({
         txMeta,
         gasFeeEstimates: undefined,
-        isTxParamsGasFeeUpdatesEnabled: true,
+        isTxParamsGasFeeUpdatesEnabled: () => true,
       });
 
       expect(txMeta.txParams.maxFeePerGas).toBe('0x123456');
@@ -737,7 +750,7 @@ describe('updateTransactionGasFees', () => {
         txMeta,
         gasFeeEstimates: undefined,
         gasFeeEstimatesLoaded: true,
-        isTxParamsGasFeeUpdatesEnabled: true,
+        isTxParamsGasFeeUpdatesEnabled: () => true,
       });
 
       expect(txMeta.gasFeeEstimates).toBeUndefined();
