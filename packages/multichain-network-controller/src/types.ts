@@ -223,7 +223,7 @@ export type ActiveNetworksResponse = Infer<typeof ActiveNetworksResponseStruct>;
 export type ActiveNetworksByAddress = Record<
   CaipAccountAddress,
   {
-    // namespace is the CAIP namespace of the network
+    // CAIP-2 namespace of the network.
     namespace: CaipNamespace;
     // Active chain IDs on that network most (primarily used for EVM networks).
     activeChains: string[];
