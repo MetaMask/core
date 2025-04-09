@@ -144,5 +144,7 @@ export const formatAddressToAssetId = (
   if (!isStrictHexString(addressOrAssetId)) {
     return undefined;
   }
-  return CaipAssetTypeStruct.create(`${chainId}/erc20:${addressOrAssetId}`);
+  return CaipAssetTypeStruct.create(
+    `${formatChainIdToCaip(chainId)}/erc20:${addressOrAssetId}`,
+  );
 };
