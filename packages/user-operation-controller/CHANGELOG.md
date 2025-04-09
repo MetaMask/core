@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [33.0.0]
 
-### Uncategorized
+### Changed
 
-- Release/353.0.0 ([#5612](https://github.com/MetaMask/core/pull/5612))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency to `^54.0.0` ([#5615](https://github.com/MetaMask/core/pull/5615))
 
 ## [32.0.0]
 
