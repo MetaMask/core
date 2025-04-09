@@ -3,6 +3,7 @@ import type {
   MultichainAssetsRatesControllerState,
   TokenRatesControllerState,
 } from '@metamask/assets-controllers';
+import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
@@ -53,8 +54,11 @@ const selectAssetExchangeRate = (
   const { assetExchangeRates, currencyRates, marketData, conversionRates } =
     exchangeRateSources;
 
-  if (assetExchangeRates[assetId]) {
-    return assetExchangeRates[assetId];
+  const assetExchangeRateToUse =
+    assetExchangeRates[assetId] ??
+    assetExchangeRates[assetId.toLowerCase() as CaipAssetType];
+  if (assetExchangeRateToUse) {
+    return assetExchangeRateToUse;
   }
 
   const multichainAssetExchangeRate = conversionRates?.[assetId];
