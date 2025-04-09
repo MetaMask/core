@@ -225,7 +225,7 @@ export function buildActiveNetworksUrl(accountIds: CaipAccountId[]): URL {
  * @param response - The raw API response
  * @returns Formatted networks by address
  */
-export function formatNetworkActivityResponse(
+export function toActiveNetworksByAddress(
   response: ActiveNetworksResponse,
 ): ActiveNetworksByAddress {
   const networksByAddress: ActiveNetworksByAddress = {};
