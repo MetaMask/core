@@ -144,7 +144,7 @@ export type BridgeAsset = {
   /**
    * The assetId of the token
    */
-  assetId: string;
+  assetId: CaipAssetType;
 };
 
 /**

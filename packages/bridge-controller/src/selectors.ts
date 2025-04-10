@@ -45,14 +45,17 @@ import {
 /**
  * The controller states that provide exchange rates
  */
-type ExchangeRateControllers = MultichainAssetsRatesControllerState &
+type ExchangeRateControllerState = MultichainAssetsRatesControllerState &
   TokenRatesControllerState &
   CurrencyRateState &
   Pick<BridgeControllerState, 'assetExchangeRates'>;
 /**
  * The state of the bridge controller and all its dependency controllers
  */
-export type BridgeAppState = BridgeControllerState & ExchangeRateControllers;
+export type BridgeAppState = BridgeControllerState &
+  ExchangeRateControllerState & {
+    participateInMetaMetrics: boolean;
+  };
 /**
  * Creates a structured selector for the bridge controller
  */
@@ -89,7 +92,7 @@ type BridgeQuotesClientParams = {
  * @returns The asset exchange rate for the given chain and address
  */
 export const selectExchangeRateByChainIdAndAddress = (
-  exchangeRateSources: ExchangeRateControllers,
+  exchangeRateSources: ExchangeRateControllerState,
   chainId?: GenericQuoteRequest['srcChainId'],
   address?: GenericQuoteRequest['srcTokenAddress'],
 ): ExchangeRate => {
