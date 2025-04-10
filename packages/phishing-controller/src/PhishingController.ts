@@ -481,13 +481,13 @@ export class PhishingController extends BaseController<
       if (cacheEntries.length > this.#urlScanCacheMaxSize) {
         // Sort by timestamp (oldest first) and remove oldest entries
         const sortedEntries = cacheEntries.sort(
-          ([, a], [, b]) => a.timestamp - b.timestamp
+          ([, a], [, b]) => a.timestamp - b.timestamp,
         );
 
         // Remove oldest entries to get back to max size
         const entriesToRemove = sortedEntries.slice(
           0,
-          cacheEntries.length - this.#urlScanCacheMaxSize
+          cacheEntries.length - this.#urlScanCacheMaxSize,
         );
 
         entriesToRemove.forEach(([key]) => {
