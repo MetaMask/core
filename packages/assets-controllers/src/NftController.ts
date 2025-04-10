@@ -33,7 +33,6 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
-  NetworkState,
 } from '@metamask/network-controller';
 import type {
   PreferencesControllerStateChangeEvent,
@@ -297,8 +296,6 @@ export class NftController extends BaseController<
 
   #selectedAccountId: string;
 
-  #chainId: Hex;
-
   #ipfsGateway: string;
 
   #openSeaEnabled: boolean;
@@ -319,7 +316,6 @@ export class NftController extends BaseController<
    * Creates an NftController instance.
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
    * @param options.ipfsGateway - The configured IPFS gateway.
    * @param options.openSeaEnabled - Controls whether the OpenSea API is used.
    * @param options.useIpfsSubdomains - Controls whether IPFS subdomains are used.
@@ -330,7 +326,6 @@ export class NftController extends BaseController<
    * @param options.state - Initial state to set on this controller.
    */
   constructor({
-    chainId: initialChainId,
     ipfsGateway = IPFS_DEFAULT_GATEWAY_URL,
     openSeaEnabled = false,
     useIpfsSubdomains = true,
@@ -339,7 +334,6 @@ export class NftController extends BaseController<
     messenger,
     state = {},
   }: {
-    chainId: Hex;
     ipfsGateway?: string;
     openSeaEnabled?: boolean;
     useIpfsSubdomains?: boolean;
@@ -367,7 +361,6 @@ export class NftController extends BaseController<
     this.#selectedAccountId = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     ).id;
-    this.#chainId = initialChainId;
     this.#ipfsGateway = ipfsGateway;
     this.#openSeaEnabled = openSeaEnabled;
     this.#useIpfsSubdomains = useIpfsSubdomains;
@@ -382,34 +375,11 @@ export class NftController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
-      'NetworkController:networkDidChange',
-      this.#onNetworkControllerNetworkDidChange.bind(this),
-    );
-
-    this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onSelectedAccountChange.bind(this),
     );
-  }
-
-  /**
-   * Handles the network change on the network controller.
-   *
-   * @param networkState - The new state of the preference controller.
-   * @param networkState.selectedNetworkClientId - The current selected network client id.
-   */
-  #onNetworkControllerNetworkDidChange({
-    selectedNetworkClientId,
-  }: NetworkState) {
-    const {
-      configuration: { chainId },
-    } = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
-    this.#chainId = chainId;
   }
 
   /**
@@ -2117,8 +2087,10 @@ export class NftController extends BaseController<
    * @param account - The account to update the NFT metadata for.
    */
   async #updateNftUpdateForAccount(account: InternalAccount) {
-    const nfts: Nft[] =
-      this.state.allNfts[account.address]?.[this.#chainId] ?? [];
+    // get all nfts for the account for all chains
+    const nfts: Nft[] = Object.values(
+      this.state.allNfts[account.address],
+    ).flat();
 
     // Filter only nfts
     const nftsToUpdate = nfts.filter(
