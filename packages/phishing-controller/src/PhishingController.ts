@@ -101,7 +101,7 @@ export type C2DomainBlocklistResponse = {
  */
 export type PhishingStalelist = {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   eth_phishing_detect_config: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
@@ -683,6 +683,7 @@ export class PhishingController extends BaseController<
       this.update((draftState) => {
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
+        draftState.hotlistLastSuccessTimestamp = timeNow;
         draftState.c2DomainBlocklistLastFetched = timeNow;
       });
     }
@@ -692,7 +693,7 @@ export class PhishingController extends BaseController<
     }
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
