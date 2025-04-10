@@ -1,12 +1,12 @@
 import type { CaipAccountId } from '@metamask/utils';
 
+import { MultichainNetworkService } from './MultichainNetworkService';
 import {
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
   MULTICHAIN_ACCOUNTS_BASE_URL,
-} from './constants';
-import { MultichainNetworkService } from './MultichainNetworkService';
-import type { ActiveNetworksResponse } from './types';
+} from '../constants';
+import type { ActiveNetworksResponse } from '../types';
 
 describe('MultichainNetworkService', () => {
   const mockFetch = jest.fn();

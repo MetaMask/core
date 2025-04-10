@@ -20,9 +20,10 @@ import type {
 import { KnownCaipNamespace } from '@metamask/utils';
 import log from 'loglevel';
 
-import type { AbstractMultichainNetworkService } from './AbstractMultichainNetworkService';
-import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
+import { createMockInternalAccount } from '../../tests/utils';
+import { getDefaultMultichainNetworkControllerState } from '../constants';
+import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -30,16 +31,15 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type ActiveNetworksResponse,
-} from './types';
-import { createMockInternalAccount } from '../tests/utils';
+} from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
   handleFetch: jest.fn(),
 }));
 
-jest.mock('./utils', () => ({
-  ...jest.requireActual('./utils'),
+jest.mock('../utils', () => ({
+  ...jest.requireActual('../utils'),
 }));
 
 /**

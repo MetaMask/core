@@ -4,18 +4,18 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
-import type { AbstractMultichainNetworkService } from './AbstractMultichainNetworkService';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
-} from './constants';
+} from '../constants';
+import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
   type MultichainNetworkControllerState,
   type MultichainNetworkControllerMessenger,
   type SupportedCaipChainId,
   type ActiveNetworksByAddress,
-} from './types';
+} from '../types';
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
@@ -23,7 +23,7 @@ import {
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
   toAllowedCaipAccountIds,
-} from './utils';
+} from '../utils';
 
 /**
  * The MultichainNetworkController is responsible for fetching and caching account

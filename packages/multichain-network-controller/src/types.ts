@@ -24,7 +24,7 @@ import type {
   CaipReference,
 } from '@metamask/utils';
 
-import type { MultichainNetworkController } from './MultichainNetworkController';
+import type { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
 

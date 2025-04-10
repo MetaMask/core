@@ -1,5 +1,5 @@
-export { MultichainNetworkController } from './MultichainNetworkController';
-export { MultichainNetworkService } from './MultichainNetworkService';
+export { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
+export { MultichainNetworkService } from './MultichainNetworkService/MultichainNetworkService';
 export {
   getDefaultMultichainNetworkControllerState,
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
