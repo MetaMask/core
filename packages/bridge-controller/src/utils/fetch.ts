@@ -191,11 +191,22 @@ const fetchAssetPricesForCurrency = async (request: {
     functionName: 'fetchAssetExchangeRates',
   })) as Record<CaipAssetType, { [currency: string]: number }>;
 
+  if (!priceApiResponse || typeof priceApiResponse !== 'object') {
+    return {};
+  }
+
   return Object.entries(priceApiResponse).reduce(
-    (acc, [k, curr]) => {
-      acc[k as CaipAssetType] = {
-        [currency]: curr[currency]?.toString(),
-      };
+    (acc, [assetId, currencyToPrice]) => {
+      if (!currencyToPrice) {
+        return acc;
+      }
+      if (!acc[assetId as CaipAssetType]) {
+        acc[assetId as CaipAssetType] = {};
+      }
+      if (currencyToPrice[currency]) {
+        acc[assetId as CaipAssetType][currency] =
+          currencyToPrice[currency].toString();
+      }
       return acc;
     },
     {} as Record<CaipAssetType, { [currency: string]: string }>,
@@ -220,25 +231,25 @@ export const fetchAssetPrices = async (
       async (currency) =>
         await fetchAssetPricesForCurrency({ ...args, currency }),
     ),
-  ).then((prices) =>
-    prices.reduce(
+  ).then((priceApiResponse) => {
+    return priceApiResponse.reduce(
       (acc, result) => {
         if (result.status === 'fulfilled') {
-          Object.entries(result.value).forEach(([assetId, value]) => {
-            if (!acc[assetId as CaipAssetType]) {
+          Object.entries(result.value).forEach(([assetId, currencyToPrice]) => {
+            const existingPrices = acc[assetId as CaipAssetType];
+            if (!existingPrices) {
               acc[assetId as CaipAssetType] = {};
             }
-            acc[assetId as CaipAssetType] = {
-              ...acc[assetId as CaipAssetType],
-              ...value,
-            };
+            Object.entries(currencyToPrice).forEach(([currency, price]) => {
+              acc[assetId as CaipAssetType][currency] = price;
+            });
           });
         }
         return acc;
       },
       {} as Record<CaipAssetType, { [currency: string]: string }>,
-    ),
-  );
+    );
+  });
 
   return combinedPrices;
 };
