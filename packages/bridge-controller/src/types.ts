@@ -73,15 +73,28 @@ export type SolanaFees = {
   solanaFeesInLamports?: string; // solana fees in lamports, appended by BridgeController.#appendSolanaFees
 };
 
-type StringifiedDecimalNumber = string;
-
 /**
- * valueInCurrency values are calculated based on the user's selected currency
+ * The types of values for the token amount and its values when converted to the user's selected currency and USD
  */
 export type TokenAmountValues = {
-  amount: StringifiedDecimalNumber;
-  valueInCurrency: StringifiedDecimalNumber | null;
-  usd: StringifiedDecimalNumber | null;
+  /**
+   * The amount of the token
+   *
+   * @example "1000000000000000000"
+   */
+  amount: string;
+  /**
+   * The amount of the token in the user's selected currency
+   *
+   * @example "4.55"
+   */
+  valueInCurrency: string | null;
+  /**
+   * The amount of the token in USD
+   *
+   * @example "1.234"
+   */
+  usd: string | null;
 };
 
 /**
@@ -99,7 +112,7 @@ export type QuoteMetadata = {
   toTokenAmount: TokenAmountValues;
   adjustedReturn: Omit<TokenAmountValues, 'amount'>; // destTokenAmount - totalNetworkFee
   sentAmount: TokenAmountValues; // srcTokenAmount + metabridgeFee
-  swapRate: StringifiedDecimalNumber; // destTokenAmount / sentAmount
+  swapRate: string; // destTokenAmount / sentAmount
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
 

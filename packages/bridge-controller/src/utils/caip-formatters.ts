@@ -135,7 +135,7 @@ export const formatAddressToAssetId = (
     return addressOrAssetId;
   }
   if (isNativeAddress(addressOrAssetId)) {
-    return getNativeAssetForChainId(chainId).assetId as CaipAssetType;
+    return getNativeAssetForChainId(chainId).assetId;
   }
   if (chainId === SolScope.Mainnet) {
     return CaipAssetTypeStruct.create(`${chainId}/token:${addressOrAssetId}`);
