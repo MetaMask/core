@@ -70,17 +70,6 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
   return new BigNumber(value).div(divisor);
 };
 
-export const isQuoteExpired = (
-  isQuoteGoingToRefresh: boolean,
-  refreshRate: number,
-  quotesLastFetchedMs?: number,
-) =>
-  Boolean(
-    !isQuoteGoingToRefresh &&
-      quotesLastFetchedMs &&
-      Date.now() - quotesLastFetchedMs > refreshRate,
-  );
-
 export const calcSolanaTotalNetworkFee = (
   bridgeQuote: QuoteResponse & SolanaFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,

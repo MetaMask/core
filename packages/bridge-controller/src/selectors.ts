@@ -27,6 +27,7 @@ import {
 } from './utils/bridge';
 import {
   formatAddressToAssetId,
+  formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters';
 import {
@@ -277,6 +278,27 @@ const selectActiveQuote = createBridgeSelector(
   (recommendedQuote, selectedQuote) => selectedQuote ?? recommendedQuote,
 );
 
+const selectIsQuoteGoingToRefresh = (
+  state: BridgeAppState,
+  { featureFlagsKey }: BridgeQuotesClientParams,
+) =>
+  state.quoteRequest.insufficientBal
+    ? false
+    : state.quotesRefreshCount <
+      state.bridgeFeatureFlags[featureFlagsKey].maxRefreshCount;
+
+const selectQuoteRefreshRate = createBridgeSelector(
+  [
+    ({ bridgeFeatureFlags }, { featureFlagsKey }: BridgeQuotesClientParams) =>
+      bridgeFeatureFlags[featureFlagsKey],
+    (state) => state.quoteRequest.srcChainId,
+  ],
+  (featureFlags, srcChainId) =>
+    (srcChainId
+      ? featureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
+      : featureFlags.refreshRate) ?? featureFlags.refreshRate,
+);
+
 /**
  * Selects sorted cross-chain swap quotes. By default, the quotes are sorted by cost in ascending order.
  *
@@ -310,12 +332,18 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   quoteFetchError: (state) => state.quoteFetchError,
   quotesRefreshCount: (state) => state.quotesRefreshCount,
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
-  isQuoteGoingToRefresh: (
-    state,
-    { featureFlagsKey }: BridgeQuotesClientParams,
-  ) =>
-    state.quoteRequest.insufficientBal
-      ? false
-      : state.quotesRefreshCount <
-        state.bridgeFeatureFlags[featureFlagsKey].maxRefreshCount,
+  isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
+  isQuoteExpired: createBridgeSelector(
+    [
+      selectIsQuoteGoingToRefresh,
+      ({ quotesLastFetched }) => quotesLastFetched,
+      selectQuoteRefreshRate,
+    ],
+    (isQuoteGoingToRefresh, quotesLastFetched, refreshRate) =>
+      Boolean(
+        !isQuoteGoingToRefresh &&
+          quotesLastFetched &&
+          Date.now() - quotesLastFetched > refreshRate,
+      ),
+  ),
 });
