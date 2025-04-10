@@ -106,6 +106,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     accountAddress: string,
   ) => Promise<DefiPositionResponse[]>;
 
+  readonly #isEnabled: () => boolean;
+
   /**
    * Tokens controller options
    *
@@ -136,27 +138,20 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.setIntervalLength(interval);
 
     this.#fetchPositions = buildPositionFetcher(apiUrl);
+    this.#isEnabled = isEnabled;
 
     this.messagingSystem.subscribe('KeyringController:unlock', async () => {
-      if (!isEnabled()) {
-        return;
-      }
-
       this.startPolling(null);
     });
 
     this.messagingSystem.subscribe('KeyringController:lock', () => {
-      if (!isEnabled()) {
-        return;
-      }
-
       this.stopAllPolling();
     });
 
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
-        if (!isEnabled()) {
+        if (!this.#isEnabled()) {
           return;
         }
 
@@ -167,7 +162,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
       async (account) => {
-        if (!isEnabled() || !account.type.startsWith('eip155:')) {
+        if (!this.#isEnabled() || !account.type.startsWith('eip155:')) {
           return;
         }
 
@@ -177,6 +172,10 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
   }
 
   async _executePoll(): Promise<void> {
+    if (!this.#isEnabled()) {
+      return;
+    }
+
     const accounts = this.messagingSystem.call(
       'AccountsController:listAccounts',
     );

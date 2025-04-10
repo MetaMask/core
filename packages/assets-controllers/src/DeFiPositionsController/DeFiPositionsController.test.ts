@@ -7,7 +7,6 @@ import {
 } from './DeFiPositionsController';
 import * as fetchPositions from './fetch-positions';
 import * as groupPositions from './group-positions';
-import type { GroupedPositions } from './group-positions';
 import { flushPromises } from '../../../../tests/helpers';
 import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
 import { Messenger } from '../../../base-controller/src/Messenger';
@@ -45,14 +44,20 @@ type MainMessenger = Messenger<
  * @param state - Partial state to initialize the controller with
  * @param state.interval - The interval to poll for positions
  * @param state.isEnabled - Whether the controller is enabled
+ * @param state.mockFetchPositions - The mock fetch positions function
+ * @param state.mockGroupPositions - The mock group positions function
  * @returns The controller instance and the trigger functions
  */
 function setupController({
   interval,
   isEnabled,
+  mockFetchPositions = jest.fn(),
+  mockGroupPositions = jest.fn(),
 }: {
   interval?: number;
   isEnabled?: () => boolean;
+  mockFetchPositions?: jest.Mock;
+  mockGroupPositions?: jest.Mock;
 } = {}) {
   const messenger: MainMessenger = new Messenger();
 
@@ -73,11 +78,24 @@ function setupController({
     ],
   });
 
+  const buildPositionsFetcherSpy = jest.spyOn(
+    fetchPositions,
+    'buildPositionFetcher',
+  );
+
+  buildPositionsFetcherSpy.mockReturnValue(mockFetchPositions);
+
+  const groupPositionsSpy = jest.spyOn(groupPositions, 'groupPositions');
+
+  groupPositionsSpy.mockImplementation(mockGroupPositions);
+
   const controller = new DeFiPositionsController({
     messenger: restrictedMessenger,
     interval,
     isEnabled,
   });
+
+  const updateSpy = jest.spyOn(controller, 'update' as never);
 
   const triggerUnlock = (): void => {
     messenger.publish('KeyringController:unlock');
@@ -108,6 +126,10 @@ function setupController({
     triggerLock,
     triggerTransactionConfirmed,
     triggerAccountAdded,
+    buildPositionsFetcherSpy,
+    updateSpy,
+    mockFetchPositions,
+    mockGroupPositions,
   };
 }
 
@@ -139,19 +161,6 @@ describe('DeFiPositionsController', () => {
     expect(stopAllPollingSpy).toHaveBeenCalled();
   });
 
-  it('does not stop polling if the keyring is locked and the controller is disabled', async () => {
-    const { controller, triggerLock } = setupController({
-      isEnabled: () => false,
-    });
-    const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
-
-    triggerLock();
-
-    await flushPromises();
-
-    expect(stopAllPollingSpy).not.toHaveBeenCalled();
-  });
-
   it('starts polling if the keyring is unlocked', async () => {
     const { controller, triggerUnlock } = setupController();
     const startPollingSpy = jest.spyOn(controller, 'startPolling');
@@ -163,19 +172,6 @@ describe('DeFiPositionsController', () => {
     expect(startPollingSpy).toHaveBeenCalled();
   });
 
-  it('does not start polling if the keyring is unlocked and the controller is disabled', async () => {
-    const { controller, triggerUnlock } = setupController({
-      isEnabled: () => false,
-    });
-    const startPollingSpy = jest.spyOn(controller, 'startPolling');
-
-    triggerUnlock();
-
-    await flushPromises();
-
-    expect(startPollingSpy).not.toHaveBeenCalled();
-  });
-
   it('fetches positions for all accounts when polling', async () => {
     const mockFetchPositions = jest.fn().mockImplementation((address) => {
       // eslint-disable-next-line jest/no-conditional-in-test
@@ -185,17 +181,14 @@ describe('DeFiPositionsController', () => {
 
       throw new Error('Error fetching positions');
     });
+    const mockGroupPositions = jest.fn().mockReturnValue('mock-grouped-data-1');
 
-    const fetchPositionsSpy = jest
-      .spyOn(fetchPositions, 'buildPositionFetcher')
-      .mockReturnValue(mockFetchPositions);
-
-    const groupPositionsSpy = jest
-      .spyOn(groupPositions, 'groupPositions')
-      .mockReturnValue('mock-grouped-data-1' as unknown as GroupedPositions);
-
-    const { controller } = setupController();
-    const updateSpy = jest.spyOn(controller, 'update' as never);
+    const { controller, buildPositionsFetcherSpy, updateSpy } = setupController(
+      {
+        mockFetchPositions,
+        mockGroupPositions,
+      },
+    );
 
     await controller._executePoll();
 
@@ -205,56 +198,58 @@ describe('DeFiPositionsController', () => {
         [OWNER_ACCOUNTS[1].address]: null,
       },
     });
-    expect(fetchPositionsSpy).toHaveBeenCalled();
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
     expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[0].address);
     expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[1].address);
     expect(mockFetchPositions).toHaveBeenCalledTimes(2);
 
-    expect(groupPositionsSpy).toHaveBeenCalledWith('mock-fetch-data-1');
-    expect(groupPositionsSpy).toHaveBeenCalledTimes(1);
+    expect(mockGroupPositions).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(mockGroupPositions).toHaveBeenCalledTimes(1);
+
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('does not fetch positions for an account when a transaction is confirmed and the controller is disabled', async () => {
-    const mockFetchPositions = jest.fn();
-
-    const fetchPositionsSpy = jest
-      .spyOn(fetchPositions, 'buildPositionFetcher')
-      .mockReturnValue(mockFetchPositions);
-
-    const groupPositionsSpy = jest.spyOn(groupPositions, 'groupPositions');
-
-    const { controller, triggerTransactionConfirmed } = setupController({
+  it('does not fetch positions when polling and the controller is disabled', async () => {
+    const {
+      controller,
+      buildPositionsFetcherSpy,
+      updateSpy,
+      mockFetchPositions,
+      mockGroupPositions,
+    } = setupController({
       isEnabled: () => false,
     });
-    const updateSpy = jest.spyOn(controller, 'update' as never);
 
-    triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
-    await flushPromises();
+    await controller._executePoll();
 
     expect(controller.state).toStrictEqual(
       getDefaultDefiPositionsControllerState(),
     );
-    expect(fetchPositionsSpy).toHaveBeenCalled();
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
     expect(mockFetchPositions).not.toHaveBeenCalled();
 
-    expect(groupPositionsSpy).not.toHaveBeenCalled();
+    expect(mockGroupPositions).not.toHaveBeenCalled();
+
     expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('fetches positions for an account when a transaction is confirmed', async () => {
     const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
+    const mockGroupPositions = jest.fn().mockReturnValue('mock-grouped-data-1');
 
-    const fetchPositionsSpy = jest
-      .spyOn(fetchPositions, 'buildPositionFetcher')
-      .mockReturnValue(mockFetchPositions);
-
-    const groupPositionsSpy = jest
-      .spyOn(groupPositions, 'groupPositions')
-      .mockReturnValue('mock-grouped-data-1' as unknown as GroupedPositions);
-
-    const { controller, triggerTransactionConfirmed } = setupController();
-    const updateSpy = jest.spyOn(controller, 'update' as never);
+    const {
+      controller,
+      triggerTransactionConfirmed,
+      buildPositionsFetcherSpy,
+      updateSpy,
+    } = setupController({
+      mockFetchPositions,
+      mockGroupPositions,
+    });
 
     triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
     await flushPromises();
@@ -264,58 +259,59 @@ describe('DeFiPositionsController', () => {
         [OWNER_ACCOUNTS[0].address]: 'mock-grouped-data-1',
       },
     });
-    expect(fetchPositionsSpy).toHaveBeenCalled();
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
     expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[0].address);
     expect(mockFetchPositions).toHaveBeenCalledTimes(1);
 
-    expect(groupPositionsSpy).toHaveBeenCalledWith('mock-fetch-data-1');
-    expect(groupPositionsSpy).toHaveBeenCalledTimes(1);
+    expect(mockGroupPositions).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(mockGroupPositions).toHaveBeenCalledTimes(1);
+
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('does not fetch positions for an account when a new account is added and the controller is disabled', async () => {
-    const mockFetchPositions = jest.fn();
-
-    const fetchPositionsSpy = jest
-      .spyOn(fetchPositions, 'buildPositionFetcher')
-      .mockReturnValue(mockFetchPositions);
-
-    const groupPositionsSpy = jest.spyOn(groupPositions, 'groupPositions');
-
-    const { controller, triggerAccountAdded } = setupController({
+  it('does not fetch positions for an account when a transaction is confirmed and the controller is disabled', async () => {
+    const {
+      controller,
+      triggerTransactionConfirmed,
+      buildPositionsFetcherSpy,
+      updateSpy,
+      mockFetchPositions,
+      mockGroupPositions,
+    } = setupController({
       isEnabled: () => false,
     });
-    const updateSpy = jest.spyOn(controller, 'update' as never);
 
-    triggerAccountAdded({
-      type: 'eip155:eoa',
-      address: '0x0000000000000000000000000000000000000003',
-    });
+    triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
     await flushPromises();
 
     expect(controller.state).toStrictEqual(
       getDefaultDefiPositionsControllerState(),
     );
-    expect(fetchPositionsSpy).toHaveBeenCalled();
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
     expect(mockFetchPositions).not.toHaveBeenCalled();
 
-    expect(groupPositionsSpy).not.toHaveBeenCalled();
+    expect(mockGroupPositions).not.toHaveBeenCalled();
+
     expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('fetches positions for an account when a new account is added', async () => {
     const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
+    const mockGroupPositions = jest.fn().mockReturnValue('mock-grouped-data-1');
 
-    const fetchPositionsSpy = jest
-      .spyOn(fetchPositions, 'buildPositionFetcher')
-      .mockReturnValue(mockFetchPositions);
-
-    const groupPositionsSpy = jest
-      .spyOn(groupPositions, 'groupPositions')
-      .mockReturnValue('mock-grouped-data-1' as unknown as GroupedPositions);
-
-    const { controller, triggerAccountAdded } = setupController();
-    const updateSpy = jest.spyOn(controller, 'update' as never);
+    const {
+      controller,
+      triggerAccountAdded,
+      buildPositionsFetcherSpy,
+      updateSpy,
+    } = setupController({
+      mockFetchPositions,
+      mockGroupPositions,
+    });
 
     const newAccountAddress = '0x0000000000000000000000000000000000000003';
     triggerAccountAdded({
@@ -329,12 +325,46 @@ describe('DeFiPositionsController', () => {
         [newAccountAddress]: 'mock-grouped-data-1',
       },
     });
-    expect(fetchPositionsSpy).toHaveBeenCalled();
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
     expect(mockFetchPositions).toHaveBeenCalledWith(newAccountAddress);
     expect(mockFetchPositions).toHaveBeenCalledTimes(1);
 
-    expect(groupPositionsSpy).toHaveBeenCalledWith('mock-fetch-data-1');
-    expect(groupPositionsSpy).toHaveBeenCalledTimes(1);
+    expect(mockGroupPositions).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(mockGroupPositions).toHaveBeenCalledTimes(1);
+
     expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch positions for an account when a new account is added and the controller is disabled', async () => {
+    const {
+      controller,
+      triggerAccountAdded,
+      buildPositionsFetcherSpy,
+      updateSpy,
+      mockFetchPositions,
+      mockGroupPositions,
+    } = setupController({
+      isEnabled: () => false,
+    });
+
+    triggerAccountAdded({
+      type: 'eip155:eoa',
+      address: '0x0000000000000000000000000000000000000003',
+    });
+    await flushPromises();
+
+    expect(controller.state).toStrictEqual(
+      getDefaultDefiPositionsControllerState(),
+    );
+
+    expect(buildPositionsFetcherSpy).toHaveBeenCalled();
+
+    expect(mockFetchPositions).not.toHaveBeenCalled();
+
+    expect(mockGroupPositions).not.toHaveBeenCalled();
+
+    expect(updateSpy).not.toHaveBeenCalled();
   });
 });
