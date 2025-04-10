@@ -1,1 +1,1 @@
-export * from '@metamask-private/delegator-core-viem';
+export * from '@metamask/delegation-toolkit';

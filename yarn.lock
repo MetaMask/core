@@ -2414,45 +2414,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask-private/delegation-abis@npm:^0.8.1":
-  version: 0.8.1
-  resolution: "@metamask-private/delegation-abis@npm:0.8.1"
-  checksum: 10/4d19a333c3eb1549380de86ed7b37d84d1521e9e438241ec6fdf8442e0f948c58ccdde2b74876d3c210a79b787e25b4757248f654b1c413e955e15b9e11e2e72
-  languageName: node
-  linkType: hard
-
-"@metamask-private/delegation-deployments@npm:^0.8.1":
-  version: 0.8.1
-  resolution: "@metamask-private/delegation-deployments@npm:0.8.1"
-  checksum: 10/ee27f186f99e6eb78f808877cd13c3bfd7701890907c1fd36ff1be9cbcc674db9537cd01d16a02e1dde84ae099fa25c1754e406310c28c423757f75643e3f36d
-  languageName: node
-  linkType: hard
-
-"@metamask-private/delegation-utils@npm:^0.8.1":
-  version: 0.8.1
-  resolution: "@metamask-private/delegation-utils@npm:0.8.1"
-  dependencies:
-    "@metamask-private/delegation-abis": "npm:^0.8.1"
-    "@metamask-private/delegation-deployments": "npm:^0.8.1"
-    buffer: "npm:^6.0.3"
-  peerDependencies:
-    viem: ">=2.18.2 <3.0.0"
-  checksum: 10/8f6891e483d27df8823dfa2cac19a42edb16d261d564ca08cdfd2158e90fe8eb3193d1e333fa1d9122a3ba1e70f8e225d08de995e9b3246de91aced641fe57b9
-  languageName: node
-  linkType: hard
-
-"@metamask-private/delegator-core-viem@npm:^0.8.1":
-  version: 0.8.1
-  resolution: "@metamask-private/delegator-core-viem@npm:0.8.1"
-  dependencies:
-    "@metamask-private/delegation-utils": "npm:^0.8.1"
-    webauthn-p256: "npm:^0.0.5"
-  peerDependencies:
-    viem: ">=2.18.2 <3.0.0"
-  checksum: 10/766c8b6fabe33173acf903143e8551d5879c4b538d71968de427211e19d5c5540ddcb315988a25c5e8f2c025f7cd7bea4e7ff559e8c9e2484758e79ddbacbb00
-  languageName: node
-  linkType: hard
-
 "@metamask/abi-utils@npm:^2.0.3":
   version: 2.0.4
   resolution: "@metamask/abi-utils@npm:2.0.4"
@@ -2997,14 +2958,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/delegation-abis@npm:^0.9.0":
+  version: 0.9.0
+  resolution: "@metamask/delegation-abis@npm:0.9.0"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+  checksum: 10/cd727e64894ad05a0ec23eee56dd093ae06602099ac82c8ca4a59953a3bc4410de6279d7c3fcbf5568956eeec3a408ea88ed12eef4ead8af4b066357ecc66114
+  languageName: node
+  linkType: hard
+
 "@metamask/delegation-controller@workspace:packages/delegation-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/delegation-controller@workspace:packages/delegation-controller"
   dependencies:
-    "@metamask-private/delegator-core-viem": "npm:^0.8.1"
     "@metamask/accounts-controller": "npm:^27.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/delegation-toolkit": "npm:^0.9.0"
     "@metamask/keyring-controller": "npm:^21.0.1"
     "@metamask/utils": "npm:^11.3.0"
     "@ts-bridge/cli": "npm:^0.6.1"
@@ -3020,6 +2990,42 @@ __metadata:
     viem: ">=2.18.2 <3.0.0"
   languageName: unknown
   linkType: soft
+
+"@metamask/delegation-deployments@npm:^0.9.0":
+  version: 0.9.0
+  resolution: "@metamask/delegation-deployments@npm:0.9.0"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+  checksum: 10/7d1b7eba51e8067e8a18755c795077d1506134243a101cca86503acca59fa6fff6c7988aaa19925cee446d3f5057b3c2f62767316837efa8a4fa3737a1741373
+  languageName: node
+  linkType: hard
+
+"@metamask/delegation-toolkit@npm:^0.9.0":
+  version: 0.9.0
+  resolution: "@metamask/delegation-toolkit@npm:0.9.0"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/delegation-utils": "npm:^0.9.0"
+    webauthn-p256: "npm:^0.0.5"
+  peerDependencies:
+    viem: ">=2.18.2 <3.0.0"
+  checksum: 10/d9a6f3e4873a4729928cf63a3436593e83d5b552e093711767678d406f040ba8e50a1f54fe94b26bca21557067015ff7c688eaeb34eb49d2f3a6897dff3f4cbf
+  languageName: node
+  linkType: hard
+
+"@metamask/delegation-utils@npm:^0.9.0":
+  version: 0.9.0
+  resolution: "@metamask/delegation-utils@npm:0.9.0"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/delegation-abis": "npm:^0.9.0"
+    "@metamask/delegation-deployments": "npm:^0.9.0"
+    buffer: "npm:^6.0.3"
+  peerDependencies:
+    viem: ">=2.18.2 <3.0.0"
+  checksum: 10/7e7d5abe112cfdec9653e0d018e2d2266b397fba34362036fcdb009fe94a81693df71a6b6f7d1e6e2c23e1493773444b25cd392e7f9ec1a83813f8cd73b876fa
+  languageName: node
+  linkType: hard
 
 "@metamask/earn-controller@workspace:packages/earn-controller":
   version: 0.0.0-use.local
