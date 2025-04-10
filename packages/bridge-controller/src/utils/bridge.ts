@@ -56,9 +56,7 @@ export const getNativeAssetForChainId = (
   const chainIdInCaip = formatChainIdToCaip(chainId);
   const nativeToken =
     SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
-      formatChainIdToCaip(
-        chainId,
-      ) as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
+      chainIdInCaip as keyof typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP
     ] ??
     SWAPS_CHAINID_DEFAULT_TOKEN_MAP[
       formatChainIdToHex(
