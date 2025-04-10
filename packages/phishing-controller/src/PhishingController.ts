@@ -252,14 +252,14 @@ export type UrlScanCacheEntry = {
 };
 
 /**
- * @type PhishingControllerOptions
+ * PhishingControllerOptions
  *
  * Phishing controller options
- * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
- * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
- * @property c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
- * @property urlScanCacheTTL - Time to live in seconds for cached scan results.
- * @property urlScanCacheMaxSize - Maximum number of entries in the scan cache.
+ * stalelistRefreshInterval - Polling interval used to fetch stale list.
+ * hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+ * c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+ * urlScanCacheTTL - Time to live in seconds for cached scan results.
+ * urlScanCacheMaxSize - Maximum number of entries in the scan cache.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
