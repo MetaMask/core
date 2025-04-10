@@ -257,7 +257,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     destChainId,
     destTokenAddress,
   }: Partial<GenericQuoteRequest>) => {
-    const assetIds: Set<CaipAssetType> = new Set([]);
+    const assetIds: Set<CaipAssetType> = new Set();
 
     const exchangeRateSources = {
       ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
@@ -275,9 +275,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         srcTokenAddress,
       )
     ) {
-      getAssetIdsForToken(srcTokenAddress, srcChainId).forEach((assetId) =>
-        assetIds.add(assetId),
-      );
+      getAssetIdsForToken(srcTokenAddress, srcChainId).forEach(assetIds.add);
     }
     if (
       destTokenAddress &&
@@ -288,9 +286,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         destTokenAddress,
       )
     ) {
-      getAssetIdsForToken(destTokenAddress, destChainId).forEach((assetId) =>
-        assetIds.add(assetId),
-      );
+      getAssetIdsForToken(destTokenAddress, destChainId).forEach(assetIds.add);
     }
 
     const currency = this.messagingSystem.call(
