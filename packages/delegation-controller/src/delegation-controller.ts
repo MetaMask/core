@@ -150,9 +150,11 @@ export class DelegationController extends BaseController<
       list = list.filter((entry) => entry.chainId === filter.chainId);
     }
 
-    if (filter?.tags) {
+    const tags = filter?.tags;
+    if (tags && tags.length > 0) {
+      // Filter entries that contain all of the filter tags
       list = list.filter((entry) =>
-        entry.tags.some((tag) => filter.tags?.includes(tag)),
+        tags.every((tag) => entry.tags.includes(tag)),
       );
     }
 
@@ -214,10 +216,7 @@ export class DelegationController extends BaseController<
     const nextHashes: Hex[] = [hash];
 
     while (nextHashes.length > 0) {
-      const currentHash = nextHashes.pop();
-      if (currentHash === undefined) {
-        continue;
-      }
+      const currentHash = nextHashes.pop() as Hex;
 
       // Find all delegations that have this hash as their authority
       const children = list.filter(

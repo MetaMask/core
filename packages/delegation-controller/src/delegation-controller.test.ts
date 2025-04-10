@@ -245,6 +245,24 @@ describe('DelegationController', () => {
       expect(result[0].tags).toContain('test-tag');
     });
 
+    it('only filters entries that contain all of the filter tags', () => {
+      const { controller } = createController();
+      const entryWithTags = {
+        ...DELEGATION_ENTRY_MOCK,
+        tags: ['test-tag', 'test-tag-1'],
+      };
+      controller.store(entryWithTags);
+
+      const result = controller.list({ tags: ['test-tag', 'test-tag-2'] });
+
+      expect(result).toHaveLength(0);
+
+      const result2 = controller.list({ tags: ['test-tag', 'test-tag-1'] });
+      expect(result2).toHaveLength(1);
+      expect(result2[0].tags).toContain('test-tag');
+      expect(result2[0].tags).toContain('test-tag-1');
+    });
+
     it('combines multiple filters', () => {
       const { controller } = createController();
       const entryWithTags = {
