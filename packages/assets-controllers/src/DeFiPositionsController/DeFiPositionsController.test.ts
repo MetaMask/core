@@ -6,7 +6,7 @@ import {
   getDefaultDefiPositionsControllerState,
 } from './DeFiPositionsController';
 import * as fetchPositions from './fetch-positions';
-import * as groupPositions from './group-positions';
+import * as groupDeFiPositions from './group-defi-positions';
 import { flushPromises } from '../../../../tests/helpers';
 import { createMockInternalAccount } from '../../../accounts-controller/src/tests/mocks';
 import { Messenger } from '../../../base-controller/src/Messenger';
@@ -45,17 +45,17 @@ type MainMessenger = Messenger<
  * @param config - Configuration for the mock setup
  * @param config.isEnabled - Whether the controller is enabled
  * @param config.mockFetchPositions - The mock fetch positions function
- * @param config.mockGroupPositions - The mock group positions function
+ * @param config.mockGroupDeFiPositions - The mock group positions function
  * @returns The controller instance, trigger functions, and spies
  */
 function setupController({
   isEnabled,
   mockFetchPositions = jest.fn(),
-  mockGroupPositions = jest.fn(),
+  mockGroupDeFiPositions = jest.fn(),
 }: {
   isEnabled?: () => boolean;
   mockFetchPositions?: jest.Mock;
-  mockGroupPositions?: jest.Mock;
+  mockGroupDeFiPositions?: jest.Mock;
 } = {}) {
   const messenger: MainMessenger = new Messenger();
 
@@ -83,9 +83,12 @@ function setupController({
 
   buildPositionsFetcherSpy.mockReturnValue(mockFetchPositions);
 
-  const groupPositionsSpy = jest.spyOn(groupPositions, 'groupPositions');
+  const groupDeFiPositionsSpy = jest.spyOn(
+    groupDeFiPositions,
+    'groupDeFiPositions',
+  );
 
-  groupPositionsSpy.mockImplementation(mockGroupPositions);
+  groupDeFiPositionsSpy.mockImplementation(mockGroupDeFiPositions);
 
   const controller = new DeFiPositionsController({
     messenger: restrictedMessenger,
@@ -126,7 +129,7 @@ function setupController({
     buildPositionsFetcherSpy,
     updateSpy,
     mockFetchPositions,
-    mockGroupPositions,
+    mockGroupDeFiPositions,
   };
 }
 
@@ -178,12 +181,14 @@ describe('DeFiPositionsController', () => {
 
       throw new Error('Error fetching positions');
     });
-    const mockGroupPositions = jest.fn().mockReturnValue('mock-grouped-data-1');
+    const mockGroupDeFiPositions = jest
+      .fn()
+      .mockReturnValue('mock-grouped-data-1');
 
     const { controller, buildPositionsFetcherSpy, updateSpy } = setupController(
       {
         mockFetchPositions,
-        mockGroupPositions,
+        mockGroupDeFiPositions,
       },
     );
 
@@ -202,8 +207,8 @@ describe('DeFiPositionsController', () => {
     expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[1].address);
     expect(mockFetchPositions).toHaveBeenCalledTimes(2);
 
-    expect(mockGroupPositions).toHaveBeenCalledWith('mock-fetch-data-1');
-    expect(mockGroupPositions).toHaveBeenCalledTimes(1);
+    expect(mockGroupDeFiPositions).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(mockGroupDeFiPositions).toHaveBeenCalledTimes(1);
 
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
@@ -214,7 +219,7 @@ describe('DeFiPositionsController', () => {
       buildPositionsFetcherSpy,
       updateSpy,
       mockFetchPositions,
-      mockGroupPositions,
+      mockGroupDeFiPositions,
     } = setupController({
       isEnabled: () => false,
     });
@@ -229,14 +234,16 @@ describe('DeFiPositionsController', () => {
 
     expect(mockFetchPositions).not.toHaveBeenCalled();
 
-    expect(mockGroupPositions).not.toHaveBeenCalled();
+    expect(mockGroupDeFiPositions).not.toHaveBeenCalled();
 
     expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('fetches positions for an account when a transaction is confirmed', async () => {
     const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
-    const mockGroupPositions = jest.fn().mockReturnValue('mock-grouped-data-1');
+    const mockGroupDeFiPositions = jest
+      .fn()
+      .mockReturnValue('mock-grouped-data-1');
 
     const {
       controller,
@@ -245,7 +252,7 @@ describe('DeFiPositionsController', () => {
       updateSpy,
     } = setupController({
       mockFetchPositions,
-      mockGroupPositions,
+      mockGroupDeFiPositions,
     });
 
     triggerTransactionConfirmed(OWNER_ACCOUNTS[0].address);
@@ -262,8 +269,8 @@ describe('DeFiPositionsController', () => {
     expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[0].address);
     expect(mockFetchPositions).toHaveBeenCalledTimes(1);
 
-    expect(mockGroupPositions).toHaveBeenCalledWith('mock-fetch-data-1');
-    expect(mockGroupPositions).toHaveBeenCalledTimes(1);
+    expect(mockGroupDeFiPositions).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(mockGroupDeFiPositions).toHaveBeenCalledTimes(1);
 
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
@@ -275,7 +282,7 @@ describe('DeFiPositionsController', () => {
       buildPositionsFetcherSpy,
       updateSpy,
       mockFetchPositions,
-      mockGroupPositions,
+      mockGroupDeFiPositions,
     } = setupController({
       isEnabled: () => false,
     });
@@ -291,14 +298,16 @@ describe('DeFiPositionsController', () => {
 
     expect(mockFetchPositions).not.toHaveBeenCalled();
 
-    expect(mockGroupPositions).not.toHaveBeenCalled();
+    expect(mockGroupDeFiPositions).not.toHaveBeenCalled();
 
     expect(updateSpy).not.toHaveBeenCalled();
   });
 
   it('fetches positions for an account when a new account is added', async () => {
     const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
-    const mockGroupPositions = jest.fn().mockReturnValue('mock-grouped-data-1');
+    const mockGroupDeFiPositions = jest
+      .fn()
+      .mockReturnValue('mock-grouped-data-1');
 
     const {
       controller,
@@ -307,7 +316,7 @@ describe('DeFiPositionsController', () => {
       updateSpy,
     } = setupController({
       mockFetchPositions,
-      mockGroupPositions,
+      mockGroupDeFiPositions,
     });
 
     const newAccountAddress = '0x0000000000000000000000000000000000000003';
@@ -328,8 +337,8 @@ describe('DeFiPositionsController', () => {
     expect(mockFetchPositions).toHaveBeenCalledWith(newAccountAddress);
     expect(mockFetchPositions).toHaveBeenCalledTimes(1);
 
-    expect(mockGroupPositions).toHaveBeenCalledWith('mock-fetch-data-1');
-    expect(mockGroupPositions).toHaveBeenCalledTimes(1);
+    expect(mockGroupDeFiPositions).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(mockGroupDeFiPositions).toHaveBeenCalledTimes(1);
 
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
@@ -341,7 +350,7 @@ describe('DeFiPositionsController', () => {
       buildPositionsFetcherSpy,
       updateSpy,
       mockFetchPositions,
-      mockGroupPositions,
+      mockGroupDeFiPositions,
     } = setupController({
       isEnabled: () => false,
     });
@@ -360,7 +369,7 @@ describe('DeFiPositionsController', () => {
 
     expect(mockFetchPositions).not.toHaveBeenCalled();
 
-    expect(mockGroupPositions).not.toHaveBeenCalled();
+    expect(mockGroupDeFiPositions).not.toHaveBeenCalled();
 
     expect(updateSpy).not.toHaveBeenCalled();
   });

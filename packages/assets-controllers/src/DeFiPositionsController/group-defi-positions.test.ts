@@ -8,12 +8,12 @@ import {
   MOCK_DEFI_RESPONSE_MULTI_CHAIN,
   MOCK_DEFI_RESPONSE_NO_PRICES,
 } from './__fixtures__/mock-responses';
-import type { GroupedPositions } from './group-positions';
-import { groupPositions } from './group-positions';
+import type { GroupedDeFiPositions } from './group-defi-positions';
+import { groupDeFiPositions } from './group-defi-positions';
 
-describe('groupPositions', () => {
+describe('groupDeFiPositions', () => {
   it('groups multiple chains', () => {
-    const result = groupPositions(MOCK_DEFI_RESPONSE_MULTI_CHAIN);
+    const result = groupDeFiPositions(MOCK_DEFI_RESPONSE_MULTI_CHAIN);
 
     expect(Object.keys(result)).toHaveLength(2);
     expect(Object.keys(result)[0]).toBe('0x1');
@@ -21,7 +21,7 @@ describe('groupPositions', () => {
   });
 
   it('does not display failed entries', () => {
-    const result = groupPositions(MOCK_DEFI_RESPONSE_FAILED_ENTRY);
+    const result = groupDeFiPositions(MOCK_DEFI_RESPONSE_FAILED_ENTRY);
 
     const protocolResults = result['0x1'].protocols['aave-v3'];
     expect(protocolResults.positionTypes.supply).toBeDefined();
@@ -29,7 +29,7 @@ describe('groupPositions', () => {
   });
 
   it('handles results with no prices and displays them', () => {
-    const result = groupPositions(MOCK_DEFI_RESPONSE_NO_PRICES);
+    const result = groupDeFiPositions(MOCK_DEFI_RESPONSE_NO_PRICES);
 
     const supplyResults =
       result['0x1'].protocols['aave-v3'].positionTypes.supply;
@@ -41,7 +41,7 @@ describe('groupPositions', () => {
   });
 
   it('substracts borrow positions from total market value', () => {
-    const result = groupPositions(MOCK_DEFI_RESPONSE_BORROW);
+    const result = groupDeFiPositions(MOCK_DEFI_RESPONSE_BORROW);
 
     const protocolResults = result['0x1'].protocols['aave-v3'];
     assert(protocolResults.positionTypes.supply);
@@ -56,9 +56,9 @@ describe('groupPositions', () => {
   });
 
   it('verifies that the resulting object is valid', () => {
-    const result = groupPositions(MOCK_DEFI_RESPONSE_COMPLEX);
+    const result = groupDeFiPositions(MOCK_DEFI_RESPONSE_COMPLEX);
 
-    const expectedResult: { [key: Hex]: GroupedPositions } = {
+    const expectedResult: { [key: Hex]: GroupedDeFiPositions } = {
       '0x1': {
         aggregatedMarketValue: 20540,
         protocols: {

@@ -16,7 +16,10 @@ import type { Hex } from '@metamask/utils';
 
 import type { DefiPositionResponse } from './fetch-positions';
 import { buildPositionFetcher } from './fetch-positions';
-import { groupPositions, type GroupedPositions } from './group-positions';
+import {
+  groupDeFiPositions,
+  type GroupedDeFiPositions,
+} from './group-defi-positions';
 import { reduceInBatchesSerially } from '../assetsUtil';
 
 const TEN_MINUTES_IN_MS = 60_000;
@@ -25,8 +28,8 @@ const FETCH_POSITIONS_BATCH_SIZE = 10;
 
 const controllerName = 'DeFiPositionsController';
 
-type GroupedPositionsPerChain = {
-  [chain: Hex]: GroupedPositions;
+type GroupedDeFiPositionsPerChain = {
+  [chain: Hex]: GroupedDeFiPositions;
 };
 
 export type DeFiPositionsControllerState = {
@@ -34,7 +37,7 @@ export type DeFiPositionsControllerState = {
    * Object containing DeFi positions per account and network
    */
   allDeFiPositions: {
-    [accountAddress: string]: GroupedPositionsPerChain | null;
+    [accountAddress: string]: GroupedDeFiPositionsPerChain | null;
   };
 };
 
@@ -135,7 +138,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.#fetchPositions = buildPositionFetcher();
     this.#isEnabled = isEnabled;
 
-    this.messagingSystem.subscribe('KeyringController:unlock', async () => {
+    this.messagingSystem.subscribe('KeyringController:unlock', () => {
       this.startPolling(null);
     });
 
@@ -145,6 +148,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (transactionMeta) => {
         if (!this.#isEnabled()) {
           return;
@@ -156,6 +160,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account) => {
         if (!this.#isEnabled() || !account.type.startsWith('eip155:')) {
           return;
@@ -178,7 +183,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     const results = await reduceInBatchesSerially({
       initialResult: [] as {
         accountAddress: string;
-        positions: GroupedPositionsPerChain | null;
+        positions: GroupedDeFiPositionsPerChain | null;
       }[],
       values: accounts,
       batchSize: FETCH_POSITIONS_BATCH_SIZE,
@@ -201,7 +206,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
           )
         ).filter(Boolean) as {
           accountAddress: string;
-          positions: GroupedPositionsPerChain | null;
+          positions: GroupedDeFiPositionsPerChain | null;
         }[];
 
         return [...workingResult, ...batchResults];
@@ -232,11 +237,11 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
   async #fetchAccountPositions(
     accountAddress: string,
-  ): Promise<GroupedPositionsPerChain | null> {
+  ): Promise<GroupedDeFiPositionsPerChain | null> {
     try {
       const defiPositionsResponse = await this.#fetchPositions(accountAddress);
 
-      return groupPositions(defiPositionsResponse);
+      return groupDeFiPositions(defiPositionsResponse);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       return null;

@@ -10,7 +10,7 @@ import type {
   Balance,
 } from './fetch-positions';
 
-export type GroupedPositions = {
+export type GroupedDeFiPositions = {
   aggregatedMarketValue: number;
   protocols: {
     [protocolId: string]: {
@@ -40,10 +40,12 @@ export type UnderlyingWithMarketValue = Omit<Underlying, 'tokens'> & {
  * @param defiPositionsResponse - The response from the defi positions API
  * @returns The grouped positions that get assigned to the state
  */
-export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
-  [key: Hex]: GroupedPositions;
+export function groupDeFiPositions(
+  defiPositionsResponse: DefiPositionResponse[],
+): {
+  [key: Hex]: GroupedDeFiPositions;
 } {
-  const groupedPositions: { [key: Hex]: GroupedPositions } = {};
+  const groupedDeFiPositions: { [key: Hex]: GroupedDeFiPositions } = {};
 
   for (const position of defiPositionsResponse) {
     if (!position.success) {
@@ -54,14 +56,14 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
 
     const chain = toHex(chainId);
 
-    if (!groupedPositions[chain]) {
-      groupedPositions[chain] = {
+    if (!groupedDeFiPositions[chain]) {
+      groupedDeFiPositions[chain] = {
         aggregatedMarketValue: 0,
         protocols: {},
       };
     }
 
-    const chainData = groupedPositions[chain];
+    const chainData = groupedDeFiPositions[chain];
 
     if (!chainData.protocols[protocolId]) {
       chainData.protocols[protocolId] = {
@@ -109,7 +111,7 @@ export function groupPositions(defiPositionsResponse: DefiPositionResponse[]): {
     }
   }
 
-  return groupedPositions;
+  return groupedDeFiPositions;
 }
 
 /**

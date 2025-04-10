@@ -206,4 +206,4 @@ export type {
   DeFiPositionsControllerStateChangeEvent,
   DeFiPositionsControllerMessenger,
 } from './DeFiPositionsController/DeFiPositionsController';
-export type { GroupedPositions } from './DeFiPositionsController/group-positions';
+export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
