@@ -241,13 +241,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
 
-  #selectedAccountId: string;
-
   #disabled: boolean;
-
-  #chainId: Hex;
-
-  #ticker: string;
 
   #interval: number;
 
@@ -289,13 +283,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#tokenPricesService = tokenPricesService;
     this.#disabled = disabled;
     this.#interval = interval;
-
-    const { chainId: currentChainId, ticker: currentTicker } =
-      this.#getChainIdAndTicker();
-    this.#chainId = currentChainId;
-    this.#ticker = currentTicker;
-
-    this.#selectedAccountId = this.#getSelectedAccount().id;
 
     const { allTokens, allDetectedTokens } = this.#getTokensControllerState();
     this.#allTokens = allTokens;
@@ -372,12 +359,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           selectedNetworkClientId,
         );
 
-        if (this.#chainId !== chainId || this.#ticker !== ticker) {
-          this.#chainId = chainId;
-          this.#ticker = ticker;
-          if (this.#pollState === PollState.Active) {
-            await this.updateExchangeRates();
-          }
+        if (this.#pollState === PollState.Active) {
+          await this.updateExchangeRates(chainId, ticker);
         }
 
         // Remove state for deleted networks
@@ -430,11 +413,13 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   /**
    * Start (or restart) polling.
+   *
+   * @param chainId - The chain ID.
    */
-  async start() {
+  async start(chainId: Hex) {
     this.#stopPoll();
     this.#pollState = PollState.Active;
-    await this.#poll();
+    await this.#poll({ chainId });
   }
 
   /**
@@ -443,31 +428,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   stop() {
     this.#stopPoll();
     this.#pollState = PollState.Inactive;
-  }
-
-  #getSelectedAccount(): InternalAccount {
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    );
-
-    return selectedAccount;
-  }
-
-  #getChainIdAndTicker(): {
-    chainId: Hex;
-    ticker: string;
-  } {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    );
-    return {
-      chainId: networkClient.configuration.chainId,
-      ticker: networkClient.configuration.ticker,
-    };
   }
 
   #getTokensControllerState(): {
@@ -495,26 +455,40 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   /**
    * Poll for exchange rate updates.
+   *
+   * @param options - The options to poll for exchange rate updates.
+   * @param options.chainId - The chain ID.
    */
-  async #poll() {
-    await safelyExecute(() => this.updateExchangeRates());
+  async #poll({ chainId }: { chainId: Hex }) {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const nativeCurrency =
+      networkConfigurationsByChainId[chainId as Hex]?.nativeCurrency;
+
+    await safelyExecute(() =>
+      this.updateExchangeRates(chainId, nativeCurrency),
+    );
 
     // Poll using recursive `setTimeout` instead of `setInterval` so that
     // requests don't stack if they take longer than the polling interval
     this.#handle = setTimeout(() => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#poll();
+      this.#poll({ chainId });
     }, this.#interval);
   }
 
   /**
    * Updates exchange rates for all tokens.
+   *
+   * @param chainId - The chain ID.
+   * @param nativeCurrency - The native currency.
    */
-  async updateExchangeRates() {
+  async updateExchangeRates(chainId: Hex, nativeCurrency: string) {
     await this.updateExchangeRatesByChainId({
-      chainId: this.#chainId,
-      nativeCurrency: this.#ticker,
+      chainId,
+      nativeCurrency,
     });
   }
 
