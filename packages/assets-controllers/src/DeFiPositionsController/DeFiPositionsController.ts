@@ -72,12 +72,13 @@ export type DeFiPositionsControllerStateChangeEvent =
 /**
  * The external actions available to the {@link DeFiPositionsController}.
  */
-export type AllowedActions = AccountsControllerListAccountsAction;
+export type DeFiPositionsControllerAllowedActions =
+  AccountsControllerListAccountsAction;
 
 /**
  * The external events available to the {@link DeFiPositionsController}.
  */
-export type AllowedEvents =
+export type DeFiPositionsControllerAllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
   | TransactionControllerTransactionConfirmedEvent
@@ -88,10 +89,10 @@ export type AllowedEvents =
  */
 export type DeFiPositionsControllerMessenger = RestrictedMessenger<
   typeof controllerName,
-  DeFiPositionsControllerActions | AllowedActions,
-  DeFiPositionsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  DeFiPositionsControllerActions | DeFiPositionsControllerAllowedActions,
+  DeFiPositionsControllerEvents | DeFiPositionsControllerAllowedEvents,
+  DeFiPositionsControllerAllowedActions['type'],
+  DeFiPositionsControllerAllowedEvents['type']
 >;
 
 /**
