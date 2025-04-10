@@ -1,4 +1,7 @@
-import type { AccountsControllerListAccountsAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerListAccountsAction,
+} from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -77,7 +80,8 @@ export type AllowedActions = AccountsControllerListAccountsAction;
 export type AllowedEvents =
   | KeyringControllerUnlockEvent
   | KeyringControllerLockEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionConfirmedEvent
+  | AccountsControllerAccountAddedEvent;
 
 /**
  * The messenger of the {@link DeFiPositionsController}.
@@ -156,8 +160,18 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
           return;
         }
 
-        const accountAddress = transactionMeta.txParams.from;
-        await this.#updateAccountPositions(accountAddress);
+        await this.#updateAccountPositions(transactionMeta.txParams.from);
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      'AccountsController:accountAdded',
+      async (account) => {
+        if (!isEnabled() || !account.type.startsWith('eip155:')) {
+          return;
+        }
+
+        await this.#updateAccountPositions(account.address);
       },
     );
   }
@@ -179,21 +193,13 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
           await Promise.all(
             batch.map(async ({ address: accountAddress, type }) => {
               if (type.startsWith('eip155:')) {
-                try {
-                  const positions =
-                    await this.#fetchAccountPositions(accountAddress);
+                const positions =
+                  await this.#fetchAccountPositions(accountAddress);
 
-                  return {
-                    accountAddress,
-                    positions,
-                  };
-                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                } catch (error) {
-                  return {
-                    accountAddress,
-                    positions: null,
-                  };
-                }
+                return {
+                  accountAddress,
+                  positions,
+                };
               }
 
               return undefined;
@@ -232,9 +238,14 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
   async #fetchAccountPositions(
     accountAddress: string,
-  ): Promise<GroupedPositionsPerChain> {
-    const defiPositionsResponse = await this.#fetchPositions(accountAddress);
+  ): Promise<GroupedPositionsPerChain | null> {
+    try {
+      const defiPositionsResponse = await this.#fetchPositions(accountAddress);
 
-    return groupPositions(defiPositionsResponse);
+      return groupPositions(defiPositionsResponse);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      return null;
+    }
   }
 }

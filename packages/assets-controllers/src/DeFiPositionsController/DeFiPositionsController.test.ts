@@ -15,7 +15,10 @@ import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../base-controller/tests/helpers';
-import type { TransactionMeta } from '../../../transaction-controller/src/types';
+import type {
+  InternalAccount,
+  TransactionMeta,
+} from '../../../transaction-controller/src/types';
 
 const OWNER_ACCOUNTS = [
   createMockInternalAccount({
@@ -66,6 +69,7 @@ function setupController({
       'KeyringController:unlock',
       'KeyringController:lock',
       'TransactionController:transactionConfirmed',
+      'AccountsController:accountAdded',
     ],
   });
 
@@ -88,7 +92,14 @@ function setupController({
       txParams: {
         from: address,
       },
-    } as unknown as TransactionMeta);
+    } as TransactionMeta);
+  };
+
+  const triggerAccountAdded = (account: Partial<InternalAccount>): void => {
+    messenger.publish(
+      'AccountsController:accountAdded',
+      account as InternalAccount,
+    );
   };
 
   return {
@@ -96,6 +107,7 @@ function setupController({
     triggerUnlock,
     triggerLock,
     triggerTransactionConfirmed,
+    triggerAccountAdded,
   };
 }
 
@@ -203,7 +215,7 @@ describe('DeFiPositionsController', () => {
     expect(updateSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('does not fetch positions for an account when a transaction is confirmed if the controller is disabled', async () => {
+  it('does not fetch positions for an account when a transaction is confirmed and the controller is disabled', async () => {
     const mockFetchPositions = jest.fn();
 
     const fetchPositionsSpy = jest
@@ -254,6 +266,71 @@ describe('DeFiPositionsController', () => {
     });
     expect(fetchPositionsSpy).toHaveBeenCalled();
     expect(mockFetchPositions).toHaveBeenCalledWith(OWNER_ACCOUNTS[0].address);
+    expect(mockFetchPositions).toHaveBeenCalledTimes(1);
+
+    expect(groupPositionsSpy).toHaveBeenCalledWith('mock-fetch-data-1');
+    expect(groupPositionsSpy).toHaveBeenCalledTimes(1);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fetch positions for an account when a new account is added and the controller is disabled', async () => {
+    const mockFetchPositions = jest.fn();
+
+    const fetchPositionsSpy = jest
+      .spyOn(fetchPositions, 'buildPositionFetcher')
+      .mockReturnValue(mockFetchPositions);
+
+    const groupPositionsSpy = jest.spyOn(groupPositions, 'groupPositions');
+
+    const { controller, triggerAccountAdded } = setupController({
+      isEnabled: () => false,
+    });
+    const updateSpy = jest.spyOn(controller, 'update' as never);
+
+    triggerAccountAdded({
+      type: 'eip155:eoa',
+      address: '0x0000000000000000000000000000000000000003',
+    });
+    await flushPromises();
+
+    expect(controller.state).toStrictEqual(
+      getDefaultDefiPositionsControllerState(),
+    );
+    expect(fetchPositionsSpy).toHaveBeenCalled();
+    expect(mockFetchPositions).not.toHaveBeenCalled();
+
+    expect(groupPositionsSpy).not.toHaveBeenCalled();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it('fetches positions for an account when a new account is added', async () => {
+    const mockFetchPositions = jest.fn().mockResolvedValue('mock-fetch-data-1');
+
+    const fetchPositionsSpy = jest
+      .spyOn(fetchPositions, 'buildPositionFetcher')
+      .mockReturnValue(mockFetchPositions);
+
+    const groupPositionsSpy = jest
+      .spyOn(groupPositions, 'groupPositions')
+      .mockReturnValue('mock-grouped-data-1' as unknown as GroupedPositions);
+
+    const { controller, triggerAccountAdded } = setupController();
+    const updateSpy = jest.spyOn(controller, 'update' as never);
+
+    const newAccountAddress = '0x0000000000000000000000000000000000000003';
+    triggerAccountAdded({
+      type: 'eip155:eoa',
+      address: newAccountAddress,
+    });
+    await flushPromises();
+
+    expect(controller.state).toStrictEqual({
+      allDeFiPositions: {
+        [newAccountAddress]: 'mock-grouped-data-1',
+      },
+    });
+    expect(fetchPositionsSpy).toHaveBeenCalled();
+    expect(mockFetchPositions).toHaveBeenCalledWith(newAccountAddress);
     expect(mockFetchPositions).toHaveBeenCalledTimes(1);
 
     expect(groupPositionsSpy).toHaveBeenCalledWith('mock-fetch-data-1');
