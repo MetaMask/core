@@ -187,7 +187,8 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
                     accountAddress,
                     positions,
                   };
-                } catch (_error) {
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                } catch (error) {
                   return {
                     accountAddress,
                     positions: null,

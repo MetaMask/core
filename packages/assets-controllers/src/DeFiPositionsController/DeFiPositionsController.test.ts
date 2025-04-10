@@ -6,7 +6,6 @@ import {
   getDefaultDefiPositionsControllerState,
 } from './DeFiPositionsController';
 import * as fetchPositions from './fetch-positions';
-import type { DefiPositionResponse } from './fetch-positions';
 import * as groupPositions from './group-positions';
 import type { GroupedPositions } from './group-positions';
 import { flushPromises } from '../../../../tests/helpers';
@@ -167,6 +166,7 @@ describe('DeFiPositionsController', () => {
 
   it('fetches positions for all accounts when polling', async () => {
     const mockFetchPositions = jest.fn().mockImplementation((address) => {
+      // eslint-disable-next-line jest/no-conditional-in-test
       if (OWNER_ACCOUNTS[0].address === address) {
         return 'mock-fetch-data-1';
       }
