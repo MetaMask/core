@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Add `relay` to the list of bridges in the `BridgeId` enum to prevent validation from failing ([#5636](https://github.com/MetaMask/core/pull/5636))
+- Add `relay` to the list of bridges in the `BridgeId` enum to prevent validation from failing ([#5623](https://github.com/MetaMask/core/pull/5623))
 
 ## [12.0.0]
 
