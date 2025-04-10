@@ -239,12 +239,11 @@ export type PhishingControllerState = {
 };
 
 /**
- * UrlScanCacheEntry
+ * @type UrlScanCacheEntry
  *
  * Cache entry for URL scan results
- *
- * result - The phishing detection scan result
- * timestamp - Timestamp when the entry was cached
+ * @property result - The phishing detection scan result
+ * @property timestamp - Timestamp when the entry was cached
  */
 export type UrlScanCacheEntry = {
   result: PhishingDetectionScanResult;
@@ -483,13 +482,13 @@ export class PhishingController extends BaseController<
         const sortedEntries = cacheEntries.sort(
           ([, a], [, b]) => a.timestamp - b.timestamp
         );
-
+        
         // Remove oldest entries to get back to max size
         const entriesToRemove = sortedEntries.slice(
           0,
           cacheEntries.length - this.#urlScanCacheMaxSize
         );
-
+        
         entriesToRemove.forEach(([key]) => {
           delete draftState.urlScanCache[key];
         });
@@ -503,9 +502,7 @@ export class PhishingController extends BaseController<
    * @param hostname - The hostname to check.
    * @returns The cached scan result or undefined if not found or expired.
    */
-  #getFromUrlScanCache(
-    hostname: string,
-  ): PhishingDetectionScanResult | undefined {
+  #getFromUrlScanCache(hostname: string): PhishingDetectionScanResult | undefined {
     const cacheEntry = this.state.urlScanCache[hostname];
     if (!cacheEntry) {
       return undefined;
@@ -514,6 +511,7 @@ export class PhishingController extends BaseController<
     // Check if the entry is expired
     const now = fetchTimeNow();
     if (now - cacheEntry.timestamp > this.#urlScanCacheTTL) {
+      // Entry expired, remove it from cache
       this.update((draftState) => {
         delete draftState.urlScanCache[hostname];
       });
