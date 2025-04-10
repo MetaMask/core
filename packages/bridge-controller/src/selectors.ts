@@ -1,3 +1,4 @@
+import { AddressZero } from '@ethersproject/constants';
 import type {
   CurrencyRateState,
   MultichainAssetsRatesControllerState,
@@ -84,15 +85,7 @@ type BridgeQuotesClientParams = {
   featureFlagsKey: BridgeFeatureFlagsKey;
 };
 
-/**
- * Selects the asset exchange rate for a given chain and address
- *
- * @param exchangeRateSources The exchange rate sources
- * @param chainId The chain ID of the asset
- * @param address The address of the asset
- * @returns The asset exchange rate for the given chain and address
- */
-export const selectExchangeRateByChainIdAndAddress = (
+const getExchangeRateByChainIdAndAddress = (
   exchangeRateSources: ExchangeRateControllerState,
   chainId?: GenericQuoteRequest['srcChainId'],
   address?: GenericQuoteRequest['srcTokenAddress'],
@@ -153,39 +146,61 @@ export const selectExchangeRateByChainIdAndAddress = (
 };
 
 /**
+ * Selects the asset exchange rate for a given chain and address
+ *
+ * @param state The state of the bridge controller and its dependency controllers
+ * @param chainId The chain ID of the asset
+ * @param address The address of the asset
+ * @returns The asset exchange rate for the given chain and address
+ */
+export const selectExchangeRateByChainIdAndAddress = (
+  state: BridgeAppState,
+  chainId?: GenericQuoteRequest['srcChainId'],
+  address?: GenericQuoteRequest['srcTokenAddress'],
+) => {
+  return getExchangeRateByChainIdAndAddress(state, chainId, address);
+};
+
+/**
  * Checks whether an exchange rate is available for a given chain and address
  *
- * @param params The parameters to pass to {@link selectExchangeRateByChainIdAndAddress}
+ * @param params The parameters to pass to {@link getExchangeRateByChainIdAndAddress}
  * @returns Whether an exchange rate is available for the given chain and address
  */
 export const selectIsAssetExchangeRateInState = (
-  ...params: Parameters<typeof selectExchangeRateByChainIdAndAddress>
-) => Boolean(selectExchangeRateByChainIdAndAddress(...params)?.exchangeRate);
+  ...params: Parameters<typeof getExchangeRateByChainIdAndAddress>
+) => Boolean(getExchangeRateByChainIdAndAddress(...params)?.exchangeRate);
 
 // Selects cross-chain swap quotes including their metadata
 const selectBridgeQuotesWithMetadata = createBridgeSelector(
   [
-    ({ quotes }, { bridgeFeesPerGas }: BridgeQuotesClientParams) => ({
-      quotes,
-      bridgeFeesPerGas,
-    }),
-    ({ quoteRequest: { srcChainId, srcTokenAddress }, ...state }) =>
-      selectExchangeRateByChainIdAndAddress(state, srcChainId, srcTokenAddress),
-    ({ quoteRequest: { destChainId, destTokenAddress }, ...state }) =>
-      selectExchangeRateByChainIdAndAddress(
-        state,
-        destChainId,
-        destTokenAddress,
-      ),
-    ({ quoteRequest: { srcChainId }, ...state }) =>
-      selectExchangeRateByChainIdAndAddress(
-        state,
-        srcChainId,
-        srcChainId ? getNativeAssetForChainId(srcChainId).address : undefined,
-      ),
+    ({ quotes }) => quotes,
+    (_, { bridgeFeesPerGas }: BridgeQuotesClientParams) => bridgeFeesPerGas,
+    createBridgeSelector(
+      [
+        (state) => state,
+        ({ quoteRequest: { srcChainId } }) => srcChainId,
+        ({ quoteRequest: { srcTokenAddress } }) => srcTokenAddress,
+      ],
+      selectExchangeRateByChainIdAndAddress,
+    ),
+    createBridgeSelector(
+      [
+        (state) => state,
+        ({ quoteRequest: { destChainId } }) => destChainId,
+        ({ quoteRequest: { destTokenAddress } }) => destTokenAddress,
+      ],
+      selectExchangeRateByChainIdAndAddress,
+    ),
+    createBridgeSelector(
+      [(state) => state, ({ quoteRequest: { srcChainId } }) => srcChainId],
+      (state, chainId) =>
+        selectExchangeRateByChainIdAndAddress(state, chainId, AddressZero),
+    ),
   ],
   (
-    { quotes, bridgeFeesPerGas },
+    quotes,
+    bridgeFeesPerGas,
     srcTokenExchangeRate,
     destTokenExchangeRate,
     nativeExchangeRate,
