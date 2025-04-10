@@ -55,21 +55,18 @@ export type Balance = {
 };
 
 // TODO: Update with prod API URL when available
-export const DEFAULT_DEFI_POSITIONS_API_URL =
+export const DEFI_POSITIONS_API_URL =
   'https://defiadapters.dev-api.cx.metamask.io';
 
 /**
  * Builds a function that fetches DeFi positions for a given account address
  *
- * @param apiUrl - The URL of the API to fetch the DeFi positions from
  * @returns A function that fetches DeFi positions for a given account address
  */
-export function buildPositionFetcher(
-  apiUrl: string = DEFAULT_DEFI_POSITIONS_API_URL,
-) {
+export function buildPositionFetcher() {
   return async (accountAddress: string): Promise<DefiPositionResponse[]> => {
     const defiPositionsResponse = await fetch(
-      `${apiUrl}/positions/${accountAddress}`,
+      `${DEFI_POSITIONS_API_URL}/positions/${accountAddress}`,
     );
 
     if (defiPositionsResponse.status !== 200) {

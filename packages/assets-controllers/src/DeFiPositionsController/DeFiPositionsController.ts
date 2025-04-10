@@ -113,19 +113,13 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
    *
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
-   * @param options.apiUrl - Override for the API URL to use for fetching DeFi positions.
-   * @param options.interval - Override for the interval to use for polling DeFi positions. (default: 10 minutes)
    * @param options.isEnabled - Function that returns whether the controller is enabled. (default: () => true)
    */
   constructor({
     messenger,
-    apiUrl,
-    interval = TEN_MINUTES_IN_MS,
     isEnabled = () => true,
   }: {
     messenger: DeFiPositionsControllerMessenger;
-    apiUrl?: string;
-    interval?: number;
     isEnabled?: () => boolean;
   }) {
     super({
@@ -135,9 +129,9 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
       state: getDefaultDefiPositionsControllerState(),
     });
 
-    this.setIntervalLength(interval);
+    this.setIntervalLength(TEN_MINUTES_IN_MS);
 
-    this.#fetchPositions = buildPositionFetcher(apiUrl);
+    this.#fetchPositions = buildPositionFetcher();
     this.#isEnabled = isEnabled;
 
     this.messagingSystem.subscribe('KeyringController:unlock', async () => {

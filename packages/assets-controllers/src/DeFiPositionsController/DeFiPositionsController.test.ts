@@ -40,21 +40,19 @@ type MainMessenger = Messenger<
 >;
 
 /**
+ * Sets up the controller with the given configuration
  *
- * @param state - Partial state to initialize the controller with
- * @param state.interval - The interval to poll for positions
- * @param state.isEnabled - Whether the controller is enabled
- * @param state.mockFetchPositions - The mock fetch positions function
- * @param state.mockGroupPositions - The mock group positions function
- * @returns The controller instance and the trigger functions
+ * @param config - Configuration for the mock setup
+ * @param config.isEnabled - Whether the controller is enabled
+ * @param config.mockFetchPositions - The mock fetch positions function
+ * @param config.mockGroupPositions - The mock group positions function
+ * @returns The controller instance, trigger functions, and spies
  */
 function setupController({
-  interval,
   isEnabled,
   mockFetchPositions = jest.fn(),
   mockGroupPositions = jest.fn(),
 }: {
-  interval?: number;
   isEnabled?: () => boolean;
   mockFetchPositions?: jest.Mock;
   mockGroupPositions?: jest.Mock;
@@ -91,7 +89,6 @@ function setupController({
 
   const controller = new DeFiPositionsController({
     messenger: restrictedMessenger,
-    interval,
     isEnabled,
   });
 
