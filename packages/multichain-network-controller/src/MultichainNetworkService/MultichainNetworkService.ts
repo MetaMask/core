@@ -4,10 +4,10 @@ import type { CaipAccountId } from '@metamask/utils';
 import {
   type ActiveNetworksResponse,
   ActiveNetworksResponseStruct,
+  buildActiveNetworksUrl,
   MULTICHAIN_ACCOUNTS_CLIENT_HEADER,
   MULTICHAIN_ACCOUNTS_CLIENT_ID,
 } from '../api/accounts-api';
-import { buildActiveNetworksUrl } from '../utils';
 
 /**
  * Service responsible for fetching network activity data from the API.

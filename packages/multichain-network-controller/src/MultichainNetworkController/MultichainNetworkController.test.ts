@@ -32,16 +32,6 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from '../types';
-
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  handleFetch: jest.fn(),
-}));
-
-jest.mock('../utils', () => ({
-  ...jest.requireActual('../utils'),
-}));
-
 /**
  * Creates a mock network service for testing.
  *

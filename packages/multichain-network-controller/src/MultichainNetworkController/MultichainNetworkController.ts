@@ -4,7 +4,11 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
-import { type ActiveNetworksByAddress } from '../api/accounts-api';
+import {
+  type ActiveNetworksByAddress,
+  toAllowedCaipAccountIds,
+  toActiveNetworksByAddress,
+} from '../api/accounts-api';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
@@ -19,10 +23,8 @@ import {
 import {
   checkIfSupportedCaipChainId,
   getChainIdForNonEvmAddress,
-  toActiveNetworksByAddress,
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
-  toAllowedCaipAccountIds,
 } from '../utils';
 
 /**
