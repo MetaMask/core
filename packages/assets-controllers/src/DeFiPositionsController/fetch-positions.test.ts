@@ -1,7 +1,7 @@
 import nock from 'nock';
 
 import {
-  DEFAULT_DEFI_POSITIONS_API_URL,
+  DEFI_POSITIONS_API_URL,
   buildPositionFetcher,
 } from './fetch-positions';
 
@@ -39,7 +39,7 @@ describe('fetchPositions', () => {
   };
 
   it('handles successful responses', async () => {
-    const scope = nock(DEFAULT_DEFI_POSITIONS_API_URL)
+    const scope = nock(DEFI_POSITIONS_API_URL)
       .get(`/positions/${mockAccountAddress}`)
       .reply(200, mockResponse);
 
@@ -51,23 +51,8 @@ describe('fetchPositions', () => {
     expect(scope.isDone()).toBe(true);
   });
 
-  it('allows the use of a custom API URL', async () => {
-    const customApiUrl = 'http://mock-api.metamask.io';
-
-    const scope = nock(customApiUrl)
-      .get(`/positions/${mockAccountAddress}`)
-      .reply(200, mockResponse);
-
-    const fetchPositions = buildPositionFetcher(customApiUrl);
-
-    const result = await fetchPositions(mockAccountAddress);
-
-    expect(result).toStrictEqual(mockResponse.data);
-    expect(scope.isDone()).toBe(true);
-  });
-
   it('handles non-200 responses', async () => {
-    const scope = nock(DEFAULT_DEFI_POSITIONS_API_URL)
+    const scope = nock(DEFI_POSITIONS_API_URL)
       .get(`/positions/${mockAccountAddress}`)
       .reply(400);
 
