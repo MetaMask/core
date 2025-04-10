@@ -502,7 +502,9 @@ export class PhishingController extends BaseController<
    * @param hostname - The hostname to check.
    * @returns The cached scan result or undefined if not found or expired.
    */
-  #getFromUrlScanCache(hostname: string): PhishingDetectionScanResult | undefined {
+  #getFromUrlScanCache(
+    hostname: string,
+  ): PhishingDetectionScanResult | undefined {
     const cacheEntry = this.state.urlScanCache[hostname];
     if (!cacheEntry) {
       return undefined;
