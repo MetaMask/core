@@ -204,6 +204,7 @@ const metadata = {
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
   c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
+  urlScanCache: { persist: true, anonymous: false },
 };
 
 /**
@@ -217,6 +218,7 @@ const getDefaultState = (): PhishingControllerState => {
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
     c2DomainBlocklistLastFetched: 0,
+    urlScanCache: {},
   };
 };
 
@@ -233,6 +235,20 @@ export type PhishingControllerState = {
   hotlistLastFetched: number;
   stalelistLastFetched: number;
   c2DomainBlocklistLastFetched: number;
+  urlScanCache: Record<string, UrlScanCacheEntry>;
+};
+
+/**
+ * UrlScanCacheEntry
+ *
+ * Cache entry for URL scan results
+ *
+ * result - The phishing detection scan result
+ * timestamp - Timestamp when the entry was cached
+ */
+export type UrlScanCacheEntry = {
+  result: PhishingDetectionScanResult;
+  timestamp: number;
 };
 
 /**
@@ -242,14 +258,22 @@ export type PhishingControllerState = {
  * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
  * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
  * @property c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+ * @property urlScanCacheTTL - Time to live in seconds for cached scan results.
+ * @property urlScanCacheMaxSize - Maximum number of entries in the scan cache.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
   hotlistRefreshInterval?: number;
   c2DomainBlocklistRefreshInterval?: number;
+  urlScanCacheTTL?: number;
+  urlScanCacheMaxSize?: number;
   messenger: PhishingControllerMessenger;
   state?: Partial<PhishingControllerState>;
 };
+
+// Default values for URL scan cache
+export const DEFAULT_URL_SCAN_CACHE_TTL = 300; // 5 minutes in seconds
+export const DEFAULT_URL_SCAN_CACHE_MAX_SIZE = 100;
 
 export type MaybeUpdateState = {
   type: `${typeof controllerName}:maybeUpdateState`;
@@ -304,6 +328,10 @@ export class PhishingController extends BaseController<
 
   #c2DomainBlocklistRefreshInterval: number;
 
+  #urlScanCacheTTL: number;
+
+  #urlScanCacheMaxSize: number;
+
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
@@ -317,6 +345,8 @@ export class PhishingController extends BaseController<
    * @param config.stalelistRefreshInterval - Polling interval used to fetch stale list.
    * @param config.hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
    * @param config.c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
+   * @param config.urlScanCacheTTL - Time to live in seconds for cached scan results.
+   * @param config.urlScanCacheMaxSize - Maximum number of entries in the scan cache.
    * @param config.messenger - The controller restricted messenger.
    * @param config.state - Initial state to set on this controller.
    */
@@ -324,6 +354,8 @@ export class PhishingController extends BaseController<
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
     hotlistRefreshInterval = HOTLIST_REFRESH_INTERVAL,
     c2DomainBlocklistRefreshInterval = C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL,
+    urlScanCacheTTL = DEFAULT_URL_SCAN_CACHE_TTL,
+    urlScanCacheMaxSize = DEFAULT_URL_SCAN_CACHE_MAX_SIZE,
     messenger,
     state = {},
   }: PhishingControllerOptions) {
@@ -340,6 +372,8 @@ export class PhishingController extends BaseController<
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
     this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
+    this.#urlScanCacheTTL = urlScanCacheTTL;
+    this.#urlScanCacheMaxSize = urlScanCacheMaxSize;
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
@@ -399,6 +433,94 @@ export class PhishingController extends BaseController<
    */
   setC2DomainBlocklistRefreshInterval(interval: number) {
     this.#c2DomainBlocklistRefreshInterval = interval;
+  }
+
+  /**
+   * Set the time-to-live for URL scan cache entries.
+   * 
+   * @param ttl - The TTL in seconds.
+   */
+  setUrlScanCacheTTL(ttl: number) {
+    this.#urlScanCacheTTL = ttl;
+  }
+
+  /**
+   * Set the maximum number of entries in the URL scan cache.
+   * 
+   * @param maxSize - The maximum cache size.
+   */
+  setUrlScanCacheMaxSize(maxSize: number) {
+    this.#urlScanCacheMaxSize = maxSize;
+  }
+
+  /**
+   * Clear the URL scan cache.
+   */
+  clearUrlScanCache() {
+    this.update((draftState) => {
+      draftState.urlScanCache = {};
+    });
+  }
+
+  /**
+   * Add an entry to the URL scan cache, evicting oldest entries if necessary.
+   * 
+   * @param hostname - The hostname to cache.
+   * @param result - The scan result to cache.
+   */
+  #addToUrlScanCache(hostname: string, result: PhishingDetectionScanResult) {
+    this.update((draftState) => {
+      // Add the new entry
+      draftState.urlScanCache[hostname] = {
+        result,
+        timestamp: fetchTimeNow(),
+      };
+
+      // Check if we need to evict entries
+      const cacheEntries = Object.entries(draftState.urlScanCache);
+      if (cacheEntries.length > this.#urlScanCacheMaxSize) {
+        // Sort by timestamp (oldest first) and remove oldest entries
+        const sortedEntries = cacheEntries.sort(
+          ([, a], [, b]) => a.timestamp - b.timestamp
+        );
+
+        // Remove oldest entries to get back to max size
+        const entriesToRemove = sortedEntries.slice(
+          0,
+          cacheEntries.length - this.#urlScanCacheMaxSize
+        );
+
+        entriesToRemove.forEach(([key]) => {
+          delete draftState.urlScanCache[key];
+        });
+      }
+    });
+  }
+
+  /**
+   * Get a cached URL scan result if it exists and is not expired.
+   * 
+   * @param hostname - The hostname to check.
+   * @returns The cached scan result or undefined if not found or expired.
+   */
+  #getFromUrlScanCache(
+    hostname: string,
+  ): PhishingDetectionScanResult | undefined {
+    const cacheEntry = this.state.urlScanCache[hostname];
+    if (!cacheEntry) {
+      return undefined;
+    }
+
+    // Check if the entry is expired
+    const now = fetchTimeNow();
+    if (now - cacheEntry.timestamp > this.#urlScanCacheTTL) {
+      this.update((draftState) => {
+        delete draftState.urlScanCache[hostname];
+      });
+      return undefined;
+    }
+
+    return cacheEntry.result;
   }
 
   /**
@@ -593,6 +715,12 @@ export class PhishingController extends BaseController<
       };
     }
 
+    // Check cache first
+    const cachedResult = this.#getFromUrlScanCache(hostname);
+    if (cachedResult) {
+      return cachedResult;
+    }
+
     const apiResponse = await safelyExecuteWithTimeout(
       async () => {
         const res = await fetch(
@@ -631,10 +759,15 @@ export class PhishingController extends BaseController<
       };
     }
 
-    return {
+    const result = {
       domainName: hostname,
       recommendedAction: apiResponse.recommendedAction,
     } as PhishingDetectionScanResult;
+
+    // Cache the result
+    this.#addToUrlScanCache(hostname, result);
+
+    return result;
   };
 
   /**
