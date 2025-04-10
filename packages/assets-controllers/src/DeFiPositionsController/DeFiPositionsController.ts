@@ -115,12 +115,12 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     messenger,
     apiUrl,
     interval = TEN_MINUTES_IN_MS,
-    isEnabled = true,
+    isEnabled = () => true,
   }: {
     messenger: DeFiPositionsControllerMessenger;
     apiUrl?: string;
     interval?: number;
-    isEnabled?: boolean;
+    isEnabled?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -134,7 +134,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.#fetchPositions = buildPositionFetcher(apiUrl);
 
     this.messagingSystem.subscribe('KeyringController:unlock', async () => {
-      if (!isEnabled) {
+      if (!isEnabled()) {
         return;
       }
 
@@ -142,7 +142,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     });
 
     this.messagingSystem.subscribe('KeyringController:lock', () => {
-      if (!isEnabled) {
+      if (!isEnabled()) {
         return;
       }
 
@@ -152,7 +152,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
       async (transactionMeta) => {
-        if (!isEnabled) {
+        if (!isEnabled()) {
           return;
         }
 

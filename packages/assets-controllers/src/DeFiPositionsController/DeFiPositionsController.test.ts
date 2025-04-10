@@ -49,7 +49,7 @@ function setupController({
   isEnabled,
 }: {
   interval?: number;
-  isEnabled?: boolean;
+  isEnabled?: () => boolean;
 } = {}) {
   const messenger: MainMessenger = new Messenger();
 
@@ -129,7 +129,7 @@ describe('DeFiPositionsController', () => {
 
   it('does not stop polling if the keyring is locked and the controller is disabled', async () => {
     const { controller, triggerLock } = setupController({
-      isEnabled: false,
+      isEnabled: () => false,
     });
     const stopAllPollingSpy = jest.spyOn(controller, 'stopAllPolling');
 
@@ -153,7 +153,7 @@ describe('DeFiPositionsController', () => {
 
   it('does not start polling if the keyring is unlocked and the controller is disabled', async () => {
     const { controller, triggerUnlock } = setupController({
-      isEnabled: false,
+      isEnabled: () => false,
     });
     const startPollingSpy = jest.spyOn(controller, 'startPolling');
 
@@ -213,7 +213,7 @@ describe('DeFiPositionsController', () => {
     const groupPositionsSpy = jest.spyOn(groupPositions, 'groupPositions');
 
     const { controller, triggerTransactionConfirmed } = setupController({
-      isEnabled: false,
+      isEnabled: () => false,
     });
     const updateSpy = jest.spyOn(controller, 'update' as never);
 
