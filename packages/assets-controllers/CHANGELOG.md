@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a new DeFiPositionsController ([#5400](https://github.com/MetaMask/core/pull/5400))
+- Add a new DeFiPositionsController that keeps an update list of DeFi positions for EVM accounts ([#5400](https://github.com/MetaMask/core/pull/5400))
 
 ## [56.0.0]
 
