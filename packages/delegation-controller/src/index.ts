@@ -1,5 +1,4 @@
 export type {
-  AllowedActions,
   DelegationControllerActions,
   DelegationControllerEvents,
   DelegationControllerMessenger,

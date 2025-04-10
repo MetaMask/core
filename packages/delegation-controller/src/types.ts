@@ -61,7 +61,7 @@ export type DelegationControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type DelegationControllerEvents = DelegationControllerStateChangeEvent;
 
-export type AllowedActions =
+type AllowedActions =
   | KeyringControllerSignTypedMessageAction
   | AccountsControllerGetSelectedAccountAction;
 
