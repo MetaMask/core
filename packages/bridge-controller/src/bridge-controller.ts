@@ -295,7 +295,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
 
     const currency = this.messagingSystem.call(
       'CurrencyRateController:getState',
-    )?.currentCurrency;
+    ).currentCurrency;
 
     const pricesByAssetId = await fetchAssetPrices({
       assetIds,
