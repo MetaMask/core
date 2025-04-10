@@ -20,7 +20,7 @@ import {
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { selectIsAssetExchangeRateInState } from './selectors';
-import type { ExchangeRate, GenericQuoteRequest, SolanaFees } from './types';
+import type { GenericQuoteRequest, SolanaFees } from './types';
 import {
   type L1GasFees,
   type QuoteResponse,
@@ -31,15 +31,14 @@ import {
   BridgeFeatureFlagsKey,
   RequestStatus,
 } from './types';
+import { getAssetIdsForToken, toExchangeRates } from './utils/assets';
 import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
-  getNativeAssetForChainId,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
 import {
-  formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
@@ -242,13 +241,23 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     }
   };
 
+  /**
+   * Fetches the exchange rates for the assets in the quote request if they are not already in the state
+   * In addition to the selected tokens, this also fetches the native asset for the source and destination chains
+   *
+   * @param quoteRequest - The quote request
+   * @param quoteRequest.srcChainId - The source chain ID
+   * @param quoteRequest.srcTokenAddress - The source token address
+   * @param quoteRequest.destChainId - The destination chain ID
+   * @param quoteRequest.destTokenAddress - The destination token address
+   */
   readonly #fetchAssetExchangeRates = async ({
     srcChainId,
     srcTokenAddress,
     destChainId,
     destTokenAddress,
   }: Partial<GenericQuoteRequest>) => {
-    const assetIdsToFetch: Set<CaipAssetType> = new Set();
+    const assetIds: Set<CaipAssetType> = new Set();
 
     const exchangeRateSources = {
       ...this.messagingSystem.call('MultichainAssetsRatesController:getState'),
@@ -266,11 +275,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         srcTokenAddress,
       )
     ) {
-      const assetId = formatAddressToAssetId(srcTokenAddress, srcChainId);
-      if (assetId) {
-        assetIdsToFetch.add(assetId);
-        assetIdsToFetch.add(getNativeAssetForChainId(srcChainId)?.assetId);
-      }
+      getAssetIdsForToken(srcTokenAddress, srcChainId).forEach(assetIds.add);
     }
     if (
       destTokenAddress &&
@@ -281,32 +286,20 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         destTokenAddress,
       )
     ) {
-      const assetId = formatAddressToAssetId(destTokenAddress, destChainId);
-      if (assetId) {
-        assetIdsToFetch.add(assetId);
-        assetIdsToFetch.add(getNativeAssetForChainId(destChainId).assetId);
-      }
+      getAssetIdsForToken(destTokenAddress, destChainId).forEach(assetIds.add);
     }
+
     const currency = this.messagingSystem.call(
       'CurrencyRateController:getState',
     ).currentCurrency;
 
     const pricesByAssetId = await fetchAssetPrices({
-      assetIds: assetIdsToFetch,
+      assetIds,
       currencies: new Set([currency]),
       clientId: this.#clientId,
       fetchFn: this.#fetchFn,
     });
-    const exchangeRates = Object.entries(pricesByAssetId).reduce(
-      (acc, [assetId, prices]) => {
-        acc[assetId as CaipAssetType] = {
-          exchangeRate: prices[currency],
-          usdExchangeRate: prices.usd,
-        };
-        return acc;
-      },
-      {} as Record<CaipAssetType, ExchangeRate>,
-    );
+    const exchangeRates = toExchangeRates(currency, pricesByAssetId);
     this.update((state) => {
       state.assetExchangeRates = {
         ...state.assetExchangeRates,
