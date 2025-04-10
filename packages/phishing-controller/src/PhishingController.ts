@@ -239,11 +239,12 @@ export type PhishingControllerState = {
 };
 
 /**
- * @type UrlScanCacheEntry
+ * UrlScanCacheEntry
  *
  * Cache entry for URL scan results
- * @property result - The phishing detection scan result
- * @property timestamp - Timestamp when the entry was cached
+ *
+ * result - The phishing detection scan result
+ * timestamp - Timestamp when the entry was cached
  */
 export type UrlScanCacheEntry = {
   result: PhishingDetectionScanResult;
@@ -436,7 +437,7 @@ export class PhishingController extends BaseController<
 
   /**
    * Set the time-to-live for URL scan cache entries.
-   * 
+   *
    * @param ttl - The TTL in seconds.
    */
   setUrlScanCacheTTL(ttl: number) {
@@ -445,7 +446,7 @@ export class PhishingController extends BaseController<
 
   /**
    * Set the maximum number of entries in the URL scan cache.
-   * 
+   *
    * @param maxSize - The maximum cache size.
    */
   setUrlScanCacheMaxSize(maxSize: number) {
