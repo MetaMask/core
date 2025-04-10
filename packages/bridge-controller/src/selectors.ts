@@ -105,8 +105,8 @@ const getExchangeRateByChainIdAndAddress = (
   // If the asset exchange rate is available in the bridge controller, use it
   // This is defined if the token's rate is not available from the assets controllers
   const bridgeControllerRate =
-    assetExchangeRates[assetId] ??
-    assetExchangeRates[assetId.toLowerCase() as CaipAssetType];
+    assetExchangeRates?.[assetId] ??
+    assetExchangeRates?.[assetId.toLowerCase() as CaipAssetType];
   if (bridgeControllerRate?.exchangeRate) {
     return bridgeControllerRate;
   }
@@ -123,7 +123,7 @@ const getExchangeRateByChainIdAndAddress = (
   }
   // If the chain is an EVM chain, use the conversion rate from the currency rates controller
   const { symbol } = getNativeAssetForChainId(chainId);
-  const evmNativeExchangeRate = currencyRates[symbol.toLowerCase()];
+  const evmNativeExchangeRate = currencyRates?.[symbol.toLowerCase()];
   if (isNativeAddress(address) && evmNativeExchangeRate) {
     return {
       exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
@@ -131,7 +131,7 @@ const getExchangeRateByChainIdAndAddress = (
     };
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
-  const evmTokenExchangeRates = marketData[formatChainIdToHex(chainId)];
+  const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
   const evmTokenExchangeRateForAddress = isStrictHexString(address)
     ? evmTokenExchangeRates?.[address]
     : null;
