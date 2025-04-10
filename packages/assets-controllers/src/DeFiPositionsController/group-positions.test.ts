@@ -9,7 +9,7 @@ import {
   MOCK_DEFI_RESPONSE_FAILED_ENTRY,
   MOCK_DEFI_RESPONSE_MULTI_CHAIN,
   MOCK_DEFI_RESPONSE_NO_PRICES,
-} from './mocks/mock-responses';
+} from './__fixtures__/mock-responses';
 
 describe('groupPositions', () => {
   it('groups multiple chains', () => {
