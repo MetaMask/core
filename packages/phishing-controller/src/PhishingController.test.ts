@@ -2588,3 +2588,311 @@ describe('PhishingController', () => {
     });
   });
 });
+
+describe('URL Scan Cache', () => {
+  let clock: sinon.SinonFakeTimers;
+
+  beforeEach(() => {
+    clock = sinon.useFakeTimers();
+  });
+  afterEach(() => {
+    sinon.restore();
+    nock.cleanAll();
+  });
+
+  it('should cache scan results and return them on subsequent calls', async () => {
+    const testDomain = 'example.com';
+
+    // Spy on the fetch function to track calls
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController();
+
+    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result1).toStrictEqual({
+      domainName: testDomain,
+      recommendedAction: RecommendedAction.None,
+    });
+
+    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result2).toStrictEqual({
+      domainName: testDomain,
+      recommendedAction: RecommendedAction.None,
+    });
+
+    // Verify that fetch was called exactly once
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    fetchSpy.mockRestore();
+  });
+
+  it('should expire cache entries after TTL', async () => {
+    const testDomain = 'example.com';
+    const cacheTTL = 300; // 5 minutes
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController({
+      urlScanCacheTTL: cacheTTL,
+    });
+
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // Before TTL expires, should use cache
+    clock.tick((cacheTTL - 10) * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(nock.pendingMocks()).toHaveLength(1); // One mock remaining
+
+    // After TTL expires, should fetch again
+    clock.tick(11 * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(nock.pendingMocks()).toHaveLength(0); // All mocks used
+  });
+
+  it('should evict oldest entries when cache exceeds max size', async () => {
+    const maxCacheSize = 2;
+    const domains = ['domain1.com', 'domain2.com', 'domain3.com'];
+
+    // Setup nock to respond to all three domains
+    domains.forEach(domain => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+    });
+
+    // Setup a second request for the first domain
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domains[0])}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.Warn,
+      });
+
+    const controller = getPhishingController({
+      urlScanCacheMaxSize: maxCacheSize,
+    });
+
+    // Fill the cache
+    await controller.scanUrl(`https://${domains[0]}`);
+    clock.tick(1000); // Ensure different timestamps
+    await controller.scanUrl(`https://${domains[1]}`);
+
+    // This should evict the oldest entry (domain1)
+    clock.tick(1000);
+    await controller.scanUrl(`https://${domains[2]}`);
+
+    // Now domain1 should not be in cache and require a new fetch
+    await controller.scanUrl(`https://${domains[0]}`);
+
+    // All mocks should be used
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should clear the cache when clearUrlScanCache is called', async () => {
+    const testDomain = 'example.com';
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController();
+
+    // First call should fetch from API
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // Clear the cache
+    controller.clearUrlScanCache();
+
+    // Should fetch again
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // All mocks should be used
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should allow changing the TTL', async () => {
+    const testDomain = 'example.com';
+    const initialTTL = 300; // 5 minutes
+    const newTTL = 60; // 1 minute
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const controller = getPhishingController({
+      urlScanCacheTTL: initialTTL,
+    });
+
+    // First call should fetch from API
+    await controller.scanUrl(`https://${testDomain}`);
+
+    // Change TTL
+    controller.setUrlScanCacheTTL(newTTL);
+
+    // Before new TTL expires, should use cache
+    clock.tick((newTTL - 10) * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(nock.pendingMocks()).toHaveLength(1); // One mock remaining
+
+    // After new TTL expires, should fetch again
+    clock.tick(11 * 1000);
+    await controller.scanUrl(`https://${testDomain}`);
+    expect(nock.pendingMocks()).toHaveLength(0); // All mocks used
+  });
+
+  it('should allow changing the max cache size', async () => {
+    const initialMaxSize = 3;
+    const newMaxSize = 2;
+    const domains = [
+      'domain1.com',
+      'domain2.com',
+      'domain3.com',
+      'domain4.com',
+    ];
+
+    // Setup nock to respond to all domains
+    domains.forEach(domain => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+    });
+
+    const controller = getPhishingController({
+      urlScanCacheMaxSize: initialMaxSize,
+    });
+
+    // Fill the cache to initial size
+    await controller.scanUrl(`https://${domains[0]}`);
+    clock.tick(1000); // Ensure different timestamps
+    await controller.scanUrl(`https://${domains[1]}`);
+    clock.tick(1000);
+    await controller.scanUrl(`https://${domains[2]}`);
+
+    // Verify initial cache size
+    expect(Object.keys(controller.state.urlScanCache)).toHaveLength(initialMaxSize);
+    // Reduce the max size
+    controller.setUrlScanCacheMaxSize(newMaxSize);
+    
+    // Add another entry which should trigger eviction
+    await controller.scanUrl(`https://${domains[3]}`);
+    
+    // Verify the cache size doesn't exceed new max size
+    expect(Object.keys(controller.state.urlScanCache).length).toBeLessThanOrEqual(newMaxSize);
+  });
+
+  it('should handle fetch errors and not cache them', async () => {
+    const testDomain = 'example.com';
+    
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .reply(500, { error: 'Internal Server Error' })
+      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+    
+    const controller = getPhishingController();
+    
+    // First call should result in an error response
+    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result1.fetchError).toBeDefined();
+    
+    // Second call should try again (not use cache since errors aren't cached)
+    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result2.fetchError).toBeUndefined();
+    expect(result2.recommendedAction).toBe(RecommendedAction.None);
+    
+    // All mocks should be used
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should handle timeout errors and not cache them', async () => {
+    const testDomain = 'example.com';
+    
+    // First mock a timeout/error response
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .replyWithError('connection timeout')
+      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+    
+    const controller = getPhishingController();
+    
+    // First call should result in an error
+    const result1 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result1.fetchError).toBeDefined();
+    
+    // Second call should succeed (not use cache since errors aren't cached)
+    const result2 = await controller.scanUrl(`https://${testDomain}`);
+    expect(result2.fetchError).toBeUndefined();
+    expect(result2.recommendedAction).toBe(RecommendedAction.None);
+    
+    // All mocks should be used
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should handle invalid URLs and not cache them', async () => {
+    const invalidUrl = 'not-a-valid-url';
+    
+    const controller = getPhishingController();
+    
+    // First call should return an error for invalid URL
+    const result1 = await controller.scanUrl(invalidUrl);
+    expect(result1.fetchError).toBeDefined();
+    
+    // Second call should also return an error (not from cache)
+    const result2 = await controller.scanUrl(invalidUrl);
+    expect(result2.fetchError).toBeDefined();
+  });
+});
