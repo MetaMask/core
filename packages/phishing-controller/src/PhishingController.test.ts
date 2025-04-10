@@ -1,6 +1,6 @@
 import { Messenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
-import nock from 'nock';
+import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 import sinon from 'sinon';
 
 import {
@@ -54,6 +54,7 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>) {
 describe('PhishingController', () => {
   afterEach(() => {
     sinon.restore();
+    cleanAll();
   });
 
   it('should have no default phishing lists', () => {
@@ -2154,7 +2155,7 @@ describe('PhishingController', () => {
 
   describe('PhishingController - isBlockedRequest', () => {
     afterEach(() => {
-      nock.cleanAll();
+      cleanAll();
     });
 
     it('should return false if c2DomainBlocklist is not defined or empty', async () => {
@@ -2597,7 +2598,7 @@ describe('URL Scan Cache', () => {
   });
   afterEach(() => {
     sinon.restore();
-    nock.cleanAll();
+    cleanAll();
   });
 
   it('should cache scan results and return them on subsequent calls', async () => {
@@ -2661,12 +2662,12 @@ describe('URL Scan Cache', () => {
     // Before TTL expires, should use cache
     clock.tick((cacheTTL - 10) * 1000);
     await controller.scanUrl(`https://${testDomain}`);
-    expect(nock.pendingMocks()).toHaveLength(1); // One mock remaining
+    expect(pendingMocks()).toHaveLength(1); // One mock remaining
 
     // After TTL expires, should fetch again
     clock.tick(11 * 1000);
     await controller.scanUrl(`https://${testDomain}`);
-    expect(nock.pendingMocks()).toHaveLength(0); // All mocks used
+    expect(pendingMocks()).toHaveLength(0); // All mocks used
   });
 
   it('should evict oldest entries when cache exceeds max size', async () => {
@@ -2674,7 +2675,7 @@ describe('URL Scan Cache', () => {
     const domains = ['domain1.com', 'domain2.com', 'domain3.com'];
 
     // Setup nock to respond to all three domains
-    domains.forEach(domain => {
+    domains.forEach((domain) => {
       nock(PHISHING_DETECTION_BASE_URL)
         .get(
           `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
@@ -2710,7 +2711,7 @@ describe('URL Scan Cache', () => {
     await controller.scanUrl(`https://${domains[0]}`);
 
     // All mocks should be used
-    expect(nock.isDone()).toBe(true);
+    expect(isDone()).toBe(true);
   });
 
   it('should clear the cache when clearUrlScanCache is called', async () => {
@@ -2742,7 +2743,7 @@ describe('URL Scan Cache', () => {
     await controller.scanUrl(`https://${testDomain}`);
 
     // All mocks should be used
-    expect(nock.isDone()).toBe(true);
+    expect(isDone()).toBe(true);
   });
 
   it('should allow changing the TTL', async () => {
@@ -2777,12 +2778,12 @@ describe('URL Scan Cache', () => {
     // Before new TTL expires, should use cache
     clock.tick((newTTL - 10) * 1000);
     await controller.scanUrl(`https://${testDomain}`);
-    expect(nock.pendingMocks()).toHaveLength(1); // One mock remaining
+    expect(pendingMocks()).toHaveLength(1); // One mock remaining
 
     // After new TTL expires, should fetch again
     clock.tick(11 * 1000);
     await controller.scanUrl(`https://${testDomain}`);
-    expect(nock.pendingMocks()).toHaveLength(0); // All mocks used
+    expect(pendingMocks()).toHaveLength(0); // All mocks used
   });
 
   it('should allow changing the max cache size', async () => {
@@ -2818,79 +2819,91 @@ describe('URL Scan Cache', () => {
     await controller.scanUrl(`https://${domains[2]}`);
 
     // Verify initial cache size
-    expect(Object.keys(controller.state.urlScanCache)).toHaveLength(initialMaxSize);
+    expect(Object.keys(controller.state.urlScanCache)).toHaveLength(
+      initialMaxSize,
+    );
     // Reduce the max size
     controller.setUrlScanCacheMaxSize(newMaxSize);
-    
+
     // Add another entry which should trigger eviction
     await controller.scanUrl(`https://${domains[3]}`);
-    
+
     // Verify the cache size doesn't exceed new max size
-    expect(Object.keys(controller.state.urlScanCache).length).toBeLessThanOrEqual(newMaxSize);
+    expect(
+      Object.keys(controller.state.urlScanCache).length,
+    ).toBeLessThanOrEqual(newMaxSize);
   });
 
   it('should handle fetch errors and not cache them', async () => {
     const testDomain = 'example.com';
-    
+
     nock(PHISHING_DETECTION_BASE_URL)
-      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
       .reply(500, { error: 'Internal Server Error' })
-      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
       });
-    
+
     const controller = getPhishingController();
-    
+
     // First call should result in an error response
     const result1 = await controller.scanUrl(`https://${testDomain}`);
     expect(result1.fetchError).toBeDefined();
-    
+
     // Second call should try again (not use cache since errors aren't cached)
     const result2 = await controller.scanUrl(`https://${testDomain}`);
     expect(result2.fetchError).toBeUndefined();
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
-    
+
     // All mocks should be used
-    expect(nock.isDone()).toBe(true);
+    expect(isDone()).toBe(true);
   });
 
   it('should handle timeout errors and not cache them', async () => {
     const testDomain = 'example.com';
-    
+
     // First mock a timeout/error response
     nock(PHISHING_DETECTION_BASE_URL)
-      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
       .replyWithError('connection timeout')
-      .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(testDomain)}`,
+      )
       .reply(200, {
         recommendedAction: RecommendedAction.None,
       });
-    
+
     const controller = getPhishingController();
-    
+
     // First call should result in an error
     const result1 = await controller.scanUrl(`https://${testDomain}`);
     expect(result1.fetchError).toBeDefined();
-    
+
     // Second call should succeed (not use cache since errors aren't cached)
     const result2 = await controller.scanUrl(`https://${testDomain}`);
     expect(result2.fetchError).toBeUndefined();
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
-    
+
     // All mocks should be used
-    expect(nock.isDone()).toBe(true);
+    expect(isDone()).toBe(true);
   });
 
   it('should handle invalid URLs and not cache them', async () => {
     const invalidUrl = 'not-a-valid-url';
-    
+
     const controller = getPhishingController();
-    
+
     // First call should return an error for invalid URL
     const result1 = await controller.scanUrl(invalidUrl);
     expect(result1.fetchError).toBeDefined();
-    
+
     // Second call should also return an error (not from cache)
     const result2 = await controller.scanUrl(invalidUrl);
     expect(result2.fetchError).toBeDefined();
