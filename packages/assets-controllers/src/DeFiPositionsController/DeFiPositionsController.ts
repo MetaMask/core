@@ -113,7 +113,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
    * @param options.messenger - The controller messenger.
    * @param options.apiUrl - Override for the API URL to use for fetching DeFi positions.
    * @param options.interval - Override for the interval to use for polling DeFi positions. (default: 10 minutes)
-   * @param options.isEnabled - Whether the controller is enabled. (default: true)
+   * @param options.isEnabled - Function that returns whether the controller is enabled. (default: () => true)
    */
   constructor({
     messenger,
