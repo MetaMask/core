@@ -58,6 +58,7 @@ export const getDefaultMultichainNetworkControllerState =
       AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
     selectedMultichainNetworkChainId: SolScope.Mainnet,
     isEvmSelected: true,
+    networksWithTransactionActivity: {},
   });
 
 /**
@@ -71,4 +72,5 @@ export const MULTICHAIN_NETWORK_CONTROLLER_METADATA = {
   multichainNetworkConfigurationsByChainId: { persist: true, anonymous: true },
   selectedMultichainNetworkChainId: { persist: true, anonymous: true },
   isEvmSelected: { persist: true, anonymous: true },
+  networksWithTransactionActivity: { persist: true, anonymous: true },
 } satisfies StateMetadata<MultichainNetworkControllerState>;

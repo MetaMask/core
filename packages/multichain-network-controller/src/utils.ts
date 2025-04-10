@@ -130,3 +130,16 @@ export const toMultichainNetworkConfigurationsByChainId = (
     }),
     {},
   );
+
+// TODO: This currently isn't being used anymore but could benefit from being moved to @metamask/utils
+/**
+ * Type guard to check if a namespace is a known CAIP namespace.
+ *
+ * @param namespace - The namespace to check
+ * @returns Whether the namespace is a known CAIP namespace
+ */
+export function isKnownCaipNamespace(
+  namespace: string,
+): namespace is KnownCaipNamespace {
+  return Object.values<string>(KnownCaipNamespace).includes(namespace);
+}

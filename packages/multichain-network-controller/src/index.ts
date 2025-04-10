@@ -1,4 +1,5 @@
-export { MultichainNetworkController } from './MultichainNetworkController';
+export { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
+export { MultichainNetworkService } from './MultichainNetworkService/MultichainNetworkService';
 export {
   getDefaultMultichainNetworkControllerState,
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
@@ -25,3 +26,4 @@ export {
   toMultichainNetworkConfigurationsByChainId,
   toEvmCaipChainId,
 } from './utils';
+export type { ActiveNetworksByAddress } from './api/accounts-api';

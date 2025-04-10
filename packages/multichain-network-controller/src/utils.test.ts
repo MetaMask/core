@@ -1,10 +1,11 @@
 import {
+  type CaipChainId,
   BtcScope,
   SolScope,
   EthScope,
-  type CaipChainId,
 } from '@metamask/keyring-api';
 import { type NetworkConfiguration } from '@metamask/network-controller';
+import { KnownCaipNamespace } from '@metamask/utils';
 
 import {
   isEvmCaipChainId,
@@ -14,6 +15,7 @@ import {
   checkIfSupportedCaipChainId,
   toMultichainNetworkConfiguration,
   toMultichainNetworkConfigurationsByChainId,
+  isKnownCaipNamespace,
 } from './utils';
 
 describe('utils', () => {
@@ -88,6 +90,26 @@ describe('utils', () => {
         chainId: 'eip155:1',
         isEvm: true,
         name: 'https://mainnet.infura.io/',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: 0,
+      });
+    });
+
+    it('uses default block explorer index when undefined', () => {
+      const network: NetworkConfiguration = {
+        chainId: '0x1',
+        name: 'Ethereum Mainnet',
+        nativeCurrency: 'ETH',
+        blockExplorerUrls: ['https://etherscan.io'],
+        defaultBlockExplorerUrlIndex: undefined,
+        rpcEndpoints: [],
+        defaultRpcEndpointIndex: 0,
+      };
+      expect(toMultichainNetworkConfiguration(network)).toStrictEqual({
+        chainId: 'eip155:1',
+        isEvm: true,
+        name: 'Ethereum Mainnet',
         nativeCurrency: 'ETH',
         blockExplorerUrls: ['https://etherscan.io'],
         defaultBlockExplorerUrlIndex: 0,
@@ -171,6 +193,20 @@ describe('utils', () => {
       expect(isEvmCaipChainId(EthScope.Mainnet)).toBe(true);
       expect(isEvmCaipChainId(SolScope.Mainnet)).toBe(false);
       expect(isEvmCaipChainId(BtcScope.Mainnet)).toBe(false);
+    });
+  });
+
+  describe('isKnownCaipNamespace', () => {
+    it('returns true for known CAIP namespaces', () => {
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Eip155)).toBe(true);
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Bip122)).toBe(true);
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Solana)).toBe(true);
+    });
+
+    it('returns false for unknown namespaces', () => {
+      expect(isKnownCaipNamespace('unknown')).toBe(false);
+      expect(isKnownCaipNamespace('cosmos')).toBe(false);
+      expect(isKnownCaipNamespace('')).toBe(false);
     });
   });
 });
