@@ -1,4 +1,4 @@
-import { is } from '@metamask/superstruct';
+import { assert } from '@metamask/superstruct';
 import type { CaipAccountId } from '@metamask/utils';
 
 import {
@@ -9,7 +9,7 @@ import {
   ActiveNetworksResponseStruct,
   type ActiveNetworksResponse,
 } from './types';
-import { buildActiveNetworksUrl, assertCaipAccountIds } from './utils';
+import { buildActiveNetworksUrl } from './utils';
 
 /**
  * Service responsible for fetching network activity data from the API.
@@ -48,12 +48,8 @@ export class MultichainNetworkService {
 
       const data: unknown = await response.json();
 
-      if (!is(data, ActiveNetworksResponseStruct)) {
-        throw new Error('Invalid response format from active networks API');
-      }
-      const typedData = data as ActiveNetworksResponse;
-      assertCaipAccountIds(typedData.activeNetworks);
-      return typedData;
+      assert(data, ActiveNetworksResponseStruct);
+      return data;
     } catch (error) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {

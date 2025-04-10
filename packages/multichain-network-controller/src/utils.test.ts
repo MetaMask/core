@@ -13,7 +13,6 @@ import {
   KnownCaipNamespace,
   type Json,
 } from '@metamask/utils';
-import log from 'loglevel';
 
 import { MULTICHAIN_ACCOUNTS_BASE_URL } from './constants';
 import type { ActiveNetworksResponse } from './types';
@@ -27,8 +26,8 @@ import {
   toMultichainNetworkConfigurationsByChainId,
   toActiveNetworksByAddress,
   buildActiveNetworksUrl,
-  assertCaipAccountIds,
   toAllowedCaipAccountIds,
+  isKnownCaipNamespace,
 } from './utils';
 
 const MOCK_ADDRESSES: {
@@ -295,143 +294,6 @@ describe('utils', () => {
     });
   });
 
-  describe('assertCaipAccountIds', () => {
-    it('accepts valid EVM account ID', () => {
-      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.evm])).not.toThrow();
-    });
-
-    it('accepts valid Solana account ID', () => {
-      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.solana])).not.toThrow();
-    });
-
-    it('accepts multiple valid account IDs', () => {
-      expect(() =>
-        assertCaipAccountIds([MOCK_CAIP_IDS.evm, MOCK_CAIP_IDS.solana]),
-      ).not.toThrow();
-    });
-
-    it('throws error for empty array', () => {
-      expect(() => assertCaipAccountIds([])).toThrow(
-        'At least one account ID is required',
-      );
-    });
-
-    it('throws error for invalid account ID format', () => {
-      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.invalid])).toThrow(
-        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalid}`,
-      );
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.invalid],
-        }),
-      );
-    });
-
-    it('lists all invalid IDs in error message', () => {
-      const secondInvalidId = 'another:invalid:id';
-      expect(() =>
-        assertCaipAccountIds([MOCK_CAIP_IDS.invalid, secondInvalidId]),
-      ).toThrow(
-        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalid}, ${secondInvalidId}`,
-      );
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.invalid, secondInvalidId],
-        }),
-      );
-    });
-
-    it('throws error when any ID is invalid', () => {
-      expect(() =>
-        assertCaipAccountIds([MOCK_CAIP_IDS.evm, MOCK_CAIP_IDS.invalid]),
-      ).toThrow(`Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalid}`);
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.invalid],
-        }),
-      );
-    });
-
-    it('throws error for unsupported namespace', () => {
-      expect(() =>
-        assertCaipAccountIds([MOCK_CAIP_IDS.unsupportedNamespace]),
-      ).toThrow(
-        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.unsupportedNamespace}`,
-      );
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.unsupportedNamespace],
-        }),
-      );
-    });
-
-    it('throws error for invalid EVM address', () => {
-      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.invalidEvm])).toThrow(
-        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalidEvm}`,
-      );
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.invalidEvm],
-        }),
-      );
-    });
-
-    it('throws error for invalid Solana address', () => {
-      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.invalidSolana])).toThrow(
-        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalidSolana}`,
-      );
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.invalidSolana],
-        }),
-      );
-    });
-
-    it('throws error for invalid Bitcoin address', () => {
-      expect(() =>
-        assertCaipAccountIds([MOCK_CAIP_IDS.invalidBitcoin]),
-      ).toThrow(`Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.invalidBitcoin}`);
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.invalidBitcoin],
-        }),
-      );
-    });
-
-    it('throws error for unknown namespace', () => {
-      expect(() =>
-        assertCaipAccountIds([MOCK_CAIP_IDS.customNamespace]),
-      ).toThrow(
-        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.customNamespace}`,
-      );
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.customNamespace],
-        }),
-      );
-    });
-
-    it('throws error for test namespace', () => {
-      expect(() => assertCaipAccountIds([MOCK_CAIP_IDS.testNamespace])).toThrow(
-        `Invalid CAIP-10 account IDs: ${MOCK_CAIP_IDS.testNamespace}`,
-      );
-      expect(log.error).toHaveBeenCalledWith(
-        'Account ID validation failed: invalid CAIP-10 format',
-        expect.objectContaining({
-          invalidIds: [MOCK_CAIP_IDS.testNamespace],
-        }),
-      );
-    });
-  });
-
   describe('buildActiveNetworksUrl', () => {
     it('constructs URL with single account ID', () => {
       const url = buildActiveNetworksUrl([MOCK_CAIP_IDS.evm]);
@@ -636,6 +498,20 @@ describe('utils', () => {
 
       const result = toAllowedCaipAccountIds(account);
       expect(result).toStrictEqual([]);
+    });
+  });
+
+  describe('isKnownCaipNamespace', () => {
+    it('returns true for known CAIP namespaces', () => {
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Eip155)).toBe(true);
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Bip122)).toBe(true);
+      expect(isKnownCaipNamespace(KnownCaipNamespace.Solana)).toBe(true);
+    });
+
+    it('returns false for unknown namespaces', () => {
+      expect(isKnownCaipNamespace('unknown')).toBe(false);
+      expect(isKnownCaipNamespace('cosmos')).toBe(false);
+      expect(isKnownCaipNamespace('')).toBe(false);
     });
   });
 });

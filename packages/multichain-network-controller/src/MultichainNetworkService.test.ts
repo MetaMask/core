@@ -80,7 +80,9 @@ describe('MultichainNetworkService', () => {
 
       await expect(
         service.fetchNetworkActivity(validAccountIds),
-      ).rejects.toThrow('Invalid response format from active networks API');
+      ).rejects.toThrow(
+        'At path: activeNetworks -- Expected an array value, but received: undefined',
+      );
     });
 
     it('throws timeout error when request is aborted', async () => {

@@ -17,12 +17,12 @@ import type {
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
 } from '@metamask/network-controller';
-import { KnownCaipNamespace, type PublicInterface } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
 import log from 'loglevel';
 
+import type { AbstractMultichainNetworkService } from './AbstractMultichainNetworkService';
 import { getDefaultMultichainNetworkControllerState } from './constants';
 import { MultichainNetworkController } from './MultichainNetworkController';
-import type { MultichainNetworkService } from './MultichainNetworkService';
 import {
   type AllowedActions,
   type AllowedEvents,
@@ -41,9 +41,6 @@ jest.mock('@metamask/controller-utils', () => ({
 jest.mock('./utils', () => ({
   ...jest.requireActual('./utils'),
 }));
-
-type AbstractMultichainNetworkService =
-  PublicInterface<MultichainNetworkService>;
 
 /**
  * Creates a mock network service for testing.
@@ -565,6 +562,7 @@ describe('MultichainNetworkController', () => {
     const MOCK_SOLANA_ADDRESS = 'solana123';
     const MOCK_EVM_CHAIN_1 = '1';
     const MOCK_EVM_CHAIN_137 = '137';
+    const MOCK_SOLANA_CHAIN = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
 
     beforeEach(() => {
       jest.spyOn(log, 'error').mockImplementation();
@@ -615,7 +613,7 @@ describe('MultichainNetworkController', () => {
         await controller.getNetworksWithTransactionActivityByAccounts();
 
       expect(mockNetworkService.fetchNetworkActivity).toHaveBeenCalledWith([
-        `eip155:0:${MOCK_EVM_ADDRESS}`,
+        `${KnownCaipNamespace.Eip155}:0:${MOCK_EVM_ADDRESS}`,
       ]);
 
       expect(result).toStrictEqual({
@@ -630,7 +628,7 @@ describe('MultichainNetworkController', () => {
       const mockResponse = {
         activeNetworks: [
           `${KnownCaipNamespace.Eip155}:${MOCK_EVM_CHAIN_1}:${MOCK_EVM_ADDRESS}`,
-          `${KnownCaipNamespace.Solana}:${MOCK_EVM_CHAIN_1}:${MOCK_SOLANA_ADDRESS}`,
+          `${KnownCaipNamespace.Solana}:${MOCK_SOLANA_CHAIN}:${MOCK_SOLANA_ADDRESS}`,
         ],
       };
 
@@ -672,7 +670,7 @@ describe('MultichainNetworkController', () => {
         },
         [MOCK_SOLANA_ADDRESS]: {
           namespace: KnownCaipNamespace.Solana,
-          activeChains: [MOCK_EVM_CHAIN_1],
+          activeChains: [MOCK_SOLANA_CHAIN],
         },
       });
     });

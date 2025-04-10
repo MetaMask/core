@@ -30,15 +30,6 @@ import type {
 } from './types';
 
 /**
- * The type of chain.
- */
-export enum ChainType {
-  Evm = 'Evm',
-  Solana = 'Solana',
-  Bitcoin = 'Bitcoin',
-}
-
-/**
  * Checks if the chain ID is EVM.
  *
  * @param chainId - The account type to check.
@@ -152,61 +143,17 @@ export const toMultichainNetworkConfigurationsByChainId = (
     {},
   );
 
-// TODO: Move this function to @metamask/utils
+// TODO: This currently isn't being used anymore but could benefit from being moved to @metamask/utils
 /**
  * Type guard to check if a namespace is a known CAIP namespace.
  *
  * @param namespace - The namespace to check
  * @returns Whether the namespace is a known CAIP namespace
  */
-function isKnownCaipNamespace(
+export function isKnownCaipNamespace(
   namespace: string,
 ): namespace is KnownCaipNamespace {
   return Object.values<string>(KnownCaipNamespace).includes(namespace);
-}
-
-/**
- * Validates CAIP-10 account IDs format.
- *
- * @param accountIds - Array of account IDs to validate
- * @throws Error if any account ID is invalid
- */
-export function assertCaipAccountIds(
-  accountIds: string[],
-): asserts accountIds is CaipAccountId[] {
-  if (!accountIds.length) {
-    throw new Error('At least one account ID is required');
-  }
-
-  const invalidIds = accountIds.filter((id) => {
-    const {
-      address,
-      chain: { namespace },
-    } = parseCaipAccountId(id as CaipAccountId);
-
-    if (!isKnownCaipNamespace(namespace)) {
-      return true;
-    }
-
-    switch (namespace) {
-      case KnownCaipNamespace.Eip155:
-        return !isValidHexAddress(address as Hex);
-      case KnownCaipNamespace.Solana:
-        return !isSolanaAddress(address);
-      case KnownCaipNamespace.Bip122:
-        return !isBtcMainnetAddress(address);
-      default:
-        return true;
-    }
-  });
-
-  if (invalidIds.length > 0) {
-    const error = `Invalid CAIP-10 account IDs: ${invalidIds.join(', ')}`;
-    log.error('Account ID validation failed: invalid CAIP-10 format', {
-      invalidIds,
-    });
-    throw new Error(error);
-  }
 }
 
 /**

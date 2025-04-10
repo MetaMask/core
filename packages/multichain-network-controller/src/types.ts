@@ -15,13 +15,8 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
-import {
-  type Infer,
-  array,
-  object,
-  string,
-  pattern,
-} from '@metamask/superstruct';
+import { type Infer, array, object } from '@metamask/superstruct';
+import { CaipAccountIdStruct } from '@metamask/utils';
 import type {
   CaipAssetType,
   CaipAccountAddress,
@@ -213,7 +208,7 @@ export type MultichainNetworkControllerMessenger = RestrictedMessenger<
 >;
 
 export const ActiveNetworksResponseStruct = object({
-  activeNetworks: array(pattern(string(), /^[^:]+:[^:]+:[^:]+$/u)),
+  activeNetworks: array(CaipAccountIdStruct),
 });
 
 export type ActiveNetworksResponse = Infer<typeof ActiveNetworksResponseStruct>;
