@@ -48,6 +48,9 @@
 ## Portfolio Team
 /packages/token-search-discovery-controller      @MetaMask/portfolio
 
+## Vault Team
+/packages/delegation-controller           @MetaMask/vault
+
 ## Wallet API Platform Team
 /packages/chain-agnostic-permission        @MetaMask/wallet-api-platform-engineers
 /packages/eip1193-permission-middleware    @MetaMask/wallet-api-platform-engineers
