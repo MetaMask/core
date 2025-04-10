@@ -463,7 +463,7 @@ export class PhishingController extends BaseController<
 
   /**
    * Add an entry to the URL scan cache, evicting oldest entries if necessary.
-   * 
+   *
    * @param hostname - The hostname to cache.
    * @param result - The scan result to cache.
    */
@@ -482,13 +482,13 @@ export class PhishingController extends BaseController<
         const sortedEntries = cacheEntries.sort(
           ([, a], [, b]) => a.timestamp - b.timestamp
         );
-        
+
         // Remove oldest entries to get back to max size
         const entriesToRemove = sortedEntries.slice(
           0,
           cacheEntries.length - this.#urlScanCacheMaxSize
         );
-        
+
         entriesToRemove.forEach(([key]) => {
           delete draftState.urlScanCache[key];
         });
@@ -498,7 +498,7 @@ export class PhishingController extends BaseController<
 
   /**
    * Get a cached URL scan result if it exists and is not expired.
-   * 
+   *
    * @param hostname - The hostname to check.
    * @returns The cached scan result or undefined if not found or expired.
    */
