@@ -20,7 +20,7 @@ import {
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { selectIsAssetExchangeRateInState } from './selectors';
-import type { GenericQuoteRequest, SolanaFees } from './types';
+import type { ExchangeRate, GenericQuoteRequest, SolanaFees } from './types';
 import {
   type L1GasFees,
   type QuoteResponse,
@@ -34,6 +34,7 @@ import {
 import { hasSufficientBalance } from './utils/balance';
 import {
   getDefaultBridgeControllerState,
+  getNativeAssetForChainId,
   isSolanaChainId,
   sumHexes,
 } from './utils/bridge';
@@ -290,17 +291,26 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       'CurrencyRateController:getState',
     ).currentCurrency;
 
-    const pricesByAssetId = await fetchAssetPrices(
-      assetIdsToFetch,
-      currency,
-      this.#clientId,
-      this.#fetchFn,
+    const pricesByAssetId = await fetchAssetPrices({
+      assetIds: assetIdsToFetch,
+      currencies: new Set([currency]),
+      clientId: this.#clientId,
+      fetchFn: this.#fetchFn,
+    });
+    const exchangeRates = Object.entries(pricesByAssetId).reduce(
+      (acc, [assetId, prices]) => {
+        acc[assetId as CaipAssetType] = {
+          exchangeRate: prices[currency],
+          usdExchangeRate: prices.usd,
+        };
+        return acc;
+      },
+      {} as Record<CaipAssetType, ExchangeRate>,
     );
-
     this.update((state) => {
       state.assetExchangeRates = {
         ...state.assetExchangeRates,
-        ...pricesByAssetId,
+        ...exchangeRates,
       };
     });
   };

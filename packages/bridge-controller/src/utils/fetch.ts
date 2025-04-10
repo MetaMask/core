@@ -20,7 +20,6 @@ import type {
   GenericQuoteRequest,
   QuoteRequest,
   BridgeAsset,
-  ExchangeRate,
 } from '../types';
 import { BridgeFlag, BridgeFeatureFlagsKey } from '../types';
 
@@ -169,28 +168,20 @@ export async function fetchBridgeQuotes(
   return filteredQuotes as QuoteResponse[];
 }
 
-/**
- * Fetches the asset prices from the price API
- *
- * @param assetIds - The asset IDs to fetch prices for
- * @param currency - The currency to fetch prices in
- * @param clientId - The client ID for metrics
- * @param fetchFn - The fetch function to use
- * @returns The asset prices by assetId
- */
-export const fetchAssetPrices = async (
-  assetIds: (CaipAssetType | undefined)[],
-  currency: string,
-  clientId: string,
-  fetchFn: FetchFunction,
-): Promise<Record<CaipAssetType, ExchangeRate>> => {
-  const validAssetIds = assetIds.filter(Boolean);
+const fetchAssetPricesForCurrency = async (request: {
+  currency: string;
+  assetIds: Set<CaipAssetType>;
+  clientId: string;
+  fetchFn: FetchFunction;
+}): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
+  const { currency, assetIds, clientId, fetchFn } = request;
+  const validAssetIds = Array.from(assetIds).filter(Boolean);
   if (validAssetIds.length === 0) {
     return {};
   }
+
   const queryParams = new URLSearchParams({
-    assetIds: validAssetIds.join(','),
-    includeMarketData: 'true',
+    assetIds: validAssetIds.filter(Boolean).join(','),
     vsCurrency: currency,
   });
   const url = `https://price.api.cx.metamask.io/v3/spot-prices?${queryParams}`;
@@ -198,16 +189,56 @@ export const fetchAssetPrices = async (
     headers: getClientIdHeader(clientId),
     cacheOptions: { cacheRefreshTime: Number(Duration.Second * 30) },
     functionName: 'fetchAssetExchangeRates',
-  })) as Record<CaipAssetType, { price: number }>;
+  })) as Record<CaipAssetType, { [currency: string]: number }>;
 
   return Object.entries(priceApiResponse).reduce(
     (acc, [k, curr]) => {
       acc[k as CaipAssetType] = {
-        exchangeRate: curr.price.toString(),
-        usdExchangeRate: currency === 'usd' ? curr.price.toString() : undefined,
+        [currency]: curr[currency]?.toString(),
       };
       return acc;
     },
-    {} as Record<CaipAssetType, ExchangeRate>,
+    {} as Record<CaipAssetType, { [currency: string]: string }>,
   );
+};
+
+/**
+ * Fetches the asset prices from the price API for multiple currencies
+ *
+ * @param request - The request object
+ * @returns The asset prices by assetId
+ */
+export const fetchAssetPrices = async (
+  request: {
+    currencies: Set<string>;
+  } & Omit<Parameters<typeof fetchAssetPricesForCurrency>[0], 'currency'>,
+): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
+  const { currencies, ...args } = request;
+
+  const combinedPrices = await Promise.allSettled(
+    Array.from(currencies).map(
+      async (currency) =>
+        await fetchAssetPricesForCurrency({ ...args, currency }),
+    ),
+  ).then((prices) =>
+    prices.reduce(
+      (acc, result) => {
+        if (result.status === 'fulfilled') {
+          Object.entries(result.value).forEach(([assetId, value]) => {
+            if (!acc[assetId as CaipAssetType]) {
+              acc[assetId as CaipAssetType] = {};
+            }
+            acc[assetId as CaipAssetType] = {
+              ...acc[assetId as CaipAssetType],
+              ...value,
+            };
+          });
+        }
+        return acc;
+      },
+      {} as Record<CaipAssetType, { [currency: string]: string }>,
+    ),
+  );
+
+  return combinedPrices;
 };
