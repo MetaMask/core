@@ -14,7 +14,6 @@ import type {
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
-  DelegationFilter,
 } from './types';
 
 const FROM_MOCK = '0x2234567890123456789012345678901234567890' as Address;
