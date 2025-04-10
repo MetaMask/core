@@ -148,7 +148,6 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
     this.messagingSystem.subscribe(
       'TransactionController:transactionConfirmed',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (transactionMeta) => {
         if (!this.#isEnabled()) {
           return;
@@ -160,7 +159,6 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
 
     this.messagingSystem.subscribe(
       'AccountsController:accountAdded',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (account) => {
         if (!this.#isEnabled() || !account.type.startsWith('eip155:')) {
           return;
