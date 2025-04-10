@@ -189,7 +189,7 @@ const calcTotalGasFee = ({
   const gasFeesInDecGwei = totalGasLimitInDec
     .times(totalFeePerGasInDecGwei)
     .plus(l1GasFeesInDecGWei);
-  const gasFeesInDecEth = gasFeesInDecGwei.shiftedBy(-9);
+  const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
 
   const gasFeesInDisplayCurrency = nativeToDisplayCurrencyExchangeRate
     ? gasFeesInDecEth.times(nativeToDisplayCurrencyExchangeRate.toString())
