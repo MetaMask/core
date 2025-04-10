@@ -1,6 +1,7 @@
 import type { RestrictedMessenger } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
+import type { Json } from '@metamask/utils';
 
 import type { controllerName } from './constants';
 
@@ -48,10 +49,33 @@ export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
 >;
 
 /**
+ * @description Encryptor interface for encrypting and decrypting seedless onboarding vault.
+ */
+export type Encryptor = {
+  /**
+   * Encrypts the given object with the given password.
+   *
+   * @param password - The password to encrypt with.
+   * @param object - The object to encrypt.
+   * @returns The encrypted string.
+   */
+  encrypt: (password: string, object: Json) => Promise<string>;
+  /**
+   * Decrypts the given encrypted string with the given password.
+   *
+   * @param password - The password to decrypt with.
+   * @param encryptedString - The encrypted string to decrypt.
+   * @returns The decrypted object.
+   */
+  decrypt: (password: string, encryptedString: string) => Promise<unknown>;
+};
+
+/**
  * Seedless Onboarding Controller Options.
  *
  * @param messenger - The messenger to use for this controller.
  * @param state - The initial state to set on this controller.
+ * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
  */
 export type SeedlessOnboardingControllerOptions = {
   messenger: SeedlessOnboardingControllerMessenger;
@@ -60,4 +84,10 @@ export type SeedlessOnboardingControllerOptions = {
    * @description Initial state to set on this controller.
    */
   state?: SeedlessOnboardingControllerState;
+
+  /**
+   * @description Encryptor to use for encrypting and decrypting seedless onboarding vault.
+   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
+   */
+  encryptor?: Encryptor;
 };

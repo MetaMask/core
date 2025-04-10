@@ -1,8 +1,10 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { encrypt, decrypt } from '@metamask/browser-passworder';
 
 import { controllerName } from './constants';
 import type {
+  Encryptor,
   SeedlessOnboardingControllerMessenger,
   SeedlessOnboardingControllerOptions,
   SeedlessOnboardingControllerState,
@@ -37,7 +39,16 @@ export class SeedlessOnboardingController extends BaseController<
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  constructor({ messenger, state }: SeedlessOnboardingControllerOptions) {
+  readonly #vaultEncryptor: Encryptor = {
+    encrypt,
+    decrypt,
+  };
+
+  constructor({
+    messenger,
+    state,
+    encryptor,
+  }: SeedlessOnboardingControllerOptions) {
     super({
       name: controllerName,
       metadata: seedlessOnboardingMetadata,
@@ -47,5 +58,9 @@ export class SeedlessOnboardingController extends BaseController<
       },
       messenger,
     });
+
+    if (encryptor) {
+      this.#vaultEncryptor = encryptor;
+    }
   }
 }

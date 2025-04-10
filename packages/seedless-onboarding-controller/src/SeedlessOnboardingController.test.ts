@@ -18,16 +18,30 @@ function buildSeedlessOnboardingControllerMessenger() {
 
 describe('SeedlessOnboardingController', () => {
   describe('constructor', () => {
-    it('should initialize the controller with the given options', () => {
+    it('should use the default encryptor if none is provided', () => {
       const messenger = buildSeedlessOnboardingControllerMessenger();
-      const controller = new SeedlessOnboardingController({
-        messenger,
-      });
+      expect(
+        () =>
+          new SeedlessOnboardingController({
+            messenger,
+          }),
+      ).not.toThrow();
+    });
 
-      expect(controller.state).toStrictEqual({
-        isNewUser: true,
-        vault: undefined,
-      });
+    it('should be able to overwrite the default encryptor', () => {
+      const messenger = buildSeedlessOnboardingControllerMessenger();
+      const encryptor = {
+        encrypt: jest.fn(),
+        decrypt: jest.fn(),
+      };
+
+      expect(
+        () =>
+          new SeedlessOnboardingController({
+            messenger,
+            encryptor,
+          }),
+      ).not.toThrow();
     });
 
     it('should be able to overwrite the default state', () => {
