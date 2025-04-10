@@ -1,6 +1,5 @@
 import { BtcScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { isBtcMainnetAddress } from '@metamask/keyring-utils';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
   type Hex,
@@ -12,10 +11,8 @@ import {
   hexToNumber,
   add0x,
   parseCaipAccountId,
-  isValidHexAddress,
 } from '@metamask/utils';
 import { isAddress as isSolanaAddress } from '@solana/addresses';
-import log from 'loglevel';
 
 import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
