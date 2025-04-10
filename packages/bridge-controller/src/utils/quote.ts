@@ -134,7 +134,7 @@ export const calcRelayerFee = (
     trade,
   } = bridgeQuote;
   const relayerFeeInNative = calcTokenAmount(
-    new BigNumber(trade.value, 16).minus(
+    new BigNumber(trade.value || '0x0', 16).minus(
       isNativeAddress(srcAsset.address)
         ? new BigNumber(srcTokenAmount).plus(feeData.metabridge.amount)
         : 0,
@@ -142,13 +142,11 @@ export const calcRelayerFee = (
     18,
   );
   return {
-    amount: relayerFeeInNative.toString(),
+    amount: relayerFeeInNative,
     valueInCurrency: exchangeRate
-      ? relayerFeeInNative.times(exchangeRate).toString()
+      ? relayerFeeInNative.times(exchangeRate)
       : null,
-    usd: usdExchangeRate
-      ? relayerFeeInNative.times(usdExchangeRate).toString()
-      : null,
+    usd: usdExchangeRate ? relayerFeeInNative.times(usdExchangeRate) : null,
   };
 };
 
