@@ -187,7 +187,7 @@ export class DeFiPositionsController extends StaticIntervalPollingController()<
                     accountAddress,
                     positions,
                   };
-                } catch (error) {
+                } catch (_error) {
                   return {
                     accountAddress,
                     positions: null,

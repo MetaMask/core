@@ -1,8 +1,6 @@
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 
-import type { GroupedPositions } from './group-positions';
-import { groupPositions } from './group-positions';
 import {
   MOCK_DEFI_RESPONSE_BORROW,
   MOCK_DEFI_RESPONSE_COMPLEX,
@@ -10,6 +8,8 @@ import {
   MOCK_DEFI_RESPONSE_MULTI_CHAIN,
   MOCK_DEFI_RESPONSE_NO_PRICES,
 } from './__fixtures__/mock-responses';
+import type { GroupedPositions } from './group-positions';
+import { groupPositions } from './group-positions';
 
 describe('groupPositions', () => {
   it('groups multiple chains', () => {
