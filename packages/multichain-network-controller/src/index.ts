@@ -19,7 +19,6 @@ export type {
   MultichainNetworkControllerActions,
   MultichainNetworkControllerEvents,
   MultichainNetworkControllerMessenger,
-  ActiveNetworksByAddress,
 } from './types';
 export {
   checkIfSupportedCaipChainId,
@@ -27,3 +26,4 @@ export {
   toMultichainNetworkConfigurationsByChainId,
   toEvmCaipChainId,
 } from './utils';
+export type { ActiveNetworksByAddress } from './api/accounts-api';

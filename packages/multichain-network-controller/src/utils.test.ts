@@ -14,8 +14,10 @@ import {
   type Json,
 } from '@metamask/utils';
 
-import { MULTICHAIN_ACCOUNTS_BASE_URL } from './constants';
-import type { ActiveNetworksResponse } from './types';
+import {
+  type ActiveNetworksResponse,
+  MULTICHAIN_ACCOUNTS_BASE_URL,
+} from './api/accounts-api';
 import {
   isEvmCaipChainId,
   toEvmCaipChainId,

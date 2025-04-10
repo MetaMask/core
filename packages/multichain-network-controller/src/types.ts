@@ -4,7 +4,12 @@ import {
   type ControllerStateChangeEvent,
   type RestrictedMessenger,
 } from '@metamask/base-controller';
-import type { BtcScope, CaipChainId, SolScope } from '@metamask/keyring-api';
+import type {
+  BtcScope,
+  CaipAssetType,
+  CaipChainId,
+  SolScope,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkStatus,
@@ -15,15 +20,8 @@ import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { type Infer, array, object } from '@metamask/superstruct';
-import { CaipAccountIdStruct } from '@metamask/utils';
-import type {
-  CaipAssetType,
-  CaipAccountAddress,
-  CaipNamespace,
-  CaipReference,
-} from '@metamask/utils';
 
+import type { ActiveNetworksByAddress } from './api/accounts-api';
 import type { MultichainNetworkController } from './MultichainNetworkController/MultichainNetworkController';
 
 export const MULTICHAIN_NETWORK_CONTROLLER_NAME = 'MultichainNetworkController';
@@ -205,23 +203,4 @@ export type MultichainNetworkControllerMessenger = RestrictedMessenger<
   MultichainNetworkControllerAllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
->;
-
-export const ActiveNetworksResponseStruct = object({
-  activeNetworks: array(CaipAccountIdStruct),
-});
-
-export type ActiveNetworksResponse = Infer<typeof ActiveNetworksResponseStruct>;
-
-/**
- * The active networks for the currently selected account.
- */
-export type ActiveNetworksByAddress = Record<
-  CaipAccountAddress,
-  {
-    // CAIP-2 namespace of the network.
-    namespace: CaipNamespace;
-    // Active chain IDs (CAIP-2 references) on that network (primarily used for EVM networks).
-    activeChains: CaipReference[];
-  }
 >;

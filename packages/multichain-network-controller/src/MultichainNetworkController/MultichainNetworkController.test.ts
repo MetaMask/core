@@ -22,6 +22,7 @@ import log from 'loglevel';
 
 import { MultichainNetworkController } from './MultichainNetworkController';
 import { createMockInternalAccount } from '../../tests/utils';
+import { type ActiveNetworksResponse } from '../api/accounts-api';
 import { getDefaultMultichainNetworkControllerState } from '../constants';
 import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
 import {
@@ -30,7 +31,6 @@ import {
   type MultichainNetworkControllerAllowedActions,
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
-  type ActiveNetworksResponse,
 } from '../types';
 
 jest.mock('@metamask/controller-utils', () => ({

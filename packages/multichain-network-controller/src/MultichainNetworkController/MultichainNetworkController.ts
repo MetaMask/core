@@ -4,6 +4,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
+import { type ActiveNetworksByAddress } from '../api/accounts-api';
 import {
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
@@ -14,7 +15,6 @@ import {
   type MultichainNetworkControllerState,
   type MultichainNetworkControllerMessenger,
   type SupportedCaipChainId,
-  type ActiveNetworksByAddress,
 } from '../types';
 import {
   checkIfSupportedCaipChainId,

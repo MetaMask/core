@@ -15,15 +15,15 @@ import {
 import { isAddress as isSolanaAddress } from '@solana/addresses';
 
 import {
-  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
+  type ActiveNetworksResponse,
+  type ActiveNetworksByAddress,
+  MULTICHAIN_ACCOUNTS_BASE_URL,
   MULTICHAIN_ALLOWED_ACTIVE_NETWORK_SCOPES,
-} from './constants';
-import { MULTICHAIN_ACCOUNTS_BASE_URL } from './constants';
+} from './api/accounts-api';
+import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
 import type {
   SupportedCaipChainId,
   MultichainNetworkConfiguration,
-  ActiveNetworksByAddress,
-  ActiveNetworksResponse,
 } from './types';
 
 /**
