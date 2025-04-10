@@ -2797,7 +2797,7 @@ describe('URL Scan Cache', () => {
     ];
 
     // Setup nock to respond to all domains
-    domains.forEach(domain => {
+    domains.forEach((domain) => {
       nock(PHISHING_DETECTION_BASE_URL)
         .get(
           `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(domain)}`,
