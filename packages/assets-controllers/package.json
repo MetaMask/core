@@ -90,6 +90,7 @@
     "@metamask/providers": "^18.1.1",
     "@metamask/snaps-controllers": "^9.19.0",
     "@metamask/snaps-sdk": "^6.17.1",
+    "@metamask/transaction-controller": "^54.0.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
