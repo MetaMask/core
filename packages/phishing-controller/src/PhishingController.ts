@@ -716,7 +716,6 @@ export class PhishingController extends BaseController<
       };
     }
 
-    // Check cache first
     const cachedResult = this.#getFromUrlScanCache(hostname);
     if (cachedResult) {
       return cachedResult;
@@ -765,7 +764,6 @@ export class PhishingController extends BaseController<
       recommendedAction: apiResponse.recommendedAction,
     } as PhishingDetectionScanResult;
 
-    // Cache the result
     this.#addToUrlScanCache(hostname, result);
 
     return result;
