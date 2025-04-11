@@ -122,13 +122,16 @@ const getExchangeRateByChainIdAndAddress = (
     return {};
   }
   // If the chain is an EVM chain, use the conversion rate from the currency rates controller
-  const { symbol } = getNativeAssetForChainId(chainId);
-  const evmNativeExchangeRate = currencyRates?.[symbol.toLowerCase()];
-  if (isNativeAddress(address) && evmNativeExchangeRate) {
-    return {
-      exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
-      usdExchangeRate: evmNativeExchangeRate?.usdConversionRate?.toString(),
-    };
+  if (isNativeAddress(address)) {
+    const { symbol } = getNativeAssetForChainId(chainId);
+    const evmNativeExchangeRate = currencyRates?.[symbol.toLowerCase()];
+    if (evmNativeExchangeRate) {
+      return {
+        exchangeRate: evmNativeExchangeRate?.conversionRate?.toString(),
+        usdExchangeRate: evmNativeExchangeRate?.usdConversionRate?.toString(),
+      };
+    }
+    return {};
   }
   // If the chain is an EVM chain and the asset is not the native asset, use the conversion rate from the token rates controller
   const evmTokenExchangeRates = marketData?.[formatChainIdToHex(chainId)];
