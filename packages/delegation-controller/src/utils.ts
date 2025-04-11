@@ -1,7 +1,8 @@
 import type { TypedMessageParams } from '@metamask/keyring-controller';
+import { getChecksumAddress } from '@metamask/utils';
 
-import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
-import type { Address, Delegation } from './types';
+import { ROOT_AUTHORITY, SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
+import type { Address, Delegation, DelegationStruct } from './types';
 
 /**
  * Checks if two addresses are equal.
@@ -19,6 +20,37 @@ type CreateTypedMessageParamsOptions = {
   from: Address;
   delegation: Delegation;
   verifyingContract: Address;
+};
+
+/**
+ * Converts a Delegation to a DelegationStruct.
+ * The DelegationStruct is the format used in the Delegation Framework.
+ *
+ * @param delegation the delegation to format
+ * @returns the formatted delegation
+ */
+export const toDelegationStruct = (
+  delegation: Delegation,
+): DelegationStruct => {
+  const caveats = delegation.caveats.map((caveat) => ({
+    enforcer: getChecksumAddress(caveat.enforcer),
+    terms: caveat.terms,
+    args: caveat.args,
+  }));
+
+  const salt = delegation.salt === '0x' ? 0n : BigInt(delegation.salt);
+
+  return {
+    delegate: getChecksumAddress(delegation.delegate),
+    delegator: getChecksumAddress(delegation.delegator),
+    authority:
+      delegation.authority === undefined
+        ? ROOT_AUTHORITY
+        : delegation.authority,
+    caveats,
+    salt,
+    signature: delegation.signature,
+  };
 };
 
 /**
@@ -41,7 +73,7 @@ export function createTypedMessageParams(
         version: '1',
         verifyingContract,
       },
-      message: delegation,
+      message: toDelegationStruct(delegation),
     },
     from,
   };

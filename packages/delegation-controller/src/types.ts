@@ -31,6 +31,10 @@ export type Delegation = {
   signature: Hex;
 };
 
+export type DelegationStruct = Omit<Delegation, 'salt'> & {
+  salt: bigint;
+};
+
 export type DelegationEntry = {
   tags: string[];
   chainId: number;

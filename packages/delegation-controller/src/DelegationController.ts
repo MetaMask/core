@@ -67,23 +67,22 @@ export class DelegationController extends BaseController<
   /**
    * Signs a delegation.
    *
-   * @param delegation - The delegation to sign.
-   * @param verifyingContract - The address of the verifying contract (DelegationManager).
+   * @param params - The parameters for signing the delegation.
+   * @param params.delegation - The delegation to sign.
+   * @param params.verifyingContract - The address of the verifying contract (DelegationManager).
+   * @param params.chainId - The chainId of the chain to sign the delegation for.
    * @returns The signature of the delegation.
    */
-  async sign(delegation: Delegation, verifyingContract: Address) {
-    // TODO: Obtain this from `NetworkController:getSelectedChainId` once
-    // available.
-    // Ref: https://github.com/MetaMask/metamask-extension/issues/31150
-    const chainId = 11155111; // sepolia
+  async sign(params: {
+    delegation: Delegation;
+    verifyingContract: Address;
+    chainId: number;
+  }) {
+    const { delegation, verifyingContract, chainId } = params;
 
     const account = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
-
-    if (!chainId || !account) {
-      throw new Error('No chainId or account selected');
-    }
 
     const data = createTypedMessageParams({
       chainId,
