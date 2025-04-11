@@ -58,7 +58,6 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-network-controller": "^0.3.0",
     "@metamask/polling-controller": "^13.0.0",
-    "@metamask/snaps-utils": "^8.10.0",
     "@metamask/utils": "^11.2.0",
     "bignumber.js": "^9.1.2"
   },
