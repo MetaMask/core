@@ -1,6 +1,7 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
+import { decrypt, type EthEncryptedData } from '@metamask/eth-sig-util';
 
 import type {
   AllowedActions,
@@ -8,7 +9,11 @@ import type {
   UserStorageControllerMessenger,
 } from '..';
 import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
-import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
+import {
+  MOCK_ENCRYPTION_PRIVATE_KEY,
+  MOCK_ENCRYPTION_PUBLIC_KEY,
+  MOCK_STORAGE_KEY_SIGNATURE,
+} from '../mocks';
 
 type GetHandler<ActionType extends AllowedActions['type']> = Extract<
   AllowedActions,
@@ -103,6 +108,16 @@ export function mockUserStorageMessenger(
     .fn()
     .mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
 
+  const mockSnapGetEncryptionPublicKey = jest.fn(() =>
+    Promise.resolve(MOCK_ENCRYPTION_PUBLIC_KEY),
+  );
+  const mockDecryptMessage = jest.fn((data: EthEncryptedData) => {
+    return decrypt({
+      encryptedData: data,
+      privateKey: MOCK_ENCRYPTION_PRIVATE_KEY,
+    });
+  });
+
   const mockAuthGetBearerToken = typedMockFn(
     'AuthenticationController:getBearerToken',
   ).mockResolvedValue('MOCK_BEARER_TOKEN');
@@ -167,19 +182,23 @@ export function mockUserStorageMessenger(
 
     if (actionType === 'SnapController:handleRequest') {
       const [, params] = typedArgs;
-      if (params.request.method === 'getPublicKey') {
-        return mockSnapGetPublicKey();
+      switch (params.request.method) {
+        case 'getPublicKey':
+          return mockSnapGetPublicKey();
+        case 'signMessage':
+          return mockSnapSignMessage();
+        case 'getEncryptionPublicKey':
+          return mockSnapGetEncryptionPublicKey();
+        case 'decryptMessage':
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return mockDecryptMessage((params.request.params as any).data);
+        default:
+          throw new Error(
+            `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
+              params.request.method as string
+            }`,
+          );
       }
-
-      if (params.request.method === 'signMessage') {
-        return mockSnapSignMessage();
-      }
-
-      throw new Error(
-        `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
-          params.request.method as string
-        }`,
-      );
     }
 
     if (actionType === 'AuthenticationController:getBearerToken') {

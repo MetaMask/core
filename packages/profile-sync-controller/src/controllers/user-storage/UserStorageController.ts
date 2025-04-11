@@ -1,8 +1,8 @@
 import type {
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountRenamedEvent,
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerAccountRenamedEvent,
-  AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -50,7 +50,13 @@ import type {
   AuthenticationControllerIsSignedIn,
   AuthenticationControllerPerformSignIn,
 } from '../authentication';
-import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
+import {
+  createSnapDecryptMessageRequest,
+  createSnapEncryptionPublicKeyRequest,
+  createSnapSignMessageRequest,
+} from '../authentication/auth-snap-requests';
+import { encrypt } from '@metamask/eth-sig-util';
+import { bytesToBase64, hexToBytes } from '@metamask/utils';
 
 const controllerName = 'UserStorageController';
 
@@ -371,6 +377,23 @@ export default class UserStorageController extends BaseController<
           signMessage: (message) =>
             this.#snapSignMessage(message as `metamask:${string}`),
         },
+        encryption: {
+          getEncryptionPublicKey: async () => {
+            return await this.#snapGetEncryptionPublicKey();
+          },
+          decryptMessage: async (ciphertext: string) => {
+            return await this.#snapDecryptMessage(ciphertext);
+          },
+          encryptMessage: async (message: string, publicKeyHex: string) => {
+            const erc1024Payload = encrypt({
+              // eth-sig-util expects the public key to be in base64 format
+              publicKey: bytesToBase64(hexToBytes(publicKeyHex)),
+              data: message,
+              version: 'x25519-xsalsa20-poly1305',
+            });
+            return JSON.stringify(erc1024Payload);
+          },
+        },
       },
       {
         storage: {
@@ -603,6 +626,64 @@ export default class UserStorageController extends BaseController<
     )) as string;
 
     this.#_snapSignMessageCache[message] = result;
+
+    return result;
+  }
+
+  #_snapEncryptionKeyCache: string | null = null;
+
+  /**
+   * Get an encryption public key from the snap
+   *
+   * @returns The encryption public key used by the snap
+   */
+  async #snapGetEncryptionPublicKey(): Promise<string> {
+    if (this.#_snapEncryptionKeyCache) {
+      return this.#_snapEncryptionKeyCache;
+    }
+
+    if (!this.#isUnlocked) {
+      throw new Error(
+        '#snapGetEncryptionPublicKey - unable to call snap, wallet is locked',
+      );
+    }
+
+    const result = (await this.messagingSystem.call(
+      'SnapController:handleRequest',
+      createSnapEncryptionPublicKeyRequest(),
+    )) as string;
+
+    this.#_snapEncryptionKeyCache = result;
+
+    return result;
+  }
+
+  #_snapDecryptMessageCache: Record<string, string> = {};
+
+  /**
+   * Calls the snap to attempt to decrypt the message.
+   * @param ciphertext - the encrypted text to decrypt.
+   * @returns The decrypted message, if decryption was possible.
+   */
+  async #snapDecryptMessage(ciphertext: string): Promise<string> {
+    if (this.#_snapDecryptMessageCache[ciphertext]) {
+      return this.#_snapDecryptMessageCache[ciphertext];
+    }
+
+    if (!this.#isUnlocked) {
+      throw new Error(
+        '#snapDecryptMessage - unable to call snap, wallet is locked',
+      );
+    }
+
+    const result = (await this.messagingSystem.call(
+      'SnapController:handleRequest',
+      createSnapDecryptMessageRequest(ciphertext),
+    )) as string;
+
+    if (result) {
+      this.#_snapDecryptMessageCache[ciphertext] = result;
+    }
 
     return result;
   }

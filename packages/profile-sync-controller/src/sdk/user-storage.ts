@@ -1,9 +1,9 @@
+/* eslint-disable prettier/prettier */
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import {
   SHARED_SALT,
-  SRP_SPECIFIC_MESSAGE,
 } from '../shared/encryption/constants';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
@@ -14,10 +14,10 @@ import type {
   UserStorageGenericPathWithFeatureOnly,
 } from '../shared/storage-schema';
 import {
+  createEntryPath,
   PROFILE_STORAGE_KEY,
   USER_STORAGE_FEATURE_NAMES,
 } from '../shared/storage-schema';
-import { createEntryPath } from '../shared/storage-schema';
 import type { NativeScrypt } from '../shared/types/encryption';
 
 export const STORAGE_URL = (env: Env, entryPath: string) =>
@@ -26,11 +26,46 @@ export const STORAGE_URL = (env: Env, entryPath: string) =>
 export type UserStorageConfig = {
   env: Env;
   auth: Pick<IBaseAuth, 'getAccessToken' | 'getUserProfile' | 'signMessage'>;
+  encryption?: EncryptionOptions;
 };
 
+/**
+ * These methods are used as a caching layer for storage keys.
+ */
 export type StorageOptions = {
   getStorageKey: (message: `metamask:${string}`) => Promise<string | null>;
   setStorageKey: (message: `metamask:${string}`, val: string) => Promise<void>;
+};
+
+/**
+ * These options represent deterministic encryption capabilities specific to this device or instance.
+ * These methods will be used to encrypt more ephemeral keys, used to rebuild the access to the profile.
+ */
+export type EncryptionOptions = {
+  /**
+   * Retrieves the public key used for encryption.
+   *
+   * @returns The public key used for encryption. This is usually an X25519 public key in hex format.
+   */
+  getEncryptionPublicKey: () => Promise<string>;
+
+  /**
+   * Decrypts the given ciphertext.
+   *
+   * @param ciphertext The ciphertext to decrypt. This is normally a serialized JSON object representing the ERC1024 encrypted payload.
+   * @returns The decrypted message as a string.
+   */
+  decryptMessage: (ciphertext: string) => Promise<string>;
+
+  /**
+   * Optional method to encrypt a message with a public key using the ERC1024 data format.
+   * An implementation of this exists in the `@metamask/eth-sig-util` package, but it expects the key to be in base64 not hex.
+   *
+   * @param message The message to encrypt.
+   * @param publicKeyHex The public key to use for encryption. Usually X25519 public key in hex format.
+   * @returns The ERC1024 encrypted payload object, serialized to string.
+   */
+  encryptMessage?: (message: string, publicKeyHex: string) => Promise<string>;
 };
 
 export type UserStorageOptions = {
@@ -39,7 +74,6 @@ export type UserStorageOptions = {
 
 export type GetUserStorageAllFeatureEntriesResponse = {
   HashedKey: string;
-
   Data: string;
 }[];
 
@@ -56,7 +90,7 @@ type ErrorMessage = {
 export class UserStorage {
   protected config: UserStorageConfig;
 
-  public options: UserStorageOptions;
+  protected options: UserStorageOptions;
 
   protected env: Env;
 
@@ -116,29 +150,6 @@ export class UserStorage {
     return this.#batchDeleteUserStorage(path, values);
   }
 
-
-  /**
-   * Generates a storage_key specific to this SRP/identifier.
-   * This will be used to encrypt/decrypt other auth related data or keys from user-storage, without dependence on auth
-   * or profile IDs.
-   *
-   * @returns a storage_key specific to this SRP/identifier, encoded as a 64 character hex string without 0x prefix.
-   */
-  async getSRPStorageKey(): Promise<string> {
-    const message = SRP_SPECIFIC_MESSAGE;
-
-    let storageKey = await this.options.storage?.getStorageKey(message);
-    if (storageKey) {
-      return storageKey;
-    }
-
-    const storageKeySignature = await this.config.auth.signMessage(message);
-    storageKey = createSHA256Hash(storageKeySignature);
-
-    await this.options.storage?.setStorageKey(message, storageKey);
-    return storageKey;
-  }
-
   async getStorageKey(): Promise<string> {
     const userProfile = await this.config.auth.getUserProfile();
     const message = `metamask:${userProfile.profileId}` as const;
@@ -149,37 +160,45 @@ export class UserStorage {
       return storageKey;
     }
     // if no cache, fetch raw entry and decrypt using SRP storage key
-    const srpKey = await this.getSRPStorageKey();
-    const profileStorageKeyPath = createEntryPath(
-      `${USER_STORAGE_FEATURE_NAMES.keys}.${PROFILE_STORAGE_KEY}`,
-      srpKey,
-      { validateAgainstSchema: false },
-    );
-    const rawEntry = await this.#getRawEntry(profileStorageKeyPath);
-    if (rawEntry) {
+    // using the SRP public key as a salt to avoid collisions.
+    const srpKey = await this.config.encryption?.getEncryptionPublicKey();
+    let profileStorageKeyPath = null;
+    if (srpKey) {
+      profileStorageKeyPath = createEntryPath(
+        `${USER_STORAGE_FEATURE_NAMES.keys}.${PROFILE_STORAGE_KEY}`,
+        srpKey,
+        { validateAgainstSchema: false },
+      );
       try {
-        storageKey = await encryption.decryptString(rawEntry, srpKey);
-        await this.options.storage?.setStorageKey(message, storageKey);
-        return storageKey;
+        const rawEntry = await this.#getRawEntry(profileStorageKeyPath);
+        if (rawEntry) {
+          storageKey = await this.config.encryption?.decryptMessage(rawEntry);
+          if (storageKey) {
+            await this.options.storage?.setStorageKey(message, storageKey);
+            return storageKey;
+          }
+        }
       } catch {
         // nop. if decryption fails, proceed to generating a new storage key
       }
     }
 
-    // if no raw entry, generate storage key and cache it
+    // if no raw entry, generate storage key
     // TBD: Don't derive storage keys, rather generate them randomly and then encrypt with the `getSRPStorageKey()`
     const storageKeySignature = await this.config.auth.signMessage(message);
     storageKey = createSHA256Hash(storageKeySignature);
 
+    // and cache it
     await this.options.storage?.setStorageKey(message, storageKey);
-
-    try {
-      await this.#upsertRawEntry(
-        profileStorageKeyPath,
-        await encryption.encryptString(storageKey, srpKey),
-      );
-    } catch {
-      // nop. if upsert fails, the storage key will be derived again on next access
+    if (srpKey && profileStorageKeyPath && typeof this.config.encryption?.encryptMessage === 'function') {
+      try {
+        await this.#upsertRawEntry(
+          profileStorageKeyPath,
+          JSON.stringify(await this.config.encryption.encryptMessage(storageKey, srpKey)),
+        );
+      } catch {
+        // nop. if upsert fails, the storage key will be derived again on next access
+      }
     }
 
     return storageKey;
