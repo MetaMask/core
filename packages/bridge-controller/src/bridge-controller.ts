@@ -20,9 +20,10 @@ import {
 } from './constants/bridge';
 import { CHAIN_IDS } from './constants/chains';
 import { selectIsAssetExchangeRateInState } from './selectors';
-import type { GenericQuoteRequest, SolanaFees } from './types';
 import {
   type L1GasFees,
+  type GenericQuoteRequest,
+  type SolanaFees,
   type QuoteResponse,
   type TxData,
   type BridgeControllerState,
@@ -296,6 +297,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const currency = this.messagingSystem.call(
       'CurrencyRateController:getState',
     ).currentCurrency;
+
+    if (assetIds.size === 0) {
+      return;
+    }
 
     const pricesByAssetId = await fetchAssetPrices({
       assetIds,

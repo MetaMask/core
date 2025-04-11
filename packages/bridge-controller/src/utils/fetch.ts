@@ -223,7 +223,9 @@ export const fetchAssetPrices = async (
   request: {
     currencies: Set<string>;
   } & Omit<Parameters<typeof fetchAssetPricesForCurrency>[0], 'currency'>,
-): Promise<Record<CaipAssetType, { [currency: string]: string }>> => {
+): Promise<
+  Record<CaipAssetType, { [currency: string]: string } | undefined>
+> => {
   const { currencies, ...args } = request;
 
   const combinedPrices = await Promise.allSettled(

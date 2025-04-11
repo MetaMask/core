@@ -23,15 +23,17 @@ export const getAssetIdsForToken = (
 export const toExchangeRates = (
   currency: string,
   pricesByAssetId: {
-    [assetId: CaipAssetType]: { [currency: string]: string };
+    [assetId: CaipAssetType]: { [currency: string]: string } | undefined;
   },
 ) => {
   const exchangeRates = Object.entries(pricesByAssetId).reduce(
     (acc, [assetId, prices]) => {
-      acc[assetId as CaipAssetType] = {
-        exchangeRate: prices[currency],
-        usdExchangeRate: prices.usd,
-      };
+      if (prices) {
+        acc[assetId as CaipAssetType] = {
+          exchangeRate: prices[currency],
+          usdExchangeRate: prices.usd,
+        };
+      }
       return acc;
     },
     {} as Record<CaipAssetType, ExchangeRate>,

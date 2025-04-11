@@ -11,6 +11,7 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
+import * as selectors from './selectors';
 import {
   ChainId,
   type BridgeControllerMessenger,
@@ -43,6 +44,7 @@ jest.mock('@ethersproject/contracts', () => {
 
 const getLayer1GasFeeMock = jest.fn();
 const mockFetchFn = handleFetch;
+let fetchAssetPricesSpy: jest.SpyInstance;
 
 describe('BridgeController', function () {
   let bridgeController: BridgeController;
@@ -153,6 +155,14 @@ describe('BridgeController', function () {
           symbol: 'ABC',
         },
       ]);
+
+    fetchAssetPricesSpy = jest
+      .spyOn(fetchUtils, 'fetchAssetPrices')
+      .mockResolvedValue({
+        'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
+          usd: '100',
+        },
+      });
     bridgeController.resetState();
   });
 
@@ -272,6 +282,9 @@ describe('BridgeController', function () {
       address: '0x123',
       provider: jest.fn(),
       selectedNetworkClientId: 'selectedNetworkClientId',
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
     } as never);
 
     const fetchBridgeQuotesSpy = jest
@@ -327,6 +340,7 @@ describe('BridgeController', function () {
         insufficientBal: false,
       },
     });
+    expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -428,7 +442,14 @@ describe('BridgeController', function () {
       address: '0x123',
       provider: jest.fn(),
       selectedNetworkClientId: 'selectedNetworkClientId',
+      currentCurrency: 'usd',
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
     } as never);
+    jest
+      .spyOn(selectors, 'selectIsAssetExchangeRateInState')
+      .mockReturnValue(true);
 
     const fetchBridgeQuotesSpy = jest
       .spyOn(fetchUtils, 'fetchBridgeQuotes')
@@ -453,7 +474,7 @@ describe('BridgeController', function () {
 
     const quoteParams = {
       srcChainId: '0x1',
-      destChainId: '0x10',
+      destChainId: '0xa',
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
       destTokenAddress: '0x123',
       srcTokenAmount: '1000000000000000000',
@@ -475,6 +496,7 @@ describe('BridgeController', function () {
         insufficientBal: true,
       },
     });
+    expect(fetchAssetPricesSpy).not.toHaveBeenCalled();
 
     expect(bridgeController.state).toStrictEqual(
       expect.objectContaining({
@@ -610,7 +632,7 @@ describe('BridgeController', function () {
 
     const quoteParams = {
       srcChainId: '0x1',
-      destChainId: '0x10',
+      destChainId: '0xa',
       srcTokenAddress: '0x0000000000000000000000000000000000000000',
       destTokenAddress: '0x123',
       srcTokenAmount: '1000000000000000000',
@@ -792,7 +814,7 @@ describe('BridgeController', function () {
         });
 
       const quoteParams = {
-        srcChainId: '0x10',
+        srcChainId: '0xa',
         destChainId: '0x1',
         srcTokenAddress: '0x4200000000000000000000000000000000000006',
         destTokenAddress: '0x0000000000000000000000000000000000000000',
@@ -894,7 +916,7 @@ describe('BridgeController', function () {
     });
 
     const quoteParams = {
-      srcChainId: '0x10',
+      srcChainId: '0xa',
       destChainId: '0x1',
       srcTokenAddress: '0x4200000000000000000000000000000000000006',
       destTokenAddress: '0x0000000000000000000000000000000000000000',
