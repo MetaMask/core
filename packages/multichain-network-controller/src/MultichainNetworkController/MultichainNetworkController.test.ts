@@ -37,7 +37,7 @@ import {
  *
  * @returns A mock network service that implements the MultichainNetworkService interface.
  */
-function createMockNetworkService() {
+function createMockNetworkService(): AbstractMultichainNetworkService {
   return {
     fetchNetworkActivity: jest
       .fn()
