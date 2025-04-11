@@ -15,6 +15,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
+import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
   TransactionMeta,
@@ -192,6 +193,7 @@ export enum BridgeStatusAction {
   WIPE_BRIDGE_STATUS = 'wipeBridgeStatus',
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
+  SUBMIT_TX = 'submitTx',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -282,11 +284,15 @@ export type BridgeStatusControllerWipeBridgeStatusAction =
 export type BridgeStatusControllerResetStateAction =
   BridgeStatusControllerAction<BridgeStatusAction.RESET_STATE>;
 
+export type BridgeStatusControllerSubmitTxAction =
+  BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
-  | BridgeStatusControllerGetStateAction;
+  | BridgeStatusControllerGetStateAction
+  | BridgeStatusControllerSubmitTxAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -317,6 +323,7 @@ type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetSelectedMultichainAccountAction
+  | HandleSnapRequest
   | TransactionControllerGetStateAction;
 
 /**
