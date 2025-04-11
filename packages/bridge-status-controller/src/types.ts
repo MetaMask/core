@@ -107,6 +107,7 @@ export enum BridgeId {
   AXELAR = 'axelar',
   ACROSS = 'across',
   STARGATE = 'stargate',
+  RELAY = 'relay',
 }
 
 export enum FeeType {

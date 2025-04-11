@@ -19,11 +19,16 @@ const log = createModuleLogger(projectLogger, 'nonce');
 export async function getNextNonce(
   txMeta: TransactionMeta,
   getNonceLock: (address: string) => Promise<NonceLock>,
-): Promise<[string, (() => void) | undefined]> {
+): Promise<[string | undefined, (() => void) | undefined]> {
   const {
     customNonceValue,
+    isExternalSign,
     txParams: { from, nonce: existingNonce },
   } = txMeta;
+
+  if (isExternalSign) {
+    return [undefined, undefined];
+  }
 
   const customNonce = customNonceValue ? toHex(customNonceValue) : undefined;
 

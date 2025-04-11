@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^21.0.1",
+    "@metamask/keyring-controller": "^21.0.2",
     "@metamask/network-controller": "^23.2.0",
     "@metamask/providers": "^21.0.0",
     "@metamask/snaps-controllers": "^11.2.0",
