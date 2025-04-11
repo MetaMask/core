@@ -314,6 +314,21 @@ const selectQuoteRefreshRate = createBridgeSelector(
       : featureFlags.refreshRate) ?? featureFlags.refreshRate,
 );
 
+export const selectIsQuoteExpired = createBridgeSelector(
+  [
+    selectIsQuoteGoingToRefresh,
+    ({ quotesLastFetched }) => quotesLastFetched,
+    selectQuoteRefreshRate,
+    (_, __, currentTimeInMs: number) => currentTimeInMs,
+  ],
+  (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
+    Boolean(
+      !isQuoteGoingToRefresh &&
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
+    ),
+);
+
 /**
  * Selects sorted cross-chain swap quotes. By default, the quotes are sorted by cost in ascending order.
  *
@@ -348,17 +363,4 @@ export const selectBridgeQuotes = createStructuredBridgeSelector({
   quotesRefreshCount: (state) => state.quotesRefreshCount,
   quotesInitialLoadTimeMs: (state) => state.quotesInitialLoadTime,
   isQuoteGoingToRefresh: selectIsQuoteGoingToRefresh,
-  isQuoteExpired: createBridgeSelector(
-    [
-      selectIsQuoteGoingToRefresh,
-      ({ quotesLastFetched }) => quotesLastFetched,
-      selectQuoteRefreshRate,
-    ],
-    (isQuoteGoingToRefresh, quotesLastFetched, refreshRate) =>
-      Boolean(
-        !isQuoteGoingToRefresh &&
-          quotesLastFetched &&
-          Date.now() - quotesLastFetched > refreshRate,
-      ),
-  ),
 });

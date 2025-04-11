@@ -5,6 +5,7 @@ import {
   selectExchangeRateByChainIdAndAddress,
   selectIsAssetExchangeRateInState,
   selectBridgeQuotes,
+  selectIsQuoteExpired,
 } from './selectors';
 import {
   SortOrder,
@@ -149,6 +150,129 @@ describe('Bridge Selectors', () => {
     });
   });
 
+  describe('selectIsQuoteExpired', () => {
+    const mockState = {
+      quotes: [],
+      quoteRequest: {
+        srcChainId: '1',
+        destChainId: '137',
+        srcTokenAddress: '0x0000000000000000000000000000000000000000',
+        destTokenAddress: '0x0000000000000000000000000000000000000000',
+        insufficientBal: false,
+      },
+      quotesLastFetched: Date.now(),
+      quotesLoadingStatus: RequestStatus.FETCHED,
+      quoteFetchError: null,
+      quotesRefreshCount: 0,
+      quotesInitialLoadTime: Date.now(),
+      bridgeFeatureFlags: {
+        [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          chains: {},
+        },
+      },
+      assetExchangeRates: {},
+      currencyRates: {},
+      marketData: {},
+      conversionRates: {},
+      participateInMetaMetrics: true,
+    } as unknown as BridgeAppState;
+
+    const mockClientParams = {
+      bridgeFeesPerGas: {
+        estimatedBaseFeeInDecGwei: '50',
+        maxPriorityFeePerGasInDecGwei: '2',
+        maxFeePerGasInDecGwei: '100',
+      },
+      sortOrder: SortOrder.COST_ASC,
+      selectedQuote: null,
+      featureFlagsKey: BridgeFeatureFlagsKey.EXTENSION_CONFIG,
+    };
+
+    it('should return false when quote is not expired', () => {
+      const result = selectIsQuoteExpired(
+        mockState,
+        mockClientParams,
+        Date.now(),
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return true when quote is expired', () => {
+      const stateWithOldQuote = {
+        ...mockState,
+        quotesRefreshCount: 5,
+        quotesLastFetched: Date.now() - 40000, // 40 seconds ago
+      } as unknown as BridgeAppState;
+
+      const result = selectIsQuoteExpired(
+        stateWithOldQuote,
+        mockClientParams,
+        Date.now(),
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should handle chain-specific quote refresh rate', () => {
+      const stateWithOldQuote = {
+        ...mockState,
+        quotesRefreshCount: 5,
+        quotesLastFetched: Date.now() - 40000, // 40 seconds ago
+        bridgeFeatureFlags: {
+          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
+            ...mockState.bridgeFeatureFlags[
+              BridgeFeatureFlagsKey.EXTENSION_CONFIG
+            ],
+            chains: {
+              [formatChainIdToCaip(1)]: {
+                refreshRate: 41000,
+              },
+            },
+          },
+        },
+      } as unknown as BridgeAppState;
+
+      const result = selectIsQuoteExpired(
+        stateWithOldQuote,
+        mockClientParams,
+        Date.now(),
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should handle quote expiration when srcChainId is unset', () => {
+      const stateWithOldQuote = {
+        ...mockState,
+        quoteRequest: {
+          ...mockState.quoteRequest,
+          srcChainId: undefined,
+        },
+        quotesRefreshCount: 5,
+        quotesLastFetched: Date.now() - 40000, // 40 seconds ago
+        bridgeFeatureFlags: {
+          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
+            ...mockState.bridgeFeatureFlags[
+              BridgeFeatureFlagsKey.EXTENSION_CONFIG
+            ],
+            chains: {
+              [formatChainIdToCaip(1)]: {
+                refreshRate: 41000,
+              },
+            },
+          },
+        },
+      } as unknown as BridgeAppState;
+
+      const result = selectIsQuoteExpired(
+        stateWithOldQuote,
+        mockClientParams,
+        Date.now(),
+      );
+      expect(result).toBe(true);
+    });
+  });
+
   describe('selectBridgeQuotes', () => {
     const mockQuote = {
       quote: {
@@ -253,7 +377,6 @@ describe('Bridge Selectors', () => {
       expect(result.isLoading).toBe(false);
       expect(result.quoteFetchError).toBeNull();
       expect(result.isQuoteGoingToRefresh).toBe(false);
-      expect(result.isQuoteExpired).toBe(false);
     });
 
     it('should handle different sort orders', () => {
@@ -287,67 +410,6 @@ describe('Bridge Selectors', () => {
 
       const result = selectBridgeQuotes(stateWithMaxRefresh, mockClientParams);
       expect(result.isQuoteGoingToRefresh).toBe(false);
-    });
-
-    it('should handle quote expiration', () => {
-      const stateWithOldQuote = {
-        ...mockState,
-        quotesRefreshCount: 5,
-        quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-      } as unknown as BridgeAppState;
-
-      const result = selectBridgeQuotes(stateWithOldQuote, mockClientParams);
-      expect(result.isQuoteExpired).toBe(true);
-    });
-
-    it('should handle quote expiration with chain-specific quote refresh rate', () => {
-      const stateWithOldQuote = {
-        ...mockState,
-        quotesRefreshCount: 5,
-        quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeFeatureFlags: {
-          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-            ...mockState.bridgeFeatureFlags[
-              BridgeFeatureFlagsKey.EXTENSION_CONFIG
-            ],
-            chains: {
-              [formatChainIdToCaip(1)]: {
-                refreshRate: 41000,
-              },
-            },
-          },
-        },
-      } as unknown as BridgeAppState;
-
-      const result = selectBridgeQuotes(stateWithOldQuote, mockClientParams);
-      expect(result.isQuoteExpired).toBe(false);
-    });
-
-    it('should handle quote expiration when srcChainId is unset', () => {
-      const stateWithOldQuote = {
-        ...mockState,
-        quoteRequest: {
-          ...mockState.quoteRequest,
-          srcChainId: undefined,
-        },
-        quotesRefreshCount: 5,
-        quotesLastFetched: Date.now() - 40000, // 40 seconds ago
-        bridgeFeatureFlags: {
-          [BridgeFeatureFlagsKey.EXTENSION_CONFIG]: {
-            ...mockState.bridgeFeatureFlags[
-              BridgeFeatureFlagsKey.EXTENSION_CONFIG
-            ],
-            chains: {
-              [formatChainIdToCaip(1)]: {
-                refreshRate: 41000,
-              },
-            },
-          },
-        },
-      } as unknown as BridgeAppState;
-
-      const result = selectBridgeQuotes(stateWithOldQuote, mockClientParams);
-      expect(result.isQuoteExpired).toBe(true);
     });
 
     it('should handle loading state', () => {

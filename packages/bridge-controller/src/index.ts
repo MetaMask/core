@@ -96,4 +96,12 @@ export {
   selectBridgeQuotes,
   type BridgeAppState,
   selectExchangeRateByChainIdAndAddress,
+  /**
+   * Returns whether a quote is expired
+   *
+   * @param state The state of the bridge controller and its dependency controllers
+   * @param currentTimeInMs The current timestamp in milliseconds (e.g. `Date.now()`)
+   * @returns Whether the quote is expired
+   */
+  selectIsQuoteExpired,
 } from './selectors';
