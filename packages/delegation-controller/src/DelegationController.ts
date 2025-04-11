@@ -192,7 +192,7 @@ export class DelegationController extends BaseController<
     }
     chain.push(entry);
 
-    for (let _hash = entry.data.authority; _hash !== ROOT_AUTHORITY;) {
+    for (let _hash = entry.data.authority; _hash !== ROOT_AUTHORITY; ) {
       const parent = this.retrieve(_hash);
       if (!parent) {
         throw new Error('Invalid delegation chain');
