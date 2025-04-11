@@ -36,6 +36,7 @@ import {
   performMainNetworkSync,
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
+import { BackupAndSyncFeatures } from './types';
 import { Env, UserStorage } from '../../sdk';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import {
@@ -58,13 +59,19 @@ export type UserStorageControllerState = {
   /**
    * Condition used by UI and to determine if we can use some of the User Storage methods.
    */
-  isProfileSyncingEnabled: boolean | null;
+  isProfileSyncingEnabled: boolean;
   /**
    * Loading state for the profile syncing update
    */
   isProfileSyncingUpdateLoading: boolean;
   /**
-   * Condition used by E2E tests to determine if account syncing has been dispatched at least once.
+   * Condition used by UI to determine if account syncing is enabled.
+   */
+  isAccountSyncingEnabled: boolean;
+  /**
+   * Condition used to determine if account syncing has been dispatched at least once.
+   * This is used for event listeners to determine if they should be triggered.
+   * This is also used in E2E tests for verification purposes.
    */
   hasAccountSyncingSyncedAtLeastOnce: boolean;
   /**
@@ -84,6 +91,7 @@ export type UserStorageControllerState = {
 export const defaultState: UserStorageControllerState = {
   isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
+  isAccountSyncingEnabled: true,
   hasAccountSyncingSyncedAtLeastOnce: false,
   isAccountSyncingReadyToBeDispatched: false,
   isAccountSyncingInProgress: false,
@@ -97,6 +105,10 @@ const metadata: StateMetadata<UserStorageControllerState> = {
   isProfileSyncingUpdateLoading: {
     persist: false,
     anonymous: false,
+  },
+  isAccountSyncingEnabled: {
+    persist: true,
+    anonymous: true,
   },
   hasAccountSyncingSyncedAtLeastOnce: {
     persist: true,
@@ -186,8 +198,7 @@ type ActionsObj = CreateActionsObj<
   | 'performDeleteStorage'
   | 'performBatchDeleteStorage'
   | 'getStorageKey'
-  | 'enableProfileSyncing'
-  | 'disableProfileSyncing'
+  | 'toggleBackupAndSyncFeature'
   | 'syncInternalAccountsWithUserStorage'
   | 'saveInternalAccountToUserStorage'
 >;
@@ -211,10 +222,8 @@ export type UserStorageControllerPerformDeleteStorage =
 export type UserStorageControllerPerformBatchDeleteStorage =
   ActionsObj['performBatchDeleteStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
-export type UserStorageControllerEnableProfileSyncing =
-  ActionsObj['enableProfileSyncing'];
-export type UserStorageControllerDisableProfileSyncing =
-  ActionsObj['disableProfileSyncing'];
+export type UserStorageControllerToggleBackupAndSyncFeature =
+  ActionsObj['toggleBackupAndSyncFeature'];
 export type UserStorageControllerSyncInternalAccountsWithUserStorage =
   ActionsObj['syncInternalAccountsWithUserStorage'];
 export type UserStorageControllerSaveInternalAccountToUserStorage =
@@ -453,13 +462,8 @@ export default class UserStorageController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'UserStorageController:enableProfileSyncing',
-      this.enableProfileSyncing.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      'UserStorageController:disableProfileSyncing',
-      this.disableProfileSyncing.bind(this),
+      'UserStorageController:toggleBackupAndSyncFeature',
+      this.toggleBackupAndSyncFeature.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -635,43 +639,74 @@ export default class UserStorageController extends BaseController<
     return result;
   }
 
-  public async enableProfileSyncing(): Promise<void> {
+  private toggleFeature(
+    feature: BackupAndSyncFeatures,
+    enabled: boolean,
+  ): void {
+    this.update((state) => {
+      switch (feature) {
+        case BackupAndSyncFeatures.Main:
+          state.isProfileSyncingEnabled = enabled;
+          break;
+        case BackupAndSyncFeatures.Account:
+          state.isAccountSyncingEnabled = enabled;
+          break;
+        default:
+          break;
+      }
+    });
+  }
+
+  public async toggleBackupAndSyncFeature(
+    feature: BackupAndSyncFeatures,
+    enabled: boolean,
+  ): Promise<void> {
     try {
       this.#setIsProfileSyncingUpdateLoading(true);
 
-      const isSignedIn = this.#auth.isSignedIn();
-      if (!isSignedIn) {
-        await this.#auth.signIn();
+      const isMainFeatureEnabled = this.state.isProfileSyncingEnabled;
+
+      // Enabling
+      if (enabled) {
+        // If any of the features are enabled, we need to ensure the user is signed in
+        const isSignedIn = this.#auth.isSignedIn();
+        if (!isSignedIn) {
+          await this.#auth.signIn();
+        }
+
+        // If Backup and Sync main feature is disabled, we need to enable it
+        if (!isMainFeatureEnabled || feature === BackupAndSyncFeatures.Main) {
+          this.toggleFeature(BackupAndSyncFeatures.Main, true);
+          return;
+        }
+
+        // We then enable the requested feature
+        this.toggleFeature(feature, true);
+      } else {
+        // If the requested feature is the main feature, we need to disable all features
+        if (feature === BackupAndSyncFeatures.Main) {
+          if (!isMainFeatureEnabled) {
+            return;
+          }
+
+          this.toggleFeature(BackupAndSyncFeatures.Main, false);
+          this.toggleFeature(BackupAndSyncFeatures.Account, false);
+
+          return;
+        }
+
+        // If the requested feature is not the main feature, we need to disable it
+        this.toggleFeature(feature, false);
       }
-
-      this.update((state) => {
-        state.isProfileSyncingEnabled = true;
-      });
-
-      this.#setIsProfileSyncingUpdateLoading(false);
     } catch (e) {
-      this.#setIsProfileSyncingUpdateLoading(false);
       // istanbul ignore next
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
-        `${controllerName} - failed to enable profile syncing - ${errorMessage}`,
+        `${controllerName} - failed to ${enabled ? 'enable' : 'disable'} ${feature} - ${errorMessage}`,
       );
+    } finally {
+      this.#setIsProfileSyncingUpdateLoading(false);
     }
-  }
-
-  public async disableProfileSyncing(): Promise<void> {
-    const isAlreadyDisabled = !this.state.isProfileSyncingEnabled;
-    if (isAlreadyDisabled) {
-      return;
-    }
-
-    this.#setIsProfileSyncingUpdateLoading(true);
-
-    this.update((state) => {
-      state.isProfileSyncingEnabled = false;
-    });
-
-    this.#setIsProfileSyncingUpdateLoading(false);
   }
 
   #setIsProfileSyncingUpdateLoading(
