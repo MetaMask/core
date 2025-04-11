@@ -802,16 +802,6 @@ export class NftController extends BaseController<
       Pick<ApiNftContract, 'address'> &
       Pick<ApiNftContract, 'collection'>
   > {
-    /*
-
-    this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        ).provider
-
-
-        try this and see if its getting correct data when you are on linea and fetch for ethereum for exp!!!!
-    */
     const [name, symbol] = await Promise.all([
       this.messagingSystem.call(
         'AssetsContractController:getERC721AssetName',
