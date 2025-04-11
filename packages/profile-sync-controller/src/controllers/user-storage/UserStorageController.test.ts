@@ -703,12 +703,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       arrangeMocks();
     const controller = new UserStorageController({
       messenger,
-      env: {
-        // We're only verifying that calling this controller method will call the integration module
-        // The actual implementation is tested in the integration tests
-        // This is done to prevent creating unnecessary nock instances in this test
-        isAccountSyncingEnabled: false,
-      },
+      // We're only verifying that calling this controller method will call the integration module
+      // The actual implementation is tested in the integration tests
+      // This is done to prevent creating unnecessary nock instances in this test
       config: {
         accountSyncing: {
           onAccountAdded: jest.fn(),
@@ -764,18 +761,14 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     const { messenger, mockSaveInternalAccountToUserStorage } = arrangeMocks();
     const controller = new UserStorageController({
       messenger,
-      env: {
-        // We're only verifying that calling this controller method will call the integration module
-        // The actual implementation is tested in the integration tests
-        // This is done to prevent creating unnecessary nock instances in this test
-        isAccountSyncingEnabled: false,
-      },
+      // We're only verifying that calling this controller method will call the integration module
+      // The actual implementation is tested in the integration tests
+      // This is done to prevent creating unnecessary nock instances in this test
     });
 
     mockSaveInternalAccountToUserStorage.mockImplementation(
       async (
         _internalAccount,
-        _config,
         {
           getMessenger = jest.fn(),
           getUserStorageControllerInstance = jest.fn(),
@@ -911,11 +904,9 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
     const messengerMocks = mockUserStorageMessenger();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
-      env: {
-        isAccountSyncingEnabled: false,
-      },
     });
 
+    await controller.disableProfileSyncing();
     await controller.syncInternalAccountsWithUserStorage();
 
     // Should not have called the account syncing module
@@ -928,9 +919,6 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
 
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
-      env: {
-        isAccountSyncingEnabled: true,
-      },
     });
 
     await controller.syncInternalAccountsWithUserStorage();
@@ -944,9 +932,6 @@ describe('user-storage/user-storage-controller - account syncing edge cases', ()
 
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
-      env: {
-        isAccountSyncingEnabled: false,
-      },
     });
 
     const mockSetStorage = jest.spyOn(controller, 'performSetStorage');

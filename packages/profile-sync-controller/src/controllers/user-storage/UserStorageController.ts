@@ -292,7 +292,6 @@ export default class UserStorageController extends BaseController<
   // This is replaced with the actual value in the constructor
   // We will remove this once the feature will be released
   readonly #env = {
-    isAccountSyncingEnabled: false,
     isNetworkSyncingEnabled: false,
   };
 
@@ -351,7 +350,6 @@ export default class UserStorageController extends BaseController<
     state?: UserStorageControllerState;
     config?: ControllerConfig;
     env?: {
-      isAccountSyncingEnabled?: boolean;
       isNetworkSyncingEnabled?: boolean;
     };
     nativeScryptCrypto?: NativeScrypt;
@@ -363,7 +361,6 @@ export default class UserStorageController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#env.isAccountSyncingEnabled = Boolean(env?.isAccountSyncingEnabled);
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
 
@@ -400,15 +397,10 @@ export default class UserStorageController extends BaseController<
     this.#nativeScryptCrypto = nativeScryptCrypto;
 
     // Account Syncing
-    if (this.#env.isAccountSyncingEnabled) {
-      setupAccountSyncingSubscriptions(
-        { isAccountSyncingEnabled: true },
-        {
-          getUserStorageControllerInstance: () => this,
-          getMessenger: () => this.messagingSystem,
-        },
-      );
-    }
+    setupAccountSyncingSubscriptions({
+      getUserStorageControllerInstance: () => this,
+      getMessenger: () => this.messagingSystem,
+    });
 
     // Network Syncing
     if (this.#env.isNetworkSyncingEnabled) {
@@ -753,7 +745,6 @@ export default class UserStorageController extends BaseController<
 
     await syncInternalAccountsWithUserStorage(
       {
-        isAccountSyncingEnabled: this.#env.isAccountSyncingEnabled,
         maxNumberOfAccountsToAdd:
           this.#config?.accountSyncing?.maxNumberOfAccountsToAdd,
         onAccountAdded: () =>
@@ -782,14 +773,10 @@ export default class UserStorageController extends BaseController<
   async saveInternalAccountToUserStorage(
     internalAccount: InternalAccount,
   ): Promise<void> {
-    await saveInternalAccountToUserStorage(
-      internalAccount,
-      { isAccountSyncingEnabled: this.#env.isAccountSyncingEnabled },
-      {
-        getMessenger: () => this.messagingSystem,
-        getUserStorageControllerInstance: () => this,
-      },
-    );
+    await saveInternalAccountToUserStorage(internalAccount, {
+      getMessenger: () => this.messagingSystem,
+      getUserStorageControllerInstance: () => this,
+    });
   }
 
   async syncNetworks() {
