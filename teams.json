@@ -12,6 +12,7 @@
   "metamask/chain-agnostic-permission": "team-wallet-api-platform",
   "metamask/composable-controller": "team-wallet-framework",
   "metamask/controller-utils": "team-wallet-framework",
+  "metamask/delegation-controller": "team-vault",
   "metamask/eip1193-permission-middleware": "team-wallet-api-platform",
   "metamask/ens-controller": "team-confirmations",
   "metamask/eth-json-rpc-provider": "team-wallet-api-platform,team-wallet-framework",

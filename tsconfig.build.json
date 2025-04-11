@@ -13,6 +13,7 @@
     { "path": "./packages/chain-agnostic-permission/tsconfig.build.json" },
     { "path": "./packages/composable-controller/tsconfig.build.json" },
     { "path": "./packages/controller-utils/tsconfig.build.json" },
+    { "path": "./packages/delegation-controller/tsconfig.build.json" },
     { "path": "./packages/earn-controller/tsconfig.build.json" },
     { "path": "./packages/eip1193-permission-middleware/tsconfig.build.json" },
     { "path": "./packages/ens-controller/tsconfig.build.json" },
