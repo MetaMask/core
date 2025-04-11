@@ -21,6 +21,7 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
@@ -221,7 +222,10 @@ export const getDefaultTokenRatesControllerState =
 
 /** The input to start polling for the {@link TokenRatesController} */
 export type TokenRatesPollingInput = {
-  chainId: Hex;
+  chainIdAndNativeCurrency: {
+    chainId: Hex;
+    nativeCurrency: string;
+  }[];
 };
 
 /**
@@ -303,6 +307,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           return;
         }
 
+        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+          'NetworkController:getState',
+        );
+
         const chainIds = [
           ...new Set([
             ...Object.keys(allTokens),
@@ -322,23 +330,15 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         this.#allTokens = allTokens;
         this.#allDetectedTokens = allDetectedTokens;
 
-        const { networkConfigurationsByChainId } = this.messagingSystem.call(
-          'NetworkController:getState',
-        );
+        const chainIdAndNativeCurrency = chainIdsToUpdate.map((chainId) => {
+          return {
+            chainId: chainId as Hex,
+            nativeCurrency:
+              networkConfigurationsByChainId[chainId]?.nativeCurrency,
+          };
+        });
 
-        await Promise.allSettled(
-          chainIdsToUpdate.map(async (chainId) => {
-            const nativeCurrency =
-              networkConfigurationsByChainId[chainId as Hex]?.nativeCurrency;
-
-            if (nativeCurrency) {
-              await this.updateExchangeRatesByChainId({
-                chainId: chainId as Hex,
-                nativeCurrency,
-              });
-            }
-          }),
-        );
+        await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
       },
       ({ allTokens, allDetectedTokens }) => {
         return { allTokens, allDetectedTokens };
@@ -347,20 +347,26 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   #subscribeToNetworkStateChange() {
+    // TODO HERE: ------------------
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ selectedNetworkClientId }, patches) => {
-        const {
-          configuration: { chainId, ticker },
-        } = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          selectedNetworkClientId,
+      async ({ networkConfigurationsByChainId }, patches) => {
+        const chainIdAndNativeCurrency: {
+          chainId: Hex;
+          nativeCurrency: string;
+        }[] = Object.values(networkConfigurationsByChainId).map(
+          ({ chainId, nativeCurrency }) => {
+            return {
+              chainId: chainId as Hex,
+              nativeCurrency,
+            };
+          },
         );
 
         if (this.#pollState === PollState.Active) {
-          await this.updateExchangeRates(chainId, ticker);
+          await this.updateExchangeRates(chainIdAndNativeCurrency);
         }
 
         // Remove state for deleted networks
@@ -415,11 +421,12 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * Start (or restart) polling.
    *
    * @param chainId - The chain ID.
+   * @param nativeCurrency - The native currency.
    */
-  async start(chainId: Hex) {
+  async start(chainId: Hex, nativeCurrency: string) {
     this.#stopPoll();
     this.#pollState = PollState.Active;
-    await this.#poll({ chainId });
+    await this.#poll(chainId, nativeCurrency);
   }
 
   /**
@@ -456,18 +463,12 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   /**
    * Poll for exchange rate updates.
    *
-   * @param options - The options to poll for exchange rate updates.
-   * @param options.chainId - The chain ID.
+   * @param chainId - The chain ID.
+   * @param nativeCurrency - The native currency.
    */
-  async #poll({ chainId }: { chainId: Hex }) {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    const nativeCurrency =
-      networkConfigurationsByChainId[chainId as Hex]?.nativeCurrency;
-
+  async #poll(chainId: Hex, nativeCurrency: string) {
     await safelyExecute(() =>
-      this.updateExchangeRates(chainId, nativeCurrency),
+      this.updateExchangeRates([{ chainId, nativeCurrency }]),
     );
 
     // Poll using recursive `setTimeout` instead of `setInterval` so that
@@ -475,88 +476,111 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#handle = setTimeout(() => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#poll({ chainId });
+      this.#poll(chainId, nativeCurrency);
     }, this.#interval);
   }
 
   /**
    * Updates exchange rates for all tokens.
    *
-   * @param chainId - The chain ID.
-   * @param nativeCurrency - The native currency.
+   * @param chainIdAndNativeCurrency - The chain ID and native currency.
    */
-  async updateExchangeRates(chainId: Hex, nativeCurrency: string) {
-    await this.updateExchangeRatesByChainId({
-      chainId,
-      nativeCurrency,
-    });
+  async updateExchangeRates(
+    chainIdAndNativeCurrency: {
+      chainId: Hex;
+      nativeCurrency: string;
+    }[],
+  ) {
+    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
   /**
    * Updates exchange rates for all tokens.
    *
-   * @param options - The options to fetch exchange rates.
-   * @param options.chainId - The chain ID.
-   * @param options.nativeCurrency - The ticker for the chain.
+   * @param chainIds - The chain IDs.
+   * @returns A promise that resolves when all chain updates complete.
    */
-  async updateExchangeRatesByChainId({
-    chainId,
-    nativeCurrency,
-  }: {
-    chainId: Hex;
-    nativeCurrency: string;
-  }) {
+  /**
+   * Updates exchange rates for all tokens.
+   *
+   * @param chainIdAndNativeCurrency - The chain ID and native currency.
+   */
+  async updateExchangeRatesByChainId(
+    chainIdAndNativeCurrency: {
+      chainId: Hex;
+      nativeCurrency: string;
+    }[],
+  ): Promise<void> {
     if (this.#disabled) {
       return;
     }
 
-    const tokenAddresses = this.#getTokenAddresses(chainId);
+    // Create a promise for each chainId to fetch exchange rates.
+    const updatePromises = chainIdAndNativeCurrency.map(
+      async ({ chainId, nativeCurrency }) => {
+        const tokenAddresses = this.#getTokenAddresses(chainId);
+        // Build a unique key based on chainId, nativeCurrency, and the number of token addresses.
+        const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
 
-    // Key dependencies that will trigger a new request instead of aborting:
-    // - chainId - different chains require a new request
-    // - nativeCurrency - changing native currency requires fetching different rates
-    // - tokenAddress length - if we have detected any new tokens, we will need to make a new request for the rates
-    const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}:${tokenAddresses.length}`;
-    if (updateKey in this.#inProcessExchangeRateUpdates) {
-      // This prevents redundant updates
-      // This promise is resolved after the in-progress update has finished,
-      // and state has been updated.
-      await this.#inProcessExchangeRateUpdates[updateKey];
-      return;
-    }
+        if (updateKey in this.#inProcessExchangeRateUpdates) {
+          // Await any ongoing update to avoid redundant work.
+          await this.#inProcessExchangeRateUpdates[updateKey];
+          return null;
+        }
 
-    const {
-      promise: inProgressUpdate,
-      resolve: updateSucceeded,
-      reject: updateFailed,
-    } = createDeferredPromise({ suppressUnhandledRejection: true });
-    this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
+        // Create a deferred promise to track this update.
+        const {
+          promise: inProgressUpdate,
+          resolve: updateSucceeded,
+          reject: updateFailed,
+        } = createDeferredPromise({ suppressUnhandledRejection: true });
+        this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
 
-    try {
-      const contractInformations = await this.#fetchAndMapExchangeRates({
-        tokenAddresses,
-        chainId,
-        nativeCurrency,
-      });
+        try {
+          const contractInformations = await this.#fetchAndMapExchangeRates({
+            tokenAddresses,
+            chainId,
+            nativeCurrency,
+          });
 
-      const marketData = {
-        [chainId]: {
-          ...(contractInformations ?? {}),
-        },
-      };
+          // Each promise returns an object with the market data for the chain.
+          const marketData = {
+            [chainId]: {
+              ...(contractInformations ?? {}),
+            },
+          };
 
+          updateSucceeded();
+          return marketData;
+        } catch (error: unknown) {
+          updateFailed(error);
+          throw error;
+        } finally {
+          // Cleanup the tracking for this update.
+          delete this.#inProcessExchangeRateUpdates[updateKey];
+        }
+      },
+    );
+
+    // Wait for all update promises to settle.
+    const results = await Promise.allSettled(updatePromises);
+
+    // Merge all successful market data updates into one object.
+    const combinedMarketData = results.reduce((acc, result) => {
+      if (result.status === 'fulfilled' && result.value) {
+        acc = { ...acc, ...result.value };
+      }
+      return acc;
+    }, {});
+
+    // Call this.update only once with the combined market data to reduce the number of state changes and re-renders
+    if (Object.keys(combinedMarketData).length > 0) {
       this.update((state) => {
         state.marketData = {
           ...state.marketData,
-          ...marketData,
+          ...combinedMarketData,
         };
       });
-      updateSucceeded();
-    } catch (error: unknown) {
-      updateFailed(error);
-      throw error;
-    } finally {
-      delete this.#inProcessExchangeRateUpdates[updateKey];
     }
   }
 
@@ -619,25 +643,12 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * Updates token rates for the given networkClientId
    *
    * @param input - The input for the poll.
-   * @param input.chainId - The chain id to poll token rates on.
+   * @param input.chainIdAndNativeCurrency - The chain ids and native currencies to poll token rates on.
    */
-  async _executePoll({ chainId }: TokenRatesPollingInput): Promise<void> {
-    const { networkConfigurationsByChainId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-
-    const networkConfiguration = networkConfigurationsByChainId[chainId];
-    if (!networkConfiguration) {
-      console.error(
-        `TokenRatesController: No network configuration found for chainId ${chainId}`,
-      );
-      return;
-    }
-
-    await this.updateExchangeRatesByChainId({
-      chainId,
-      nativeCurrency: networkConfiguration.nativeCurrency,
-    });
+  async _executePoll({
+    chainIdAndNativeCurrency,
+  }: TokenRatesPollingInput): Promise<void> {
+    await this.updateExchangeRatesByChainId(chainIdAndNativeCurrency);
   }
 
   /**
