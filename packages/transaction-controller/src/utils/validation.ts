@@ -1,7 +1,7 @@
 import { Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
@@ -12,6 +12,11 @@ import {
   TransactionType,
   type TransactionParams,
 } from '../types';
+
+export enum ErrorCode {
+  DuplicateBundleId = 5720,
+  BundleTooLarge = 5740,
+}
 
 const TRANSACTION_ENVELOPE_TYPES_FEE_MARKET = [
   TransactionEnvelopeType.feeMarket,
@@ -305,7 +310,8 @@ export function validateBatchRequest({
   }
 
   if (isExternal && request.transactions.length > sizeLimit) {
-    throw rpcErrors.invalidParams(
+    throw new JsonRpcError(
+      ErrorCode.BundleTooLarge,
       `Batch size cannot exceed ${sizeLimit}. got: ${request.transactions.length}`,
     );
   }
