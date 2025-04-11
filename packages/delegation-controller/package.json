@@ -61,7 +61,8 @@
     "@metamask/base-controller": "^8.0.0",
     "@metamask/delegation-toolkit": "^0.9.0",
     "@metamask/keyring-controller": "^21.0.1",
-    "@metamask/utils": "^11.3.0"
+    "@metamask/utils": "^11.3.0",
+    "viem": "^2.26.3"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
