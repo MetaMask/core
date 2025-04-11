@@ -158,8 +158,8 @@ describe('toActiveNetworksByAddress', () => {
   it('formats EVM network responses', () => {
     const response: ActiveNetworksResponse = {
       activeNetworks: [
-        `eip155:1:${MOCK_ADDRESSES.evm}`,
-        `eip155:137:${MOCK_ADDRESSES.evm}`,
+        `${KnownCaipNamespace.Eip155}:1:${MOCK_ADDRESSES.evm}`,
+        `${KnownCaipNamespace.Eip155}:137:${MOCK_ADDRESSES.evm}`,
       ],
     };
 
