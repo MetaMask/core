@@ -1,7 +1,7 @@
 import type { NotNamespacedBy } from '@metamask/base-controller';
 import { Messenger } from '@metamask/base-controller';
-import type { EthKeyring } from '@metamask/keyring-internal-api';
 import { decrypt, type EthEncryptedData } from '@metamask/eth-sig-util';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
 
 import type {
   AllowedActions,
