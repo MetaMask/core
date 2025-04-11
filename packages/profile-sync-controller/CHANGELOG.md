@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `isAccountSyncingEnabled` `env` property from `UserStorageController` constructor ([#5629](https://github.com/MetaMask/core/pull/5629))
+
 ## [11.0.1]
 
 ### Changed

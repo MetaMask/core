@@ -6,18 +6,16 @@ import {
   getInternalAccountsList,
   getUserStorageAccountsList,
 } from './sync-utils';
-import type { AccountSyncingConfig, AccountSyncingOptions } from './types';
+import type { AccountSyncingOptions } from './types';
 
 describe('user-storage/account-syncing/sync-utils', () => {
   describe('canPerformAccountSyncing', () => {
     const arrangeMocks = ({
-      isAccountSyncingEnabled = true,
       isProfileSyncingEnabled = true,
       isAccountSyncingInProgress = false,
       messengerCallControllerAndAction = 'AuthenticationController:isSignedIn',
       messengerCallCallback = () => true,
     }) => {
-      const config: AccountSyncingConfig = { isAccountSyncingEnabled };
       const options: AccountSyncingOptions = {
         getMessenger: jest.fn().mockReturnValue({
           call: jest
@@ -36,7 +34,7 @@ describe('user-storage/account-syncing/sync-utils', () => {
         }),
       };
 
-      return { config, options };
+      return { options };
     };
 
     const failureCases = [
@@ -49,20 +47,19 @@ describe('user-storage/account-syncing/sync-utils', () => {
           messengerCallCallback: () => false,
         },
       ],
-      ['account syncing is not enabled', { isAccountSyncingEnabled: false }],
       ['account syncing is in progress', { isAccountSyncingInProgress: true }],
     ] as const;
 
     it.each(failureCases)('returns false if %s', (_message, mocks) => {
-      const { config, options } = arrangeMocks(mocks);
+      const { options } = arrangeMocks(mocks);
 
-      expect(canPerformAccountSyncing(config, options)).toBe(false);
+      expect(canPerformAccountSyncing(options)).toBe(false);
     });
 
     it('returns true if all conditions are met', () => {
-      const { config, options } = arrangeMocks({});
+      const { options } = arrangeMocks({});
 
-      expect(canPerformAccountSyncing(config, options)).toBe(true);
+      expect(canPerformAccountSyncing(options)).toBe(true);
     });
   });
 
