@@ -101,6 +101,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^8.0.0",
+    "@metamask/eth-sig-util": "^8.2.0",
     "@metamask/keyring-api": "^17.4.0",
     "@metamask/snaps-sdk": "^6.17.1",
     "@metamask/snaps-utils": "^8.10.0",
