@@ -32,7 +32,6 @@ import { type InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import type {
   PreferencesControllerStateChangeEvent,
@@ -70,7 +69,7 @@ import type {
 } from './NftDetectionController';
 import type { NetworkControllerGetNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
-type NFTStandardType = 'ERC721' | 'ERC1155';
+export type NFTStandardType = 'ERC721' | 'ERC1155';
 
 type SuggestedNftMeta = {
   asset: { address: string; tokenId: string } & NftMetadata;
@@ -250,7 +249,6 @@ export type AllowedActions =
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
-  | NetworkControllerNetworkDidChangeEvent
   | AccountsControllerSelectedEvmAccountChangeEvent;
 
 export type NftControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -1317,6 +1315,9 @@ export class NftController extends BaseController<
     if (!addressToSearch) {
       return;
     }
+    if (!networkClientId) {
+      throw rpcErrors.invalidParams('Network client id is required');
+    }
 
     await this.#validateWatchNft(asset, type, addressToSearch, networkClientId);
 
@@ -1343,7 +1344,6 @@ export class NftController extends BaseController<
     await this._requestApproval(suggestedNftMeta);
     const { address, tokenId } = asset;
     const { name, standard, description, image } = nftMetadata;
-
     await this.addNft(address, tokenId, networkClientId, {
       nftMetadata: {
         name: name ?? null,
@@ -1516,6 +1516,7 @@ export class NftController extends BaseController<
       networkClientId,
     );
     // This is the case when the NFT is added manually and not detected automatically
+    // TODO: An improvement would be to make the chainId a required field and return it when getting the NFT information
     if (!nftMetadata.chainId) {
       nftMetadata.chainId = convertHexToDecimal(chainId);
     }
@@ -2089,7 +2090,7 @@ export class NftController extends BaseController<
   async #updateNftUpdateForAccount(account: InternalAccount) {
     // get all nfts for the account for all chains
     const nfts: Nft[] = Object.values(
-      this.state.allNfts[account.address],
+      this.state.allNfts[account.address] || {},
     ).flat();
 
     // Filter only nfts

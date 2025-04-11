@@ -143,6 +143,7 @@ export function buildMockGetNetworkClientById(
     NetworkClientConfiguration
   > = {},
 ): NetworkController['getNetworkClientById'] {
+  console.log('#########################');
   // Since we might want to access these network client IDs so often in tests,
   // register the network client configurations for all Infura networks by
   // default. This does introduce a bit of magic as we don't expect to actually
@@ -167,6 +168,10 @@ export function buildMockGetNetworkClientById(
     ...defaultMockNetworkClientConfigurationsByNetworkClientId,
     ...mockNetworkClientConfigurationsByNetworkClientId,
   };
+  console.log(
+    'mergedMockNetworkClientConfigurationsByNetworkClientId',
+    mergedMockNetworkClientConfigurationsByNetworkClientId,
+  );
   function getNetworkClientById(
     networkClientId: BuiltInNetworkClientId,
   ): AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
@@ -175,8 +180,16 @@ export function buildMockGetNetworkClientById(
   ): AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
   // eslint-disable-next-line jsdoc/require-jsdoc
   function getNetworkClientById(networkClientId: string): NetworkClient {
+    console.log(
+      '🚀 ~ getNetworkClientById ~ networkClientId::::::',
+      networkClientId,
+    );
     const mockNetworkClientConfiguration =
       mergedMockNetworkClientConfigurationsByNetworkClientId[networkClientId];
+    console.log(
+      '🚀 ~ getNetworkClientById ~ mockNetworkClientConfiguration:',
+      mockNetworkClientConfiguration,
+    );
 
     if (mockNetworkClientConfiguration === undefined) {
       throw new Error(
