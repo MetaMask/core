@@ -1,7 +1,7 @@
 import type { TypedMessageParams } from '@metamask/keyring-controller';
 import { getChecksumAddress } from '@metamask/utils';
 
-import { ROOT_AUTHORITY, SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
+import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
 import type { Address, Delegation, DelegationStruct } from './types';
 
 /**
@@ -43,10 +43,7 @@ export const toDelegationStruct = (
   return {
     delegate: getChecksumAddress(delegation.delegate),
     delegator: getChecksumAddress(delegation.delegator),
-    authority:
-      delegation.authority === undefined
-        ? ROOT_AUTHORITY
-        : delegation.authority,
+    authority: delegation.authority,
     caveats,
     salt,
     signature: delegation.signature,

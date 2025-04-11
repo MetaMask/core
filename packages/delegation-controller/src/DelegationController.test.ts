@@ -30,8 +30,14 @@ const DELEGATION_MOCK: Delegation = {
   delegator: '0x1234567890123456789012345678901234567890' as Address,
   delegate: FROM_MOCK,
   authority: ROOT_AUTHORITY,
-  caveats: [],
-  salt: '0x0' as Hex,
+  caveats: [
+    {
+      enforcer: '0x1111111111111111111111111111111111111111',
+      terms: '0x',
+      args: '0x',
+    },
+  ],
+  salt: '0x' as Hex,
   signature: '0x',
 };
 
@@ -170,7 +176,10 @@ describe('DelegationController', () => {
 
       await expect(
         controller.sign({
-          delegation: DELEGATION_MOCK,
+          delegation: {
+            ...DELEGATION_MOCK,
+            salt: '0x1' as Hex,
+          },
           verifyingContract: VERIFYING_CONTRACT_MOCK,
           chainId: CHAIN_ID_MOCK,
         }),
