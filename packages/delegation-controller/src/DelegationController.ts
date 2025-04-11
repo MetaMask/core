@@ -2,13 +2,10 @@ import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
-import {
-  type Delegation,
-  getDelegationHashOffchain,
-  ROOT_AUTHORITY,
-} from './sdk';
+import { ROOT_AUTHORITY } from './constants';
 import type {
   Address,
+  Delegation,
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
@@ -71,9 +68,10 @@ export class DelegationController extends BaseController<
    * Signs a delegation.
    *
    * @param delegation - The delegation to sign.
+   * @param verifyingContract - The address of the verifying contract (DelegationManager).
    * @returns The signature of the delegation.
    */
-  async sign(delegation: Delegation) {
+  async sign(delegation: Delegation, verifyingContract: Address) {
     // TODO: Obtain this from `NetworkController:getSelectedChainId` once
     // available.
     // Ref: https://github.com/MetaMask/metamask-extension/issues/31150
@@ -91,6 +89,7 @@ export class DelegationController extends BaseController<
       chainId,
       from: account.address as Address,
       delegation,
+      verifyingContract,
     });
 
     // TODO:: Replace with `SignatureController:newUnsignedTypedMessage`.
@@ -107,10 +106,10 @@ export class DelegationController extends BaseController<
   /**
    * Stores a delegation in storage.
    *
+   * @param hash - The hash of the delegation to store.
    * @param entry - The delegation entry to store.
    */
-  store(entry: DelegationEntry) {
-    const hash = getDelegationHashOffchain(entry.data);
+  store(hash: Hex, entry: DelegationEntry) {
     this.update((state) => {
       state.delegations[hash] = entry;
     });
@@ -210,7 +209,7 @@ export class DelegationController extends BaseController<
       return 0;
     }
 
-    const list = Object.values(this.state.delegations);
+    const entries = Object.entries(this.state.delegations);
     let count = 0;
     const nextHashes: Hex[] = [hash];
 
@@ -218,14 +217,13 @@ export class DelegationController extends BaseController<
       const currentHash = nextHashes.pop() as Hex;
 
       // Find all delegations that have this hash as their authority
-      const children = list.filter(
-        (entry) => entry.data.authority === currentHash,
+      const children = entries.filter(
+        ([_, v]) => v.data.authority === currentHash,
       );
 
       // Add the hashes of all child delegations to be processed next
-      children.forEach((child) => {
-        const childHash = getDelegationHashOffchain(child.data);
-        nextHashes.push(childHash);
+      children.forEach(([k]) => {
+        nextHashes.push(k as Hex);
       });
 
       // Delete the current delegation

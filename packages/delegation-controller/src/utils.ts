@@ -1,15 +1,24 @@
 import type { TypedMessageParams } from '@metamask/keyring-controller';
 
 import { SIGNABLE_DELEGATION_TYPED_DATA } from './constants';
-import { getDeleGatorEnvironment, type Delegation } from './sdk';
-import type { Address } from './types';
+import type { Address, Delegation } from './types';
 
-export { isAddressEqual } from 'viem';
+/**
+ * Checks if two addresses are equal.
+ *
+ * @param a - The first address.
+ * @param b - The second address.
+ * @returns True if the addresses are equal, false otherwise.
+ */
+export function isAddressEqual(a: Address, b: Address) {
+  return a.toLowerCase() === b.toLowerCase();
+}
 
 type CreateTypedMessageParamsOptions = {
   chainId: number;
   from: Address;
   delegation: Delegation;
+  verifyingContract: Address;
 };
 
 /**
@@ -20,8 +29,7 @@ type CreateTypedMessageParamsOptions = {
 export function createTypedMessageParams(
   opts: CreateTypedMessageParamsOptions,
 ): TypedMessageParams {
-  const { chainId, from, delegation } = opts;
-  const delegatorEnv = getDeleGatorEnvironment(chainId);
+  const { chainId, from, delegation, verifyingContract } = opts;
 
   const data: TypedMessageParams = {
     data: {
@@ -31,7 +39,7 @@ export function createTypedMessageParams(
         chainId,
         name: 'DelegationManager',
         version: '1',
-        verifyingContract: delegatorEnv.DelegationManager,
+        verifyingContract,
       },
       message: delegation,
     },

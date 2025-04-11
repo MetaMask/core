@@ -10,12 +10,26 @@ import type {
   controllerName,
   DelegationController,
 } from './DelegationController';
-import type { Delegation } from './sdk';
 
 type Hex = `0x${string}`;
 type Address = `0x${string}`;
 
 export type { Address, Hex };
+
+export type Caveat = {
+  enforcer: Hex;
+  terms: Hex;
+  args: Hex;
+};
+
+export type Delegation = {
+  delegate: Hex;
+  delegator: Hex;
+  authority: Hex;
+  caveats: Caveat[];
+  salt: Hex;
+  signature: Hex;
+};
 
 export type DelegationEntry = {
   tags: string[];

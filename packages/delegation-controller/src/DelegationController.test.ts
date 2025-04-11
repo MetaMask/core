@@ -1,16 +1,13 @@
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
+import { ROOT_AUTHORITY } from './constants';
 import {
   DelegationController,
   getDefaultDelegationControllerState,
 } from './DelegationController';
-import {
-  type Delegation,
-  getDelegationHashOffchain,
-  ROOT_AUTHORITY,
-} from './sdk';
 import type {
   Address,
+  Delegation,
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
@@ -19,6 +16,12 @@ import type {
 
 const FROM_MOCK = '0x2234567890123456789012345678901234567890' as Address;
 const SIGNATURE_HASH_MOCK = '0x123ABC';
+
+const VERIFYING_CONTRACT_MOCK: Address =
+  '0x0000000000000000000000000000000000000000';
+
+const DELEGATION_HASH_MOCK: Hex =
+  '0x0000000000000000000000000000000000000000000000000000000000987EDF';
 
 const DELEGATION_MOCK: Delegation = {
   delegator: '0x1234567890123456789012345678901234567890' as Address,
@@ -129,16 +132,19 @@ describe('DelegationController', () => {
 
       accountsControllerGetSelectedAccountMock.mockReturnValue(null);
 
-      await expect(controller.sign(DELEGATION_MOCK)).rejects.toThrow(
-        'No chainId or account selected',
-      );
+      await expect(
+        controller.sign(DELEGATION_MOCK, VERIFYING_CONTRACT_MOCK),
+      ).rejects.toThrow('No chainId or account selected');
     });
 
     it('signs a delegation message', async () => {
       const { controller, keyringControllerSignTypedMessageMock } =
         createController();
 
-      const signature = await controller.sign(DELEGATION_MOCK);
+      const signature = await controller.sign(
+        DELEGATION_MOCK,
+        VERIFYING_CONTRACT_MOCK,
+      );
 
       expect(signature).toBe(SIGNATURE_HASH_MOCK);
       expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
@@ -167,43 +173,43 @@ describe('DelegationController', () => {
         new Error('Signature failed'),
       );
 
-      await expect(controller.sign(DELEGATION_MOCK)).rejects.toThrow(
-        'Signature failed',
-      );
+      await expect(
+        controller.sign(DELEGATION_MOCK, VERIFYING_CONTRACT_MOCK),
+      ).rejects.toThrow('Signature failed');
     });
   });
 
   describe('store', () => {
     it('stores a delegation entry in state', () => {
       const { controller } = createController();
-      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
 
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
-      expect(controller.state.delegations[hash]).toStrictEqual(
+      expect(controller.state.delegations[DELEGATION_HASH_MOCK]).toStrictEqual(
         DELEGATION_ENTRY_MOCK,
       );
     });
 
     it('overwrites existing delegation with same hash', () => {
       const { controller } = createController();
-      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
       const updatedEntry = {
         ...DELEGATION_ENTRY_MOCK,
         tags: ['test-tag'],
       };
-      controller.store(updatedEntry);
+      controller.store(DELEGATION_HASH_MOCK, updatedEntry);
 
-      expect(controller.state.delegations[hash]).toStrictEqual(updatedEntry);
+      expect(controller.state.delegations[DELEGATION_HASH_MOCK]).toStrictEqual(
+        updatedEntry,
+      );
     });
   });
 
   describe('list', () => {
     it('lists all delegations for the requester as delegate', () => {
       const { controller } = createController();
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
       const result = controller.list();
 
@@ -213,7 +219,7 @@ describe('DelegationController', () => {
 
     it('filters delegations by from address', () => {
       const { controller } = createController();
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
       const result = controller.list({ from: DELEGATION_MOCK.delegator });
 
@@ -223,7 +229,7 @@ describe('DelegationController', () => {
 
     it('filters delegations by chainId', () => {
       const { controller } = createController();
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
       const result = controller.list({ chainId: 11155111 });
 
@@ -237,7 +243,7 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         tags: ['test-tag'],
       };
-      controller.store(entryWithTags);
+      controller.store(DELEGATION_HASH_MOCK, entryWithTags);
 
       const result = controller.list({ tags: ['test-tag'] });
 
@@ -251,7 +257,7 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         tags: ['test-tag', 'test-tag-1'],
       };
-      controller.store(entryWithTags);
+      controller.store(DELEGATION_HASH_MOCK, entryWithTags);
 
       const result = controller.list({ tags: ['test-tag', 'test-tag-2'] });
 
@@ -269,7 +275,7 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         tags: ['test-tag'],
       };
-      controller.store(entryWithTags);
+      controller.store(DELEGATION_HASH_MOCK, entryWithTags);
 
       const result = controller.list({
         from: DELEGATION_MOCK.delegator,
@@ -293,8 +299,8 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         data: otherDelegation,
       };
-      controller.store(DELEGATION_ENTRY_MOCK);
-      controller.store(otherEntry);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
+      controller.store('0x12313123132', otherEntry);
 
       const result = controller.list({ from: otherDelegation.delegator });
 
@@ -304,7 +310,7 @@ describe('DelegationController', () => {
 
     it('filters delegations by from address when requester is the delegator', () => {
       const { controller } = createController();
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
       const result = controller.list({ from: DELEGATION_MOCK.delegator });
 
@@ -314,7 +320,7 @@ describe('DelegationController', () => {
 
     it('returns empty array when no delegations match filter', () => {
       const { controller } = createController();
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
       const result = controller.list({
         from: '0x9234567890123456789012345678901234567890' as Address,
@@ -329,10 +335,9 @@ describe('DelegationController', () => {
   describe('retrieve', () => {
     it('retrieves delegation by hash', () => {
       const { controller } = createController();
-      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
-      const result = controller.retrieve(hash);
+      const result = controller.retrieve(DELEGATION_HASH_MOCK);
 
       expect(result).toStrictEqual(DELEGATION_ENTRY_MOCK);
     });
@@ -349,13 +354,15 @@ describe('DelegationController', () => {
   describe('chain', () => {
     it('retrieves delegation chain from hash', () => {
       const { controller } = createController();
+      const parentHash = '0x0a';
       const parentDelegation = {
         ...DELEGATION_MOCK,
         authority: ROOT_AUTHORITY as Hex,
       };
+      const childHash = '0x0b';
       const childDelegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(parentDelegation) as Hex,
+        authority: parentHash as Hex,
       };
       const parentEntry = {
         ...DELEGATION_ENTRY_MOCK,
@@ -365,12 +372,10 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         data: childDelegation,
       };
-      controller.store(parentEntry);
-      controller.store(childEntry);
+      controller.store(parentHash, parentEntry);
+      controller.store(childHash, childEntry);
 
-      const result = controller.chain(
-        getDelegationHashOffchain(childDelegation),
-      );
+      const result = controller.chain(childHash);
 
       expect(result).toHaveLength(2);
       expect(result?.[0]).toStrictEqual(childEntry);
@@ -398,11 +403,11 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         data: invalidDelegation,
       };
-      controller.store(invalidEntry);
+      controller.store(DELEGATION_HASH_MOCK, invalidEntry);
 
-      expect(() =>
-        controller.chain(getDelegationHashOffchain(invalidDelegation)),
-      ).toThrow('Invalid delegation chain');
+      expect(() => controller.chain(DELEGATION_HASH_MOCK)).toThrow(
+        'Invalid delegation chain',
+      );
     });
 
     it('returns null for root authority', () => {
@@ -415,7 +420,7 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         data: rootDelegation,
       };
-      controller.store(rootEntry);
+      controller.store(DELEGATION_HASH_MOCK, rootEntry);
 
       const result = controller.chain(ROOT_AUTHORITY as Hex);
 
@@ -426,24 +431,27 @@ describe('DelegationController', () => {
   describe('delete', () => {
     it('deletes delegation by hash', () => {
       const { controller } = createController();
-      const hash = getDelegationHashOffchain(DELEGATION_MOCK);
-      controller.store(DELEGATION_ENTRY_MOCK);
+      controller.store(DELEGATION_HASH_MOCK, DELEGATION_ENTRY_MOCK);
 
-      const count = controller.delete(hash);
+      const count = controller.delete(DELEGATION_HASH_MOCK);
 
       expect(count).toBe(1);
-      expect(controller.state.delegations[hash]).toBeUndefined();
+      expect(
+        controller.state.delegations[DELEGATION_HASH_MOCK],
+      ).toBeUndefined();
     });
 
     it('deletes delegation chain', () => {
       const { controller } = createController();
+      const parentHash = '0x0a';
       const parentDelegation = {
         ...DELEGATION_MOCK,
         authority: ROOT_AUTHORITY as Hex,
       };
+      const childHash = '0x0b';
       const childDelegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(parentDelegation) as Hex,
+        authority: parentHash as Hex,
       };
       const parentEntry = {
         ...DELEGATION_ENTRY_MOCK,
@@ -453,40 +461,33 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         data: childDelegation,
       };
-      controller.store(parentEntry);
-      controller.store(childEntry);
+      controller.store(parentHash, parentEntry);
+      controller.store(childHash, childEntry);
 
-      const count = controller.delete(
-        getDelegationHashOffchain(parentDelegation),
-      );
+      const count = controller.delete(parentHash);
 
       expect(count).toBe(2);
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(childDelegation)
-        ],
-      ).toBeUndefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(parentDelegation)
-        ],
-      ).toBeUndefined();
+      expect(controller.state.delegations[childHash]).toBeUndefined();
+      expect(controller.state.delegations[parentHash]).toBeUndefined();
     });
 
     it('deletes delegation chain with multiple children', () => {
       const { controller } = createController();
+      const parentHash = '0x0a' as Hex;
       const parentDelegation = {
         ...DELEGATION_MOCK,
         authority: ROOT_AUTHORITY as Hex,
       };
+      const child1Hash = '0x0b' as Hex;
       const child1Delegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(parentDelegation) as Hex,
+        authority: parentHash,
         salt: '0x1' as Hex,
       };
+      const child2Hash = '0x0c' as Hex;
       const child2Delegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(parentDelegation) as Hex,
+        authority: parentHash,
         salt: '0x2' as Hex,
       };
       const parentEntry = {
@@ -501,30 +502,16 @@ describe('DelegationController', () => {
         ...DELEGATION_ENTRY_MOCK,
         data: child2Delegation,
       };
-      controller.store(parentEntry);
-      controller.store(child1Entry);
-      controller.store(child2Entry);
+      controller.store(parentHash, parentEntry);
+      controller.store(child1Hash, child1Entry);
+      controller.store(child2Hash, child2Entry);
 
-      const count = controller.delete(
-        getDelegationHashOffchain(parentDelegation),
-      );
+      const count = controller.delete(parentHash);
 
       expect(count).toBe(3);
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(parentDelegation)
-        ],
-      ).toBeUndefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(child1Delegation)
-        ],
-      ).toBeUndefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(child2Delegation)
-        ],
-      ).toBeUndefined();
+      expect(controller.state.delegations[parentHash]).toBeUndefined();
+      expect(controller.state.delegations[child1Hash]).toBeUndefined();
+      expect(controller.state.delegations[child2Hash]).toBeUndefined();
     });
 
     it('returns 0 when trying to delete non-existent delegation', () => {
@@ -537,34 +524,40 @@ describe('DelegationController', () => {
       const { controller } = createController();
       // Create a chain: root -> parent -> child1 -> grandchild1
       //                           -> child2 -> grandchild2
+      const rootHash = '0x0a' as Hex;
       const rootDelegation = {
         ...DELEGATION_MOCK,
         authority: ROOT_AUTHORITY as Hex,
         salt: '0x0' as Hex,
       };
+      const parentHash = '0x0b' as Hex;
       const parentDelegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(rootDelegation) as Hex,
+        authority: rootHash,
         salt: '0x1' as Hex,
       };
+      const child1Hash = '0x0c' as Hex;
       const child1Delegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(parentDelegation) as Hex,
+        authority: parentHash,
         salt: '0x2' as Hex,
       };
+      const child2Hash = '0x0d' as Hex;
       const child2Delegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(parentDelegation) as Hex,
+        authority: parentHash,
         salt: '0x3' as Hex,
       };
+      const grandchild1Hash = '0x0e' as Hex;
       const grandchild1Delegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(child1Delegation) as Hex,
+        authority: child1Hash,
         salt: '0x4' as Hex,
       };
+      const grandchild2Hash = '0x0f' as Hex;
       const grandchild2Delegation = {
         ...DELEGATION_MOCK,
-        authority: getDelegationHashOffchain(child2Delegation) as Hex,
+        authority: child2Hash,
         salt: '0x5' as Hex,
       };
 
@@ -581,46 +574,22 @@ describe('DelegationController', () => {
         data: grandchild2Delegation,
       };
 
-      controller.store(rootEntry);
-      controller.store(parentEntry);
-      controller.store(child1Entry);
-      controller.store(child2Entry);
-      controller.store(grandchild1Entry);
-      controller.store(grandchild2Entry);
+      controller.store(rootHash, rootEntry);
+      controller.store(parentHash, parentEntry);
+      controller.store(child1Hash, child1Entry);
+      controller.store(child2Hash, child2Entry);
+      controller.store(grandchild1Hash, grandchild1Entry);
+      controller.store(grandchild2Hash, grandchild2Entry);
 
-      const count = controller.delete(
-        getDelegationHashOffchain(parentDelegation),
-      );
+      const count = controller.delete(parentHash);
 
       expect(count).toBe(5); // parent + 2 children + 2 grandchildren
-      expect(
-        controller.state.delegations[getDelegationHashOffchain(rootDelegation)],
-      ).toBeDefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(parentDelegation)
-        ],
-      ).toBeUndefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(child1Delegation)
-        ],
-      ).toBeUndefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(child2Delegation)
-        ],
-      ).toBeUndefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(grandchild1Delegation)
-        ],
-      ).toBeUndefined();
-      expect(
-        controller.state.delegations[
-          getDelegationHashOffchain(grandchild2Delegation)
-        ],
-      ).toBeUndefined();
+      expect(controller.state.delegations[rootHash]).toBeDefined();
+      expect(controller.state.delegations[parentHash]).toBeUndefined();
+      expect(controller.state.delegations[child1Hash]).toBeUndefined();
+      expect(controller.state.delegations[child2Hash]).toBeUndefined();
+      expect(controller.state.delegations[grandchild1Hash]).toBeUndefined();
+      expect(controller.state.delegations[grandchild2Hash]).toBeUndefined();
     });
 
     it('handles empty nextHashes array gracefully', () => {

@@ -1,4 +1,5 @@
-import { SIGNABLE_DELEGATION_TYPED_DATA as SDK_SIGNABLE_DELEGATION_TYPED_DATA } from './sdk';
+export const ROOT_AUTHORITY =
+  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
 
 const EIP712Domain = [
   { name: 'name', type: 'string' },
@@ -6,6 +7,20 @@ const EIP712Domain = [
   { name: 'chainId', type: 'uint256' },
   { name: 'verifyingContract', type: 'address' },
 ];
+
+const SDK_SIGNABLE_DELEGATION_TYPED_DATA = {
+  Caveat: [
+    { name: 'enforcer', type: 'address' },
+    { name: 'terms', type: 'bytes' },
+  ],
+  Delegation: [
+    { name: 'delegate', type: 'address' },
+    { name: 'delegator', type: 'address' },
+    { name: 'authority', type: 'bytes32' },
+    { name: 'caveats', type: 'Caveat[]' },
+    { name: 'salt', type: 'uint256' },
+  ],
+} as const;
 
 export const SIGNABLE_DELEGATION_TYPED_DATA = {
   EIP712Domain,
