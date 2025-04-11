@@ -2,6 +2,7 @@
 /* eslint-disable jest/no-conditional-in-test */
 import { BridgeClientId } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
 import { BridgeStatusController } from './bridge-status-controller';
@@ -131,7 +132,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
   srcTokenAmount: '991250000000000',
   srcAsset: {
     address: '0x0000000000000000000000000000000000000000',
-    assetId: `eip155:${srcChainId}/slip44:60`,
+    assetId: `eip155:${srcChainId}/slip44:60` as CaipAssetType,
     chainId: srcChainId,
     symbol: 'ETH',
     decimals: 18,
@@ -146,7 +147,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
   destTokenAmount: '990654755978612',
   destAsset: {
     address: '0x0000000000000000000000000000000000000000',
-    assetId: `eip155:${destChainId}/slip44:60`,
+    assetId: `eip155:${destChainId}/slip44:60` as CaipAssetType,
     chainId: destChainId,
     symbol: 'ETH',
     decimals: 18,
@@ -162,7 +163,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       amount: '8750000000000',
       asset: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: `eip155:${srcChainId}/slip44:60`,
+        assetId: `eip155:${srcChainId}/slip44:60` as CaipAssetType,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -189,7 +190,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       },
       srcAsset: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: `eip155:${srcChainId}/slip44:60`,
+        assetId: `eip155:${srcChainId}/slip44:60` as CaipAssetType,
         chainId: srcChainId,
         symbol: 'ETH',
         decimals: 18,
@@ -202,7 +203,7 @@ const getMockQuote = ({ srcChainId = 42161, destChainId = 10 } = {}) => ({
       },
       destAsset: {
         address: '0x0000000000000000000000000000000000000000',
-        assetId: `eip155:${destChainId}/slip44:60`,
+        assetId: `eip155:${destChainId}/slip44:60` as CaipAssetType,
         chainId: destChainId,
         symbol: 'ETH',
         decimals: 18,

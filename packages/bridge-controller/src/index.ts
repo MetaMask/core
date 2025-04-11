@@ -80,7 +80,7 @@ export {
   getDefaultBridgeControllerState,
 } from './utils/bridge';
 
-export { isValidQuoteRequest } from './utils/quote';
+export { isValidQuoteRequest, formatEtaInMinutes } from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
@@ -91,3 +91,9 @@ export {
   formatChainIdToHex,
   formatAddressToCaipReference,
 } from './utils/caip-formatters';
+
+export {
+  selectBridgeQuotes,
+  type BridgeAppState,
+  selectExchangeRateByChainIdAndAddress,
+} from './selectors';

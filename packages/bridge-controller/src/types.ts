@@ -1,5 +1,10 @@
 import type { AccountsControllerGetSelectedMultichainAccountAction } from '@metamask/accounts-controller';
 import type {
+  GetCurrencyRateState,
+  MultichainAssetsRatesControllerGetStateAction,
+  TokenRatesControllerGetStateAction,
+} from '@metamask/assets-controllers';
+import type {
   ControllerStateChangeEvent,
   RestrictedMessenger,
 } from '@metamask/base-controller';
@@ -12,10 +17,10 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   CaipAccountId,
   CaipAssetId,
+  CaipAssetType,
   CaipChainId,
   Hex,
 } from '@metamask/utils';
-import type { BigNumber } from 'bignumber.js';
 
 import type { BridgeController } from './bridge-controller';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
@@ -69,13 +74,33 @@ export type SolanaFees = {
 };
 
 /**
- * valueInCurrency values are calculated based on the user's selected currency
+ * The types of values for the token amount and its values when converted to the user's selected currency and USD
  */
 export type TokenAmountValues = {
-  amount: BigNumber;
-  valueInCurrency: BigNumber | null;
-  usd: BigNumber | null;
+  /**
+   * The amount of the token
+   *
+   * @example "1000000000000000000"
+   */
+  amount: string;
+  /**
+   * The amount of the token in the user's selected currency
+   *
+   * @example "4.55"
+   */
+  valueInCurrency: string | null;
+  /**
+   * The amount of the token in USD
+   *
+   * @example "1.234"
+   */
+  usd: string | null;
 };
+
+/**
+ * Asset exchange rate values for a given chain and address
+ */
+export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
 
 /**
  * Values derived from the quote response
@@ -87,7 +112,7 @@ export type QuoteMetadata = {
   toTokenAmount: TokenAmountValues;
   adjustedReturn: Omit<TokenAmountValues, 'amount'>; // destTokenAmount - totalNetworkFee
   sentAmount: TokenAmountValues; // srcTokenAmount + metabridgeFee
-  swapRate: BigNumber; // destTokenAmount / sentAmount
+  swapRate: string; // destTokenAmount / sentAmount
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
 
@@ -132,7 +157,7 @@ export type BridgeAsset = {
   /**
    * The assetId of the token
    */
-  assetId: string;
+  assetId: CaipAssetType;
 };
 
 /**
@@ -328,6 +353,10 @@ export type BridgeControllerState = {
   quotesLoadingStatus: RequestStatus | null;
   quoteFetchError: string | null;
   quotesRefreshCount: number;
+  /**
+   * Asset exchange rates for EVM and multichain assets that are not indexed by the assets controllers
+   */
+  assetExchangeRates: Record<CaipAssetType, ExchangeRate>;
 };
 
 export type BridgeControllerAction<
@@ -351,6 +380,9 @@ export type BridgeControllerEvents = ControllerStateChangeEvent<
 
 export type AllowedActions =
   | AccountsControllerGetSelectedMultichainAccountAction
+  | GetCurrencyRateState
+  | TokenRatesControllerGetStateAction
+  | MultichainAssetsRatesControllerGetStateAction
   | HandleSnapRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
