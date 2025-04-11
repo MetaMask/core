@@ -195,3 +195,15 @@ export type {
   TokenSearchDiscoveryDataControllerActions,
   TokenSearchDiscoveryDataControllerMessenger,
 } from './TokenSearchDiscoveryDataController';
+export { DeFiPositionsController } from './DeFiPositionsController/DeFiPositionsController';
+export type {
+  DeFiPositionsControllerState,
+  DeFiPositionsControllerAllowedActions,
+  DeFiPositionsControllerAllowedEvents,
+  DeFiPositionsControllerActions,
+  DeFiPositionsControllerEvents,
+  DeFiPositionsControllerGetStateAction,
+  DeFiPositionsControllerStateChangeEvent,
+  DeFiPositionsControllerMessenger,
+} from './DeFiPositionsController/DeFiPositionsController';
+export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
