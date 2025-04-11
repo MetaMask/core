@@ -1,5 +1,4 @@
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import type { Address, Hex } from 'viem';
 
 import {
   DelegationController,
@@ -11,9 +10,11 @@ import {
   ROOT_AUTHORITY,
 } from './sdk';
 import type {
+  Address,
   DelegationControllerMessenger,
   DelegationControllerState,
   DelegationEntry,
+  Hex,
 } from './types';
 
 const FROM_MOCK = '0x2234567890123456789012345678901234567890' as Address;

@@ -1,7 +1,6 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import { isAddressEqual } from 'viem';
 
 import {
   type Delegation,
@@ -16,7 +15,7 @@ import type {
   DelegationFilter,
   Hex,
 } from './types';
-import { createTypedMessageParams } from './utils';
+import { createTypedMessageParams, isAddressEqual } from './utils';
 
 export const controllerName = 'DelegationController';
 

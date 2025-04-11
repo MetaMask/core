@@ -5,7 +5,6 @@ import type {
   RestrictedMessenger,
 } from '@metamask/base-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
-import type { Address, Hex } from 'viem';
 
 import type {
   controllerName,
@@ -13,7 +12,10 @@ import type {
 } from './DelegationController';
 import type { Delegation } from './sdk';
 
-export type { Address, Hex } from 'viem';
+type Hex = `0x${string}`;
+type Address = `0x${string}`;
+
+export type { Address, Hex };
 
 export type DelegationEntry = {
   tags: string[];

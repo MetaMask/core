@@ -72,11 +72,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2",
-    "viem": "2.21.55"
-  },
-  "peerDependencies": {
-    "viem": ">=2.18.2 <3.0.0"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
