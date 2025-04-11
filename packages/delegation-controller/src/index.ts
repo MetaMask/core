@@ -6,4 +6,4 @@ export type {
   DelegationFilter,
 } from './types';
 
-export { DelegationController } from './delegation-controller';
+export { DelegationController } from './DelegationController';

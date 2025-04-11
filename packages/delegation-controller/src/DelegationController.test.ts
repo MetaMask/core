@@ -4,7 +4,7 @@ import type { Address, Hex } from 'viem';
 import {
   DelegationController,
   getDefaultDelegationControllerState,
-} from './delegation-controller';
+} from './DelegationController';
 import {
   type Delegation,
   getDelegationHashOffchain,

@@ -10,7 +10,7 @@ import type { Address, Hex } from 'viem';
 import type {
   controllerName,
   DelegationController,
-} from './delegation-controller';
+} from './DelegationController';
 import type { Delegation } from './sdk';
 
 export type { Address, Hex } from 'viem';
