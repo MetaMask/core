@@ -153,6 +153,8 @@ describe('toAllowedCaipAccountIds', () => {
 });
 
 describe('toActiveNetworksByAddress', () => {
+  const SOLANA_MAINNET: CaipReference = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+
   it('formats EVM network responses', () => {
     const response: ActiveNetworksResponse = {
       activeNetworks: [
