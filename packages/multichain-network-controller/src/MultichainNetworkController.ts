@@ -5,6 +5,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import { type CaipChainId, isCaipChainId } from '@metamask/utils';
 
 import {
+  AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from './constants';
@@ -48,8 +49,9 @@ export class MultichainNetworkController extends BaseController<
         ...getDefaultMultichainNetworkControllerState(),
         ...state,
         multichainNetworkConfigurationsByChainId: {
-          ...getDefaultMultichainNetworkControllerState()
-            .multichainNetworkConfigurationsByChainId,
+          // We can keep the current network as a hardcoded value
+          // since it is not expected to add/remove networks yet.
+          ...AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
         },
       },
     });
