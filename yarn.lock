@@ -4014,6 +4014,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^27.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
+    "@metamask/eth-sig-util": "npm:^8.2.0"
     "@metamask/keyring-api": "npm:^17.4.0"
     "@metamask/keyring-controller": "npm:^21.0.2"
     "@metamask/keyring-internal-api": "npm:^6.0.1"
