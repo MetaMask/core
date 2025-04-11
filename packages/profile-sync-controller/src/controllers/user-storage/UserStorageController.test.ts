@@ -991,7 +991,7 @@ describe('user-storage/user-storage-controller - snap handling', () => {
     });
 
     await expect(controller.getStorageKey()).rejects.toThrow(
-      '#snapSignMessage - unable to call snap, wallet is locked',
+      /.*unable to call snap, wallet is locked/u,
     );
   });
 
@@ -1011,7 +1011,7 @@ describe('user-storage/user-storage-controller - snap handling', () => {
     messengerMocks.baseMessenger.publish('KeyringController:lock');
 
     await expect(controller.getStorageKey()).rejects.toThrow(
-      '#snapSignMessage - unable to call snap, wallet is locked',
+      /.*unable to call snap, wallet is locked/u,
     );
 
     messengerMocks.baseMessenger.publish('KeyringController:unlock');
