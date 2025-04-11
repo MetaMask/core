@@ -32,6 +32,7 @@ import {
   type MultichainNetworkControllerAllowedEvents,
   MULTICHAIN_NETWORK_CONTROLLER_NAME,
 } from '../types';
+
 /**
  * Creates a mock network service for testing.
  *
