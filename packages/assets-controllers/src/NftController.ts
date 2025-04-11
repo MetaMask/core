@@ -1574,8 +1574,6 @@ export class NftController extends BaseController<
       // We want to avoid updating the state if the state and fetched nft info are the same
       const nftsWithDifferentMetadata: NftUpdate[] = [];
       const { allNfts } = this.state;
-      // const stateNfts = allNfts[addressToSearch]?.[chainId] || [];
-      // TODO fix stateNFts to be an array of all NFTs that correspond to the input nfts
       // get from state allNfts that match nftsWithChecksumAdr
       const stateNfts = nftsWithChecksumAdr.map((nft) => {
         return allNfts[addressToSearch]?.[toHex(nft.chainId as number)]?.find(
