@@ -2959,7 +2959,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^8.0.0"
     "@metamask/keyring-controller": "npm:^21.0.2"
-    "@metamask/utils": "npm:^11.3.0"
+    "@metamask/utils": "npm:^11.2.0"
     "@ts-bridge/cli": "npm:^0.6.1"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -4538,23 +4538,6 @@ __metadata:
     semver: "npm:^7.5.4"
     uuid: "npm:^9.0.1"
   checksum: 10/9cc2cb6af4627085e72a310ba9b8921c69757d94e2992d4664627e5a0d99b1f2f7f8069c6f22262515135e1172bd66b82d00512d90ea2ec6da4e768f3d7d4ae2
-  languageName: node
-  linkType: hard
-
-"@metamask/utils@npm:^11.3.0":
-  version: 11.3.0
-  resolution: "@metamask/utils@npm:11.3.0"
-  dependencies:
-    "@ethereumjs/tx": "npm:^4.2.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@noble/hashes": "npm:^1.3.1"
-    "@scure/base": "npm:^1.1.3"
-    "@types/debug": "npm:^4.1.7"
-    debug: "npm:^4.3.4"
-    pony-cause: "npm:^2.1.10"
-    semver: "npm:^7.5.4"
-    uuid: "npm:^9.0.1"
-  checksum: 10/178367aaf608339cd7d6f9cb97e1cc01b58b03c55c0017e83ab8e08e66bcf061ee2f0dd867d4ed2a916cc03672f8dd0bb04b9ff79a0b43657e7d76bdbb2e72f2
   languageName: node
   linkType: hard
 
