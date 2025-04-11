@@ -1,14 +1,11 @@
-import {
-  BridgeClientId,
-  BRIDGE_PROD_API_BASE_URL,
-  FeeType,
-} from '@metamask/bridge-controller';
+import { BRIDGE_PROD_API_BASE_URL, FeeType } from '@metamask/bridge-controller';
 
 import {
   fetchBridgeTxStatus,
   getBridgeStatusUrl,
   getStatusRequestDto,
 } from './bridge-status';
+import { BridgeClientId } from '../../../bridge-controller/dist/constants/bridge.cjs';
 import type { StatusRequestWithSrcTxHash, FetchFunction } from '../types';
 
 describe('utils', () => {

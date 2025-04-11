@@ -1,20 +1,20 @@
 /* eslint-disable jest/no-restricted-matchers */
 /* eslint-disable jest/no-conditional-in-test */
-import { BridgeClientId } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
 
 import { BridgeStatusController } from './bridge-status-controller';
 import { DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE } from './constants';
-import type {
-  BridgeId,
-  StatusTypes,
-  ActionTypes,
-  StartPollingForBridgeTxStatusArgsSerialized,
-  BridgeHistoryItem,
-  BridgeStatusControllerState,
-  BridgeStatusControllerMessenger,
+import {
+  type BridgeId,
+  type StatusTypes,
+  type ActionTypes,
+  type StartPollingForBridgeTxStatusArgsSerialized,
+  type BridgeHistoryItem,
+  type BridgeStatusControllerState,
+  type BridgeStatusControllerMessenger,
+  BridgeClientId,
 } from './types';
 import * as bridgeStatusUtils from './utils/bridge-status';
 import { flushPromises } from '../../../tests/helpers';

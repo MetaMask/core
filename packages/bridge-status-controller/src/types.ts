@@ -26,6 +26,11 @@ import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
 
+export enum BridgeClientId {
+  EXTENSION = 'extension',
+  MOBILE = 'mobile',
+}
+
 export type FetchFunction = (
   input: RequestInfo | URL,
   init?: RequestInit,
