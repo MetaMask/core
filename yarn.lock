@@ -2985,7 +2985,7 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
-    viem: "npm:^2.21.8"
+    viem: "npm:2.21.55"
   peerDependencies:
     viem: ">=2.18.2 <3.0.0"
   languageName: unknown
@@ -4688,12 +4688,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:1.8.1, @noble/curves@npm:^1.4.0, @noble/curves@npm:^1.6.0, @noble/curves@npm:~1.8.1":
-  version: 1.8.1
-  resolution: "@noble/curves@npm:1.8.1"
+"@noble/curves@npm:1.7.0, @noble/curves@npm:~1.7.0":
+  version: 1.7.0
+  resolution: "@noble/curves@npm:1.7.0"
   dependencies:
-    "@noble/hashes": "npm:1.7.1"
-  checksum: 10/e861db372cc0734b02a4c61c0f5a6688d4a7555edca3d8a9e7c846c9aa103ca52d3c3818e8bc333a1a95b5be7f370ff344668d5d759471b11c2d14c7f24b3984
+    "@noble/hashes": "npm:1.6.0"
+  checksum: 10/2a11ef4895907d0b241bd3b72f9e6ebe56f0e705949bfd5efe003f25233549f620d287550df2d24ad56a1f953b82ec5f7cf4bd7cb78b1b2e76eb6dd516d44cf8
   languageName: node
   linkType: hard
 
@@ -4703,6 +4703,15 @@ __metadata:
   dependencies:
     "@noble/hashes": "npm:1.4.0"
   checksum: 10/d7707d756a887a0daf9eba709526017ac6905d4be58760947e0f0652961926295ba62a5a699d9a9f0bf2a2e0c6803381373e14542be5ff3885b3434bb59be86c
+  languageName: node
+  linkType: hard
+
+"@noble/curves@npm:^1.4.0, @noble/curves@npm:^1.6.0, @noble/curves@npm:~1.8.1":
+  version: 1.8.1
+  resolution: "@noble/curves@npm:1.8.1"
+  dependencies:
+    "@noble/hashes": "npm:1.7.1"
+  checksum: 10/e861db372cc0734b02a4c61c0f5a6688d4a7555edca3d8a9e7c846c9aa103ca52d3c3818e8bc333a1a95b5be7f370ff344668d5d759471b11c2d14c7f24b3984
   languageName: node
   linkType: hard
 
@@ -4717,6 +4726,20 @@ __metadata:
   version: 1.4.0
   resolution: "@noble/hashes@npm:1.4.0"
   checksum: 10/e156e65794c473794c52fa9d06baf1eb20903d0d96719530f523cc4450f6c721a957c544796e6efd0197b2296e7cd70efeb312f861465e17940a3e3c7e0febc6
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:1.6.0":
+  version: 1.6.0
+  resolution: "@noble/hashes@npm:1.6.0"
+  checksum: 10/b44b043b02adbecd33596adeed97d9f9864c24a2410f7ac3b847986c2ecf1f6f0df76024b3f1b14d6ea954932960d88898fe551fb9d39844a8b870e9f9044ea1
+  languageName: node
+  linkType: hard
+
+"@noble/hashes@npm:1.6.1, @noble/hashes@npm:~1.6.0":
+  version: 1.6.1
+  resolution: "@noble/hashes@npm:1.6.1"
+  checksum: 10/74d9ad7b1437a22ba3b877584add3367587fbf818113152f293025d20d425aa74c191d18d434797312f2270458bc9ab3241c34d14ec6115fb16438b3248f631f
   languageName: node
   linkType: hard
 
@@ -4971,7 +4994,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/base@npm:~1.2.2, @scure/base@npm:~1.2.4":
+"@scure/base@npm:~1.2.1, @scure/base@npm:~1.2.2, @scure/base@npm:~1.2.4":
   version: 1.2.4
   resolution: "@scure/base@npm:1.2.4"
   checksum: 10/4b61679209af40143b49ce7b7570e1d9157c19df311ea6f57cd212d764b0b82222dbe3707334f08bec181caf1f047aca31aa91193c678d6548312cb3f9c82ab1
@@ -4989,7 +5012,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip32@npm:1.6.2, @scure/bip32@npm:^1.5.0":
+"@scure/bip32@npm:1.6.0":
+  version: 1.6.0
+  resolution: "@scure/bip32@npm:1.6.0"
+  dependencies:
+    "@noble/curves": "npm:~1.7.0"
+    "@noble/hashes": "npm:~1.6.0"
+    "@scure/base": "npm:~1.2.1"
+  checksum: 10/2efb81ed9a7b8d5d35233e10abebc114544a3783a2a32b9fb60e1e9a67965b272c9d17910e1649083b69c8ceb80241b05b59dbeb7a5b18ea34e497aed3f16709
+  languageName: node
+  linkType: hard
+
+"@scure/bip32@npm:^1.5.0":
   version: 1.6.2
   resolution: "@scure/bip32@npm:1.6.2"
   dependencies:
@@ -5010,7 +5044,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/bip39@npm:1.5.4, @scure/bip39@npm:^1.4.0":
+"@scure/bip39@npm:1.5.0":
+  version: 1.5.0
+  resolution: "@scure/bip39@npm:1.5.0"
+  dependencies:
+    "@noble/hashes": "npm:~1.6.0"
+    "@scure/base": "npm:~1.2.1"
+  checksum: 10/b795ee31ac4c10603bf3b726cc0e5cf43834a68f05a535e0baf2162772bac100de470b4c6cf7ddbecb95d7a3fb82b8a959badced406c329ab696cd89104194bc
+  languageName: node
+  linkType: hard
+
+"@scure/bip39@npm:^1.4.0":
   version: 1.5.4
   resolution: "@scure/bip39@npm:1.5.4"
   dependencies:
@@ -6443,7 +6487,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"abitype@npm:1.0.8, abitype@npm:^1.0.6":
+"abitype@npm:1.0.7":
+  version: 1.0.7
+  resolution: "abitype@npm:1.0.7"
+  peerDependencies:
+    typescript: ">=5.0.4"
+    zod: ^3 >=3.22.0
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+    zod:
+      optional: true
+  checksum: 10/6c2c3390a2f90186bf0df73f20cf257dfd9b62d1eb266de6ddf362030dcbd79cd113b4110e52f7802d7b042ea8fdb7ee2f113751b883787c2d9589d56fb4273b
+  languageName: node
+  linkType: hard
+
+"abitype@npm:^1.0.6":
   version: 1.0.8
   resolution: "abitype@npm:1.0.8"
   peerDependencies:
@@ -12135,9 +12194,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ox@npm:0.6.9":
-  version: 0.6.9
-  resolution: "ox@npm:0.6.9"
+"ox@npm:0.1.2":
+  version: 0.1.2
+  resolution: "ox@npm:0.1.2"
   dependencies:
     "@adraffy/ens-normalize": "npm:^1.10.1"
     "@noble/curves": "npm:^1.6.0"
@@ -12151,7 +12210,7 @@ __metadata:
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/11ad9076b594dd424cd89d9763d4701e59e7ffc0733973947c82a14255a00a53483712e62fa9bbacd39efd35c6739bddb7728ef2211b47530f22036ab77cde69
+  checksum: 10/cba00f13289599ff03cee3dbc19167c1d0f01829379d119f962b4e951ee2bf0d14491c7a45974e6a2a745117b13b22e9e4131d285e1f5247ea4e1cbc43c5c3d8
   languageName: node
   linkType: hard
 
@@ -14394,24 +14453,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"viem@npm:^2.21.8":
-  version: 2.24.3
-  resolution: "viem@npm:2.24.3"
+"viem@npm:2.21.55":
+  version: 2.21.55
+  resolution: "viem@npm:2.21.55"
   dependencies:
-    "@noble/curves": "npm:1.8.1"
-    "@noble/hashes": "npm:1.7.1"
-    "@scure/bip32": "npm:1.6.2"
-    "@scure/bip39": "npm:1.5.4"
-    abitype: "npm:1.0.8"
+    "@noble/curves": "npm:1.7.0"
+    "@noble/hashes": "npm:1.6.1"
+    "@scure/bip32": "npm:1.6.0"
+    "@scure/bip39": "npm:1.5.0"
+    abitype: "npm:1.0.7"
     isows: "npm:1.0.6"
-    ox: "npm:0.6.9"
-    ws: "npm:8.18.1"
+    ox: "npm:0.1.2"
+    webauthn-p256: "npm:0.0.10"
+    ws: "npm:8.18.0"
   peerDependencies:
     typescript: ">=5.0.4"
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/758a8952abe804a5482717593b3d0e39e9cd196348930640be64766b0bd3ce1a19eaa4a28bdf49b9be261abb502732d4fc7a871db5fa052e43ab17243f206d27
+  checksum: 10/4fbcac7d9c909b3807a49a271343f60d70f0f5c42dabc7971de3bed3f619a7bdfe6e9820457477131b0c4c59e4c8de8f36d562b0642534bb35fd1b4961ba5775
   languageName: node
   linkType: hard
 
@@ -14453,6 +14513,16 @@ __metadata:
   dependencies:
     makeerror: "npm:1.0.12"
   checksum: 10/ad7a257ea1e662e57ef2e018f97b3c02a7240ad5093c392186ce0bcf1f1a60bbadd520d073b9beb921ed99f64f065efb63dfc8eec689a80e569f93c1c5d5e16c
+  languageName: node
+  linkType: hard
+
+"webauthn-p256@npm:0.0.10":
+  version: 0.0.10
+  resolution: "webauthn-p256@npm:0.0.10"
+  dependencies:
+    "@noble/curves": "npm:^1.4.0"
+    "@noble/hashes": "npm:^1.4.0"
+  checksum: 10/dde2b6313b6a0f20996f7ee90181258fc7685bfff401df7d904578da75b374f25d5b9c1189cd2fcec30625b1f276b393188d156d49783f0611623cd713bb5b09
   languageName: node
   linkType: hard
 
@@ -14732,9 +14802,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ws@npm:8.18.1":
-  version: 8.18.1
-  resolution: "ws@npm:8.18.1"
+"ws@npm:8.18.0":
+  version: 8.18.0
+  resolution: "ws@npm:8.18.0"
   peerDependencies:
     bufferutil: ^4.0.1
     utf-8-validate: ">=5.0.2"
@@ -14743,7 +14813,7 @@ __metadata:
       optional: true
     utf-8-validate:
       optional: true
-  checksum: 10/3f38e9594f2af5b6324138e86b74df7d77bbb8e310bf8188679dd80bac0d1f47e51536a1923ac3365f31f3d8b25ea0b03e4ade466aa8292a86cd5defca64b19b
+  checksum: 10/70dfe53f23ff4368d46e4c0b1d4ca734db2c4149c6f68bc62cb16fc21f753c47b35fcc6e582f3bdfba0eaeb1c488cddab3c2255755a5c3eecb251431e42b3ff6
   languageName: node
   linkType: hard
 
