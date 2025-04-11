@@ -191,8 +191,8 @@ describe('toActiveNetworksByAddress', () => {
   it('formats mixed EVM and non-EVM networks', () => {
     const response: ActiveNetworksResponse = {
       activeNetworks: [
-        `eip155:1:${MOCK_ADDRESSES.evm}`,
-        `solana:1:${MOCK_ADDRESSES.solana}`,
+        `${KnownCaipNamespace.Eip155}:1:${MOCK_ADDRESSES.evm}`,
+        `${KnownCaipNamespace.Solana}:${SOLANA_MAINNET}:${MOCK_ADDRESSES.solana}`,
       ],
     };
 
@@ -205,7 +205,7 @@ describe('toActiveNetworksByAddress', () => {
       },
       [MOCK_ADDRESSES.solana]: {
         namespace: KnownCaipNamespace.Solana,
-        activeChains: ['1'],
+        activeChains: [SOLANA_MAINNET],
       },
     });
   });
