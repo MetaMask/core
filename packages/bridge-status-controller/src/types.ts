@@ -15,6 +15,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
+import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type {
   TransactionControllerGetStateAction,
   TransactionMeta,
@@ -25,6 +26,11 @@ import type { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
+
+export enum BridgeClientId {
+  EXTENSION = 'extension',
+  MOBILE = 'mobile',
+}
 
 export type FetchFunction = (
   input: RequestInfo | URL,
@@ -187,6 +193,7 @@ export enum BridgeStatusAction {
   WIPE_BRIDGE_STATUS = 'wipeBridgeStatus',
   GET_STATE = 'getState',
   RESET_STATE = 'resetState',
+  SUBMIT_TX = 'submitTx',
 }
 
 export type TokenAmountValuesSerialized = {
@@ -277,11 +284,15 @@ export type BridgeStatusControllerWipeBridgeStatusAction =
 export type BridgeStatusControllerResetStateAction =
   BridgeStatusControllerAction<BridgeStatusAction.RESET_STATE>;
 
+export type BridgeStatusControllerSubmitTxAction =
+  BridgeStatusControllerAction<BridgeStatusAction.SUBMIT_TX>;
+
 export type BridgeStatusControllerActions =
   | BridgeStatusControllerStartPollingForBridgeTxStatusAction
   | BridgeStatusControllerWipeBridgeStatusAction
   | BridgeStatusControllerResetStateAction
-  | BridgeStatusControllerGetStateAction;
+  | BridgeStatusControllerGetStateAction
+  | BridgeStatusControllerSubmitTxAction;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -312,6 +323,7 @@ type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetSelectedMultichainAccountAction
+  | HandleSnapRequest
   | TransactionControllerGetStateAction;
 
 /**

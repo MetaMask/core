@@ -1,10 +1,14 @@
 import type { StateMetadata } from '@metamask/base-controller';
-import type { BridgeClientId } from '@metamask/bridge-controller';
-import { BRIDGE_PROD_API_BASE_URL } from '@metamask/bridge-controller';
+import {
+  isSolanaChainId,
+  type QuoteResponse,
+} from '@metamask/bridge-controller';
+import type { QuoteMetadata } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
+  BRIDGE_PROD_API_BASE_URL,
   BRIDGE_STATUS_CONTROLLER_NAME,
   DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE,
   REFRESH_INTERVAL_MS,
@@ -14,11 +18,16 @@ import type {
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
   FetchFunction,
+  BridgeClientId,
 } from './types';
 import {
   fetchBridgeTxStatus,
   getStatusRequestWithSrcTxHash,
 } from './utils/bridge-status';
+import {
+  getStatusRequestParams,
+  handleSolanaTxResponse,
+} from './utils/transaction';
 
 const metadata: StateMetadata<BridgeStatusControllerState> = {
   // We want to persist the bridge status state so that we can show the proper data for the Activity list
@@ -48,7 +57,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #fetchFn: FetchFunction;
 
   readonly #config: {
-    customBridgeApiBaseUrl?: string;
+    customBridgeApiBaseUrl: string;
   };
 
   constructor({
@@ -79,7 +88,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#clientId = clientId;
     this.#fetchFn = fetchFn;
-    this.#config = config ?? {};
+    this.#config = {
+      customBridgeApiBaseUrl:
+        config?.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+    };
 
     // Register action handlers
     this.messagingSystem.registerActionHandler(
@@ -94,6 +106,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       `${BRIDGE_STATUS_CONTROLLER_NAME}:resetState`,
       this.resetState.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      `${BRIDGE_STATUS_CONTROLLER_NAME}:submitTx`,
+      this.submitTx.bind(this),
+    );
 
     // Set interval
     this.setIntervalLength(REFRESH_INTERVAL_MS);
@@ -103,6 +119,86 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Check for historyItems that do not have a status of complete and restart polling
     this.#restartPollingForIncompleteHistoryItems();
   }
+
+  #getMultichainSelectedAccount() {
+    return this.messagingSystem.call(
+      'AccountsController:getSelectedMultichainAccount',
+    );
+  }
+
+  /**
+   * Submits a solana swap or bridge transaction using the snap controller
+   *
+   * @param quoteResponse - The quote response
+   * @param quoteResponse.quote - The quote
+   * @param quoteResponse.trade - The trade
+   * @param quoteResponse.approval - The approval
+   */
+  submitTx = async (quoteResponse: QuoteResponse & QuoteMetadata) => {
+    this.stopAllPolling();
+
+    const selectedAccount = this.#getMultichainSelectedAccount();
+    if (
+      isSolanaChainId(quoteResponse.quote.srcChainId) &&
+      selectedAccount?.metadata?.snap?.id
+    ) {
+      // Submit the transaction using the snap controller
+      const snapResponse = await this.messagingSystem.call(
+        'SnapController:handleRequest',
+        {
+          // TODO fix types
+          snapId: selectedAccount.metadata.snap.id as never,
+          origin: 'metamask',
+          handler: 'onRpcRequest' as never,
+          request: {
+            method: 'signAndSendTransaction',
+            params: {
+              account: { address: selectedAccount.address },
+              transaction: quoteResponse.trade,
+              scope: selectedAccount.options.scope,
+            },
+          },
+        },
+      );
+
+      const txMeta = handleSolanaTxResponse(
+        snapResponse as never, // This is ok bc the snap response can be different types
+        quoteResponse,
+        selectedAccount.metadata.snap.id,
+        selectedAccount.address,
+      );
+
+      // TODO Emit this event?
+      // Make sure the transaction hash is set so it can be tracked by the bridge status controller
+      // and displayed properly in the UI
+      // if (txMeta.hash) {
+      //   // We need to dispatch the transaction from here for Solana since
+      //   // the handleSolanaTx function doesn't use addTransaction
+      //   // This ensures it's properly registered in the UI
+      // I don't think this does anything for solana
+      //   dispatch({
+      //     type: 'TRANSACTION_CREATED',
+      //     payload: txMeta,
+      //   });
+      // }
+
+      const statusRequestCommon = getStatusRequestParams(quoteResponse);
+      this.startPollingForBridgeTxStatus({
+        // TODO fix this payload
+        bridgeTxMeta: txMeta,
+        statusRequest: {
+          ...statusRequestCommon,
+          srcTxHash: txMeta.hash,
+        },
+        quoteResponse,
+        slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+        startTime: Date.now(),
+      });
+    }
+    throw new Error(
+      'Failed to submit bridge transaction, only Solana is supported',
+    );
+  };
 
   resetState = () => {
     this.update((state) => {
@@ -255,7 +351,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         statusRequest,
         this.#clientId,
         this.#fetchFn,
-        this.#config.customBridgeApiBaseUrl ?? BRIDGE_PROD_API_BASE_URL,
+        this.#config.customBridgeApiBaseUrl,
       );
       const newBridgeHistoryItem = {
         ...historyItem,
