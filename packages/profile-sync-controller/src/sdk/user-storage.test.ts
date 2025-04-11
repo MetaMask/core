@@ -1,27 +1,30 @@
 import { arrangeAuthAPIs } from './__fixtures__/auth';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import {
-  handleMockUserStorageGet,
-  handleMockUserStoragePut,
-  handleMockUserStorageGetAllFeatureEntries,
-  handleMockUserStorageDeleteAllFeatureEntries,
-  handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
+  handleMockUserStorageDelete,
+  handleMockUserStorageDeleteAllFeatureEntries,
+  handleMockUserStorageGet,
+  handleMockUserStorageGetAllFeatureEntries,
+  handleMockUserStoragePut,
 } from './__fixtures__/userstorage';
+import type { LoginResponse } from './authentication-jwt-bearer/types';
 import { type IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import {
   MOCK_NOTIFICATIONS_DATA,
   MOCK_STORAGE_KEY,
+  MOCK_STORAGE_KEY_SIGNATURE,
   MOCK_STORAGE_RESPONSE,
 } from './mocks/userstorage';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
+import { MOCK_ENCRYPTION_PUBLIC_KEY } from '../controllers/user-storage/mocks';
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import { SHARED_SALT } from '../shared/encryption/constants';
 import { Env } from '../shared/env';
-import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 import type { UserStorageFeatureKeys } from '../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -551,6 +554,224 @@ describe('User Storage', () => {
       'some fake data',
     );
     expect(mockAuthSignMessage).not.toHaveBeenCalled(); // SignMessage not called since key already exists
+  });
+});
+
+describe('Storage Key', () => {
+  const MOCK_ENCRYPTED_KEY = JSON.stringify({
+    version: 'x25519-xsalsa20-poly1305',
+    nonce: 'abc123',
+    ephemPublicKey: 'def456',
+    ciphertext: 'ghi789',
+  });
+
+  it('retrieves and decrypts storage key using SRP from server', async () => {
+    const { auth, mockGetLoginResponse } = arrangeAuth('SRP', MOCK_SRP);
+    const mockDecryptMessage = jest.fn().mockResolvedValue(MOCK_STORAGE_KEY);
+    const mockSetStorageKey = jest.fn().mockResolvedValue(undefined);
+    mockGetLoginResponse.mockResolvedValue({
+      profile: {
+        profileId: 'mockProfileId',
+      },
+      token: {
+        expiresIn: 60 * 60 * 1000,
+        obtainedAt: Date.now(),
+      },
+    } as LoginResponse);
+
+    const userStorage = new UserStorage(
+      {
+        auth,
+        env: Env.PRD,
+        encryption: {
+          getEncryptionPublicKey: () =>
+            Promise.resolve(MOCK_ENCRYPTION_PUBLIC_KEY),
+          decryptMessage: mockDecryptMessage,
+        },
+      },
+      {
+        storage: {
+          getStorageKey: jest.fn().mockResolvedValue(null),
+          setStorageKey: mockSetStorageKey,
+        },
+      },
+    );
+
+    // called by #getRawEntry
+    await handleMockUserStorageGet({
+      status: 200,
+      body: { Data: MOCK_ENCRYPTED_KEY },
+    });
+
+    const storageKey = await userStorage.getStorageKey();
+
+    expect(mockDecryptMessage).toHaveBeenCalledWith(MOCK_ENCRYPTED_KEY);
+    expect(mockSetStorageKey).toHaveBeenCalled();
+    expect(storageKey).toBe(MOCK_STORAGE_KEY);
+  });
+
+  it('falls back to generating a new key when server returns 404', async () => {
+    const { auth, mockGetLoginResponse, mockSignMessage } = arrangeAuth(
+      'SRP',
+      MOCK_SRP,
+    );
+    mockGetLoginResponse.mockResolvedValue({
+      profile: {
+        profileId: 'mockProfileId',
+      },
+      token: {
+        expiresIn: 60 * 60 * 1000,
+        obtainedAt: Date.now(),
+      },
+    } as LoginResponse);
+    mockSignMessage.mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
+    const mockEncryptMessage = jest.fn().mockResolvedValue(MOCK_ENCRYPTED_KEY);
+    const mockSetStorageKey = jest.fn().mockResolvedValue(undefined);
+
+    const userStorage = new UserStorage(
+      {
+        auth,
+        env: Env.PRD,
+        encryption: {
+          getEncryptionPublicKey: () =>
+            Promise.resolve(MOCK_ENCRYPTION_PUBLIC_KEY),
+          decryptMessage: jest.fn(),
+          encryptMessage: mockEncryptMessage,
+        },
+      },
+      {
+        storage: {
+          getStorageKey: jest.fn().mockResolvedValue(null),
+          setStorageKey: mockSetStorageKey,
+        },
+      },
+    );
+
+    // called by #getRawEntry
+    await handleMockUserStorageGet({
+      status: 404,
+    });
+
+    // Mock the server response for the PUT operation
+    handleMockUserStoragePut();
+
+    const storageKey = await userStorage.getStorageKey();
+
+    expect(mockSignMessage).toHaveBeenCalled();
+    expect(mockSetStorageKey).toHaveBeenCalledWith(
+      'metamask:mockProfileId',
+      MOCK_STORAGE_KEY,
+    );
+    expect(mockEncryptMessage).toHaveBeenCalledWith(
+      MOCK_STORAGE_KEY,
+      MOCK_ENCRYPTION_PUBLIC_KEY,
+    );
+    expect(storageKey).toBe(MOCK_STORAGE_KEY);
+  });
+
+  it('falls back to generating a new key when decryption fails', async () => {
+    const { auth, mockGetLoginResponse, mockSignMessage } = arrangeAuth(
+      'SRP',
+      MOCK_SRP,
+    );
+    mockGetLoginResponse.mockResolvedValue({
+      profile: {
+        profileId: 'mockProfileId',
+      },
+      token: {
+        expiresIn: 60 * 60 * 1000,
+        obtainedAt: Date.now(),
+      },
+    } as LoginResponse);
+    mockSignMessage.mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
+
+    const mockDecryptMessage = jest.fn().mockImplementation(() => {
+      throw new Error('invalid tag');
+    });
+    const mockEncryptMessage = jest.fn().mockResolvedValue(MOCK_ENCRYPTED_KEY);
+    const mockSetStorageKey = jest.fn().mockResolvedValue(undefined);
+
+    const userStorage = new UserStorage(
+      {
+        auth,
+        env: Env.PRD,
+        encryption: {
+          getEncryptionPublicKey: () =>
+            Promise.resolve(MOCK_ENCRYPTION_PUBLIC_KEY),
+          decryptMessage: mockDecryptMessage,
+          encryptMessage: mockEncryptMessage,
+        },
+      },
+      {
+        storage: {
+          getStorageKey: jest.fn().mockResolvedValue(null),
+          setStorageKey: mockSetStorageKey,
+        },
+      },
+    );
+
+    // called by #getRawEntry
+    await handleMockUserStorageGet({
+      status: 200,
+      body: { Data: MOCK_ENCRYPTED_KEY },
+    });
+
+    // Mock the server response for the PUT operation
+    handleMockUserStoragePut();
+
+    const storageKey = await userStorage.getStorageKey();
+
+    expect(mockSignMessage).toHaveBeenCalled();
+    expect(mockSetStorageKey).toHaveBeenCalledWith(
+      'metamask:mockProfileId',
+      MOCK_STORAGE_KEY,
+    );
+    expect(mockEncryptMessage).toHaveBeenCalledWith(
+      MOCK_STORAGE_KEY,
+      MOCK_ENCRYPTION_PUBLIC_KEY,
+    );
+    expect(storageKey).toBe(MOCK_STORAGE_KEY);
+  });
+
+  it('falls back to generating a new key when asymmetric encryption options are not set', async () => {
+    const { auth, mockGetLoginResponse, mockSignMessage } = arrangeAuth(
+      'SRP',
+      MOCK_SRP,
+    );
+    mockGetLoginResponse.mockResolvedValue({
+      profile: {
+        profileId: 'mockProfileId',
+      },
+      token: {
+        expiresIn: 60 * 60 * 1000,
+        obtainedAt: Date.now(),
+      },
+    } as LoginResponse);
+    mockSignMessage.mockResolvedValue(MOCK_STORAGE_KEY_SIGNATURE);
+
+    const mockSetStorageKey = jest.fn().mockResolvedValue(undefined);
+
+    const userStorage = new UserStorage(
+      {
+        auth,
+        env: Env.PRD,
+      },
+      {
+        storage: {
+          getStorageKey: jest.fn().mockResolvedValue(null),
+          setStorageKey: mockSetStorageKey,
+        },
+      },
+    );
+
+    const storageKey = await userStorage.getStorageKey();
+
+    expect(mockSignMessage).toHaveBeenCalled();
+    expect(mockSetStorageKey).toHaveBeenCalledWith(
+      'metamask:mockProfileId',
+      MOCK_STORAGE_KEY,
+    );
+    expect(storageKey).toBe(MOCK_STORAGE_KEY);
   });
 });
 

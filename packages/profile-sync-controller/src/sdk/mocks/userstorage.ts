@@ -13,7 +13,8 @@ export const MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES = STORAGE_URL(
   USER_STORAGE_FEATURE_NAMES.notifications,
 );
 
-export const MOCK_STORAGE_KEY = createSHA256Hash('mockStorageKey');
+export const MOCK_STORAGE_KEY_SIGNATURE = 'mockStorageKey';
+export const MOCK_STORAGE_KEY = createSHA256Hash(MOCK_STORAGE_KEY_SIGNATURE);
 export const MOCK_NOTIFICATIONS_DATA = '{ is_compact: false }';
 export const MOCK_NOTIFICATIONS_DATA_ENCRYPTED = async (data?: string) =>
   await encryption.encryptString(
