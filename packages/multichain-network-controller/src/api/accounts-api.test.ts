@@ -174,7 +174,7 @@ describe('toActiveNetworksByAddress', () => {
   it('formats non-EVM network responses', () => {
     const response: ActiveNetworksResponse = {
       activeNetworks: [
-        `${KnownCaipNamespace.Solana}:1:${MOCK_ADDRESSES.solana}`,
+        `${KnownCaipNamespace.Solana}:${SOLANA_MAINNET}:${MOCK_ADDRESSES.solana}`,
       ],
     };
 
@@ -183,7 +183,7 @@ describe('toActiveNetworksByAddress', () => {
     expect(result).toStrictEqual({
       [MOCK_ADDRESSES.solana]: {
         namespace: KnownCaipNamespace.Solana,
-        activeChains: ['1'],
+        activeChains: [SOLANA_MAINNET],
       },
     });
   });
