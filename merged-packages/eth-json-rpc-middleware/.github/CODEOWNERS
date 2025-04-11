@@ -2,3 +2,5 @@
 # Each line is a file pattern followed by one or more owners.
 
 *                                   @MetaMask/wallet-framework-engineers
+src/methods                         @MetaMask/wallet-api-platform-engineers @MetaMask/confirmations
+src/wallet.*                        @MetaMask/wallet-api-platform-engineers @MetaMask/confirmations
