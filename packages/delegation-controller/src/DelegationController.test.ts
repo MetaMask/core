@@ -88,12 +88,14 @@ function createMessengerMock() {
 /**
  * Create a controller instance for testing.
  *
+ * @param state - The initial state to use for the controller.
  * @returns The controller instance plus individual mock functions for each action.
  */
-function createController() {
+function createController(state?: DelegationControllerState) {
   const { messenger, ...mocks } = createMessengerMock();
   const controller = new TestDelegationController({
     messenger,
+    state,
   });
 
   return {
@@ -393,17 +395,20 @@ describe('DelegationController', () => {
     });
 
     it('throws if delegation chain is invalid', () => {
-      const { controller } = createController();
       const invalidDelegation = {
         ...DELEGATION_MOCK,
-        authority:
-          '0x1234567890123456789012345678901234567890123456789012345678901234' as Hex,
+        authority: '0x123123123' as Hex,
       };
       const invalidEntry = {
         ...DELEGATION_ENTRY_MOCK,
         data: invalidDelegation,
       };
-      controller.store(DELEGATION_HASH_MOCK, invalidEntry);
+      const invalidState = {
+        delegations: {
+          [DELEGATION_HASH_MOCK]: invalidEntry,
+        },
+      };
+      const { controller } = createController(invalidState);
 
       expect(() => controller.chain(DELEGATION_HASH_MOCK)).toThrow(
         'Invalid delegation chain',
@@ -602,6 +607,22 @@ describe('DelegationController', () => {
       // This should not throw and should return 0
       const count = controller.delete('0x123' as Hex);
       expect(count).toBe(0);
+    });
+
+    it('throws if the authority is invalid', () => {
+      const { controller } = createController();
+      const invalidDelegation = {
+        ...DELEGATION_MOCK,
+        authority: '0x1234567890123456789012345678901234567890' as Hex,
+      };
+      const invalidEntry = {
+        ...DELEGATION_ENTRY_MOCK,
+        data: invalidDelegation,
+      };
+
+      expect(() =>
+        controller.store(DELEGATION_HASH_MOCK, invalidEntry),
+      ).toThrow('Invalid authority');
     });
   });
 });

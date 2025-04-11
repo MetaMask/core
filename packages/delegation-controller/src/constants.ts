@@ -1,5 +1,7 @@
+import type { Hex } from './types';
+
 export const ROOT_AUTHORITY =
-  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+  '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' as Hex;
 
 const EIP712Domain = [
   { name: 'name', type: 'string' },

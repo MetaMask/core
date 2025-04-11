@@ -110,6 +110,14 @@ export class DelegationController extends BaseController<
    * @param entry - The delegation entry to store.
    */
   store(hash: Hex, entry: DelegationEntry) {
+    // If the authority is not the root authority, validate that the
+    // parent entry does exist.
+    if (
+      !isAddressEqual(entry.data.authority, ROOT_AUTHORITY) &&
+      !this.state.delegations[entry.data.authority]
+    ) {
+      throw new Error('Invalid authority');
+    }
     this.update((state) => {
       state.delegations[hash] = entry;
     });
@@ -184,7 +192,7 @@ export class DelegationController extends BaseController<
     }
     chain.push(entry);
 
-    for (let _hash = entry.data.authority; _hash !== ROOT_AUTHORITY; ) {
+    for (let _hash = entry.data.authority; _hash !== ROOT_AUTHORITY;) {
       const parent = this.retrieve(_hash);
       if (!parent) {
         throw new Error('Invalid delegation chain');
