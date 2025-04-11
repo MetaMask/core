@@ -1,5 +1,5 @@
 import { type StateMetadata } from '@metamask/base-controller';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { type CaipChainId, BtcScope, SolScope } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
 import type {
@@ -66,7 +66,7 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
  * This is a temporary mention until we develop
  * a more robust solution to identify testnet networks.
  */
-export const NON_EVM_TESTNET_IDS = [
+export const NON_EVM_TESTNET_IDS: CaipChainId[] = [
   BtcScope.Testnet,
   BtcScope.Signet,
   SolScope.Testnet,

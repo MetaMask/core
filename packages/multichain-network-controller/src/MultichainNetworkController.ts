@@ -47,6 +47,10 @@ export class MultichainNetworkController extends BaseController<
       state: {
         ...getDefaultMultichainNetworkControllerState(),
         ...state,
+        multichainNetworkConfigurationsByChainId: {
+          ...getDefaultMultichainNetworkControllerState()
+            .multichainNetworkConfigurationsByChainId,
+        },
       },
     });
 
