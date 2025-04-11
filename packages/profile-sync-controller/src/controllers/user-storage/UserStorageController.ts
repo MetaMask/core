@@ -11,6 +11,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { encrypt } from '@metamask/eth-sig-util';
 import {
   type KeyringControllerGetStateAction,
   type KeyringControllerLockEvent,
@@ -26,6 +27,7 @@ import type {
   NetworkControllerUpdateNetworkAction,
 } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import { hexToBytes } from '@noble/hashes/utils';
 
 import {
   saveInternalAccountToUserStorage,
@@ -38,6 +40,7 @@ import {
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
 import { Env, UserStorage } from '../../sdk';
+import { byteArrayToBase64 } from '../../shared/encryption/utils';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import {
   type UserStoragePathWithFeatureAndKey,
@@ -55,8 +58,6 @@ import {
   createSnapEncryptionPublicKeyRequest,
   createSnapSignMessageRequest,
 } from '../authentication/auth-snap-requests';
-import { encrypt } from '@metamask/eth-sig-util';
-import { bytesToBase64, hexToBytes } from '@metamask/utils';
 
 const controllerName = 'UserStorageController';
 
@@ -387,7 +388,7 @@ export default class UserStorageController extends BaseController<
           encryptMessage: async (message: string, publicKeyHex: string) => {
             const erc1024Payload = encrypt({
               // eth-sig-util expects the public key to be in base64 format
-              publicKey: bytesToBase64(hexToBytes(publicKeyHex)),
+              publicKey: byteArrayToBase64(hexToBytes(publicKeyHex)),
               data: message,
               version: 'x25519-xsalsa20-poly1305',
             });
@@ -662,6 +663,7 @@ export default class UserStorageController extends BaseController<
 
   /**
    * Calls the snap to attempt to decrypt the message.
+   *
    * @param ciphertext - the encrypted text to decrypt.
    * @returns The decrypted message, if decryption was possible.
    */

@@ -31,7 +31,6 @@ export function mockUserStorageMessengerForAccountSyncing(options?: {
   messengerMocks.mockKeyringGetAccounts.mockImplementation(async () => {
     return (
       options?.accounts?.accountsList
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
         ?.filter((a) => a.metadata.keyring.type === KeyringTypes.hd)
         .map((a) => a.address) ??
       MOCK_INTERNAL_ACCOUNTS.ALL.map((a) => a.address)
