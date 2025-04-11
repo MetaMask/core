@@ -279,22 +279,28 @@ export function validateBatchRequest({
   const { origin } = request;
   const isExternal = origin && origin !== ORIGIN_METAMASK;
 
-  const transactionTargetsNormalized = request.transactions.map((tx) =>
-    tx.params.to?.toLowerCase(),
-  );
-
   const internalAccountsNormalized = internalAccounts.map((account) =>
     account.toLowerCase(),
   );
 
   if (
     isExternal &&
-    transactionTargetsNormalized.some((target) =>
-      internalAccountsNormalized.includes(target as string),
-    )
+    request.transactions.some((nestedTransaction) => {
+      const normalizedCallTo =
+        nestedTransaction.params.to?.toLowerCase() as string;
+
+      const callData = nestedTransaction.params.data;
+
+      const isInternalAccount =
+        internalAccountsNormalized.includes(normalizedCallTo);
+
+      const hasData = Boolean(callData && callData !== '0x');
+
+      return isInternalAccount && hasData;
+    })
   ) {
     throw rpcErrors.invalidParams(
-      'Calls to internal accounts are not supported',
+      'External calls to internal accounts cannot include data',
     );
   }
 
