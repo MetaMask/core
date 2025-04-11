@@ -95,6 +95,8 @@
 /packages/assets-controllers/CHANGELOG.md         @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
 /packages/chain-agnostic-permission/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
 /packages/chain-agnostic-permission/CHANGELOG.md  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+/packages/delegation-controller/package.json      @MetaMask/vault @MetaMask/wallet-framework-engineers
+/packages/delegation-controller/CHANGELOG.md      @MetaMask/vault @MetaMask/wallet-framework-engineers
 /packages/earn-controller/package.json            @MetaMask/earn @MetaMask/wallet-framework-engineers
 /packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/wallet-framework-engineers
 /packages/eip1193-permission-middleware/package.json @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
