@@ -1,6 +1,5 @@
 import { Contract } from '@ethersproject/contracts';
 import { SolScope } from '@metamask/keyring-api';
-import { HandlerType } from '@metamask/snaps-utils';
 import type { Hex } from '@metamask/utils';
 import { bigIntToHex } from '@metamask/utils';
 import nock from 'nock';
@@ -933,7 +932,7 @@ describe('BridgeController', function () {
     {
       snapId: 'npm:@metamask/solana-snap',
       origin: 'metamask',
-      handler: HandlerType.OnRpcRequest,
+      handler: 'onRpcRequest',
       request: {
         method: 'getFeeForTransaction',
         params: {
