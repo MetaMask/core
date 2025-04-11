@@ -40,7 +40,6 @@ export type CommonNetworkConfiguration = {
   isEvm: boolean;
   /**
    * The chain ID of the network.
-   *
    */
   chainId: CaipChainId;
   /**
