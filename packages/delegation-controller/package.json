@@ -61,8 +61,7 @@
     "@metamask/base-controller": "^8.0.0",
     "@metamask/delegation-toolkit": "^0.9.0",
     "@metamask/keyring-controller": "^21.0.1",
-    "@metamask/utils": "^11.3.0",
-    "viem": "^2.26.3"
+    "@metamask/utils": "^11.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
@@ -73,7 +72,11 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.2.2",
+    "viem": "^2.26.3"
+  },
+  "peerDependencies": {
+    "viem": ">=2.18.2 <3.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

@@ -2986,6 +2986,8 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
     viem: "npm:^2.26.3"
+  peerDependencies:
+    viem: ">=2.18.2 <3.0.0"
   languageName: unknown
   linkType: soft
 
