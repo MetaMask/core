@@ -13,9 +13,12 @@ import type {
   DelegationEntry,
   Hex,
 } from './types';
+import { toDelegationStruct } from './utils';
 
 const FROM_MOCK = '0x2234567890123456789012345678901234567890' as Address;
 const SIGNATURE_HASH_MOCK = '0x123ABC';
+
+const CHAIN_ID_MOCK = 11155111;
 
 const VERIFYING_CONTRACT_MOCK: Address =
   '0x0000000000000000000000000000000000000000';
@@ -128,25 +131,15 @@ describe('DelegationController', () => {
   });
 
   describe('sign', () => {
-    it('throws if no account selected', async () => {
-      const { controller, accountsControllerGetSelectedAccountMock } =
-        createController();
-
-      accountsControllerGetSelectedAccountMock.mockReturnValue(null);
-
-      await expect(
-        controller.sign(DELEGATION_MOCK, VERIFYING_CONTRACT_MOCK),
-      ).rejects.toThrow('No chainId or account selected');
-    });
-
     it('signs a delegation message', async () => {
       const { controller, keyringControllerSignTypedMessageMock } =
         createController();
 
-      const signature = await controller.sign(
-        DELEGATION_MOCK,
-        VERIFYING_CONTRACT_MOCK,
-      );
+      const signature = await controller.sign({
+        delegation: DELEGATION_MOCK,
+        verifyingContract: VERIFYING_CONTRACT_MOCK,
+        chainId: CHAIN_ID_MOCK,
+      });
 
       expect(signature).toBe(SIGNATURE_HASH_MOCK);
       expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
@@ -155,12 +148,12 @@ describe('DelegationController', () => {
             types: expect.any(Object),
             primaryType: 'Delegation',
             domain: expect.objectContaining({
-              chainId: 11155111, // sepolia
+              chainId: CHAIN_ID_MOCK,
               name: 'DelegationManager',
               version: '1',
               verifyingContract: expect.any(String),
             }),
-            message: DELEGATION_MOCK,
+            message: toDelegationStruct(DELEGATION_MOCK),
           }),
           from: FROM_MOCK,
         }),
@@ -176,7 +169,11 @@ describe('DelegationController', () => {
       );
 
       await expect(
-        controller.sign(DELEGATION_MOCK, VERIFYING_CONTRACT_MOCK),
+        controller.sign({
+          delegation: DELEGATION_MOCK,
+          verifyingContract: VERIFYING_CONTRACT_MOCK,
+          chainId: CHAIN_ID_MOCK,
+        }),
       ).rejects.toThrow('Signature failed');
     });
   });
