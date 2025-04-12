@@ -135,7 +135,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param quoteResponse.approval - The approval
    */
   submitTx = async (
-    quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+    quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
   ) => {
     this.stopAllPolling();
 

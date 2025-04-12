@@ -25,7 +25,8 @@ export const getStatusRequestParams = (
 };
 
 export const getTxMetaFields = (
-  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+  quoteResponse: Omit<QuoteResponse<string | TxData>, 'approval' | 'trade'> &
+    QuoteMetadata,
   approvalTxId?: string,
 ) => {
   return {
@@ -50,7 +51,8 @@ export const getTxMetaFields = (
 
 export const handleSolanaTxResponse = (
   snapResponse: string | { result: Record<string, string> },
-  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+  quoteResponse: Omit<QuoteResponse<string>, 'approval' | 'trade'> &
+    QuoteMetadata,
   snapId: string, // TODO use SnapId type
   selectedAccountAddress: string,
 ) => {
