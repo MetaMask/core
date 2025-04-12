@@ -9,6 +9,7 @@ import type {
   Quote,
   QuoteMetadata,
   QuoteResponse,
+  TxData,
 } from '@metamask/bridge-controller';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
@@ -252,7 +253,7 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & QuoteMetadataSerialized;
+  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;

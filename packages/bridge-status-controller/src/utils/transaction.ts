@@ -1,3 +1,4 @@
+import type { TxData } from '@metamask/bridge-controller';
 import {
   formatChainIdToHex,
   type QuoteMetadata,
@@ -10,7 +11,9 @@ import {
 } from '@metamask/transaction-controller';
 import { v4 as uuid } from 'uuid';
 
-export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
+export const getStatusRequestParams = (
+  quoteResponse: QuoteResponse<string | TxData>,
+) => {
   return {
     bridgeId: quoteResponse.quote.bridgeId,
     bridge: quoteResponse.quote.bridges[0],
@@ -22,7 +25,7 @@ export const getStatusRequestParams = (quoteResponse: QuoteResponse) => {
 };
 
 export const getTxMetaFields = (
-  quoteResponse: QuoteResponse & QuoteMetadata,
+  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
   approvalTxId?: string,
 ) => {
   return {
@@ -47,7 +50,7 @@ export const getTxMetaFields = (
 
 export const handleSolanaTxResponse = (
   snapResponse: string | { result: Record<string, string> },
-  quoteResponse: QuoteResponse & QuoteMetadata,
+  quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
   snapId: string, // TODO use SnapId type
   selectedAccountAddress: string,
 ) => {
@@ -87,72 +90,3 @@ export const handleSolanaTxResponse = (
 
   return txMeta;
 };
-
-// TODO can thsi be removed since QuoteMetadata is already serialized?
-// export const serializeQuoteMetadata = (
-//   quoteResponse: QuoteResponse & QuoteMetadata,
-// ): QuoteResponse & QuoteMetadata => {
-//   return {
-//     ...quoteResponse,
-//     sentAmount: {
-//       amount: quoteResponse.sentAmount.amount.toString(),
-//       valueInCurrency: quoteResponse.sentAmount.valueInCurrency
-//         ? quoteResponse.sentAmount.valueInCurrency.toString()
-//         : null,
-//       usd: quoteResponse.sentAmount.usd
-//         ? quoteResponse.sentAmount.usd.toString()
-//         : null,
-//     },
-//     gasFee: {
-//       amount: quoteResponse.gasFee.amount.toString(),
-//       valueInCurrency: quoteResponse.gasFee.valueInCurrency
-//         ? quoteResponse.gasFee.valueInCurrency.toString()
-//         : null,
-//       usd: quoteResponse.gasFee.usd
-//         ? quoteResponse.gasFee.usd.toString()
-//         : null,
-//     },
-//     totalNetworkFee: {
-//       amount: quoteResponse.totalNetworkFee.amount.toString(),
-//       valueInCurrency: quoteResponse.totalNetworkFee.valueInCurrency
-//         ? quoteResponse.totalNetworkFee.valueInCurrency.toString()
-//         : null,
-//       usd: quoteResponse.totalNetworkFee.usd
-//         ? quoteResponse.totalNetworkFee.usd.toString()
-//         : null,
-//     },
-//     totalMaxNetworkFee: {
-//       amount: quoteResponse.totalMaxNetworkFee.amount.toString(),
-//       valueInCurrency: quoteResponse.totalMaxNetworkFee.valueInCurrency
-//         ? quoteResponse.totalMaxNetworkFee.valueInCurrency.toString()
-//         : null,
-//       usd: quoteResponse.totalMaxNetworkFee.usd
-//         ? quoteResponse.totalMaxNetworkFee.usd.toString()
-//         : null,
-//     },
-//     toTokenAmount: {
-//       amount: quoteResponse.toTokenAmount.amount.toString(),
-//       valueInCurrency: quoteResponse.toTokenAmount.valueInCurrency
-//         ? quoteResponse.toTokenAmount.valueInCurrency.toString()
-//         : null,
-//       usd: quoteResponse.toTokenAmount.usd
-//         ? quoteResponse.toTokenAmount.usd.toString()
-//         : null,
-//     },
-//     adjustedReturn: {
-//       valueInCurrency: quoteResponse.adjustedReturn.valueInCurrency
-//         ? quoteResponse.adjustedReturn.valueInCurrency.toString()
-//         : null,
-//       usd: quoteResponse.adjustedReturn.usd
-//         ? quoteResponse.adjustedReturn.usd.toString()
-//         : null,
-//     },
-//     swapRate: quoteResponse.swapRate.toString(),
-//     cost: {
-//       valueInCurrency: quoteResponse.cost.valueInCurrency
-//         ? quoteResponse.cost.valueInCurrency.toString()
-//         : null,
-//       usd: quoteResponse.cost.usd ? quoteResponse.cost.usd.toString() : null,
-//     },
-//   };
-// };

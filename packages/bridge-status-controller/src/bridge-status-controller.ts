@@ -3,7 +3,7 @@ import {
   isSolanaChainId,
   type QuoteResponse,
 } from '@metamask/bridge-controller';
-import type { QuoteMetadata } from '@metamask/bridge-controller';
+import type { QuoteMetadata, TxData } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
@@ -134,7 +134,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param quoteResponse.trade - The trade
    * @param quoteResponse.approval - The approval
    */
-  submitTx = async (quoteResponse: QuoteResponse & QuoteMetadata) => {
+  submitTx = async (
+    quoteResponse: QuoteResponse<string | TxData> & QuoteMetadata,
+  ) => {
     this.stopAllPolling();
 
     const selectedAccount = this.#getMultichainSelectedAccount();
