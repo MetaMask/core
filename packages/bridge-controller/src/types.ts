@@ -277,10 +277,14 @@ export type Quote = {
   refuel?: RefuelData;
 };
 
-export type QuoteResponse = {
+/**
+ * This is the type for the quote response from the bridge-api
+ * TxDataType can be overriden to be a string when the quote is non-evm
+ */
+export type QuoteResponse<TxDataType = TxData> = {
   quote: Quote;
-  approval?: TxData | null;
-  trade: TxData;
+  approval?: TxDataType | null;
+  trade: TxDataType;
   estimatedProcessingTimeInSeconds: number;
 };
 
