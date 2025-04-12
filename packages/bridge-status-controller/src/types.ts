@@ -115,6 +115,7 @@ export enum BridgeId {
   ACROSS = 'across',
   STARGATE = 'stargate',
   RELAY = 'relay',
+  MAYAN = 'mayan',
 }
 
 export enum FeeType {
