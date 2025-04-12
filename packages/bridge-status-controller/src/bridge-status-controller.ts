@@ -5,6 +5,7 @@ import {
 } from '@metamask/bridge-controller';
 import type { QuoteMetadata, TxData } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex, type Hex } from '@metamask/utils';
 
 import {
@@ -127,79 +128,54 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }
 
   /**
-   * Submits a solana swap or bridge transaction using the snap controller
+   * Submits a cross-chain swap transaction
    *
    * @param quoteResponse - The quote response
    * @param quoteResponse.quote - The quote
    * @param quoteResponse.trade - The trade
    * @param quoteResponse.approval - The approval
+   * @returns The transaction meta
    */
   submitTx = async (
     quoteResponse: QuoteResponse<TxData | string> & QuoteMetadata,
   ) => {
     this.stopAllPolling();
 
-    const selectedAccount = this.#getMultichainSelectedAccount();
+    if (!isSolanaChainId(quoteResponse.quote.srcChainId)) {
+      throw new Error(
+        'Failed to submit bridge transaction, only Solana is supported',
+      );
+    }
+
+    let txMeta: TransactionMeta | undefined;
+    // Submit SOLANA tx
     if (
       isSolanaChainId(quoteResponse.quote.srcChainId) &&
-      selectedAccount?.metadata?.snap?.id
+      typeof quoteResponse.trade === 'string'
     ) {
-      // Submit the transaction using the snap controller
-      const snapResponse = await this.messagingSystem.call(
-        'SnapController:handleRequest',
-        {
-          // TODO fix types
-          snapId: selectedAccount.metadata.snap.id as never,
-          origin: 'metamask',
-          handler: 'onRpcRequest' as never,
-          request: {
-            method: 'signAndSendTransaction',
-            params: {
-              account: { address: selectedAccount.address },
-              transaction: quoteResponse.trade,
-              scope: selectedAccount.options.scope,
-            },
-          },
-        },
-      );
-
-      const txMeta = handleSolanaTxResponse(
-        snapResponse as never, // This is ok bc the snap response can be different types
-        quoteResponse,
-        selectedAccount.metadata.snap.id,
-        selectedAccount.address,
-      );
-
-      // TODO Emit this event?
-      // Make sure the transaction hash is set so it can be tracked by the bridge status controller
-      // and displayed properly in the UI
-      // if (txMeta.hash) {
-      //   // We need to dispatch the transaction from here for Solana since
-      //   // the handleSolanaTx function doesn't use addTransaction
-      //   // This ensures it's properly registered in the UI
-      // I don't think this does anything for solana
-      //   dispatch({
-      //     type: 'TRANSACTION_CREATED',
-      //     payload: txMeta,
-      //   });
-      // }
-
-      const statusRequestCommon = getStatusRequestParams(quoteResponse);
-      this.startPollingForBridgeTxStatus({
-        // TODO fix this payload
-        bridgeTxMeta: txMeta,
-        statusRequest: {
-          ...statusRequestCommon,
-          srcTxHash: txMeta.hash,
-        },
-        quoteResponse,
-        slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
-        startTime: Date.now(),
-      });
+      const { approval, trade, ...partialQuoteResponse } = quoteResponse;
+      txMeta = await this.#handleSolanaTx(trade, partialQuoteResponse);
     }
-    throw new Error(
-      'Failed to submit bridge transaction, only Solana is supported',
-    );
+
+    if (!txMeta) {
+      throw new Error(
+        'Failed to start polling for bridge transaction status due to undefined txMeta',
+      );
+    }
+    // Start polling for bridge tx status
+    const statusRequestCommon = getStatusRequestParams(quoteResponse);
+    this.startPollingForBridgeTxStatus({
+      bridgeTxMeta: txMeta,
+      statusRequest: {
+        ...statusRequestCommon,
+        srcTxHash: txMeta.hash,
+      },
+      quoteResponse,
+      slippagePercentage: 0, // TODO include slippage provided by quote if using dynamic slippage, or slippage from quote request
+      startTime: Date.now(),
+    });
+
+    return txMeta;
   };
 
   resetState = () => {
@@ -471,5 +447,67 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         state.txHistory,
       );
     });
+  };
+
+  /**
+   * Submits a solana swap or bridge transaction using the snap controller
+   *
+   * @param trade - The trade data to confirm
+   * @param quoteResponse - The quote response
+   * @param quoteResponse.quote - The quote
+   * @returns The transaction meta
+   */
+  readonly #handleSolanaTx = async (
+    trade: string,
+    quoteResponse: Omit<QuoteResponse<string>, 'approval' | 'trade'> &
+      QuoteMetadata,
+  ) => {
+    const selectedAccount = this.#getMultichainSelectedAccount();
+    if (!selectedAccount) {
+      throw new Error(
+        'Failed to submit solana cross-chain swap transaction due to undefined multichain account',
+      );
+    }
+    if (!selectedAccount.metadata.snap?.id) {
+      throw new Error(
+        'Failed to submit solana cross-chain swap transaction due to undefined snap id',
+      );
+    }
+    // Submit the transaction to the snap using the keyring rpc method
+    const keyringResponse = await this.messagingSystem.call(
+      'SnapController:handleRequest',
+      {
+        origin: 'metamask',
+        snapId: selectedAccount.metadata.snap.id as never,
+        handler: 'onKeyringRequest' as never,
+        request: {
+          id: crypto.randomUUID(),
+          jsonrpc: '2.0',
+          method: 'keyring_submitRequest',
+          params: {
+            request: {
+              params: {
+                account: { address: selectedAccount.address },
+                transaction: trade,
+                scope: selectedAccount.options.scope,
+              },
+              method: 'signAndSendTransaction',
+            },
+            id: crypto.randomUUID(),
+            account: selectedAccount.id,
+            scope: selectedAccount.options.scope,
+          },
+        },
+      },
+    );
+
+    const txMeta = handleSolanaTxResponse(
+      keyringResponse as never, // This is ok bc the snap response can be different types
+      quoteResponse,
+      selectedAccount.metadata.snap.id,
+      selectedAccount.address,
+    );
+    // TODO subscribe to Approvals and return the approvalTxId
+    return txMeta;
   };
 }
