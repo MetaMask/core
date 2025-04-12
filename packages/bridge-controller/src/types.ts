@@ -251,8 +251,8 @@ export type Step = {
   action: ActionTypes;
   srcChainId: ChainId;
   destChainId?: ChainId;
-  srcAsset: BridgeAsset;
-  destAsset: BridgeAsset;
+  srcAsset?: BridgeAsset;
+  destAsset?: BridgeAsset;
   srcAmount: string;
   destAmount: string;
   protocol: Protocol;
