@@ -2,6 +2,8 @@ import {
   formatChainIdToHex,
   type QuoteMetadata,
   type QuoteResponse,
+  ChainId,
+  FeeType,
 } from '@metamask/bridge-controller';
 import {
   TransactionStatus,
@@ -21,8 +23,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 1,
-          destChainId: 137,
+          srcChainId: ChainId.ETH,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -37,7 +39,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000000000000',
             },
           },
@@ -52,11 +54,11 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = getStatusRequestParams(mockQuoteResponse);
 
-      expect(result).toEqual({
+      expect(result).toStrictEqual({
         bridgeId: 'bridge1',
         bridge: 'bridge1',
-        srcChainId: 1,
-        destChainId: 137,
+        srcChainId: ChainId.ETH,
+        destChainId: ChainId.POLYGON,
         quote: mockQuoteResponse.quote,
         refuel: false,
       });
@@ -67,8 +69,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 1,
-          destChainId: 137,
+          srcChainId: ChainId.ETH,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -83,7 +85,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000000000000',
             },
           },
@@ -109,8 +111,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1', 'bridge2'],
-          srcChainId: 1,
-          destChainId: 137,
+          srcChainId: ChainId.ETH,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -125,7 +127,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000000000000',
             },
           },
@@ -153,8 +155,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 1,
-          destChainId: 137,
+          srcChainId: ChainId.ETH,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -169,7 +171,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000000000000',
             },
           },
@@ -221,8 +223,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       const result = getTxMetaFields(mockQuoteResponse);
 
-      expect(result).toEqual({
-        destinationChainId: formatChainIdToHex('137'),
+      expect(result).toStrictEqual({
+        destinationChainId: formatChainIdToHex(ChainId.POLYGON),
         sourceTokenAmount: '1000000000000000000',
         sourceTokenSymbol: 'ETH',
         sourceTokenDecimals: 18,
@@ -242,8 +244,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 1,
-          destChainId: 137,
+          srcChainId: ChainId.ETH,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -258,7 +260,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000000000000',
             },
           },
@@ -321,8 +323,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 'solana:101',
-          destChainId: 137,
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -337,7 +339,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000',
             },
           },
@@ -401,7 +403,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
       expect(result).toMatchObject({
         id: expect.any(String),
-        chainId: formatChainIdToHex('solana:101'),
+        chainId: formatChainIdToHex(ChainId.SOLANA),
         txParams: { from: selectedAccountAddress },
         type: TransactionType.bridge,
         status: TransactionStatus.submitted,
@@ -409,7 +411,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         isSolana: true,
         isBridgeTx: true,
         origin: snapId,
-        destinationChainId: formatChainIdToHex('137'),
+        destinationChainId: formatChainIdToHex(ChainId.POLYGON),
         sourceTokenAmount: '1000000000',
         sourceTokenSymbol: 'SOL',
         sourceTokenDecimals: 9,
@@ -427,8 +429,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 'solana:101',
-          destChainId: 137,
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -443,7 +445,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000',
             },
           },
@@ -498,7 +500,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         result: {
           signature: 'solanaSignature123',
         },
-      } as never;
+      };
       const snapId = 'snapId123';
       const selectedAccountAddress = 'solanaAccountAddress123';
 
@@ -517,8 +519,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 'solana:101',
-          destChainId: 137,
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -533,7 +535,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000',
             },
           },
@@ -607,8 +609,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 'solana:101',
-          destChainId: 137,
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -623,7 +625,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000',
             },
           },
@@ -697,8 +699,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 'solana:101',
-          destChainId: 137,
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -713,7 +715,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000',
             },
           },
@@ -768,7 +770,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         result: {
           txHash: 'solanaTxHash123',
         },
-      } as never;
+      };
       const snapId = 'snapId123';
       const selectedAccountAddress = 'solanaAccountAddress123';
 
@@ -787,8 +789,8 @@ describe('Bridge Status Controller Transaction Utils', () => {
         quote: {
           bridgeId: 'bridge1',
           bridges: ['bridge1'],
-          srcChainId: 'solana:101',
-          destChainId: 137,
+          srcChainId: ChainId.SOLANA,
+          destChainId: ChainId.POLYGON,
           srcTokenAmount: '1000000000',
           destTokenAmount: '2000000000000000000',
           srcAsset: {
@@ -803,7 +805,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
           steps: ['step1'],
           feeData: {
-            metabridge: {
+            [FeeType.METABRIDGE]: {
               amount: '100000000',
             },
           },
@@ -854,7 +856,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         },
       } as never;
 
-      const snapResponse = {} as never;
+      const snapResponse = { result: {} } as { result: Record<string, string> };
       const snapId = 'snapId123';
       const selectedAccountAddress = 'solanaAccountAddress123';
 
